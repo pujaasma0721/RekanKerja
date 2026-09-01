@@ -11,6 +11,7 @@ export interface WageCompFull {
   includeInBasicIncome: boolean; includeInTHP: boolean; displayInPaySlip: boolean;
   applyThrRules: boolean; jamsostekBasis: string | null;
   sptReference: string | null; naturaType: string | null; wageCodeBackPay: string | null;
+  accountDebitCode: string | null; accountCreditCode: string | null;
   active: boolean;
 }
 
@@ -93,6 +94,51 @@ export interface TemplateRow {
   id: string; code: string; name: string; description: string | null; active: boolean;
   _count: { profiles: number };
   items: { id: string; sortOrder: number; wageComponent: { id: string; code: string; name: string; type: string; wageType: string } }[];
+}
+
+export interface JournalLine {
+  id: string; sequence: number; accountCode: string; accountName: string;
+  position: string; amount: number; memo: string | null; wageCode: string | null;
+}
+
+export interface JournalRow {
+  id: string; journalNo: string; journalDate: string;
+  runId: string | null; runNo: string | null; description: string | null;
+  totalDebit: number; totalCredit: number; status: string;
+  _count: { lines: number };
+}
+
+export interface MissingRunRow {
+  id: string; runNo: string; periodName: string; typeName: string; status: string;
+}
+
+export interface SptEmployee {
+  employeeId: string; employeeNo: string; employeeName: string;
+  orgUnitName: string | null; positionName: string | null;
+  npwp: string | null; hasNpwp: boolean; taxStatus: string; ptkpAnnual: number;
+  runs: number;
+  incomeRegular: number; incomeIrregular: number; incomeNonTaxable: number; incomeFinal: number;
+  brutoTaxable: number; biayaJabatan: number; iuranJstk: number;
+  neto: number; pkp: number; pph21Annual: number; taxWithheld: number; delta: number;
+}
+
+export interface SptReportData {
+  year: number;
+  employees: SptEmployee[];
+  totals: {
+    employees: number; brutoTaxable: number; biayaJabatan: number; iuranJstk: number;
+    neto: number; pph21Annual: number; taxWithheld: number; delta: number;
+  };
+  regulation: { biayaJabatanRate: number; biayaJabatanCapAnnual: number };
+}
+
+export interface RapelBreakdownRow {
+  periodCode: string; periodName: string; paid: number; expected: number; diff: number;
+}
+
+export interface EmployeeOption {
+  id: string; employeeNo: string; fullName: string;
+  orgUnitName?: string | null; positionName?: string | null;
 }
 
 // ============ LABELS ============

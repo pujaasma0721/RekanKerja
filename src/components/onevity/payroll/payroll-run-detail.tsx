@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, FileDown, Search, Receipt, BanknoteArrowDown, Users } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen } from "lucide-react";
 import { RunDetail, RunLine, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/components/onevity/payroll/payroll-types";
+import { BankExportMenu } from "@/components/onevity/payroll/bank-export-menu";
 import { cn } from "@/lib/utils";
 
 export function PayrollRunDetailPage() {
@@ -70,7 +71,7 @@ export function PayrollRunDetailPage() {
       <PageHeader
         eyebrow={`PROSES PAYROLL · ${run.period.name}`}
         title={run.runNo}
-        description={`${run.processType.name} · dibuat ${fmtDateTime(run.createdAt)}${run.calculatedAt ? ` · dihitung ${fmtDateTime(run.calculatedAt)}` : ""}`}
+        description={`${run.processType.name} · dibuat ${fmtDateTime(run.createdAt)}${run.calculatedAt ? ` · dihitung ${fmtDateTime(run.calculatedAt)}` : ""}${run.status === "Confirmed" || run.status === "Paid" ? " · jurnal terposting otomatis" : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {(run.status === "Draft" || run.status === "Calculated") && (
@@ -88,10 +89,16 @@ export function PayrollRunDetailPage() {
                 <Button onClick={() => act("markPaid")} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
                   <Wallet className="h-4 w-4" /> Tandai Dibayar
                 </Button>
-                <a href={`/api/onevity/payroll-run-export?id=${run.id}`}>
-                  <Button variant="outline" className="gap-2 font-bold"><FileDown className="h-4 w-4" /> Ekspor CSV Bank</Button>
-                </a>
+                <BankExportMenu runId={run.id} runNo={run.runNo} />
               </>
+            )}
+            {(run.status === "Confirmed" || run.status === "Paid") && (
+              <button
+                onClick={() => navigate("payroll", "journals")}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300"
+              >
+                <BookOpen className="h-4 w-4" /> Jurnal
+              </button>
             )}
             <StatusPill status={run.status} />
           </div>

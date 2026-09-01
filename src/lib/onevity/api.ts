@@ -52,9 +52,11 @@ export const fmtIDR = (n: number | null | undefined) =>
   n == null ? "—" : new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
 export const fmtIDRShort = (n: number) => {
-  if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)} M`;
-  if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1)} jt`;
-  if (n >= 1_000) return `Rp ${(n / 1_000).toFixed(0)} rb`;
+  const sign = n < 0 ? "-" : "";
+  const a = Math.abs(n);
+  if (a >= 1_000_000_000) return `Rp ${sign}${(a / 1_000_000_000).toFixed(1)} M`;
+  if (a >= 1_000_000) return `Rp ${sign}${(a / 1_000_000).toFixed(1)} jt`;
+  if (a >= 1_000) return `Rp ${sign}${(a / 1_000).toFixed(0)} rb`;
   return `Rp ${n}`;
 };
 

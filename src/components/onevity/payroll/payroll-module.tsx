@@ -1,5 +1,6 @@
 "use client";
-// OneVity — Modul Payroll: router view (Ringkasan, Periode, Proses & Hasil, Master, Transaksi, Parameter)
+// OneVity — Modul Payroll: router view (Ringkasan, Periode, Proses & Hasil, Master,
+// Transaksi, Laporan Tahunan, Parameter/Jurnal)
 import { PayrollOverview } from "@/components/onevity/payroll/payroll-overview";
 import { PayrollPeriodsPage } from "@/components/onevity/payroll/payroll-periods";
 import { PayrollRunsPage } from "@/components/onevity/payroll/payroll-runs";
@@ -10,6 +11,8 @@ import { PayrollProfilesPage } from "@/components/onevity/payroll/payroll-profil
 import { PayrollTransactionsPage } from "@/components/onevity/payroll/payroll-transactions";
 import { PayrollParametersPage } from "@/components/onevity/payroll/payroll-parameters";
 import { AccountingPage } from "@/components/onevity/payroll/accounting";
+import { PayrollSptPage } from "@/components/onevity/payroll/payroll-spt";
+import { PayrollJournalsPage } from "@/components/onevity/payroll/payroll-journals";
 
 export function PayrollModule({ view }: { view: string }) {
   switch (view) {
@@ -22,6 +25,8 @@ export function PayrollModule({ view }: { view: string }) {
     case "transactions": return <PayrollTransactionsPage />;
     case "parameters": return <PayrollParametersPage />;
     case "accounting": return <AccountingPage />;
+    case "spt": return <PayrollSptPage />;
+    case "journals": return <PayrollJournalsPage />;
     default: return <PayrollOverview />;
   }
 }

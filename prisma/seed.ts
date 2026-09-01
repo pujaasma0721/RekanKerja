@@ -495,7 +495,7 @@ async function main() {
     { code: "PPH21", name: "PPh21 (PPh Pasal 21)", type: "Deduction", wageType: "IncomeTax", calcMethod: "Tax", amount: 0, sptReference: "PPh21" },
     { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
     { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
-    { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Regular", sptReference: "Gaji" },
+    { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", sptReference: "Gaji" },
   ];
   const compIds: Record<string, string> = {};
   for (const c of compDefs) {
@@ -519,14 +519,18 @@ async function main() {
   // ============ ACCOUNTING ============
   const ag1 = await db.accountGroup.create({ data: { code: "AG-PAY", name: "Payroll Expense", accountType: "Expense" } });
   const ag2 = await db.accountGroup.create({ data: { code: "AG-LIA", name: "Payroll Liability", accountType: "Liability" } });
+  const ag3 = await db.accountGroup.create({ data: { code: "AG-CASH", name: "Kas & Bank", accountType: "Asset" } });
   await db.account.createMany({
     data: [
+      { code: "1101", name: "Kas & Bank", accountGroupId: ag3.id, balance: 0 },
       { code: "5101", name: "Gaji & Upah", accountGroupId: ag1.id, balance: 0 },
       { code: "5102", name: "Tunjangan Karyawan", accountGroupId: ag1.id, balance: 0 },
       { code: "5103", name: "BPJS Perusahaan", accountGroupId: ag1.id, balance: 0 },
       { code: "2101", name: "Hutang Gaji", accountGroupId: ag2.id, balance: 0 },
       { code: "2102", name: "Hutang PPh 21", accountGroupId: ag2.id, balance: 0 },
       { code: "2103", name: "Hutang BPJS", accountGroupId: ag2.id, balance: 0 },
+      { code: "2104", name: "Pinjaman Karyawan", accountGroupId: ag2.id, balance: 0 },
+      { code: "2105", name: "Potongan Lain-lain", accountGroupId: ag2.id, balance: 0 },
     ],
   });
   await db.postingEvent.createMany({
@@ -546,6 +550,7 @@ async function main() {
         ["BONUS", "Bonus Kinerja", 3, true],
         ["TERMINATION", "Pesangon & Final Settlement", 4, true],
         ["YEAR_END_ADJ", "Penyesuaian Akhir Tahun", 5, true],
+        ["RAPEL", "Rapel / Back-Pay", 6, true],
       ] as [string, string, number, boolean][]
     ).map(([code, name, sequence, calculateTax]) =>
       db.processType.create({ data: { code, name, sequence, calculateTax } })

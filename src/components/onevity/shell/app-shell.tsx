@@ -19,7 +19,7 @@ import {
   Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
-  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles,
+  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -89,11 +89,15 @@ const PAYROLL_NAV: NavGroup[] = [
     { id: "profiles", label: "Data Gaji Karyawan", icon: IdCard },
   ] },
   { section: "payroll", label: "Transaksi", children: [
-    { id: "transactions", label: "Pinjaman & Komponen", icon: ArrowLeftRight },
+    { id: "transactions", label: "Transaksi & Rapel", icon: ArrowLeftRight },
+  ] },
+  { section: "payroll", label: "Laporan Tahunan", children: [
+    { id: "spt", label: "SPT & Pajak (1721-A1)", icon: FileSpreadsheet },
   ] },
   { section: "payroll", label: "Parameter", children: [
     { id: "parameters", label: "Parameter Pajak", icon: Percent },
     { id: "accounting", label: "Akun & Posting", icon: Calculator },
+    { id: "journals", label: "Jurnal Payroll", icon: BookOpen },
   ] },
 ];
 

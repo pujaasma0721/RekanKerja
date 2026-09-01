@@ -1,7 +1,9 @@
 "use client";
-// OneVity Payroll — Transaksi: pinjaman karyawan (skedul cicilan) + komponen khusus/periodik
+// OneVity Payroll — Transaksi: pinjaman karyawan (skedul cicilan) + komponen
+// khusus/periodik + rapel/back-pay retroaktif lintas period (P4).
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate } from "@/lib/onevity/api";
+import { useNav } from "@/lib/onevity/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/components/onevity/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,14 +15,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeftRight, Plus, Trash2, Landmark, Coins, ChevronDown, ChevronUp } from "lucide-react";
-import { LoanRow, CompAssignmentRow, WageCompFull, PeriodRow, ProcessTypeRow } from "@/components/onevity/payroll/payroll-types";
+import { ArrowLeftRight, Plus, Trash2, Landmark, Coins, ChevronDown, ChevronUp, History, PlayCircle, Calculator } from "lucide-react";
+import { LoanRow, CompAssignmentRow, WageCompFull, PeriodRow, ProcessTypeRow, RapelBreakdownRow } from "@/components/onevity/payroll/payroll-types";
 import { cn } from "@/lib/utils";
 
 export function PayrollTransactionsPage() {
   const [tab, setTab] = useState("loans");
   const [loanDialog, setLoanDialog] = useState(false);
   const [compDialog, setCompDialog] = useState(false);
+  const [rapelDialog, setRapelDialog] = useState(false);
 
   const loansApi = useApi<{ loans: LoanRow[] }>("/api/onevity/loans");
   const compsApi = useApi<{ assignments: CompAssignmentRow[] }>("/api/onevity/component-assignments");
@@ -29,10 +32,11 @@ export function PayrollTransactionsPage() {
     <div>
       <PageHeader
         eyebrow="MODUL PAYROLL"
-        title="Pinjaman & Komponen Transaksi"
-        description="Pinjaman karyawan dengan skedul cicilan otomatis terpotong saat run dikonfirmasi, serta komponen khusus (bonus period ini) & periodik"
+        title="Transaksi Payroll"
+        description="Pinjaman karyawan dengan skedul cicilan otomatis, komponen khusus/periodik, serta rapel (back-pay) retroaktif lintas period"
         actions={
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setRapelDialog(true)} className="gap-2 font-bold"><History className="h-4 w-4 text-teal-600" /> Rapel Baru</Button>
             <Button variant="outline" onClick={() => setCompDialog(true)} className="gap-2 font-bold"><Coins className="h-4 w-4 text-amber-600" /> Komponen Baru</Button>
             <Button onClick={() => setLoanDialog(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700"><Plus className="h-4 w-4" /> Pinjaman Baru</Button>
           </div>
@@ -46,6 +50,9 @@ export function PayrollTransactionsPage() {
           </TabsTrigger>
           <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
             <Coins className="h-3.5 w-3.5" /> Komponen Khusus & Periodik ({compsApi.data?.assignments.length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <History className="h-3.5 w-3.5" /> Rapel / Back-Pay
           </TabsTrigger>
         </TabsList>
 
@@ -131,10 +138,48 @@ export function PayrollTransactionsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="rapel">
+          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <CardContent className="p-5">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md">
+                  <History className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-bold">Rapel / Back-Pay retroaktif</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    Nilai komponen naik di tengah tahun? Hitung selisih <b>dari period s.d. period</b> terhadap run gaji yang
+                    sudah dibayarkan, lalu bayarkan selisihnya sekali sebagai komponen Back Pay pada period target —
+                    pola <i>Back Pay Process</i> oranHR (fromPeriod → wageCode back pay).
+                  </p>
+                </div>
+                <Button onClick={() => setRapelDialog(true)} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                  <PlayCircle className="h-4 w-4" /> Hitung Rapel
+                </Button>
+              </div>
+              <div className="mt-4 grid gap-2 text-[11px] sm:grid-cols-3">
+                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
+                  <p className="font-bold text-stone-700 dark:text-stone-300">1 · Pilih rentang</p>
+                  <p className="text-stone-500">Karyawan + komponen (cth. gaji pokok) + nilai baru + dari–sampai period</p>
+                </div>
+                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
+                  <p className="font-bold text-stone-700 dark:text-stone-300">2 · Preview selisih</p>
+                  <p className="text-stone-500">Per period: dibayar vs seharusnya → total selisih (harus &gt; 0)</p>
+                </div>
+                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
+                  <p className="font-bold text-stone-700 dark:text-stone-300">3 · Run rapel</p>
+                  <p className="text-stone-500">Komponen RAPEL dibuat di period target, run dihitung (pajak irreguler)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <LoanDialog open={loanDialog} onClose={() => { setLoanDialog(false); loansApi.refresh(); }} />
       <CompAssignmentDialog open={compDialog} onClose={() => { setCompDialog(false); compsApi.refresh(); }} />
+      <RapelDialog open={rapelDialog} onClose={() => { setRapelDialog(false); compsApi.refresh(); }} />
     </div>
   );
 }
@@ -409,6 +454,198 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
           <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Tambah"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { navigate } = useNav();
+  const employeesApi = useApi<{ employees: { employeeId: string; fullName: string; employeeNo: string; baseSalary: number }[] }>(open ? "/api/onevity/payroll-profiles" : null);
+  const compsApi = useApi<{ components: WageCompFull[] }>(open ? "/api/onevity/wage-components" : null);
+  const periodsApi = useApi<{ periods: PeriodRow[] }>(open ? "/api/onevity/payroll-periods" : null);
+
+  const [employeeId, setEmployeeId] = useState("");
+  const [componentCode, setComponentCode] = useState("BASIC");
+  const [newAmount, setNewAmount] = useState("");
+  const [fromPeriodId, setFromPeriodId] = useState("");
+  const [toPeriodId, setToPeriodId] = useState("");
+  const [targetPeriodId, setTargetPeriodId] = useState("");
+  const [preview, setPreview] = useState<{ breakdown: RapelBreakdownRow[]; totalDiff: number; periods: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const periods = periodsApi.data?.periods ?? [];
+  const processedPeriods = periods.filter((p) => p.status === "Processed" || p.status === "Closed" || p.status === "Locked");
+  const openPeriods = periods.filter((p) => p.status === "Open");
+  const emp = (employeesApi.data?.employees ?? []).find((e) => e.employeeId === employeeId);
+
+  const doPreview = async () => {
+    if (!employeeId || !componentCode || !newAmount || !fromPeriodId || !toPeriodId || !targetPeriodId) {
+      toast.error("Lengkapi seluruh pilihan rapel"); return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiSend<{
+        breakdown: RapelBreakdownRow[]; totalDiff: number; periods: number;
+      }>("/api/onevity/payroll-rapel", "POST", {
+        employeeId, componentCode, newAmount: Number(newAmount),
+        fromPeriodId, toPeriodId, targetPeriodId, preview: true,
+      });
+      setPreview(res);
+    } catch (e) {
+      toast.error((e as Error).message);
+      setPreview(null);
+    } finally { setBusy(false); }
+  };
+
+  const doCreate = async () => {
+    setSaving(true);
+    try {
+      const res = await apiSend<{ run: { id: string; runNo: string; totalNet: number } | null; totalDiff: number; periods: number }>("/api/onevity/payroll-rapel", "POST", {
+        employeeId, componentCode, newAmount: Number(newAmount),
+        fromPeriodId, toPeriodId, targetPeriodId, autoRun: true,
+      });
+      toast.success(
+        res.run
+          ? `Run rapel ${res.run.runNo} dibuat & dihitung — selisih ${fmtIDR(res.totalDiff)} (${res.periods} period)`
+          : `Komponen rapel ${fmtIDR(res.totalDiff)} dibuat di period target`
+      );
+      setPreview(null); setEmployeeId(""); setNewAmount(""); setFromPeriodId(""); setToPeriodId(""); setTargetPeriodId("");
+      onClose();
+      if (res.run) navigate("payroll", "run", { id: res.run.id });
+    } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setPreview(null); onClose(); } }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4 text-teal-600" /> Rapel / Back-Pay</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Karyawan *</Label>
+              <Select value={employeeId} onValueChange={(v) => { setEmployeeId(v); setPreview(null); }}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                <SelectContent className="max-h-52">
+                  {(employeesApi.data?.employees ?? []).map((e) => (
+                    <SelectItem key={e.employeeId} value={e.employeeId}>{e.employeeNo} — {e.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Komponen yang naik *</Label>
+              <Select value={componentCode} onValueChange={(v) => { setComponentCode(v); setPreview(null); }}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-52">
+                  {(compsApi.data?.components ?? []).filter((c) => c.type === "Earning").map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Label className="text-xs">Nilai Baru / Bulan (Rp) *</Label>
+              <Input
+                type="number" value={newAmount}
+                onChange={(e) => { setNewAmount(e.target.value); setPreview(null); }}
+                placeholder={emp ? String(emp.baseSalary) : "cth: 6500000"}
+                className="mt-1.5 font-mono"
+              />
+              {emp && <p className="mt-1 text-[10px] text-stone-400">Nilai sekarang: {fmtIDR(emp.baseSalary)}/bln</p>}
+            </div>
+            <div>
+              <Label className="text-xs">Dibayar di *</Label>
+              <Select value={targetPeriodId} onValueChange={(v) => { setTargetPeriodId(v); setPreview(null); }}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="period target" /></SelectTrigger>
+                <SelectContent>
+                  {(openPeriods.length ? openPeriods : periods).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Rapel Dari Period *</Label>
+              <Select value={fromPeriodId} onValueChange={(v) => { setFromPeriodId(v); setPreview(null); }}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="period awal" /></SelectTrigger>
+                <SelectContent className="max-h-52">
+                  {processedPeriods.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Sampai Period *</Label>
+              <Select value={toPeriodId} onValueChange={(v) => { setToPeriodId(v); setPreview(null); }}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="period akhir" /></SelectTrigger>
+                <SelectContent className="max-h-52">
+                  {processedPeriods.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {preview && (
+            <div className="overflow-hidden rounded-xl border border-teal-200 dark:border-teal-500/30">
+              <div className="flex items-center justify-between bg-teal-50 px-3.5 py-2.5 dark:bg-teal-500/10">
+                <p className="text-[11px] font-bold text-teal-700 dark:text-teal-400">
+                  Selisih rapel — {preview.periods} period · {componentCode}
+                </p>
+                <p className="text-sm font-extrabold text-teal-700 dark:text-teal-400">{fmtIDR(preview.totalDiff)}</p>
+              </div>
+              <div className="max-h-44 overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-stone-50 dark:bg-stone-900">
+                    <TableRow>
+                      <TableHead className="text-[10px] font-bold">Period</TableHead>
+                      <TableHead className="text-right text-[10px] font-bold">Dibayar</TableHead>
+                      <TableHead className="text-right text-[10px] font-bold">Seharusnya</TableHead>
+                      <TableHead className="text-right text-[10px] font-bold">Selisih</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {preview.breakdown.map((b) => (
+                      <TableRow key={b.periodCode}>
+                        <TableCell className="text-[11px] font-semibold">{b.periodName}</TableCell>
+                        <TableCell className="text-right text-[11px] text-stone-500">{fmtIDR(b.paid)}</TableCell>
+                        <TableCell className="text-right text-[11px]">{fmtIDR(b.expected)}</TableCell>
+                        <TableCell className="text-right text-[11px] font-bold text-emerald-700 dark:text-emerald-400">+{fmtIDR(b.diff)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+            Selisih dibayarkan sekali sebagai komponen <b>RAPEL (Back Pay)</b> pada period target dengan pajak <b>irreguler</b>.
+            Prorata per period diabaikan — hanya period yang run gajinya sudah final yang dihitung.
+          </p>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Batal</Button>
+          {!preview ? (
+            <Button onClick={doPreview} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+              <Calculator className="h-4 w-4" />{busy ? "Menghitung…" : "Preview Selisih"}
+            </Button>
+          ) : (
+            <Button onClick={doCreate} disabled={saving} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+              <PlayCircle className="h-4 w-4" />{saving ? "Membuat run…" : `Buat Run Rapel · ${fmtIDR(preview.totalDiff)}`}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

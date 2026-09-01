@@ -181,6 +181,8 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
   const [prorated, setProrated] = useState(false);
   const [includeInTHP, setIncludeInTHP] = useState(true);
   const [displayInPaySlip, setDisplayInPaySlip] = useState(true);
+  const [accountDebitCode, setAccountDebitCode] = useState("");
+  const [accountCreditCode, setAccountCreditCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState("");
 
@@ -198,6 +200,8 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
     setProrated(comp?.prorated ?? false);
     setIncludeInTHP(comp?.includeInTHP ?? true);
     setDisplayInPaySlip(comp?.displayInPaySlip ?? true);
+    setAccountDebitCode(comp?.accountDebitCode ?? "");
+    setAccountCreditCode(comp?.accountCreditCode ?? "");
   }
 
   const submit = async () => {
@@ -209,6 +213,8 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
       amount: Number(amount) || 0,
       formula: calcMethod === "Formula" ? formula.trim().toUpperCase() : null,
       incomeTaxMethod, prorated, includeInTHP, displayInPaySlip,
+      accountDebitCode: accountDebitCode.trim() || null,
+      accountCreditCode: accountCreditCode.trim() || null,
     };
     try {
       if (comp) {
@@ -297,6 +303,18 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+          {type === "Earning" && (
+            <div>
+              <Label className="text-xs">Akun Beban (D)</Label>
+              <Input value={accountDebitCode} onChange={(e) => setAccountDebitCode(e.target.value)} placeholder="default 5101/5102/5103" className="mt-1.5 font-mono" />
+            </div>
+          )}
+          {type === "Deduction" && (
+            <div>
+              <Label className="text-xs">Akun Kewajiban (C)</Label>
+              <Input value={accountCreditCode} onChange={(e) => setAccountCreditCode(e.target.value)} placeholder="default 2102/2103/2104" className="mt-1.5 font-mono" />
             </div>
           )}
           <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">

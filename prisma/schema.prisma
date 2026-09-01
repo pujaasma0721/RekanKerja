@@ -296,6 +296,8 @@ model WageComponent {
   sptReference     String? // kategori bukti potong 1721-A1
   naturaType       String? // kategori natura PP 68/2024
   wageCodeBackPay  String? // pasangan komponen back-pay
+  accountDebitCode  String? // Salary Chart of Account: akun beban utk komponen Earning
+  accountCreditCode String? // Salary Chart of Account: akun kewajiban utk komponen Deduction
   validFrom   DateTime @default(now())
   validTo     DateTime?
   active      Boolean  @default(true)
@@ -555,6 +557,39 @@ model EmployeeComponentAssignment {
   wageComponent  WageComponent  @relation(fields: [wageComponentId], references: [id])
   period         PayrollPeriod? @relation(fields: [periodId], references: [id])
   processType    ProcessType?   @relation(fields: [processTypeId], references: [id])
+}
+
+// ============ PAYROLL JURNAL (P4 — Posting Otomatis) ============
+// Jurnal payroll — di-generate otomatis saat run dikonfirmasi (pattern "Transfer to
+// Accounting" oranHR: Journal No/Type/Date tercatat pada wage transaction).
+model PayrollJournal {
+  id          String   @id @default(cuid())
+  journalNo   String   @unique // JV-2026-001
+  journalDate DateTime
+  runId       String?  @unique // 1-1 dengan PayrollRun
+  runNo       String?
+  description String?
+  totalDebit  Float    @default(0)
+  totalCredit Float    @default(0)
+  status      String   @default("Posted") // Posted|Reversed
+  createdAt   DateTime @default(now())
+
+  lines PayrollJournalLine[]
+}
+
+// Baris jurnal — snapshot kode/nama akun & nominal saat posting.
+model PayrollJournalLine {
+  id          String   @id @default(cuid())
+  journalId   String
+  sequence    Int
+  accountCode String
+  accountName String
+  position    String // Debit|Credit
+  amount      Float
+  memo        String?
+  wageCode    String? // komponen asal (Salary Chart of Account)
+
+  journal PayrollJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
 }
 
 model AccountGroup {

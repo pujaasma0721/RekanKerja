@@ -6,6 +6,7 @@ import {
   runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
   EngineTer, EngineRegulation, EngineRunResult,
 } from "@/lib/onevity/payroll-engine";
+import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
 
 export async function getActiveRegulation(): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
@@ -340,6 +341,19 @@ export async function confirmRun(runId: string): Promise<void> {
   await db.activityLog.create({
     data: { action: "Confirmed", entity: "PayrollRun", entityId: runId, detail: `Run ${run.runNo} dikonfirmasi (${run.employeeCount} karyawan)` },
   });
+
+  // Posting jurnal otomatis (P4) — idempotent; hasil run sudah dikunci aman.
+  try {
+    const journal = await generateJournalForRun(runId);
+    await db.activityLog.create({
+      data: { action: "Posted", entity: "PayrollRun", entityId: runId, detail: `Jurnal ${journal.journalNo} otomatis dibuat dari run ${run.runNo}` },
+    });
+  } catch (e) {
+    // Posting gagal tidak boleh membatalkan konfirmasi — catat & bisa di-backfill manual.
+    await db.activityLog.create({
+      data: { action: "Error", entity: "PayrollRun", entityId: runId, detail: `Gagal posting jurnal: ${e instanceof Error ? e.message : "unknown"}` },
+    });
+  }
 }
 
 // Generate nomor run: PR-{period.code}-{typeCode3}-{seq}

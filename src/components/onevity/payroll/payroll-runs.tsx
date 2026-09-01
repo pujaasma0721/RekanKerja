@@ -15,8 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, FileDown, Play, ChevronRight, Receipt } from "lucide-react";
+import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt } from "lucide-react";
 import { PeriodRow, ProcessTypeRow, RunRow } from "@/components/onevity/payroll/payroll-types";
+import { BankExportMenu } from "@/components/onevity/payroll/bank-export-menu";
 import { cn } from "@/lib/utils";
 
 export function PayrollRunsPage() {
@@ -145,9 +146,7 @@ export function PayrollRunsPage() {
                           {r.status === "Confirmed" && (
                             <>
                               <RunActionButton icon={Wallet} label="Dibayar" tone="teal" disabled={busyId === r.id} onClick={() => act(r, "markPaid")} />
-                              <a href={`/api/onevity/payroll-run-export?id=${r.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300">
-                                <FileDown className="h-3 w-3" /> CSV
-                              </a>
+                              <BankExportMenu runId={r.id} runNo={r.runNo} compact />
                             </>
                           )}
                           {(r.status === "Draft" || r.status === "Calculated") && (

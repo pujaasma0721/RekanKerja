@@ -1,13 +1,15 @@
 "use client";
-// OneVity Payroll — Akun & Posting (dipindah dari payroll-module lama)
+// OneVity Payroll — Akun & Posting (COA + event posting + pintu ke Jurnal Payroll)
 import { useState } from "react";
 import { useApi } from "@/lib/onevity/api";
+import { useNav } from "@/lib/onevity/store";
 import { PageHeader, StatusPill, LoadingRows } from "@/components/onevity/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Landmark, ArrowLeftRight, BookOpen } from "lucide-react";
+import { Landmark, ArrowLeftRight, BookOpen, ChevronRight } from "lucide-react";
 
 interface AccountData {
   groups: { id: string; code: string; name: string; accountType: string; accountCount: number }[];
@@ -15,9 +17,18 @@ interface AccountData {
   postings: { id: string; code: string; name: string; trigger: string; active: boolean }[];
 }
 
+interface JournalSummary {
+  journals: { id: string; journalNo: string; journalDate: string; runNo: string | null; totalDebit: number; status: string; _count: { lines: number } }[];
+  missingRuns: { id: string; runNo: string; periodName: string; typeName: string }[];
+}
+
 export function AccountingPage() {
+  const { navigate } = useNav();
   const { data, loading } = useApi<AccountData>("/api/onevity/accounts");
+  const journalsApi = useApi<JournalSummary>("/api/onevity/payroll-journals");
   const [tab, setTab] = useState("accounts");
+  const journals = journalsApi.data?.journals ?? [];
+  const missing = journalsApi.data?.missingRuns ?? [];
 
   return (
     <div>
@@ -39,7 +50,7 @@ export function AccountingPage() {
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Event Posting ({data?.postings.length ?? 0})
               </TabsTrigger>
               <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
-                <BookOpen className="h-3.5 w-3.5" /> Preview Jurnal
+                <BookOpen className="h-3.5 w-3.5" /> Jurnal Payroll ({journals.length})
               </TabsTrigger>
             </TabsList>
 
@@ -112,35 +123,45 @@ export function AccountingPage() {
             <TabsContent value="journal">
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold"><BookOpen className="h-4 w-4 text-emerald-600" /> Preview Jurnal — Post Monthly Payroll (Ilustrasi)</CardTitle>
-                  <p className="text-[11px] text-stone-400">Struktur jurnal gaji bulanan berdasarkan master akun</p>
+                  <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
+                    <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-emerald-600" /> Jurnal Payroll Terposting ({journals.length})</span>
+                    <Button variant="outline" size="sm" onClick={() => navigate("payroll", "journals")} className="gap-1.5 font-bold">
+                      Buka Jurnal Payroll <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </CardTitle>
+                  <p className="text-[11px] text-stone-400">
+                    Posting otomatis saat run dikonfirmasi{missing.length > 0 ? ` · ${missing.length} run menunggu backfill` : ""}
+                  </p>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                          <TableHead className="text-[11px] font-bold">Akun</TableHead>
-                          <TableHead className="text-[11px] font-bold">Nama</TableHead>
-                          <TableHead className="text-right text-[11px] font-bold">Debit</TableHead>
-                          <TableHead className="text-right text-[11px] font-bold">Kredit</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <JournalRow code="5101" name="Gaji & Upah" debit="Rp 462.000.000" />
-                        <JournalRow code="5102" name="Tunjangan Karyawan" debit="Rp 85.500.000" />
-                        <JournalRow code="5103" name="BPJS Perusahaan" debit="Rp 52.000.000" />
-                        <JournalRow code="2101" name="Hutang Gaji" credit="Rp 462.000.000" />
-                        <JournalRow code="2102" name="Hutang PPh 21" credit="Rp 38.500.000" />
-                        <JournalRow code="2103" name="Hutang BPJS" credit="Rp 99.000.000" />
-                        <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                          <TableCell colSpan={2} className="text-xs font-bold uppercase tracking-wide text-stone-500">Total (Balance ✓)</TableCell>
-                          <TableCell className="text-right text-xs font-extrabold">Rp 599.500.000</TableCell>
-                          <TableCell className="text-right text-xs font-extrabold">Rp 599.500.000</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+                  {journals.length === 0 ? (
+                    <div className="rounded-xl bg-stone-50 px-4 py-6 text-center text-xs text-stone-400 dark:bg-stone-900">
+                      Belum ada jurnal — konfirmasi run payroll atau buka menu Jurnal Payroll untuk backfill.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                            <TableHead className="text-[11px] font-bold">Jurnal</TableHead>
+                            <TableHead className="text-[11px] font-bold">Sumber Run</TableHead>
+                            <TableHead className="text-center text-[11px] font-bold">Baris</TableHead>
+                            <TableHead className="text-right text-[11px] font-bold">Debit = Kredit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {journals.slice(0, 5).map((j) => (
+                            <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "journals")}>
+                              <TableCell className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{j.journalNo}</TableCell>
+                              <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
+                              <TableCell className="text-center text-xs">{j._count.lines}</TableCell>
+                              <TableCell className="text-right text-xs font-bold">{fmtIDRLite(j.totalDebit)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -151,13 +172,6 @@ export function AccountingPage() {
   );
 }
 
-function JournalRow({ code, name, debit, credit }: { code: string; name: string; debit?: string; credit?: string }) {
-  return (
-    <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-      <TableCell className="font-mono text-[11px] font-bold text-stone-500">{code}</TableCell>
-      <TableCell className="text-[13px]">{name}</TableCell>
-      <TableCell className="text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">{debit ?? ""}</TableCell>
-      <TableCell className="text-right text-xs font-semibold text-rose-600 dark:text-rose-400">{credit ?? ""}</TableCell>
-    </TableRow>
-  );
+function fmtIDRLite(n: number) {
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }

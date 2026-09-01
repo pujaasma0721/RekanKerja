@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
         sptReference: b.sptReference ?? null,
         naturaType: b.naturaType ?? null,
         wageCodeBackPay: b.wageCodeBackPay ?? null,
+        accountDebitCode: b.accountDebitCode || null,
+        accountCreditCode: b.accountCreditCode || null,
       },
     });
     await db.activityLog.create({ data: { action: "Created", entity: "WageComponent", entityId: comp.id, detail: `Komponen upah ${comp.name} (${comp.wageType}) dibuat` } });
@@ -89,6 +91,8 @@ export async function PATCH(req: NextRequest) {
         sptReference: b.sptReference,
         naturaType: b.naturaType,
         wageCodeBackPay: b.wageCodeBackPay,
+        accountDebitCode: b.accountDebitCode === undefined ? undefined : b.accountDebitCode || null,
+        accountCreditCode: b.accountCreditCode === undefined ? undefined : b.accountCreditCode || null,
         active: b.active,
       },
     });
