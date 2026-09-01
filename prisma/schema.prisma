@@ -48,7 +48,7 @@ model OrgUnit {
   children OrgUnit[] @relation("OrgTree")
   company  Company   @relation(fields: [companyId], references: [id])
   positions Position[]
-  employees Employee[]
+  assignments EmployeeAssignment[]
 }
 
 // ============ POSITION DEFINITION ============
@@ -75,7 +75,7 @@ model Grade {
   active    Boolean  @default(true)
 
   positions  Position[]
-  employees  Employee[]
+  assignments EmployeeAssignment[]
 }
 
 model Position {
@@ -97,11 +97,14 @@ model Position {
   grade     Grade?    @relation(fields: [gradeId], references: [id])
   reportsTo Position? @relation("PositionTree", fields: [reportsToId], references: [id])
   directReports Position[] @relation("PositionTree")
-  employees Employee[]
+  assignments EmployeeAssignment[]
 }
 
 // ============ EMPLOYEE INFORMATION ============
 
+// Employee menyimpan data personal + lifecycle kepegawaan (joinDate/status).
+// Seluruh data penempatan kerja (unit/posisi/grade/atasan/upah) disimpan di
+// EmployeeAssignment sebagai riwayat berperiode — assignment aktif = validTo null.
 model Employee {
   id            String   @id @default(cuid())
   employeeNo    String   @unique
@@ -124,27 +127,15 @@ model Employee {
   bankName      String?
   bankAccount   String?
 
-  // working info
+  // lifecycle kepegawaian (bukan riwayat penempatan)
   companyId     String
-  orgUnitId     String?
-  positionId    String?
-  gradeId       String?
-  employmentStatus String @default("Permanent") // Permanent|Contract|Probation|Outsourcing
   joinDate      DateTime @default(now())
   endDate       DateTime?
-  managerId     String?
-  baseSalary    Float    @default(0)
-  workShift     String   @default("Regular")
   status        String   @default("Active") // Active|Resigned|Terminated|Blacklisted
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   company   Company   @relation(fields: [companyId], references: [id])
-  orgUnit   OrgUnit?  @relation(fields: [orgUnitId], references: [id])
-  position  Position? @relation(fields: [positionId], references: [id])
-  grade     Grade?    @relation(fields: [gradeId], references: [id])
-  manager   Employee? @relation("ManagerTree", fields: [managerId], references: [id])
-  directReports Employee[] @relation("ManagerTree")
 
   family       EmployeeFamily[]
   education    EmployeeEducation[]
@@ -152,6 +143,38 @@ model Employee {
   disciplinary DisciplinaryRecord[]
   actions      PersonnelAction[]
   activities   ActivityLog[]
+  assignments  EmployeeAssignment[]
+  managedAssignments EmployeeAssignment[] @relation("AssignmentManager")
+}
+
+// Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
+// menutup assignment lama (validTo) dan membuka assignment baru (validFrom).
+model EmployeeAssignment {
+  id              String    @id @default(cuid())
+  employeeId      String
+  orgUnitId       String?
+  positionId      String?
+  gradeId         String?
+  managerId       String?
+  employmentStatus String   @default("Permanent") // Permanent|Contract|Probation|Outsourcing
+  workShift       String    @default("Regular")
+  baseSalary      Float     @default(0)
+  validFrom       DateTime  @default(now())
+  validTo         DateTime? // null = penempatan aktif saat ini
+  changeReason    String    @default("Initial") // Initial|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ChangeStatus|ContractRenewal|ExtendProbation|ManualEdit
+  sourceDocNo     String?   // PersonnelAction docNo (jika perubahan via PA)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgUnit  OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  position Position? @relation(fields: [positionId], references: [id])
+  grade    Grade?    @relation(fields: [gradeId], references: [id])
+  manager  Employee? @relation("AssignmentManager", fields: [managerId], references: [id])
+
+  @@index([employeeId, validTo])
+  @@index([validTo])
 }
 
 model EmployeeFamily {

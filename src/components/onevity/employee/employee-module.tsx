@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
-  Landmark, Banknote, Clock3,
+  Landmark, Banknote, Clock3, ArrowRight, Building2, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,24 @@ export function EmployeeModule({ view }: { view: string }) {
 }
 
 // ================= DETAIL =================
+// Riwayat penempatan kerja (EmployeeAssignment)
+interface AssignmentHistory {
+  id: string;
+  validFrom: string;
+  validTo: string | null;
+  changeReason: string;
+  changeReasonLabel: string;
+  sourceDocNo: string | null;
+  notes: string | null;
+  employmentStatus: string;
+  workShift: string;
+  baseSalary: number;
+  orgUnit: { name: string; code: string } | null;
+  position: { title: string; code: string } | null;
+  grade: { code: string; name: string } | null;
+  managerName: string | null;
+}
+
 interface DetailEmp {
   id: string; employeeNo: string; fullName: string; gender: string;
   birthPlace: string | null; birthDate: string | null;
@@ -50,6 +68,7 @@ interface DetailEmp {
   education: { id: string; level: string; institution: string; major: string | null; startYear: number | null; endYear: number | null; gpa: number | null }[];
   experiences: { id: string; company: string; position: string; startDate: string | null; endDate: string | null; notes: string | null }[];
   disciplinary: { id: string; warningLevel: string; violation: string; sanction: string | null; issuedAt: string; expiresAt: string | null; notes: string | null }[];
+  assignments: AssignmentHistory[];
 }
 
 function EmployeeDetail() {
@@ -124,6 +143,7 @@ function EmployeeDetail() {
           ] as const).map(([id, label, Icon]) => (
             <TabsTrigger key={id} value={id} className="gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
               <Icon className="h-3.5 w-3.5" /> {label}
+              {id === "work" && e.assignments.length > 1 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.assignments.length}</Badge>}
               {id === "family" && e.family.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.family.length}</Badge>}
               {id === "education" && e.education.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.education.length}</Badge>}
               {id === "discipline" && e.disciplinary.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.disciplinary.length}</Badge>}
@@ -154,31 +174,35 @@ function EmployeeDetail() {
 
         <TabsContent value="work">
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
-              <CardContent className="p-6">
-                <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                  <InfoItem icon={Briefcase} label="Posisi" value={e.position?.title ?? "—"} />
-                  <InfoItem icon={Users} label="Unit Organisasi" value={e.orgUnit?.name ?? "—"} />
-                  <InfoItem icon={GraduationCap} label="Grade" value={e.grade ? `${e.grade.code} — ${e.grade.name}` : "—"} />
-                  <InfoItem icon={Clock3} label="Status Kepegawaian" value={e.employmentStatus} />
-                  <InfoItem icon={Calendar} label="Tanggal Masuk" value={fmtDateLong(e.joinDate)} />
-                  {e.endDate && <InfoItem icon={Calendar} label="Tanggal Keluar" value={fmtDateLong(e.endDate)} />}
-                  <InfoItem icon={Clock3} label="Jadwal Kerja" value={e.workShift} />
-                  <InfoItem icon={Banknote} label="Gaji Pokok" value={fmtIDR(e.baseSalary)} />
-                  {e.grade && (
-                    <div className="sm:col-span-2">
-                      <InfoItem icon={GraduationCap} label="Rentang Grade" value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
-                      <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                        <div className="absolute inset-y-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{
-                          left: `${Math.max((e.baseSalary - e.grade.minSalary) / (e.grade.maxSalary - e.grade.minSalary || 1) * 100, 2)}%`,
-                          width: "14%",
-                        }} />
+            <div className="space-y-4 lg:col-span-2">
+              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+                <CardContent className="p-6">
+                  <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">Penempatan Saat Ini</p>
+                  <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                    <InfoItem icon={Briefcase} label="Posisi" value={e.position?.title ?? "—"} />
+                    <InfoItem icon={Users} label="Unit Organisasi" value={e.orgUnit?.name ?? "—"} />
+                    <InfoItem icon={GraduationCap} label="Grade" value={e.grade ? `${e.grade.code} — ${e.grade.name}` : "—"} />
+                    <InfoItem icon={Clock3} label="Status Kepegawaian" value={e.employmentStatus} />
+                    <InfoItem icon={Calendar} label="Tanggal Masuk" value={fmtDateLong(e.joinDate)} />
+                    {e.endDate && <InfoItem icon={Calendar} label="Tanggal Keluar" value={fmtDateLong(e.endDate)} />}
+                    <InfoItem icon={Clock3} label="Jadwal Kerja" value={e.workShift} />
+                    <InfoItem icon={Banknote} label="Gaji Pokok" value={fmtIDR(e.baseSalary)} />
+                    {e.grade && (
+                      <div className="sm:col-span-2">
+                        <InfoItem icon={GraduationCap} label="Rentang Grade" value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
+                        <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                          <div className="absolute inset-y-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{
+                            left: `${Math.max((e.baseSalary - e.grade.minSalary) / (e.grade.maxSalary - e.grade.minSalary || 1) * 100, 2)}%`,
+                            width: "14%",
+                          }} />
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              <AssignmentTimeline assignments={e.assignments} />
+            </div>
             <div className="space-y-4">
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="pb-2">
@@ -305,6 +329,113 @@ function EmployeeDetail() {
 
       <EditEmployeeDialog open={editOpen} setOpen={(v) => { setEditOpen(v); if (!v) refresh(); }} employee={e} />
     </div>
+  );
+}
+
+// ================= TIMELINE RIWAYAT PEKERJAAN =================
+const REASON_TONE: Record<string, string> = {
+  Initial: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  Promotion: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
+  Demotion: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25",
+  Transfer: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25",
+  Mutation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
+  SalaryAdjustment: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
+  ChangeStatus: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  ContractRenewal: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
+  ExtendProbation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
+  ManualEdit: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+};
+
+function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] }) {
+  if (assignments.length === 0) return null;
+  const period = (a: AssignmentHistory) =>
+    a.validTo ? `${fmtDate(a.validFrom)} — ${fmtDate(a.validTo)}` : `${fmtDate(a.validFrom)} — sekarang`;
+
+  // deteksi field yang berubah dibanding periode sebelumnya (lebih tua)
+  const diffChips = (idx: number): string[] => {
+    const cur = assignments[idx]!;
+    const prev = assignments[idx + 1];
+    if (!prev) return [];
+    const chips: string[] = [];
+    if (cur.position?.title !== prev.position?.title) chips.push("Posisi");
+    if (cur.orgUnit?.name !== prev.orgUnit?.name) chips.push("Unit");
+    if (cur.grade?.code !== prev.grade?.code) chips.push("Grade");
+    if (cur.employmentStatus !== prev.employmentStatus) chips.push("Status");
+    if (cur.workShift !== prev.workShift) chips.push("Shift");
+    if (cur.baseSalary !== prev.baseSalary) chips.push("Upah");
+    if (cur.managerName !== prev.managerName) chips.push("Atasan");
+    return chips;
+  };
+
+  return (
+    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold">
+          <History className="h-4 w-4 text-emerald-600" /> Riwayat Pekerjaan
+          <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{assignments.length} periode</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-5 dark:border-stone-800">
+          {assignments.map((a, i) => {
+            const active = a.validTo === null;
+            const chips = diffChips(i);
+            return (
+              <li key={a.id} className="relative pb-5 last:pb-0">
+                {/* titik timeline */}
+                <span className={cn(
+                  "absolute -left-[27px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ring-4",
+                  active
+                    ? "border-emerald-600 bg-emerald-500 ring-emerald-500/15"
+                    : "border-stone-300 bg-white ring-white dark:border-stone-600 dark:bg-stone-900 dark:ring-stone-900",
+                )} />
+                <div className={cn(
+                  "rounded-xl border p-3.5 transition",
+                  active
+                    ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5"
+                    : "border-stone-200/80 bg-white hover:border-stone-300 dark:border-stone-800 dark:bg-transparent dark:hover:border-stone-700",
+                )}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold", REASON_TONE[a.changeReason] ?? REASON_TONE.Initial)}>
+                      {a.changeReasonLabel ?? a.changeReason}
+                    </span>
+                    <span className={cn("text-[11px] font-bold", active ? "text-emerald-700 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400")}>{period(a)}</span>
+                    {active && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-extrabold tracking-wide text-white">SAAT INI</span>}
+                    {a.sourceDocNo && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-stone-400" title="Dokumen sumber">
+                        <FileText className="h-3 w-3" /> {a.sourceDocNo}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-stone-800 dark:text-stone-200">
+                    {a.position?.title ?? "—"}
+                    <span className="font-normal text-stone-400"> · {a.orgUnit?.name ?? "—"}</span>
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500 dark:text-stone-400">
+                    <span className="inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" /> {a.grade ? `Grade ${a.grade.code}` : "—"}</span>
+                    <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {a.employmentStatus}</span>
+                    <span className="inline-flex items-center gap-1"><Banknote className="h-3 w-3" /> {fmtIDR(a.baseSalary)}</span>
+                    {a.managerName && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> Atasan: {a.managerName}</span>}
+                    {a.workShift !== "Regular" && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" /> {a.workShift}</span>}
+                  </div>
+                  {chips.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-stone-400">Berubah:</span>
+                      {chips.map((c) => (
+                        <span key={c} className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                          <ArrowRight className="h-2.5 w-2.5" /> {c}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {a.notes && <p className="mt-2 text-[11px] italic text-stone-400">{a.notes}</p>}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </CardContent>
+    </Card>
   );
 }
 

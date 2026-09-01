@@ -31,12 +31,19 @@ export async function GET() {
       }),
       db.employee.findMany({
         select: {
-          id: true, employeeNo: true, fullName: true, gender: true, status: true,
-          employmentStatus: true, joinDate: true, baseSalary: true,
-          positionId: true, position: { select: { id: true, code: true, title: true } },
-          grade: { select: { code: true } },
-          orgUnitId: true, orgUnit: { select: { id: true, name: true } },
-          managerId: true,
+          id: true, employeeNo: true, fullName: true, gender: true, status: true, joinDate: true,
+          // data pekerjaan saat ini dari assignment aktif
+          assignments: {
+            where: { validTo: null },
+            orderBy: { validFrom: "desc" },
+            take: 1,
+            select: {
+              employmentStatus: true, baseSalary: true, managerId: true,
+              positionId: true, position: { select: { id: true, code: true, title: true } },
+              grade: { select: { code: true } },
+              orgUnitId: true, orgUnit: { select: { id: true, name: true } },
+            },
+          },
         },
       }),
       db.disciplinaryRecord.findMany({ select: { employeeId: true } }),
@@ -53,8 +60,21 @@ export async function GET() {
     const actCount = new Map<string, number>();
     for (const a of activeActions) actCount.set(a.employeeId, (actCount.get(a.employeeId) ?? 0) + 1);
 
-    // ---- people (active only — current org) ----
-    const active = employees.filter((e) => e.status === "Active");
+    // ---- people (active only — current org, data dari assignment aktif) ----
+    const active = employees.map((e) => {
+      const cur = e.assignments[0] ?? null;
+      return {
+        id: e.id, employeeNo: e.employeeNo, fullName: e.fullName, gender: e.gender, status: e.status, joinDate: e.joinDate,
+        employmentStatus: cur?.employmentStatus ?? "—",
+        baseSalary: cur?.baseSalary ?? 0,
+        positionId: cur?.positionId ?? null,
+        position: cur?.position ?? null,
+        grade: cur?.grade ?? null,
+        orgUnitId: cur?.orgUnitId ?? null,
+        orgUnit: cur?.orgUnit ?? null,
+        managerId: cur?.managerId ?? null,
+      };
+    }).filter((e) => e.status === "Active");
     const people = active.map((e) => ({
       id: e.id,
       employeeNo: e.employeeNo,

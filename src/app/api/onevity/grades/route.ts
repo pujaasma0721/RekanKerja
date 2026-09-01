@@ -4,14 +4,14 @@ import { db } from "@/lib/db";
 export async function GET() {
   try {
     const grades = await db.grade.findMany({
-      include: { _count: { select: { employees: true, positions: true } } },
+      include: { _count: { select: { assignments: { where: { validTo: null } }, positions: true } } },
       orderBy: { sortOrder: "asc" },
     });
     return NextResponse.json({
       grades: grades.map((g) => ({
         id: g.id, code: g.code, name: g.name, minSalary: g.minSalary, maxSalary: g.maxSalary,
         sortOrder: g.sortOrder, active: g.active,
-        employeeCount: g._count.employees, positionCount: g._count.positions,
+        employeeCount: g._count.assignments, positionCount: g._count.positions,
       })),
     });
   } catch (e) {
@@ -63,7 +63,7 @@ export async function DELETE(req: NextRequest) {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const [emp, pos] = await Promise.all([
-      db.employee.count({ where: { gradeId: id } }),
+      db.employeeAssignment.count({ where: { validTo: null, gradeId: id } }),
       db.position.count({ where: { gradeId: id } }),
     ]);
     if (emp > 0 || pos > 0) return NextResponse.json({ error: `Grade masih dipakai (${emp} karyawan, ${pos} posisi)` }, { status: 400 });

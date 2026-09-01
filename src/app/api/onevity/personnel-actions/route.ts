@@ -29,7 +29,18 @@ export async function GET(req: NextRequest) {
       db.personnelAction.findMany({
         where,
         include: {
-          employee: { select: { id: true, fullName: true, employeeNo: true, position: { select: { title: true } }, orgUnit: { select: { name: true } } } },
+          employee: {
+            select: {
+              id: true, fullName: true, employeeNo: true,
+              // posisi/unit saat ini dari assignment aktif
+              assignments: {
+                where: { validTo: null },
+                orderBy: { validFrom: "desc" },
+                take: 1,
+                include: { position: { select: { title: true } }, orgUnit: { select: { name: true } } },
+              },
+            },
+          },
           layers: { orderBy: { layerNo: "asc" }, include: { approver: { select: { fullName: true, role: true } } } },
         },
         orderBy: { createdAt: "desc" },
@@ -37,11 +48,18 @@ export async function GET(req: NextRequest) {
       db.personnelAction.groupBy({ by: ["status"], _count: true }),
     ]);
 
+    // flatten assignment aktif → bentuk lama (position/orgUnit)
+    const actionsWithFlat = actionsRaw.map((a) => {
+      const cur = a.employee.assignments[0] ?? null;
+      const { assignments: _a, ...emp } = a.employee as typeof a.employee & { assignments?: unknown[] };
+      return { ...a, employee: { ...emp, position: cur?.position ?? null, orgUnit: cur?.orgUnit ?? null } };
+    });
+
     // filter: my inbox = only docs where current pending layer belongs to me (or I can act on it)
-    let actions = actionsRaw;
+    let actions = actionsWithFlat;
     if (sp.get("mine") === "1") {
       const me = await db.appUser.findFirst({ where: { username: "MII000001" } });
-      actions = actionsRaw.filter((a) => {
+      actions = actionsWithFlat.filter((a) => {
         const pending = a.layers.find((l) => l.status === "Pending");
         if (!pending) return false;
         if (me && pending.approverId === me.id) return true;

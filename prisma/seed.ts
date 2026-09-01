@@ -230,15 +230,25 @@ async function main() {
         bankName: pick(["BCA", "Mandiri", "BNI", "BRI"]),
         bankAccount: String(randInt(100000000, 999999999)),
         companyId: company.id,
+        joinDate,
+        status: opts.status ?? "Active",
+      },
+    });
+    // penempatan awal → riwayat pekerjaan (EmployeeAssignment)
+    await db.employeeAssignment.create({
+      data: {
+        employeeId: e.id,
         orgUnitId: positions[posCode] ? (await db.position.findUnique({ where: { id: positions[posCode] } }))?.orgUnitId : null,
         positionId: positions[posCode] ?? null,
         gradeId: grades[gradeCode] ?? null,
         employmentStatus: opts.empStatus ?? "Permanent",
-        joinDate,
         managerId: opts.manager ?? null,
         baseSalary: salaryOf(gradeCode),
         workShift: posCode === "P-OPR" ? pick(["Shift 1", "Shift 2", "Shift 3"]) : "Regular",
-        status: opts.status ?? "Active",
+        validFrom: joinDate,
+        validTo: null,
+        changeReason: "Initial",
+        notes: "Penempatan awal saat onboarding",
       },
     });
     empNo++;

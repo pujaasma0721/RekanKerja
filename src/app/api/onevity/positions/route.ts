@@ -24,18 +24,24 @@ export async function GET(req: NextRequest) {
         orgUnit: { select: { name: true, code: true } },
         grade: { select: { code: true, name: true } },
         reportsTo: { select: { title: true, code: true } },
-        employees: { where: { status: "Active" }, select: { id: true, fullName: true, employeeNo: true }, take: 1, orderBy: { employeeNo: "asc" } },
-        _count: { select: { employees: true, directReports: true } },
+        // pemegang posisi = karyawan dengan assignment aktif di posisi ini
+        assignments: {
+          where: { validTo: null, employee: { status: "Active" } },
+          select: { employee: { select: { id: true, fullName: true, employeeNo: true } } },
+          take: 1,
+          orderBy: { employee: { employeeNo: "asc" } },
+        },
+        _count: { select: { directReports: true, assignments: { where: { validTo: null } } } },
       },
       orderBy: { code: "asc" },
     });
     return NextResponse.json({
       positions: positions.map((p) => ({
         id: p.id, code: p.code, title: p.title, level: p.level,
-        headcount: p.headcount, filled: p._count.employees, active: p.active,
+        headcount: p.headcount, filled: p._count.assignments, active: p.active,
         job: p.job, orgUnit: p.orgUnit, grade: p.grade, reportsTo: p.reportsTo,
         directReportCount: p._count.directReports,
-        employees: p.employees,
+        employees: p.assignments.map((a) => a.employee),
         unitId: p.orgUnitId,
       })),
       total: positions.length,

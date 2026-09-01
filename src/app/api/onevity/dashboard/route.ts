@@ -3,21 +3,8 @@ import { db } from "@/lib/db";
 
 export async function GET() {
   try {
-    const [
-      employees,
-      activeEmps,
-      pendingActions,
-      actions,
-      orgUnits,
-      positions,
-      newHiresThisYear,
-      exitsYTD,
-      activities,
-      genderAgg,
-      statusAgg,
-      unitAgg,
-      monthlyHires,
-    ] = await Promise.all([
+    // data pekerjaan karyawan aktif diambil dari assignment aktif (validTo null)
+    const [employees, activeEmps, pendingActions, actions, orgUnits, positions, newHiresThisYear, exitsYTD, activities, genderAgg, activeWithAssignments] = await Promise.all([
       db.employee.count(),
       db.employee.count({ where: { status: "Active" } }),
       db.personnelAction.count({ where: { status: "Submitted" } }),
@@ -36,14 +23,25 @@ export async function GET() {
         take: 8,
       }),
       db.employee.groupBy({ by: ["gender"], where: { status: "Active" }, _count: true }),
-      db.employee.groupBy({ by: ["employmentStatus"], where: { status: "Active" }, _count: true }),
-      db.employee.groupBy({
-        by: ["orgUnitId"],
+      db.employee.findMany({
         where: { status: "Active" },
-        _count: true,
+        select: { joinDate: true, assignments: { where: { validTo: null }, take: 1, select: { employmentStatus: true, orgUnitId: true, gradeId: true, baseSalary: true } } },
       }),
-      db.employee.findMany({ where: { status: "Active" }, select: { joinDate: true } }),
     ]);
+
+    // agregasi pekerjaan (status/unit/gaji/grade) dihitung dari assignment aktif
+    const cur = activeWithAssignments.map((e) => e.assignments[0]).filter(Boolean) as { employmentStatus: string; orgUnitId: string | null; gradeId: string | null; baseSalary: number }[];
+    const empStatusCount: Record<string, number> = {};
+    const unitCount: Record<string, number> = {};
+    const gradeCount: Record<string, number> = {};
+    let salarySum = 0;
+    for (const a of cur) {
+      empStatusCount[a.employmentStatus] = (empStatusCount[a.employmentStatus] ?? 0) + 1;
+      if (a.orgUnitId) unitCount[a.orgUnitId] = (unitCount[a.orgUnitId] ?? 0) + 1;
+      if (a.gradeId) gradeCount[a.gradeId] = (gradeCount[a.gradeId] ?? 0) + 1;
+      salarySum += a.baseSalary;
+    }
+    const avgSalary = cur.length > 0 ? Math.round(salarySum / cur.length) : 0;
 
     // headcount per division (top org units level 3)
     const divisions = await db.orgUnit.findMany({
@@ -55,11 +53,10 @@ export async function GET() {
     const subUnits = await db.orgUnit.findMany({ where: { level: 4 }, select: { id: true, parentId: true } });
     const subToDiv = new Map(subUnits.map((s) => [s.id, s.parentId]));
     const headcountByDivision: Record<string, number> = {};
-    for (const { orgUnitId, _count } of unitAgg) {
-      if (!orgUnitId) continue;
-      const divId = divisionMap.has(orgUnitId) ? orgUnitId : subToDiv.get(orgUnitId) ?? orgUnitId;
+    for (const [unitId, count] of Object.entries(unitCount)) {
+      const divId = divisionMap.has(unitId) ? unitId : subToDiv.get(unitId) ?? unitId;
       const name = divisionMap.get(divId) ?? "Lainnya";
-      headcountByDivision[name] = (headcountByDivision[name] ?? 0) + _count;
+      headcountByDivision[name] = (headcountByDivision[name] ?? 0) + count;
     }
 
     // monthly hires last 12 months
@@ -70,7 +67,7 @@ export async function GET() {
       const label = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
       months.push({
         month: label,
-        hires: monthlyHires.filter((e) => {
+        hires: activeWithAssignments.filter((e) => {
           const j = new Date(e.joinDate);
           return j.getFullYear() === d.getFullYear() && j.getMonth() === d.getMonth();
         }).length,
@@ -78,15 +75,11 @@ export async function GET() {
       });
     }
 
-    // avg salary
-    const avgSalaryAgg = await db.employee.aggregate({ where: { status: "Active" }, _avg: { baseSalary: true } });
-
     // grade distribution
-    const gradeAgg = await db.employee.groupBy({ by: ["gradeId"], where: { status: "Active" }, _count: true });
     const grades = await db.grade.findMany({ select: { id: true, code: true, name: true } });
     const gradeMap = new Map(grades.map((g) => [g.id, g]));
-    const gradeDist = gradeAgg
-      .map((g) => ({ code: gradeMap.get(g.gradeId ?? "")?.code ?? "?", name: gradeMap.get(g.gradeId ?? "")?.name ?? "—", count: g._count }))
+    const gradeDist = Object.entries(gradeCount)
+      .map(([gid, count]) => ({ code: gradeMap.get(gid)?.code ?? "?", name: gradeMap.get(gid)?.name ?? "—", count }))
       .sort((a, b) => (a.code > b.code ? 1 : -1));
 
     return NextResponse.json({
@@ -97,11 +90,11 @@ export async function GET() {
       positions,
       newHiresThisYear,
       exitsYTD,
-      avgSalary: Math.round(avgSalaryAgg._avg.baseSalary ?? 0),
+      avgSalary,
       recentActions: actions,
       activities,
       genderSplit: genderAgg.map((g) => ({ gender: g.gender, count: g._count })),
-      employmentStatusSplit: statusAgg.map((s) => ({ status: s.employmentStatus, count: s._count })),
+      employmentStatusSplit: Object.entries(empStatusCount).map(([status, count]) => ({ status, count })),
       headcountByDivision: Object.entries(headcountByDivision).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
       hireTrend: months,
       gradeDistribution: gradeDist,

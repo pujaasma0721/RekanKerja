@@ -7,14 +7,14 @@ export async function GET(req: NextRequest) {
     const withTree = req.nextUrl.searchParams.get("withTree") === "1";
     const units = await db.orgUnit.findMany({
       where: { active: true },
-      include: { parent: { select: { name: true } }, _count: { select: { employees: true, positions: true, children: true } } },
+      include: { parent: { select: { name: true } }, _count: { select: { assignments: { where: { validTo: null } }, positions: true, children: true } } },
       orderBy: [{ level: "asc" }, { code: "asc" }],
     });
     const flat = units.map((u) => ({
       id: u.id, code: u.code, name: u.name, parentId: u.parentId, level: u.level,
       headcountBudget: u.headcountBudget, active: u.active,
       parentName: u.parent?.name ?? null,
-      employeeCount: u._count.employees, positionCount: u._count.positions, childCount: u._count.children,
+      employeeCount: u._count.assignments, positionCount: u._count.positions, childCount: u._count.children,
     }));
     if (!withTree) return NextResponse.json({ units: flat });
     // build nested tree
@@ -84,7 +84,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const [children, employees, positions] = await Promise.all([
       db.orgUnit.count({ where: { parentId: id } }),
-      db.employee.count({ where: { orgUnitId: id } }),
+      db.employeeAssignment.count({ where: { validTo: null, orgUnitId: id } }),
       db.position.count({ where: { orgUnitId: id } }),
     ]);
     if (children > 0) return NextResponse.json({ error: "Unit memiliki sub-unit — hapus/pindahkan sub-unit terlebih dahulu" }, { status: 400 });

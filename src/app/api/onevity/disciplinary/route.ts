@@ -5,10 +5,31 @@ import { db } from "@/lib/db";
 export async function GET(req: NextRequest) {
   try {
     const employeeId = req.nextUrl.searchParams.get("employeeId");
-    const disciplinary = await db.disciplinaryRecord.findMany({
+    const records = await db.disciplinaryRecord.findMany({
       where: employeeId ? { employeeId } : undefined,
-      include: { employee: { select: { id: true, fullName: true, employeeNo: true, position: { select: { title: true } }, orgUnit: { select: { name: true } } } } },
+      include: {
+        employee: {
+          select: {
+            id: true, fullName: true, employeeNo: true,
+            // posisi/unit saat ini dari assignment aktif
+            assignments: {
+              where: { validTo: null },
+              orderBy: { validFrom: "desc" },
+              take: 1,
+              include: { position: { select: { title: true } }, orgUnit: { select: { name: true } } },
+            },
+          },
+        },
+      },
       orderBy: { issuedAt: "desc" },
+    });
+    const disciplinary = records.map((r) => {
+      const cur = r.employee.assignments[0] ?? null;
+      const { assignments: _a, ...emp } = r.employee as typeof r.employee & { assignments?: unknown[] };
+      return {
+        ...r,
+        employee: { ...emp, position: cur?.position ?? null, orgUnit: cur?.orgUnit ?? null },
+      };
     });
     return NextResponse.json({ disciplinary });
   } catch (e) {

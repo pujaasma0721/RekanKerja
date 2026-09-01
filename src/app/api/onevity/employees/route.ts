@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee } from "@/lib/onevity/assignment";
 
-// GET /api/onevity/employees?q=...&status=...&unit=...&limit=&offset=
+// GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
 export async function GET(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
@@ -18,32 +19,38 @@ export async function GET(req: NextRequest) {
         { fullName: { contains: q } },
         { employeeNo: { contains: q } },
         { email: { contains: q } },
-        { position: { title: { contains: q } } },
+        { assignments: { some: { validTo: null, position: { title: { contains: q } } } } },
       ];
     }
     if (status && status !== "all") {
       // "inactive" = agregat semua status non-aktif
       where.status = status === "inactive" ? { in: ["Resigned", "Terminated", "Blacklisted"] } : status;
     }
-    if (employmentStatus && employmentStatus !== "all") where.employmentStatus = employmentStatus;
-    if (unit && unit !== "all") where.orgUnitId = unit;
+    // filter pekerjaan via assignment aktif
+    const assignSome: Record<string, unknown> = { validTo: null };
+    if (employmentStatus && employmentStatus !== "all") assignSome.employmentStatus = employmentStatus;
+    if (unit && unit !== "all") assignSome.orgUnitId = unit;
+    if (Object.keys(assignSome).length > 1) where.assignments = { some: assignSome };
 
-    const [employees, total, statusAgg, empStatusAgg] = await Promise.all([
+    const [employeesRaw, total, statusAgg, empStatusAgg] = await Promise.all([
       db.employee.findMany({
         where,
-        include: {
-          position: { select: { title: true, code: true } },
-          orgUnit: { select: { name: true, code: true } },
-          grade: { select: { code: true, name: true } },
-        },
+        include: CURRENT_ASSIGNMENT_INCLUDE,
         orderBy: [{ status: "asc" }, { employeeNo: "asc" }],
         take: limit,
         skip: offset,
       }),
       db.employee.count({ where }),
       db.employee.groupBy({ by: ["status"], _count: true }),
-      db.employee.groupBy({ by: ["employmentStatus"], _count: true }),
+      db.employeeAssignment.groupBy({ by: ["employmentStatus"], where: { validTo: null }, _count: true }),
     ]);
+
+    const employees = employeesRaw.map((e) => {
+      const flat = flattenEmployee(e);
+      // strip array dari response agar payload ramping
+      const { assignments, ...rest } = flat as Record<string, unknown>;
+      return rest;
+    });
 
     const statusCount = (s: string) => statusAgg.find((r) => r.status === s)?._count ?? 0;
     const empCount = (s: string) => empStatusAgg.find((r) => r.employmentStatus === s)?._count ?? 0;
@@ -67,6 +74,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/employees — create employee (wizard final step)
+// Membuat employee (data personal + lifecycle) + assignment awal (data pekerjaan).
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
@@ -77,6 +85,8 @@ export async function POST(req: NextRequest) {
     const last = await db.employee.findFirst({ orderBy: { employeeNo: "desc" }, select: { employeeNo: true } });
     const nextNo = last ? Number(last.employeeNo.replace(/\D/g, "")) + 1 : 1;
     const employeeNo = `MII${String(nextNo).padStart(5, "0")}`;
+
+    const joinDate = b.joinDate ? new Date(b.joinDate) : new Date();
 
     const employee = await db.employee.create({
       data: {
@@ -97,15 +107,26 @@ export async function POST(req: NextRequest) {
         bankName: b.bankName ?? null,
         bankAccount: b.bankAccount ?? null,
         companyId: b.companyId ?? company.id,
+        joinDate,
+        status: "Active",
+      },
+    });
+
+    // penempatan awal → riwayat pekerjaan baris pertama
+    await db.employeeAssignment.create({
+      data: {
+        employeeId: employee.id,
         orgUnitId: b.orgUnitId ?? null,
         positionId: b.positionId ?? null,
         gradeId: b.gradeId ?? null,
-        employmentStatus: b.employmentStatus ?? "Probation",
-        joinDate: b.joinDate ? new Date(b.joinDate) : new Date(),
         managerId: b.managerId ?? null,
-        baseSalary: b.baseSalary ?? 0,
+        employmentStatus: b.employmentStatus ?? "Probation",
         workShift: b.workShift ?? "Regular",
-        status: "Active",
+        baseSalary: b.baseSalary ?? 0,
+        validFrom: joinDate,
+        validTo: null,
+        changeReason: "Initial",
+        notes: "Penempatan awal saat onboarding",
       },
     });
 
