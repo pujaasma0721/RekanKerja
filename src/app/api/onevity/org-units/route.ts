@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/org-units[?withTree=1]
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const withTree = req.nextUrl.searchParams.get("withTree") === "1";
     const units = await db.orgUnit.findMany({
       where: { active: true },
@@ -33,6 +36,9 @@ export async function GET(req: NextRequest) {
 // POST create unit
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode dan nama unit wajib diisi" }, { status: 400 });
     const exists = await db.orgUnit.findUnique({ where: { code: b.code } });
@@ -61,6 +67,9 @@ export async function POST(req: NextRequest) {
 // PATCH update
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const unit = await db.orgUnit.update({
@@ -80,6 +89,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE ?id=
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const [children, employees, positions] = await Promise.all([

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET ?employeeId= | POST | DELETE ?id=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     if (!employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
     const education = await db.employeeEducation.findMany({ where: { employeeId }, orderBy: { endYear: "desc" } });
@@ -15,6 +18,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId || !b.level || !b.institution) return NextResponse.json({ error: "Jenjang & institusi wajib diisi" }, { status: 400 });
     const edu = await db.employeeEducation.create({
@@ -32,6 +38,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     await db.employeeEducation.delete({ where: { id } });

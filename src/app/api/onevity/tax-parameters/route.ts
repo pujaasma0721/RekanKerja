@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { PTKP_ANNUAL } from "@/lib/onevity/payroll-engine";
 
 // GET /api/onevity/tax-parameters — bracket + TER + regulasi aktif + PTKP referensi
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const [brackets, ter, regulation] = await Promise.all([
       db.taxBracket.findMany({ where: { bracketType: "Income" }, orderBy: { lowerLimit: "asc" } }),
       db.terRate.findMany({ orderBy: [{ category: "asc" }, { lowerLimit: "asc" }] }),
@@ -19,6 +22,9 @@ export async function GET() {
 // PATCH /api/onevity/tax-parameters — update parameter regulasi (BPJS, biaya jabatan, TER)
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const regulation = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
     if (!regulation) return NextResponse.json({ error: "Regulasi aktif tidak ditemukan" }, { status: 404 });

@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const [pendingActions, activeEmployees, companies, payrollDraftRuns, benefitPendingClaims] = await Promise.all([
       db.personnelAction.count({ where: { status: "Submitted" } }),
       db.employee.count({ where: { status: "Active" } }),

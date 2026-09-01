@@ -59,9 +59,16 @@ server.log
 /tests/
 /download/
 /examples/
-/mini-services/
+/mini-services/*
+!/mini-services/postgres/
+/mini-services/postgres/node_modules/
+/mini-services/postgres/data/
+/mini-services/postgres/pg.log
 /.zscripts/
 /Caddyfile
 /find-city-tmp.ts
 worklog.md
 *.tsbuildinfo
+
+# Prisma generated clients (multi-tenant: platform + tenant + legacy)
+src/generated/

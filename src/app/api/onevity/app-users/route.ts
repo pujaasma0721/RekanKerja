@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET — users with access groups + access groups with members
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const users = await db.appUser.findMany({
       include: { accessGroups: { include: { accessGroup: { select: { name: true, code: true } } } } },
       orderBy: { username: "asc" },
@@ -32,6 +35,9 @@ export async function GET() {
 // POST create user (+optional group membership)
 export async function POST(req: NextRequest | Request) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.username || !b.fullName) return NextResponse.json({ error: "Username & nama wajib" }, { status: 400 });
     const exists = await db.appUser.findUnique({ where: { username: b.username } });
@@ -53,6 +59,9 @@ export async function POST(req: NextRequest | Request) {
 // PATCH update user
 export async function PATCH(req: Request) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const user = await db.appUser.update({
@@ -73,6 +82,9 @@ export async function PATCH(req: Request) {
 // DELETE ?id=
 export async function DELETE(req: Request) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = new URL(req.url).searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const count = await db.appUser.count();

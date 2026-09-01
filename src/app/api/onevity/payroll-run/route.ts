@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/payroll-run?id= — detail run + lines + items
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const run = await db.payrollRun.findUnique({

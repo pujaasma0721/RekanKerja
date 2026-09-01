@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/lookups?category=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const category = req.nextUrl.searchParams.get("category");
     const where = category && category !== "all" ? { category } : {};
     const lookups = await db.lookup.findMany({ where, orderBy: [{ category: "asc" }, { sortOrder: "asc" }] });
@@ -17,6 +20,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.category || !b.label) return NextResponse.json({ error: "Kategori & label wajib" }, { status: 400 });
     const code = b.code ?? b.label.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -34,6 +40,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const lookup = await db.lookup.update({
@@ -48,6 +57,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     await db.lookup.delete({ where: { id } });

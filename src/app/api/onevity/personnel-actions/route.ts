@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/personnel-actions?status=&type=&q=&mine=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status");
     const type = sp.get("type");
@@ -80,6 +83,9 @@ export async function GET(req: NextRequest) {
 // POST create new PA (status Prepared + template layers)
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId || !b.type) return NextResponse.json({ error: "Karyawan dan jenis aksi wajib diisi" }, { status: 400 });
     const employee = await db.employee.findUnique({ where: { id: b.employeeId } });

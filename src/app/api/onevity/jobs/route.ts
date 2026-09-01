@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const jobs = await db.job.findMany({
       include: { _count: { select: { positions: true } } },
       orderBy: { code: "asc" },
@@ -15,6 +18,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.title) return NextResponse.json({ error: "Kode dan judul job wajib diisi" }, { status: 400 });
     const exists = await db.job.findUnique({ where: { code: b.code } });
@@ -29,6 +35,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const job = await db.job.update({ where: { id: b.id }, data: { title: b.title, category: b.category, description: b.description, active: b.active } });
@@ -40,6 +49,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const count = await db.position.count({ where: { jobId: id } });

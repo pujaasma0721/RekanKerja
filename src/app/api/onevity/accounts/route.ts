@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET — groups + accounts + posting events in one payload
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const [groups, accounts, postings] = await Promise.all([
       db.accountGroup.findMany({ include: { _count: { select: { accounts: true } } }, orderBy: { code: "asc" } }),
       db.account.findMany({ include: { accountGroup: { select: { name: true, code: true } } }, orderBy: { code: "asc" } }),
@@ -21,6 +24,9 @@ export async function GET() {
 // POST / PATCH / DELETE with body.kind: "account" | "group" | "posting"
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const kind = b.kind as string;
     if (kind === "group") {
@@ -46,6 +52,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const { kind, id, ...rest } = b;
     if (kind === "group") {
@@ -68,6 +77,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const id = sp.get("id");
     const kind = sp.get("kind");

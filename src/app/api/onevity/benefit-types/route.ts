@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { limitSnapshot } from "@/lib/onevity/benefit-service";
 
 const RESET = ["None", "Monthly", "Quarterly", "Yearly"];
@@ -8,6 +8,9 @@ const RESET = ["None", "Monthly", "Quarterly", "Yearly"];
 // employeeId menambahkan snapshot pemakaian limit (untuk form pengajuan).
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const types = await db.benefitType.findMany({
       where: { active: true },
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
     const result = await Promise.all(types.map(async (t) => {
       const of = claims.filter((c) => c.benefitTypeId === t.id);
       const active = of.filter((c) => ["Approved", "Scheduled", "Paid"].includes(c.status));
-      const usage = employeeId ? await limitSnapshot(t, employeeId, now) : null;
+      const usage = employeeId ? await limitSnapshot(db, t, employeeId, now) : null;
       return {
         ...t,
         claimCount: of.length,
@@ -41,6 +44,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/benefit-types — jenis benefit baru.
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code?.trim() || !b.name?.trim()) return NextResponse.json({ error: "Kode & nama wajib diisi" }, { status: 400 });
     const code = b.code.trim().toUpperCase();
@@ -85,6 +91,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/benefit-types — ubah master.
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const existing = await db.benefitType.findUnique({ where: { id: b.id } });
@@ -125,6 +134,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/benefit-types?id= — guard: dipakai klaim.
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const count = await db.benefitClaim.count({ where: { benefitTypeId: id } });

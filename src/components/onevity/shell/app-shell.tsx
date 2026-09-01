@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/lib/onevity/store";
 import { useApi, initials, fmtDateTime } from "@/lib/onevity/api";
+import { useSession } from "@/lib/onevity/session-store";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
   LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
-  Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator,
+  Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
   Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
@@ -175,6 +176,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { section, view, params, module, navigate, setModule, syncFromUrl } = useNav();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const session = useSession();
+  const sessionUser = session.info?.user;
+  const sessionTenant = session.info?.tenant;
   const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
 
   useEffect(() => {
@@ -251,11 +255,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Perusahaan aktif"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-[11px] font-extrabold text-white shadow">
-                {meta.data?.company?.shortName?.slice(0, 3) ?? "MII"}
+                {(meta.data?.company?.shortName ?? sessionTenant?.name ?? "OneVity").slice(0, 3).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-stone-100">{meta.data?.company?.shortName ?? "—"}</p>
-                <p className="truncate text-[10px] text-stone-500">{meta.data?.company?.name ?? "Memuat…"}</p>
+                <p className="truncate text-[10px] text-stone-500">{meta.data?.company?.name ?? (meta.loading ? "Memuat…" : "Belum ada data perusahaan")}</p>
               </div>
               <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">Aktif</span>
             </div>
@@ -370,32 +374,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* sidebar footer: user */}
+          {/* sidebar footer: user (session SaaS multi-tenant) */}
           <div className="border-t border-white/10 px-4 py-3">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-600 text-xs font-extrabold text-white">TH</div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-600 text-xs font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-stone-100">Tri Handayani</p>
-                <p className="truncate text-[10px] text-stone-500">HR Manager · MII000001</p>
+                <p className="truncate text-xs font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
+                <p className="truncate text-[10px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="rounded-lg p-1.5 text-stone-500 hover:bg-white/5 hover:text-stone-200" aria-label="Menu pengguna">
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top" className="w-48">
-                  <DropdownMenuLabel className="text-xs">tri.handayani@mii.co.id</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem><UserCog className="h-4 w-4" /> Profil Saya</DropdownMenuItem>
-                  <DropdownMenuItem><Settings2 className="h-4 w-4" /> Preferensi</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-rose-600 focus:text-rose-600"><LogOut className="h-4 w-4" /> Keluar</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                onClick={() => void session.logout()}
+                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-rose-300"
+                aria-label="Keluar dari sesi"
+                title="Keluar"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
             <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {activeModule.label}</p>
           </div>
@@ -423,6 +420,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
             <span className="flex-1" />
+
+            {/* workspace switcher (multi-tenant SaaS) */}
+            <WorkspaceMenu />
 
             {/* search trigger */}
             <button
@@ -605,5 +605,57 @@ function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; 
         </Command>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ============ Workspace switcher (multi-tenant SaaS) ============
+function WorkspaceMenu() {
+  const { info, selectTenant, logout } = useSession();
+  const [switching, setSwitching] = useState(false);
+  const tenant = info?.tenant;
+  if (!tenant) return null;
+
+  const switchTo = async (id: string) => {
+    if (id === tenant.id) return;
+    setSwitching(true);
+    const ok = await selectTenant(id);
+    if (ok) window.location.reload(); // muat ulang seluruh data di bawah konteks tenant baru
+    else setSwitching(false);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          disabled={switching}
+          aria-label={`Ganti workspace — ${tenant.name}`}
+          title={tenant.name}
+          className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-stone-700 transition hover:border-emerald-300 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-emerald-600/50"
+        >
+          <Building2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span className="hidden max-w-[160px] truncate sm:inline">{tenant.name}</span>
+          <Badge className="hidden rounded-full bg-emerald-100 px-1.5 text-[9px] font-extrabold uppercase text-emerald-700 sm:inline-flex dark:bg-emerald-500/15 dark:text-emerald-300">{tenant.plan}</Badge>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="text-xs">Workspace</DropdownMenuLabel>
+        {(info?.workspaces ?? []).map((w) => (
+          <DropdownMenuItem key={w.id} onClick={() => void switchTo(w.id)}>
+            <Building2 className="h-4 w-4 shrink-0 text-stone-400" />
+            <span className="flex-1 truncate">{w.name}</span>
+            {w.id === tenant.id ? (
+              <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <span className="shrink-0 text-[10px] text-stone-400">{w.role}</span>
+            )}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => void logout()}>
+          <LogOut className="h-4 w-4" /> Keluar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

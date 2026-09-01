@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/lib/onevity/payroll-service";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const periodId = req.nextUrl.searchParams.get("periodId");
     const status = req.nextUrl.searchParams.get("status");
     const runs = await db.payrollRun.findMany({
@@ -28,6 +31,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/payroll-runs — buat run baru (Draft)
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.periodId || !b.processTypeId) {
       return NextResponse.json({ error: "Period & jenis proses wajib dipilih" }, { status: 400 });
@@ -51,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const runNo = await nextRunNo(period.code, processType.code);
+    const runNo = await nextRunNo(db, period.code, processType.code);
     const run = await db.payrollRun.create({
       data: {
         runNo,
@@ -73,6 +79,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid | cancel
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
     const run = await db.payrollRun.findUnique({ where: { id: b.id } });
@@ -80,7 +89,7 @@ export async function PATCH(req: NextRequest) {
 
     switch (b.action) {
       case "calculate": {
-        const result = await calculateAndSaveRun(b.id);
+        const result = await calculateAndSaveRun(db, b.id);
         return NextResponse.json({
           ok: true,
           summary: {
@@ -93,7 +102,7 @@ export async function PATCH(req: NextRequest) {
         });
       }
       case "confirm": {
-        await confirmRun(b.id);
+        await confirmRun(db, b.id);
         return NextResponse.json({ ok: true });
       }
       case "markPaid": {
@@ -122,6 +131,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/payroll-runs?id= — hanya Draft/Calculated
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const run = await db.payrollRun.findUnique({ where: { id } });

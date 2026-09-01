@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee } from "@/lib/onevity/assignment";
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
+// Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const status = sp.get("status") ?? undefined;
@@ -77,6 +80,9 @@ export async function GET(req: NextRequest) {
 // Membuat employee (data personal + lifecycle) + assignment awal (data pekerjaan).
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const company = await db.company.findFirst();
     if (!company) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });

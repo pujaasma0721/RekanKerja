@@ -6,7 +6,7 @@
 //   − iuran JSTK pegawai (JHT/JP, deductible)
 //   = neto setahun → − PTKP tahunan → PKP → progresif Pasal 17 setahun
 //   vs PPh21 yang telah dipotong bulanan (taxR + taxI) → kurang/lebih bayar.
-import { db } from "@/lib/db";
+import type { TenantDb } from "@/lib/onevity/tenant-db";
 import { progressiveTax, EngineBracket } from "@/lib/onevity/payroll-engine";
 import { getBrackets, getActiveRegulation } from "@/lib/onevity/payroll-service";
 
@@ -53,7 +53,7 @@ export interface SptReport {
 
 const FINAL_METHODS = new Set(["FixedRateFinal", "SeveranceFinal", "PensionFinal", "Final2Years"]);
 
-export async function buildAnnualSpt(year: number): Promise<SptReport> {
+export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptReport> {
   const runs = await db.payrollRun.findMany({
     where: { status: { in: ["Confirmed", "Paid"] }, period: { sptYear: year } },
     include: {
@@ -67,7 +67,7 @@ export async function buildAnnualSpt(year: number): Promise<SptReport> {
     orderBy: { createdAt: "asc" },
   });
 
-  const [reg, brackets] = await Promise.all([getActiveRegulation(), getBrackets()]);
+  const [reg, brackets] = await Promise.all([getActiveRegulation(db), getBrackets(db)]);
   const biayaJabatanCapAnnual = reg.biayaJabatanCapMonthly * 12;
 
   const byEmp = new Map<string, SptEmployeeRow>();

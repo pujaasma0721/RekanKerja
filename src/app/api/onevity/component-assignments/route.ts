@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/component-assignments?kind=&employeeId=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const kind = req.nextUrl.searchParams.get("kind");
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const assignments = await db.employeeComponentAssignment.findMany({
@@ -28,6 +31,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/component-assignments — komponen khusus (Specific) / periodik (Periodic)
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId || !b.wageComponentId) {
       return NextResponse.json({ error: "Karyawan & komponen wajib dipilih" }, { status: 400 });
@@ -64,6 +70,9 @@ export async function POST(req: NextRequest) {
 // DELETE /api/onevity/component-assignments?id=
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const a = await db.employeeComponentAssignment.findUnique({ where: { id } });

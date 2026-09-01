@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/payroll-run-export?id=&bank=umum|bca|mandiri|bni
 // File transfer bank (pattern "Transfer Bank Payment" oranHR: file per bank).
@@ -12,6 +12,9 @@ const BANKS: Record<string, { label: string; match: (bank: string) => boolean }>
 
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     const bankKey = (req.nextUrl.searchParams.get("bank") ?? "umum").toLowerCase();
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

@@ -2,7 +2,7 @@
 // integrasi pay-in-payroll (klaim Scheduled → komponen Specific run BENEFIT).
 // Pola oranHR "Employee Benefit": BenefitType (limit/reset/auto-approve) +
 // BenefitClaim dengan snapshot audit limit saat pengajuan.
-import { db } from "@/lib/db";
+import type { TenantDb } from "@/lib/onevity/tenant-db";
 
 // Status klaim yang mengonsumsi limit (Pending dihitung terpisah saat approval).
 const CONSUMING = ["Approved", "Scheduled", "Paid"] as const;
@@ -43,6 +43,7 @@ export function resetWindow(resetPeriod: string, claimDate: Date): { start: Date
 
 // Snapshot limit utk karyawan×jenis pada tanggal klaim.
 export async function limitSnapshot(
+  db: TenantDb,
   type: { id: string; resetPeriod: string; maxClaimAmount: number; unlimited: boolean },
   employeeId: string,
   claimDate: Date,
@@ -68,7 +69,7 @@ export async function limitSnapshot(
 }
 
 // Kelayakan karyawan menurut entitleFor (status kepegawaian penempatan aktif).
-export async function checkEntitlement(entitleFor: string, employeeId: string): Promise<boolean> {
+export async function checkEntitlement(db: TenantDb, entitleFor: string, employeeId: string): Promise<boolean> {
   if (entitleFor === "All") return true;
   const emp = await db.employee.findUnique({
     where: { id: employeeId },
@@ -78,7 +79,7 @@ export async function checkEntitlement(entitleFor: string, employeeId: string): 
   return emp.assignments[0]?.employmentStatus === entitleFor;
 }
 
-export async function nextClaimNo(): Promise<string> {
+export async function nextClaimNo(db: TenantDb): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `BC-${year}-`;
   const count = await db.benefitClaim.count({ where: { claimNo: { startsWith: prefix } } });
@@ -94,6 +95,7 @@ const CLAIM_INCLUDE = {
 // Sinkronkan komponen Specific (employee × period × processType BENEFIT) agar
 // selalu = total klaim Scheduled — idempotent, dipanggil saat schedule/cancel.
 export async function syncClaimComponent(
+  db: TenantDb,
   employeeId: string,
   wageComponentId: string,
   periodId: string,
@@ -149,7 +151,7 @@ export async function syncClaimComponent(
 }
 
 // Ajukan klaim: validasi → snapshot limit → auto-approve bila dalam limit.
-export async function submitClaim(input: {
+export async function submitClaim(db: TenantDb, input: {
   employeeId: string; benefitTypeId: string; amount: number; claimDate?: string;
   description?: string | null; documentsNote?: string | null;
 }): Promise<{ claim: unknown; autoApproved: boolean; note: string }> {
@@ -167,14 +169,14 @@ export async function submitClaim(input: {
   if (type.validFrom > claimDate) throw new Error(`Jenis benefit berlaku mulai ${type.validFrom.toLocaleDateString("id-ID")}`);
   if (type.validTo && type.validTo < claimDate) throw new Error("Jenis benefit sudah kedaluwarsa");
 
-  if (!(await checkEntitlement(type.entitleFor, employeeId))) {
+  if (!(await checkEntitlement(db, type.entitleFor, employeeId))) {
     throw new Error(`Benefit ini hanya utk status kepegawaian ${type.entitleFor}`);
   }
   if (type.needDocuments && !input.documentsNote?.trim()) {
     throw new Error("Jenis benefit ini mewajibkan keterangan dokumen pendukung");
   }
 
-  const snap = await limitSnapshot(type, employeeId, claimDate, amount);
+  const snap = await limitSnapshot(db, type, employeeId, claimDate, amount);
   if (!snap.inLimit && !type.allowOverlimit) {
     throw new Error(
       `Klaim ${fmt(amount)} melebihi limit ${snap.windowLabel} — terpakai ${fmt(snap.used)} dari ${fmt(snap.limit ?? 0)} (sisa ${fmt(snap.remaining ?? 0)})`,
@@ -182,7 +184,7 @@ export async function submitClaim(input: {
   }
 
   const autoApproved = type.autoApproveInLimit && snap.inLimit;
-  const claimNo = await nextClaimNo();
+  const claimNo = await nextClaimNo(db);
   const claim = await db.benefitClaim.create({
     data: {
       claimNo,
@@ -211,7 +213,7 @@ export async function submitClaim(input: {
   return { claim, autoApproved, note };
 }
 
-export async function approveClaim(id: string, approvedBy?: string): Promise<unknown> {
+export async function approveClaim(db: TenantDb, id: string, approvedBy?: string): Promise<unknown> {
   const claim = await db.benefitClaim.findUnique({ where: { id }, include: CLAIM_INCLUDE });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.status !== "Pending") throw new Error("Hanya klaim berstatus Pending yang dapat disetujui");
@@ -245,7 +247,7 @@ export async function approveClaim(id: string, approvedBy?: string): Promise<unk
   return updated;
 }
 
-export async function rejectClaim(id: string, reason: string): Promise<unknown> {
+export async function rejectClaim(db: TenantDb, id: string, reason: string): Promise<unknown> {
   const claim = await db.benefitClaim.findUnique({ where: { id } });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.status !== "Pending") throw new Error("Hanya klaim berstatus Pending yang dapat ditolak");
@@ -259,7 +261,7 @@ export async function rejectClaim(id: string, reason: string): Promise<unknown> 
 }
 
 // Jadwalkan klaim Approved ke period payroll (pay-in-payroll).
-export async function scheduleClaim(id: string, periodId: string): Promise<unknown> {
+export async function scheduleClaim(db: TenantDb, id: string, periodId: string): Promise<unknown> {
   const claim = await db.benefitClaim.findUnique({ where: { id }, include: CLAIM_INCLUDE });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.status !== "Approved") throw new Error("Hanya klaim Approved yang dapat dijadwalkan");
@@ -276,12 +278,12 @@ export async function scheduleClaim(id: string, periodId: string): Promise<unkno
     data: { status: "Scheduled", periodId },
     include: CLAIM_INCLUDE,
   });
-  await syncClaimComponent(claim.employeeId, type.wageComponentId, periodId, type.id);
+  await syncClaimComponent(db, claim.employeeId, type.wageComponentId, periodId, type.id);
   return updated;
 }
 
 // Klaim Approved jenis non-payroll → tandai lunas dari kas.
-export async function markClaimPaidCash(id: string): Promise<unknown> {
+export async function markClaimPaidCash(db: TenantDb, id: string): Promise<unknown> {
   const claim = await db.benefitClaim.findUnique({ where: { id }, include: CLAIM_INCLUDE });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.status !== "Approved") throw new Error("Hanya klaim Approved yang dapat ditandai lunas");
@@ -296,7 +298,7 @@ export async function markClaimPaidCash(id: string): Promise<unknown> {
   return updated;
 }
 
-export async function cancelClaim(id: string): Promise<unknown> {
+export async function cancelClaim(db: TenantDb, id: string): Promise<unknown> {
   const claim = await db.benefitClaim.findUnique({ where: { id } });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (!["Pending", "Approved", "Scheduled"].includes(claim.status)) {
@@ -311,7 +313,7 @@ export async function cancelClaim(id: string): Promise<unknown> {
   if (periodId) {
     const type = await db.benefitType.findUnique({ where: { id: claim.benefitTypeId } });
     if (type?.wageComponentId) {
-      await syncClaimComponent(claim.employeeId, type.wageComponentId, periodId, type.id);
+      await syncClaimComponent(db, claim.employeeId, type.wageComponentId, periodId, type.id);
     }
   }
   return updated;
@@ -319,7 +321,7 @@ export async function cancelClaim(id: string): Promise<unknown> {
 
 // Dipanggil confirmRun() saat run BENEFIT dikonfirmasi: klaim Scheduled pada
 // period run → Paid + paidRunNo (komponen Specific ikut terkunci di snapshot).
-export async function markClaimsPaidForRun(runId: string): Promise<number> {
+export async function markClaimsPaidForRun(db: TenantDb, runId: string): Promise<number> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
     include: { period: true, processType: true },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // ============ Access Groups (Security) ============
 
@@ -13,8 +13,11 @@ interface ModulePerm {
 }
 
 // GET /api/onevity/access-groups — with members
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const groups = await db.accessGroup.findMany({
       include: { members: { include: { appUser: { select: { id: true, username: true, fullName: true, role: true } } } } },
       orderBy: { code: "asc" },
@@ -34,6 +37,9 @@ export async function GET() {
 // POST /api/onevity/access-groups { code, name, description, modules: ModulePerm[], memberIds?: string[] }
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode dan nama grup wajib diisi" }, { status: 400 });
     const exists = await db.accessGroup.findUnique({ where: { code: String(b.code) } });
@@ -64,6 +70,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/access-groups?id=...
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const b = await req.json().catch(() => ({}));
     const id = sp.get("id") ?? b.id;
@@ -96,6 +105,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/access-groups?id=...
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const b = await req.json().catch(() => ({}));
     const id = sp.get("id") ?? b.id;

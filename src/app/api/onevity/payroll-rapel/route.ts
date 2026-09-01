@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { calculateAndSaveRun, nextRunNo } from "@/lib/onevity/payroll-service";
 
 interface RapelBreakdownRow {
@@ -18,6 +18,9 @@ interface RapelBreakdownRow {
 // pola Back Pay oranHR (fromPeriod → selisih → wageCode back pay).
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const { employeeId, componentCode, fromPeriodId, toPeriodId, targetPeriodId } = b;
     const newAmount = Number(b.newAmount);
@@ -146,7 +149,7 @@ export async function POST(req: NextRequest) {
       });
       run = existing ?? await db.payrollRun.create({
         data: {
-          runNo: await nextRunNo(targetPeriod.code, rapelType.code),
+          runNo: await nextRunNo(db, targetPeriod.code, rapelType.code),
           periodId: targetPeriod.id,
           processTypeId: rapelType.id,
           calculateTax: true,
@@ -155,7 +158,7 @@ export async function POST(req: NextRequest) {
         include: { period: true, processType: true },
       });
       if (run.status === "Draft") {
-        await calculateAndSaveRun(run.id);
+        await calculateAndSaveRun(db, run.id);
         run = await db.payrollRun.findUnique({ where: { id: run.id }, include: { period: true, processType: true } });
       }
     }

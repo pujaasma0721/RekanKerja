@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { buildAnnualSpt } from "@/lib/onevity/payroll-spt";
 
 // GET /api/onevity/payroll-spt?year=2026                → laporan tahunan per karyawan
@@ -7,6 +7,9 @@ import { buildAnnualSpt } from "@/lib/onevity/payroll-spt";
 // GET /api/onevity/payroll-spt?periodId=..&export=coretax → CSV bukti potong bulanan (Coretax)
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const exportMode = sp.get("export");
 
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest) {
     }
 
     const year = parseInt(sp.get("year") ?? String(new Date().getFullYear()), 10);
-    const report = await buildAnnualSpt(year);
+    const report = await buildAnnualSpt(db, year);
 
     // --- CSV rekap tahunan (format ringkas 1721-A1) ---
     if (exportMode === "a1") {

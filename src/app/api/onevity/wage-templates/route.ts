@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/wage-templates
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (id) {
       const template = await db.wageTemplate.findUnique({
@@ -33,6 +36,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/wage-templates — buat template + daftar komponen
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode & nama template wajib" }, { status: 400 });
     const exists = await db.wageTemplate.findUnique({ where: { code: b.code } });
@@ -58,6 +64,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/wage-templates — update nama/deskripsi/daftar komponen
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const template = await db.wageTemplate.findUnique({ where: { id: b.id }, include: { _count: { select: { profiles: true } } } });
@@ -85,6 +94,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/wage-templates?id=
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const template = await db.wageTemplate.findUnique({ where: { id }, include: { _count: { select: { profiles: true } } } });

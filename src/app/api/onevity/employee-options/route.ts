@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { flattenEmployee } from "@/lib/onevity/assignment";
 
 // GET /api/onevity/employee-options — select options for wizard/detail
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const [orgUnits, positions, grades, employeesRaw, companies, lookups] = await Promise.all([
       db.orgUnit.findMany({ where: { active: true }, select: { id: true, name: true, level: true, code: true }, orderBy: { code: "asc" } }),
       db.position.findMany({ where: { active: true }, select: { id: true, title: true, code: true, orgUnitId: true }, orderBy: { code: "asc" } }),

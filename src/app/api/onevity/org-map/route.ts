@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/org-map
 // Comprehensive org map: merges people (active), org units, positions,
@@ -10,8 +10,11 @@ const gradeRank = (code: string | null | undefined) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const [company, units, positions, employees, disciplinary, activeActions] = await Promise.all([
       db.company.findFirst({ select: { id: true, code: true, name: true, shortName: true } }),
       db.orgUnit.findMany({

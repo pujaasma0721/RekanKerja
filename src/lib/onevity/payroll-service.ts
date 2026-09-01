@@ -1,7 +1,7 @@
 // OneVity Payroll Service — orkestrasi server: merakit input engine (karyawan,
 // komponen, regulasi, pinjaman) dan menyimpan hasil run ke database.
 // Dipakai oleh API routes dan seed.
-import { db } from "@/lib/db";
+import type { TenantDb } from "@/lib/onevity/tenant-db";
 import {
   runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
   EngineTer, EngineRegulation, EngineRunResult,
@@ -9,7 +9,7 @@ import {
 import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
 import { markClaimsPaidForRun } from "@/lib/onevity/benefit-service";
 
-export async function getActiveRegulation(): Promise<EngineRegulation> {
+export async function getActiveRegulation(db: TenantDb): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
   if (!r) throw new Error("PayrollRegulation aktif tidak ditemukan — jalankan seed");
   return {
@@ -30,7 +30,7 @@ export async function getActiveRegulation(): Promise<EngineRegulation> {
   };
 }
 
-export async function getBrackets(): Promise<EngineBracket[]> {
+export async function getBrackets(db: TenantDb): Promise<EngineBracket[]> {
   const rows = await db.taxBracket.findMany({
     where: { bracketType: "Income", OR: [{ validTo: null }, { validTo: { gte: new Date() } }] },
     orderBy: { lowerLimit: "asc" },
@@ -43,7 +43,7 @@ export async function getBrackets(): Promise<EngineBracket[]> {
   }));
 }
 
-export async function getTerRates(): Promise<EngineTer[]> {
+export async function getTerRates(db: TenantDb): Promise<EngineTer[]> {
   const rows = await db.terRate.findMany({ orderBy: [{ category: "asc" }, { lowerLimit: "asc" }] });
   return rows.map((t) => ({ category: t.category, lowerLimit: t.lowerLimit, upperLimit: t.upperLimit, rate: t.rate }));
 }
@@ -65,7 +65,7 @@ function toEngineComponent(c: {
 // Merakit baris input engine untuk satu run (period × processType).
 // Komponen per karyawan = item template profil + komponen Periodic aktif +
 // komponen Specific (period & processType cocok) + angsuran pinjaman jatuh tempo.
-export async function buildRunRows(periodId: string, processTypeId: string): Promise<EngineRow[]> {
+export async function buildRunRows(db: TenantDb, periodId: string, processTypeId: string): Promise<EngineRow[]> {
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
 
@@ -227,7 +227,7 @@ export async function buildRunRows(periodId: string, processTypeId: string): Pro
 }
 
 // Menjalankan kalkulasi dan menyimpan hasil (lines + items) ke run.
-export async function calculateAndSaveRun(runId: string): Promise<EngineRunResult> {
+export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<EngineRunResult> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
     include: { period: true, processType: true },
@@ -238,10 +238,10 @@ export async function calculateAndSaveRun(runId: string): Promise<EngineRunResul
   }
 
   const [reg, brackets, ter, rows] = await Promise.all([
-    getActiveRegulation(),
-    getBrackets(),
-    getTerRates(),
-    buildRunRows(run.periodId, run.processTypeId),
+    getActiveRegulation(db),
+    getBrackets(db),
+    getTerRates(db),
+    buildRunRows(db, run.periodId, run.processTypeId),
   ]);
 
   const result = runPayroll(rows, reg, brackets, ter, { calculateTax: run.calculateTax });
@@ -295,7 +295,7 @@ export async function calculateAndSaveRun(runId: string): Promise<EngineRunResul
 }
 
 // Konfirmasi run: kunci hasil + apply angsuran pinjaman (status Deducted).
-export async function confirmRun(runId: string): Promise<void> {
+export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
     include: { lines: { include: { items: true } }, period: true, processType: true },
@@ -345,14 +345,14 @@ export async function confirmRun(runId: string): Promise<void> {
 
   // Klaim benefit Scheduled pada period ini → Dibayar (P5 pay-in-payroll).
   try {
-    await markClaimsPaidForRun(runId);
+    await markClaimsPaidForRun(db, runId);
   } catch {
     // non-fatal: klaim dapat ditandai manual bila gagal
   }
 
   // Posting jurnal otomatis (P4) — idempotent; hasil run sudah dikunci aman.
   try {
-    const journal = await generateJournalForRun(runId);
+    const journal = await generateJournalForRun(db, runId);
     await db.activityLog.create({
       data: { action: "Posted", entity: "PayrollRun", entityId: runId, detail: `Jurnal ${journal.journalNo} otomatis dibuat dari run ${run.runNo}` },
     });
@@ -365,7 +365,7 @@ export async function confirmRun(runId: string): Promise<void> {
 }
 
 // Generate nomor run: PR-{period.code}-{typeCode3}-{seq}
-export async function nextRunNo(periodCode: string, typeCode: string): Promise<string> {
+export async function nextRunNo(db: TenantDb, periodCode: string, typeCode: string): Promise<string> {
   const prefix = `PR-${periodCode}-${typeCode.slice(0, 3).toUpperCase()}`;
   const count = await db.payrollRun.count({ where: { runNo: { startsWith: prefix } } });
   return `${prefix}-${String(count + 1).padStart(2, "0")}`;

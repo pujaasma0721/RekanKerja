@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/companies — first company + stats
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const company = await db.company.findFirst({
       include: { _count: { select: { employees: true, orgUnits: true } } },
     });
@@ -26,6 +29,9 @@ export async function GET() {
 // PATCH update company profile
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     const company = await db.company.findFirst();
     if (!company) return NextResponse.json({ error: "Perusahaan tidak ditemukan" }, { status: 404 });

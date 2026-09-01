@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/lib/onevity/assignment";
 
 // GET detail
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const { id } = await ctx.params;
     const action = await db.personnelAction.findUnique({
       where: { id },
@@ -58,6 +61,9 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 // PATCH — workflow transitions: submit|approve|reject|process|cancel|return
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const { id } = await ctx.params;
     const b = await req.json();
     const act = b.action as string;
@@ -134,6 +140,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // side effects per type — perubahan pekerjaan tercatat sebagai baris riwayat baru
       if (action.type === "Promotion" || action.type === "Demotion" || action.type === "Transfer" || action.type === "Mutation") {
         await applyAssignmentChange(
+          db,
           action.employeeId,
           {
             positionId: detail.positionId ? String(detail.positionId) : undefined,
@@ -145,18 +152,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         );
       } else if (action.type === "SalaryAdjustment" && detail.newSalary) {
         await applyAssignmentChange(
+          db,
           action.employeeId,
           { baseSalary: Number(detail.newSalary) },
           { reason: "SalaryAdjustment", effectiveDate, sourceDocNo: action.docNo, notes: action.reason ?? null },
         );
       } else if (action.type === "ChangeStatus" && detail.newEmploymentStatus) {
         await applyAssignmentChange(
+          db,
           action.employeeId,
           { employmentStatus: String(detail.newEmploymentStatus) },
           { reason: "ChangeStatus", effectiveDate, sourceDocNo: action.docNo, notes: action.reason ?? null },
         );
       } else if (action.type === "ExtendProbation" || action.type === "ContractRenewal") {
         await applyAssignmentChange(
+          db,
           action.employeeId,
           { employmentStatus: detail.newEmploymentStatus ? String(detail.newEmploymentStatus) : undefined },
           { reason: action.type, effectiveDate, sourceDocNo: action.docNo, notes: action.reason ?? null },
@@ -170,7 +180,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           },
         });
         // tutup assignment aktif pada tanggal efektif
-        await closeCurrentAssignment(action.employeeId, effectiveDate);
+        await closeCurrentAssignment(db, action.employeeId, effectiveDate);
       }
 
       await db.personnelAction.update({ where: { id }, data: { status: "Processed", processedAt: new Date() } });
@@ -218,8 +228,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 }
 
 // DELETE draft only
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const { id } = await ctx.params;
     const action = await db.personnelAction.findUnique({ where: { id } });
     if (!action) return NextResponse.json({ error: "Dokumen tidak ditemukan" }, { status: 404 });

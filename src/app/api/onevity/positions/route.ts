@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/positions?q=&orgUnitId=&gradeId=&active=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const orgUnitId = sp.get("orgUnitId");
@@ -54,6 +57,9 @@ export async function GET(req: NextRequest) {
 // POST create
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.title) return NextResponse.json({ error: "Kode dan judul posisi wajib diisi" }, { status: 400 });
     const exists = await db.position.findUnique({ where: { code: b.code } });
@@ -80,6 +86,9 @@ export async function POST(req: NextRequest) {
 // PATCH update
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const position = await db.position.update({
@@ -100,6 +109,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE ?id=
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const count = await db.employee.count({ where: { positionId: id } });

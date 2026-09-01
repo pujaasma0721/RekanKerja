@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
 
 // GET /api/onevity/payroll-journals            → daftar jurnal + run yang belum diposting
@@ -7,6 +7,9 @@ import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
 // GET /api/onevity/payroll-journals?export=csv&id= → CSV jurnal
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const exportCsv = req.nextUrl.searchParams.get("export");
     const id = req.nextUrl.searchParams.get("id");
 
@@ -60,9 +63,12 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/payroll-journals — generate jurnal untuk run (backfill/idempotent)
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.runId) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
-    const journal = await generateJournalForRun(b.runId);
+    const journal = await generateJournalForRun(db, b.runId);
     return NextResponse.json({ journal });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

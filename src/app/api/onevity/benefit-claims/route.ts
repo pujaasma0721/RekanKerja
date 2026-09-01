@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
 } from "@/lib/onevity/benefit-service";
@@ -19,6 +19,9 @@ const CLAIM_INCLUDE = {
 // GET /api/onevity/benefit-claims?status=&employeeId= — daftar + statistik.
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const status = req.nextUrl.searchParams.get("status");
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const claims = await db.benefitClaim.findMany({
@@ -52,8 +55,11 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/benefit-claims — ajukan klaim (limit check + auto-approve).
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
-    const res = await submitClaim({
+    const res = await submitClaim(db, {
       employeeId: b.employeeId,
       benefitTypeId: b.benefitTypeId,
       amount: Number(b.amount),
@@ -70,25 +76,28 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/benefit-claims — action: approve|reject|schedule|markPaid|cancel.
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
     let claim: unknown;
     switch (b.action) {
       case "approve":
-        claim = await approveClaim(b.id, b.approvedBy);
+        claim = await approveClaim(db, b.id, b.approvedBy);
         break;
       case "reject":
-        claim = await rejectClaim(b.id, b.reason ?? "");
+        claim = await rejectClaim(db, b.id, b.reason ?? "");
         break;
       case "schedule":
         if (!b.periodId) return NextResponse.json({ error: "periodId wajib utk schedule" }, { status: 400 });
-        claim = await scheduleClaim(b.id, b.periodId);
+        claim = await scheduleClaim(db, b.id, b.periodId);
         break;
       case "markPaid":
-        claim = await markClaimPaidCash(b.id);
+        claim = await markClaimPaidCash(db, b.id);
         break;
       case "cancel":
-        claim = await cancelClaim(b.id);
+        claim = await cancelClaim(db, b.id);
         break;
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET — approval templates + temporary approvers
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const templates = await db.approvalTemplate.findMany({ orderBy: { code: "asc" } });
     const delegations = await db.temporaryApprover.findMany({
       include: {
@@ -36,6 +39,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (b.kind === "template") {
       if (!b.code || !b.name) return NextResponse.json({ error: "Kode & nama template wajib" }, { status: 400 });
@@ -70,6 +76,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const sp = req.nextUrl.searchParams;
     const id = sp.get("id");
     const kind = sp.get("kind");

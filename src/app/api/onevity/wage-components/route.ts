@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/wage-components?type=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const type = req.nextUrl.searchParams.get("type");
     const q = req.nextUrl.searchParams.get("q")?.trim();
     const where = {
@@ -23,6 +26,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/wage-components
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode dan nama komponen wajib diisi" }, { status: 400 });
     const exists = await db.wageComponent.findUnique({ where: { code: b.code } });
@@ -65,6 +71,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/wage-components
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const incomeTaxMethod = b.incomeTaxMethod;
@@ -105,6 +114,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/wage-components?id=
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     // Cegah hapus komponen yang dipakai template/assignment

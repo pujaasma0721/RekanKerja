@@ -7,7 +7,7 @@
 //   2. D 5103 BPJS Perusahaan (iuran perush.)                 / C 2103 Hutang BPJS
 //   3. D 2101 Hutang Gaji (tiap potongan)                     / C 2102/2103/2104/2105
 //   4. D 2101 Hutang Gaji (net / pembulatan)                  / C 1101 Kas & Bank
-import { db } from "@/lib/db";
+import type { TenantDb } from "@/lib/onevity/tenant-db";
 
 // Akun default (COA minimal seed) — kode komponen boleh menimpa via
 // WageComponent.accountDebitCode / accountCreditCode (Salary Chart of Account).
@@ -43,7 +43,7 @@ export function creditAccountFor(wageType: string, accountCreditCode: string | n
   return JOURNAL_ACCOUNTS.otherDed;
 }
 
-export async function nextJournalNo(): Promise<string> {
+export async function nextJournalNo(db: TenantDb): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `JV-${year}-`;
   const count = await db.payrollJournal.count({ where: { journalNo: { startsWith: prefix } } });
@@ -61,7 +61,7 @@ interface JournalLineDraft {
 
 // Generate jurnal untuk satu run (idempotent — jika sudah ada, kembalikan yang ada).
 // Dipanggil otomatis oleh confirmRun(); API backfill memakai fungsi ini untuk run lama.
-export async function generateJournalForRun(runId: string) {
+export async function generateJournalForRun(db: TenantDb, runId: string) {
   const existing = await db.payrollJournal.findUnique({
     where: { runId },
     include: { lines: { orderBy: { sequence: "asc" } } },
@@ -170,7 +170,7 @@ export async function generateJournalForRun(runId: string) {
     if (acc) d.accountName = acc.name;
   }
 
-  const journalNo = await nextJournalNo();
+  const journalNo = await nextJournalNo(db);
   const journal = await db.payrollJournal.create({
     data: {
       journalNo,

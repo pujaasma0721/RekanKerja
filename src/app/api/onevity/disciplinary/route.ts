@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET (?employeeId= optional → all records) | POST | DELETE ?id=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const records = await db.disciplinaryRecord.findMany({
       where: employeeId ? { employeeId } : undefined,
@@ -39,6 +42,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId || !b.violation) return NextResponse.json({ error: "Pelanggaran wajib diisi" }, { status: 400 });
     const rec = await db.disciplinaryRecord.create({
@@ -61,6 +67,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     await db.disciplinaryRecord.delete({ where: { id } });

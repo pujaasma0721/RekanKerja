@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { PTKP_ANNUAL } from "@/lib/onevity/payroll-engine";
 
 // GET /api/onevity/payroll-profiles?q= — daftar karyawan aktif + profil payroll + assignment aktif
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const q = req.nextUrl.searchParams.get("q")?.trim();
     const employees = await db.employee.findMany({
       where: {
@@ -59,6 +62,9 @@ export async function GET(req: NextRequest) {
 // PATCH /api/onevity/payroll-profiles — upsert profil karyawan
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
 

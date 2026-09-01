@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/lib/onevity/assignment";
 
 // GET /api/onevity/employee-detail?id=
@@ -7,6 +7,9 @@ import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/lib/onevity/assign
 //           + assignments[] = riwayat penempatan lengkap (terbaru → terlama)
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
 
@@ -124,6 +127,9 @@ const JOB_FIELDS = ["orgUnitId", "positionId", "gradeId", "managerId", "employme
 // Perubahan data pekerjaan → assignment aktif ditutup + assignment baru dibuat (tercatat di riwayat).
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const b = await req.json();
@@ -143,7 +149,7 @@ export async function PATCH(req: NextRequest) {
       const overrides: Record<string, unknown> = {};
       for (const f of JOB_FIELDS) if (b[f] !== undefined) overrides[f] = b[f] || null;
       if (b.baseSalary !== undefined) overrides.baseSalary = Number(b.baseSalary);
-      const res = await applyAssignmentChange(id, overrides, {
+      const res = await applyAssignmentChange(db, id, overrides, {
         reason: "ManualEdit",
         effectiveDate: new Date(),
         notes: "Perubahan data pekerjaan dari halaman profil",

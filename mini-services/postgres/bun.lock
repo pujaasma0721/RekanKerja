@@ -1,0 +1,18 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "onevity-postgres",
+      "dependencies": {
+        "@embedded-postgres/linux-x64": "17.10.0-beta.17",
+      },
+    },
+  },
+  "trustedDependencies": [
+    "@embedded-postgres/linux-x64",
+  ],
+  "packages": {
+    "@embedded-postgres/linux-x64": ["@embedded-postgres/linux-x64@17.10.0-beta.17", "", { "os": "linux", "cpu": "x64" }, "sha512-hU4Sgna19ixDP/l3P/zkHhQ9B0JDV39qA97RNz55QcngeRjFC5/1G36LZjODVJ84kVJHUTQMmly7nzWO8js8kg=="],
+  }
+}

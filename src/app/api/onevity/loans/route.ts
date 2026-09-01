@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/lib/onevity/tenant-db";
 
 // GET /api/onevity/loans?employeeId=&status=
 export async function GET(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const status = req.nextUrl.searchParams.get("status");
     const loans = await db.employeeLoan.findMany({
@@ -26,6 +29,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/loans — buat pinjaman + skedul cicilan
 export async function POST(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.employeeId || !b.letterNo || !b.amount || !b.installmentCount) {
       return NextResponse.json({ error: "Karyawan, no surat, jumlah pinjaman & jumlah cicilan wajib" }, { status: 400 });
@@ -82,6 +88,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/loans — ubah status (PaidOff manual / Cancelled)
 export async function PATCH(req: NextRequest) {
   try {
+    const db = await requireTenant(req);
+    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const loan = await db.employeeLoan.findUnique({ where: { id: b.id } });
