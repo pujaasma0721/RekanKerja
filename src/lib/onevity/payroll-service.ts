@@ -7,6 +7,7 @@ import {
   EngineTer, EngineRegulation, EngineRunResult,
 } from "@/lib/onevity/payroll-engine";
 import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
+import { markClaimsPaidForRun } from "@/lib/onevity/benefit-service";
 
 export async function getActiveRegulation(): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
@@ -297,7 +298,7 @@ export async function calculateAndSaveRun(runId: string): Promise<EngineRunResul
 export async function confirmRun(runId: string): Promise<void> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
-    include: { lines: { include: { items: true } }, period: true },
+    include: { lines: { include: { items: true } }, period: true, processType: true },
   });
   if (!run) throw new Error("Run payroll tidak ditemukan");
   if (run.status !== "Calculated") throw new Error("Run harus berstatus Calculated sebelum dikonfirmasi");
@@ -341,6 +342,13 @@ export async function confirmRun(runId: string): Promise<void> {
   await db.activityLog.create({
     data: { action: "Confirmed", entity: "PayrollRun", entityId: runId, detail: `Run ${run.runNo} dikonfirmasi (${run.employeeCount} karyawan)` },
   });
+
+  // Klaim benefit Scheduled pada period ini → Dibayar (P5 pay-in-payroll).
+  try {
+    await markClaimsPaidForRun(runId);
+  } catch {
+    // non-fatal: klaim dapat ditandai manual bila gagal
+  }
 
   // Posting jurnal otomatis (P4) — idempotent; hasil run sudah dikunci aman.
   try {

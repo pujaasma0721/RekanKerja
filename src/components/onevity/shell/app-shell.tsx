@@ -17,7 +17,7 @@ import {
   LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator,
   Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
-  UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle,
+  UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen,
 } from "lucide-react";
@@ -27,7 +27,7 @@ interface NavItem {
   id: string; // view id
   label: string;
   icon: React.ElementType;
-  badge?: "pending" | "runsDraft";
+  badge?: "pending" | "runsDraft" | "benefitPending";
 }
 
 interface NavGroup {
@@ -90,6 +90,7 @@ const PAYROLL_NAV: NavGroup[] = [
   ] },
   { section: "payroll", label: "Transaksi", children: [
     { id: "transactions", label: "Transaksi & Rapel", icon: ArrowLeftRight },
+    { id: "benefits", label: "Benefit Karyawan", icon: HeartHandshake, badge: "benefitPending" },
   ] },
   { section: "payroll", label: "Laporan Tahunan", children: [
     { id: "spt", label: "SPT & Pajak (1721-A1)", icon: FileSpreadsheet },
@@ -338,7 +339,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         (item.id === "runs" && view === "run"));
                     const pending =
                       item.badge === "pending" ? meta.data?.pendingActions ?? 0 :
-                      item.badge === "runsDraft" ? meta.data?.payrollDraftRuns ?? 0 : 0;
+                      item.badge === "runsDraft" ? meta.data?.payrollDraftRuns ?? 0 :
+                      item.badge === "benefitPending" ? meta.data?.benefitPendingClaims ?? 0 : 0;
                     const Icon = item.icon;
                     return (
                       <button

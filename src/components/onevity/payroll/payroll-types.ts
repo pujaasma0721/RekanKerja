@@ -141,6 +141,48 @@ export interface EmployeeOption {
   orgUnitName?: string | null; positionName?: string | null;
 }
 
+// ============ BENEFIT (P5) ============
+
+export interface BenefitTypeUsage {
+  used: number; limit: number | null; remaining: number | null;
+  inLimit: boolean; windowLabel: string;
+}
+
+export interface BenefitTypeRow {
+  id: string; code: string; name: string; category: string; description: string | null;
+  resetPeriod: string; maxClaimAmount: number; unlimited: boolean; allowOverlimit: boolean;
+  needDocuments: boolean; autoApproveInLimit: boolean; payInPayroll: boolean;
+  wageComponentId: string | null; entitleFor: string;
+  validFrom: string; validTo: string | null; active: boolean;
+  wageComponent: { id: string; code: string; name: string } | null;
+  claimCount: number; activeClaimCount: number; totalApprovedAmount: number; ytdAmount: number;
+  usage: BenefitTypeUsage | null;
+}
+
+export interface BenefitClaimRow {
+  id: string; claimNo: string; benefitTypeId: string; employeeId: string;
+  claimDate: string; amount: number; approvedAmount: number;
+  description: string | null; documentsNote: string | null; status: string;
+  limitUsed: number; limitRemaining: number; inLimit: boolean;
+  periodId: string | null; paidRunNo: string | null;
+  approvedBy: string | null; approvedAt: string | null; rejectedReason: string | null;
+  createdAt: string;
+  benefitType: {
+    id: string; code: string; name: string; category: string; resetPeriod: string;
+    maxClaimAmount: number; unlimited: boolean; allowOverlimit: boolean;
+    autoApproveInLimit: boolean; payInPayroll: boolean; needDocuments: boolean; wageComponentId: string | null;
+  };
+  employee: { employeeNo: string; fullName: string };
+  period: { code: string; name: string; status: string } | null;
+}
+
+export interface BenefitStats {
+  total: number; pending: number; pendingAmount: number;
+  approvedCount: number; approvedAmount: number;
+  scheduledCount: number; paidCount: number; paidAmount: number;
+  rejectedCount: number; ytdAmount: number;
+}
+
 // ============ LABELS ============
 // TAX_STATUS_LABEL didefinisikan di engine (dipakai server & client)
 export { TAX_STATUS_LABEL } from "@/lib/onevity/payroll-engine";

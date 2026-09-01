@@ -149,6 +149,7 @@ model Employee {
   loans          EmployeeLoan[]
   runLines       PayrollRunLine[]
   componentAssignments EmployeeComponentAssignment[]
+  benefitClaims  BenefitClaim[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -305,6 +306,7 @@ model WageComponent {
 
   templateItems   WageTemplateItem[]
   assignments     EmployeeComponentAssignment[]
+  benefitTypes    BenefitType[]
 }
 
 // ============ PAYROLL MODULE ============
@@ -329,6 +331,7 @@ model PayrollPeriod {
 
   runs PayrollRun[]
   componentAssignments EmployeeComponentAssignment[]
+  benefitClaims BenefitClaim[]
 }
 
 // Jenis proses payroll (multi-run per period): Salary, THR, Bonus, Termination, dst.
@@ -618,6 +621,66 @@ model PostingEvent {
   debitAccountId  String?
   creditAccountId String?
   active    Boolean  @default(true)
+}
+
+// ============ EMPLOYEE BENEFIT (P5 — Benefit & Klaim) ============
+// Jenis benefit (pola oranHR "BenefitType"): limit per siklus reset (bulanan/
+// kuartalan/tahunan), auto-approve saat dalam limit, pay-in-payroll (dibayar via
+// run payroll ProcessType BENEFIT) atau dibayar langsung dari kas.
+model BenefitType {
+  id            String   @id @default(cuid())
+  code          String   @unique // MEDICAL|GLASSES|SPORT|WEDDING
+  name          String
+   category      String   @default("Umum") // Medical|Kesehatan|Transport|Rekreasi|Perayaan|Lainnya
+  description   String?
+  // Limit klaim per siklus reset (maxClaimAmount 0 + unlimited = tanpa limit).
+  resetPeriod   String   @default("Monthly") // None|Monthly|Quarterly|Yearly
+  maxClaimAmount Float   @default(0)
+  unlimited     Boolean  @default(false)
+  allowOverlimit Boolean @default(false) // klaim boleh melebihi limit (approval manual)
+  needDocuments Boolean  @default(false)
+  autoApproveInLimit Boolean @default(true)
+  payInPayroll  Boolean  @default(true) // true → lewat run payroll; false → kas langsung
+  wageComponentId String? // komponen upah di payslip saat pay-in-payroll
+  entitleFor    String   @default("All") // All|Permanent|Contract|Probation
+  validFrom     DateTime @default(now())
+  validTo       DateTime?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  wageComponent WageComponent? @relation(fields: [wageComponentId], references: [id])
+  claims        BenefitClaim[]
+}
+
+// Klaim benefit karyawan — lifecycle:
+//   Pending →(approve)→ Approved →(schedule ke period)→ Scheduled →(run BENEFIT
+//   dikonfirmasi)→ Paid  ·  payInPayroll=false: Approved →(kas)→ Paid
+//   Pending →(reject)→ Rejected (dgn alasan); Pending/Approved/Scheduled → Cancelled.
+// Snapshot audit limit (limitUsed/limitRemaining/inLimit) disimpan saat pengajuan.
+model BenefitClaim {
+  id            String   @id @default(cuid())
+  claimNo       String   @unique // BC-2026-001
+  benefitTypeId String
+  employeeId    String
+  claimDate     DateTime @default(now())
+  amount        Float    // nilai diklaim
+  approvedAmount Float   @default(0) // nilai disetujui (= amount saat approve)
+  description   String?
+  documentsNote String?  // daftar dokumen pendukung (bila needDocuments)
+  status        String   @default("Pending") // Pending|Approved|Rejected|Scheduled|Paid|Cancelled
+  limitUsed     Float    @default(0)
+  limitRemaining Float   @default(0)
+  inLimit       Boolean  @default(true)
+  periodId      String?  // period payroll saat dibayar (pay-in-payroll)
+  paidRunNo     String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  rejectedReason String?
+  createdAt     DateTime @default(now())
+
+  benefitType BenefitType    @relation(fields: [benefitTypeId], references: [id])
+  employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period      PayrollPeriod? @relation(fields: [periodId], references: [id])
 }
 
 // ============ GENERAL SETTING (lookup) ============

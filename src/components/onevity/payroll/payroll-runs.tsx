@@ -257,7 +257,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="opsional" className="mt-1.5" />
           </div>
           <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
-            Run <b>Gaji Bulanan</b> memproses payroll penuh (template + pinjaman + komponen periodik). Jenis lain (THR/Bonus) bersifat <b>suplemental</b>: hanya komponen khusus yang didaftarkan di menu Transaksi untuk period & jenis proses ini yang dibayarkan — tidak mengulang gaji bulanan.
+            Run <b>Gaji Bulanan</b> memproses payroll penuh (template + pinjaman + komponen periodik). Jenis lain (THR/Bonus/Benefit/Rapel) bersifat <b>suplemental</b>: hanya komponen khusus yang didaftarkan untuk period & jenis proses ini yang dibayarkan — tidak mengulang gaji bulanan. Run <b>Benefit</b> membayar klaim benefit yang dijadwalkan pada period terpilih.
           </p>
         </div>
         <DialogFooter>

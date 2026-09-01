@@ -1,6 +1,9 @@
 // OneVity seed — realistic Indonesian company "MII - Mitra Industri Internasional"
 import { PrismaClient } from "@prisma/client";
 import { calculateAndSaveRun, confirmRun } from "../src/lib/onevity/payroll-service";
+import {
+  submitClaim, scheduleClaim, approveClaim, rejectClaim, markClaimPaidCash, nextClaimNo,
+} from "../src/lib/onevity/benefit-service";
 
 const db = new PrismaClient();
 
@@ -496,6 +499,8 @@ async function main() {
     { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
     { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
     { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", sptReference: "Gaji" },
+    { code: "BEN_MED", name: "Benefit Medis (Reimburse)", type: "Earning", wageType: "CompensationNatura", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "5104" },
+    { code: "BEN_GEN", name: "Benefit Karyawan", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", accountDebitCode: "5104" },
   ];
   const compIds: Record<string, string> = {};
   for (const c of compDefs) {
@@ -511,6 +516,7 @@ async function main() {
         applyThrRules: c.applyThrRules ?? false,
         jamsostekBasis: c.jamsostekBasis ?? null,
         sptReference: c.sptReference ?? null,
+        accountDebitCode: c.accountDebitCode ?? null,
       },
     });
     compIds[c.code] = created.id;
@@ -526,6 +532,7 @@ async function main() {
       { code: "5101", name: "Gaji & Upah", accountGroupId: ag1.id, balance: 0 },
       { code: "5102", name: "Tunjangan Karyawan", accountGroupId: ag1.id, balance: 0 },
       { code: "5103", name: "BPJS Perusahaan", accountGroupId: ag1.id, balance: 0 },
+      { code: "5104", name: "Beban Benefit Karyawan", accountGroupId: ag1.id, balance: 0 },
       { code: "2101", name: "Hutang Gaji", accountGroupId: ag2.id, balance: 0 },
       { code: "2102", name: "Hutang PPh 21", accountGroupId: ag2.id, balance: 0 },
       { code: "2103", name: "Hutang BPJS", accountGroupId: ag2.id, balance: 0 },
@@ -551,6 +558,7 @@ async function main() {
         ["TERMINATION", "Pesangon & Final Settlement", 4, true],
         ["YEAR_END_ADJ", "Penyesuaian Akhir Tahun", 5, true],
         ["RAPEL", "Rapel / Back-Pay", 6, true],
+        ["BENEFIT", "Benefit", 50, true],
       ] as [string, string, number, boolean][]
     ).map(([code, name, sequence, calculateTax]) =>
       db.processType.create({ data: { code, name, sequence, calculateTax } })
@@ -786,6 +794,86 @@ async function main() {
       amount: 1_000_000, notes: "Transport lapangan lebih tinggi",
     },
   });
+
+  // ============ PAYROLL: BENEFIT (P5) ============
+  // 4 jenis benefit (limit per siklus reset, auto-approve, pay-in-payroll vs kas)
+  // + klaim di berbagai tahap lifecycle. Klaim Scheduled SEP menunggu user
+  // membuat run jenis "Benefit" (demo interaktif pay-in-payroll).
+  const btMedical = await db.benefitType.create({ data: {
+    code: "MEDICAL", name: "Reimburse Medis & Kesehatan", category: "Medical",
+    description: "Rawat jalan, obat, lab & medical check-up. Natura kesehatan (non-objek pajak).",
+    resetPeriod: "Monthly", maxClaimAmount: 2_000_000, needDocuments: true,
+    autoApproveInLimit: true, payInPayroll: true, wageComponentId: compIds["BEN_MED"],
+  } });
+  const btGlasses = await db.benefitType.create({ data: {
+    code: "GLASSES", name: "Ganti Kacamata", category: "Kesehatan",
+    description: "Penggantian kacamata + pemeriksaan mata (1x per tahun).",
+    resetPeriod: "Yearly", maxClaimAmount: 1_500_000, needDocuments: true,
+    autoApproveInLimit: false, payInPayroll: true, wageComponentId: compIds["BEN_GEN"],
+  } });
+  const btSport = await db.benefitType.create({ data: {
+    code: "SPORT", name: "Fasilitas Olahraga & Gym", category: "Rekreasi",
+    description: "Reimburse keanggotaan gym/olahraga bulanan.",
+    resetPeriod: "Monthly", maxClaimAmount: 500_000, allowOverlimit: true,
+    autoApproveInLimit: true, payInPayroll: true, wageComponentId: compIds["BEN_GEN"],
+  } });
+  const btWedding = await db.benefitType.create({ data: {
+    code: "WEDDING", name: "Bantuan Pernikahan Karyawan", category: "Perayaan",
+    description: "Bantuan pernikahan pertama karyawan — dibayar langsung dari kas.",
+    resetPeriod: "None", maxClaimAmount: 2_500_000, needDocuments: true,
+    autoApproveInLimit: false, payInPayroll: false,
+  } });
+  // Sri: medical 800rb (auto-approve) lalu 2,1jt ditolak (overlimit tanpa izin).
+  await submitClaim({ employeeId: empIds[1], benefitTypeId: btMedical.id, amount: 800_000,
+    claimDate: "2026-09-02", description: "Obat & konsultasi dokter umum",
+    documentsNote: "Kwitansi klinik Sehat Selalu #RCP-1042, resep obat" });
+  const sriOver = await db.benefitClaim.create({ data: {
+    claimNo: await nextClaimNo(), benefitTypeId: btMedical.id, employeeId: empIds[1],
+    claimDate: new Date(2026, 8, 6), amount: 2_100_000,
+    description: "Medical check-up lengkap + vaksin", documentsNote: "Invoice MCU MediLab #INV-8871",
+    status: "Pending", limitUsed: 800_000, limitRemaining: 1_200_000, inLimit: false,
+  } });
+  await rejectClaim(sriOver.id, "Melebihi sisa limit September (Rp 1.200.000) — kuitansi tidak lengkap; ajukan ulang bulan depan atau via kas");
+  // Dewi: kacamata 1,35jt — menunggu approval manual.
+  await db.benefitClaim.create({ data: {
+    claimNo: await nextClaimNo(), benefitTypeId: btGlasses.id, employeeId: empIds[7],
+    claimDate: new Date(2026, 8, 8), amount: 1_350_000,
+    description: "Kacamata baru minus naik + pemeriksaan mata", documentsNote: "Faktur Optik Melati #FM-332, resep dokter mata",
+    status: "Pending", limitUsed: 0, limitRemaining: 1_500_000, inLimit: true,
+  } });
+  // Tri: bantuan pernikahan 2,5jt — Pending (dibayar kas langsung setelah approve).
+  await db.benefitClaim.create({ data: {
+    claimNo: await nextClaimNo(), benefitTypeId: btWedding.id, employeeId: empIds[3],
+    claimDate: new Date(2026, 8, 10), amount: 2_500_000,
+    description: "Pernikahan pertama — 8 November 2026", documentsNote: "Fotokopi undangan & akta nikah (menyusul)",
+    status: "Pending", limitUsed: 0, limitRemaining: 2_500_000, inLimit: true,
+  } });
+  // Wahyu: gym 800rb — overlimit diizinkan → Pending approval manual.
+  await submitClaim({ employeeId: empIds[20], benefitTypeId: btSport.id, amount: 800_000,
+    claimDate: "2026-09-09", description: "Membership gym 3 bulan (promo)" });
+  // Dedi: pernikahan 2,5jt (historis — approve → lunas via kas).
+  const dediClaim = await db.benefitClaim.create({ data: {
+    claimNo: await nextClaimNo(), benefitTypeId: btWedding.id, employeeId: empIds[8],
+    claimDate: new Date(2026, 4, 15), amount: 2_500_000,
+    description: "Pernikahan pertama — 23 Mei 2026", documentsNote: "Akta nikah + undangan",
+    status: "Pending", limitUsed: 0, limitRemaining: 2_500_000, inLimit: true,
+  } });
+  await approveClaim(dediClaim.id, "Ratna Sari (HR Manager)");
+  await markClaimPaidCash(dediClaim.id);
+  // Rina & Agus: klaim medis auto-approve → dijadwalkan ke SEP (run Benefit
+  // dibuat user via Proses & Hasil; konfirmasi run → klaim Dibayar + jurnal).
+  const rinaClaim = await submitClaim({ employeeId: empIds[5], benefitTypeId: btMedical.id, amount: 1_750_000,
+    claimDate: "2026-09-12", description: "Scaling gigi + tambal gigi",
+    documentsNote: "Kwitansi Klinik Gigi Ceria #KG-204" });
+  await scheduleClaim((rinaClaim.claim as { id: string }).id, sepPeriod.id);
+  const agus1 = await submitClaim({ employeeId: empIds[6], benefitTypeId: btMedical.id, amount: 1_250_000,
+    claimDate: "2026-09-14", description: "Lab darah lengkap + konsultasi",
+    documentsNote: "Hasil lab Prodia #PL-5567, kwitansi" });
+  const agus2 = await submitClaim({ employeeId: empIds[6], benefitTypeId: btMedical.id, amount: 450_000,
+    claimDate: "2026-09-16", description: "Obat flu & vitamin",
+    documentsNote: "Kwitansi apotek Kimia Farma #AP-1290" });
+  await scheduleClaim((agus1.claim as { id: string }).id, sepPeriod.id);
+  await scheduleClaim((agus2.claim as { id: string }).id, sepPeriod.id);
 
   // ============ PAYROLL: RUN HISTORIS (engine sungguhan) ============
   // JUL 2026 & AGU 2026: dihitung engine → confirmed → paid.
