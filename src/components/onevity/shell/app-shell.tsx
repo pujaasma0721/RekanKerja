@@ -1,7 +1,7 @@
 "use client";
-// OneVity App Shell — obsidian sidebar + topbar + command palette
+// OneVity App Shell — obsidian sidebar (module dropdown + nav per modul) + topbar + command palette
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useNav, SectionId } from "@/lib/onevity/store";
+import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/lib/onevity/store";
 import { useApi, initials, fmtDateTime } from "@/lib/onevity/api";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,12 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
-  LayoutDashboard, Users, Workflow, Settings2, ChevronDown,
+  LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator,
   Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
-  UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, XCircle, FileText, Trash2, Pencil, Waypoints,
+  UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle,
+  Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
+  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,18 +27,30 @@ interface NavItem {
   id: string; // view id
   label: string;
   icon: React.ElementType;
-  badge?: "pending";
+  badge?: "pending" | "runsDraft";
 }
 
 interface NavGroup {
   section: SectionId;
-  label?: string; // undefined = item mandiri tanpa grup (Dashboard)
+  label?: string; // undefined = item mandiri tanpa grup (Dashboard / Ringkasan)
   children: NavItem[];
+  matchViews?: string[]; // view tambahan yang tetap men-highlight grup ini (mis. detail run)
 }
 
-// Struktur menu stabil: SEMUA grup & item selalu tampil (tidak pernah loncat/reshuffle).
-// Urutan mengikuti alur kerja HR: data perusahaan → posisi → karyawan → pengajuan → payroll → pengaturan.
-export const NAV: NavGroup[] = [
+// ============ MODULE REGISTRY ============
+export const MODULES: { id: ModuleId; label: string; short: string; icon: React.ElementType; ready: boolean }[] = [
+  { id: "hr", label: "Human Resource Base", short: "HR Base", icon: Users, ready: true },
+  { id: "payroll", label: "Payroll", short: "Payroll", icon: Coins, ready: true },
+  { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: false },
+  { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: false },
+  { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: false },
+  { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: false },
+];
+
+// ============ NAV PER MODULE ============
+// Struktur menu stabil: semua grup & item selalu tampil dalam modul aktif.
+
+const HR_NAV: NavGroup[] = [
   { section: "dashboard", children: [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
   ] },
@@ -59,22 +73,104 @@ export const NAV: NavGroup[] = [
     { id: "inbox", label: "Menunggu Persetujuan", icon: Inbox, badge: "pending" },
     { id: "all", label: "Semua Pengajuan", icon: Workflow },
   ] },
-  { section: "payroll", label: "Payroll & Akuntansi", children: [
+];
+
+const PAYROLL_NAV: NavGroup[] = [
+  { section: "payroll", children: [
+    { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  ] },
+  { section: "payroll", label: "Periode & Proses", children: [
+    { id: "periods", label: "Periode Payroll", icon: CalendarRange },
+    { id: "runs", label: "Proses & Hasil", icon: PlayCircle, badge: "runsDraft" },
+  ], matchViews: ["run"] },
+  { section: "payroll", label: "Master Data", children: [
     { id: "components", label: "Komponen Upah", icon: Coins },
+    { id: "templates", label: "Template Upah", icon: LayoutTemplate },
+    { id: "profiles", label: "Data Gaji Karyawan", icon: IdCard },
+  ] },
+  { section: "payroll", label: "Transaksi", children: [
+    { id: "transactions", label: "Pinjaman & Komponen", icon: ArrowLeftRight },
+  ] },
+  { section: "payroll", label: "Parameter", children: [
+    { id: "parameters", label: "Parameter Pajak", icon: Percent },
     { id: "accounting", label: "Akun & Posting", icon: Calculator },
   ] },
-  { section: "settings", label: "Pengaturan", children: [
+];
+
+// Modul berikutnya: struktur menu direncanakan dari studi oranHR — tampil sebagai placeholder.
+const ATTENDANCE_NAV: NavGroup[] = [
+  { section: "attendance", children: [{ id: "schedules", label: "Ringkasan", icon: LayoutDashboard }] },
+  { section: "attendance", label: "Jadwal & Shift", children: [
+    { id: "templates-schedule", label: "Template Jadwal", icon: CalendarClock },
+    { id: "assignment-schedule", label: "Assign Jadwal", icon: CalendarRange },
+    { id: "matrix", label: "Matriks Jadwal", icon: Layers },
+  ] },
+  { section: "attendance", label: "Kehadiran", children: [
+    { id: "clocking", label: "Data Clocking", icon: Activity },
+    { id: "absence", label: "Absensi & Izin", icon: XCircle },
+    { id: "overtime", label: "Lembur (Overtime)", icon: Clock },
+    { id: "workoff", label: "Work Off Permission", icon: CheckCircle2 },
+  ] },
+];
+
+const LEAVE_NAV: NavGroup[] = [
+  { section: "leave", children: [{ id: "balances", label: "Ringkasan", icon: LayoutDashboard }] },
+  { section: "leave", label: "Cuti Karyawan", children: [
+    { id: "leave-info", label: "Informasi Cuti", icon: Palmtree },
+    { id: "leave-request", label: "Permintaan Cuti", icon: Inbox },
+    { id: "leave-approval", label: "Persetujuan", icon: CheckCircle2 },
+  ] },
+  { section: "leave", label: "Pengaturan Cuti", children: [
+    { id: "leave-type", label: "Jenis Cuti", icon: Layers },
+    { id: "leave-encashment", label: "Uang Pengganti Cuti", icon: Wallet },
+  ] },
+];
+
+const TRAVEL_NAV: NavGroup[] = [
+  { section: "travel", children: [{ id: "requests", label: "Ringkasan", icon: LayoutDashboard }] },
+  { section: "travel", label: "Perjalanan Dinas", children: [
+    { id: "travel-request", label: "Permintaan Travel", icon: Plane },
+    { id: "travel-claim", label: "Klaim & Settlement", icon: FileText },
+    { id: "travel-budget", label: "Budget Travel", icon: Wallet },
+    { id: "travel-approval", label: "Persetujuan", icon: CheckCircle2 },
+  ] },
+];
+
+const MEDICAL_NAV: NavGroup[] = [
+  { section: "medical", children: [{ id: "claims", label: "Ringkasan", icon: LayoutDashboard }] },
+  { section: "medical", label: "Benefit Medis", children: [
+    { id: "medical-info", label: "Info Medis Karyawan", icon: HeartPulse },
+    { id: "medical-claim", label: "Klaim Medis", icon: Activity },
+    { id: "medical-approval", label: "Persetujuan Klaim", icon: CheckCircle2 },
+    { id: "medical-benefit-type", label: "Jenis Benefit", icon: Boxes },
+  ] },
+];
+
+// Pengaturan sistem — cross-module, selalu tampil di bagian bawah sidebar semua modul.
+const SETTINGS_NAV: NavGroup[] = [
+  { section: "settings", label: "Pengaturan Sistem", children: [
     { id: "lookups", label: "Data Master", icon: Layers },
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
     { id: "approval", label: "Template Approval", icon: CheckCircle2 },
   ] },
 ];
 
+export function navOfModule(m: ModuleId): NavGroup[] {
+  switch (m) {
+    case "payroll": return PAYROLL_NAV;
+    case "attendance": return ATTENDANCE_NAV;
+    case "leave": return LEAVE_NAV;
+    case "travel": return TRAVEL_NAV;
+    case "medical": return MEDICAL_NAV;
+    default: return HR_NAV;
+  }
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { section, view, params, navigate, syncFromUrl } = useNav();
+  const { section, view, params, module, navigate, setModule, syncFromUrl } = useNav();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const meta = useApi<{ pendingActions: number; activeEmployees: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
+  const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
 
   useEffect(() => {
     syncFromUrl();
@@ -93,15 +189,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const go = (s: SectionId, v: string) => { navigate(s, v); setMobileOpen(false); };
 
+  const nav = navOfModule(module);
+  const groups = module === "hr" ? [...nav, ...SETTINGS_NAV] : module === "payroll" ? [...nav, ...SETTINGS_NAV] : [...nav, ...SETTINGS_NAV];
+
   const crumbs = useMemo(() => {
-    const group = NAV.find((g) => g.section === section);
+    const group = groups.find((g) => g.section === section && (!g.matchViews || g.matchViews.includes(view) || g.children.some((c) => c.id === view)));
     const item = group?.children.find((c) => c.id === view);
-    const out: string[] = [];
+    const out: string[] = [MODULE_LABEL[module]];
     if (group?.label) out.push(group.label);
-    if (item && item.id !== "overview") out.push(item.label);
+    if (item && item.id !== "overview" && item.id !== view) out.push(item.label);
+    if (item && item.id === view && item.id !== "overview") out.push(item.label);
+    if (view === "run" && section === "payroll") out.push("Detail Proses");
     if (params.id) out.push(params.id);
     return out.filter(Boolean);
-  }, [section, view, params]);
+  }, [section, view, params, module, groups]);
+
+  const activeModule = MODULES.find((m) => m.id === module) ?? MODULES[0];
+  const ActiveModuleIcon = activeModule.icon;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -152,12 +256,63 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* nav — struktur STABIL: semua grup & item selalu terlihat, hanya highlight yang berpindah */}
+          {/* ============ MODULE SWITCHER (dropdown modul besar) ============ */}
+          <div className="px-4 pb-2.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.08] px-3 py-2.5 text-left transition hover:border-emerald-500/40 hover:bg-emerald-500/[0.14]"
+                  aria-label="Pilih modul"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow">
+                    <ActiveModuleIcon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">Modul Aktif</p>
+                    <p className="truncate text-[13px] font-bold text-stone-50">{activeModule.label}</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="right" className="w-60">
+                <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Modul OneVity</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {MODULES.map((m) => {
+                  const Icon = m.icon;
+                  const isActive = m.id === module;
+                  return (
+                    <DropdownMenuItem
+                      key={m.id}
+                      onClick={() => { setModule(m.id); setMobileOpen(false); }}
+                      className={cn("gap-3 py-2.5", isActive && "bg-emerald-50 dark:bg-emerald-500/10")}
+                    >
+                      <div className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                        isActive ? "bg-emerald-600 text-white" : m.ready ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300" : "bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500"
+                      )}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <span className={cn("flex-1 text-[13px] font-semibold", isActive ? "text-emerald-700 dark:text-emerald-400" : "text-stone-700 dark:text-stone-200")}>{m.label}</span>
+                      {isActive ? (
+                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : m.ready ? null : (
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[9px] font-bold uppercase text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">Segera</Badge>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* nav — menu mengikuti modul aktif */}
           <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-0.5" aria-label="Navigasi utama">
-            {NAV.map((group) => {
-              const active = section === group.section;
+            {groups.map((group) => {
+              const active =
+                section === group.section &&
+                (group.children.some((c) => c.id === view) || (group.matchViews?.includes(view) ?? false));
               return (
-                <div key={group.section} className="pb-1">
+                <div key={`${group.section}-${group.label ?? "root"}`} className="pb-1">
                   {group.label ? (
                     <button
                       onClick={() => go(group.section, group.children[0].id)}
@@ -172,8 +327,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="h-1" />
                   )}
                   {group.children.map((item) => {
-                    const isActive = active && (view === item.id || (item.id === "directory" && view === "detail"));
-                    const pending = item.badge === "pending" ? meta.data?.pendingActions ?? 0 : 0;
+                    const isActive =
+                      section === group.section &&
+                      (view === item.id ||
+                        (item.id === "directory" && view === "detail") ||
+                        (item.id === "runs" && view === "run"));
+                    const pending =
+                      item.badge === "pending" ? meta.data?.pendingActions ?? 0 :
+                      item.badge === "runsDraft" ? meta.data?.payrollDraftRuns ?? 0 : 0;
                     const Icon = item.icon;
                     return (
                       <button
@@ -230,7 +391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <p className="mt-2 text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · Human Resource Base</p>
+            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {activeModule.label}</p>
           </div>
         </aside>
 
@@ -247,7 +408,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* breadcrumbs */}
             <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex" aria-label="Breadcrumb">
-              <button onClick={() => navigate("dashboard")} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">OneVity</button>
+              <button onClick={() => navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module))} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">OneVity</button>
               {crumbs.map((c, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   <ChevronRight className="h-3.5 w-3.5 text-stone-300 dark:text-stone-600" />
@@ -279,8 +440,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Plus className="h-4 w-4" /> Buat Baru
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onClick={() => navigate("employee", "wizard")}><UserPlus className="h-4 w-4 text-emerald-600" /> Onboarding Karyawan</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("payroll", "runs")}><PlayCircle className="h-4 w-4 text-teal-600" /> Proses Payroll</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("actions", "all")}><Workflow className="h-4 w-4 text-amber-600" /> Pengajuan Karyawan</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("org", "tree")}><Network className="h-4 w-4 text-teal-600" /> Unit Organisasi</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("position", "list")}><BriefcaseBusiness className="h-4 w-4 text-orange-600" /> Posisi Baru</DropdownMenuItem>
@@ -302,16 +464,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* footer */}
           <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
             <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
-              © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Human Resource Base Module · dibangun ulang dari studi OranHR
+              © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Modul {activeModule.label} · dibangun ulang dari studi OranHR
             </p>
           </footer>
         </div>
 
         {/* command palette */}
-        <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} />
+        <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} module={module} />
       </div>
     </TooltipProvider>
   );
+}
+
+function defaultSectionOfModuleFor(m: ModuleId): SectionId {
+  switch (m) {
+    case "payroll": return "payroll";
+    case "attendance": return "attendance";
+    case "leave": return "leave";
+    case "travel": return "travel";
+    case "medical": return "medical";
+    default: return "dashboard";
+  }
 }
 
 const subscribeNoop = () => () => {};
@@ -367,11 +540,16 @@ function NotificationBell({ pendingActions }: { pendingActions: number }) {
   );
 }
 
-function CommandPalette({ open, setOpen, onNavigate }: { open: boolean; setOpen: (v: boolean) => void; onNavigate: (s: SectionId, v: string) => void }) {
+function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; setOpen: (v: boolean) => void; onNavigate: (s: SectionId, v: string) => void; module: ModuleId }) {
   const [q, setQ] = useState("");
   const results = useApi<{ employees: { id: string; fullName: string; employeeNo: string; position: { title: string } | null }[] }>(q.length >= 2 ? `/api/onevity/employees?q=${encodeURIComponent(q)}&limit=6` : null);
 
   const runNav = (s: SectionId, v: string) => { setOpen(false); setQ(""); onNavigate(s, v); };
+
+  const items = useMemo(() => {
+    const groups = [...navOfModule(module), ...SETTINGS_NAV];
+    return groups.flatMap((g) => g.children.map((c) => ({ g, c })));
+  }, [module]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -389,8 +567,8 @@ function CommandPalette({ open, setOpen, onNavigate }: { open: boolean; setOpen:
             <kbd className="rounded border border-stone-200 px-1.5 py-0.5 font-mono text-[10px] text-stone-400 dark:border-stone-700">ESC</kbd>
           </div>
           <CommandList className="max-h-[420px] overflow-y-auto p-2">
-            <CommandGroup heading="Navigasi">
-              {NAV.flatMap((g) => g.children.map((c) => ({ g, c }))).map(({ g, c }) => {
+            <CommandGroup heading={`Navigasi · ${MODULE_LABEL[module]}`}>
+              {items.map(({ g, c }) => {
                 const Icon = c.icon;
                 return (
                   <CommandItem key={`${g.section}-${c.id}`} value={`${g.label ?? "Beranda"} ${c.label}`} onSelect={() => runNav(g.section, c.id)} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">

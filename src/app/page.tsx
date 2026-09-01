@@ -10,6 +10,7 @@ import { EmployeeModule } from "@/components/onevity/employee/employee-module";
 import { ActionsModule } from "@/components/onevity/actions/actions-module";
 import { PayrollModule } from "@/components/onevity/payroll/payroll-module";
 import { SettingsModule } from "@/components/onevity/settings/settings-module";
+import { ModulePlaceholder } from "@/components/onevity/module-placeholder";
 
 export default function Page() {
   const { section, view, syncFromUrl } = useNav();
@@ -33,6 +34,9 @@ export default function Page() {
           {section === "actions" && <ActionsModule view={view} />}
           {section === "payroll" && <PayrollModule view={view} />}
           {section === "settings" && <SettingsModule view={view} />}
+          {(section === "attendance" || section === "leave" || section === "travel" || section === "medical") && (
+            <ModulePlaceholder module={section} />
+          )}
         </motion.div>
       </AnimatePresence>
     </AppShell>

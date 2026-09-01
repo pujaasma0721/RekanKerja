@@ -1,5 +1,6 @@
 // OneVity seed — realistic Indonesian company "MII - Mitra Industri Internasional"
 import { PrismaClient } from "@prisma/client";
+import { calculateAndSaveRun, confirmRun } from "../src/lib/onevity/payroll-service";
 
 const db = new PrismaClient();
 
@@ -319,6 +320,32 @@ async function main() {
   const exited2 = await mkEmployee("Endang", "Sulistyawati", "P-OPR", "G1", { status: "Terminated", joinYear: 2019 });
   await db.employee.update({ where: { id: exited2.id }, data: { endDate: new Date(2024, 10, 15) } });
 
+  // ============ RIWAYAT PENEMPATAN DEMO (mutasi/promosi utk karyawan senior) ============
+  // 4 karyawan senior mendapat riwayat 2 periode — menutup Initial (validTo 2022-06-30)
+  // dan membuka periode baru 2022-07-01 (seperti PA yang diproses).
+  const historyDefs: { idx: number; reason: string; docNo: string; salaryMult: number; notes: string }[] = [
+    { idx: 5, reason: "Promotion", docNo: "PA-2022-0101", salaryMult: 1.18, notes: "Promosi Supervisor → Asisten Manajer" },
+    { idx: 9, reason: "Transfer", docNo: "PA-2022-0102", salaryMult: 1.0, notes: "Rotasi antar unit produksi" },
+    { idx: 12, reason: "SalaryAdjustment", docNo: "PA-2022-0103", salaryMult: 1.12, notes: "Penyesuaian upah tahunan" },
+    { idx: 18, reason: "Mutation", docNo: "PA-2022-0104", salaryMult: 1.05, notes: "Mutasi internal divisi" },
+  ];
+  for (const h of historyDefs) {
+    const empId = empIds[h.idx];
+    const current = await db.employeeAssignment.findFirst({ where: { employeeId: empId, validTo: null } });
+    if (!current) continue;
+    await db.employeeAssignment.update({ where: { id: current.id }, data: { validTo: new Date(2022, 5, 30) } });
+    await db.employeeAssignment.create({
+      data: {
+        employeeId: empId,
+        orgUnitId: current.orgUnitId, positionId: current.positionId, gradeId: current.gradeId,
+        managerId: current.managerId, employmentStatus: current.employmentStatus, workShift: current.workShift,
+        baseSalary: Math.round(current.baseSalary * h.salaryMult / 50000) * 50000,
+        validFrom: new Date(2022, 6, 1), validTo: null,
+        changeReason: h.reason, sourceDocNo: h.docNo, notes: h.notes,
+      },
+    });
+  }
+
   // ============ FAMILY / EDUCATION / EXPERIENCE (sample for first 15) ============
   for (let i = 0; i < Math.min(15, empIds.length); i++) {
     const eid = empIds[i];
@@ -440,26 +467,53 @@ async function main() {
     },
   });
 
-  // ============ WAGE COMPONENTS ============
-  const wageDefs: [string, string, string, string, number, boolean, boolean][] = [
-    ["WC-001", "Gaji Pokok", "Earning", "Fixed", 5000000, true, true],
-    ["WC-002", "Tunjangan Jabatan", "Earning", "Percentage", 1000000, true, true],
-    ["WC-003", "Tunjangan Transport", "Earning", "Fixed", 750000, true, true],
-    ["WC-004", "Tunjangan Makan", "Earning", "Fixed", 600000, false, true],
-    ["WC-005", "Tunjangan Keluarga", "Earning", "Percentage", 500000, true, true],
-    ["WC-006", "Tunjangan Hari Raya (THR)", "Earning", "Formula", 0, false, true],
-    ["WC-007", "Lembur", "Earning", "Formula", 0, false, true],
-    ["WC-008", "Bonus Kinerja", "Earning", "Formula", 0, false, true],
-    ["WC-009", "BPJS Kesehatan", "Deduction", "Percentage", 0, true, false],
-    ["WC-010", "BPJS Jaminan Hari Tua", "Deduction", "Percentage", 0, true, false],
-    ["WC-011", "BPJS Jaminan Pensiun", "Deduction", "Percentage", 0, true, false],
-    ["WC-012", "Potongan Keterlambatan", "Deduction", "Formula", 0, false, false],
-    ["WC-013", "PPh 21", "Deduction", "Formula", 0, false, true],
-    ["WC-014", "Pinjaman Karyawan", "Deduction", "Fixed", 500000, false, false],
-    ["WC-015", "Absensi Hari Kerja", "Informational", "Formula", 0, false, false],
+  // ============ WAGE COMPONENTS (klasifikasi oranHR-grade) ============
+  // type=wageCategory, wageType=13-way, calcMethod, amount, formula, incomeTaxMethod, flags
+  type CompDef = {
+    code: string; name: string; type: string; wageType: string; calcMethod: string;
+    amount?: number; formula?: string; incomeTaxMethod?: string; prorated?: boolean;
+    includeInTHP?: boolean; includeInBasicIncome?: boolean; applyThrRules?: boolean;
+    jamsostekBasis?: string; sptReference?: string;
+  };
+  const compDefs: CompDef[] = [
+    { code: "BASIC", name: "Gaji Pokok", type: "Earning", wageType: "BasicSalary", calcMethod: "Formula", formula: "BASE_SALARY", includeInBasicIncome: true, sptReference: "Gaji" },
+    { code: "TJAB", name: "Tunjangan Jabatan", type: "Earning", wageType: "Compensation", calcMethod: "Formula", formula: "BASE_SALARY*0.1", sptReference: "Tunjangan" },
+    { code: "TKEL", name: "Tunjangan Keluarga", type: "Earning", wageType: "Compensation", calcMethod: "Formula", formula: "BASE_SALARY*0.05", sptReference: "Tunjangan" },
+    { code: "TTRANS", name: "Tunjangan Transport", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 750000, sptReference: "Tunjangan" },
+    { code: "TMAKAN", name: "Tunjangan Makan", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 550000, sptReference: "Tunjangan" },
+    { code: "THR", name: "Tunjangan Hari Raya (THR)", type: "Earning", wageType: "Compensation", calcMethod: "Formula", formula: "BASE_SALARY", incomeTaxMethod: "Irregular", applyThrRules: true, sptReference: "BonusTHR" },
+    { code: "BONUS", name: "Bonus Kinerja", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", sptReference: "BonusTHR" },
+    { code: "LEMBUR", name: "Lembur (Overtime)", type: "Earning", wageType: "Overtime", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable" },
+    { code: "JHT_C", name: "BPJS JHT Perusahaan 3,7%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JHT_BASE*JHT_RATE_CO", includeInTHP: false, jamsostekBasis: "JHT" },
+    { code: "JPK_C", name: "BPJS JPK Perusahaan 4%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JPK_BASE*JPK_RATE_CO", includeInTHP: false, jamsostekBasis: "JPK" },
+    { code: "JKK_C", name: "BPJS JKK Perusahaan", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKK_BASE*JKK_RATE", includeInTHP: false, jamsostekBasis: "JKK" },
+    { code: "JKM_C", name: "BPJS JKM Perusahaan 0,3%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKM_BASE*JKM_RATE", includeInTHP: false, jamsostekBasis: "JKM" },
+    { code: "JP_C", name: "BPJS JP Perusahaan 2%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_CO", includeInTHP: false, jamsostekBasis: "JP" },
+    { code: "JHT_E", name: "Potongan BPJS JHT 2%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JHT_BASE*JHT_RATE_EMP", jamsostekBasis: "JHT" },
+    { code: "JP_E", name: "Potongan BPJS JP 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_EMP", jamsostekBasis: "JP" },
+    { code: "JPK_E", name: "Potongan BPJS JPK 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JPK_BASE*JPK_RATE_EMP", jamsostekBasis: "JPK" },
+    { code: "PPH21", name: "PPh21 (PPh Pasal 21)", type: "Deduction", wageType: "IncomeTax", calcMethod: "Tax", amount: 0, sptReference: "PPh21" },
+    { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
+    { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
+    { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Regular", sptReference: "Gaji" },
   ];
-  for (const [code, name, type, calcMethod, amount, prorated, taxable] of wageDefs) {
-    await db.wageComponent.create({ data: { code, name, type, calcMethod, amount, prorated, taxable } });
+  const compIds: Record<string, string> = {};
+  for (const c of compDefs) {
+    const created = await db.wageComponent.create({
+      data: {
+        code: c.code, name: c.name, type: c.type, wageType: c.wageType,
+        calcMethod: c.calcMethod, amount: c.amount ?? 0, formula: c.formula ?? null,
+        incomeTaxMethod: c.incomeTaxMethod ?? "Regular",
+        prorated: c.prorated ?? false,
+        taxable: (c.incomeTaxMethod ?? "Regular") !== "NonTaxable",
+        includeInTHP: c.includeInTHP ?? true,
+        includeInBasicIncome: c.includeInBasicIncome ?? false,
+        applyThrRules: c.applyThrRules ?? false,
+        jamsostekBasis: c.jamsostekBasis ?? null,
+        sptReference: c.sptReference ?? null,
+      },
+    });
+    compIds[c.code] = created.id;
   }
 
   // ============ ACCOUNTING ============
@@ -482,6 +536,274 @@ async function main() {
       { code: "PE-003", name: "Post BPJS Payment", trigger: "BPJSPay" },
     ],
   });
+
+  // ============ PAYROLL: PERIODE & PROCESS TYPE ============
+  const processTypes = await Promise.all(
+    (
+      [
+        ["SALARY", "Gaji Bulanan (Salary)", 1, true],
+        ["THR", "THR (Tunjangan Hari Raya)", 2, true],
+        ["BONUS", "Bonus Kinerja", 3, true],
+        ["TERMINATION", "Pesangon & Final Settlement", 4, true],
+        ["YEAR_END_ADJ", "Penyesuaian Akhir Tahun", 5, true],
+      ] as [string, string, number, boolean][]
+    ).map(([code, name, sequence, calculateTax]) =>
+      db.processType.create({ data: { code, name, sequence, calculateTax } })
+    )
+  );
+
+  const MONTH_NAMES = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+  const mkPeriod = (y: number, m: number, status: string) =>
+    db.payrollPeriod.create({
+      data: {
+        code: `${y}-${String(m + 1).padStart(2, "0")}`,
+        name: `${MONTH_NAMES[m]} ${y}`,
+        payType: "Monthly",
+        startDate: new Date(y, m, 1),
+        endDate: new Date(y, m + 1, 0),
+        taStartDate: new Date(y, m, 26), // cut-off kehadiran tgl 26 bln sblm – 25
+        taEndDate: new Date(y, m, 25),
+        payPeriod: m + 1,
+        sptMonth: m + 1,
+        sptYear: y,
+        status,
+      },
+    });
+  // 8 period terakhir: FEB–JUL Closed, AGU Processed (run Paid), SEP Open (run Draft)
+  const periods: Record<string, { id: string; code: string; name: string }> = {};
+  const periodPlan: [number, number, string][] = [
+    [2026, 1, "Closed"], [2026, 2, "Closed"], [2026, 3, "Closed"], [2026, 4, "Closed"],
+    [2026, 5, "Closed"], [2026, 6, "Closed"], [2026, 7, "Processed"], [2026, 8, "Open"],
+  ];
+  for (const [y, m, status] of periodPlan) {
+    const p = await mkPeriod(y, m, status);
+    periods[p.code] = { id: p.id, code: p.code, name: p.name };
+  }
+
+  // ============ PAYROLL: REGULASI & BRACKET PAJAK ============
+  await db.payrollRegulation.create({
+    data: {
+      code: "REG-2026-HPP",
+      name: "Regulasi UU HPP & BPJS 2026",
+      validFrom: new Date(2026, 0, 1),
+      biayaJabatanRate: 0.05,
+      biayaJabatanCapMonthly: 500000,
+      jhtEmployeeRate: 0.02, jhtCompanyRate: 0.037,
+      jpEmployeeRate: 0.01, jpCompanyRate: 0.02, jpSalaryCap: 10547400,
+      jkkRate: 0.0024, jkmRate: 0.003,
+      jpkCompanyRate: 0.04, jpkEmployeeRate: 0.01, jpkSalaryCap: 12000000,
+      nonNpwpSurcharge: 0.2,
+      useTer: false, // default progresif annualized; TER bisa diaktifkan di Parameter
+    },
+  });
+  // Bracket PPh21 progresif (UU HPP) + penalti non-NPWP (+20%)
+  const bracketDefs: [number, number | null, number][] = [
+    [0, 60_000_000, 0.05],
+    [60_000_000, 250_000_000, 0.15],
+    [250_000_000, 500_000_000, 0.25],
+    [500_000_000, 5_000_000_000, 0.30],
+    [5_000_000_000, null, 0.35],
+  ];
+  await db.taxBracket.createMany({
+    data: bracketDefs.map(([lowerLimit, upperLimit, rate]) => ({
+      bracketType: "Income", lowerLimit, upperLimit,
+      rateNpwp: rate, rateNonNpwp: rate * 1.2,
+      validFrom: new Date(2022, 0, 1),
+    })),
+  });
+
+  // ============ PAYROLL: TER PP 58/2023 (opsional) ============
+  const terA: [number, number | null, number][] = [
+    [0, 5_400_000, 0], [5_400_000, 5_650_000, 0.0025], [5_650_000, 6_350_000, 0.005],
+    [6_350_000, 6_800_000, 0.0075], [6_800_000, 7_500_000, 0.01], [7_500_000, 8_050_000, 0.0125],
+    [8_050_000, 8_700_000, 0.015], [8_700_000, 9_350_000, 0.0175], [9_350_000, 9_950_000, 0.02],
+    [9_950_000, 10_600_000, 0.0225], [10_600_000, 11_300_000, 0.025], [11_300_000, 12_400_000, 0.03],
+    [12_400_000, 13_600_000, 0.035], [13_600_000, 14_850_000, 0.04], [14_850_000, 16_100_000, 0.045],
+    [16_100_000, 17_350_000, 0.05], [17_350_000, 18_600_000, 0.055], [18_600_000, 19_850_000, 0.06],
+    [19_850_000, 21_100_000, 0.065], [21_100_000, 22_350_000, 0.07], [22_350_000, 23_600_000, 0.075],
+    [23_600_000, 24_850_000, 0.08], [24_850_000, 26_100_000, 0.085], [26_100_000, 27_400_000, 0.09],
+    [27_400_000, 28_700_000, 0.095], [28_700_000, 32_100_000, 0.10], [32_100_000, 36_500_000, 0.11],
+    [36_500_000, 41_200_000, 0.12], [41_200_000, 46_200_000, 0.13], [46_200_000, 51_200_000, 0.14],
+    [51_200_000, 56_200_000, 0.15], [56_200_000, 61_200_000, 0.16], [61_200_000, 66_200_000, 0.17],
+    [66_200_000, 71_200_000, 0.18], [71_200_000, 76_200_000, 0.19], [76_200_000, null, 0.20],
+  ];
+  const terB: [number, number | null, number][] = [
+    [0, 5_600_000, 0], [5_600_000, 5_850_000, 0.0025], [5_850_000, 6_350_000, 0.005],
+    [6_350_000, 6_850_000, 0.0075], [6_850_000, 7_550_000, 0.01], [7_550_000, 8_150_000, 0.0125],
+    [8_150_000, 8_900_000, 0.015], [8_900_000, 9_600_000, 0.0175], [9_600_000, 10_150_000, 0.02],
+    [10_150_000, 10_850_000, 0.0225], [10_850_000, 11_550_000, 0.025], [11_550_000, 12_700_000, 0.03],
+    [12_700_000, 13_900_000, 0.035], [13_900_000, 15_150_000, 0.04], [15_150_000, 16_400_000, 0.045],
+    [16_400_000, 17_650_000, 0.05], [17_650_000, 18_900_000, 0.055], [18_900_000, 20_150_000, 0.06],
+    [20_150_000, 21_400_000, 0.065], [21_400_000, 22_650_000, 0.07], [22_650_000, 23_900_000, 0.075],
+    [23_900_000, 25_150_000, 0.08], [25_150_000, 26_400_000, 0.085], [26_400_000, 27_700_000, 0.09],
+    [27_700_000, 29_000_000, 0.095], [29_000_000, 32_500_000, 0.10], [32_500_000, 37_000_000, 0.11],
+    [37_000_000, 41_700_000, 0.12], [41_700_000, 46_700_000, 0.13], [46_700_000, 51_700_000, 0.14],
+    [51_700_000, 56_700_000, 0.15], [56_700_000, 61_700_000, 0.16], [61_700_000, 66_700_000, 0.17],
+    [66_700_000, 71_700_000, 0.18], [71_700_000, 76_700_000, 0.19], [76_700_000, null, 0.20],
+  ];
+  const terC: [number, number | null, number][] = [
+    [0, 6_600_000, 0], [6_600_000, 6_950_000, 0.0025], [6_950_000, 7_700_000, 0.005],
+    [7_700_000, 8_200_000, 0.0075], [8_200_000, 8_950_000, 0.01], [8_950_000, 9_450_000, 0.0125],
+    [9_450_000, 10_200_000, 0.015], [10_200_000, 10_700_000, 0.0175], [10_700_000, 11_450_000, 0.02],
+    [11_450_000, 12_200_000, 0.025], [12_200_000, 13_550_000, 0.03], [13_550_000, 14_900_000, 0.035],
+    [14_900_000, 16_250_000, 0.04], [16_250_000, 17_600_000, 0.045], [17_600_000, 18_950_000, 0.05],
+    [18_950_000, 20_300_000, 0.055], [20_300_000, 21_650_000, 0.06], [21_650_000, 23_000_000, 0.065],
+    [23_000_000, 24_350_000, 0.07], [24_350_000, 25_700_000, 0.075], [25_700_000, 27_050_000, 0.08],
+    [27_050_000, 28_400_000, 0.085], [28_400_000, 29_750_000, 0.09], [29_750_000, 31_100_000, 0.095],
+    [31_100_000, 35_500_000, 0.10], [35_500_000, 39_900_000, 0.11], [39_900_000, 44_300_000, 0.12],
+    [44_300_000, 48_700_000, 0.13], [48_700_000, 53_100_000, 0.14], [53_100_000, 57_500_000, 0.15],
+    [57_500_000, 61_900_000, 0.16], [61_900_000, 66_300_000, 0.17], [66_300_000, 70_700_000, 0.18],
+    [70_700_000, 75_100_000, 0.19], [75_100_000, null, 0.20],
+  ];
+  await db.terRate.createMany({
+    data: [
+      ...terA.map(([lowerLimit, upperLimit, rate]) => ({ category: "A", lowerLimit, upperLimit, rate })),
+      ...terB.map(([lowerLimit, upperLimit, rate]) => ({ category: "B", lowerLimit, upperLimit, rate })),
+      ...terC.map(([lowerLimit, upperLimit, rate]) => ({ category: "C", lowerLimit, upperLimit, rate })),
+    ],
+  });
+
+  // ============ PAYROLL: WAGE TEMPLATE ============
+  const tplDefault = await db.wageTemplate.create({
+    data: {
+      code: "DEFAULT", name: "Template Standar Karyawan", description: "Gaji pokok + tunjangan + BPJS penuh",
+      items: {
+        create: [
+          "BASIC", "TJAB", "TKEL", "TTRANS", "TMAKAN",
+          "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C",
+          "JHT_E", "JP_E", "JPK_E", "WORKDAYS",
+        ].map((code, i) => ({ wageComponentId: compIds[code], sortOrder: i })),
+      },
+    },
+  });
+  const tplBS = await db.wageTemplate.create({
+    data: {
+      code: "BS", name: "Basic Salary Only", description: "Gaji pokok + potongan BPJS (tanpa tunjangan)",
+      items: {
+        create: ["BASIC", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JHT_E", "JP_E", "JPK_E", "WORKDAYS"]
+          .map((code, i) => ({ wageComponentId: compIds[code], sortOrder: i })),
+      },
+    },
+  });
+  const tplFreelance = await db.wageTemplate.create({
+    data: {
+      code: "FREELANCE", name: "Kontrak/Freelance", description: "Gaji pokok + tunjangan transport-makan (tanpa BPJS)",
+      items: {
+        create: ["BASIC", "TTRANS", "TMAKAN", "WORKDAYS"].map((code, i) => ({ wageComponentId: compIds[code], sortOrder: i })),
+      },
+    },
+  });
+  void tplFreelance;
+
+  // ============ PAYROLL: PROFIL PAYROLL PER KARYAWAN ============
+  // Tax status dari marital + jumlah anak (family); template: DEFAULT (BS utk 2 karyawan).
+  const allEmployees = await db.employee.findMany({
+    where: { status: "Active" },
+    include: { family: true },
+    orderBy: { employeeNo: "asc" },
+  });
+  const nonNpwpIdx = new Set([4, 11]); // 2 karyawan tanpa NPWP (demo penalti 20%)
+  const bsIdx = new Set([1, 14]); // 2 karyawan pakai template BS (demo perbedaan template)
+  const freelanceIdx = new Set([40]); // 1 outsourcing pakai template FREELANCE
+  let empIdx = 0;
+  for (const emp of allEmployees) {
+    const children = emp.family.filter((f) => f.relation === "Child").length;
+    const hasSpouse = emp.family.some((f) => f.relation === "Spouse");
+    const married = emp.maritalStatus === "Menikah" || hasSpouse;
+    const dep = Math.min(3, children);
+    const spouseWorks = married && rnd() < 0.2; // 20% pasangan bekerja → K/I
+    const taxStatus = married
+      ? `${spouseWorks ? "KI" : "K"}${dep}`
+      : `TK${dep}`;
+    await db.employeePayrollProfile.create({
+      data: {
+        employeeId: emp.id,
+        npwp: nonNpwpIdx.has(empIdx) ? null : emp.taxId,
+        hasNpwp: !nonNpwpIdx.has(empIdx),
+        processMethod: empIdx === 0 ? "NetToGross" : "GrossToNet", // CEO: pajak ditanggung perusahaan
+        paymentFrequency: "Monthly",
+        wageTemplateId: bsIdx.has(empIdx) ? tplBS.id : freelanceIdx.has(empIdx) ? tplFreelance.id : tplDefault.id,
+        taxStatus,
+        dependents: dep,
+        payrollDependentAllowed: true,
+        bankName: emp.bankName,
+        bankAccount: emp.bankAccount,
+      },
+    });
+    empIdx++;
+  }
+
+  // ============ PAYROLL: PINJAMAN KARYAWAN ============
+  const mkLoan = async (employeeId: string, letterNo: string, amount: number, count: number, interestRate: number, purpose: string, startMonthOffset: number) => {
+    const startPayment = new Date(2026, 7 + startMonthOffset, 1); // AGU 2026 atau setelahnya
+    const interestTotal = amount * (interestRate / 100) * (count / 12);
+    const totalDue = amount + interestTotal;
+    const per = Math.round(totalDue / count);
+    await db.employeeLoan.create({
+      data: {
+        employeeId, letterNo, loanDate: new Date(2026, 6, 10), amount, installmentCount: count,
+        installmentAmount: per, interestRate, startPaymentDate: startPayment,
+        purpose, status: "Active", paidAmount: 0, outstanding: totalDue, wageComponentCode: "LOAN",
+        installments: {
+          create: Array.from({ length: count }, (_, i) => {
+            const due = new Date(startPayment);
+            due.setMonth(due.getMonth() + i);
+            return { sequence: i + 1, dueDate: due, amount: i === count - 1 ? totalDue - per * (count - 1) : per };
+          }),
+        },
+      },
+    });
+  };
+  await mkLoan(empIds[6], "LTR-2026-001", 12_000_000, 12, 0, "Renovasi rumah", 0);
+  await mkLoan(empIds[9], "LTR-2026-002", 6_000_000, 6, 6, "Pendidikan anak", 0);
+  await mkLoan(empIds[20], "LTR-2026-003", 4_500_000, 6, 0, "Urgensi keluarga", 0);
+
+  // ============ PAYROLL: KOMPONEN SPESIFIK & PERIODIK ============
+  // Bonus kinerja utk 3 karyawan pada run SEP 2026 (SALARY) — akan muncul saat run dihitung.
+  const salaryType = processTypes.find((t) => t.code === "SALARY")!;
+  const sepPeriod = periods["2026-09"];
+  const bonusTargets: [string, number][] = [
+    [empIds[3], 2_500_000], [empIds[8], 1_500_000], [empIds[13], 3_000_000],
+  ];
+  for (const [eid, amount] of bonusTargets) {
+    await db.employeeComponentAssignment.create({
+      data: {
+        employeeId: eid, wageComponentId: compIds["BONUS"], kind: "Specific",
+        amount, periodId: sepPeriod.id, processTypeId: salaryType.id,
+        basedDate: new Date(2026, 8, 15), notes: "Bonus kinerja Q3",
+      },
+    });
+  }
+  // Tunjangan transport khusus (periodic) utk karyawan lapangan.
+  await db.employeeComponentAssignment.create({
+    data: {
+      employeeId: empIds[20], wageComponentId: compIds["TTRANS"], kind: "Periodic",
+      amount: 1_000_000, notes: "Transport lapangan lebih tinggi",
+    },
+  });
+
+  // ============ PAYROLL: RUN HISTORIS (engine sungguhan) ============
+  // JUL 2026 & AGU 2026: dihitung engine → confirmed → paid.
+  // SEP 2026: Draft (menunggu user klik "Hitung Payroll" — demo interaktif).
+  const mkRun = (periodCode: string, seq = 1) =>
+    db.payrollRun.create({
+      data: {
+        runNo: `PR-${periodCode}-SAL-${String(seq).padStart(2, "0")}`,
+        periodId: periods[periodCode].id,
+        processTypeId: salaryType.id,
+        sequence: seq, status: "Draft", calculateTax: true, allEmployee: true,
+        notes: "Run gaji bulanan",
+      },
+    });
+  for (const code of ["2026-07", "2026-08"]) {
+    const run = await mkRun(code);
+    await calculateAndSaveRun(run.id);
+    await confirmRun(run.id);
+    await db.payrollRun.update({ where: { id: run.id }, data: { status: "Paid", paidAt: new Date(2026, Number(code.slice(5, 7)) - 1, 28) } });
+    console.log(`   → run ${code} diproses & dibayar`);
+  }
+  await mkRun("2026-09"); // Draft — sengaja dibiarkan utk demo
+
 
   // ============ PERSONNEL ACTIONS ============
   let paNo = 1;

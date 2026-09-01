@@ -5,7 +5,11 @@ import { db } from "@/lib/db";
 export async function GET(req: NextRequest) {
   try {
     const type = req.nextUrl.searchParams.get("type");
-    const where = type && type !== "all" ? { type } : {};
+    const q = req.nextUrl.searchParams.get("q")?.trim();
+    const where = {
+      ...(type && type !== "all" ? { type } : {}),
+      ...(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}),
+    };
     const components = await db.wageComponent.findMany({ where, orderBy: [{ type: "asc" }, { code: "asc" }] });
     const counts = await db.wageComponent.groupBy({ by: ["type"], _count: true });
     const typeCounts: Record<string, number> = {};
@@ -16,35 +20,76 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST /api/onevity/wage-components
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode dan nama komponen wajib diisi" }, { status: 400 });
     const exists = await db.wageComponent.findUnique({ where: { code: b.code } });
     if (exists) return NextResponse.json({ error: `Kode ${b.code} sudah dipakai` }, { status: 400 });
+
+    const incomeTaxMethod = b.incomeTaxMethod ?? (b.taxable === false ? "NonTaxable" : "Regular");
     const comp = await db.wageComponent.create({
       data: {
-        code: b.code, name: b.name, type: b.type ?? "Earning", calcMethod: b.calcMethod ?? "Fixed",
-        amount: Number(b.amount ?? 0), prorated: b.prorated ?? false, taxable: b.taxable ?? true,
+        code: b.code, name: b.name,
+        type: b.type ?? "Earning",
+        wageType: b.wageType ?? "Compensation",
+        calcMethod: b.calcMethod ?? "Fixed",
+        amount: Number(b.amount ?? 0),
+        formula: b.formula ?? null,
+        incomeTaxMethod,
+        processMethod: b.processMethod ?? "GrossToNet",
+        roundingType: b.roundingType ?? "Nearest",
+        roundingValue: Number(b.roundingValue ?? 1),
+        prorated: b.prorated ?? false,
+        taxable: incomeTaxMethod !== "NonTaxable",
+        includeInBasicIncome: b.includeInBasicIncome ?? false,
+        includeInTHP: b.includeInTHP ?? true,
+        displayInPaySlip: b.displayInPaySlip ?? true,
+        applyThrRules: b.applyThrRules ?? false,
+        jamsostekBasis: b.jamsostekBasis ?? null,
+        sptReference: b.sptReference ?? null,
+        naturaType: b.naturaType ?? null,
+        wageCodeBackPay: b.wageCodeBackPay ?? null,
       },
     });
-    await db.activityLog.create({ data: { action: "Created", entity: "WageComponent", entityId: comp.id, detail: `Komponen upah ${comp.name} dibuat` } });
+    await db.activityLog.create({ data: { action: "Created", entity: "WageComponent", entityId: comp.id, detail: `Komponen upah ${comp.name} (${comp.wageType}) dibuat` } });
     return NextResponse.json({ component: comp }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }
 
+// PATCH /api/onevity/wage-components
 export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    const incomeTaxMethod = b.incomeTaxMethod;
     const comp = await db.wageComponent.update({
       where: { id: b.id },
       data: {
-        name: b.name, type: b.type, calcMethod: b.calcMethod,
+        name: b.name,
+        type: b.type,
+        wageType: b.wageType,
+        calcMethod: b.calcMethod,
         amount: b.amount != null ? Number(b.amount) : undefined,
-        prorated: b.prorated, taxable: b.taxable, active: b.active,
+        formula: b.formula,
+        incomeTaxMethod,
+        processMethod: b.processMethod,
+        roundingType: b.roundingType,
+        roundingValue: b.roundingValue != null ? Number(b.roundingValue) : undefined,
+        prorated: b.prorated,
+        taxable: incomeTaxMethod != null ? incomeTaxMethod !== "NonTaxable" : b.taxable,
+        includeInBasicIncome: b.includeInBasicIncome,
+        includeInTHP: b.includeInTHP,
+        displayInPaySlip: b.displayInPaySlip,
+        applyThrRules: b.applyThrRules,
+        jamsostekBasis: b.jamsostekBasis,
+        sptReference: b.sptReference,
+        naturaType: b.naturaType,
+        wageCodeBackPay: b.wageCodeBackPay,
+        active: b.active,
       },
     });
     return NextResponse.json({ component: comp });
@@ -53,10 +98,17 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+// DELETE /api/onevity/wage-components?id=
 export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    // Cegah hapus komponen yang dipakai template/assignment
+    const usedInTemplate = await db.wageTemplateItem.count({ where: { wageComponentId: id } });
+    const usedInAssignment = await db.employeeComponentAssignment.count({ where: { wageComponentId: id } });
+    if (usedInTemplate + usedInAssignment > 0) {
+      return NextResponse.json({ error: "Komponen masih dipakai template/assignment — non-aktifkan saja" }, { status: 400 });
+    }
     await db.wageComponent.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

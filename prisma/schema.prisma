@@ -145,6 +145,10 @@ model Employee {
   activities   ActivityLog[]
   assignments  EmployeeAssignment[]
   managedAssignments EmployeeAssignment[] @relation("AssignmentManager")
+  payrollProfile  EmployeePayrollProfile?
+  loans          EmployeeLoan[]
+  runLines       PayrollRunLine[]
+  componentAssignments EmployeeComponentAssignment[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -266,17 +270,291 @@ model ApprovalLayer {
 
 // ============ WAGE & ACCOUNTING RULES ============
 
+// Master komponen upah — sejajar dengan "Salary Component" oranHR:
+// klasifikasi wageType (13), incomeTaxMethod (8), formula, prorata, basis JAMSOSTEK,
+// referensi SPT/natura, pasangan back-pay, dsb.
 model WageComponent {
   id          String   @id @default(cuid())
   code        String   @unique
   name        String
-  type        String   @default("Earning") // Earning|Deduction|Informational
-  calcMethod  String   @default("Fixed") // Fixed|Formula|Percentage
+  type        String   @default("Earning") // wageCategory: Earning|Deduction|Informational
+  wageType    String   @default("Compensation") // BasicSalary|Compensation|CompensationNatura|Deduction|Overtime|Jamsostek|Loan|THPRounding|FinalTax|IncomeTax|Information|BackPay|ServiceCharge
+  calcMethod  String   @default("Fixed") // Fixed|Formula|Percentage|Tax
   amount      Float    @default(0)
+  formula     String? // ekspresi: BASE_SALARY*0.1, JHT_BASE*JHT_RATE_CO, dst.
+  incomeTaxMethod String @default("Regular") // NonTaxable|Regular|Irregular|FixedRateFinal|SeveranceFinal|PensionFinal|PKP|Final2Years
+  processMethod   String @default("GrossToNet") // GrossToNet|NetToGross
+  roundingType    String @default("Nearest") // RoundingUp|RoundingDown|Nearest
+  roundingValue   Int    @default(1)
   prorated    Boolean  @default(false)
   taxable     Boolean  @default(true)
+  includeInBasicIncome Boolean @default(false)
+  includeInTHP     Boolean @default(true)
+  displayInPaySlip Boolean @default(true)
+  applyThrRules    Boolean @default(false)
+  jamsostekBasis   String? // JHT|JP|JKK|JKM|JPK — program JSTK yang jadi basis komponen ini
+  sptReference     String? // kategori bukti potong 1721-A1
+  naturaType       String? // kategori natura PP 68/2024
+  wageCodeBackPay  String? // pasangan komponen back-pay
+  validFrom   DateTime @default(now())
+  validTo     DateTime?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
+
+  templateItems   WageTemplateItem[]
+  assignments     EmployeeComponentAssignment[]
+}
+
+// ============ PAYROLL MODULE ============
+
+// Period payroll — multi jendela (payroll, TA/kehadiran) + atribut pajak bulan/tahun.
+model PayrollPeriod {
+  id          String   @id @default(cuid())
+  code        String   @unique // 2026-09
+  name        String // SEPTEMBER 2026
+  payType     String   @default("Monthly") // Monthly|Weekly|BiWeekly
+  startDate   DateTime
+  endDate     DateTime
+  taStartDate DateTime?
+  taEndDate   DateTime?
+  payPeriod   Int      @default(0) // urutan bulan (1-12)
+  sptMonth    Int
+  sptYear     Int
+  processDate DateTime? // tanggal eksekusi payroll
+  status      String   @default("Open") // Open|Processed|Closed|Locked
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  runs PayrollRun[]
+  componentAssignments EmployeeComponentAssignment[]
+}
+
+// Jenis proses payroll (multi-run per period): Salary, THR, Bonus, Termination, dst.
+model ProcessType {
+  id           String  @id @default(cuid())
+  code         String  @unique // SALARY|THR|BONUS|...
+  name         String
+  sequence     Int     @default(0)
+  calculateTax Boolean @default(true)
+  active       Boolean @default(true)
+
+  runs PayrollRun[]
+  componentAssignments EmployeeComponentAssignment[]
+}
+
+// Paket komponen upah per karyawan (gaya "Wage Template" oranHR).
+model WageTemplate {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  items    WageTemplateItem[]
+  profiles EmployeePayrollProfile[]
+}
+
+model WageTemplateItem {
+  id              String @id @default(cuid())
+  wageTemplateId  String
+  wageComponentId String
+  sortOrder       Int    @default(0)
+
+  wageTemplate  WageTemplate  @relation(fields: [wageTemplateId], references: [id], onDelete: Cascade)
+  wageComponent WageComponent @relation(fields: [wageComponentId], references: [id])
+}
+
+// Data payroll per karyawan (NPWP, PTKP, metode proses, template) — 1-1 dengan Employee.
+model EmployeePayrollProfile {
+  id                      String   @id @default(cuid())
+  employeeId              String   @unique
+  npwp                    String?
+  npwpSubmittedAt         DateTime?
+  idtku                   String?
+  hasNpwp                 Boolean  @default(true)
+  processMethod           String   @default("GrossToNet") // GrossToNet|NetToGross
+  paymentFrequency        String   @default("Monthly")
+  wageTemplateId          String?
+  taxStatus               String   @default("TK0") // TK0..TK3, K0..K3, KI0..KI3
+  dependents              Int      @default(0)
+  payrollDependentAllowed Boolean  @default(true)
+  bankName                String?
+  bankAccount             String?
+  active                  Boolean  @default(true)
+
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  wageTemplate WageTemplate? @relation(fields: [wageTemplateId], references: [id])
+}
+
+// Bracket pajak progresif (UU HPP) + penalti non-NPWP — ber-dating.
+model TaxBracket {
+  id          String   @id @default(cuid())
+  bracketType String   @default("Income") // Income|Severance|Pension
+  lowerLimit  Float
+  upperLimit  Float? // null = tanpa batas atas
+  rateNpwp    Float    // 0.05
+  rateNonNpwp Float    // 0.06
+  validFrom   DateTime @default(now())
+  validTo     DateTime?
+}
+
+// Tarif Efektif Rata-rata (PP 58/2023) — kategori A/B/C × rentang bruto bulanan.
+model TerRate {
+  id         String @id @default(cuid())
+  category   String // A|B|C
+  lowerLimit Float
+  upperLimit Float?
+  rate       Float // 0.0025
+}
+
+// Parameter regulasi payroll & BPJS per periode aturan.
+model PayrollRegulation {
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  name                 String
+  validFrom            DateTime @default(now())
+  validTo              DateTime?
+  biayaJabatanRate     Float    @default(0.05)
+  biayaJabatanCapMonthly Float  @default(500000)
+  jhtEmployeeRate      Float    @default(0.02)
+  jhtCompanyRate       Float    @default(0.037)
+  jpEmployeeRate       Float    @default(0.01)
+  jpCompanyRate        Float    @default(0.02)
+  jpSalaryCap          Float    @default(10547400)
+  jkkRate              Float    @default(0.0024)
+  jkmRate              Float    @default(0.003)
+  jpkCompanyRate       Float    @default(0.04)
+  jpkEmployeeRate      Float    @default(0.01)
+  jpkSalaryCap         Float    @default(12000000)
+  nonNpwpSurcharge     Float    @default(0.2)
+  useTer               Boolean  @default(false)
+  active               Boolean  @default(true)
+}
+
+// Eksekusi payroll: 1 run = period × processType × sequence.
+model PayrollRun {
+  id             String    @id @default(cuid())
+  runNo          String    @unique // PR-2026-09-SAL-01
+  periodId       String
+  processTypeId  String
+  sequence       Int       @default(1)
+  status         String    @default("Draft") // Draft|Calculated|Confirmed|Paid|Cancelled
+  calculateTax   Boolean   @default(true)
+  allEmployee    Boolean   @default(true)
+  employeeCount  Int       @default(0)
+  totalBruto     Float     @default(0)
+  totalDeduction Float     @default(0)
+  totalTax       Float     @default(0)
+  totalNet       Float     @default(0)
+  notes          String?
+  calculatedAt   DateTime?
+  confirmedAt    DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  period      PayrollPeriod @relation(fields: [periodId], references: [id])
+  processType ProcessType   @relation(fields: [processTypeId], references: [id])
+  lines       PayrollRunLine[]
+}
+
+// Header hasil per karyawan per run — snapshot (seperti "Wage Transaction" oranHR):
+// PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
+model PayrollRunLine {
+  id            String  @id @default(cuid())
+  runId         String
+  employeeId    String
+  employeeNo    String // snapshot
+  employeeName  String // snapshot
+  orgUnitName   String?
+  positionName  String?
+  ptkpStatus    String
+  ptkpValue     Float
+  bruto         Float   @default(0)
+  deduction     Float   @default(0)
+  taxRegular    Float   @default(0)
+  taxIrregular  Float   @default(0)
+  net           Float   @default(0) // THP
+  actualNetTax  Float?
+  notes         String?
+
+  run      PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee Employee   @relation(fields: [employeeId], references: [id])
+  items    PayrollRunItem[]
+
+  @@unique([runId, employeeId])
+  @@index([employeeId])
+}
+
+// Rincian komponen upah per karyawan (snapshot kode/nama/klasifikasi/nilai).
+model PayrollRunItem {
+  id              String @id @default(cuid())
+  lineId          String
+  code            String
+  name            String
+  wageType        String
+  type            String // wageCategory: Earning|Deduction|Informational
+  incomeTaxMethod String
+  amount          Float
+  note            String?
+  sortOrder       Int    @default(0)
+
+  line PayrollRunLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+}
+
+// Pinjaman karyawan — cicilan dipotong otomatis via komponen Loan.
+model EmployeeLoan {
+  id               String   @id @default(cuid())
+  employeeId       String
+  letterNo         String   @unique
+  loanDate         DateTime @default(now())
+  amount           Float
+  installmentCount Int
+  installmentAmount Float  @default(0)
+  interestRate     Float    @default(0) // % per tahun (flat)
+  startPaymentDate DateTime
+  purpose          String?
+  status           String   @default("Active") // Active|PaidOff|Cancelled
+  paidAmount       Float    @default(0)
+  outstanding      Float    @default(0)
+  wageComponentCode String? // komponen potongan di payslip
+
+  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  installments LoanInstallment[]
+}
+
+model LoanInstallment {
+  id         String   @id @default(cuid())
+  loanId     String
+  sequence   Int
+  periodCode String? // kode PayrollPeriod saat ditagih
+  dueDate    DateTime
+  amount     Float
+  status     String   @default("Pending") // Pending|Deducted|Skipped
+  deductedRunNo String?
+
+  loan EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+}
+
+// Komponen upah khusus per karyawan: Specific (one-off per period×processType)
+// atau Periodic (nilai tetap tiap period).
+model EmployeeComponentAssignment {
+  id               String   @id @default(cuid())
+  employeeId       String
+  wageComponentId  String
+  kind             String   @default("Specific") // Specific|Periodic
+  amount           Float    @default(0)
+  periodId         String?  // untuk Specific
+  processTypeId    String?  // untuk Specific
+  basedDate        DateTime?
+  notes            String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  wageComponent  WageComponent  @relation(fields: [wageComponentId], references: [id])
+  period         PayrollPeriod? @relation(fields: [periodId], references: [id])
+  processType    ProcessType?   @relation(fields: [processTypeId], references: [id])
 }
 
 model AccountGroup {
