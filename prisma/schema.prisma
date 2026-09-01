@@ -1,0 +1,384 @@
+// OneVity HR Suite — Human Resource Base module
+// Rebuild of OranHR "Human Resource Base" (ref: PRD-HR-BASE.md)
+// Brand: OneVity | Stack: Next.js 16 + Prisma + SQLite
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ORGANIZATION DEFINITION ============
+
+model Company {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  shortName String?
+  taxId     String?
+  address   String?
+  city      String?
+  phone     String?
+  email     String?
+  website   String?
+  currency  String   @default("IDR")
+  logoUrl   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orgUnits OrgUnit[]
+  employees Employee[]
+}
+
+model OrgUnit {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  parentId   String?
+  companyId  String
+  level      Int      @default(1)
+  headcountBudget Int @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  parent   OrgUnit?  @relation("OrgTree", fields: [parentId], references: [id])
+  children OrgUnit[] @relation("OrgTree")
+  company  Company   @relation(fields: [companyId], references: [id])
+  positions Position[]
+  employees Employee[]
+}
+
+// ============ POSITION DEFINITION ============
+
+model Job {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  category    String?
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  positions Position[]
+}
+
+model Grade {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  minSalary Float    @default(0)
+  maxSalary Float    @default(0)
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+
+  positions  Position[]
+  employees  Employee[]
+}
+
+model Position {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  jobId       String?
+  orgUnitId   String?
+  gradeId     String?
+  level       String?
+  headcount   Int      @default(1)
+  filled      Int      @default(0)
+  reportsToId String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  job       Job?      @relation(fields: [jobId], references: [id])
+  orgUnit   OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  grade     Grade?    @relation(fields: [gradeId], references: [id])
+  reportsTo Position? @relation("PositionTree", fields: [reportsToId], references: [id])
+  directReports Position[] @relation("PositionTree")
+  employees Employee[]
+}
+
+// ============ EMPLOYEE INFORMATION ============
+
+model Employee {
+  id            String   @id @default(cuid())
+  employeeNo    String   @unique
+  fullName      String
+  gender        String   @default("M")
+  birthPlace    String?
+  birthDate     DateTime?
+  nationalId    String? // NIK
+  taxId         String? // NPWP
+  bpjsHealth    String? // BPJS Kesehatan
+  bpjsEmpSkill  String? // BPJS Ketenagakerjaan
+  maritalStatus String?
+  religion      String?
+  bloodType     String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  photoUrl      String?
+  bankName      String?
+  bankAccount   String?
+
+  // working info
+  companyId     String
+  orgUnitId     String?
+  positionId    String?
+  gradeId       String?
+  employmentStatus String @default("Permanent") // Permanent|Contract|Probation|Outsourcing
+  joinDate      DateTime @default(now())
+  endDate       DateTime?
+  managerId     String?
+  baseSalary    Float    @default(0)
+  workShift     String   @default("Regular")
+  status        String   @default("Active") // Active|Resigned|Terminated|Blacklisted
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  orgUnit   OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+  position  Position? @relation(fields: [positionId], references: [id])
+  grade     Grade?    @relation(fields: [gradeId], references: [id])
+  manager   Employee? @relation("ManagerTree", fields: [managerId], references: [id])
+  directReports Employee[] @relation("ManagerTree")
+
+  family       EmployeeFamily[]
+  education    EmployeeEducation[]
+  experiences  EmployeeExperience[]
+  disciplinary DisciplinaryRecord[]
+  actions      PersonnelAction[]
+  activities   ActivityLog[]
+}
+
+model EmployeeFamily {
+  id         String    @id @default(cuid())
+  employeeId String
+  relation   String // Spouse|Child|Parent|Sibling
+  name       String
+  gender     String    @default("M")
+  birthDate  DateTime?
+  occupation String?
+  isDependent Boolean  @default(true)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeEducation {
+  id          String   @id @default(cuid())
+  employeeId  String
+  level       String // SMA|D3|S1|S2|S3
+  institution String
+  major       String?
+  startYear   Int?
+  endYear     Int?
+  gpa         Float?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeExperience {
+  id         String   @id @default(cuid())
+  employeeId String
+  company    String
+  position   String
+  startDate  DateTime?
+  endDate    DateTime?
+  notes      String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model DisciplinaryRecord {
+  id          String    @id @default(cuid())
+  employeeId  String
+  warningLevel String   @default("Verbal") // Verbal|Written|Final
+  violation   String
+  sanction    String?
+  issuedAt    DateTime  @default(now())
+  expiresAt   DateTime?
+  notes       String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// ============ PERSONNEL ACTION (workflow) ============
+
+model PersonnelAction {
+  id           String   @id @default(cuid())
+  docNo        String   @unique
+  employeeId   String
+  type         String // Hire|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ContractRenewal|ChangeStatus|ExtendProbation|Resignation|Termination|Retirement
+  effectiveDate DateTime @default(now())
+  reason       String?
+  detailJson   String? // type-specific payload (new position, new salary, etc.)
+  status       String   @default("Prepared") // Prepared|Submitted|Approved|Rejected|Processed|Cancelled
+  currentLayer Int      @default(0)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  submittedAt  DateTime?
+  processedAt  DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  layers   ApprovalLayer[]
+  activities ActivityLog[]
+}
+
+model ApprovalLayer {
+  id              String    @id @default(cuid())
+  personnelActionId String
+  layerNo         Int
+  approverRole    String // e.g. "HR Manager", "Dept Head", "Director"
+  approverId      String?  // AppUser id
+  status          String    @default("Pending") // Pending|Approved|Rejected
+  note            String?
+  decidedAt       DateTime?
+
+  personnelAction PersonnelAction @relation(fields: [personnelActionId], references: [id], onDelete: Cascade)
+  approver        AppUser?       @relation(fields: [approverId], references: [id])
+}
+
+// ============ WAGE & ACCOUNTING RULES ============
+
+model WageComponent {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  type        String   @default("Earning") // Earning|Deduction|Informational
+  calcMethod  String   @default("Fixed") // Fixed|Formula|Percentage
+  amount      Float    @default(0)
+  prorated    Boolean  @default(false)
+  taxable     Boolean  @default(true)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model AccountGroup {
+  id           String @id @default(cuid())
+  code         String @unique
+  name         String
+  accountType  String @default("Expense") // Asset|Liability|Equity|Revenue|Expense
+  accounts     Account[]
+}
+
+model Account {
+  id            String @id @default(cuid())
+  code          String @unique
+  name          String
+  accountGroupId String?
+  balance       Float @default(0)
+
+  accountGroup AccountGroup? @relation(fields: [accountGroupId], references: [id])
+}
+
+model PostingEvent {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  trigger   String   @default("PayrollRun") // event trigger
+  debitAccountId  String?
+  creditAccountId String?
+  active    Boolean  @default(true)
+}
+
+// ============ GENERAL SETTING (lookup) ============
+
+model Lookup {
+  id        String   @id @default(cuid())
+  category  String // Religion|MaritalStatus|EmploymentStatus|BloodType|PAType|WarningLevel|Violation|EducationLevel
+  code      String
+  label     String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+
+  @@unique([category, code])
+}
+
+// ============ SECURITY SETTING ============
+
+model AppUser {
+  id         String    @id @default(cuid())
+  username   String    @unique
+  fullName   String
+  email      String?
+  role       String    @default("HR Staff") // Admin|HR Manager|HR Staff|Approver|Viewer
+  employeeId String?   // linked employee
+  active     Boolean   @default(true)
+  lastLogin  DateTime?
+
+  accessGroups AccessGroupMember[]
+  tempApprovals TemporaryApprover[] @relation("DelegationFrom")
+  tempDelegations TemporaryApprover[] @relation("DelegationTo")
+  approvalLayers ApprovalLayer[]
+  activities  ActivityLog[]
+}
+
+model AccessGroup {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String?
+  modulesJson String // JSON array of module permissions {module, view, create, edit, delete, approve}
+  createdAt   DateTime @default(now())
+
+  members AccessGroupMember[]
+}
+
+model AccessGroupMember {
+  id            String @id @default(cuid())
+  appUserId     String
+  accessGroupId String
+  isApprover    Boolean @default(false)
+
+  appUser     AppUser     @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+  accessGroup AccessGroup @relation(fields: [accessGroupId], references: [id], onDelete: Cascade)
+}
+
+// ============ MULTIPLE APPROVAL ============
+
+model ApprovalTemplate {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  docType    String   @default("PersonnelAction")
+  layersJson String   // [{layer:1, role:"Dept Head"},...]
+  autoApprove Boolean @default(false) // auto approve when no approver found
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model TemporaryApprover {
+  id          String   @id @default(cuid())
+  approverId  String   // AppUser: original approver
+  delegateId  String   // AppUser: delegate
+  docType     String   @default("PersonnelAction")
+  validFrom   DateTime
+  validTo     DateTime
+  reason      String?
+  active      Boolean  @default(true)
+
+  approver AppUser @relation("DelegationFrom", fields: [approverId], references: [id], onDelete: Cascade)
+  delegate AppUser @relation("DelegationTo", fields: [delegateId], references: [id], onDelete: Cascade)
+}
+
+// ============ ACTIVITY TRAIL ============
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorType  String   @default("user") // user|system
+  appUserId  String?
+  employeeId String?
+  personnelActionId String?
+  action     String // Created|Updated|Deleted|Submitted|Approved|Rejected|Processed|Cancelled
+  entity     String // Employee|PersonnelAction|OrgUnit|...
+  entityId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  appUser AppUser? @relation(fields: [appUserId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  personnelAction PersonnelAction? @relation(fields: [personnelActionId], references: [id])
+}
