@@ -45,7 +45,7 @@ OranHR adalah aplikasi Human Resource Information System (HRIS) enterprise multi
 |---|---|---|
 | Framework | Next.js 16 (App Router) + TypeScript 5 | Halaman client-side interaktif ala ExtJS |
 | Styling/UI | Tailwind CSS 4 + shadcn/ui (New York) + Lucide icons | DataGrid → pakai TanStack Table |
-| Database | Prisma ORM + SQLite (dev) | Schema di `prisma/schema.prisma` |
+| Database | Prisma ORM + PostgreSQL 17 (multi-tenant schema-per-tenant) | Platform: `prisma/schema.prisma` · Domain: `prisma/schema-tenant.prisma` |
 | Auth | Session-based auth (login Employee Id + password) | Multi-company session, forgot password |
 | State | Zustand (client) + TanStack Query (server) | |
 | Export | DOCX/PDF via template engine | Letter Generator, Preview grid |

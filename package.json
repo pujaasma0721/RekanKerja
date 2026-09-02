@@ -7,7 +7,7 @@
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
-    "db:generate": "prisma generate --schema prisma/schema.prisma && prisma generate --schema prisma/schema-tenant.prisma && prisma generate --schema prisma/schema-legacy-sqlite.prisma",
+    "db:generate": "prisma generate --schema prisma/schema.prisma && prisma generate --schema prisma/schema-tenant.prisma",
     "db:push": "prisma db push --schema prisma/schema.prisma --accept-data-loss",
     "tenant:ddl": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema-tenant.prisma --script > prisma/tenant-ddl.sql",
     "db:migrate": "prisma migrate dev",

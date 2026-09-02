@@ -70,5 +70,5 @@ server.log
 worklog.md
 *.tsbuildinfo
 
-# Prisma generated clients (multi-tenant: platform + tenant + legacy)
+# Prisma generated clients (multi-tenant: platform + tenant)
 src/generated/

@@ -45,7 +45,7 @@ export const personas = [
 export const techStack = [
   { layer: "Framework", tech: "Next.js 16 (App Router) + TypeScript 5", note: "UI interaktif ala ExtJS grid" },
   { layer: "Styling / UI", tech: "Tailwind CSS 4 + shadcn/ui (New York) + Lucide", note: "DataGrid memakai TanStack Table" },
-  { layer: "Database", tech: "Prisma ORM + SQLite (dev)", note: "Schema di prisma/schema.prisma" },
+  { layer: "Database", tech: "Prisma ORM + PostgreSQL 17 (multi-tenant schema-per-tenant)", note: "Platform: prisma/schema.prisma · Domain: prisma/schema-tenant.prisma" },
   { layer: "Auth", tech: "Session login (Employee Id + password)", note: "Multi-company session, forgot password" },
   { layer: "State", tech: "Zustand (client) + TanStack Query (server)", note: "" },
   { layer: "Export", tech: "Engine template DOCX/PDF", note: "Letter Generator & Preview grid" },
