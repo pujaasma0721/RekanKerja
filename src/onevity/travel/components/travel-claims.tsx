@@ -64,7 +64,7 @@ export function TravelClaimsPage() {
   const [requestId, setRequestId] = useState("");
   const [previewData, setPreviewData] = useState<ClaimPreviewData | null>(null);
   const [lines, setLines] = useState<ExpenseLine[]>([newLine("")]);
-  const [amounts, setAmounts] = useState({ otherCompanyExp: "", exchangeLoss: "", payableEmployee: "", payableCompany: "", voucherNo: "", remark: "" });
+  const [amounts, setAmounts] = useState({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
 
   const api = useApi<{ claims: TravelClaimRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
     `/api/onevity/travel/claims?status=${statusFilter}`,
@@ -80,6 +80,13 @@ export function TravelClaimsPage() {
   const expenseTypes = master.data?.expenseTypes ?? [];
   const typeByCode = useMemo(() => new Map(expenseTypes.map((t) => [t.code, t])), [expenseTypes]);
 
+  // K-2 (24-FIX-TRAVEL): dropdown hanya memuat permintaan Approved TANPA klaim aktif —
+  // satu permintaan hanya boleh satu klaim aktif (server juga menolak / guard 400).
+  const claimableRequests = useMemo(
+    () => (approvedRequests.data?.requests ?? []).filter((r) => !r.hasActiveClaim),
+    [approvedRequests.data],
+  );
+
   // pratinjau otomatis saat request dipilih (padanan LOV Travel Request oranHR)
   useEffect(() => {
     if (!dialog || mode !== "request" || !requestId) { setPreviewData(null); return; }
@@ -93,22 +100,22 @@ export function TravelClaimsPage() {
     })();
   }, [dialog, mode, requestId]);
 
-  // hitung saran (b)/(c) dari total rincian + uang muka (padanan Expense Summary oranHR)
+  // hitung (b)/(c) dari total rincian + uang muka (padanan Expense Summary oranHR) —
+  // M-1 (24-FIX-TRAVEL): server menghitung ulang & memakai hasilnya (input klien diabaikan).
   const totalExpenses = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const advance = previewData?.advanceAmount ?? 0;
   const grossRealisasi = totalExpenses + (Number(amounts.otherCompanyExp) || 0) + (Number(amounts.exchangeLoss) || 0);
   const suggestedB = Math.max(0, grossRealisasi - advance);
   const suggestedC = Math.max(0, advance - grossRealisasi);
   const totalFormula =
-    (Number(amounts.otherCompanyExp) || 0) + (Number(amounts.exchangeLoss) || 0) +
-    (Number(amounts.payableEmployee) || 0) - (Number(amounts.payableCompany) || 0);
+    (Number(amounts.otherCompanyExp) || 0) + (Number(amounts.exchangeLoss) || 0) + suggestedB - suggestedC;
 
   const openDialog = (m: "request" | "standalone") => {
     setMode(m);
-    setRequestId(m === "request" ? (approvedRequests.data?.requests ?? [])[0]?.id ?? "" : "");
+    setRequestId(m === "request" ? claimableRequests[0]?.id ?? "" : "");
     setPreviewData(null);
     setLines([newLine("")]);
-    setAmounts({ otherCompanyExp: "", exchangeLoss: "", payableEmployee: "", payableCompany: "", voucherNo: "", remark: "" });
+    setAmounts({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
     setDialog(true);
   };
 
@@ -137,8 +144,10 @@ export function TravelClaimsPage() {
           })),
           otherCompanyExp: Number(amounts.otherCompanyExp) || 0,
           exchangeLoss: Number(amounts.exchangeLoss) || 0,
-          payableEmployee: Number(amounts.payableEmployee) || 0,
-          payableCompany: Number(amounts.payableCompany) || 0,
+          // M-1: b/c dihitung server dari rincian vs uang muka — kirim nilai terhitung
+          // (server tetap otoritatif dan mengabaikan manipulasi klien).
+          payableEmployee: suggestedB,
+          payableCompany: suggestedC,
         },
       );
       toast.success(
@@ -344,13 +353,21 @@ export function TravelClaimsPage() {
                 <Select value={requestId} onValueChange={setRequestId}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Pilih permintaan" /></SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {(approvedRequests.data?.requests ?? []).map((r) => (
+                    {claimableRequests.map((r) => (
                       <SelectItem key={r.id} value={r.id} className="text-sm">
                         {r.docNo} — {r.fullName} ({r.destinations.map((d) => d.city).join(" → ")})
                       </SelectItem>
                     ))}
+                    {claimableRequests.length === 0 && (
+                      <SelectItem value="none" disabled className="text-xs">
+                        Tidak ada permintaan Approved yang belum diklaim
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-stone-500">
+                  Hanya permintaan Approved tanpa klaim aktif yang ditampilkan — satu permintaan hanya boleh satu klaim aktif.
+                </p>
               </div>
             )}
 
@@ -469,24 +486,23 @@ export function TravelClaimsPage() {
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-teal-700 dark:text-teal-400">(b) Dibayar ke karyawan</Label>
                   <Input
-                    type="number" min="0" value={amounts.payableEmployee}
-                    onChange={(e) => setAmounts({ ...amounts, payableEmployee: e.target.value })}
-                    placeholder={String(suggestedB)} className="h-8 text-sm font-bold"
+                    type="number" min="0" readOnly value={suggestedB}
+                    placeholder={String(suggestedB)} className="h-8 bg-stone-50 text-sm font-bold dark:bg-stone-900"
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) Kembali ke perusahaan</Label>
                   <Input
-                    type="number" min="0" value={amounts.payableCompany}
-                    onChange={(e) => setAmounts({ ...amounts, payableCompany: e.target.value })}
-                    placeholder={String(suggestedC)} className="h-8 text-sm font-bold"
+                    type="number" min="0" readOnly value={suggestedC}
+                    placeholder={String(suggestedC)} className="h-8 bg-stone-50 text-sm font-bold dark:bg-stone-900"
                   />
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
-                  {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />Uang muka {fmtIDR(advance)} — saran (b) {fmtIDR(suggestedB)} / (c) {fmtIDR(suggestedC)}</span>}
+                  {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />Uang muka {fmtIDR(advance)}</span>}
                   <span>Total rincian + (a) = {fmtIDR(grossRealisasi)}</span>
+                  <span>(b)/(c) dihitung otomatis server dari rincian vs uang muka</span>
                 </div>
                 <span className="rounded-lg border-2 border-orange-300 bg-white px-3 py-1 font-black text-orange-700 dark:border-orange-700 dark:bg-stone-900 dark:text-orange-400">
                   Total = {fmtIDR(totalFormula)}

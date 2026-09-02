@@ -75,13 +75,15 @@ export function MedicalClaimsPage() {
   const employees = balanceMeta.data?.employees ?? [];
   const types = (master.data?.types ?? []).filter((t) => t.active);
 
-  // pratinjau saldo (snapshot limit/used/remaining + frekuensi) saat employee+type dipilih
+  // pratinjau saldo (snapshot limit/used/remaining + frekuensi) saat employee+type
+  // dipilih — forDependent ikut dihitung agar preview memakai POOL YANG BENAR
+  // (fix K-3: SHARED → pool bersama karyawan; EACH/TOTAL → pool dependent).
   useEffect(() => {
     if (!dialog || !employeeId || !typeId) { setPreview(null); return; }
     const t = setTimeout(async () => {
       try {
         const res = await apiSend<{ preview: ClaimPreviewUI }>(
-          `/api/onevity/medical/claims?preview=1&employeeId=${employeeId}&typeId=${typeId}`, "GET",
+          `/api/onevity/medical/claims?preview=1&employeeId=${employeeId}&typeId=${typeId}&forDependent=${forDependent ? 1 : 0}`, "GET",
         );
         setPreview(res.preview);
       } catch {
@@ -89,7 +91,7 @@ export function MedicalClaimsPage() {
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [dialog, employeeId, typeId]);
+  }, [dialog, employeeId, typeId, forDependent]);
 
   const totals = lines.reduce((acc, l) => ({
     bill: acc.bill + (Number(l.billAmount) || 0),
@@ -379,8 +381,14 @@ export function MedicalClaimsPage() {
                 <p className="font-black">{fmtIDR(preview.usedAmount)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase text-rose-500">Sisa Saldo</p>
-                <p className="font-black">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remaining)}</p>
+                <p className="text-[11px] font-bold uppercase text-rose-500">
+                  Sisa Saldo{preview.claimPool === "dependent" ? " (Dependent)" : forDependent && preview.claimPool === "employee" ? " (Bersama)" : ""}
+                </p>
+                <p className="font-black">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
+                {preview.poolNote && <p className="text-xs text-stone-500">{preview.poolNote}</p>}
+                {(preview.pendingReserved ?? 0) > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">menunggu klaim lain: {fmtIDR(preview.pendingReserved ?? 0)}</p>
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase text-rose-500">Frekuensi</p>

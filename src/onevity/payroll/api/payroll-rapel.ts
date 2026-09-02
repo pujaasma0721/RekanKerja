@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/tenant";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMutator } from "@/onevity/shared/lib/tenant-db";
 import { calculateAndSaveRun, nextRunNo } from "@/onevity/payroll/services/payroll-service";
 
 type RapelRun = Prisma.PayrollRunGetPayload<{ include: { period: true; processType: true } }>;
@@ -21,8 +21,9 @@ interface RapelBreakdownRow {
 // pola Back Pay oranHR (fromPeriod → selisih → wageCode back pay).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     const { employeeId, componentCode, fromPeriodId, toPeriodId, targetPeriodId } = b;
@@ -111,8 +112,47 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // M-3a (MAJOR): cegah rapel duplikat — employee + period target + komponen
+    // sumber sama. Assignment Specific bersifat MENIMPA (engine memakai nilai
+    // assignment terakhir): rapel kedua akan mengganti nilai rapel pertama
+    // secara senyap tanpa peringatan. Marker rapel lama tercatat pada notes
+    // assignment ("Rapel {kode komponen} ...").
+    const dupAssignment = await db.employeeComponentAssignment.findFirst({
+      where: {
+        employeeId,
+        kind: "Specific",
+        active: true,
+        periodId: targetPeriod.id,
+        OR: [
+          { wageComponent: { code: componentCode } },
+          { wageComponent: { code: "RAPEL" }, notes: { startsWith: `Rapel ${componentCode} ` } },
+        ],
+      },
+    });
+    if (dupAssignment) {
+      return NextResponse.json(
+        { error: `Rapel ${componentCode} untuk ${employee.fullName} pada period ${targetPeriod.name} sudah ada (assignment ${dupAssignment.id}) — hapus assignment lama atau pilih period target lain` },
+        { status: 400 }
+      );
+    }
+
+    // M-3b (MAJOR): assignment rapel hanya dapat diproses run RAPEL yang masih
+    // Draft — run Calculated/Confirmed/Paid tidak dapat menghitung assignment
+    // baru (rapel "hilang" senyap tanpa peringatan; run tak bisa dihitung ulang).
+    const rapelTypeExisting = await db.processType.findFirst({ where: { code: "RAPEL" } });
+    if (rapelTypeExisting) {
+      const existingRapelRun = await db.payrollRun.findFirst({
+        where: { periodId: targetPeriod.id, processTypeId: rapelTypeExisting.id, status: { not: "Cancelled" } },
+      });
+      if (existingRapelRun && existingRapelRun.status !== "Draft") {
+        return NextResponse.json(
+          { error: `Run RAPEL ${existingRapelRun.runNo} pada period ${targetPeriod.name} berstatus ${existingRapelRun.status} — assignment rapel hanya dapat diproses run Draft. Batalkan/hapus run tersebut atau pilih period target lain` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Pastikan process type & komponen RAPEL tersedia (db lama belum punya).
-    const salaryType = await db.processType.findFirst({ where: { code: "SALARY" } });
     let rapelType = await db.processType.findFirst({ where: { code: "RAPEL" } });
     if (!rapelType) {
       const maxSeq = await db.processType.aggregate({ _max: { sequence: true } });
@@ -166,7 +206,6 @@ export async function POST(req: NextRequest) {
         run = await db.payrollRun.findUnique({ where: { id: run.id }, include: { period: true, processType: true } });
       }
     }
-    void salaryType;
 
     await db.activityLog.create({
       data: {

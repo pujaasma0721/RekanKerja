@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { submitWorkoff, decideWorkoff } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/workoffs?status= — izin tidak masuk + statistik
@@ -48,13 +48,13 @@ function dayStartOf(d: Date): number {
   return x.getTime();
 }
 
-// POST — ajukan izin (padanan Employee Work Off Permission)
+// POST — ajukan izin (padanan Employee Work Off Permission). Guard VIEWER + aktor sesi.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
-    const res = await submitWorkoff(db, {
+    const res = await submitWorkoff(m.db, {
       employeeId: String(b.employeeId ?? ""),
       dateFrom: String(b.dateFrom ?? ""),
       dateTo: b.dateTo ? String(b.dateTo) : undefined,
@@ -72,14 +72,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — approve | reject | cancel
+// PATCH — approve | reject | cancel. Guard VIEWER + aktor sesi (approver = nama aktor sesi).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    const res = await decideWorkoff(db, b.id, b.action, { approver: b.approver, note: b.note });
+    const res = await decideWorkoff(m.db, b.id, b.action, { approver: b.approver ?? m.actor.name, note: b.note });
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

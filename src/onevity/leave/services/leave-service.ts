@@ -202,9 +202,30 @@ export async function listBalances(
     });
 }
 
+/** Subset tx-capable dari TenantDb — bisa dipakai untuk db utama MAUPUN client
+ *  transaksi (Omit<PrismaClient, ITXClientDenyList>) tanpa import Prisma. */
+type LeaveDb = Pick<TenantDb, "employee" | "leaveType" | "leaveBalance" | "leaveRequest" | "leaveEncashment">;
+
+/** Transaksi serializable + retry konflik (P2034) — race-safe untuk
+ *  validasi-saldo → update-status (fix L-01/L-02: 2 approve paralel tidak boleh
+ *  lolos keduanya dari cek saldo yang sama). */
+async function runTx<T>(db: TenantDb, fn: (tx: LeaveDb) => Promise<T>): Promise<T> {
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await db.$transaction(fn, { isolationLevel: "Serializable" });
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "P2034" && attempt < 3) { lastErr = e; continue; } // konflik serialisasi — ulangi
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
 /** Saldo satu karyawan×jenis×tahun (auto-buat bila belum ada). */
 async function ensureBalance(
-  db: TenantDb,
+  db: LeaveDb,
   employeeId: string,
   type: TypeLite,
   year: number,
@@ -216,6 +237,77 @@ async function ensureBalance(
   return db.leaveBalance.create({
     data: { employeeId, leaveTypeId: type.id, year, note: "auto-generated dari permintaan" },
   });
+}
+
+export interface RequestAvailability {
+  /** Sisa saldo resmi (hanya Approved/MassLeave yang memotong — kolom f/g). */
+  current: number;
+  /** Reservasi: hari permintaan lain berstatus Submitted (pending belum memotong saldo). */
+  pendingDays: number;
+  /** current − pendingDays: saldo yang benar-benar bisa dikomit. */
+  available: number;
+}
+
+/** Sisa saldo TERSEDIA untuk permintaan cuti, termasuk RESERVASI permintaan yang
+ *  masih pending (fix L-01): saldo resmi hanya memotong request Approved/MassLeave,
+ *  sehingga N permintaan Submitted paralel masing-masing "melihat" saldo penuh.
+ *  excludeRequestId dipakai saat approve (permintaan itu sendiri dikecualikan
+ *  dari reservasi karena sedang divalidasi). */
+async function availableForRequest(
+  db: LeaveDb,
+  employeeId: string,
+  type: TypeLite,
+  year: number,
+  asOf: Date,
+  excludeRequestId?: string,
+): Promise<RequestAvailability> {
+  const balance = await ensureBalance(db, employeeId, type, year);
+  const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { joinDate: true } });
+  if (!emp) throw new Error("Karyawan tidak ditemukan");
+  const used = await db.leaveRequest.findMany({
+    where: { employeeId, leaveTypeId: type.id, year, status: { in: ["Approved", "MassLeave"] } },
+    select: { workingDays: true, dateTo: true },
+  });
+  const parts = computeParts(balance, type, emp, used, asOf);
+  const pending = await db.leaveRequest.findMany({
+    where: {
+      employeeId, leaveTypeId: type.id, year, status: "Submitted",
+      ...(excludeRequestId ? { id: { not: excludeRequestId } } : {}),
+    },
+    select: { workingDays: true },
+  });
+  const pendingDays = round2(pending.reduce((s, r) => s + r.workingDays, 0));
+  return { current: parts.remaining, pendingDays, available: round2(parts.remaining - pendingDays) };
+}
+
+/** Jenis berbasis saldo periode tahunan (rawan double-dip periode lampau — L-03):
+ *  prorata bulanan (CT-THN), carry-over (CT-THN), cashable, atau periode ANNIVERSARY
+ *  (CT-ANNIV/CT-BESAR). Jenis event (nikah/duka/haji/haids… — entitlement tetap per
+ *  kejadian tanpa carry) mempertahankan perilaku lama (backdate kejadian tetap bisa). */
+function isAnnualBalanceType(type: TypeLite): boolean {
+  return type.prorateMonthly || type.carryOverMax > 0 || type.cashable || type.periodMode === "ANNIVERSARY";
+}
+
+/** Guard backdate & validitas periode (fix L-03) — untuk submit & preview permintaan. */
+function assertRequestPeriod(
+  type: TypeLite,
+  emp: { joinDate: Date },
+  from: Date,
+  today: Date,
+): void {
+  if (!isAnnualBalanceType(type)) return; // jenis event: perilaku lama dipertahankan
+  if (from < today) {
+    throw new Error(
+      `Tanggal mulai tidak boleh di masa lalu (backdate) — ajukan mulai hari ini (${fmtDateISO(today)}) atau setelahnya`,
+    );
+  }
+  const reqYear = yearForDate(type, emp, from);
+  const activeYear = yearForDate(type, emp, today);
+  if (reqYear !== activeYear) {
+    throw new Error(
+      `Periode saldo permintaan (${periodWindow(type, emp, reqYear).label}) bukan periode berjalan (${periodWindow(type, emp, activeYear).label}) — cuti hanya bisa diajukan untuk periode yang sedang berjalan`,
+    );
+  }
 }
 
 // ============ generate leave information (padanan GenerateLeaveInfoProcess) ============
@@ -458,11 +550,13 @@ export async function previewRequest(
 
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
+  // L-03: guard backdate & periode berjalan (jenis saldo tahunan)
+  assertRequestPeriod(type, emp, from, dayStart(new Date()));
   const calc = await calculateRequestDays(db, input.employeeId, from, input.sessionFrom, to, input.sessionTo);
   const year = yearForDate(type, emp, from);
-  const balance = await ensureBalance(db, input.employeeId, type, year);
-  const [row] = await listBalances(db, { employeeId: input.employeeId, leaveTypeId: type.id, year });
-  const current = row?.remaining ?? 0;
+  // L-01: saldo preview memperhitungkan reservasi permintaan pending lain
+  const avail = await availableForRequest(db, input.employeeId, type, year, new Date());
+  const current = avail.available;
   return {
     workingDays: calc.workingDays,
     balance: current,
@@ -486,6 +580,10 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
   const asOf = new Date();
+
+  // L-03: guard backdate & validitas periode (jenis saldo tahunan; jenis event
+  // seperti nikah/duka mempertahankan perilaku lama — kejadian bisa lampau)
+  assertRequestPeriod(type, emp, from, dayStart(asOf));
 
   // masa kerja minimum (waiting period — padanan "takeable after 6 months")
   if (type.waitingMonths > 0 && monthsInService(emp.joinDate, asOf) < type.waitingMonths) {
@@ -516,14 +614,18 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   });
   if (overlap) throw new Error(`Bentrok dengan permintaan ${overlap.docNo} (${fmtDate(overlap.dateFrom)} – ${fmtDate(overlap.dateTo)})`);
 
-  // saldo
+  // saldo — L-01: cek mencakup RESERVASI permintaan Submitted lain (pending belum
+  // memotong saldo resmi; tanpa ini 2 permintaan paralel sama-sama lolos cek penuh)
   const year = yearForDate(type, emp, from);
-  const balance = await ensureBalance(db, input.employeeId, type, year);
-  const [row] = await listBalances(db, { employeeId: input.employeeId, leaveTypeId: type.id, year });
-  const current = row?.remaining ?? 0;
-  const remaining = round2(current - calc.workingDays);
+  const avail = await availableForRequest(db, input.employeeId, type, year, asOf);
+  const current = avail.current;
+  const remaining = round2(avail.available - calc.workingDays);
   if (remaining < 0 && !type.allowAdvance) {
-    throw new Error(`Saldo tidak cukup: ${current} ${type.unit === "MONTH" ? "bulan" : "hari"}, diminta ${calc.workingDays}. Advance leave tidak diizinkan untuk ${type.name}`);
+    throw new Error(
+      `Saldo tidak cukup: tersedia ${avail.available} ${type.unit === "MONTH" ? "bulan" : "hari"}` +
+        (avail.pendingDays > 0 ? ` (saldo ${current}, terpotong ${avail.pendingDays} hari permintaan lain yang menunggu persetujuan)` : "") +
+        `, diminta ${calc.workingDays}. Advance leave tidak diizinkan untuk ${type.name}`,
+    );
   }
 
   const docNo = await nextDocNo(db, "LR");
@@ -603,25 +705,75 @@ export async function decideRequest(
 ): Promise<{ docNo: string; status: string; regeneratedDays: number }> {
   const req = await db.leaveRequest.findUnique({ where: { id: input.id }, include: { leaveType: true, employee: true } });
   if (!req) throw new Error("Permintaan tidak ditemukan");
-  if (req.status !== "Submitted") throw new Error(`Permintaan sudah berstatus ${req.status}`);
+  if (req.status !== "Submitted") {
+    throw new Error(`Permintaan sudah berstatus ${req.status} — hanya permintaan menunggu (Submitted) yang bisa diproses`);
+  }
+  const type = req.leaveType as unknown as TypeLite;
 
   const status = input.action === "approve" ? "Approved" : input.action === "reject" ? "Rejected" : "Cancelled";
-  await db.leaveRequest.update({
-    where: { id: input.id },
-    data: {
-      status,
-      decidedById: input.actorId ?? null,
-      decidedAt: new Date(),
-      decisionNote: input.note?.trim() || null,
-    },
-  });
+  const decided = {
+    decidedById: input.actorId ?? null,
+    decidedAt: new Date(),
+    decisionNote: input.note?.trim() || null,
+  };
 
-  // hitung ulang rekap kehadiran rentang cuti (status OnLeave masuk/keluar)
+  if (status === "Approved") {
+    // L-01 (KRITIS): re-validasi saldo + bentrok DALAM transaksi serializable sebelum
+    // menyetujui — saldo resmi hanya memotong Approved/MassLeave, jadi permintaan yang
+    // lolos cek submit (atau race 2 submit paralel) harus dicek ulang saat approve.
+    // Jenis allowAdvance (mis. CT-THN) tetap boleh minus sesuai desain lama.
+    await runTx(db, async (tx) => {
+      const fresh = await tx.leaveRequest.findUnique({ where: { id: input.id }, select: { status: true } });
+      if (!fresh || fresh.status !== "Submitted") {
+        throw new Error("Permintaan sudah diproses oleh pengguna lain — muat ulang daftar");
+      }
+      if (!type.allowAdvance) {
+        const avail = await availableForRequest(tx, req.employeeId, type, req.year, new Date(), req.id);
+        if (round2(avail.available - req.workingDays) < 0) {
+          throw new Error(
+            `Saldo tidak cukup saat persetujuan: tersedia ${avail.available} hari` +
+              (avail.pendingDays > 0 ? ` (saldo ${avail.current}, terpotong ${avail.pendingDays} hari permintaan lain yang menunggu)` : "") +
+              ` — permintaan ini ${req.workingDays} hari. Tolak/batalkan permintaan lain atau lakukan penyesuaian saldo`,
+          );
+        }
+      }
+      // bentrok vs yang sudah disetujui (race 2 submit paralel yang sama-sama lolos)
+      const overlap = await tx.leaveRequest.findFirst({
+        where: {
+          employeeId: req.employeeId, id: { not: req.id },
+          status: { in: ["Approved", "MassLeave"] },
+          dateFrom: { lte: dayStart(req.dateTo) }, dateTo: { gte: dayStart(req.dateFrom) },
+        },
+      });
+      if (overlap) {
+        throw new Error(`Bentrok dengan ${overlap.docNo} yang sudah disetujui (${fmtDate(overlap.dateFrom)} – ${fmtDate(overlap.dateTo)})`);
+      }
+      const upd = await tx.leaveRequest.updateMany({
+        where: { id: input.id, status: "Submitted" },
+        data: { status: "Approved", ...decided },
+      });
+      if (upd.count === 0) throw new Error("Permintaan sudah diproses oleh pengguna lain — muat ulang daftar");
+    });
+  } else {
+    // reject/cancel — guard status (race double-decide)
+    const upd = await db.leaveRequest.updateMany({
+      where: { id: input.id, status: "Submitted" },
+      data: { status, ...decided },
+    });
+    if (upd.count === 0) throw new Error(`Permintaan sudah berstatus ${req.status}`);
+  }
+
+  // hitung ulang rekap kehadiran rentang cuti (status OnLeave masuk/keluar).
+  // L-04: reject/cancel hanya meregenerasi tanggal yang SUDAH terlewati — tanggal
+  // masa depan tanpa clock log akan tertulis "Absent" fiktif (memotong upah di rekap);
+  // approve tetap meregenerasi semua tanggal (cabang OnLeave menang, aman masa depan).
   let regeneratedDays = 0;
   const from = dayStart(req.dateFrom);
   const to = dayStart(req.dateTo);
+  const today = dayStart(new Date());
+  const { regenerateDaily } = await import("@/onevity/time-attendance/services/attendance-service");
   for (let d = new Date(from); d <= to; d = addDays(d, 1)) {
-    const { regenerateDaily } = await import("@/onevity/time-attendance/services/attendance-service");
+    if (status !== "Approved" && d > today) continue;
     await regenerateDaily(db, d, req.employeeId);
     regeneratedDays++;
   }
@@ -702,6 +854,7 @@ export async function createMassLeave(db: TenantDb, input: MassLeaveInput): Prom
   let skippedConflict = 0;
   let skippedBalance = 0;
   let totalDays = 0;
+  const generatedEmpIds: string[] = []; // target yang benar-benar dapat baris MassLeave (L-04)
 
   const docNo = await nextDocNo(db, "ML");
   for (const emp of targets) {
@@ -745,6 +898,7 @@ export async function createMassLeave(db: TenantDb, input: MassLeaveInput): Prom
       },
     });
     generated++;
+    generatedEmpIds.push(emp.id);
     totalDays += days;
   }
 
@@ -760,10 +914,23 @@ export async function createMassLeave(db: TenantDb, input: MassLeaveInput): Prom
     },
   });
 
-  // rekap kehadiran rentang (OnLeave)
+  // rekap kehadiran rentang (OnLeave) — L-04: tanggal LAMPAU/hari ini regen semua
+  // karyawan (hitung ulang dari clock log — idempoten); tanggal MASA DEPAN hanya
+  // karyawan target (cabang OnLeave) — regen seluruh karyawan akan menulis baris
+  // "Absent" fiktif untuk karyawan yang di-skip (bentrok/saldo) pada tanggal depan
+  // → rekap absensi memotong upah fiktif.
   const { regenerateDaily } = await import("@/onevity/time-attendance/services/attendance-service");
-  for (let d = new Date(from); d <= to; d = addDays(d, 1)) {
+  const todayML = dayStart(new Date());
+  for (let d = new Date(from); d <= to && d <= todayML; d = addDays(d, 1)) {
     await regenerateDaily(db, d);
+  }
+  if (to > todayML) {
+    const futureFrom = from > todayML ? dayStart(from) : addDays(todayML, 1); // tanggal > hari ini
+    for (let d = new Date(futureFrom); d <= to; d = addDays(d, 1)) {
+      for (const empId of generatedEmpIds) {
+        await regenerateDaily(db, d, empId);
+      }
+    }
   }
 
   await db.activityLog.create({
@@ -799,10 +966,27 @@ export async function submitEncashment(
   if (!type || !type.active) throw new Error("Jenis cuti tidak ditemukan / tidak aktif");
   if (!type.cashable) throw new Error(`Cuti ${type.name} tidak dapat diuangkan (Balance Cashable = tidak)`);
   if (input.days <= 0) throw new Error("Jumlah hari diuangkan harus lebih dari 0");
+  // L-03: hanya periode tahun BERJALAN — periode lampau (saldo sudah ter-carry ke
+  // tahun ini / hangus) dapat diuangkan dua kali (double-dip UCT)
+  const currentYear = new Date().getFullYear();
+  if (input.year !== currentYear) {
+    throw new Error(`Encashment hanya diizinkan untuk periode tahun berjalan ${currentYear} — periode ${input.year} sudah lampau (saldo ter-carry/hangus) atau belum berjalan`);
+  }
   const [row] = await listBalances(db, { employeeId: input.employeeId, leaveTypeId: type.id, year: input.year });
   if (!row) throw new Error("Saldo belum digenerate untuk periode ini");
-  if (input.days > row.remaining) {
-    throw new Error(`Saldo tidak cukup: tersedia ${row.remaining} ${type.unit === "MONTH" ? "bulan" : "hari"}`);
+  // L-02: hitung RESERVASI encashment Submitted lain — pending belum memotong saldo,
+  // tanpa ini 2 encashment paralel sama-sama lolos cek saldo penuh
+  const pending = await db.leaveEncashment.findMany({
+    where: { employeeId: input.employeeId, leaveTypeId: type.id, year: input.year, status: "Submitted" },
+    select: { days: true },
+  });
+  const pendingDays = round2(pending.reduce((s, p) => s + p.days, 0));
+  const available = round2(row.remaining - pendingDays);
+  if (input.days > available) {
+    throw new Error(
+      `Saldo tidak cukup: tersedia ${available} ${type.unit === "MONTH" ? "bulan" : "hari"}` +
+        (pendingDays > 0 ? ` (saldo ${row.remaining}, terpotong ${pendingDays} hari encashment lain yang menunggu persetujuan)` : ""),
+    );
   }
   const salary = await activeSalary(db, input.employeeId);
   const amount = Math.round((input.days * salary) / 25); // upah harian = gpokok/25
@@ -822,36 +1006,79 @@ export async function submitEncashment(
       detail: `${docNo}: ${input.days} hari cuti diuangkan (≈ ${amount})`,
     },
   });
-  return { docNo, amount, remaining: round2(row.remaining - input.days) };
+  return { docNo, amount, remaining: round2(available - input.days) };
 }
 
 export async function decideEncashment(
   db: TenantDb,
   input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
 ): Promise<{ docNo: string; status: string }> {
-  const enc = await db.leaveEncashment.findUnique({ where: { id: input.id }, include: { leaveType: true } });
+  const enc = await db.leaveEncashment.findUnique({
+    where: { id: input.id },
+    include: { leaveType: true, employee: { select: { id: true, joinDate: true } } },
+  });
   if (!enc) throw new Error("Data encashment tidak ditemukan");
-  if (enc.status !== "Submitted") throw new Error(`Encashment sudah berstatus ${enc.status}`);
+  if (enc.status !== "Submitted") {
+    throw new Error(`Encashment sudah berstatus ${enc.status} — hanya pengajuan menunggu (Submitted) yang bisa diproses`);
+  }
+  const type = enc.leaveType as unknown as TypeLite;
 
   const status = input.action === "approve" ? "Approved" : input.action === "reject" ? "Rejected" : "Cancelled";
-  await db.leaveEncashment.update({
-    where: { id: input.id },
-    data: {
-      status, decidedById: input.actorId ?? null, decidedAt: new Date(),
-      decisionNote: input.note?.trim() || null,
-    },
-  });
+  const decided = {
+    decidedById: input.actorId ?? null,
+    decidedAt: new Date(),
+    decisionNote: input.note?.trim() || null,
+  };
+
   if (status === "Approved") {
-    // saldo cashed bertambah (kolom e)
-    const balance = await db.leaveBalance.findUnique({
-      where: { employeeId_leaveTypeId_year: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year } },
-    });
-    if (balance) {
-      await db.leaveBalance.update({
+    // L-02 (KRITIS): re-check remaining dalam transaksi serializable sebelum cashed
+    // bertambah — tanpa ini encashment paralel / encash+cuti paralel melampaui
+    // entitlement (cashed > entitlement → overpay UCT).
+    await runTx(db, async (tx) => {
+      const fresh = await tx.leaveEncashment.findUnique({ where: { id: input.id }, select: { status: true } });
+      if (!fresh || fresh.status !== "Submitted") {
+        throw new Error("Encashment sudah diproses oleh pengguna lain — muat ulang daftar");
+      }
+      const balance = await tx.leaveBalance.findUnique({
+        where: { employeeId_leaveTypeId_year: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year } },
+      });
+      if (!balance) throw new Error("Baris saldo untuk encashment ini tidak ditemukan — generate saldo periode terlebih dahulu");
+      const used = await tx.leaveRequest.findMany({
+        where: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year, status: { in: ["Approved", "MassLeave"] } },
+        select: { workingDays: true, dateTo: true },
+      });
+      const parts = computeParts(balance, type, { joinDate: enc.employee.joinDate }, used, new Date());
+      const pending = await tx.leaveEncashment.findMany({
+        where: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year, status: "Submitted", id: { not: input.id } },
+        select: { days: true },
+      });
+      const pendingDays = round2(pending.reduce((s, p) => s + p.days, 0));
+      const available = round2(parts.remaining - pendingDays);
+      if (enc.days > available) {
+        throw new Error(
+          `Sisa saldo tidak cukup untuk menyetujui encashment: tersedia ${available} hari` +
+            (pendingDays > 0 ? ` (saldo ${parts.remaining}, terpotong ${pendingDays} hari encashment lain yang menunggu)` : "") +
+            ` — diajukan ${enc.days} hari. Tolak/batalkan pengajuan lain atau lakukan penyesuaian saldo`,
+        );
+      }
+      const upd = await tx.leaveEncashment.updateMany({
+        where: { id: input.id, status: "Submitted" },
+        data: { status: "Approved", ...decided },
+      });
+      if (upd.count === 0) throw new Error("Encashment sudah diproses oleh pengguna lain — muat ulang daftar");
+      // saldo cashed bertambah (kolom e) — atomic dengan status Approved
+      await tx.leaveBalance.update({
         where: { id: balance.id },
         data: { cashed: round2(balance.cashed + enc.days) },
       });
-    }
+    });
+  } else {
+    // reject/cancel — guard status (race double-decide)
+    const upd = await db.leaveEncashment.updateMany({
+      where: { id: input.id, status: "Submitted" },
+      data: { status, ...decided },
+    });
+    if (upd.count === 0) throw new Error(`Encashment sudah berstatus ${enc.status}`);
   }
   await db.activityLog.create({
     data: {

@@ -271,6 +271,8 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
   const otOrders = await db.overtimeOrder.findMany({
     where: { overtimeDate: { gte: start, lt: dayEnd }, status: { in: ["Approved", "Paid"] } },
   });
+  // catatan: display harian boleh memuat lembur Paid (histori jam kerja); jalur
+  // UANG (recapPeriod/transfer) memakai filter paidRunNo null — lihat fix K-1 di bawah.
   const otByEmp = new Map<string, typeof otOrders>();
   for (const o of otOrders) {
     const arr = otByEmp.get(o.employeeId) ?? [];
@@ -281,9 +283,25 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
   let count = 0;
   for (const emp of employees) {
     const { assignment, dayType } = await resolveDayType(db, emp.id, date);
-    const empLogs = (logsByEmp.get(emp.id) ?? []).filter((l) => l.timestamp < dayEnd || dayType?.nextDay);
-    const checkIn = empLogs.find((l) => l.direction === "IN")?.timestamp ?? null;
-    const checkOutRaw = [...empLogs].reverse().find((l) => l.direction === "OUT" && (!checkIn || l.timestamp > checkIn))?.timestamp ?? null;
+    // Fix K-2: clock-in tetap dibatasi hari tsb (nextDay: hingga D+1), namun clock-out
+    // kini sah hingga 10 jam SETELAH jam pulang jadwal — menangkap clock-out lewat
+    // tengah malam pada tipe hari non-lintas-hari (dulu dibuang → karyawan dianggap
+    // Absen penuh padahal hadir + lembur). Batas atas juga mencegah tipe nextDay
+    // memakai OUT milik shift sore hari berikutnya (workMinutes menggelembung).
+    // Hari tanpa jam jadwal (off/tanpa assignment): batas = clock-in + 16 jam
+    // (setara cap kerja 960 menit).
+    const empLogs = logsByEmp.get(emp.id) ?? [];
+    const checkIn = empLogs.find((l) => l.direction === "IN" && (l.timestamp < dayEnd || dayType?.nextDay === true))?.timestamp ?? null;
+    const schedOut = dayType?.timeOut ? atTime(dayType.timeOut, date, dayType.nextDay) : null;
+    let outLimit: Date | null = null;
+    if (schedOut && (!checkIn || schedOut > checkIn)) {
+      outLimit = new Date(schedOut.getTime() + 10 * 3_600_000);
+    } else if (checkIn) {
+      outLimit = new Date(checkIn.getTime() + 16 * 3_600_000);
+    }
+    const checkOutRaw = checkIn && outLimit
+      ? [...empLogs].reverse().find((l) => l.direction === "OUT" && l.timestamp > checkIn && l.timestamp <= outLimit)?.timestamp ?? null
+      : null;
 
     const wo = await workoffFor(db, emp.id, date);
     const lv = await leaveFor(db, emp.id, date);
@@ -409,7 +427,8 @@ export async function regenerateRange(db: TenantDb, from: Date, to: Date): Promi
  * Upah lembur — mengikuti regulasi Indonesia:
  * - Weekday (hari kerja): jam ke-1 = 1,5×; jam berikutnya = 2×
  * - Weekend (hari istirahat mingguan): 8 jam pertama = 2×; setelahnya = 3×
- * - Holiday (libur nasional): jam 1-5 = 2×, jam 6-7 = 3×, jam 8+ = 4×
+ * - Holiday (libur nasional, PP 35/2021 Pasal 28): 7 jam pertama = 2×,
+ *   jam ke-8 = 3×, jam ke-9 dst = 4× (fix M-1 — dulu 2×/3×/4× pada jam 1-5/6-7/8+)
  * upah sejam = 1/173 × upah bulanan; perhitungan per interval 30 menit.
  */
 export function overtimePayFor(baseSalary: number, minutes: number, dayCategory: string): number {
@@ -421,7 +440,7 @@ export function overtimePayFor(baseSalary: number, minutes: number, dayCategory:
     const hourIndex = Math.floor(h) + 1; // jam ke-berapa (1-based)
     let multiplier: number;
     if (dayCategory === "Weekend") multiplier = hourIndex <= 8 ? 2 : 3;
-    else if (dayCategory === "Holiday") multiplier = hourIndex <= 5 ? 2 : hourIndex <= 7 ? 3 : 4;
+    else if (dayCategory === "Holiday") multiplier = hourIndex <= 7 ? 2 : hourIndex === 8 ? 3 : 4;
     else multiplier = hourIndex === 1 ? 1.5 : 2;
     pay += hourly * multiplier * 0.5;
   }
@@ -470,8 +489,11 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
     include: { assignments: { where: { validTo: null }, select: { baseSalary: true, orgUnit: { select: { name: true } } }, take: 1 } },
     orderBy: { employeeNo: "asc" },
   });
+  // Fix K-1: hanya order Approved yang BELUM dibayar (paidRunNo null) yang ikut
+  // rekap uang/transfer — order Paid tidak boleh dihitung lagi di window berikutnya
+  // (double-pay). Display jam (AttendanceDaily.overtimeMinutes) tetap memuat Paid.
   const otOrders = await db.overtimeOrder.findMany({
-    where: { overtimeDate: { gte: start, lt: end }, status: { in: ["Approved", "Paid"] } },
+    where: { overtimeDate: { gte: start, lt: end }, status: "Approved", paidRunNo: null },
   });
   const otByEmp = new Map<string, typeof otOrders>();
   for (const o of otOrders) {
@@ -548,12 +570,14 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
 export interface TransferInput {
   periodId: string;
   processTypeCode?: string; // default "SALARY"
-  from: Date;
-  to: Date;
+  from?: Date; // opsional — default: jendela TA period (taStartDate/taEndDate), else rentang period
+  to?: Date;
   includeOvertime?: boolean;
   includeLate?: boolean;
   includeAbsence?: boolean;
   includeAttendanceAllowance?: boolean;
+  /** aktor sesi (requireMutator) untuk jejak ActivityLog — opsional. */
+  actor?: { name: string; appUserId: string | null };
 }
 
 export interface TransferResult {
@@ -566,6 +590,18 @@ export interface TransferResult {
 /**
  * Rekap window → komponen gaji Specific (period × process type) — idempoten:
  * re-transfer mengganti nilai assignment lama (padanan "Override Existing Data").
+ *
+ * Fix M-4 (BPA M-5): jendela transfer divalidasi terhadap period —
+ * 1. default window = jendela TA period (taStartDate/taEndDate) bila valid,
+ *    else rentang startDate–endDate period;
+ * 2. window wajib berada di dalam jendela absensi period tersebut (TA window bila
+ *    di-set HR, else rentang period) — menutup mismatch window transfer vs period;
+ * 3. window yang sama dengan transfer terakhir period tsb = re-transfer idempoten;
+ *    window BERIRISAN dengan window terakhir yang sudah dipakai run terkonfirmasi
+ *    period YANG SAMA → ditolak (anti hitung-ganda);
+ * 4. window yang beririsan dengan window terakhir period LAIN → ditolak;
+ * 5. window yang benar-benar ditransfer disimpan ke PayrollPeriod.taStartDate/taEndDate
+ *    — dipakai markOvertimePaidForRun (fix K-3).
  */
 export async function transferToPayroll(db: TenantDb, input: TransferInput): Promise<TransferResult> {
   const period = await db.payrollPeriod.findUnique({ where: { id: input.periodId } });
@@ -576,6 +612,56 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
   const ptCode = input.processTypeCode ?? "SALARY";
   const pt = await db.processType.findFirst({ where: { code: ptCode } });
   if (!pt) throw new Error(`Process type ${ptCode} tidak ditemukan`);
+
+  // ---- resolusi & validasi jendela transfer (fix M-4) ----
+  const taFrom = period.taStartDate ? dayStart(period.taStartDate) : null;
+  const taTo = period.taEndDate ? dayStart(period.taEndDate) : null;
+  const hasTaWindow = !!(taFrom && taTo && taFrom <= taTo);
+  const periodFrom = dayStart(period.startDate);
+  const periodTo = dayStart(period.endDate);
+  const from = input.from ? dayStart(input.from) : hasTaWindow ? taFrom! : periodFrom;
+  const to = input.to ? dayStart(input.to) : hasTaWindow ? taTo! : periodTo;
+  if (to < from) throw new Error("Jendela absensi tidak valid — tanggal selesai sebelum tanggal mulai");
+  const toEnd = dayStart(addDays(to, 1));
+
+  const boundsFrom = hasTaWindow ? taFrom! : periodFrom;
+  const boundsTo = hasTaWindow ? taTo! : periodTo;
+  if (from < boundsFrom || to > boundsTo) {
+    throw new Error(
+      `Jendela absensi ${fmtDate(from)}–${fmtDate(to)} berada di luar jendela period ${period.name} (${fmtDate(boundsFrom)}–${fmtDate(boundsTo)})`,
+    );
+  }
+
+  const sameWindow = !!(taFrom && taTo && from.getTime() === taFrom.getTime() && to.getTime() === taTo.getTime());
+  if (!sameWindow) {
+    // irisan dengan window terakhir period INI yang sudah dipakai run terkonfirmasi
+    if (taFrom && taTo && taFrom <= taTo && from < dayStart(addDays(taTo, 1)) && taFrom < toEnd) {
+      const confirmed = await db.payrollRun.findFirst({
+        where: { periodId: period.id, status: { in: ["Confirmed", "Paid"] } },
+        select: { runNo: true },
+      });
+      if (confirmed) {
+        throw new Error(
+          `Jendela ${fmtDate(from)}–${fmtDate(to)} beririsan dengan window ${fmtDate(taFrom)}–${fmtDate(taTo)} yang sudah dibayarkan (run ${confirmed.runNo}) — penolakan anti hitung-ganda`,
+        );
+      }
+    }
+    // irisan dengan window terakhir period LAIN → absensi/lembur bisa terhitung 2×
+    const others = await db.payrollPeriod.findMany({
+      where: { id: { not: period.id }, taStartDate: { not: null }, taEndDate: { not: null } },
+      select: { name: true, taStartDate: true, taEndDate: true },
+    });
+    for (const p of others) {
+      const oFrom = dayStart(p.taStartDate!);
+      const oTo = dayStart(p.taEndDate!);
+      if (oFrom > oTo) continue; // window legacy terbalik (seed lama) — tidak sah, diabaikan
+      if (from < dayStart(addDays(oTo, 1)) && oFrom < toEnd) {
+        throw new Error(
+          `Jendela ${fmtDate(from)}–${fmtDate(to)} beririsan dengan window period ${p.name} (${fmtDate(oFrom)}–${fmtDate(oTo)}) yang sudah ditransfer — data bisa terhitung dua kali`,
+        );
+      }
+    }
+  }
 
   const rule = await getRule(db);
   const map: [string, string][] = [
@@ -592,7 +678,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
   const includeAbsence = input.includeAbsence ?? true;
   const includeAllowance = input.includeAttendanceAllowance ?? true;
 
-  const recap = await recapPeriod(db, input.from, input.to);
+  const recap = await recapPeriod(db, from, to);
 
   // assignment Specific lama periode ini utk komponen absensi → dibuang (idempoten)
   const removed = await db.employeeComponentAssignment.deleteMany({
@@ -623,7 +709,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
           employeeId: r.employeeId, wageComponentId: comp.id,
           kind: "Specific", amount: Math.round(amount),
           periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
-          notes: `${note} · window ${fmtDate(input.from)}–${fmtDate(input.to)}`,
+          notes: `${note} · window ${fmtDate(from)}–${fmtDate(to)}`,
           active: true,
         },
       });
@@ -635,32 +721,73 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
     if (any) employees++;
   }
 
+  // simpan window terakhir yang ditransfer — penanda utk markOvertimePaidForRun (K-3)
+  // dan guard overlap transfer berikutnya (M-4)
+  await db.payrollPeriod.update({
+    where: { id: period.id },
+    data: { taStartDate: from, taEndDate: to },
+  });
+
   await db.activityLog.create({
     data: {
       action: "Processed", entity: "AttendanceTransfer", entityId: period.id,
-      detail: `Transfer absensi → payroll ${period.name} (${ptCode}): ${employees} karyawan, ${[...agg.values()].reduce((s, c) => s + c.employees, 0)} komponen, window ${fmtDate(input.from)}–${fmtDate(input.to)}`,
+      appUserId: input.actor?.appUserId ?? null,
+      detail: `Transfer absensi → payroll ${period.name} (${ptCode})${input.actor ? ` oleh ${input.actor.name}` : ""}: ${employees} karyawan, ${[...agg.values()].reduce((s, c) => s + c.employees, 0)} komponen, window ${fmtDate(from)}–${fmtDate(to)}`,
     },
   });
 
   return {
     employees,
-    window: { from: fmtDate(input.from), to: fmtDate(input.to) },
+    window: { from: fmtDate(from), to: fmtDate(to) },
     components: [...agg.values()].sort((a, b) => a.code.localeCompare(b.code)),
     removed: removed.count,
   };
 }
 
-/** Dipanggil confirmRun(): lembur Approved dalam window period run SALARY → Paid. */
+/**
+ * Dipanggil confirmRun(): tandai Paid HANYA order lembur yang benar-benar dibayar
+ * di run tsb — fix K-3 (dulu: window period run, semua order Approved, tanpa cek
+ * keberadaan item di run):
+ * - hanya run SALARY (run non-SALARY tidak pernah menandai lembur Paid);
+ * - window = window transfer terakhir period (taStartDate/taEndDate — ditulis
+ *   transferToPayroll, fix M-4); fallback window period utk data lama;
+ * - hanya karyawan yang punya item komponen lembur (mis. LEMBUR) di run tsb —
+ *   order yang tidak termuat di run tidak ditandai;
+ * - hanya order yang sudah Approved sebelum run dihitung (decidedAt ≤ calculatedAt).
+ */
 export async function markOvertimePaidForRun(db: TenantDb, runId: string): Promise<number> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
-    include: { period: true, processType: true },
+    include: {
+      period: true,
+      processType: true,
+      lines: { select: { employeeId: true, items: { select: { code: true } } } },
+    },
   });
   if (!run || run.processType.code !== "SALARY") return 0;
+
+  const rule = await getRule(db);
+  const paidEmployees = run.lines
+    .filter((l) => l.items.some((i) => i.code === rule.overtimeComponentCode))
+    .map((l) => l.employeeId);
+  if (paidEmployees.length === 0) return 0;
+
+  // window yang benar-benar ditransfer (marker M-4); fallback window period (data lama)
+  const taFrom = run.period.taStartDate;
+  const taTo = run.period.taEndDate;
+  const hasWindow = !!(taFrom && taTo && dayStart(taFrom) <= dayStart(taTo));
+  const winFrom = dayStart(hasWindow ? (taFrom as Date) : run.period.startDate);
+  const winTo = hasWindow ? dayStart(addDays(taTo as Date, 1)) : dayStart(addDays(run.period.endDate, 1));
+
   const res = await db.overtimeOrder.updateMany({
     where: {
       status: "Approved",
-      overtimeDate: { gte: run.period.startDate, lte: run.period.endDate },
+      overtimeDate: { gte: winFrom, lt: winTo },
+      employeeId: { in: paidEmployees },
+      // hanya order yang sudah disetujui sebelum run dihitung (pasti ikut snapshot)
+      ...(run.calculatedAt
+        ? { OR: [{ decidedAt: null }, { decidedAt: { lte: run.calculatedAt } }] }
+        : {}),
     },
     data: { status: "Paid", paidRunNo: run.runNo },
   });
@@ -668,7 +795,7 @@ export async function markOvertimePaidForRun(db: TenantDb, runId: string): Promi
     await db.activityLog.create({
       data: {
         action: "Processed", entity: "OvertimeOrder", entityId: runId,
-        detail: `${res.count} perintah lembur ditandai Dibayar via run ${run.runNo} (${run.period.name})`,
+        detail: `${res.count} perintah lembur ditandai Dibayar via run ${run.runNo} (${run.period.name}, window ${fmtDate(winFrom)}–${fmtDate(hasWindow ? (taTo as Date) : run.period.endDate)})`,
       },
     });
   }
@@ -761,6 +888,15 @@ export async function decideOvertimeOrder(
 
   if (action === "approve") {
     if (order.status !== "Pending") throw new Error("Hanya perintah berstatus Pending yang dapat disetujui");
+    // Fix M-7: tolak approve lembur tanggal masa depan — lembur baru bisa disetujui
+    // setelah tanggalnya berlalu sehingga bukti clocking tersedia (mencegah paid
+    // tanpa bukti kehadiran).
+    const today = dayStart(new Date());
+    if (order.overtimeDate > today) {
+      throw new Error(
+        `Tanggal lembur ${fmtDate(order.overtimeDate)} masih di masa depan (hari ini ${fmtDate(today)}) — setujui setelah tanggal lembur berlalu agar bukti clocking ikut diverifikasi`,
+      );
+    }
     // actual dari clocking hari tsb (bila ada) — padanan Plan → Actual:
     // overlap jendela perintah lembur dengan kehadiran tercatat (clock in/out).
     let actual = 0;
@@ -773,19 +909,27 @@ export async function decideOvertimeOrder(
       actual = Math.max(0, minutesBetween(tFrom, tTo));
       actual = Math.min(actual, 600);
     }
-    const verified = opts.verifiedMinutes && opts.verifiedMinutes > 0 ? Math.round(opts.verifiedMinutes) : actual > 0 ? actual : order.planMinutes;
+    // Fix M-7: tanpa bukti clock (daily belum ada / tanpa check-in-out) → verified 0
+    // (bukan plan) — lembur menunggu verifikasi manual, tidak dibayar otomatis.
+    const verified = opts.verifiedMinutes && opts.verifiedMinutes > 0 ? Math.round(opts.verifiedMinutes) : actual > 0 ? actual : 0;
     const updated = await db.overtimeOrder.update({
       where: { id },
       data: {
         status: "Approved", approverId: opts.approver?.trim() || "Admin HR",
         decidedAt: new Date(), decisionNote: opts.note?.trim() || null,
         actualMinutes: actual, verifiedMinutes: verified,
-        rateMultiplier: verified > 0 ? 1.5 : order.rateMultiplier,
+        // multiplier jam ke-1 sesuai kategori hari (Weekday 1,5× / Weekend 2× / Holiday 2×)
+        rateMultiplier: verified > 0
+          ? order.dayCategory === "Weekend" || order.dayCategory === "Holiday" ? 2 : 1.5
+          : order.rateMultiplier,
       },
       include: OT_INCLUDE,
     });
     await regenerateDaily(db, order.overtimeDate, order.employeeId);
-    return { order: updated, note: `Lembur disetujui — diverifikasi ${verified} menit (aktual clocking ${actual} menit)` };
+    const note = verified > 0
+      ? `Lembur disetujui — dibayar ${verified} menit (aktual clocking ${actual} menit)`
+      : `Lembur disetujui — belum ada bukti clocking, jam dibayar 0 menit — lakukan verifikasi manual bila lembur benar terjadi`;
+    return { order: updated, note };
   }
 
   if (action === "reject") {

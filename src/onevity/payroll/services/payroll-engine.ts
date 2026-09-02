@@ -85,6 +85,14 @@ export interface EngineRow {
   loans: EngineLoanDue[];
   workingDays: number;
   prorateFactor: number; // 0..1 (1 = penuh)
+  // K-1: konteks penghasilan regular kumulatif masa pajak (YTD) untuk run
+  // suplemental (THR/BONUS/RAPEL — processType ≠ SALARY): Σ bruto THP & Σ iuran
+  // pegawai Jamsostek + jumlah bulan dari run SALARY Confirmed/Paid tahun
+  // pajak berjalan Jan s.d. period ini (dirakit payroll-service; fallback gaji
+  // bulanan profil). Dipakai engine HANYA untuk pajak ireguler run suplemental.
+  regularIncomeYtd?: number;
+  regularIuranYtd?: number;
+  regularMonthsYtd?: number;
 }
 
 export interface EngineItem {
@@ -96,6 +104,9 @@ export interface EngineItem {
   amount: number;
   note?: string | null;
   sortOrder: number;
+  // Klasifikasi iuran Jamsostek (JHT|JP|JKK|JKM|JPK) — dipakai engine untuk
+  // menentukan status objek pajak BPJS (M-1). Tidak dipersist ke snapshot run.
+  jamsostekBasis?: string | null;
 }
 
 export interface EngineLineResult {
@@ -323,6 +334,7 @@ export function runPayroll(
       const item: EngineItem = {
         code: comp.code, name: comp.name, wageType: comp.wageType, type: comp.type,
         incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
+        jamsostekBasis: comp.jamsostekBasis ?? null,
         note: comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null,
       };
       items.push(item);
@@ -339,12 +351,28 @@ export function runPayroll(
     }
 
     // --- 4. Kalkulasi pajak PPh21 ---
-    const regularIncome = items.filter((i) => i.type === "Earning" && i.incomeTaxMethod === "Regular").reduce((s, i) => s + i.amount, 0);
-    const irregularIncome = items.filter((i) => i.type === "Earning" && i.incomeTaxMethod === "Irregular").reduce((s, i) => s + i.amount, 0);
-    // Iuran JSTK yang dibayar pegawai (JHT/JP) — deductible dari bruto utk pajak.
+    // M-1 (PMK 16/PMK.03/2021 jo. PP 85/2021): iuran JKK/JKM/JPK yang dibayar
+    // PERUSAHAAN bukan objek PPh21 → dikeluarkan dari penghasilan kena pajak
+    // (dan basis TER) sekalipun master komponen lama masih menyimpan
+    // incomeTaxMethod "Regular" — klasifikasi diperbaiki di engine berdasar
+    // wageType Jamsostek + jamsostekBasis, data live tidak di-reseed.
+    // Iuran JHT/JP perusahaan tetap objek pajak (iuran pensiun pemberi kerja).
+    const NON_OBJEK_BPJS = new Set(["JKK", "JKM", "JPK"]);
+    const isNonObjekBpjs = (i: EngineItem) =>
+      i.type === "Earning" && i.wageType === "Jamsostek" && NON_OBJEK_BPJS.has(i.jamsostekBasis ?? "");
+    const regularIncome = items
+      .filter((i) => i.type === "Earning" && i.incomeTaxMethod === "Regular" && !isNonObjekBpjs(i))
+      .reduce((s, i) => s + i.amount, 0);
+    const irregularIncome = items
+      .filter((i) => i.type === "Earning" && i.incomeTaxMethod === "Irregular" && !isNonObjekBpjs(i))
+      .reduce((s, i) => s + i.amount, 0);
+    // M-1 (UU PPh Pasal 21 ayat (3) huruf a): pengurang penghasilan neto hanya
+    // iuran pensiun yang dibayar sendiri oleh PEGAWAI (JHT + JP). Iuran JPK
+    // pegawai bukan pengurang neto pajak (tetap dipotong dari THP).
+    const DEDUCTIBLE_IURAN = new Set(["JHT", "JP"]);
     const taxDeductibleIuran = items
-      .filter((i) => i.wageType === "Jamsostek" && i.type === "Deduction")
-      .reduce((s, i) => s + i.amount, 0); // seeded: JHT_EMP + JP_EMP saja (JPK non-deductible per komponen)
+      .filter((i) => i.wageType === "Jamsostek" && i.type === "Deduction" && DEDUCTIBLE_IURAN.has(i.jamsostekBasis ?? ""))
+      .reduce((s, i) => s + i.amount, 0);
 
     const computeTaxOn = (bruto: number): TaxComputation => {
       if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false };
@@ -379,30 +407,91 @@ export function runPayroll(
       return { taxRegular: Math.round(taxRegular), taxIrregular: Math.round(taxIrregular), biayaJabatan, terUsed };
     };
 
-    const grossBeforeTax = regularIncome; // bruto regular sebelum gross-up
-    let taxInfo = computeTaxOn(grossBeforeTax);
+    const grossBeforeTax = regularIncome; // bruto regular run ini sebelum gross-up
+
+    // K-1: run suplemental (THR/BONUS/RAPEL — processType ≠ SALARY) tidak memuat
+    // gaji regular (regularIncome = 0) → tanpa konteks, neto disetahunkan = 0 →
+    // pajak ireguler = progresif(irregular − PTKP) ≈ 0 (under-withholding
+    // sistemik). Konteks = rata-rata bruto & iuran run SALARY Confirmed/Paid
+    // Jan s.d. period ini (fallback gaji bulanan profil saat ini).
+    const ytdBruto = row.regularIncomeYtd ?? 0;
+    const ytdIuran = row.regularIuranYtd ?? 0;
+    const ytdMonths = Math.max(1, row.regularMonthsYtd ?? 0);
+    const supplementalCtx = regularIncome <= 0 && ytdBruto > 0
+      ? { bruto: ytdBruto / ytdMonths, iuran: ytdIuran / ytdMonths }
+      : null;
+
+    // K-1 (PMK 168/2023 — PPh21 atas penghasilan tidak teratur): Pasal 17
+    // progresif atas (neto penghasilan regular disetahunkan + ireguler) dikurangi
+    // pajak atas neto regular saja. Pajak REGULER sengaja 0 pada jalur ini —
+    // sudah dipotong di run gaji bulanan; memotong ulang = double-withholding.
+    const computeSupplementalTaxOn = (irregular: number): TaxComputation => {
+      if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false };
+      const bruto = supplementalCtx!.bruto;
+      const iuran = Math.min(supplementalCtx!.iuran, bruto);
+      const biayaJabatan = Math.min(bruto * reg.biayaJabatanRate, reg.biayaJabatanCapMonthly);
+      const netoAnnual = (bruto - iuran - biayaJabatan) * 12;
+      const pkpRegular = Math.max(0, floorToThousand(netoAnnual - ptkpValue));
+      const annualRegularTax = progressiveTax(pkpRegular, brackets, emp.hasNpwp);
+      const pkpWithIrr = Math.max(0, floorToThousand(netoAnnual + irregular - ptkpValue));
+      const annualWithIrr = progressiveTax(pkpWithIrr, brackets, emp.hasNpwp);
+      return {
+        taxRegular: 0,
+        taxIrregular: Math.round(Math.max(0, annualWithIrr - annualRegularTax)),
+        biayaJabatan, terUsed: false,
+      };
+    };
+
+    let taxInfo: TaxComputation;
     let actualNetTax: number | null = null;
     let taxAllowance = 0;
 
-    // --- 5. NetToGross: gross-up iteratif (pajak ditanggung perusahaan) ---
-    if (emp.processMethod === "NetToGross" && opts.calculateTax) {
-      let extra = 0;
-      for (let i = 0; i < 30; i++) {
-        const t = computeTaxOn(grossBeforeTax + extra);
-        const nextExtra = t.taxRegular + t.taxIrregular;
-        if (Math.abs(nextExtra - extra) < 0.5) { extra = nextExtra; taxInfo = t; break; }
-        extra = nextExtra;
-        taxInfo = computeTaxOn(grossBeforeTax + extra);
+    if (supplementalCtx && irregularIncome > 0) {
+      // --- 5a. K-1: run suplemental dengan konteks kumulatif masa pajak ---
+      taxInfo = computeSupplementalTaxOn(irregularIncome);
+      if (emp.processMethod === "NetToGross" && opts.calculateTax) {
+        // Gross-up iteratif atas pajak ireguler saja (THR/bonus netto).
+        let extra = 0;
+        for (let i = 0; i < 30; i++) {
+          const t = computeSupplementalTaxOn(irregularIncome + extra);
+          const nextExtra = t.taxIrregular;
+          if (Math.abs(nextExtra - extra) < 0.5) { extra = nextExtra; taxInfo = t; break; }
+          extra = nextExtra;
+          taxInfo = computeSupplementalTaxOn(irregularIncome + extra);
+        }
+        taxAllowance = Math.round(extra);
+        if (taxAllowance > 0) {
+          items.push({
+            code: "TAX_ALLOW", name: "Tunjangan PPh21 Ditanggung Perusahaan", wageType: "Compensation",
+            type: "Earning", incomeTaxMethod: "Irregular", amount: taxAllowance,
+            note: "Gross-up pajak ireguler (NetToGross)", sortOrder: sortOrder++,
+          });
+        }
+        actualNetTax = taxInfo.taxIrregular;
       }
-      taxAllowance = Math.round(extra);
-      if (taxAllowance > 0) {
-        items.push({
-          code: "TAX_ALLOW", name: "Tunjangan PPh21 Ditanggung Perusahaan", wageType: "Compensation",
-          type: "Earning", incomeTaxMethod: "Regular", amount: taxAllowance,
-          note: "Gross-up pajak (NetToGross)", sortOrder: sortOrder++,
-        });
+    } else {
+      taxInfo = computeTaxOn(grossBeforeTax);
+
+      // --- 5. NetToGross: gross-up iteratif (pajak ditanggung perusahaan) ---
+      if (emp.processMethod === "NetToGross" && opts.calculateTax) {
+        let extra = 0;
+        for (let i = 0; i < 30; i++) {
+          const t = computeTaxOn(grossBeforeTax + extra);
+          const nextExtra = t.taxRegular + t.taxIrregular;
+          if (Math.abs(nextExtra - extra) < 0.5) { extra = nextExtra; taxInfo = t; break; }
+          extra = nextExtra;
+          taxInfo = computeTaxOn(grossBeforeTax + extra);
+        }
+        taxAllowance = Math.round(extra);
+        if (taxAllowance > 0) {
+          items.push({
+            code: "TAX_ALLOW", name: "Tunjangan PPh21 Ditanggung Perusahaan", wageType: "Compensation",
+            type: "Earning", incomeTaxMethod: "Regular", amount: taxAllowance,
+            note: "Gross-up pajak (NetToGross)", sortOrder: sortOrder++,
+          });
+        }
+        actualNetTax = taxInfo.taxRegular + taxInfo.taxIrregular;
       }
-      actualNetTax = taxInfo.taxRegular + taxInfo.taxIrregular;
     }
 
     const empTaxTotal = taxInfo.taxRegular + taxInfo.taxIrregular;

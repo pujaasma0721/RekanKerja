@@ -34,6 +34,9 @@ export interface TravelRequestRowUI {
   destinations: DestinationUI[];
   advanceAmount: number;
   claimCount: number;
+  /** K-2 (24-FIX-TRAVEL): ada klaim aktif (status bukan Rejected/Cancelled). */
+  hasActiveClaim: boolean;
+  activeClaimDocNo: string | null;
   settlementDue: string | null;
   overdue: boolean;
 }

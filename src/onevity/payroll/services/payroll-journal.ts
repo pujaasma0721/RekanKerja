@@ -8,6 +8,7 @@
 //   3. D 2101 Hutang Gaji (tiap potongan)                     / C 2102/2103/2104/2105
 //   4. D 2101 Hutang Gaji (net / pembulatan)                  / C 1101 Kas & Bank
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 
 // Akun default (COA minimal seed) — kode komponen boleh menimpa via
 // WageComponent.accountDebitCode / accountCreditCode (Salary Chart of Account).
@@ -41,13 +42,6 @@ export function creditAccountFor(wageType: string, accountCreditCode: string | n
   if (wageType === "IncomeTax") return JOURNAL_ACCOUNTS.pph21;
   if (wageType === "Loan") return JOURNAL_ACCOUNTS.loan;
   return JOURNAL_ACCOUNTS.otherDed;
-}
-
-export async function nextJournalNo(db: TenantDb): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `JV-${year}-`;
-  const count = await db.payrollJournal.count({ where: { journalNo: { startsWith: prefix } } });
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
 }
 
 interface JournalLineDraft {

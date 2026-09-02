@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 
 // GET /api/onevity/component-assignments?kind=&employeeId=
 export async function GET(req: NextRequest) {
@@ -31,8 +31,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/component-assignments — komponen khusus (Specific) / periodik (Periodic)
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.employeeId || !b.wageComponentId) {
@@ -44,6 +45,22 @@ export async function POST(req: NextRequest) {
     }
     const comp = await db.wageComponent.findUnique({ where: { id: b.wageComponentId } });
     if (!comp) return NextResponse.json({ error: "Komponen tidak ditemukan" }, { status: 404 });
+
+    // M-8 (MAJOR): komponen Specific untuk period × processType yang run-nya sudah
+    // Confirmed/Paid tidak akan pernah dibayar — run final tak dapat dihitung
+    // ulang, dan run baru period+type yang sama ditolak guard duplikat →
+    // komponen terjebak. Tolak di muka (pilih period/jenis proses lain).
+    if (kind === "Specific") {
+      const finalRun = await db.payrollRun.findFirst({
+        where: { periodId: b.periodId, processTypeId: b.processTypeId, status: { in: ["Confirmed", "Paid"] } },
+      });
+      if (finalRun) {
+        return NextResponse.json(
+          { error: `Run ${finalRun.runNo} untuk period × jenis proses ini sudah ${finalRun.status === "Paid" ? "dibayar" : "dikonfirmasi"} — komponen khusus tidak akan pernah diproses; pilih period/jenis proses lain` },
+          { status: 400 }
+        );
+      }
+    }
 
     const assignment = await db.employeeComponentAssignment.create({
       data: {
@@ -70,8 +87,9 @@ export async function POST(req: NextRequest) {
 // DELETE /api/onevity/component-assignments?id=
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

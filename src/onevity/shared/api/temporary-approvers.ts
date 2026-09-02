@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 
 // ============ Temporary Approvers (Delegasi Approval) ============
 
@@ -29,8 +29,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/temporary-approvers { approverId, delegateId, docType, validFrom, validTo, reason, active }
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.approverId || !b.delegateId) return NextResponse.json({ error: "Approver asal dan pendelegasian wajib dipilih" }, { status: 400 });
@@ -67,8 +68,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/temporary-approvers?id=...
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const sp = req.nextUrl.searchParams;
     const b = await req.json().catch(() => ({}));
@@ -100,8 +102,9 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/temporary-approvers?id=...
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const sp = req.nextUrl.searchParams;
     const b = await req.json().catch(() => ({}));

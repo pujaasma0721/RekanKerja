@@ -128,6 +128,57 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   const workingDays = workingDaysBetween(period.startDate, period.endDate);
   const rows: EngineRow[] = [];
 
+  // Semantik multi-run (mengikuti oranHR): hanya run SALARY yang memproses
+  // payroll penuh (template + periodic + pinjaman). Run THR/BONUS/TERMINATION/
+  // YEAR_END_ADJ adalah run suplemental — hanya komponen Specific yang cocok
+  // (period × processType) yang diproses, agar tidak terjadi pembayaran ganda.
+  const isSalaryRun = processType.code === "SALARY";
+
+  // K-1: konteks penghasilan regular kumulatif masa pajak (YTD) untuk run
+  // suplemental — Σ bruto THP & Σ iuran pegawai Jamsostek karyawan dari run
+  // SALARY Confirmed/Paid tahun pajak berjalan (Jan s.d. period ini), dibaca
+  // dari snapshot PayrollRunLine/Item. Dipakai engine sebagai basis neto
+  // disetahunkan untuk PPh21 ireguler (PMK 168/2023) — tanpa ini pajak THR/
+  // bonus/rapel standalone dihitung ≈ 0. Fallback bila karyawan belum punya
+  // run gaji tahun ini: gaji bulanan profil saat ini (iuran 0 — konservatif).
+  const ytdCtx = new Map<string, { bruto: number; iuran: number; months: number }>();
+  if (!isSalaryRun) {
+    const yearStart = new Date(period.sptYear, 0, 1);
+    const salaryRuns = await db.payrollRun.findMany({
+      where: {
+        status: { in: ["Confirmed", "Paid"] },
+        processType: { code: "SALARY" },
+        period: {
+          sptYear: period.sptYear,
+          startDate: { gte: yearStart },
+          endDate: { lte: period.endDate },
+        },
+      },
+      select: {
+        lines: {
+          select: {
+            employeeId: true,
+            bruto: true,
+            items: { select: { wageType: true, type: true, amount: true } },
+          },
+        },
+      },
+    });
+    for (const r of salaryRuns) {
+      for (const line of r.lines) {
+        const cur = ytdCtx.get(line.employeeId) ?? { bruto: 0, iuran: 0, months: 0 };
+        cur.bruto += line.bruto;
+        // Iuran pegawai (snapshot run historis — run lama masih mencakup JPK_E;
+        // toleransi kecil, hanya sebagai konteks pajak ireguler).
+        cur.iuran += line.items
+          .filter((it) => it.wageType === "Jamsostek" && it.type === "Deduction")
+          .reduce((s, it) => s + it.amount, 0);
+        cur.months += 1;
+        ytdCtx.set(line.employeeId, cur);
+      }
+    }
+  }
+
   for (const emp of activeEmployees) {
     const assignment = emp.assignments[0];
     if (!assignment) continue; // tidak punya penempatan aktif → dilewati
@@ -145,12 +196,6 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       prorateFactor = Math.max(0, Math.min(1, worked / Math.max(1, totalDays)));
       if (prorateFactor >= 0.999) prorateFactor = 1;
     }
-
-    // Semantik multi-run (mengikuti oranHR): hanya run SALARY yang memproses
-    // payroll penuh (template + periodic + pinjaman). Run THR/BONUS/TERMINATION/
-    // YEAR_END_ADJ adalah run suplemental — hanya komponen Specific yang cocok
-    // (period × processType) yang diproses, agar tidak terjadi pembayaran ganda.
-    const isSalaryRun = processType.code === "SALARY";
 
     // Komponen dari template profil (fallback: template DEFAULT).
     const compList: { comp: EngineComponent; overrideAmount?: number }[] = [];
@@ -206,6 +251,9 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
         })
       : [];
 
+    // Konteks K-1 untuk run suplemental (dihitung sebelum loop, per karyawan).
+    const ctx = ytdCtx.get(emp.id);
+
     rows.push({
       employee: {
         id: emp.id,
@@ -224,6 +272,10 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       loans: loanDues,
       workingDays,
       prorateFactor,
+      // K-1: konteks regular YTD (run suplemental; fallback gaji bulanan profil).
+      regularIncomeYtd: ctx && ctx.months > 0 ? ctx.bruto : baseSalary,
+      regularIuranYtd: ctx && ctx.months > 0 ? ctx.iuran : 0,
+      regularMonthsYtd: ctx && ctx.months > 0 ? ctx.months : 1,
     });
   }
 

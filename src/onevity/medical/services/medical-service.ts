@@ -6,6 +6,8 @@
 // saldo used bertambah → penyesuaian ± (Medical Adjustment + approval) → sisa saldo
 // jenis CASH ditarik ke payroll (komponen UMC) → Paid saat run dikonfirmasi.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
+import type { Prisma } from "@/generated/tenant";
 
 // ============ util ============
 
@@ -32,16 +34,6 @@ async function nextDocNo(db: TenantDb, prefix: "MC" | "MA"): Promise<string> {
   return `${prefix}-${year}-${String(max + 1).padStart(3, "0")}`;
 }
 
-async function nextJournalNo(db: TenantDb): Promise<string> {
-  const rows = await db.payrollJournal.findMany({ where: { journalNo: { startsWith: "JV-" } }, select: { journalNo: true } });
-  let max = 0;
-  for (const r of rows) {
-    const n = parseInt(r.journalNo.slice(3), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `JV-${String(max + 1).padStart(4, "0")}`;
-}
-
 async function activeSalary(db: TenantDb, employeeId: string): Promise<number> {
   const emp = await db.employee.findUnique({
     where: { id: employeeId },
@@ -62,6 +54,101 @@ interface StatusEntry {
 
 function logEntry(state: string, by: string, note?: string): StatusEntry {
   return { state, at: new Date().toISOString(), by, note: note || undefined };
+}
+
+const fmtRp = (n: number) => n.toLocaleString("id-ID");
+
+/** Status klaim yang masih "hidup" (uang belum selesai) — dipakai dedupe kwitansi (M-8). */
+const ACTIVE_CLAIM_STATES = ["Draft", "Submitted", "Returned", "Approved", "Settled"];
+/** Status klaim yang masih MENAHAN plafon (belum diputuskan/dibayar) — dipakai
+ *  reservasi sisa plafon (K-1/K-2). */
+const PENDING_CLAIM_STATES = ["Submitted", "Returned", "Approved"];
+
+// ==== pool plafon (fix audit K-3) ====
+
+/** True bila jenis memberi pool plafon DEPENDENT TERPISAH (depLimitRule ≠ SHARED
+ *  dan dependent aktif). SHARED → klaim dependent memakai POOL UTAMA karyawan
+ *  (depBenefitAmount = 0 → depUsed tidak pernah memotong plafon bersama). */
+function depPoolSeparate(t: { dependentEnabled: boolean; depLimitRule: string }): boolean {
+  return t.dependentEnabled && t.depLimitRule !== "SHARED";
+}
+
+export interface PoolAvailability {
+  pool: "employee" | "dependent";
+  /** sisa plafon pool saat ini (SHARED-dependent → pool utama karyawan). */
+  poolRemaining: number;
+  /** Σ klaim lain (Submitted/Returned/Approved) yang menahan pool ini. */
+  pendingOthers: number;
+  /** poolRemaining − pendingOthers. */
+  available: number;
+  otherClaims: { docNo: string; totalApproved: number }[];
+  empRemaining: number;
+  depRemaining: number;
+  /** snapshot pool utk header klaim (benefit+adj+carry | depBenefit+depAdj). */
+  poolBenefit: number;
+  poolUsed: number;
+}
+
+/** Sisa plafon pool yang BENAR untuk sebuah klaim (fix K-1/K-2/K-3) + reservasi
+ *  klaim lain yang masih menunggu. excludeClaimId dipakai saat re-check
+ *  approve/settle supaya klaim itu sendiri tidak dihitung dua kali. */
+async function claimPoolAvailability(
+  db: TenantDb,
+  input: { employeeId: string; typeId: string; year: number; forDependent: boolean; excludeClaimId?: string },
+): Promise<PoolAvailability> {
+  const t = await db.medicalBenefitType.findUnique({
+    where: { id: input.typeId },
+    select: { dependentEnabled: true, depLimitRule: true, limitRule: true, limitValue: true },
+  });
+  if (!t) throw new Error("Jenis benefit tidak ditemukan");
+  const [bal, emp] = await Promise.all([
+    db.medicalBalance.findUnique({
+      where: { employeeId_typeId_year: { employeeId: input.employeeId, typeId: input.typeId, year: input.year } },
+    }),
+    db.employee.findUnique({
+      where: { id: input.employeeId },
+      select: { assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
+    }),
+  ]);
+  // fallback bila saldo tahun itu belum digenerate (backlog m-5: submit masih
+  // memakai limit on-the-fly; settle kini MENOLAK tanpa saldo — lihat decideClaim)
+  const salary = emp?.assignments[0]?.baseSalary ?? 0;
+  const limit = bal?.benefitAmount ?? benefitLimitFor(t, salary);
+  const empRemaining = bal
+    ? round2(bal.benefitAmount + bal.adjustmentAmount + bal.carriedOver - bal.usedAmount - bal.initialUsed)
+    : round2(limit);
+  const depRemaining = bal
+    ? round2(bal.depBenefitAmount + bal.depAdjustment - bal.depUsed)
+    : round2(depPoolSeparate(t) ? limit : 0);
+  const pool: "employee" | "dependent" = input.forDependent && depPoolSeparate(t) ? "dependent" : "employee";
+  const poolRemaining = pool === "dependent" ? depRemaining : empRemaining;
+
+  const others = await db.medicalClaim.findMany({
+    where: {
+      employeeId: input.employeeId, typeId: input.typeId, year: input.year,
+      state: { in: PENDING_CLAIM_STATES },
+      ...(input.excludeClaimId ? { id: { not: input.excludeClaimId } } : {}),
+    },
+    select: { docNo: true, totalApproved: true, forDependent: true },
+  });
+  const otherClaims: { docNo: string; totalApproved: number }[] = [];
+  let pendingOthers = 0;
+  for (const o of others) {
+    const oPool = o.forDependent && depPoolSeparate(t) ? "dependent" : "employee";
+    if (oPool === pool) {
+      pendingOthers = round2(pendingOthers + o.totalApproved);
+      otherClaims.push({ docNo: o.docNo, totalApproved: o.totalApproved });
+    }
+  }
+  return {
+    pool, poolRemaining, pendingOthers, otherClaims,
+    available: round2(poolRemaining - pendingOthers),
+    empRemaining, depRemaining,
+    poolBenefit: pool === "dependent"
+      ? round2((bal?.depBenefitAmount ?? (depPoolSeparate(t) ? limit : 0)) + (bal?.depAdjustment ?? 0))
+      : round2((bal ? bal.benefitAmount : limit) + (bal?.adjustmentAmount ?? 0) + (bal?.carriedOver ?? 0)),
+    poolUsed: pool === "dependent" ? (bal?.depUsed ?? 0) : round2((bal?.usedAmount ?? 0) + (bal?.initialUsed ?? 0)),
+  };
 }
 
 // ============ master: jenis benefit (padanan MedicalBenefitTypeDetail.jsp) ============
@@ -267,8 +354,16 @@ export async function generateBalances(
             t.maxCarryOver,
           )
         : 0;
-      // initialUsed: sisa tahun lalu (padanan Initial Medical Benefit — saldo dibawa)
-      const initialUsed = prev && t.unusedRule === "FORFEITED" ? 0 : prev ? prev.usedAmount : 0;
+      // K-4 (fix audit BPA-medical): initialUsed = 0 — auto-carry used tahun lalu
+      // DIHAPUS. Padanan oranHR "Initial Medical Benefit" adalah MIGRASI MANUAL
+      // saldo awal (input eksplisit), bukan auto-carry:
+      // (a) CASH — sisa tahun lalu SUDAH dicairkan via UMC sehingga pemakaian lama
+      //     tidak relevan (auto-carry memberi seluruh karyawan sisa 0 di tahun baru);
+      // (b) CARRY — sisa tahun lalu sudah masuk carriedOver; initialUsed mengurangi
+      //     dua kali (double-count).
+      // Kolom initialUsed tetap tersedia untuk input migrasi eksplisit
+      // (padanan InitialMedicalBenefit.jsp — via adjustment/manual bila dibutuhkan).
+      const initialUsed = 0;
       const depBenefit =
         t.dependentEnabled && t.depLimitRule !== "SHARED" ? limit : 0;
 
@@ -398,6 +493,9 @@ export interface SubmitClaimInput {
   lines: ClaimLineInput[];
   note?: string;
   submit?: boolean; // true = langsung Submitted (padanan ESS); false = Draft
+  /** Khusus seeder/migrasi demo: izinkan klaim over-limit melewati guard K-1
+   *  (API TIDAK memetakan flag ini — operasi bisnis normal tetap ditolak 400). */
+  allowOverLimit?: boolean;
 }
 
 export interface ClaimPreview {
@@ -420,16 +518,24 @@ export interface ClaimPreview {
   needReceipt: boolean;
   dependentEnabled: boolean;
   providers: { id: string; name: string; kind: string }[];
+  // ---- tambahan (fix audit, additive — kontrak lama utuh) ----
+  joinDate: Date | null; // validasi tanggal M-2
+  depRemaining: number; // sisa plafon dependent terpisah (K-3)
+  claimPool: "employee" | "dependent"; // pool yang dipotong klaim (K-3)
+  /** sisa pool yang benar SETELAH reservasi klaim menunggu (K-1/K-2). */
+  remainingForClaim: number;
+  pendingReserved: number;
+  poolNote: string | null;
 }
 
 export async function previewClaim(
   db: TenantDb,
-  input: { employeeId: string; typeId: string; year: number },
+  input: { employeeId: string; typeId: string; year: number; forDependent?: boolean },
 ): Promise<ClaimPreview> {
   const emp = await db.employee.findUnique({
     where: { id: input.employeeId },
     select: {
-      employeeNo: true, fullName: true, status: true,
+      employeeNo: true, fullName: true, status: true, joinDate: true,
       assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 },
     },
   });
@@ -453,6 +559,16 @@ export async function previewClaim(
   const providers = await db.medicalProvider.findMany({
     where: { active: true }, select: { id: true, name: true, kind: true }, orderBy: { name: "asc" }, take: 200,
   });
+  // pool yang benar utk klaim (fix K-3) + reservasi klaim menunggu (fix K-1/K-2)
+  const avail = await claimPoolAvailability(db, {
+    employeeId: input.employeeId, typeId: input.typeId, year: input.year,
+    forDependent: Boolean(input.forDependent),
+  });
+  const poolNote = input.forDependent
+    ? (avail.pool === "dependent"
+        ? "klaim dependent memotong plafon dependent TERPISAH"
+        : "klaim dependent memotong plafon BERSAMA karyawan (SHARED)")
+    : null;
   return {
     employeeNo: emp.employeeNo, fullName: emp.fullName, baseSalary: salary,
     typeName: t.name, typeCode: t.code, limitRule: t.limitRule,
@@ -466,6 +582,12 @@ export async function previewClaim(
     freqUnlimited: t.freqUnlimited, freqValue: t.freqValue, freqPeriod: t.freqPeriod,
     needReceipt: t.needReceipt, dependentEnabled: t.dependentEnabled,
     providers,
+    joinDate: emp.joinDate ?? null,
+    depRemaining: avail.depRemaining,
+    claimPool: avail.pool,
+    remainingForClaim: avail.available,
+    pendingReserved: avail.pendingOthers,
+    poolNote,
   };
 }
 
@@ -481,8 +603,29 @@ export interface SubmitClaimResult {
 }
 
 export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId: string): Promise<SubmitClaimResult> {
-  const preview = await previewClaim(db, { employeeId: input.employeeId, typeId: input.typeId, year: new Date(input.claimDate).getFullYear() });
+  const year = new Date(input.claimDate).getFullYear();
+  const preview = await previewClaim(db, { employeeId: input.employeeId, typeId: input.typeId, year, forDependent: Boolean(input.forDependent) });
   if (input.lines.length === 0) throw new Error("Minimal satu baris perawatan");
+
+  // K-3: klaim dependent hanya untuk jenis yang mengaktifkan dependent
+  if (input.forDependent && !preview.dependentEnabled) {
+    throw new Error(`Jenis ${preview.typeCode} tidak mengaktifkan klaim dependent`);
+  }
+
+  // ---- M-2 (fix audit): validasi tanggal — sebelumnya hilang total ----
+  // klaim & perawatan tidak boleh masa depan, tahun perawatan = tahun saldo,
+  // tanggal tidak boleh mendahului tanggal bergabung karyawan.
+  const today = dayStart(new Date());
+  const claimDate = dayStart(input.claimDate);
+  if (Number.isNaN(claimDate.getTime())) throw new Error("Tanggal klaim tidak valid");
+  const fmtD = (d: Date) => d.toISOString().slice(0, 10);
+  if (claimDate > today) {
+    throw new Error(`Tanggal klaim tidak boleh di masa depan (${fmtD(claimDate)} — hari ini ${fmtD(today)})`);
+  }
+  const joinDate = preview.joinDate ? dayStart(preview.joinDate) : null;
+  if (joinDate && claimDate < joinDate) {
+    throw new Error(`Tanggal klaim ${fmtD(claimDate)} mendahului tanggal bergabung karyawan (${fmtD(joinDate)})`);
+  }
 
   // validasi frekuensi (padanan Max Claim in X period)
   if (!preview.freqUnlimited && preview.freqValue > 0 && preview.claimCountYear >= preview.freqValue) {
@@ -490,11 +633,6 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
       `Frekuensi klaim ${preview.typeCode} maksimal ${preview.freqValue}× per ${preview.freqPeriod === "YEAR" ? "tahun" : "period"} — sudah ${preview.claimCountYear} klaim`,
     );
   }
-
-  const bal = await db.medicalBalance.findUnique({
-    where: { employeeId_typeId_year: { employeeId: input.employeeId, typeId: input.typeId, year: new Date(input.claimDate).getFullYear() } },
-  });
-  const remaining = preview.remaining;
 
   let totalBill = 0;
   let totalRe = 0;
@@ -505,11 +643,35 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
     occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
     approvedAmount: number; nonReAmount: number;
   }[] = [];
+  const seenReceipts = new Set<string>();
 
   for (const l of input.lines) {
     if (!l.treatedName.trim()) throw new Error("Nama yang dirawat wajib diisi");
     if (l.billAmount < 0 || l.approvedAmount < 0) throw new Error("Jumlah tidak boleh negatif");
     if (l.approvedAmount > l.billAmount) throw new Error("Approved tidak boleh melebihi tagihan");
+    // M-2: tanggal perawatan ≤ hari ini, tahun sama dengan tahun klaim/saldo,
+    // ≥ tanggal bergabung.
+    if (l.treatmentDate) {
+      const td = dayStart(l.treatmentDate);
+      if (Number.isNaN(td.getTime())) throw new Error(`Tanggal perawatan tidak valid: ${l.treatmentDate}`);
+      if (td > today) {
+        throw new Error(`Tanggal perawatan tidak boleh di masa depan (${fmtD(td)} — hari ini ${fmtD(today)})`);
+      }
+      if (td.getFullYear() !== year) {
+        throw new Error(`Tahun tanggal perawatan (${td.getFullYear()}) harus sama dengan tahun klaim/saldo (${year}) — pilih tahun saldo yang sesuai`);
+      }
+      if (joinDate && td < joinDate) {
+        throw new Error(`Tanggal perawatan ${fmtD(td)} mendahului tanggal bergabung karyawan (${fmtD(joinDate)})`);
+      }
+    }
+    // M-8: no. kwitansi unik dalam satu pengajuan
+    const rn = l.receiptNo?.trim() ?? "";
+    if (rn) {
+      if (seenReceipts.has(rn)) {
+        throw new Error(`No. kwitansi ${rn} dipakai lebih dari satu baris pada pengajuan ini — kwitansi ganda ditolak`);
+      }
+      seenReceipts.add(rn);
+    }
     const nonRe = round2(l.billAmount - l.approvedAmount);
     totalBill = round2(totalBill + l.billAmount);
     totalRe = round2(totalRe + l.reimburseAmount);
@@ -518,7 +680,7 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
       treatedName: l.treatedName.trim(),
       treatment: l.treatment?.trim() || null,
       treatmentDate: l.treatmentDate ? dayStart(l.treatmentDate) : null,
-      receiptNo: l.receiptNo?.trim() || null,
+      receiptNo: rn || null,
       physician: l.physician?.trim() || null,
       hospital: l.hospital?.trim() || null,
       note: l.note?.trim() || null,
@@ -530,18 +692,42 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
     });
   }
 
-  // validasi saldo — over-limit hanya warning (soft limit, konsisten oranHR: klaim boleh > saldo)
-  if (totalApproved > remaining) {
-    // oranHR memungkinkan klaim over-limit; kita tolak bila melebihi 2× sisa (guard rail)
-    if (totalApproved > remaining * 2) {
+  // ---- M-8 (fix audit): dedupe kwitansi LINTAS klaim (status aktif) ----
+  if (seenReceipts.size > 0) {
+    const dup = await db.medicalClaimLine.findMany({
+      where: {
+        receiptNo: { in: [...seenReceipts] },
+        claim: { employeeId: input.employeeId, state: { in: ACTIVE_CLAIM_STATES } },
+      },
+      select: { receiptNo: true, claim: { select: { docNo: true } } },
+      take: 5,
+    });
+    if (dup.length > 0) {
       throw new Error(
-        `Total approved ${totalApproved.toLocaleString("id-ID")} melebihi batas wajar (2× sisa ${remaining.toLocaleString("id-ID")})`,
+        `Kwitansi sudah pernah diklaim: ${dup.map((d) => `${d.receiptNo} (${d.claim.docNo})`).join("; ")} — klaim ganda ditolak`,
       );
     }
   }
 
+  // ---- K-1 + K-2(c) + K-3 (fix audit): enforce KUAT di submit — tolak bila total
+  // approved melebihi sisa plafon POOL YANG BENAR (klaim dependent SHARED → pool
+  // utama karyawan; termasuk reservasi klaim menunggu lain). Guard lembut 2× lama
+  // DIHAPUS — klaim over-limit terbukti lolos sampai settle (bukti MC-2026-005);
+  // klaim atas saldo yang sudah ditransfer UMC (sisa 0) juga ditolak di sini. ----
+  const avail = await claimPoolAvailability(db, {
+    employeeId: input.employeeId, typeId: input.typeId, year,
+    forDependent: Boolean(input.forDependent),
+  });
+  const poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
+  if (!input.allowOverLimit && totalApproved > avail.available) {
+    throw new Error(
+      `Total approved Rp ${fmtRp(totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
+      (avail.pendingOthers > 0 ? ` (termasuk reservasi klaim menunggu lain Rp ${fmtRp(avail.pendingOthers)})` : "") +
+      " — kurangi nilai approved atau ajukan penyesuaian/limit koreksi terlebih dahulu",
+    );
+  }
+
   const docNo = await nextDocNo(db, "MC");
-  const year = new Date(input.claimDate).getFullYear();
   const state = input.submit === false ? "Draft" : "Submitted";
   const log = [logEntry("Draft", actorId, "Dibuat"), ...(state === "Submitted" ? [logEntry("Submitted", actorId, input.note || "Diajukan")] : [])];
 
@@ -552,10 +738,13 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
       letterNo: input.letterNo?.trim() || null,
       forDependent: Boolean(input.forDependent),
       state,
-      maxBenefitAt: preview.benefitAmount,
-      usedAt: preview.usedAmount,
+      // snapshot pool yang BENAR (K-3): dep pool terpisah → depBenefit/depUsed;
+      // SHARED-dependent & klaim karyawan → pool utama (benefit+adj+carry/used).
+      maxBenefitAt: avail.poolBenefit,
+      usedAt: avail.poolUsed,
       totalBill, totalReimburse: totalRe, totalApproved, totalNonRe: round2(totalBill - totalApproved),
-      statusLog: JSON.stringify(log),
+      // statusLog ditulis sebagai array Json (bukan string — riwayat utuh)
+      statusLog: log as unknown as Prisma.InputJsonValue,
       lines: { create: lines },
     },
   });
@@ -570,7 +759,7 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
     id: claim.id, docNo, state,
     totalBill, totalReimburse: totalRe, totalApproved,
     totalNonRe: round2(totalBill - totalApproved),
-    remainingAfter: remaining,
+    remainingAfter: avail.available,
   };
 }
 
@@ -639,8 +828,23 @@ export async function listClaims(
           }[] }).lines.map((l) => ({ ...l })),
         }
       : {}),
-    statusLog: Array.isArray(c.statusLog) ? (c.statusLog as unknown as StatusEntry[]) : [],
+    statusLog: parseStatusLog(c.statusLog),
   }));
+}
+
+/** statusLog lama tersimpan sebagai STRING JSON (kode lama menulis
+ *  JSON.stringify) — parse kedua bentuk supaya riwayat tampil utuh. */
+function parseStatusLog(raw: unknown): StatusEntry[] {
+  if (Array.isArray(raw)) return raw as StatusEntry[];
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      return Array.isArray(p) ? (p as StatusEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 // ---- jurnal settlement (pola klaim travel) ----
@@ -706,6 +910,10 @@ export interface DecideClaimInput {
   claimId: string;
   action: "submit" | "return" | "approve" | "reject" | "cancel" | "settle";
   note?: string;
+  /** Khusus seeder/migrasi demo: izinkan approve/settle klaim over-limit melewati
+   *  guard re-check K-1/K-2 (API TIDAK memetakan flag ini — operasi bisnis normal
+   *  tetap ditolak 400). */
+  allowOverLimit?: boolean;
 }
 
 export interface DecideClaimResult {
@@ -715,22 +923,36 @@ export interface DecideClaimResult {
   journalLines: number;
   usedAdded: number;
   remaining: number;
+  /** (additive, fix K-3) pool yang dipotong saat settle — "employee" | "dependent". */
+  usedPool?: "employee" | "dependent";
 }
 
 /** Operasi klaim — padanan Operation oranHR: Submit | Return To Requester |
- *  Approve | Reject | Cancel | Settle. Settle = jurnal + saldo used bertambah. */
+ *  Approve | Reject | Cancel | Settle. Settle = jurnal + saldo used bertambah.
+ *
+ *  Fix audit K-1/K-2/K-3: approve & settle RE-CHECK sisa plafon pool yang benar
+ *  (termasuk klaim menunggu lain) — saldo dapat berubah sejak submit (klaim lain
+ *  di-settle, transfer UMC mencairkan seluruh saldo, adjustment). Settle dibungkus
+ *  $transaction (jurnal + saldo + klaim + log atomik — backlog m-7). */
 export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId: string): Promise<DecideClaimResult> {
   const claim = await db.medicalClaim.findUnique({
     where: { id: input.claimId },
-    include: { type: { select: { code: true, name: true } }, employee: { select: { fullName: true } } },
+    include: {
+      type: { select: { code: true, name: true, dependentEnabled: true, depLimitRule: true } },
+      employee: { select: { fullName: true } },
+    },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
 
-  const log = Array.isArray(claim.statusLog) ? [...(claim.statusLog as unknown as StatusEntry[])] : [];
+  // statusLog historis ditulis sebagai STRING JSON oleh kode lama — parse kedua
+  // bentuk supaya riwayat transisi tidak hilang saat operasi berikutnya.
+  const log: StatusEntry[] = [...parseStatusLog(claim.statusLog)];
   const pushLog = (state: string) => log.push(logEntry(state, actorId, input.note));
   let journalNo = claim.journalNo;
   let journalLines = 0;
   let usedAdded = 0;
+  let useDepPool = false;
+  let poolLabel = "plafon karyawan";
 
   const allowed: Record<string, string[]> = {
     submit: ["Draft", "Returned"],
@@ -747,66 +969,134 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   let newState = claim.state;
   if (input.action === "submit") { newState = "Submitted"; pushLog("Submitted"); }
   if (input.action === "return") { newState = "Returned"; pushLog("Returned"); }
-  if (input.action === "approve") { newState = "Approved"; pushLog("Approved"); }
+
+  // ---- K-2(a)/K-1 (fix audit): approve RE-CHECK saldo — saldo bisa berubah sejak
+  // submit (klaim lain settle / transfer UMC mencairkan saldo / adjustment). Tanpa
+  // ini klaim atas saldo yang sudah ditransfer masih bisa di-approve → double pay
+  // (bukti live MC-2026-006 atas saldo RAWAT_JALAN yang sudah dicairkan UMC).
+  if (input.action === "approve") {
+    const avail = await claimPoolAvailability(db, {
+      employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year,
+      forDependent: claim.forDependent, excludeClaimId: claim.id,
+    });
+    poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
+    if (!input.allowOverLimit && claim.totalApproved > avail.available) {
+      throw new Error(
+        `Approve ditolak: total approved Rp ${fmtRp(claim.totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
+        ` — saldo berubah sejak pengajuan (snapshot sisa saat ajukan Rp ${fmtRp(round2(claim.maxBenefitAt - claim.usedAt))}` +
+        (avail.pendingOthers > 0 ? `, klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)}` : "") +
+        "). Selesaikan/putuskan klaim lain atau ajukan penyesuaian saldo terlebih dahulu",
+      );
+    }
+    newState = "Approved"; pushLog("Approved");
+  }
   if (input.action === "reject") { newState = "Rejected"; pushLog("Rejected"); }
   if (input.action === "cancel") {
     newState = "Cancelled"; pushLog("Cancelled");
     if (claim.state === "Settled" || claim.journalNo) throw new Error("Klaim sudah settled — tidak bisa dibatalkan");
-    if (claim.journalNo) {
-      const del = await db.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
-      journalNo = null; journalLines = -del.count;
-    }
+    journalNo = null;
   }
   if (input.action === "settle") {
     newState = "Settled";
     pushLog("Settled");
-    const j = await generateSettleJournal(db, claim.id);
-    journalNo = j.journalNo || null;
-    journalLines = j.lines;
-    // saldo used bertambah sebesar approved (employee / dependent sesuai klaim)
+    // ---- K-1/K-2 (fix audit): re-check TERAKHIR sebelum membayar jurnal — menutup
+    // (a) klaim over-limit lolos approve lalu settle bayar penuh (bukti live
+    // MC-2026-005: approved 11,5jt vs maxBenefit 8,5jt); (b) double pay atas saldo
+    // yang sudah dicairkan via transfer UMC.
+    const avail = await claimPoolAvailability(db, {
+      employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year,
+      forDependent: claim.forDependent, excludeClaimId: claim.id,
+    });
+    poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
+    if (!input.allowOverLimit && claim.totalApproved > avail.available) {
+      throw new Error(
+        `Settle ditolak — jurnal TIDAK dibuat: total approved Rp ${fmtRp(claim.totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
+        (avail.pendingOthers > 0 ? ` (klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)})` : "") +
+        " — saldo berubah sejak pengajuan (dipakai klaim lain / ditransfer ke payroll UMC / adjustment). Sesuaikan klaim atau ajukan penyesuaian saldo",
+      );
+    }
     const bal = await db.medicalBalance.findUnique({
       where: { employeeId_typeId_year: { employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year } },
     });
-    if (bal) {
-      usedAdded = claim.totalApproved;
-      await db.medicalBalance.update({
+    if (!bal) {
+      // m-5: tanpa saldo, pemakaian tidak tercatat & jurnal tetap terbayar — tolak.
+      throw new Error(
+        `Settle ditolak: saldo medis tahun ${claim.year} belum digenerate untuk karyawan ini — generate saldo dulu agar pemakaian tercatat`,
+      );
+    }
+    // K-3 (fix audit): klaim dependent jenis SHARED memotong POOL UTAMA karyawan
+    // (depBenefit 0 → depUsed tidak pernah mengurangi plafon bersama); pool
+    // dependent terpisah (EACH/TOTAL) tetap memotong depUsed.
+    useDepPool = claim.forDependent && depPoolSeparate(claim.type);
+    usedAdded = claim.totalApproved;
+    const settleDate = new Date();
+    // $transaction (backlog m-7 — murah dibungkus sekalian): jurnal + saldo +
+    // klaim + activity log atomik — crash mid-flight tidak lagi meninggalkan
+    // jurnal tanpa pemakaian saldo.
+    await db.$transaction(async (tx) => {
+      const tdb = tx as unknown as TenantDb;
+      const j = await generateSettleJournal(tdb, claim.id);
+      journalNo = j.journalNo || null;
+      journalLines = j.lines;
+      await tx.medicalBalance.update({
         where: { id: bal.id },
-        data: claim.forDependent
+        data: useDepPool
           ? { depUsed: round2(bal.depUsed + usedAdded) }
           : { usedAmount: round2(bal.usedAmount + usedAdded) },
       });
-    }
+      await tx.medicalClaim.update({
+        where: { id: claim.id },
+        data: {
+          state: newState,
+          statusLog: log as unknown as Prisma.InputJsonValue,
+          journalNo, journalDate: journalNo ? new Date() : null,
+          settleDate,
+          settledById: actorId,
+          decisionNote: input.note ?? claim.decisionNote,
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          action: "Processed", entity: "MedicalClaim", entityId: claim.id,
+          detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
+        },
+      });
+    });
   }
 
-  await db.medicalClaim.update({
-    where: { id: claim.id },
-    data: {
-      state: newState,
-      statusLog: JSON.stringify(log),
-      journalNo, journalDate: journalNo ? new Date() : null,
-      settleDate: input.action === "settle" ? new Date() : claim.settleDate,
-      settledById: input.action === "settle" ? actorId : claim.settledById,
-      decidedById: ["approve", "reject", "cancel"].includes(input.action) ? actorId : claim.decidedById,
-      decidedAt: ["approve", "reject", "cancel"].includes(input.action) ? new Date() : claim.decidedAt,
-      decisionNote: input.note ?? claim.decisionNote,
-    },
-  });
+  if (input.action !== "settle") {
+    await db.medicalClaim.update({
+      where: { id: claim.id },
+      data: {
+        state: newState,
+        statusLog: log as unknown as Prisma.InputJsonValue,
+        journalNo, journalDate: journalNo ? new Date() : null,
+        settleDate: claim.settleDate,
+        settledById: claim.settledById,
+        decidedById: ["approve", "reject", "cancel"].includes(input.action) ? actorId : claim.decidedById,
+        decidedAt: ["approve", "reject", "cancel"].includes(input.action) ? new Date() : claim.decidedAt,
+        decisionNote: input.note ?? claim.decisionNote,
+      },
+    });
 
-  await db.activityLog.create({
-    data: {
-      action: input.action === "settle" ? "Processed" : "Updated",
-      entity: "MedicalClaim", entityId: claim.id,
-      detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
-    },
-  });
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "MedicalClaim", entityId: claim.id,
+        detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
+      },
+    });
+  }
 
+  // remaining utk respon = pool yang benar (K-3)
   const balAfter = await db.medicalBalance.findUnique({
     where: { employeeId_typeId_year: { employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year } },
   });
   const remaining = balAfter
-    ? round2(balAfter.benefitAmount + balAfter.adjustmentAmount + balAfter.carriedOver - balAfter.usedAmount - balAfter.initialUsed)
+    ? (useDepPool
+        ? round2(balAfter.depBenefitAmount + balAfter.depAdjustment - balAfter.depUsed)
+        : round2(balAfter.benefitAmount + balAfter.adjustmentAmount + balAfter.carriedOver - balAfter.usedAmount - balAfter.initialUsed))
     : 0;
-  return { docNo: claim.docNo, state: newState, journalNo, journalLines, usedAdded, remaining };
+  return { docNo: claim.docNo, state: newState, journalNo, journalLines, usedAdded, remaining, usedPool: useDepPool ? "dependent" : "employee" };
 }
 
 // ============ penyesuaian saldo (padanan MedicalBenefitAdjustment) ============
@@ -823,6 +1113,16 @@ export interface AdjustmentInput {
 
 export async function submitAdjustment(db: TenantDb, input: AdjustmentInput, actorId: string) {
   if (!Number.isFinite(input.amount) || input.amount === 0) throw new Error("Jumlah penyesuaian harus ≠ 0");
+  // K-3 (paritet validasi klaim): jenis harus aktif; penyesuaian dependent hanya
+  // untuk jenis yang mengaktifkan dependent (mis. KHUSUS_PJK tolak dependent).
+  const t = await db.medicalBenefitType.findUnique({
+    where: { id: input.typeId },
+    select: { code: true, active: true, dependentEnabled: true },
+  });
+  if (!t || !t.active) throw new Error("Jenis benefit tidak aktif");
+  if (input.forDependent && !t.dependentEnabled) {
+    throw new Error(`Jenis ${t.code} tidak mengaktifkan penyesuaian dependent`);
+  }
   const bal = await db.medicalBalance.findUnique({
     where: { employeeId_typeId_year: { employeeId: input.employeeId, typeId: input.typeId, year: input.year } },
   });
@@ -852,7 +1152,10 @@ export async function decideAdjustment(
   input: { adjustmentId: string; action: "approve" | "reject" | "cancel"; note?: string },
   actorId: string,
 ) {
-  const adj = await db.medicalAdjustment.findUnique({ where: { id: input.adjustmentId } });
+  const adj = await db.medicalAdjustment.findUnique({
+    where: { id: input.adjustmentId },
+    include: { type: { select: { code: true, dependentEnabled: true, depLimitRule: true } } },
+  });
   if (!adj) throw new Error("Penyesuaian tidak ditemukan");
   if (adj.state !== "Submitted") throw new Error(`Status ${adj.state} tidak bisa diproses`);
   if (input.action === "approve") {
@@ -860,9 +1163,15 @@ export async function decideAdjustment(
       where: { employeeId_typeId_year: { employeeId: adj.employeeId, typeId: adj.typeId, year: adj.year } },
     });
     if (!bal) throw new Error("Saldo tidak ditemukan");
+    // K-3 (penyelesaian sisa): penyesuaian dependent pada jenis SHARED → POOL
+    // UTAMA karyawan (depBenefit 0 → depAdjustment tidak pernah menambah plafon
+    // yang benar-benar dipakai klaim dependent SHARED); depAdjustment hanya untuk
+    // pool dependent terpisah (EACH/TOTAL_SEPARATE) — konsisten dengan settle
+    // klaim (useDepPool = forDependent && depPoolSeparate).
+    const useDepPool = adj.forDependent && depPoolSeparate(adj.type);
     await db.medicalBalance.update({
       where: { id: bal.id },
-      data: adj.forDependent
+      data: useDepPool
         ? { depAdjustment: round2(bal.depAdjustment + adj.amount) }
         : { adjustmentAmount: round2(bal.adjustmentAmount + adj.amount) },
     });
@@ -929,6 +1238,23 @@ export async function transferUnusedToPayroll(
   if (types.length === 0) throw new Error("Tidak ada jenis benefit dengan kebijakan saldo CASH");
   const typeIds = types.map((t) => t.id);
 
+  // ---- K-2(b) (fix audit): tolak bila masih ada klaim menunggu keputusan/
+  // settlement atas jenis CASH tahun ini — transfer mengonsumsi seluruh sisa saldo,
+  // klaim itu kehilangan plafonnya (double pay bila tetap di-approve & settle).
+  const pendingClaims = await db.medicalClaim.findMany({
+    where: { year: input.year, typeId: { in: typeIds }, state: { in: PENDING_CLAIM_STATES } },
+    select: { docNo: true },
+    orderBy: { docNo: "asc" },
+    take: 20,
+  });
+  if (pendingClaims.length > 0) {
+    throw new Error(
+      `Tidak bisa menarik sisa saldo tahun ${input.year}: masih ada klaim medis menunggu keputusan/settlement atas jenis CASH ` +
+      `(${pendingClaims.map((p) => p.docNo).join(", ")}${pendingClaims.length === 20 ? "…" : ""}) — ` +
+      "approve & settle atau tolak/batalkan dulu, baru tarik sisa saldo",
+    );
+  }
+
   const balances = await db.medicalBalance.findMany({
     where: { year: input.year, typeId: { in: typeIds } },
     include: { employee: { select: { id: true, employeeNo: true, fullName: true, status: true } } },
@@ -994,26 +1320,61 @@ export async function transferUnusedToPayroll(
   return { periodName: period.name, employees: employees.size, rows: rows.length, totalAmount: total, removed: removed.count };
 }
 
-/** Dipanggil confirmRun(): klaim yang periodCode-nya cocok run → Paid (transfer UMC). */
+/** Dipanggil confirmRun() (fix audit M-3/M-05): menandai objek yang BENAR-BENAR
+ *  ditulis transferUnusedToPayroll — yaitu assignment komponen UMC per karyawan
+ *  (saldo CASH → run item). Callback LAMA mem-filter medicalClaim.periodCode yang
+ *  tidak pernah diisi kode mana pun → selalu no-op (paidRunNo 11/11 NULL).
+ *  Karena schema tidak punya kolom paidRunNo pada EmployeeComponentAssignment,
+ *  penanda "Dibayar via run {runNo}" ditulis pada notes assignment tersebut
+ *  (idempoten: per run hanya sekali; re-transfer menulis ulang notes bersih).
+ *  Hanya run SALARY; hanya karyawan yang benar-benar menerima item UMC di run
+ *  (inspeksi PayrollRunItem via run.lines). */
 export async function markMedicalPaidForRun(db: TenantDb, runId: string): Promise<number> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
-    include: { period: true, processType: true },
+    include: {
+      period: true, processType: true,
+      lines: { select: { employeeId: true, items: { select: { code: true } } } },
+    },
   });
   if (!run || run.processType.code !== "SALARY") return 0;
-  const res = await db.medicalClaim.updateMany({
-    where: { periodCode: run.period.code, paidRunNo: null },
-    data: { paidRunNo: run.runNo },
-  });
-  if (res.count > 0) {
+
+  const comp = await db.wageComponent.findUnique({ where: { code: "UMC" } });
+  if (!comp) return 0;
+
+  // karyawan yang benar-benar menerima UMC di run ini (assignment → run item)
+  const paidEmployees = run.lines
+    .filter((l) => l.items.some((i) => i.code === "UMC"))
+    .map((l) => l.employeeId);
+  if (paidEmployees.length === 0) return 0;
+
+  // assignment UMC transfer medis pada period+processType run ini; skip yang
+  // sudah bertanda runNo ini (idempoten).
+  const targets = (await db.employeeComponentAssignment.findMany({
+    where: {
+      wageComponentId: comp.id, kind: "Specific",
+      periodId: run.periodId, processTypeId: run.processTypeId,
+      employeeId: { in: paidEmployees },
+      notes: { contains: "sisa saldo medis" },
+    },
+    select: { id: true, notes: true },
+  })).filter((a) => !(a.notes ?? "").includes(run.runNo));
+
+  for (const a of targets) {
+    await db.employeeComponentAssignment.update({
+      where: { id: a.id },
+      data: { notes: `${(a.notes ?? "").trim()} — Dibayar via run ${run.runNo}`.trim() },
+    });
+  }
+  if (targets.length > 0) {
     await db.activityLog.create({
       data: {
-        action: "Processed", entity: "MedicalClaim", entityId: runId,
-        detail: `${res.count} transfer medis ditandai Dibayar via run ${run.runNo} (${run.period.name})`,
+        action: "Processed", entity: "MedicalTransfer", entityId: runId,
+        detail: `${targets.length} assignment UMC (transfer sisa saldo medis) ditandai Dibayar via run ${run.runNo} (${run.period.name})`,
       },
     });
   }
-  return res.count;
+  return targets.length;
 }
 
 // ============ KPI & laporan ============

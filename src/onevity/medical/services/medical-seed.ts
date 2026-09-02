@@ -27,6 +27,10 @@ interface ClaimDef {
   letterNo?: string;
   forDependent?: boolean;
   decisionNote?: string;
+  /** klaim over-limit sengaja (demo artefak audit K-1 — MC-2026-005/009):
+   *  guard bisnis K-1 kini MENOLAK klaim over-limit, seeder melewatkannya
+   *  secara eksplisit agar data demo tetap mereproduksi temuan audit. */
+  allowOverLimit?: boolean;
   lines: {
     treatedIdx?: number; // -1 = employee sendiri, 0..2 = anggota keluarga
     treatment: string;
@@ -79,10 +83,11 @@ const CLAIM_DEFS: ClaimDef[] = [
       { treatment: "Kacamata minus + lensa anti radiasi", treatmentDate: "2026-05-12", receiptNo: "INV-2026-0077", physician: "optometris Andi", hospital: "Apotek Kimia Farma", bill: 1_450_000, approved: 1_400_000 },
     ],
   },
-  // Approved — menunggu settle
+  // Approved — menunggu settle (DEMO ARTEFAK audit K-1: klaim over-limit yang
+  // dulu lolos guard lembut — guard baru menolak operasi baru, seeder eksplisit)
   {
     empIdx: 10, typeCode: "RAWAT_INAP", claimDate: "2026-08-08", target: "Approved",
-    letterNo: "RS-0808-221",
+    letterNo: "RS-0808-221", allowOverLimit: true,
     lines: [
       { treatment: "Operasi apendektomi + rawat 2 hari", treatmentDate: "2026-08-06", receiptNo: "INV-2026-0101", physician: "dr. Hendra Wijaya", hospital: "RS Aditya Husada", bill: 12_800_000, approved: 11_500_000 },
     ],
@@ -110,9 +115,10 @@ const CLAIM_DEFS: ClaimDef[] = [
       { treatedIdx: 1, treatment: "Imunisasi MR dosis lanjutan", treatmentDate: "2026-09-01", receiptNo: "INV-2026-0118", physician: "dr. Feri", hospital: "Klinik Mitra Sehat", bill: 350_000, approved: 350_000 },
     ],
   },
-  // Rejected — bukti kurang
+  // Rejected — bukti kurang (DEMO ARTEFAK audit: submit over-limit 8,5jt vs
+  // limit GIGI_MULUT 5jt — guard baru menolak operasi baru, seeder eksplisit)
   {
-    empIdx: 20, typeCode: "GIGI_MULUT", claimDate: "2026-06-11", target: "Rejected",
+    empIdx: 20, typeCode: "GIGI_MULUT", claimDate: "2026-06-11", target: "Rejected", allowOverLimit: true,
     lines: [
       { treatment: "Pasang behel (estetik)", treatmentDate: "2026-06-09", receiptNo: "INV-2026-0088", physician: "drg. Arya", hospital: "Klinik Mitra Sehat", bill: 8_500_000, approved: 8_500_000 },
     ],
@@ -171,6 +177,7 @@ export async function seedMedicalDemoData(db: TenantDb): Promise<SeedResult> {
         letterNo: def.letterNo, forDependent: def.forDependent,
         note: def.decisionNote,
         submit: true,
+        allowOverLimit: def.allowOverLimit,
         lines: def.lines.map((l) => {
           const treated = l.treatedIdx === undefined || l.treatedIdx < 0
             ? emp.fullName
@@ -192,7 +199,7 @@ export async function seedMedicalDemoData(db: TenantDb): Promise<SeedResult> {
       }, ACTOR);
       claims++;
       if (def.target === "Approved") {
-        await decideClaim(db, { claimId: res.id, action: "approve", note: def.decisionNote }, ACTOR);
+        await decideClaim(db, { claimId: res.id, action: "approve", note: def.decisionNote, allowOverLimit: def.allowOverLimit }, ACTOR);
       } else if (def.target === "Settled") {
         await decideClaim(db, { claimId: res.id, action: "approve", note: "Disetujui" }, ACTOR);
         await decideClaim(db, { claimId: res.id, action: "settle", note: "Reimbursement dibayarkan via kas" }, ACTOR);

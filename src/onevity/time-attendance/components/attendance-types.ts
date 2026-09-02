@@ -95,6 +95,8 @@ export interface AttendanceRule {
 
 export interface PeriodOption {
   id: string; code: string; name: string; status: string; startDate: string; endDate: string; processTypes?: string;
+  /** window transfer absensi terakhir (marker fix M-4) — dipakai prefill dialog transfer */
+  taStartDate?: string | null; taEndDate?: string | null;
 }
 
 // label Indonesia

@@ -64,3 +64,85 @@ export async function requireTenant(req: Request): Promise<TenantDb | null> {
 }
 
 export const UNAUTHORIZED_MSG = "Sesi tidak valid atau berakhir — silakan masuk kembali.";
+export const VIEWER_FORBIDDEN_MSG =
+  "Akses ditolak: role Viewer hanya dapat melihat data, tidak melakukan aksi bisnis. Hubungi admin workspace.";
+
+/** Identitas aktor sesi (untuk jejak keputusan — pengganti aktor hard-coded). */
+export interface TenantActor {
+  /** userId platform (User.id) */
+  userId: string;
+  name: string;
+  email: string;
+  /** role workspace: OWNER | ADMIN | HR | VIEWER */
+  role: string;
+  /** AppUser tenant bila ditemukan (dicocokkan via email) — untuk tautan ke karyawan */
+  appUserId: string | null;
+  appUsername: string | null;
+  employeeId: string | null;
+}
+
+export type MutatorResult =
+  | { ok: true; db: TenantDb; actor: TenantActor }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Guard untuk endpoint MUTASI BISNIS (approve/reject/cancel/settle/transfer/
+ * confirm payroll/dsb) — fix audit BPA C-01/C-02:
+ * 1. resolusi tenant seperti requireTenant;
+ * 2. role VIEWER ditolak (403);
+ * 3. mengembalikan identitas aktor NYATA dari sesi (bukan hard-coded),
+ *    termasuk AppUser tenant (cocok email) untuk kolom decidedBy/approver.
+ *
+ * Pola pemakaian di route:
+ *   const m = await requireMutator(req);
+ *   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+ *   // m.db, m.actor
+ */
+export async function requireMutator(req: Request): Promise<MutatorResult> {
+  const payload = readSessionCookie(req);
+  if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+
+  const membership = await platformDb.userTenant.findFirst({
+    where: { userId: payload.uid, tenantId: payload.tid },
+    select: {
+      role: true,
+      user: { select: { id: true, name: true, email: true } },
+      tenant: { select: { id: true, schemaName: true, status: true } },
+    },
+  });
+  if (!membership || membership.tenant.status !== "ACTIVE") {
+    return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+  }
+  if (membership.role === "VIEWER") {
+    return { ok: false, status: 403, error: VIEWER_FORBIDDEN_MSG };
+  }
+
+  const db = getTenantClient(membership.tenant.schemaName);
+
+  // Resolusi AppUser tenant via email (opsional — boleh null, mis. user platform tanpa AppUser)
+  let appUser: { id: string; username: string; employeeId: string | null } | null = null;
+  try {
+    appUser = membership.user.email
+      ? await db.appUser.findFirst({
+          where: { email: membership.user.email },
+          select: { id: true, username: true, employeeId: true },
+        })
+      : null;
+  } catch {
+    appUser = null; // schema legacy tanpa tabel appUser — aktor tetap valid dari sesi
+  }
+
+  return {
+    ok: true,
+    db,
+    actor: {
+      userId: membership.user.id,
+      name: membership.user.name,
+      email: membership.user.email,
+      role: membership.role,
+      appUserId: appUser?.id ?? null,
+      appUsername: appUser?.username ?? null,
+      employeeId: appUser?.employeeId ?? null,
+    },
+  };
+}

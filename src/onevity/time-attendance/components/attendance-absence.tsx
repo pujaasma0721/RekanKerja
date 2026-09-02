@@ -48,13 +48,19 @@ export function AttendanceAbsencePage() {
 
   const openTransfer = () => {
     const p = periods[0];
-    setTransfer({
-      ...transfer,
-      periodId: p?.id ?? "",
-      from,
-      to,
-    });
+    if (p) applyPeriodWindow(p, { ...transfer, periodId: p.id, from, to });
+    else setTransfer({ ...transfer, periodId: "", from, to });
     setTransferDialog(true);
+  };
+
+  // fix M-4: prefill jendela absensi dari window TA period (taStartDate/taEndDate)
+  // bila period sudah punya window — jendela di luar period akan ditolak server.
+  const applyPeriodWindow = (p: PeriodOption, base: typeof transfer) => {
+    if (p.taStartDate && p.taEndDate) {
+      setTransfer({ ...base, from: p.taStartDate.slice(0, 10), to: p.taEndDate.slice(0, 10) });
+    } else {
+      setTransfer(base);
+    }
   };
 
   const runTransfer = async () => {
@@ -203,12 +209,16 @@ export function AttendanceAbsencePage() {
           </DialogHeader>
           <div className="grid gap-3.5 py-1">
             <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
-              Padanan oranHR <span className="font-bold">Transfer to Payroll</span>: rekap jendela absensi ditulis sebagai komponen gaji <span className="font-bold">Specific</span> pada period & process type terpilih (idempoten — re-transfer menimpa nilai lama).
+              Padanan oranHR <span className="font-bold">Transfer to Payroll</span>: rekap jendela absensi ditulis sebagai komponen gaji <span className="font-bold">Specific</span> pada period & process type terpilih (idempoten — re-transfer menimpa nilai lama). Jendela wajib berada dalam jendela period & tidak boleh beririsan dengan window period lain yang sudah ditransfer; jendela diisi otomatis dari window period bila tersedia.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">Period Payroll Tujuan *</Label>
-                <Select value={transfer.periodId} onValueChange={(v) => setTransfer({ ...transfer, periodId: v })}>
+                <Select value={transfer.periodId} onValueChange={(v) => {
+                  const p = periods.find((x) => x.id === v);
+                  if (p) applyPeriodWindow(p, { ...transfer, periodId: v });
+                  else setTransfer({ ...transfer, periodId: v });
+                }}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder={periods.length ? "Pilih period" : "Belum ada period terbuka"} /></SelectTrigger>
                   <SelectContent>
                     {periods.map((p) => (

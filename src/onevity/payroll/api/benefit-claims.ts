@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
 } from "@/onevity/payroll/services/benefit-service";
@@ -76,15 +76,18 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/benefit-claims — action: approve|reject|schedule|markPaid|cancel.
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Guard mutasi (audit C-02): VIEWER ditolak 403; approve tercatat dari
+    // aktor SESI nyata (bukan payload klien) → kolom BenefitClaim.approvedBy.
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
 
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
     let claim: unknown;
     switch (b.action) {
       case "approve":
-        claim = await approveClaim(db, b.id, b.approvedBy);
+        claim = await approveClaim(db, b.id, actor.appUsername ?? actor.name);
         break;
       case "reject":
         claim = await rejectClaim(db, b.id, b.reason ?? "");

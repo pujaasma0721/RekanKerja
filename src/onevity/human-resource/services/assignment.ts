@@ -2,7 +2,11 @@
 // Semua data pekerjaan karyawan hidup di EmployeeAssignment (riwayat berperiode).
 // Assignment aktif = validTo null. Endpoint API mem-flatten assignment aktif ke
 // bentuk lama (orgUnit/position/grade/employmentStatus/…) agar kontrak frontend stabil.
+import type { Prisma } from "@/generated/tenant";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+
+/** Handle DB: client tenant penuh ATAU transaksi interaktif Prisma ($transaction). */
+export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 export type AssignmentOverrides = Partial<{
   orgUnitId: string | null;
@@ -62,7 +66,7 @@ export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T) {
 }
 
 /** Ambil assignment aktif seorang karyawan. */
-export async function getCurrentAssignment(db: TenantDb, employeeId: string) {
+export async function getCurrentAssignment(db: DbOrTx, employeeId: string) {
   return db.employeeAssignment.findFirst({
     where: { employeeId, validTo: null },
     orderBy: { validFrom: "desc" },
@@ -75,7 +79,7 @@ export async function getCurrentAssignment(db: TenantDb, employeeId: string) {
  * Jika tidak ada field yang benar-benar berubah, tidak dibuat riwayat baru (idempotent).
  */
 export async function applyAssignmentChange(
-  db: TenantDb,
+  db: DbOrTx,
   employeeId: string,
   overrides: AssignmentOverrides,
   opts: { reason: string; effectiveDate: Date; sourceDocNo?: string | null; notes?: string | null },
@@ -113,7 +117,7 @@ export async function applyAssignmentChange(
 }
 
 /** Tutup assignment aktif (offboarding / penghentian). */
-export async function closeCurrentAssignment(db: TenantDb, employeeId: string, validTo: Date) {
+export async function closeCurrentAssignment(db: DbOrTx, employeeId: string, validTo: Date) {
   await db.employeeAssignment.updateMany({
     where: { employeeId, validTo: null },
     data: { validTo },

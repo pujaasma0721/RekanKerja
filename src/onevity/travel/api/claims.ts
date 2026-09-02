@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/claims?status=&employeeId= — daftar klaim
@@ -13,8 +13,14 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const requestId = sp.get("requestId");
     if (requestId) {
-      const res = await previewClaim(db, requestId);
-      return NextResponse.json(res);
+      // 24-FIX-TRAVEL: error validasi preview (status ≠ Approved / sudah punya klaim aktif)
+      // dibalas 400 (bukan 500) — error input pengguna, bukan error server.
+      try {
+        const res = await previewClaim(db, requestId);
+        return NextResponse.json(res);
+      } catch (e) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
+      }
     }
     const id = sp.get("id");
     if (id) {
@@ -83,18 +89,22 @@ export async function POST(req: NextRequest) {
 
 // PATCH — keputusan klaim (Approve → jurnal otomatis | Reject | Cancel)
 // (padanan TravelClaimToApprove Operation + Transfer terpisah di /transfer).
+// 24-FIX-TRAVEL #7: guard mutasi requireMutator — role VIEWER ditolak (403) dan
+// identitas approver NYATA dari sesi (AppUser tenant → fallback platform userId)
+// dicatat ke decidedById (sebelumnya selalu NULL).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
-    const res = await decideClaim(db, {
+    const res = await decideClaim(m.db, {
       id: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
+      actorId: m.actor.appUserId ?? m.actor.userId,
     });
     return NextResponse.json(res);
   } catch (e) {

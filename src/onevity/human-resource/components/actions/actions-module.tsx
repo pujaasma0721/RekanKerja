@@ -305,9 +305,9 @@ function AllDocuments() {
 function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const opts = useApi<{
     managers: { id: string; fullName: string; employeeNo: string }[];
-    positions: { id: string; title: string }[];
+    positions: { id: string; title: string; code: string; orgUnitId: string | null }[];
     grades: { id: string; code: string; name: string }[];
-    orgUnits: { id: string; name: string }[];
+    orgUnits: { id: string; name: string; code: string; level: number }[];
   }>("/api/onevity/employee-options");
   const [employeeId, setEmployeeId] = useState("");
   const [type, setType] = useState("Promotion");
@@ -331,6 +331,30 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
   };
 
   const setD = (k: string, v: string) => setDetail((d) => ({ ...d, [k]: v }));
+
+  // fix K-01: simpan ID (positionId/orgUnitId/gradeId — dibaca handler process) DAN
+  // kode pendamping (toPosition/toUnit/newGrade — untuk display detail dokumen).
+  const setPos = (id: string) => {
+    const p = (opts.data?.positions ?? []).find((x) => x.id === id);
+    setDetail((d) => {
+      const { toPosition, ...rest } = d;
+      return p ? { ...rest, positionId: p.id, toPosition: p.code } : { ...rest, positionId: "" };
+    });
+  };
+  const setUnit = (id: string) => {
+    const u = (opts.data?.orgUnits ?? []).find((x) => x.id === id);
+    setDetail((d) => {
+      const { toUnit, ...rest } = d;
+      return u ? { ...rest, orgUnitId: u.id, toUnit: u.code } : { ...rest, orgUnitId: "" };
+    });
+  };
+  const setGrade = (id: string) => {
+    const g = (opts.data?.grades ?? []).find((x) => x.id === id);
+    setDetail((d) => {
+      const { newGrade, ...rest } = d;
+      return g ? { ...rest, gradeId: g.id, newGrade: g.code } : { ...rest, gradeId: "" };
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -376,8 +400,18 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
                 <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400"><Zap className="h-3 w-3 text-amber-500" /> Detail Perubahan</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
+                    <Label className="text-xs">Unit Organisasi Tujuan</Label>
+                    <Select value={detail.orgUnitId || "none"} onValueChange={(v) => setUnit(v === "none" ? "" : v)}>
+                      <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                      <SelectContent className="max-h-52">
+                        <SelectItem value="none">— Tetap —</SelectItem>
+                        {(opts.data?.orgUnits ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label className="text-xs">Posisi Tujuan</Label>
-                    <Select value={detail.positionId || "none"} onValueChange={(v) => setD("positionId", v === "none" ? "" : v)}>
+                    <Select value={detail.positionId || "none"} onValueChange={(v) => setPos(v === "none" ? "" : v)}>
                       <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
                       <SelectContent className="max-h-52">
                         <SelectItem value="none">— Tetap —</SelectItem>
@@ -387,7 +421,7 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
                   </div>
                   <div>
                     <Label className="text-xs">Grade Baru</Label>
-                    <Select value={detail.gradeId || "none"} onValueChange={(v) => setD("gradeId", v === "none" ? "" : v)}>
+                    <Select value={detail.gradeId || "none"} onValueChange={(v) => setGrade(v === "none" ? "" : v)}>
                       <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">— Tetap —</SelectItem>
@@ -395,7 +429,7 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label className="text-xs">Gaji Baru (Rp) — kosongkan bila tetap</Label>
                     <Input type="number" value={detail.newSalary ?? ""} onChange={(e) => setD("newSalary", e.target.value)} className="mt-1.5 font-mono" placeholder="11500000" />
                   </div>
@@ -479,12 +513,16 @@ function ActionDetail() {
 
   const a = data.action;
   const detail: Record<string, string | number | null> = a.detailJson ? JSON.parse(a.detailJson) : {};
+  // sembunyikan kunci ID mentah (positionId/orgUnitId/gradeId) dari tampilan —
+  // kode pendamping (toPosition/toUnit/newGrade) sudah mewakili untuk display.
+  const detailRows = Object.entries(detail).filter(([k]) => !["positionId", "orgUnitId", "gradeId"].includes(k));
   const canApprove = a.status === "Submitted" && a.layers.some((l) => l.status === "Pending");
   const detailLabels: Record<string, string> = {
     positionId: "Posisi Baru", gradeId: "Grade Baru", newSalary: "Gaji Baru", oldSalary: "Gaji Lama",
     percent: "Persentase", months: "Durasi (bln)", lastDay: "Hari Terakhir", newEndDate: "Tanggal Berakhir",
     newEmploymentStatus: "Status Baru", plannedPosition: "Posisi Direncanakan", plannedSalary: "Gaji Direncanakan",
     fromUnit: "Unit Asal", toUnit: "Unit Tujuan", fromPosition: "Posisi Asal", toPosition: "Posisi Baru", reason: "Alasan",
+    newGrade: "Grade Baru",
   };
   const fmtVal = (k: string, v: string | number | null) => {
     if (v === null || v === undefined || v === "") return "—";
@@ -534,14 +572,14 @@ function ActionDetail() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           {/* detail payload */}
-          {Object.keys(detail).length > 0 && (
+          {detailRows.length > 0 && (
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold"><FileText className="h-4 w-4 text-emerald-600" /> Detail Perubahan</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                  {Object.entries(detail).map(([k, v]) => (
+                  {detailRows.map(([k, v]) => (
                     <div key={k}>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{detailLabels[k] ?? k}</p>
                       <p className="mt-0.5 text-[13px] font-semibold text-stone-800 dark:text-stone-200">{fmtVal(k, v)}</p>

@@ -28,6 +28,13 @@ interface EmpOpt {
   employmentStatus: string;
 }
 
+// master posisi/unit/grade — sumber opsi dengan ID + kode (fix K-01: kirim id DAN code)
+interface MasterOpt {
+  positions: { id: string; code: string; title: string }[];
+  orgUnits: { id: string; code: string; name: string }[];
+  grades: { id: string; code: string; name: string }[];
+}
+
 type FieldKind = "select-position" | "select-unit" | "select-grade" | "number" | "date" | "select-empstatus";
 interface FieldDef {
   key: string;
@@ -84,11 +91,20 @@ const TYPE_FIELDS: Record<string, FieldDef[]> = {
   ],
 };
 
+// Kunci ID pendamping tiap field select — dialog menyimpan ID (dipakai handler process)
+// DAN kode (dipakai tampilan/detail lama) agar promosi/mutasi benar-benar diterapkan (fix K-01).
+const ID_KEY_BY_KIND: Record<string, string> = {
+  "select-position": "positionId",
+  "select-unit": "orgUnitId",
+  "select-grade": "gradeId",
+};
+
 const EMP_STATUSES = ["Permanent", "Contract", "Probation", "Outsourcing"];
 
 export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { navigate } = useNav();
   const employees = useApi<{ employees: EmpOpt[]; total: number }>(open ? "/api/onevity/employees?limit=200&status=Active" : null);
+  const masters = useApi<MasterOpt>(open ? "/api/onevity/employee-options" : null);
 
   const [empOpen, setEmpOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
@@ -101,23 +117,20 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const list = employees.data?.employees ?? [];
   const selected = list.find((e) => e.id === employeeId);
 
-  const positions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of list) if (e.position) map.set(e.position.code, e.position.title);
-    return Array.from(map.entries()).map(([code, title]) => ({ code, title })).sort((a, b) => a.code.localeCompare(b.code));
-  }, [list]);
-
-  const units = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of list) if (e.orgUnit) map.set(e.orgUnit.code, e.orgUnit.name);
-    return Array.from(map.entries()).map(([code, name]) => ({ code, name })).sort((a, b) => a.code.localeCompare(b.code));
-  }, [list]);
-
-  const grades = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of list) if (e.grade) map.set(e.grade.code, e.grade.name);
-    return Array.from(map.entries()).map(([code, name]) => ({ code, name })).sort((a, b) => a.code.localeCompare(b.code));
-  }, [list]);
+  // opsi dari MASTER (bukan hanya posisi yang sedang dipegang karyawan) —
+  // posisi lowong pun bisa dipilih; value = ID, kode disimpan bersamaan untuk display.
+  const positions = useMemo(
+    () => (masters.data?.positions ?? []).slice().sort((a, b) => a.code.localeCompare(b.code)),
+    [masters.data],
+  );
+  const units = useMemo(
+    () => (masters.data?.orgUnits ?? []).slice().sort((a, b) => a.code.localeCompare(b.code)),
+    [masters.data],
+  );
+  const grades = useMemo(
+    () => (masters.data?.grades ?? []).slice().sort((a, b) => a.code.localeCompare(b.code)),
+    [masters.data],
+  );
 
   const fields = type ? (TYPE_FIELDS[type] ?? []) : [];
 
@@ -154,6 +167,13 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
   };
 
   const setField = (key: string, value: string) => setDetail((d) => ({ ...d, [key]: value }));
+
+  // field select master: simpan ID (positionId/orgUnitId/gradeId — dipakai handler process)
+  // + kode pada kunci aslinya (toPosition/toUnit/newGrade — dipakai tampilan & data lama).
+  const setMasterField = (f: FieldDef, id: string, code: string) => {
+    const idKey = ID_KEY_BY_KIND[f.kind];
+    setDetail((d) => ({ ...d, [f.key]: code, ...(idKey ? { [idKey]: id } : {}) }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
@@ -252,11 +272,14 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 {f.label} {f.required && <span className="text-rose-500">*</span>}
               </Label>
               {f.kind === "select-position" && (
-                <Select value={detail[f.key] ?? ""} onValueChange={(v) => setField(f.key, v)}>
+                <Select value={detail[ID_KEY_BY_KIND[f.kind]] ?? detail[f.key] ?? ""} onValueChange={(v) => {
+                  const p = positions.find((x) => x.id === v);
+                  if (p) setMasterField(f, p.id, p.code);
+                }}>
                   <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {positions.map((p) => (
-                      <SelectItem key={p.code} value={p.code}>
+                      <SelectItem key={p.id} value={p.id}>
                         <span className="font-mono text-xs text-stone-400">{p.code}</span> · {p.title}
                       </SelectItem>
                     ))}
@@ -264,11 +287,14 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 </Select>
               )}
               {f.kind === "select-unit" && (
-                <Select value={detail[f.key] ?? ""} onValueChange={(v) => setField(f.key, v)}>
+                <Select value={detail[ID_KEY_BY_KIND[f.kind]] ?? detail[f.key] ?? ""} onValueChange={(v) => {
+                  const u = units.find((x) => x.id === v);
+                  if (u) setMasterField(f, u.id, u.code);
+                }}>
                   <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih unit" /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {units.map((u) => (
-                      <SelectItem key={u.code} value={u.code}>
+                      <SelectItem key={u.id} value={u.id}>
                         <span className="font-mono text-xs text-stone-400">{u.code}</span> · {u.name}
                       </SelectItem>
                     ))}
@@ -276,11 +302,14 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 </Select>
               )}
               {f.kind === "select-grade" && (
-                <Select value={detail[f.key] ?? ""} onValueChange={(v) => setField(f.key, v)}>
+                <Select value={detail[ID_KEY_BY_KIND[f.kind]] ?? detail[f.key] ?? ""} onValueChange={(v) => {
+                  const g = grades.find((x) => x.id === v);
+                  if (g) setMasterField(f, g.id, g.code);
+                }}>
                   <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih grade" /></SelectTrigger>
                   <SelectContent>
                     {grades.map((g) => (
-                      <SelectItem key={g.code} value={g.code}>
+                      <SelectItem key={g.id} value={g.id}>
                         <span className="font-mono text-xs text-stone-400">{g.code}</span> · {g.name}
                       </SelectItem>
                     ))}

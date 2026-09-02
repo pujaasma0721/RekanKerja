@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 
 // GET — users with access groups + access groups with members
 export async function GET(req: NextRequest) {
@@ -35,8 +35,9 @@ export async function GET(req: NextRequest) {
 // POST create user (+optional group membership)
 export async function POST(req: NextRequest | Request) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.username || !b.fullName) return NextResponse.json({ error: "Username & nama wajib" }, { status: 400 });
@@ -59,8 +60,9 @@ export async function POST(req: NextRequest | Request) {
 // PATCH update user
 export async function PATCH(req: Request) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -82,8 +84,9 @@ export async function PATCH(req: Request) {
 // DELETE ?id=
 export async function DELETE(req: Request) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = new URL(req.url).searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

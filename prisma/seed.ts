@@ -405,7 +405,9 @@ async function main() {
   }
 
   // ============ APP USERS ============
-  const admin = await db.appUser.create({ data: { username: "MII000001", fullName: "Tri Handayani", email: "tri.handayani@mii.co.id", role: "HR Manager", employeeId: hrEmp.id, lastLogin: new Date() } });
+  // MII000001 = login demo HRD (hrd@mii.co.id) — email AppUser sengaja disamakan
+  // dengan akun platform agar resolusi aktor sesi (requireMutator) menemukannya.
+  const admin = await db.appUser.create({ data: { username: "MII000001", fullName: "Tri Handayani", email: "hrd@mii.co.id", role: "HR Manager", employeeId: hrEmp.id, lastLogin: new Date() } });
   const mgrFin = await db.appUser.create({ data: { username: "MII000002", fullName: "Bambang Prakoso", role: "Approver", employeeId: finEmp.id } });
   const mgrPrd = await db.appUser.create({ data: { username: "MII000003", fullName: "Joko Susilo", role: "Approver", employeeId: prdEmp.id } });
   const dirHrd = await db.appUser.create({ data: { username: "MII000004", fullName: "Sri Wahyuni", role: "Approver", employeeId: hrdEmp.id } });

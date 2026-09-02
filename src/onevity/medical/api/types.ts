@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listBenefitTypes, upsertBenefitType } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/types — master jenis benefit (padanan MedicalBenefitTypeDetail.jsp).
@@ -15,15 +15,16 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — buat/ubah jenis benefit (kebijakan limit/frekuensi/dependent/unused).
+// requireMutator (fix audit aktor/role): VIEWER 403.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.name || (!b.id && !b.code)) {
       return NextResponse.json({ error: "code & name wajib" }, { status: 400 });
     }
-    const id = await upsertBenefitType(db, {
+    const id = await upsertBenefitType(m.db, {
       id: b.id ? String(b.id) : undefined,
       code: String(b.code ?? ""),
       name: String(b.name ?? ""),

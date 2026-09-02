@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 
 // GET /api/onevity/loans?employeeId=&status=
 export async function GET(req: NextRequest) {
@@ -29,8 +29,9 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/loans — buat pinjaman + skedul cicilan
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.employeeId || !b.letterNo || !b.amount || !b.installmentCount) {
@@ -88,8 +89,9 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/loans — ubah status (PaidOff manual / Cancelled)
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

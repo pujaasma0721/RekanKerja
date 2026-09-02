@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { recapPeriod, transferToPayroll } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/absence?from=&to= — rekap period per karyawan
 // (padanan Query - Employee Attendance/Absence/Tidiness) + period payroll utk transfer.
+// Rekap uang hanya menghitung lembur Approved yang belum dibayar (fix K-1).
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
       recapPeriod(db, from, to),
       db.payrollPeriod.findMany({
         where: { status: { in: ["Open", "Processing"] } },
-        select: { id: true, code: true, name: true, status: true, startDate: true, endDate: true },
+        select: { id: true, code: true, name: true, status: true, startDate: true, endDate: true, taStartDate: true, taEndDate: true },
         orderBy: { startDate: "desc" },
       }),
       db.processType.findMany({ select: { id: true, code: true, name: true }, orderBy: { sequence: "asc" } }),
@@ -45,26 +46,31 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — Transfer ke Payroll (padanan /TransferPayroll.jsp):
-// body { periodId, processTypeCode, from, to, includeOvertime, includeLate, includeAbsence, includeAttendanceAllowance }
+// body { periodId, processTypeCode, from?, to?, includeOvertime, includeLate, includeAbsence, includeAttendanceAllowance }
+// Fix M-4: from/to opsional (default jendela TA period / rentang period) + window
+// divalidasi vs period & anti-overlap (guard di transferToPayroll). Guard VIEWER + aktor sesi.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.periodId) return NextResponse.json({ error: "Period payroll wajib dipilih" }, { status: 400 });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.from ?? "")) || !/^\d{4}-\d{2}-\d{2}$/.test(String(b.to ?? ""))) {
-      return NextResponse.json({ error: "Jendela tanggal absensi wajib (from & to)" }, { status: 400 });
+    const fromOk = typeof b.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.from);
+    const toOk = typeof b.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.to);
+    if ((b.from !== undefined && !fromOk) || (b.to !== undefined && !toOk)) {
+      return NextResponse.json({ error: "Jendela tanggal absensi tidak valid (YYYY-MM-DD)" }, { status: 400 });
     }
 
-    const result = await transferToPayroll(db, {
+    const result = await transferToPayroll(m.db, {
       periodId: String(b.periodId),
       processTypeCode: b.processTypeCode ? String(b.processTypeCode) : undefined,
-      from: new Date(`${b.from}T00:00:00`),
-      to: new Date(`${b.to}T00:00:00`),
+      from: fromOk ? new Date(`${b.from}T00:00:00`) : undefined,
+      to: toOk ? new Date(`${b.to}T00:00:00`) : undefined,
       includeOvertime: b.includeOvertime,
       includeLate: b.includeLate,
       includeAbsence: b.includeAbsence,
       includeAttendanceAllowance: b.includeAttendanceAllowance,
+      actor: { name: m.actor.name, appUserId: m.actor.appUserId },
     });
     return NextResponse.json(result, { status: 201 });
   } catch (e) {

@@ -5,6 +5,7 @@
 // Formula settlement oranHR dipertahankan:
 //   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 
 // ============ util ============
 
@@ -18,6 +19,13 @@ const dayStart = (d: Date | string) => {
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Parse tanggal (string|Date) → awal hari; tolak bila bukan tanggal valid (M-5). */
+const parseDay = (v: string | Date, label: string): Date => {
+  const x = dayStart(v);
+  if (Number.isNaN(x.getTime())) throw new Error(`${label} tidak valid`);
+  return x;
+};
 
 /** Nomor dokumen per prefix (TR/CL) — max-suffix per model (aman terhadap baris terhapus). */
 async function nextDocNo(db: TenantDb, prefix: "TR" | "CL"): Promise<string> {
@@ -173,8 +181,8 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
   const template = await db.travelTemplate.findFirst({ where: { code: input.templateCode, active: true } });
   if (!template) throw new Error(`Template ${input.templateCode} tidak ditemukan / tidak aktif`);
 
-  const from = dayStart(input.dateFrom);
-  const to = dayStart(input.dateTo);
+  const from = parseDay(input.dateFrom, "Tanggal mulai perjalanan");
+  const to = parseDay(input.dateTo, "Tanggal selesai perjalanan");
   if (to < from) throw new Error("Tanggal selesai sebelum tanggal mulai");
   const days = Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1;
   if (days > 60) throw new Error("Perjalanan lebih dari 60 hari — hubungi HR (validasi manual)");
@@ -182,6 +190,21 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
   if (!input.destinations?.length) throw new Error("Minimal 1 destinasi perjalanan");
   const zones = await db.travelZone.findMany();
   const zoneByCode = new Map(zones.map((z) => [z.code, z]));
+
+  // M-5 (24-FIX-TRAVEL): validasi tanggal destinasi per kaki — datang ≥ berangkat,
+  // dalam rentang request, dan urutan tanggal monoton mengikuti seq.
+  let prevLegFrom: Date | null = null;
+  input.destinations.forEach((d, i) => {
+    const legFrom = parseDay(d.dateFrom, `Tanggal berangkat destinasi kaki ${i + 1}`);
+    const legTo = parseDay(d.dateTo, `Tanggal datang destinasi kaki ${i + 1}`);
+    if (legTo < legFrom) throw new Error(`Destinasi kaki ${i + 1} (${d.city}): tanggal datang sebelum tanggal berangkat`);
+    if (legFrom < from) throw new Error(`Destinasi kaki ${i + 1} (${d.city}): tanggal berangkat di luar rentang permintaan (mulai ${fmtDate(from)})`);
+    if (legTo > to) throw new Error(`Destinasi kaki ${i + 1} (${d.city}): tanggal datang di luar rentang permintaan (s.d. ${fmtDate(to)})`);
+    if (prevLegFrom && legFrom < prevLegFrom) {
+      throw new Error(`Destinasi kaki ${i + 1}: urutan tanggal kaki tidak monoton — berangkat sebelum kaki sebelumnya`);
+    }
+    prevLegFrom = legFrom;
+  });
 
   // cost center default dari unit organisasi assignment aktif karyawan
   let costCenter = input.costCenter?.trim() || null;
@@ -202,8 +225,8 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
       status: "Submitted",
       destinations: {
         create: input.destinations.map((d, i) => {
-          const df = dayStart(d.dateFrom);
-          const dt = dayStart(d.dateTo);
+          const df = parseDay(d.dateFrom, `Tanggal berangkat destinasi kaki ${i + 1}`);
+          const dt = parseDay(d.dateTo, `Tanggal datang destinasi kaki ${i + 1}`);
           const zone = d.zoneCode ? zoneByCode.get(d.zoneCode) : undefined;
           return {
             seq: i + 1, dateFrom: df, dateTo: dt,
@@ -249,6 +272,9 @@ export interface TravelRequestRow {
   destinations: { seq: number; city: string; country: string; dateFrom: Date; dateTo: Date; overseas: boolean; zoneName: string | null }[];
   advanceAmount: number;
   claimCount: number;
+  /** K-2 (24-FIX-TRAVEL): ada klaim aktif (status bukan Rejected/Cancelled). */
+  hasActiveClaim: boolean;
+  activeClaimDocNo: string | null;
   settlementDue: Date | null;
   overdue: boolean;
 }
@@ -265,11 +291,12 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
       template: true,
       destinations: { orderBy: { seq: "asc" }, include: { zone: true } },
       advances: true,
-      claims: { select: { id: true } },
+      claims: { select: { id: true, docNo: true, status: true } },
     },
   });
   return rows.map((r) => {
     const advanceAmount = r.advances.reduce((s, a) => s + a.amount, 0);
+    const activeClaim = r.claims.find((c) => c.status !== "Rejected" && c.status !== "Cancelled") ?? null;
     const due = new Date(r.dateTo);
     due.setDate(due.getDate() + r.template.settlementDay);
     return {
@@ -288,6 +315,8 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
       })),
       advanceAmount,
       claimCount: r.claims.length,
+      hasActiveClaim: activeClaim !== null,
+      activeClaimDocNo: activeClaim?.docNo ?? null,
       settlementDue: r.template.settlementDay > 0 ? due : null,
       overdue: r.template.settlementDay > 0 && r.status === "Approved" && !r.claimRequestedAt && due.getTime() < Date.now(),
     };
@@ -301,7 +330,7 @@ export interface DecideResult {
 
 export async function decideTravelRequest(
   db: TenantDb,
-  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string },
+  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
 ): Promise<DecideResult> {
   const req = await db.travelRequest.findUnique({ where: { id: input.id }, include: { template: true } });
   if (!req) throw new Error("Permintaan travel tidak ditemukan");
@@ -315,8 +344,21 @@ export async function decideTravelRequest(
   if (!m) throw new Error("Aksi tidak dikenal");
   if (!m.from.includes(req.status)) throw new Error(`Status ${req.status} tidak bisa ${m.log.toLowerCase()}`);
 
-  // batalkan klaim yang belum diputus bila request dibatalkan/ditolak setelah ada klaim draft
   if (input.action !== "approve") {
+    // M-2 (24-FIX-TRAVEL): request yang sudah punya klaim di luar draft (Approved/
+    // Transferred/Paid) TIDAK boleh ditolak/dibatalkan — klaim tersebut sudah berdampak
+    // jurnal/payroll (uang), membatalkan request diam-diam akan membiarkan klaim tetap
+    // diproses bayar. Selesaikan klaimnya dulu (tolak/batalkan klaim), baru request.
+    const activeClaims = await db.travelClaim.findMany({
+      where: { requestId: req.id, status: { in: ["Approved", "Transferred", "Paid"] } },
+      select: { docNo: true },
+    });
+    if (activeClaims.length > 0) {
+      throw new Error(
+        `Permintaan tidak bisa ${m.log.toLowerCase()} — masih ada klaim aktif ${activeClaims.map((x) => x.docNo).join(", ")}. Tolak/batalkan klaim terlebih dahulu.`,
+      );
+    }
+    // batalkan klaim yang belum diputus bila request dibatalkan/ditolak setelah ada klaim draft
     await db.travelClaim.updateMany({
       where: { requestId: req.id, status: { in: ["Submitted"] } },
       data: { status: "Cancelled" },
@@ -327,6 +369,7 @@ export async function decideTravelRequest(
     where: { id: req.id },
     data: {
       status: m.to,
+      decidedById: input.actorId ?? null,
       decidedAt: new Date(),
       decisionNote: input.note?.trim() || null,
     },
@@ -365,6 +408,14 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
   });
   if (!req) throw new Error("Permintaan travel tidak ditemukan");
   if (req.status !== "Approved") throw new Error(`Klaim hanya bisa dibuat dari permintaan Approved (status saat ini: ${req.status})`);
+  // K-2 (24-FIX-TRAVEL): request yang sudah punya klaim aktif bukan dasar klaim baru
+  const activeClaim = await db.travelClaim.findFirst({
+    where: { requestId: req.id, status: { notIn: ["Rejected", "Cancelled"] } },
+    select: { docNo: true },
+  });
+  if (activeClaim) {
+    throw new Error(`Permintaan ${req.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — satu permintaan hanya boleh satu klaim aktif`);
+  }
   const expenseTypes = await listExpenseTypes(db);
   const advanceAmount = req.advances.reduce((s, a) => s + a.amount, 0);
   return {
@@ -414,6 +465,10 @@ export interface CreateClaimResult {
   totalSettlement: number;
   totalExpenses: number;
   overLimitLines: number;
+  /** M-1 (24-FIX-TRAVEL): hasil hitung server (b)/(c) dari rincian vs uang muka. */
+  payableEmployee: number;
+  payableCompany: number;
+  advanceAmount: number;
 }
 
 export async function createClaim(db: TenantDb, input: CreateClaimInput): Promise<CreateClaimResult> {
@@ -438,16 +493,66 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
 
   // request opsional — klaim mandiri diperbolehkan (padanan oranHR: claim tanpa request)
   let req = null as Awaited<ReturnType<typeof db.travelRequest.findUnique>>;
+  let advanceAmount = 0;
   if (input.requestId) {
-    req = await db.travelRequest.findUnique({ where: { id: input.requestId } });
-    if (!req) throw new Error("Permintaan travel tidak ditemukan");
-    if (req.employeeId !== input.employeeId) throw new Error("Permintaan travel milik karyawan lain");
+    const reqRow = await db.travelRequest.findUnique({
+      where: { id: input.requestId },
+      include: { advances: true },
+    });
+    if (!reqRow) throw new Error("Permintaan travel tidak ditemukan");
+    if (reqRow.employeeId !== input.employeeId) throw new Error("Permintaan travel milik karyawan lain");
+    // M-2 (24-FIX-TRAVEL): status request wajib Approved — guard yang sebelumnya hanya ada
+    // di previewClaim; POST langsung bisa membuat klaim dari request Rejected/Cancelled.
+    if (reqRow.status !== "Approved") {
+      throw new Error(`Klaim hanya bisa dibuat dari permintaan Approved (status saat ini: ${reqRow.status})`);
+    }
+    // K-2 (24-FIX-TRAVEL): satu request hanya boleh punya SATU klaim aktif → cegah double
+    // reimbursement (klaim lama harus ditolak/dibatalkan dulu sebelum mengajukan ulang).
+    const activeClaim = await db.travelClaim.findFirst({
+      where: { requestId: reqRow.id, status: { notIn: ["Rejected", "Cancelled"] } },
+      select: { docNo: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (activeClaim) {
+      throw new Error(`Permintaan ${reqRow.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — batalkan/tolak klaim lama sebelum mengajukan klaim baru`);
+    }
+    advanceAmount = round2(reqRow.advances.reduce((s, adv) => s + adv.amount, 0));
+
+    // M-5 (24-FIX-TRAVEL): tanggal baris biaya harus dalam rentang trip;
+    // claimDate tidak boleh sebelum tanggal kembali.
+    const tripFrom = dayStart(reqRow.dateFrom);
+    const tripTo = dayStart(reqRow.dateTo);
+    for (const e of input.expenses) {
+      if (!e.expenseDate) continue;
+      const ed = parseDay(e.expenseDate, `Tanggal baris biaya ${e.expenseCode}`);
+      if (ed < tripFrom || ed > tripTo) {
+        throw new Error(`Baris biaya ${e.expenseCode}: tanggal ${fmtDate(ed)} di luar rentang perjalanan ${fmtDate(tripFrom)} s/d ${fmtDate(tripTo)}`);
+      }
+    }
+    if (input.claimDate) {
+      const cd = parseDay(input.claimDate, "Tanggal klaim");
+      if (cd < tripTo) {
+        throw new Error(`Tanggal klaim tidak boleh sebelum tanggal kembali perjalanan (${fmtDate(tripTo)})`);
+      }
+    } else {
+      // default claimDate = hari ini → klaim settlement hanya setelah perjalanan selesai
+      const today = dayStart(new Date());
+      if (today < tripTo) {
+        throw new Error(`Klaim hanya bisa diajukan setelah perjalanan selesai (tanggal kembali ${fmtDate(tripTo)})`);
+      }
+    }
+    req = reqRow;
   }
 
+  // M-1 (24-FIX-TRAVEL): (b)/(c) DIHITUNG SERVER dari rincian vs uang muka (formula
+  // oranHR — padanan saran UI): gross = Σ baris + (a) + rugi kurs;
+  // b = max(0, gross − advance); c = max(0, advance − gross). Nilai b/c dari klien
+  // DIABAIKAN — input bebas menghasilkan kasbon tak tertagih / overpay (bukti CL-2026-006 b=c=0).
   const a = Math.max(0, input.otherCompanyExp);
   const loss = Math.max(0, input.exchangeLoss);
-  const b = Math.max(0, input.payableEmployee);
-  const c = Math.max(0, input.payableCompany);
+  const gross = round2(totalExpenses + a + loss);
+  const b = Math.max(0, round2(gross - advanceAmount));
+  const c = Math.max(0, round2(advanceAmount - gross));
   const totalSettlement = round2(a + loss + b - c);
 
   const docNo = await nextDocNo(db, "CL");
@@ -493,7 +598,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
       detail: `${docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""}`,
     },
   });
-  return { docNo, totalSettlement, totalExpenses: round2(totalExpenses), overLimitLines };
+  return { docNo, totalSettlement, totalExpenses: round2(totalExpenses), overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount };
 }
 
 export interface TravelClaimRow {
@@ -574,20 +679,16 @@ interface JournalLineDraft {
 
 const TRAVEL_EXPENSE_ACC = { code: "5105", name: "Beban Perjalanan Dinas" };
 const CASH_ACC = { code: "1101", name: "Kas & Bank" };
+// C-04 (24-FIX-TRAVEL): akun kliring payroll — penamaan selaras JOURNAL_ACCOUNTS.clearing
+// di payroll/services/payroll-journal.ts (2101 Hutang Gaji).
+const SALARY_PAYABLE_ACC = { code: "2101", name: "Hutang Gaji" };
 
-async function nextJournalNo(db: TenantDb): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `JV-${year}-`;
-  const rows = await db.payrollJournal.findMany({ where: { journalNo: { startsWith: prefix } }, select: { journalNo: true } });
-  let max = 0;
-  for (const r of rows) {
-    const n = parseInt(r.journalNo.slice(prefix.length), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `${prefix}${String(max + 1).padStart(3, "0")}`;
-}
-
-/** Approve klaim → generate jurnal (Debit akun beban per baris, Credit kas).
+/** Approve klaim → generate jurnal: Debit akun beban per baris + (a)/rugi kurs (5105).
+ *  C-04 (24-FIX-TRAVEL): sisi kredit dipecah per arus uang — porsi settlement yang
+ *  mengalir lewat payroll ((b) payableEmployee via UTRP + (c) potongan TRVSTLIN)
+ *  dikredit ke 2101 Hutang Gaji, HANYA porsi tunai ke 1101 Kas. Mencatat seluruhnya
+ *  ke Kas membuat beban+kas tercatat 2× karena jurnal run payroll juga memposting
+ *  beban/kas saat komponen UTRP dibayar di gaji (bukti CL-2026-001 + UTRP 900rb).
  *  Idempoten: jurnal lama klaim (runNo = docNo klaim) dibuang lalu dibuat ulang. */
 async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
   const claim = await db.travelClaim.findUnique({
@@ -623,7 +724,35 @@ async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ jo
   }
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
   if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
-  drafts.push({ accountCode: CASH_ACC.code, accountName: CASH_ACC.name, position: "Credit", amount: total, memo: `${claim.docNo} — settlement ${claim.settlementMethod}`, wageCode: null });
+
+  // C-04 (24-FIX-TRAVEL): pecah kredit — payroll portion (b+c) → 2101 Hutang Gaji,
+  // sisa porsi tunai → 1101 Kas. Porsi payroll dibatasi maksimal sebesar total beban:
+  // bila kasbon > realisasi ((c) melebihi beban), kelebihan pengembalian uang muka
+  // menunggu siklus hidup advance (M-3 backlog) agar baris tetap non-negatif & D=C.
+  const bPayroll = Math.min(round2(claim.payableEmployee), total);
+  const cPayroll = Math.min(round2(claim.payableCompany), round2(total - bPayroll));
+  const cashPortion = round2(total - bPayroll - cPayroll);
+  if (bPayroll > 0) {
+    drafts.push({
+      accountCode: SALARY_PAYABLE_ACC.code, accountName: SALARY_PAYABLE_ACC.name,
+      position: "Credit", amount: bPayroll,
+      memo: `${claim.docNo} — porsi dibayar via payroll (UTRP)`, wageCode: null,
+    });
+  }
+  if (cPayroll > 0) {
+    drafts.push({
+      accountCode: SALARY_PAYABLE_ACC.code, accountName: SALARY_PAYABLE_ACC.name,
+      position: "Credit", amount: cPayroll,
+      memo: `${claim.docNo} — porsi potongan payroll (TRVSTLIN, kelebihan uang muka)`, wageCode: null,
+    });
+  }
+  if (cashPortion > 0) {
+    drafts.push({
+      accountCode: CASH_ACC.code, accountName: CASH_ACC.name,
+      position: "Credit", amount: cashPortion,
+      memo: `${claim.docNo} — settlement ${claim.settlementMethod} (porsi tunai)`, wageCode: null,
+    });
+  }
 
   const journalNo = await nextJournalNo(db);
   const journalDate = new Date();
@@ -654,7 +783,7 @@ export interface ClaimDecisionResult {
 
 export async function decideClaim(
   db: TenantDb,
-  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string },
+  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
 ): Promise<ClaimDecisionResult> {
   const claim = await db.travelClaim.findUnique({ where: { id: input.id } });
   if (!claim) throw new Error("Klaim tidak ditemukan");
@@ -687,6 +816,7 @@ export async function decideClaim(
     where: { id: claim.id },
     data: {
       status: m.to,
+      decidedById: input.actorId ?? null,
       decidedAt: new Date(),
       decisionNote: input.note?.trim() || null,
       journalNo, journalDate: journalNo ? new Date() : null,
@@ -713,10 +843,15 @@ export interface TravelTransferResult {
 }
 
 /** Klaim Approved → komponen Specific UTRP (bayar b) + TRVSTLIN (potong c).
- *  Idempoten: assignment UTRP/TRVSTLIN periode ini dibuang lalu ditulis ulang. */
+ *  K-1 (24-FIX-TRAVEL): scope rewrite = klaim {Approved, belum pernah ditransfer} ∪
+ *  {Transferred ke period INI} — hanya assignment milik klaim tersebut yang dihapus
+ *  lalu ditulis ulang (dibatasi per docNo klaim di notes); klaim Transferred ke period
+ *  LAIN atau sudah Paid tidak disentuh → transfer ulang ke period sama idempoten dan
+ *  klaim batch sebelumnya tidak lagi hilang komponennya (dulu: ditandai "Paid tanpa
+ *  dibayar" saat run period dikonfirmasi). */
 export async function transferClaimsToPayroll(
   db: TenantDb,
-  input: { periodId: string; processTypeCode?: string },
+  input: { periodId: string; processTypeCode?: string; actor?: { name: string; appUserId: string | null } },
 ): Promise<TravelTransferResult> {
   const period = await db.payrollPeriod.findUnique({ where: { id: input.periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
@@ -730,15 +865,39 @@ export async function transferClaimsToPayroll(
   const compDed = await db.wageComponent.findUnique({ where: { code: "TRVSTLIN" } });
   if (!compUtrp || !compDed) throw new Error("Komponen upah UTRP/TRVSTLIN belum didefinisikan (hubungi admin)");
 
+  // M-4/C-04 (24-FIX-TRAVEL): period dengan run sudah Confirmed/Paid tidak boleh
+  // menerima transfer — assignment baru tidak akan pernah masuk run yang sudah
+  // dihitung/dibayar, klaim akan ditandai Paid tanpa pernah dibayar (kasus terjebak
+  // CL-2026-004 Transferred di period yang run-nya sudah lewat).
+  const doneRuns = await db.payrollRun.count({
+    where: { periodId: period.id, processTypeId: pt.id, status: { in: ["Confirmed", "Paid"] } },
+  });
+  if (doneRuns > 0) {
+    throw new Error(`Period ${period.name} sudah memiliki run payroll yang dikonfirmasi/dibayar — klaim yang ditransfer ke sini tidak akan pernah dibayar. Pilih period yang run-nya belum dikonfirmasi`);
+  }
+
+  // K-1: klaim yang ditulis ulang = Approved (belum transfer) ∪ Transferred ke period ini
   const claims = await db.travelClaim.findMany({
-    where: { status: "Approved" },
+    where: {
+      OR: [
+        { status: "Approved" },
+        { status: "Transferred", periodCode: period.code },
+      ],
+    },
     include: { employee: { select: { id: true, fullName: true } } },
+    orderBy: { docNo: "asc" },
   });
   if (claims.length === 0) throw new Error("Tidak ada klaim berstatus Approved yang siap ditransfer");
 
-  // idempoten: buang assignment lama period ini
+  // idempoten: buang assignment lama HANYA milik klaim yang akan ditulis ulang
+  // (period × processType ini × komponen UTRP/TRVSTLIN × docNo klaim di notes) —
+  // assignment klaim period lain / klaim Paid / assignment manual HR tidak tersapu.
   const removed = await db.employeeComponentAssignment.deleteMany({
-    where: { kind: "Specific", periodId: period.id, processTypeId: pt.id, wageComponentId: { in: [compUtrp.id, compDed.id] } },
+    where: {
+      kind: "Specific", periodId: period.id, processTypeId: pt.id,
+      wageComponentId: { in: [compUtrp.id, compDed.id] },
+      OR: claims.map((c) => ({ notes: { contains: c.docNo } })),
+    },
   });
 
   const employees = new Set<string>();
@@ -780,7 +939,8 @@ export async function transferClaimsToPayroll(
   await db.activityLog.create({
     data: {
       action: "Processed", entity: "TravelTransfer", entityId: period.id,
-      detail: `Transfer klaim travel → ${period.name}: ${claims.length} klaim, ${employees.size} karyawan, bayar ${earningTotal}, potong ${deductionTotal}`,
+      appUserId: input.actor?.appUserId ?? null,
+      detail: `Transfer klaim travel → ${period.name}: ${claims.length} klaim, ${employees.size} karyawan, bayar ${earningTotal}, potong ${deductionTotal}${input.actor ? ` — oleh ${input.actor.name}` : ""}`,
     },
   });
   return {

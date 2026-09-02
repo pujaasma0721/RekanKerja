@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listDaily, regenerateDaily, recordClockLog } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/clocking?date=YYYY-MM-DD — rekap harian (padanan
@@ -46,10 +46,11 @@ export async function GET(req: NextRequest) {
 
 // POST — catat clock manual/web (padanan Temporary Employee Clocking):
 // body { employeeId, time: "HH:MM", direction, note } → log + rekap ulang.
+// Guard VIEWER + aktor sesi (requireMutator).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const dateParam = String(b.date ?? "");
     const time = String(b.time ?? "");
@@ -57,14 +58,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tanggal & jam wajib (YYYY-MM-DD, HH:MM)" }, { status: 400 });
     }
     const timestamp = new Date(`${dateParam}T${time}:00`);
-    await recordClockLog(db, {
+    await recordClockLog(m.db, {
       employeeId: String(b.employeeId ?? ""),
       timestamp,
       direction: b.direction === "OUT" ? "OUT" : "IN",
       source: "Manual",
       note: b.note ?? null,
     });
-    const rows = await listDaily(db, timestamp);
+    const rows = await listDaily(m.db, timestamp);
     return NextResponse.json({ ok: true, rows }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -72,18 +73,19 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — hitung ulang rekap satu tanggal (padanan "Refresh Clocking").
+// Guard VIEWER + aktor sesi (requireMutator) — regenerasi adalah operasi tulis.
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const dateParam = String(b.date ?? "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
       return NextResponse.json({ error: "Tanggal wajib (YYYY-MM-DD)" }, { status: 400 });
     }
     const date = new Date(`${dateParam}T00:00:00`);
-    const count = await regenerateDaily(db, date);
-    const rows = await listDaily(db, date);
+    const count = await regenerateDaily(m.db, date);
+    const rows = await listDaily(m.db, date);
     return NextResponse.json({ regenerated: count, rows });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

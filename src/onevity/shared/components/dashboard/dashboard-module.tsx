@@ -118,7 +118,7 @@ export function DashboardModule() {
       </div>
 
       {/* charts row */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         {/* headcount trend */}
         <Card className="rounded-2xl border-stone-200/80 shadow-sm lg:col-span-2 dark:border-stone-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -190,7 +190,7 @@ export function DashboardModule() {
       </div>
 
       {/* headcount per division + grade */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Headcount per Divisi</CardTitle>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
@@ -79,8 +79,10 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid | cancel
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Guard mutasi (audit C-02): VIEWER ditolak 403; aktor sesi nyata untuk jejak.
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
 
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
@@ -110,14 +112,25 @@ export async function PATCH(req: NextRequest) {
           return NextResponse.json({ error: "Run harus Confirmed sebelum ditandai dibayar" }, { status: 400 });
         }
         await db.payrollRun.update({ where: { id: b.id }, data: { status: "Paid", paidAt: new Date() } });
-        await db.activityLog.create({ data: { action: "Updated", entity: "PayrollRun", entityId: b.id, detail: `Run ${run.runNo} ditandai DIBAYAR` } });
+        await db.activityLog.create({ data: { action: "Updated", entity: "PayrollRun", entityId: b.id, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} ditandai DIBAYAR` } });
         return NextResponse.json({ ok: true });
       }
       case "cancel": {
         if (run.status === "Paid") return NextResponse.json({ error: "Run yang sudah dibayar tidak bisa dibatalkan" }, { status: 400 });
+        // K-2 (KRITIS): konfirmasi run sudah mengeksekusi efek samping yang tidak
+        // dibalikkan oleh cancel — jurnal Posted + mutasi saldo COA, cicilan
+        // pinjaman → Deducted, klaim/lembur/encashment/travel/medical → Paid,
+        // period → Processed. Menerima cancel = jurnal & potongan dobel saat run
+        // dibuat ulang. Reversi penuh harus dilakukan manual oleh admin.
+        if (run.status === "Confirmed") {
+          return NextResponse.json(
+            { error: "Run sudah dikonfirmasi — jurnal/cicilan terpasang; buat run koreksi/rapel, atau hubungi admin untuk reversi manual" },
+            { status: 409 }
+          );
+        }
         await db.payrollRun.update({ where: { id: b.id }, data: { status: "Cancelled" } });
         await db.payrollRunLine.deleteMany({ where: { runId: b.id } });
-        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: b.id, detail: `Run ${run.runNo} dibatalkan` } });
+        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: b.id, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} dibatalkan` } });
         return NextResponse.json({ ok: true });
       }
       default:

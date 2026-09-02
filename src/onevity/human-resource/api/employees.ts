@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee } from "@/onevity/human-resource/services/assignment";
+import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
 // Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
@@ -78,14 +79,53 @@ export async function GET(req: NextRequest) {
 
 // POST /api/onevity/employees — create employee (wizard final step)
 // Membuat employee (data personal + lifecycle) + assignment awal (data pekerjaan).
+// Fix M-05/M-06: validasi server — gaji dalam rentang grade, FK valid (400 ramah, bukan 500).
+// Fix C-02: guard mutasi (requireMutator — VIEWER ditolak; aktor dicatat di ActivityLog).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
 
     const b = await req.json();
+    if (!b.fullName || !String(b.fullName).trim()) {
+      return NextResponse.json({ error: "Nama lengkap karyawan wajib diisi" }, { status: 400 });
+    }
     const company = await db.company.findFirst();
     if (!company) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });
+
+    // (d) FK wajib valid → pesan 400 ramah (bukan error 500 prisma)
+    if (b.orgUnitId) {
+      const u = await db.orgUnit.findUnique({ where: { id: b.orgUnitId }, select: { id: true } });
+      if (!u) return NextResponse.json({ error: "Unit organisasi tidak dikenal — pilih ulang unit" }, { status: 400 });
+    }
+    if (b.positionId) {
+      const p = await db.position.findUnique({ where: { id: b.positionId }, select: { id: true } });
+      if (!p) return NextResponse.json({ error: "Posisi tidak dikenal — pilih ulang posisi" }, { status: 400 });
+    }
+    if (b.gradeId) {
+      const g = await db.grade.findUnique({ where: { id: b.gradeId }, select: { id: true } });
+      if (!g) return NextResponse.json({ error: "Grade tidak dikenal — pilih ulang grade" }, { status: 400 });
+    }
+    if (b.managerId) {
+      const mgr = await db.employee.findUnique({ where: { id: b.managerId }, select: { id: true } });
+      if (!mgr) return NextResponse.json({ error: "Atasan langsung tidak dikenal — pilih ulang atasan" }, { status: 400 });
+    }
+
+    // (b) gaji pokok tidak boleh negatif; bila grade dipilih dan mendefinisikan rentang
+    // min/max, gaji wajib dalam rentang itu (wizard memang advisory — server yang menegakkan).
+    const baseSalary = b.baseSalary !== undefined && b.baseSalary !== null && String(b.baseSalary) !== "" ? Number(b.baseSalary) : 0;
+    if (!Number.isFinite(baseSalary) || baseSalary < 0) {
+      return NextResponse.json({ error: "Gaji pokok harus berupa angka tidak negatif" }, { status: 400 });
+    }
+    if (b.gradeId && baseSalary > 0) {
+      try {
+        await validateSalaryAgainstGrade(db, baseSalary, { gradeId: String(b.gradeId) }, "");
+      } catch (e) {
+        if (e instanceof PATargetError) return NextResponse.json({ error: e.message }, { status: 400 });
+        throw e;
+      }
+    }
 
     // auto employeeNo
     const last = await db.employee.findFirst({ orderBy: { employeeNo: "desc" }, select: { employeeNo: true } });
@@ -128,7 +168,7 @@ export async function POST(req: NextRequest) {
         managerId: b.managerId ?? null,
         employmentStatus: b.employmentStatus ?? "Probation",
         workShift: b.workShift ?? "Regular",
-        baseSalary: b.baseSalary ?? 0,
+        baseSalary,
         validFrom: joinDate,
         validTo: null,
         changeReason: "Initial",
@@ -138,16 +178,21 @@ export async function POST(req: NextRequest) {
 
     await db.activityLog.create({
       data: {
+        appUserId: actor.appUserId,
         action: "Created",
         entity: "Employee",
         entityId: employee.id,
         employeeId: employee.id,
-        detail: `Onboarding karyawan ${employee.fullName} (${employeeNo})`,
+        detail: `Onboarding karyawan ${employee.fullName} (${employeeNo}) oleh ${actor.appUsername ?? actor.name}`,
       },
     });
 
     return NextResponse.json({ employee }, { status: 201 });
   } catch (e) {
+    // FK prisma (P2003) → 400 ramah (fix M-06d: bukan 500)
+    if ((e as { code?: string })?.code === "P2003") {
+      return NextResponse.json({ error: "Data referensi tidak valid — periksa unit/posisi/grade/atasan" }, { status: 400 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }

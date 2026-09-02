@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listEncashments, submitEncashment, decideEncashment } from "@/onevity/leave/services/leave-service";
 
 // GET /api/onevity/leave/encashment?status= — uang pengganti cuti
@@ -48,19 +48,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — keputusan approval (approve | reject | cancel)
+// PATCH — keputusan approval (approve | reject | cancel).
+// L-05: guard mutasi requireMutator — role VIEWER ditolak (403) dan identitas
+// approver NYATA dari sesi dicatat ke decidedById (sebelumnya selalu NULL).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
-    const res = await decideEncashment(db, {
+    const res = await decideEncashment(m.db, {
       id: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
+      actorId: m.actor.appUserId ?? m.actor.userId,
     });
     return NextResponse.json(res);
   } catch (e) {

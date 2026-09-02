@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { readSessionCookie } from "@/onevity/shared/lib/auth";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listAdjustments, submitAdjustment, decideAdjustment } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/adjustments?state=&year= — penyesuaian saldo
@@ -35,17 +34,17 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ajukan penyesuaian (± employee/dependent amount).
+// requireMutator (fix audit aktor/role): VIEWER 403 + aktor sesi nyata.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const actor = readSessionCookie(req);
-    const actorId = actor?.uid ?? "system";
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     if (!b.employeeId || !b.typeId || !b.year || !b.adjustmentDate || !b.amount) {
       return NextResponse.json({ error: "employeeId, typeId, year, adjustmentDate & amount wajib" }, { status: 400 });
     }
-    const res = await submitAdjustment(db, {
+    const res = await submitAdjustment(m.db, {
       employeeId: String(b.employeeId),
       typeId: String(b.typeId),
       year: Number(b.year),
@@ -61,17 +60,17 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — keputusan adjustment (Approve → saldo bertambah/kurang | Reject | Cancel).
+// requireMutator (fix audit aktor/role): decidedBy = aktor sesi nyata, VIEWER 403.
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const actor = readSessionCookie(req);
-    const actorId = actor?.uid ?? "system";
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
-    const res = await decideAdjustment(db, {
+    const res = await decideAdjustment(m.db, {
       adjustmentId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
 import { overtimePayFor } from "@/onevity/time-attendance/services/attendance-service";
 
@@ -26,7 +26,11 @@ export async function GET(req: NextRequest) {
 
     const all = orders.map((o) => {
       const baseSalary = o.employee.assignments[0]?.baseSalary ?? 0;
-      const minutes = o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes > 0 ? o.actualMinutes : o.planMinutes;
+      // fix M-7: order yang sudah disetujui tanpa bukti clock → jam efektif = verified/actual
+      // (bukan plan) — konsisten dengan rekap uang; Pending menampilkan rencana (plan).
+      const minutes = o.status === "Pending"
+        ? o.planMinutes
+        : o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
       const estPay = ["Approved", "Paid"].includes(o.status) ? overtimePayFor(baseSalary, minutes, o.dayCategory) : 0;
       return {
         ...o,
@@ -52,13 +56,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — ajukan perintah lembur (Plan)
+// POST — ajukan perintah lembur (Plan). Guard VIEWER + aktor sesi (requireMutator).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
-    const res = await submitOvertimeOrder(db, {
+    const res = await submitOvertimeOrder(m.db, {
       employeeId: String(b.employeeId ?? ""),
       overtimeDate: String(b.overtimeDate ?? ""),
       timeFrom: String(b.timeFrom ?? ""),
@@ -73,15 +77,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — approve | reject | verify | cancel
+// PATCH — approve | reject | verify | cancel. Guard VIEWER + aktor sesi (requireMutator);
+// approve tanggal masa depan ditolak 400 (fix M-7).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    const res = await decideOvertimeOrder(db, b.id, b.action, {
-      approver: b.approver,
+    const res = await decideOvertimeOrder(m.db, b.id, b.action, {
+      approver: b.approver ?? m.actor.name,
       note: b.note,
       verifiedMinutes: b.verifiedMinutes ? Number(b.verifiedMinutes) : undefined,
     });

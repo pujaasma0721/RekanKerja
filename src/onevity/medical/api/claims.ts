@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { readSessionCookie } from "@/onevity/shared/lib/auth";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/claims?state=&year=&employeeId=&typeId=&preview=
 // &employeeId&typeId — daftar klaim (padanan MedicalBenefitClaim.jsp /
-// MedicalBenefitClaimToApprove.jsp); preview=1 → snapshot saldo sebelum ajukan.
+// MedicalBenefitClaimToApprove.jsp); preview=1 → snapshot saldo sebelum ajukan
+// (forDependent=1 → pool plafon yang benar utk klaim dependent — fix K-3).
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -18,8 +18,16 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "employeeId & typeId wajib utk preview" }, { status: 400 });
       }
       const year = Number(sp.get("year") ?? new Date().getFullYear());
-      const preview = await previewClaim(db, { employeeId, typeId, year });
-      return NextResponse.json({ preview });
+      const forDependent = sp.get("forDependent") === "1";
+      // error validasi bisnis (karyawan tidak aktif / jenis tidak aktif / saldo
+      // tahun tak ada) → 400, bukan 500 — dipicu temuan dev.log: preview dengan
+      // employeeId lintas-tenant/stale sempat 500 "Karyawan tidak ditemukan".
+      try {
+        const preview = await previewClaim(db, { employeeId, typeId, year, forDependent });
+        return NextResponse.json({ preview });
+      } catch (e) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
+      }
     }
     const includeLines = sp.get("includeLines") === "1";
     const claims = await listClaims(db, {
@@ -50,17 +58,19 @@ export async function GET(req: NextRequest) {
 
 // POST — ajukan klaim medis (baris perawatan multi: treated/diagnosa/kwitansi/
 // dokter/RS + bill/reimburse/approved) — padanan Medical Claim form + ESS wizard.
+// Guard (fix audit): validasi tanggal (M-2), dedupe kwitansi (M-8), enforce sisa
+// plafon pool yang benar (K-1/K-2/K-3). requireMutator: VIEWER 403 + aktor sesi.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const actor = readSessionCookie(req);
-    const actorId = actor?.uid ?? "system";
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    // aktor sesi nyata (AppUser bila ada — mis. hrd@mii.co.id → MII000001)
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     if (!b.employeeId || !b.typeId || !b.claimDate || !Array.isArray(b.lines) || b.lines.length === 0) {
       return NextResponse.json({ error: "employeeId, typeId, claimDate & lines wajib" }, { status: 400 });
     }
-    const res = await submitClaim(db, {
+    const res = await submitClaim(m.db, {
       employeeId: String(b.employeeId),
       typeId: String(b.typeId),
       claimDate: String(b.claimDate),
@@ -89,19 +99,19 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — Operation oranHR: submit | return | approve | reject | cancel | settle.
-// Settle = jurnal otomatis + saldo used bertambah.
+// Settle = jurnal otomatis + saldo used bertambah. Guard re-check sisa plafon
+// (K-1/K-2) + requireMutator (VIEWER 403; decidedBy/settledBy = aktor sesi).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const actor = readSessionCookie(req);
-    const actorId = actor?.uid ?? "system";
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     const actions = ["submit", "return", "approve", "reject", "cancel", "settle"];
     if (!b.id || !actions.includes(b.action)) {
       return NextResponse.json({ error: `id & action (${actions.join("|")}) wajib` }, { status: 400 });
     }
-    const res = await decideClaim(db, {
+    const res = await decideClaim(m.db, {
       claimId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,

@@ -58,6 +58,14 @@ export interface ClaimPreviewUI {
   freqUnlimited: boolean; freqValue: number; freqPeriod: string;
   needReceipt: boolean; dependentEnabled: boolean;
   providers: { id: string; name: string; kind: string }[];
+  // ---- tambahan (fix audit K-1/K-2/K-3 — additive, opsional utk kompatibilitas) ----
+  joinDate?: string | null;
+  depRemaining?: number;
+  claimPool?: "employee" | "dependent";
+  /** sisa pool yang benar setelah reservasi klaim menunggu (guard K-1/K-2). */
+  remainingForClaim?: number;
+  pendingReserved?: number;
+  poolNote?: string | null;
 }
 
 export interface AdjustmentUI {
