@@ -159,6 +159,8 @@ model Employee {
   leaveBalances        LeaveBalance[]
   leaveRequests        LeaveRequest[]
   leaveEncashments     LeaveEncashment[]
+  travelRequests       TravelRequest[]
+  travelClaims         TravelClaim[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -1137,4 +1139,200 @@ model MassLeave {
   updatedAt         DateTime @updatedAt
 
   leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+}
+
+// ============ TRAVEL ADMINISTRATION (ref: ANALISA-TRAVEL.md — oranHR 12 halaman) ============
+
+// Zona wilayah perjalanan — padanan "Domestic Zone Definition" (LOCAL/JAWA BARAT/ASIA/OTHERS).
+model TravelZone {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  overseas  Boolean  @default(false) // zona luar negeri → expense O-*
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  destinations TravelDestination[]
+}
+
+// Template perjalanan — padanan "Travel Administration Template" (ClaimTmpl.jsp):
+// settlementDay = batas hari settlement setelah kembali (oranHR: 14).
+model TravelTemplate {
+  id               String   @id @default(cuid())
+  code             String   @unique // TRAVEL|TRAVEL-LOCAL|TRAVEL-OVERSEAS|...
+  name             String
+  isDefault        Boolean  @default(false)
+  description      String?
+  settlementDay    Int      @default(14)
+  settlementMethod String   @default("Kas") // Kas|Payroll
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  requests TravelRequest[]
+  claims   TravelClaim[]
+}
+
+// Jenis biaya + aturan — padanan "Travel Expense Definition" + "Definition Rules"
+// (ExpenseDefinition.jsp + ExpenseDefinitionDesc.jsp): limit nominal, akun Debit/Kredit,
+// komponen upah kompensasi (interface payroll oranHR "Compensation Wage").
+model TravelExpenseType {
+  id            String   @id @default(cuid())
+  code          String   @unique // L-HOTEL|O-HOTEL|L-POCKET|E-GIFT|L-BBM|ADVANCE
+  name          String
+  kind          String   @default("GENERAL") // GENERAL|ALLOWANCE|MILEAGE|ENTERTAINMENT
+  description   String?
+  needDocs      Boolean  @default(false)
+  // Rules (ExpenseDefinitionDesc):
+  limitAmount   Float    @default(0) // 0 = tanpa limit nominal
+  unlimited     Boolean  @default(false)
+  currency      String   @default("IDR")
+  compWageCode  String?  // wage code kompensasi (padanan Compensation Wage)
+  debitAccount  String?  // akun beban (Expense Chart of Account)
+  creditAccount String?  // akun lawan (kas/utang)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Budget travel tahunan — padanan "Travel Budget" (TravelPeriod.jsp):
+// total terpakai dihitung dari klaim Transferred; over-budget = warning (bukan blokir),
+// sesuai perilaku nyata oranHR MII (2024: used > budget tetap diproses).
+model TravelBudget {
+  id          String   @id @default(cuid())
+  year        Int      @unique
+  startDate   DateTime
+  endDate     DateTime
+  currency    String   @default("IDR")
+  totalBudget Float    @default(0)
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items TravelBudgetItem[]
+}
+
+// Rincian budget per cost center — padanan detail "Budget Per Cost Center".
+model TravelBudgetItem {
+  id         String   @id @default(cuid())
+  budgetId   String
+  costCenter String
+  amount     Float    @default(0)
+  note       String?
+
+  budget TravelBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+}
+
+// Permintaan perjalanan dinas — padanan "Travel Request" (TravelRequest.jsp):
+// header + destinasi multi-kaki + uang muka (cash advance).
+model TravelRequest {
+  id           String    @id @default(cuid())
+  docNo        String    @unique // TR-2026-001
+  employeeId   String
+  requestDate  DateTime  @default(now())
+  dateFrom     DateTime
+  dateTo       DateTime
+  templateId   String
+  costCenter   String?
+  purpose      String
+  remark       String?
+  status       String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled
+  claimRequestedAt DateTime? // saat klaim pertama dibuat (padanan Is Claim Requested Yet)
+  decidedById  String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  template     TravelTemplate     @relation(fields: [templateId], references: [id])
+  destinations TravelDestination[]
+  advances     TravelAdvance[]
+  claims       TravelClaim[]
+}
+
+// Kaki perjalanan — padanan "Travel Request/Claim Destination":
+// kota + tanggal + zona + negara + flag overseas (menentukan expense L-*/O-*).
+model TravelDestination {
+  id        String   @id @default(cuid())
+  requestId String
+  seq       Int      @default(1)
+  dateFrom  DateTime
+  dateTo    DateTime
+  city      String
+  country   String   @default("Indonesia")
+  zoneId    String?
+  overseas  Boolean  @default(false)
+  note      String?
+
+  request TravelRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  zone    TravelZone?   @relation(fields: [zoneId], references: [id])
+}
+
+// Uang muka perjalanan — padanan "Cash Advance" (request): tercatat sebagai pinjaman
+// (wage code TRVLOAN oranHR); diselesaikan saat klaim transfer.
+model TravelAdvance {
+  id        String    @id @default(cuid())
+  requestId String
+  amount    Float     @default(0)
+  note      String?
+  givenAt   DateTime  @default(now())
+
+  request TravelRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+// Klaim / settlement — padanan "Travel & Entertainment Settlement" (TravelClaim.jsp).
+// Formula oranHR dipertahankan:
+//   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
+// Status final "Transferred"/"Paid" setelah masuk payroll run (wage UTRP/TRVSTLIN).
+model TravelClaim {
+  id               String    @id @default(cuid())
+  docNo            String    @unique // CL-2026-001
+  requestId        String?   // klaim mandiri tanpa request diperbolehkan (padanan oranHR)
+  employeeId       String
+  claimDate        DateTime  @default(now())
+  templateId       String
+  costCenter       String?
+  purpose          String?
+  remark           String?
+  status           String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled|Transferred|Paid
+  otherCompanyExp  Float     @default(0) // (a) biaya dibayar pihak lain
+  exchangeLoss     Float     @default(0) // (a) rugi selisih kurs
+  payableEmployee  Float     @default(0) // (b) dibayar ke karyawan
+  payableCompany   Float     @default(0) // (c) dikembalikan ke perusahaan
+  totalSettlement  Float     @default(0) // (a)+(b)-(c) — negative = karyawan bon
+  settlementMethod String    @default("Kas")
+  voucherNo        String?
+  journalNo        String?   // terisi saat approve → posting jurnal
+  journalDate      DateTime?
+  periodCode       String?   // period payroll target saat transfer
+  transferredRunNo String?
+  paidRunNo        String?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  employee  Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  request   TravelRequest?      @relation(fields: [requestId], references: [id])
+  template  TravelTemplate      @relation(fields: [templateId], references: [id])
+  expenses  TravelClaimExpense[]
+}
+
+// Baris biaya klaim — padanan 4 tab oranHR (General Expense / Allowance / Mileage /
+// Entertainment Expense + Guest) menjadi satu tabel dengan kind + limit check per jenis.
+model TravelClaimExpense {
+  id          String    @id @default(cuid())
+  claimId     String
+  expenseCode String
+  kind        String    @default("GENERAL")
+  expenseDate DateTime?
+  description String?
+  amount      Float     @default(0)
+  qty         Float     @default(1) // unit (hari utk allowance, km utk mileage)
+  guestName   String?   // Entertainment Guest — nama tamu/relasi
+  overLimit   Boolean   @default(false) // amount > limit jenis (warning, tetap boleh)
+
+  claim TravelClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
 }

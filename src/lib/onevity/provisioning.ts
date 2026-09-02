@@ -467,4 +467,117 @@ export async function ensureLeaveReference(db: TenantDb): Promise<void> {
       },
     });
   }
+
+  await ensureTravelReference(db);
+}
+
+// ============ TRAVEL REFERENCE (ref: ANALISA-TRAVEL.md) ============
+
+// Master travel idempoten — padanan General Setting oranHR (12 halaman → master OneVity):
+// 4 zona (Domestic Zone), 5 template (ClaimTmpl — settlement day 14), 14 jenis biaya
+// (Expense Definition + Rules: limit & akun), komponen upah UTRP/TRVSTLIN (Wage
+// Definition: compensation & deduction), akun 5105, budget tahun berjalan.
+const TRAVEL_ZONE_DEFS: { code: string; name: string; overseas: boolean }[] = [
+  { code: "LOCAL", name: "Lokal / Dalam Kota", overseas: false },
+  { code: "JABAR", name: "Jawa Barat (Bandung)", overseas: false },
+  { code: "ASIA", name: "Asia (kecuali Jepang)", overseas: true },
+  { code: "OTHERS", name: "Jepang, US, Eropa, dll.", overseas: true },
+];
+
+export const TRAVEL_TEMPLATE_DEFS: {
+  code: string; name: string; description?: string; isDefault?: boolean;
+  settlementDay: number; settlementMethod: string;
+}[] = [
+  { code: "TRAVEL", name: "Perjalanan Dinas Standar", description: "Template default semua perjalanan dinas", isDefault: true, settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-LOCAL", name: "Perjalanan Dinas Lokal", description: "Perjalanan dalam kota / radius dekat", settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-LOCAL-150", name: "Perjalanan Lokal ≤150 km", description: "Padanan oranHR TRAVEL LOCAL 150KM — settled by cash", settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-OVERSEAS", name: "Perjalanan Dinas Luar Negeri", description: "Dinas ke luar negeri (expense O-*, kurs)", settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-KA", name: "Perjalanan Dinas Kereta", description: "Padanan oranHR TRAVEL_KA — transportasi KA", settlementDay: 14, settlementMethod: "Kas" },
+];
+
+export const TRAVEL_EXPENSE_DEFS: {
+  code: string; name: string; kind: string; description?: string;
+  limitAmount?: number; needDocs?: boolean; compWageCode?: string;
+}[] = [
+  // General Expense — lokal (padanan L-*)
+  { code: "L-HOTEL", name: "Hotel (Dalam Negeri)", kind: "GENERAL", description: "Penginapan perjalanan domestik", limitAmount: 2_000_000, needDocs: true },
+  { code: "L-TRANSPORT", name: "Transportasi (Dalam Negeri)", kind: "GENERAL", description: "Tiket pesawat/KA/taksi perjalanan domestik", needDocs: true },
+  { code: "L-MEALS", name: "Makan (Dalam Negeri)", kind: "GENERAL" },
+  { code: "L-PHONE", name: "Komunikasi (Dalam Negeri)", kind: "GENERAL", limitAmount: 500_000 },
+  { code: "L-LAUNDRY", name: "Laundry (Dalam Negeri)", kind: "GENERAL", limitAmount: 300_000 },
+  // General Expense — luar negeri (padanan O-*)
+  { code: "O-HOTEL", name: "Hotel (Luar Negeri)", kind: "GENERAL", description: "Penginapan perjalanan luar negeri", needDocs: true },
+  { code: "O-TRANSPORT", name: "Transportasi (Luar Negeri)", kind: "GENERAL", needDocs: true },
+  { code: "O-MEALS", name: "Makan (Luar Negeri)", kind: "GENERAL" },
+  { code: "O-LICENSE", name: "Visa & Dokumen Perjalanan", kind: "GENERAL", needDocs: true },
+  // Allowance (padanan L-POCKET MONEY)
+  { code: "L-POCKET", name: "Uang Saku Harian", kind: "ALLOWANCE", description: "Pocket money per hari perjalanan", limitAmount: 500_000 },
+  // Mileage (padanan L_BBM / L_SAKU / L-TRANSPORTJARAK)
+  { code: "L-BBM", name: "BBM Kendaraan Dinas", kind: "MILEAGE", limitAmount: 125_000 },
+  { code: "L-JARAK", name: "Biaya Jarak Tempuh", kind: "MILEAGE", description: "Reimburse per km kendaraan pribadi" },
+  // Entertainment (padanan E-*)
+  { code: "E-RESTAURANT", name: "Entertainment — Restoran", kind: "ENTERTAINMENT", limitAmount: 1_500_000, needDocs: true },
+  { code: "E-GIFT", name: "Entertainment — Hadiah", kind: "ENTERTAINMENT", limitAmount: 800_000, needDocs: true },
+];
+
+export async function ensureTravelReference(db: TenantDb): Promise<void> {
+  for (const z of TRAVEL_ZONE_DEFS) {
+    await db.travelZone.upsert({
+      where: { code: z.code },
+      create: { code: z.code, name: z.name, overseas: z.overseas },
+      update: {},
+    });
+  }
+
+  for (const t of TRAVEL_TEMPLATE_DEFS) {
+    await db.travelTemplate.upsert({
+      where: { code: t.code },
+      create: {
+        code: t.code, name: t.name, description: t.description ?? null,
+        isDefault: Boolean(t.isDefault), settlementDay: t.settlementDay,
+        settlementMethod: t.settlementMethod,
+      },
+      update: {},
+    });
+  }
+
+  for (const e of TRAVEL_EXPENSE_DEFS) {
+    await db.travelExpenseType.upsert({
+      where: { code: e.code },
+      create: {
+        code: e.code, name: e.name, kind: e.kind, description: e.description ?? null,
+        needDocs: Boolean(e.needDocs), limitAmount: e.limitAmount ?? 0,
+        debitAccount: "5105", creditAccount: "1101",
+      },
+      update: {},
+    });
+  }
+
+  // akun beban perjalanan (Expense Chart of Account fallback)
+  const acc = await db.account.findUnique({ where: { code: "5105" } });
+  if (!acc) {
+    const ag = await db.accountGroup.findFirst({ where: { code: { startsWith: "5" } } });
+    await db.account.create({
+      data: { code: "5105", name: "Beban Perjalanan Dinas", accountGroupId: ag?.id ?? null, balance: 0 },
+    });
+  }
+
+  // komponen upah interface payroll (padanan Travel Wage Definition:
+  // Wage for Compensation UTRP + Wage for Deduction TRVSTLIN)
+  for (const c of [
+    { code: "UTRP", name: "Kompensasi Perjalanan Dinas", type: "Earning", wageType: "Compensation", tax: "Regular" as const, debit: "5105" },
+    { code: "TRVSTLIN", name: "Potongan Settlement Travel", type: "Deduction", wageType: "Deduction", tax: "NonTaxable" as const, debit: null },
+  ]) {
+    const comp = await db.wageComponent.findUnique({ where: { code: c.code } });
+    if (!comp) {
+      await db.wageComponent.create({
+        data: {
+          code: c.code, name: c.name, type: c.type, wageType: c.wageType,
+          calcMethod: "Fixed", amount: 0, incomeTaxMethod: c.tax,
+          taxable: c.tax !== "NonTaxable", includeInTHP: true,
+          accountDebitCode: c.debit,
+        },
+      });
+    }
+  }
 }

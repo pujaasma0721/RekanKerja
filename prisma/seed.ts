@@ -1147,6 +1147,16 @@ async function main() {
     console.log(`   → ${leaveRes.balances} saldo 2026, ${leaveRes.requests} permintaan, cuti massal ${leaveRes.massGenerated} karyawan, ${leaveRes.encashments} encashment`);
   }
 
+  // ============ TRAVEL (ref: ANALISA-TRAVEL.md — oranHR) ============
+  console.log(" seeding travel…");
+  const { seedTravelDemoData } = await import("../src/lib/onevity/travel-seed");
+  const travelRes = await seedTravelDemoData(db);
+  if (travelRes.skipped) {
+    console.log("   → data travel sudah ada — skip");
+  } else {
+    console.log(`   → ${travelRes.requests} permintaan travel, ${travelRes.claims} klaim, budget ${travelRes.budgetYear}`);
+  }
+
   // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
   const { regenerateRange } = await import("../src/lib/onevity/attendance-service");
   const days = await regenerateRange(db, from, to);

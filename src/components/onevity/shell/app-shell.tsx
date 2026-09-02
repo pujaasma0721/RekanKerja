@@ -44,7 +44,7 @@ export const MODULES: { id: ModuleId; label: string; short: string; icon: React.
   { id: "payroll", label: "Payroll", short: "Payroll", icon: Coins, ready: true },
   { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: true },
   { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: true },
-  { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: false },
+  { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: true },
   { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: false },
 ];
 
@@ -138,9 +138,14 @@ const TRAVEL_NAV: NavGroup[] = [
   { section: "travel", children: [{ id: "requests", label: "Ringkasan", icon: LayoutDashboard }] },
   { section: "travel", label: "Perjalanan Dinas", children: [
     { id: "travel-request", label: "Permintaan Travel", icon: Plane },
-    { id: "travel-claim", label: "Klaim & Settlement", icon: FileText },
-    { id: "travel-budget", label: "Budget Travel", icon: Wallet },
     { id: "travel-approval", label: "Persetujuan", icon: CheckCircle2 },
+    { id: "travel-claim", label: "Klaim & Settlement", icon: FileText },
+    { id: "travel-claim-approval", label: "Approval Klaim & Transfer", icon: Landmark },
+    { id: "travel-budget", label: "Budget Travel", icon: Wallet },
+  ] },
+  { section: "travel", label: "Master & Laporan", children: [
+    { id: "travel-templates", label: "Master Travel", icon: Boxes },
+    { id: "travel-reports", label: "Laporan Travel", icon: BarChart3 },
   ] },
 ];
 

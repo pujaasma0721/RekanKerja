@@ -995,6 +995,180 @@ CREATE TABLE "MassLeave" (
     CONSTRAINT "MassLeave_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "TravelZone" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "overseas" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelZone_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelTemplate" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "description" TEXT,
+    "settlementDay" INTEGER NOT NULL DEFAULT 14,
+    "settlementMethod" TEXT NOT NULL DEFAULT 'Kas',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelExpenseType" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'GENERAL',
+    "description" TEXT,
+    "needDocs" BOOLEAN NOT NULL DEFAULT false,
+    "limitAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "unlimited" BOOLEAN NOT NULL DEFAULT false,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "compWageCode" TEXT,
+    "debitAccount" TEXT,
+    "creditAccount" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelExpenseType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelBudget" (
+    "id" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "totalBudget" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelBudget_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelBudgetItem" (
+    "id" TEXT NOT NULL,
+    "budgetId" TEXT NOT NULL,
+    "costCenter" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "note" TEXT,
+
+    CONSTRAINT "TravelBudgetItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "requestDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dateFrom" TIMESTAMP(3) NOT NULL,
+    "dateTo" TIMESTAMP(3) NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "costCenter" TEXT,
+    "purpose" TEXT NOT NULL,
+    "remark" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "claimRequestedAt" TIMESTAMP(3),
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelDestination" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "seq" INTEGER NOT NULL DEFAULT 1,
+    "dateFrom" TIMESTAMP(3) NOT NULL,
+    "dateTo" TIMESTAMP(3) NOT NULL,
+    "city" TEXT NOT NULL,
+    "country" TEXT NOT NULL DEFAULT 'Indonesia',
+    "zoneId" TEXT,
+    "overseas" BOOLEAN NOT NULL DEFAULT false,
+    "note" TEXT,
+
+    CONSTRAINT "TravelDestination_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelAdvance" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "note" TEXT,
+    "givenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TravelAdvance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelClaim" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "requestId" TEXT,
+    "employeeId" TEXT NOT NULL,
+    "claimDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "templateId" TEXT NOT NULL,
+    "costCenter" TEXT,
+    "purpose" TEXT,
+    "remark" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "otherCompanyExp" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "exchangeLoss" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "payableEmployee" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "payableCompany" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalSettlement" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "settlementMethod" TEXT NOT NULL DEFAULT 'Kas',
+    "voucherNo" TEXT,
+    "journalNo" TEXT,
+    "journalDate" TIMESTAMP(3),
+    "periodCode" TEXT,
+    "transferredRunNo" TEXT,
+    "paidRunNo" TEXT,
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelClaim_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelClaimExpense" (
+    "id" TEXT NOT NULL,
+    "claimId" TEXT NOT NULL,
+    "expenseCode" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'GENERAL',
+    "expenseDate" TIMESTAMP(3),
+    "description" TEXT,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "qty" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "guestName" TEXT,
+    "overLimit" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "TravelClaimExpense_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -1159,6 +1333,24 @@ CREATE INDEX "LeaveEncashment_employeeId_idx" ON "LeaveEncashment"("employeeId")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MassLeave_docNo_key" ON "MassLeave"("docNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelZone_code_key" ON "TravelZone"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelTemplate_code_key" ON "TravelTemplate"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelExpenseType_code_key" ON "TravelExpenseType"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelBudget_year_key" ON "TravelBudget"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelRequest_docNo_key" ON "TravelRequest"("docNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TravelClaim_docNo_key" ON "TravelClaim"("docNo");
 
 -- AddForeignKey
 ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1354,4 +1546,34 @@ ALTER TABLE "LeaveEncashment" ADD CONSTRAINT "LeaveEncashment_leaveTypeId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "MassLeave" ADD CONSTRAINT "MassLeave_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelBudgetItem" ADD CONSTRAINT "TravelBudgetItem_budgetId_fkey" FOREIGN KEY ("budgetId") REFERENCES "TravelBudget"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelRequest" ADD CONSTRAINT "TravelRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelRequest" ADD CONSTRAINT "TravelRequest_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "TravelTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelDestination" ADD CONSTRAINT "TravelDestination_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "TravelRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelDestination" ADD CONSTRAINT "TravelDestination_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "TravelZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelAdvance" ADD CONSTRAINT "TravelAdvance_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "TravelRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelClaim" ADD CONSTRAINT "TravelClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelClaim" ADD CONSTRAINT "TravelClaim_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "TravelRequest"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelClaim" ADD CONSTRAINT "TravelClaim_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "TravelTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelClaimExpense" ADD CONSTRAINT "TravelClaimExpense_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "TravelClaim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
