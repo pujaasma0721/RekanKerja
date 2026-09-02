@@ -503,6 +503,9 @@ async function main() {
     { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
     { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
     { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", sptReference: "Gaji" },
+    { code: "TLATE", name: "Potongan Keterlambatan", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "2105" },
+    { code: "TABS", name: "Potongan Absen (Alpha)", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "2105" },
+    { code: "TKEHADIRAN", name: "Tunjangan Kehadiran", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, accountDebitCode: "5102" },
     { code: "BEN_MED", name: "Benefit Medis (Reimburse)", type: "Earning", wageType: "CompensationNatura", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "5104" },
     { code: "BEN_GEN", name: "Benefit Karyawan", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", accountDebitCode: "5104" },
   ];
@@ -808,24 +811,28 @@ async function main() {
     description: "Rawat jalan, obat, lab & medical check-up. Natura kesehatan (non-objek pajak).",
     resetPeriod: "Monthly", maxClaimAmount: 2_000_000, needDocuments: true,
     autoApproveInLimit: true, payInPayroll: true, wageComponentId: compIds["BEN_MED"],
+    validFrom: new Date(2026, 0, 1),
   } });
   const btGlasses = await db.benefitType.create({ data: {
     code: "GLASSES", name: "Ganti Kacamata", category: "Kesehatan",
     description: "Penggantian kacamata + pemeriksaan mata (1x per tahun).",
     resetPeriod: "Yearly", maxClaimAmount: 1_500_000, needDocuments: true,
     autoApproveInLimit: false, payInPayroll: true, wageComponentId: compIds["BEN_GEN"],
+    validFrom: new Date(2026, 0, 1),
   } });
   const btSport = await db.benefitType.create({ data: {
     code: "SPORT", name: "Fasilitas Olahraga & Gym", category: "Rekreasi",
     description: "Reimburse keanggotaan gym/olahraga bulanan.",
     resetPeriod: "Monthly", maxClaimAmount: 500_000, allowOverlimit: true,
     autoApproveInLimit: true, payInPayroll: true, wageComponentId: compIds["BEN_GEN"],
+    validFrom: new Date(2026, 0, 1),
   } });
   const btWedding = await db.benefitType.create({ data: {
     code: "WEDDING", name: "Bantuan Pernikahan Karyawan", category: "Perayaan",
     description: "Bantuan pernikahan pertama karyawan — dibayar langsung dari kas.",
     resetPeriod: "None", maxClaimAmount: 2_500_000, needDocuments: true,
     autoApproveInLimit: false, payInPayroll: false,
+    validFrom: new Date(2026, 0, 1),
   } });
   // Sri: medical 800rb (auto-approve) lalu 2,1jt ditolak (overlimit tanpa izin).
   await submitClaim(db, { employeeId: empIds[1], benefitTypeId: btMedical.id, amount: 800_000,
@@ -901,6 +908,239 @@ async function main() {
   }
   await mkRun("2026-09"); // Draft — sengaja dibiarkan utk demo
 
+
+  // ============ TIME ATTENDANCE (ref: ANALISA-ATTENDANCE.md — oranHR) ============
+  console.log(" seeding attendance…");
+  // -- tipe hari (padanan DayType.jsp)
+  const dayTypeDefs: { code: string; name: string; color: string; category: string; timeIn?: string; timeOut?: string; nextDay?: boolean; breakMinutes?: number; normalMinutes?: number; tolLate?: number; tolEarly?: number; flexible?: boolean }[] = [
+    { code: "OFFICE", name: "Jam Kantor 08:00-17:00", color: "#99CCFF", category: "Workday", timeIn: "08:00", timeOut: "17:00", breakMinutes: 60, normalMinutes: 480, tolLate: 10, tolEarly: 10 },
+    { code: "FLEX", name: "Jam Fleksibel (min. 7 jam)", color: "#E7E5E4", category: "Workday", timeIn: "07:00", timeOut: "16:00", normalMinutes: 420, tolLate: 60, tolEarly: 60, flexible: true },
+    { code: "SHIFT1", name: "Shift Pagi 06:00-14:00", color: "#A7F3D0", category: "Workday", timeIn: "06:00", timeOut: "14:00", breakMinutes: 30, normalMinutes: 450, tolLate: 5, tolEarly: 5 },
+    { code: "SHIFT2", name: "Shift Siang 14:00-22:00", color: "#FDE68A", category: "Workday", timeIn: "14:00", timeOut: "22:00", breakMinutes: 30, normalMinutes: 450, tolLate: 5, tolEarly: 5 },
+    { code: "SHIFT3", name: "Shift Malam 22:00-06:00", color: "#C7D2FE", category: "Workday", timeIn: "22:00", timeOut: "06:00", nextDay: true, breakMinutes: 30, normalMinutes: 450, tolLate: 5, tolEarly: 5 },
+    { code: "OFF", name: "Day Off", color: "#FCA5A5", category: "Off" },
+    { code: "OFFSAT", name: "Libur Sabtu", color: "#86EFAC", category: "Off" },
+    { code: "OFFSPH", name: "Libur Minggu & Hari Raya", color: "#FCA5A5", category: "Off" },
+  ];
+  const dtIds: Record<string, string> = {};
+  for (const d of dayTypeDefs) {
+    const dt = await db.workDayType.create({
+      data: {
+        code: d.code, name: d.name, color: d.color, category: d.category,
+        timeIn: d.timeIn ?? null, timeOut: d.timeOut ?? null, nextDay: d.nextDay ?? false,
+        breakMinutes: d.breakMinutes ?? 0, breakPaid: false,
+        normalMinutes: d.normalMinutes ?? 0,
+        toleranceLateMinutes: d.tolLate ?? 0, toleranceEarlyMinutes: d.tolEarly ?? 0,
+        flexible: d.flexible ?? false, needOvertimeOrder: true,
+      },
+    });
+    dtIds[d.code] = dt.id;
+  }
+
+  // -- jadwal cycle (padanan WorkSchedule.jsp)
+  const scheduleDefs: { code: string; name: string; days: string[] }[] = [
+    { code: "OFFICE-STD", name: "Jadwal Kantor (Senin-Jumat)", days: ["OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFSAT", "OFFSPH"] },
+    { code: "ROTASI-3R", name: "Rotasi 3 Regu (Pagi-Siang-Malam-Off-Off)", days: ["SHIFT1", "SHIFT2", "SHIFT3", "OFF", "OFF"] },
+  ];
+  const schedIds: Record<string, string> = {};
+  for (const s of scheduleDefs) {
+    const sched = await db.workSchedule.create({
+      data: {
+        code: s.code, name: s.name, cycleDays: s.days.length,
+        days: { create: s.days.map((code, i) => ({ sequence: i + 1, dayTypeId: dtIds[code]! })) },
+      },
+    });
+    schedIds[s.code] = sched.id;
+  }
+
+  // -- aturan singleton (padanan Overtime Specified + Rounding + Absence Wage Rules)
+  await db.attendanceRule.create({
+    data: {
+      roundingMinutes: 5, minOvertimeMinutes: 30, overtimeRoundingMinutes: 30,
+      nonClockingPolicy: "AssumeNormal",
+      overtimeComponentCode: "LEMBUR", lateDeductionComponentCode: "TLATE",
+      absenceDeductionComponentCode: "TABS", attendanceAllowanceComponentCode: "TKEHADIRAN",
+      attendanceAllowanceAmount: 250000, lateDeductionPerHour: 0, absenceDeductionPerDay: 0,
+    },
+  });
+
+  // -- penugasan jadwal (padanan EmpWorkSchedule.jsp):
+  //    operator produksi → rotasi 3 regu (anchor mengikuti regu kerja), lainnya kantor.
+  //    Non-clocking: direksi (CEO) + security satpam (jam dianggap normal).
+  const anchorMonday = new Date(2026, 7, 3); // Senin 3 Agu 2026
+  const activeEmployees = await db.employee.findMany({
+    where: { status: "Active" },
+    include: { assignments: { where: { validTo: null }, select: { positionId: true, workShift: true }, take: 1 } },
+    orderBy: { employeeNo: "asc" },
+  });
+  const prodEmployees: { id: string; regu: number }[] = [];
+  for (const e of activeEmployees) {
+    const a = e.assignments[0];
+    const isOperator = a?.workShift === "Shift 1" || a?.workShift === "Shift 2" || a?.workShift === "Shift 3";
+    const isNonClocking = e.employeeNo === "MII00001"; // direksi
+    if (isOperator) {
+      const regu = a?.workShift === "Shift 2" ? 2 : a?.workShift === "Shift 3" ? 3 : 1;
+      await db.scheduleAssignment.create({
+        data: { employeeId: e.id, scheduleId: schedIds["ROTASI-3R"]!, anchorMonday, anchorSequence: regu, clockingRequired: true, validFrom: new Date(2026, 7, 1), notes: `Regu ${regu} produksi` },
+      });
+      prodEmployees.push({ id: e.id, regu });
+    } else {
+      await db.scheduleAssignment.create({
+        data: { employeeId: e.id, scheduleId: schedIds["OFFICE-STD"]!, anchorMonday, anchorSequence: 1, clockingRequired: !isNonClocking, validFrom: new Date(2026, 7, 1), notes: isNonClocking ? "Non-clocking (direksi)" : "Jam kantor" },
+      });
+    }
+  }
+
+  // -- clock log + lembur + izin (deterministik: Agu–Sep 2026)
+  const atTime = (base: Date, hhmm: string, addDays = 0) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date(base);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + addDays);
+    d.setHours(h, m, 0, 0);
+    return d;
+  };
+  const ROTASI = ["SHIFT1", "SHIFT2", "SHIFT3", "OFF", "OFF"];
+  const OFFICE_CYCLE = ["OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFSAT", "OFFSPH"];
+  const dtByCode = Object.fromEntries(dayTypeDefs.map((d) => [d.code, d]));
+
+  const clockRows: { employeeId: string; timestamp: Date; direction: string; source: string; note?: string }[] = [];
+  const otPlans: { employeeId: string; date: Date; timeFrom: Date; timeTo: Date; dayCategory: string; verified: number; status: string; paidRunNo?: string }[] = [];
+  const todaySeed = new Date(2026, 8, 1); // "hari ini" demo = 1 Sep 2026
+  const from = new Date(2026, 7, 1);
+  const to = new Date(2026, 8, 30);
+
+  for (const e of activeEmployees) {
+    const a = e.assignments[0];
+    const isOperator = a?.workShift === "Shift 1" || a?.workShift === "Shift 2" || a?.workShift === "Shift 3";
+    const regu = a?.workShift === "Shift 2" ? 2 : a?.workShift === "Shift 3" ? 3 : 1;
+    const isNonClocking = e.employeeNo === "MII00001";
+    if (isNonClocking) continue;
+
+    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      const date = new Date(d);
+      const offset = Math.round((date.getTime() - anchorMonday.getTime()) / 86_400_000);
+      const code = isOperator
+        ? ROTASI[((offset + regu - 1) % 5 + 5) % 5]!
+        : OFFICE_CYCLE[(offset % 7 + 7) % 7]!;
+      const dt = dtByCode[code]!;
+      if (dt.category !== "Workday") continue;
+
+      const r = rnd();
+      if (r < 0.025) continue; // absen tanpa clock
+      const late = r > 0.9 && r <= 0.965; // ~6,5% telat
+      const early = r > 0.965 && r <= 0.985; // ~2% pulang cepat
+      const inShift = late ? randInt(dt.tolLate! + 15, dt.tolLate! + 70) : randInt(-15, dt.tolLate! - 3);
+      const [inH, inM] = dt.timeIn!.split(":").map(Number);
+      const outShift = early ? -randInt(dt.tolEarly! + 50, dt.tolEarly! + 110) : randInt(-5, 25);
+      const [outH, outM] = dt.timeOut!.split(":").map(Number);
+      const nextDay = dt.nextDay ? 1 : 0;
+
+      const inD = new Date(date); inD.setHours(0, 0, 0, 0); inD.setHours(inH, inM + inShift, 0, 0);
+      const outD = new Date(date); outD.setHours(0, 0, 0, 0); outD.setDate(outD.getDate() + nextDay); outD.setHours(outH, outM + outShift, 0, 0);
+      clockRows.push({ employeeId: e.id, timestamp: inD, direction: "IN", source: "Web" });
+      clockRows.push({ employeeId: e.id, timestamp: outD, direction: "OUT", source: "Web" });
+
+      // lembur sehari seminggu utk operator (weekdays) — jam clock melebar
+      if (isOperator && date.getDay() === 3 && rnd() < 0.5 && date < todaySeed) {
+        const otMin = pick([120, 150, 180, 210]);
+        const outOvertime = new Date(outD); outOvertime.setMinutes(outOvertime.getMinutes() + otMin);
+        // ganti OUT biasa dgn OUT lembur
+        clockRows.pop();
+        clockRows.push({ employeeId: e.id, timestamp: outOvertime, direction: "OUT", source: "Web", note: "Lembur linimasa order" });
+        otPlans.push({
+          employeeId: e.id, date: new Date(date),
+          timeFrom: new Date(outD), timeTo: outOvertime,
+          dayCategory: "Weekday", verified: otMin,
+          status: date >= new Date(2026, 8, 1) ? "Approved" : "Paid",
+          paidRunNo: date < new Date(2026, 8, 1) ? "PR-2026-08-SAL-01" : undefined,
+        });
+      }
+    }
+  }
+  // rekap lembur weekend: 3 operator masuk hari Minggu (order + clock penuh)
+  for (const p of prodEmployees.slice(0, 3)) {
+    const sun = new Date(2026, 8, 13); // Minggu 13 Sep 2026
+    const inD = atTime(sun, "08:00");
+    const outD = atTime(sun, "14:00");
+    clockRows.push({ employeeId: p.id, timestamp: inD, direction: "IN", source: "Web", note: "Lembur hari libur — maintenance mesin" });
+    clockRows.push({ employeeId: p.id, timestamp: outD, direction: "OUT", source: "Web" });
+    otPlans.push({ employeeId: p.id, date: sun, timeFrom: inD, timeTo: outD, dayCategory: "Weekend", verified: 360, status: "Approved" });
+  }
+  // permintaan lembur pending & rejected (utk demo approval)
+  const otPending1 = prodEmployees[3] ?? prodEmployees[0]!;
+  otPlans.push({ employeeId: otPending1.id, date: new Date(2026, 8, 3), timeFrom: atTime(new Date(2026, 8, 3), "17:00"), timeTo: atTime(new Date(2026, 8, 3), "21:00"), dayCategory: "Weekday", verified: 0, status: "Pending" });
+  const otPending2 = activeEmployees[5]!;
+  otPlans.push({ employeeId: otPending2.id, date: new Date(2026, 8, 4), timeFrom: atTime(new Date(2026, 8, 4), "17:00"), timeTo: atTime(new Date(2026, 8, 4), "20:00"), dayCategory: "Weekday", verified: 0, status: "Pending" });
+  const otRejected = prodEmployees[4] ?? prodEmployees[1]!;
+  otPlans.push({ employeeId: otRejected.id, date: new Date(2026, 7, 21), timeFrom: atTime(new Date(2026, 7, 21), "14:00"), timeTo: atTime(new Date(2026, 7, 21), "20:00"), dayCategory: "Weekday", verified: 0, status: "Rejected" });
+
+  await db.attendanceClockLog.createMany({ data: clockRows.map((c) => ({ ...c, note: c.note ?? null })) });
+  console.log(`   → ${clockRows.length} clock log, ${otPlans.length} perintah lembur`);
+
+  // -- perintah lembur (padanan EmpOvertimeWrit.jsp)
+  let otNo = 1;
+  for (const o of otPlans) {
+    await db.overtimeOrder.create({
+      data: {
+        orderNo: `OT-2026-${String(otNo++).padStart(3, "0")}`,
+        employeeId: o.employeeId, overtimeDate: o.date,
+        timeFrom: o.timeFrom, timeTo: o.timeTo,
+        planMinutes: Math.round((o.timeTo.getTime() - o.timeFrom.getTime()) / 60000),
+        actualMinutes: o.status === "Pending" ? 0 : o.verified,
+        verifiedMinutes: o.status === "Approved" || o.status === "Paid" ? o.verified : 0,
+        dayCategory: o.dayCategory,
+        rateMultiplier: o.dayCategory === "Weekend" ? 2 : 1.5,
+        calculationTime: true,
+        reason: o.status === "Pending" ? "Penyelesaian order ekspor (menunggu approval dept head)" : o.dayCategory === "Weekend" ? "Maintenance mesin linimasa 2 (hari libur)" : "Order ekspor unit batch #47",
+        status: o.status,
+        approverId: o.status === "Rejected" ? "Joko Susilo (Dept Head PRD)" : o.status === "Pending" ? null : "Joko Susilo (Dept Head PRD)",
+        decidedAt: o.status === "Pending" ? null : new Date(o.date.getTime() + 86_400_000),
+        decisionNote: o.status === "Rejected" ? "Tidak ada work order resmi dari dept head — lembur tidak dapat dibayar" : o.status === "Pending" ? null : "Aktual sesuai clocking, jam terverifikasi",
+        paidRunNo: o.paidRunNo ?? null,
+      },
+    });
+  }
+
+  // -- izin tidak masuk (padanan EmployeeWorkOff.jsp)
+  const woDefs: { empIdx: number; from: string; to?: string; allDay: boolean; timeFrom?: string; paid: boolean; deductLeave: boolean; reason: string; status: string; doc?: string }[] = [
+    { empIdx: 2, from: "2026-08-12", allDay: true, paid: true, deductLeave: true, reason: "Acara pernikahan keluarga", status: "Approved", doc: "Surat undangan & izin cuti tahunan" },
+    { empIdx: 4, from: "2026-08-19", allDay: true, paid: false, deductLeave: false, reason: "Urusan pribadi tanpa saldo cuti", status: "Approved" },
+    { empIdx: 6, from: "2026-08-26", allDay: false, timeFrom: "13:00", paid: true, deductLeave: true, reason: "Kontrol ke dokter gigi (setengah hari)", status: "Approved", doc: "Kartu janji dokter Gigi Sehat" },
+    { empIdx: 9, from: "2026-08-05", to: "2026-08-07", allDay: true, paid: true, deductLeave: true, reason: "Sakit flu — resep dokter 3 hari", status: "Approved", doc: "Surat keterangan dokter, 04-08-2026" },
+    { empIdx: 12, from: "2026-09-09", allDay: true, paid: true, deductLeave: true, reason: "Mengantar orang tua ke luar kota", status: "Pending" },
+    { empIdx: 15, from: "2026-09-10", allDay: true, paid: false, deductLeave: false, reason: "Keperluan mendadak", status: "Pending" },
+    { empIdx: 18, from: "2026-08-14", allDay: true, paid: true, deductLeave: false, reason: "Izin dispensasi musibah keluarga", status: "Rejected" },
+    { empIdx: 21, from: "2026-09-16", allDay: false, timeFrom: "13:00", paid: true, deductLeave: true, reason: "Rapat sekolah anak (setengah hari)", status: "Pending" },
+  ];
+  let woNo = 1;
+  for (const w of woDefs) {
+    const emp = activeEmployees[w.empIdx];
+    if (!emp) continue;
+    await db.workOffPermission.create({
+      data: {
+        docNo: `WO-2026-${String(woNo++).padStart(3, "0")}`,
+        employeeId: emp.id,
+        dateFrom: new Date(`${w.from}T00:00:00`),
+        dateTo: new Date(`${w.to ?? w.from}T00:00:00`),
+        allDay: w.allDay,
+        timeFrom: w.allDay ? null : w.timeFrom ?? null,
+        timeTo: w.allDay ? null : "17:00",
+        paid: w.paid, deductLeave: w.deductLeave,
+        reason: w.reason,
+        documentNote: w.doc ?? null,
+        status: w.status,
+        approverId: w.status === "Pending" ? null : "Tri Handayani (HR Manager)",
+        decidedAt: w.status === "Pending" ? null : new Date(2026, 7, 30),
+        decisionNote: w.status === "Rejected" ? "Dokumen pendukung tidak melampirkan bukti musibah" : w.status === "Approved" ? "Disetujui" : null,
+      },
+    });
+  }
+
+  // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
+  const { regenerateRange } = await import("../src/lib/onevity/attendance-service");
+  const days = await regenerateRange(db, from, to);
+  console.log(`   → ${days} rekap harian dihitung (1 Agu – 30 Sep 2026)`);
 
   // ============ PERSONNEL ACTIONS ============
   let paNo = 1;

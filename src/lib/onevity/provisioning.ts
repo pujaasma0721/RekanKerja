@@ -109,6 +109,9 @@ const COMP_DEFS: CompDef[] = [
   { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
   { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
   { code: "RAPEL", name: "Back Pay (Rapel)", type: "Earning", wageType: "BackPay", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", sptReference: "Gaji" },
+  { code: "TLATE", name: "Potongan Keterlambatan", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "2105" },
+  { code: "TABS", name: "Potongan Absen (Alpha)", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "2105" },
+  { code: "TKEHADIRAN", name: "Tunjangan Kehadiran", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, accountDebitCode: "5102" },
   { code: "BEN_MED", name: "Benefit Medis (Reimburse)", type: "Earning", wageType: "CompensationNatura", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", accountDebitCode: "5104" },
   { code: "BEN_GEN", name: "Benefit Karyawan", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Irregular", accountDebitCode: "5104" },
 ];
@@ -304,4 +307,104 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     resetPeriod: "None", maxClaimAmount: 2_500_000, needDocuments: true,
     autoApproveInLimit: false, payInPayroll: false,
   } });
+
+  await ensureAttendanceReference(db);
+}
+
+// ============ TIME ATTENDANCE REFERENCE (ref: ANALISA-ATTENDANCE.md) ============
+
+const DAY_TYPE_DEFS: {
+  code: string; name: string; color: string; category: string;
+  timeIn?: string; timeOut?: string; nextDay?: boolean; breakMinutes?: number;
+  normalMinutes?: number; toleranceLateMinutes?: number; toleranceEarlyMinutes?: number;
+  flexible?: boolean;
+}[] = [
+  { code: "OFFICE", name: "Jam Kantor 08:00-17:00", color: "#99CCFF", category: "Workday", timeIn: "08:00", timeOut: "17:00", breakMinutes: 60, normalMinutes: 480, toleranceLateMinutes: 10, toleranceEarlyMinutes: 10 },
+  { code: "FLEX", name: "Jam Fleksibel (min. 7 jam)", color: "#E7E5E4", category: "Workday", timeIn: "07:00", timeOut: "16:00", normalMinutes: 420, flexible: true, toleranceLateMinutes: 60, toleranceEarlyMinutes: 60 },
+  { code: "SHIFT1", name: "Shift Pagi 06:00-14:00", color: "#A7F3D0", category: "Workday", timeIn: "06:00", timeOut: "14:00", breakMinutes: 30, normalMinutes: 450, toleranceLateMinutes: 5, toleranceEarlyMinutes: 5 },
+  { code: "SHIFT2", name: "Shift Siang 14:00-22:00", color: "#FDE68A", category: "Workday", timeIn: "14:00", timeOut: "22:00", breakMinutes: 30, normalMinutes: 450, toleranceLateMinutes: 5, toleranceEarlyMinutes: 5 },
+  { code: "SHIFT3", name: "Shift Malam 22:00-06:00", color: "#C7D2FE", category: "Workday", timeIn: "22:00", timeOut: "06:00", nextDay: true, breakMinutes: 30, normalMinutes: 450, toleranceLateMinutes: 5, toleranceEarlyMinutes: 5 },
+  { code: "OFF", name: "Day Off", color: "#FCA5A5", category: "Off" },
+  { code: "OFFSAT", name: "Libur Sabtu", color: "#86EFAC", category: "Off" },
+  { code: "OFFSPH", name: "Libur Minggu & Hari Raya", color: "#FCA5A5", category: "Off" },
+];
+
+const SCHEDULE_DEFS: { code: string; name: string; cycleDays: number; days: string[] }[] = [
+  { code: "OFFICE-STD", name: "Jadwal Kantor (Senin-Jumat)", cycleDays: 7, days: ["OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFSAT", "OFFSPH"] },
+  { code: "ROTASI-3R", name: "Rotasi 3 Regu (Pagi-Siang-Malam-Off-Off)", cycleDays: 5, days: ["SHIFT1", "SHIFT2", "SHIFT3", "OFF", "OFF"] },
+  { code: "ROTASI-2R", name: "Rotasi 2 Regu (Pagi-Siang-Off bergantian)", cycleDays: 4, days: ["SHIFT1", "SHIFT2", "OFF", "OFF"] },
+];
+
+// Master attendance idempoten — dipakai provisioning tenant baru DAN
+// upgrade tenant existing (day type/jadwal/aturan hanya dibuat bila belum ada).
+export async function ensureAttendanceReference(db: TenantDb): Promise<void> {
+  for (const d of DAY_TYPE_DEFS) {
+    await db.workDayType.upsert({
+      where: { code: d.code },
+      create: {
+        code: d.code, name: d.name, color: d.color, category: d.category,
+        timeIn: d.timeIn ?? null, timeOut: d.timeOut ?? null,
+        nextDay: d.nextDay ?? false, breakMinutes: d.breakMinutes ?? 0,
+        normalMinutes: d.normalMinutes ?? 0,
+        toleranceLateMinutes: d.toleranceLateMinutes ?? 0,
+        toleranceEarlyMinutes: d.toleranceEarlyMinutes ?? 0,
+        flexible: d.flexible ?? false, needOvertimeOrder: true,
+      },
+      update: {},
+    });
+  }
+
+  for (const s of SCHEDULE_DEFS) {
+    const existing = await db.workSchedule.findUnique({ where: { code: s.code } });
+    if (!existing) {
+      const dayTypes = await db.workDayType.findMany({ where: { code: { in: s.days } } });
+      const byCode = new Map(dayTypes.map((d) => [d.code, d.id]));
+      await db.workSchedule.create({
+        data: {
+          code: s.code, name: s.name, cycleDays: s.cycleDays,
+          days: {
+            create: s.days.map((code, i) => ({ sequence: i + 1, dayTypeId: byCode.get(code)! })),
+          },
+        },
+      });
+    }
+  }
+
+  const ruleCount = await db.attendanceRule.count();
+  if (ruleCount === 0) {
+    await db.attendanceRule.create({
+      data: {
+        roundingMinutes: 5, minOvertimeMinutes: 30, overtimeRoundingMinutes: 30,
+        nonClockingPolicy: "AssumeNormal",
+        overtimeComponentCode: "LEMBUR", lateDeductionComponentCode: "TLATE",
+        absenceDeductionComponentCode: "TABS", attendanceAllowanceComponentCode: "TKEHADIRAN",
+        attendanceAllowanceAmount: 0, lateDeductionPerHour: 0, absenceDeductionPerDay: 0,
+      },
+    });
+  }
+
+  // pastikan komponen gaji absensi tersedia (tenant lama belum punya TLATE/TABS/TKEHADIRAN)
+  const attendanceCodes = ["LEMBUR", "TLATE", "TABS", "TKEHADIRAN"];
+  const have = await db.wageComponent.findMany({ where: { code: { in: attendanceCodes } }, select: { code: true } });
+  const haveSet = new Set(have.map((c) => c.code));
+  const fallbacks: Record<string, CompDef> = {
+    LEMBUR: { code: "LEMBUR", name: "Lembur (Overtime)", type: "Earning", wageType: "Overtime", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable" },
+    TLATE: { code: "TLATE", name: "Potongan Keterlambatan", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable" },
+    TABS: { code: "TABS", name: "Potongan Absen (Alpha)", type: "Deduction", wageType: "Deduction", calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable" },
+    TKEHADIRAN: { code: "TKEHADIRAN", name: "Tunjangan Kehadiran", type: "Earning", wageType: "Compensation", calcMethod: "Fixed", amount: 0 },
+  };
+  for (const code of attendanceCodes) {
+    if (!haveSet.has(code)) {
+      const c = fallbacks[code];
+      await db.wageComponent.create({
+        data: {
+          code: c.code, name: c.name, type: c.type, wageType: c.wageType,
+          calcMethod: c.calcMethod, amount: 0, formula: c.formula ?? null,
+          incomeTaxMethod: c.incomeTaxMethod ?? "Regular",
+          taxable: (c.incomeTaxMethod ?? "Regular") !== "NonTaxable",
+          includeInTHP: true,
+        },
+      });
+    }
+  }
 }

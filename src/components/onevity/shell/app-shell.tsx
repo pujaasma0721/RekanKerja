@@ -42,7 +42,7 @@ interface NavGroup {
 export const MODULES: { id: ModuleId; label: string; short: string; icon: React.ElementType; ready: boolean }[] = [
   { id: "hr", label: "Human Resource Base", short: "HR Base", icon: Users, ready: true },
   { id: "payroll", label: "Payroll", short: "Payroll", icon: Coins, ready: true },
-  { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: false },
+  { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: true },
   { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: false },
   { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: false },
   { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: false },
@@ -103,7 +103,7 @@ const PAYROLL_NAV: NavGroup[] = [
   ] },
 ];
 
-// Modul berikutnya: struktur menu direncanakan dari studi oranHR — tampil sebagai placeholder.
+// Modul Attendance — terinspirasi struktur menu Time Attendance oranHR (28 halaman → 8 view).
 const ATTENDANCE_NAV: NavGroup[] = [
   { section: "attendance", children: [{ id: "schedules", label: "Ringkasan", icon: LayoutDashboard }] },
   { section: "attendance", label: "Jadwal & Shift", children: [

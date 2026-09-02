@@ -30,25 +30,25 @@ model Company {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  orgUnits OrgUnit[]
+  orgUnits  OrgUnit[]
   employees Employee[]
 }
 
 model OrgUnit {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  parentId   String?
-  companyId  String
-  level      Int      @default(1)
-  headcountBudget Int @default(0)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  parentId        String?
+  companyId       String
+  level           Int      @default(1)
+  headcountBudget Int      @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
 
-  parent   OrgUnit?  @relation("OrgTree", fields: [parentId], references: [id])
-  children OrgUnit[] @relation("OrgTree")
-  company  Company   @relation(fields: [companyId], references: [id])
-  positions Position[]
+  parent      OrgUnit?             @relation("OrgTree", fields: [parentId], references: [id])
+  children    OrgUnit[]            @relation("OrgTree")
+  company     Company              @relation(fields: [companyId], references: [id])
+  positions   Position[]
   assignments EmployeeAssignment[]
 }
 
@@ -67,15 +67,15 @@ model Job {
 }
 
 model Grade {
-  id        String   @id @default(cuid())
-  code      String   @unique
+  id        String  @id @default(cuid())
+  code      String  @unique
   name      String
-  minSalary Float    @default(0)
-  maxSalary Float    @default(0)
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
+  minSalary Float   @default(0)
+  maxSalary Float   @default(0)
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
 
-  positions  Position[]
+  positions   Position[]
   assignments EmployeeAssignment[]
 }
 
@@ -93,12 +93,12 @@ model Position {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  job       Job?      @relation(fields: [jobId], references: [id])
-  orgUnit   OrgUnit?  @relation(fields: [orgUnitId], references: [id])
-  grade     Grade?    @relation(fields: [gradeId], references: [id])
-  reportsTo Position? @relation("PositionTree", fields: [reportsToId], references: [id])
-  directReports Position[] @relation("PositionTree")
-  assignments EmployeeAssignment[]
+  job           Job?                 @relation(fields: [jobId], references: [id])
+  orgUnit       OrgUnit?             @relation(fields: [orgUnitId], references: [id])
+  grade         Grade?               @relation(fields: [gradeId], references: [id])
+  reportsTo     Position?            @relation("PositionTree", fields: [reportsToId], references: [id])
+  directReports Position[]           @relation("PositionTree")
+  assignments   EmployeeAssignment[]
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -107,10 +107,10 @@ model Position {
 // Seluruh data penempatan kerja (unit/posisi/grade/atasan/upah) disimpan di
 // EmployeeAssignment sebagai riwayat berperiode — assignment aktif = validTo null.
 model Employee {
-  id            String   @id @default(cuid())
-  employeeNo    String   @unique
+  id            String    @id @default(cuid())
+  employeeNo    String    @unique
   fullName      String
-  gender        String   @default("M")
+  gender        String    @default("M")
   birthPlace    String?
   birthDate     DateTime?
   nationalId    String? // NIK
@@ -129,49 +129,54 @@ model Employee {
   bankAccount   String?
 
   // lifecycle kepegawaian (bukan riwayat penempatan)
-  companyId     String
-  joinDate      DateTime @default(now())
-  endDate       DateTime?
-  status        String   @default("Active") // Active|Resigned|Terminated|Blacklisted
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  companyId String
+  joinDate  DateTime  @default(now())
+  endDate   DateTime?
+  status    String    @default("Active") // Active|Resigned|Terminated|Blacklisted
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  company   Company   @relation(fields: [companyId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
 
-  family       EmployeeFamily[]
-  education    EmployeeEducation[]
-  experiences  EmployeeExperience[]
-  disciplinary DisciplinaryRecord[]
-  actions      PersonnelAction[]
-  activities   ActivityLog[]
-  assignments  EmployeeAssignment[]
-  managedAssignments EmployeeAssignment[] @relation("AssignmentManager")
-  payrollProfile  EmployeePayrollProfile?
-  loans          EmployeeLoan[]
-  runLines       PayrollRunLine[]
+  family               EmployeeFamily[]
+  education            EmployeeEducation[]
+  experiences          EmployeeExperience[]
+  disciplinary         DisciplinaryRecord[]
+  actions              PersonnelAction[]
+  activities           ActivityLog[]
+  assignments          EmployeeAssignment[]
+  managedAssignments   EmployeeAssignment[]          @relation("AssignmentManager")
+  payrollProfile       EmployeePayrollProfile?
+  loans                EmployeeLoan[]
+  runLines             PayrollRunLine[]
   componentAssignments EmployeeComponentAssignment[]
-  benefitClaims  BenefitClaim[]
+  benefitClaims        BenefitClaim[]
+  scheduleAssignments  ScheduleAssignment[]
+  clockLogs            AttendanceClockLog[]
+  attendanceDailies    AttendanceDaily[]
+  overtimeOrders       OvertimeOrder[]
+  workoffPermissions   WorkOffPermission[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
 // menutup assignment lama (validTo) dan membuka assignment baru (validFrom).
 model EmployeeAssignment {
-  id              String    @id @default(cuid())
-  employeeId      String
-  orgUnitId       String?
-  positionId      String?
-  gradeId         String?
-  managerId       String?
-  employmentStatus String   @default("Permanent") // Permanent|Contract|Probation|Outsourcing
-  workShift       String    @default("Regular")
-  baseSalary      Float     @default(0)
-  validFrom       DateTime  @default(now())
-  validTo         DateTime? // null = penempatan aktif saat ini
-  changeReason    String    @default("Initial") // Initial|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ChangeStatus|ContractRenewal|ExtendProbation|ManualEdit
-  sourceDocNo     String?   // PersonnelAction docNo (jika perubahan via PA)
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  employeeId       String
+  orgUnitId        String?
+  positionId       String?
+  gradeId          String?
+  managerId        String?
+  employmentStatus String    @default("Permanent") // Permanent|Contract|Probation|Outsourcing
+  workShift        String    @default("Regular")
+  baseSalary       Float     @default(0)
+  validFrom        DateTime  @default(now())
+  validTo          DateTime? // null = penempatan aktif saat ini
+  changeReason     String    @default("Initial") // Initial|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ChangeStatus|ContractRenewal|ExtendProbation|ManualEdit
+  sourceDocNo      String? // PersonnelAction docNo (jika perubahan via PA)
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   orgUnit  OrgUnit?  @relation(fields: [orgUnitId], references: [id])
@@ -184,20 +189,20 @@ model EmployeeAssignment {
 }
 
 model EmployeeFamily {
-  id         String    @id @default(cuid())
-  employeeId String
-  relation   String // Spouse|Child|Parent|Sibling
-  name       String
-  gender     String    @default("M")
-  birthDate  DateTime?
-  occupation String?
-  isDependent Boolean  @default(true)
+  id          String    @id @default(cuid())
+  employeeId  String
+  relation    String // Spouse|Child|Parent|Sibling
+  name        String
+  gender      String    @default("M")
+  birthDate   DateTime?
+  occupation  String?
+  isDependent Boolean   @default(true)
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model EmployeeEducation {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   employeeId  String
   level       String // SMA|D3|S1|S2|S3
   institution String
@@ -210,7 +215,7 @@ model EmployeeEducation {
 }
 
 model EmployeeExperience {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   employeeId String
   company    String
   position   String
@@ -222,14 +227,14 @@ model EmployeeExperience {
 }
 
 model DisciplinaryRecord {
-  id          String    @id @default(cuid())
-  employeeId  String
-  warningLevel String   @default("Verbal") // Verbal|Written|Final
-  violation   String
-  sanction    String?
-  issuedAt    DateTime  @default(now())
-  expiresAt   DateTime?
-  notes       String?
+  id           String    @id @default(cuid())
+  employeeId   String
+  warningLevel String    @default("Verbal") // Verbal|Written|Final
+  violation    String
+  sanction     String?
+  issuedAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  notes        String?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
@@ -237,37 +242,37 @@ model DisciplinaryRecord {
 // ============ PERSONNEL ACTION (workflow) ============
 
 model PersonnelAction {
-  id           String   @id @default(cuid())
-  docNo        String   @unique
-  employeeId   String
-  type         String // Hire|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ContractRenewal|ChangeStatus|ExtendProbation|Resignation|Termination|Retirement
-  effectiveDate DateTime @default(now())
-  reason       String?
-  detailJson   String? // type-specific payload (new position, new salary, etc.)
-  status       String   @default("Prepared") // Prepared|Submitted|Approved|Rejected|Processed|Cancelled
-  currentLayer Int      @default(0)
-  createdBy    String?
-  createdAt    DateTime @default(now())
-  submittedAt  DateTime?
-  processedAt  DateTime?
+  id            String    @id @default(cuid())
+  docNo         String    @unique
+  employeeId    String
+  type          String // Hire|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ContractRenewal|ChangeStatus|ExtendProbation|Resignation|Termination|Retirement
+  effectiveDate DateTime  @default(now())
+  reason        String?
+  detailJson    String? // type-specific payload (new position, new salary, etc.)
+  status        String    @default("Prepared") // Prepared|Submitted|Approved|Rejected|Processed|Cancelled
+  currentLayer  Int       @default(0)
+  createdBy     String?
+  createdAt     DateTime  @default(now())
+  submittedAt   DateTime?
+  processedAt   DateTime?
 
-  employee Employee @relation(fields: [employeeId], references: [id])
-  layers   ApprovalLayer[]
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+  layers     ApprovalLayer[]
   activities ActivityLog[]
 }
 
 model ApprovalLayer {
-  id              String    @id @default(cuid())
+  id                String    @id @default(cuid())
   personnelActionId String
-  layerNo         Int
-  approverRole    String // e.g. "HR Manager", "Dept Head", "Director"
-  approverId      String?  // AppUser id
-  status          String    @default("Pending") // Pending|Approved|Rejected
-  note            String?
-  decidedAt       DateTime?
+  layerNo           Int
+  approverRole      String // e.g. "HR Manager", "Dept Head", "Director"
+  approverId        String? // AppUser id
+  status            String    @default("Pending") // Pending|Approved|Rejected
+  note              String?
+  decidedAt         DateTime?
 
   personnelAction PersonnelAction @relation(fields: [personnelActionId], references: [id], onDelete: Cascade)
-  approver        AppUser?       @relation(fields: [approverId], references: [id])
+  approver        AppUser?        @relation(fields: [approverId], references: [id])
 }
 
 // ============ WAGE & ACCOUNTING RULES ============
@@ -276,63 +281,63 @@ model ApprovalLayer {
 // klasifikasi wageType (13), incomeTaxMethod (8), formula, prorata, basis JAMSOSTEK,
 // referensi SPT/natura, pasangan back-pay, dsb.
 model WageComponent {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String
-  type        String   @default("Earning") // wageCategory: Earning|Deduction|Informational
-  wageType    String   @default("Compensation") // BasicSalary|Compensation|CompensationNatura|Deduction|Overtime|Jamsostek|Loan|THPRounding|FinalTax|IncomeTax|Information|BackPay|ServiceCharge
-  calcMethod  String   @default("Fixed") // Fixed|Formula|Percentage|Tax
-  amount      Float    @default(0)
-  formula     String? // ekspresi: BASE_SALARY*0.1, JHT_BASE*JHT_RATE_CO, dst.
-  incomeTaxMethod String @default("Regular") // NonTaxable|Regular|Irregular|FixedRateFinal|SeveranceFinal|PensionFinal|PKP|Final2Years
-  processMethod   String @default("GrossToNet") // GrossToNet|NetToGross
-  roundingType    String @default("Nearest") // RoundingUp|RoundingDown|Nearest
-  roundingValue   Int    @default(1)
-  prorated    Boolean  @default(false)
-  taxable     Boolean  @default(true)
-  includeInBasicIncome Boolean @default(false)
-  includeInTHP     Boolean @default(true)
-  displayInPaySlip Boolean @default(true)
-  applyThrRules    Boolean @default(false)
-  jamsostekBasis   String? // JHT|JP|JKK|JKM|JPK — program JSTK yang jadi basis komponen ini
-  sptReference     String? // kategori bukti potong 1721-A1
-  naturaType       String? // kategori natura PP 68/2024
-  wageCodeBackPay  String? // pasangan komponen back-pay
-  accountDebitCode  String? // Salary Chart of Account: akun beban utk komponen Earning
-  accountCreditCode String? // Salary Chart of Account: akun kewajiban utk komponen Deduction
-  validFrom   DateTime @default(now())
-  validTo     DateTime?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id                   String    @id @default(cuid())
+  code                 String    @unique
+  name                 String
+  type                 String    @default("Earning") // wageCategory: Earning|Deduction|Informational
+  wageType             String    @default("Compensation") // BasicSalary|Compensation|CompensationNatura|Deduction|Overtime|Jamsostek|Loan|THPRounding|FinalTax|IncomeTax|Information|BackPay|ServiceCharge
+  calcMethod           String    @default("Fixed") // Fixed|Formula|Percentage|Tax
+  amount               Float     @default(0)
+  formula              String? // ekspresi: BASE_SALARY*0.1, JHT_BASE*JHT_RATE_CO, dst.
+  incomeTaxMethod      String    @default("Regular") // NonTaxable|Regular|Irregular|FixedRateFinal|SeveranceFinal|PensionFinal|PKP|Final2Years
+  processMethod        String    @default("GrossToNet") // GrossToNet|NetToGross
+  roundingType         String    @default("Nearest") // RoundingUp|RoundingDown|Nearest
+  roundingValue        Int       @default(1)
+  prorated             Boolean   @default(false)
+  taxable              Boolean   @default(true)
+  includeInBasicIncome Boolean   @default(false)
+  includeInTHP         Boolean   @default(true)
+  displayInPaySlip     Boolean   @default(true)
+  applyThrRules        Boolean   @default(false)
+  jamsostekBasis       String? // JHT|JP|JKK|JKM|JPK — program JSTK yang jadi basis komponen ini
+  sptReference         String? // kategori bukti potong 1721-A1
+  naturaType           String? // kategori natura PP 68/2024
+  wageCodeBackPay      String? // pasangan komponen back-pay
+  accountDebitCode     String? // Salary Chart of Account: akun beban utk komponen Earning
+  accountCreditCode    String? // Salary Chart of Account: akun kewajiban utk komponen Deduction
+  validFrom            DateTime  @default(now())
+  validTo              DateTime?
+  active               Boolean   @default(true)
+  createdAt            DateTime  @default(now())
 
-  templateItems   WageTemplateItem[]
-  assignments     EmployeeComponentAssignment[]
-  benefitTypes    BenefitType[]
+  templateItems WageTemplateItem[]
+  assignments   EmployeeComponentAssignment[]
+  benefitTypes  BenefitType[]
 }
 
 // ============ PAYROLL MODULE ============
 
 // Period payroll — multi jendela (payroll, TA/kehadiran) + atribut pajak bulan/tahun.
 model PayrollPeriod {
-  id          String   @id @default(cuid())
-  code        String   @unique // 2026-09
+  id          String    @id @default(cuid())
+  code        String    @unique // 2026-09
   name        String // SEPTEMBER 2026
-  payType     String   @default("Monthly") // Monthly|Weekly|BiWeekly
+  payType     String    @default("Monthly") // Monthly|Weekly|BiWeekly
   startDate   DateTime
   endDate     DateTime
   taStartDate DateTime?
   taEndDate   DateTime?
-  payPeriod   Int      @default(0) // urutan bulan (1-12)
+  payPeriod   Int       @default(0) // urutan bulan (1-12)
   sptMonth    Int
   sptYear     Int
   processDate DateTime? // tanggal eksekusi payroll
-  status      String   @default("Open") // Open|Processed|Closed|Locked
+  status      String    @default("Open") // Open|Processed|Closed|Locked
   notes       String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
-  runs PayrollRun[]
+  runs                 PayrollRun[]
   componentAssignments EmployeeComponentAssignment[]
-  benefitClaims BenefitClaim[]
+  benefitClaims        BenefitClaim[]
 }
 
 // Jenis proses payroll (multi-run per period): Salary, THR, Bonus, Termination, dst.
@@ -344,17 +349,17 @@ model ProcessType {
   calculateTax Boolean @default(true)
   active       Boolean @default(true)
 
-  runs PayrollRun[]
+  runs                 PayrollRun[]
   componentAssignments EmployeeComponentAssignment[]
 }
 
 // Paket komponen upah per karyawan (gaya "Wage Template" oranHR).
 model WageTemplate {
-  id          String  @id @default(cuid())
-  code        String  @unique
+  id          String   @id @default(cuid())
+  code        String   @unique
   name        String
   description String?
-  active      Boolean @default(true)
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
   items    WageTemplateItem[]
@@ -373,21 +378,21 @@ model WageTemplateItem {
 
 // Data payroll per karyawan (NPWP, PTKP, metode proses, template) — 1-1 dengan Employee.
 model EmployeePayrollProfile {
-  id                      String   @id @default(cuid())
-  employeeId              String   @unique
+  id                      String    @id @default(cuid())
+  employeeId              String    @unique
   npwp                    String?
   npwpSubmittedAt         DateTime?
   idtku                   String?
-  hasNpwp                 Boolean  @default(true)
-  processMethod           String   @default("GrossToNet") // GrossToNet|NetToGross
-  paymentFrequency        String   @default("Monthly")
+  hasNpwp                 Boolean   @default(true)
+  processMethod           String    @default("GrossToNet") // GrossToNet|NetToGross
+  paymentFrequency        String    @default("Monthly")
   wageTemplateId          String?
-  taxStatus               String   @default("TK0") // TK0..TK3, K0..K3, KI0..KI3
-  dependents              Int      @default(0)
-  payrollDependentAllowed Boolean  @default(true)
+  taxStatus               String    @default("TK0") // TK0..TK3, K0..K3, KI0..KI3
+  dependents              Int       @default(0)
+  payrollDependentAllowed Boolean   @default(true)
   bankName                String?
   bankAccount             String?
-  active                  Boolean  @default(true)
+  active                  Boolean   @default(true)
 
   employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   wageTemplate WageTemplate? @relation(fields: [wageTemplateId], references: [id])
@@ -395,13 +400,13 @@ model EmployeePayrollProfile {
 
 // Bracket pajak progresif (UU HPP) + penalti non-NPWP — ber-dating.
 model TaxBracket {
-  id          String   @id @default(cuid())
-  bracketType String   @default("Income") // Income|Severance|Pension
+  id          String    @id @default(cuid())
+  bracketType String    @default("Income") // Income|Severance|Pension
   lowerLimit  Float
   upperLimit  Float? // null = tanpa batas atas
-  rateNpwp    Float    // 0.05
-  rateNonNpwp Float    // 0.06
-  validFrom   DateTime @default(now())
+  rateNpwp    Float // 0.05
+  rateNonNpwp Float // 0.06
+  validFrom   DateTime  @default(now())
   validTo     DateTime?
 }
 
@@ -416,26 +421,26 @@ model TerRate {
 
 // Parameter regulasi payroll & BPJS per periode aturan.
 model PayrollRegulation {
-  id                   String   @id @default(cuid())
-  code                 String   @unique
-  name                 String
-  validFrom            DateTime @default(now())
-  validTo              DateTime?
-  biayaJabatanRate     Float    @default(0.05)
-  biayaJabatanCapMonthly Float  @default(500000)
-  jhtEmployeeRate      Float    @default(0.02)
-  jhtCompanyRate       Float    @default(0.037)
-  jpEmployeeRate       Float    @default(0.01)
-  jpCompanyRate        Float    @default(0.02)
-  jpSalaryCap          Float    @default(10547400)
-  jkkRate              Float    @default(0.0024)
-  jkmRate              Float    @default(0.003)
-  jpkCompanyRate       Float    @default(0.04)
-  jpkEmployeeRate      Float    @default(0.01)
-  jpkSalaryCap         Float    @default(12000000)
-  nonNpwpSurcharge     Float    @default(0.2)
-  useTer               Boolean  @default(false)
-  active               Boolean  @default(true)
+  id                     String    @id @default(cuid())
+  code                   String    @unique
+  name                   String
+  validFrom              DateTime  @default(now())
+  validTo                DateTime?
+  biayaJabatanRate       Float     @default(0.05)
+  biayaJabatanCapMonthly Float     @default(500000)
+  jhtEmployeeRate        Float     @default(0.02)
+  jhtCompanyRate         Float     @default(0.037)
+  jpEmployeeRate         Float     @default(0.01)
+  jpCompanyRate          Float     @default(0.02)
+  jpSalaryCap            Float     @default(10547400)
+  jkkRate                Float     @default(0.0024)
+  jkmRate                Float     @default(0.003)
+  jpkCompanyRate         Float     @default(0.04)
+  jpkEmployeeRate        Float     @default(0.01)
+  jpkSalaryCap           Float     @default(12000000)
+  nonNpwpSurcharge       Float     @default(0.2)
+  useTer                 Boolean   @default(false)
+  active                 Boolean   @default(true)
 }
 
 // Eksekusi payroll: 1 run = period × processType × sequence.
@@ -459,33 +464,33 @@ model PayrollRun {
   paidAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  period      PayrollPeriod @relation(fields: [periodId], references: [id])
-  processType ProcessType   @relation(fields: [processTypeId], references: [id])
+  period      PayrollPeriod    @relation(fields: [periodId], references: [id])
+  processType ProcessType      @relation(fields: [processTypeId], references: [id])
   lines       PayrollRunLine[]
 }
 
 // Header hasil per karyawan per run — snapshot (seperti "Wage Transaction" oranHR):
 // PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
 model PayrollRunLine {
-  id            String  @id @default(cuid())
-  runId         String
-  employeeId    String
-  employeeNo    String // snapshot
-  employeeName  String // snapshot
-  orgUnitName   String?
-  positionName  String?
-  ptkpStatus    String
-  ptkpValue     Float
-  bruto         Float   @default(0)
-  deduction     Float   @default(0)
-  taxRegular    Float   @default(0)
-  taxIrregular  Float   @default(0)
-  net           Float   @default(0) // THP
-  actualNetTax  Float?
-  notes         String?
+  id           String  @id @default(cuid())
+  runId        String
+  employeeId   String
+  employeeNo   String // snapshot
+  employeeName String // snapshot
+  orgUnitName  String?
+  positionName String?
+  ptkpStatus   String
+  ptkpValue    Float
+  bruto        Float   @default(0)
+  deduction    Float   @default(0)
+  taxRegular   Float   @default(0)
+  taxIrregular Float   @default(0)
+  net          Float   @default(0) // THP
+  actualNetTax Float?
+  notes        String?
 
-  run      PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  employee Employee   @relation(fields: [employeeId], references: [id])
+  run      PayrollRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee Employee         @relation(fields: [employeeId], references: [id])
   items    PayrollRunItem[]
 
   @@unique([runId, employeeId])
@@ -494,7 +499,7 @@ model PayrollRunLine {
 
 // Rincian komponen upah per karyawan (snapshot kode/nama/klasifikasi/nilai).
 model PayrollRunItem {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   lineId          String
   code            String
   name            String
@@ -503,40 +508,40 @@ model PayrollRunItem {
   incomeTaxMethod String
   amount          Float
   note            String?
-  sortOrder       Int    @default(0)
+  sortOrder       Int     @default(0)
 
   line PayrollRunLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
 }
 
 // Pinjaman karyawan — cicilan dipotong otomatis via komponen Loan.
 model EmployeeLoan {
-  id               String   @id @default(cuid())
-  employeeId       String
-  letterNo         String   @unique
-  loanDate         DateTime @default(now())
-  amount           Float
-  installmentCount Int
-  installmentAmount Float  @default(0)
-  interestRate     Float    @default(0) // % per tahun (flat)
-  startPaymentDate DateTime
-  purpose          String?
-  status           String   @default("Active") // Active|PaidOff|Cancelled
-  paidAmount       Float    @default(0)
-  outstanding      Float    @default(0)
+  id                String   @id @default(cuid())
+  employeeId        String
+  letterNo          String   @unique
+  loanDate          DateTime @default(now())
+  amount            Float
+  installmentCount  Int
+  installmentAmount Float    @default(0)
+  interestRate      Float    @default(0) // % per tahun (flat)
+  startPaymentDate  DateTime
+  purpose           String?
+  status            String   @default("Active") // Active|PaidOff|Cancelled
+  paidAmount        Float    @default(0)
+  outstanding       Float    @default(0)
   wageComponentCode String? // komponen potongan di payslip
 
-  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee     Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   installments LoanInstallment[]
 }
 
 model LoanInstallment {
-  id         String   @id @default(cuid())
-  loanId     String
-  sequence   Int
-  periodCode String? // kode PayrollPeriod saat ditagih
-  dueDate    DateTime
-  amount     Float
-  status     String   @default("Pending") // Pending|Deducted|Skipped
+  id            String   @id @default(cuid())
+  loanId        String
+  sequence      Int
+  periodCode    String? // kode PayrollPeriod saat ditagih
+  dueDate       DateTime
+  amount        Float
+  status        String   @default("Pending") // Pending|Deducted|Skipped
   deductedRunNo String?
 
   loan EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
@@ -545,22 +550,22 @@ model LoanInstallment {
 // Komponen upah khusus per karyawan: Specific (one-off per period×processType)
 // atau Periodic (nilai tetap tiap period).
 model EmployeeComponentAssignment {
-  id               String   @id @default(cuid())
-  employeeId       String
-  wageComponentId  String
-  kind             String   @default("Specific") // Specific|Periodic
-  amount           Float    @default(0)
-  periodId         String?  // untuk Specific
-  processTypeId    String?  // untuk Specific
-  basedDate        DateTime?
-  notes            String?
-  active           Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  id              String    @id @default(cuid())
+  employeeId      String
+  wageComponentId String
+  kind            String    @default("Specific") // Specific|Periodic
+  amount          Float     @default(0)
+  periodId        String? // untuk Specific
+  processTypeId   String? // untuk Specific
+  basedDate       DateTime?
+  notes           String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 
-  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  wageComponent  WageComponent  @relation(fields: [wageComponentId], references: [id])
-  period         PayrollPeriod? @relation(fields: [periodId], references: [id])
-  processType    ProcessType?   @relation(fields: [processTypeId], references: [id])
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  wageComponent WageComponent  @relation(fields: [wageComponentId], references: [id])
+  period        PayrollPeriod? @relation(fields: [periodId], references: [id])
+  processType   ProcessType?   @relation(fields: [processTypeId], references: [id])
 }
 
 // ============ PAYROLL JURNAL (P4 — Posting Otomatis) ============
@@ -583,7 +588,7 @@ model PayrollJournal {
 
 // Baris jurnal — snapshot kode/nama akun & nominal saat posting.
 model PayrollJournalLine {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   journalId   String
   sequence    Int
   accountCode String
@@ -597,31 +602,31 @@ model PayrollJournalLine {
 }
 
 model AccountGroup {
-  id           String @id @default(cuid())
-  code         String @unique
-  name         String
-  accountType  String @default("Expense") // Asset|Liability|Equity|Revenue|Expense
-  accounts     Account[]
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  accountType String    @default("Expense") // Asset|Liability|Equity|Revenue|Expense
+  accounts    Account[]
 }
 
 model Account {
-  id            String @id @default(cuid())
-  code          String @unique
-  name          String
+  id             String  @id @default(cuid())
+  code           String  @unique
+  name           String
   accountGroupId String?
-  balance       Float @default(0)
+  balance        Float   @default(0)
 
   accountGroup AccountGroup? @relation(fields: [accountGroupId], references: [id])
 }
 
 model PostingEvent {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  trigger   String   @default("PayrollRun") // event trigger
+  id              String  @id @default(cuid())
+  code            String  @unique
+  name            String
+  trigger         String  @default("PayrollRun") // event trigger
   debitAccountId  String?
   creditAccountId String?
-  active    Boolean  @default(true)
+  active          Boolean @default(true)
 }
 
 // ============ EMPLOYEE BENEFIT (P5 — Benefit & Klaim) ============
@@ -629,25 +634,25 @@ model PostingEvent {
 // kuartalan/tahunan), auto-approve saat dalam limit, pay-in-payroll (dibayar via
 // run payroll ProcessType BENEFIT) atau dibayar langsung dari kas.
 model BenefitType {
-  id            String   @id @default(cuid())
-  code          String   @unique // MEDICAL|GLASSES|SPORT|WEDDING
-  name          String
-   category      String   @default("Umum") // Medical|Kesehatan|Transport|Rekreasi|Perayaan|Lainnya
-  description   String?
+  id                 String    @id @default(cuid())
+  code               String    @unique // MEDICAL|GLASSES|SPORT|WEDDING
+  name               String
+  category           String    @default("Umum") // Medical|Kesehatan|Transport|Rekreasi|Perayaan|Lainnya
+  description        String?
   // Limit klaim per siklus reset (maxClaimAmount 0 + unlimited = tanpa limit).
-  resetPeriod   String   @default("Monthly") // None|Monthly|Quarterly|Yearly
-  maxClaimAmount Float   @default(0)
-  unlimited     Boolean  @default(false)
-  allowOverlimit Boolean @default(false) // klaim boleh melebihi limit (approval manual)
-  needDocuments Boolean  @default(false)
-  autoApproveInLimit Boolean @default(true)
-  payInPayroll  Boolean  @default(true) // true → lewat run payroll; false → kas langsung
-  wageComponentId String? // komponen upah di payslip saat pay-in-payroll
-  entitleFor    String   @default("All") // All|Permanent|Contract|Probation
-  validFrom     DateTime @default(now())
-  validTo       DateTime?
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  resetPeriod        String    @default("Monthly") // None|Monthly|Quarterly|Yearly
+  maxClaimAmount     Float     @default(0)
+  unlimited          Boolean   @default(false)
+  allowOverlimit     Boolean   @default(false) // klaim boleh melebihi limit (approval manual)
+  needDocuments      Boolean   @default(false)
+  autoApproveInLimit Boolean   @default(true)
+  payInPayroll       Boolean   @default(true) // true → lewat run payroll; false → kas langsung
+  wageComponentId    String? // komponen upah di payslip saat pay-in-payroll
+  entitleFor         String    @default("All") // All|Permanent|Contract|Probation
+  validFrom          DateTime  @default(now())
+  validTo            DateTime?
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
 
   wageComponent WageComponent? @relation(fields: [wageComponentId], references: [id])
   claims        BenefitClaim[]
@@ -659,25 +664,25 @@ model BenefitType {
 //   Pending →(reject)→ Rejected (dgn alasan); Pending/Approved/Scheduled → Cancelled.
 // Snapshot audit limit (limitUsed/limitRemaining/inLimit) disimpan saat pengajuan.
 model BenefitClaim {
-  id            String   @id @default(cuid())
-  claimNo       String   @unique // BC-2026-001
-  benefitTypeId String
-  employeeId    String
-  claimDate     DateTime @default(now())
-  amount        Float    // nilai diklaim
-  approvedAmount Float   @default(0) // nilai disetujui (= amount saat approve)
-  description   String?
-  documentsNote String?  // daftar dokumen pendukung (bila needDocuments)
-  status        String   @default("Pending") // Pending|Approved|Rejected|Scheduled|Paid|Cancelled
-  limitUsed     Float    @default(0)
-  limitRemaining Float   @default(0)
-  inLimit       Boolean  @default(true)
-  periodId      String?  // period payroll saat dibayar (pay-in-payroll)
-  paidRunNo     String?
-  approvedBy    String?
-  approvedAt    DateTime?
+  id             String    @id @default(cuid())
+  claimNo        String    @unique // BC-2026-001
+  benefitTypeId  String
+  employeeId     String
+  claimDate      DateTime  @default(now())
+  amount         Float // nilai diklaim
+  approvedAmount Float     @default(0) // nilai disetujui (= amount saat approve)
+  description    String?
+  documentsNote  String? // daftar dokumen pendukung (bila needDocuments)
+  status         String    @default("Pending") // Pending|Approved|Rejected|Scheduled|Paid|Cancelled
+  limitUsed      Float     @default(0)
+  limitRemaining Float     @default(0)
+  inLimit        Boolean   @default(true)
+  periodId       String? // period payroll saat dibayar (pay-in-payroll)
+  paidRunNo      String?
+  approvedBy     String?
+  approvedAt     DateTime?
   rejectedReason String?
-  createdAt     DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   benefitType BenefitType    @relation(fields: [benefitTypeId], references: [id])
   employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -687,12 +692,12 @@ model BenefitClaim {
 // ============ GENERAL SETTING (lookup) ============
 
 model Lookup {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   category  String // Religion|MaritalStatus|EmploymentStatus|BloodType|PAType|WarningLevel|Violation|EducationLevel
   code      String
   label     String
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
 
   @@unique([category, code])
 }
@@ -705,20 +710,20 @@ model AppUser {
   fullName   String
   email      String?
   role       String    @default("HR Staff") // Admin|HR Manager|HR Staff|Approver|Viewer
-  employeeId String?   // linked employee
+  employeeId String? // linked employee
   active     Boolean   @default(true)
   lastLogin  DateTime?
 
-  accessGroups AccessGroupMember[]
-  tempApprovals TemporaryApprover[] @relation("DelegationFrom")
+  accessGroups    AccessGroupMember[]
+  tempApprovals   TemporaryApprover[] @relation("DelegationFrom")
   tempDelegations TemporaryApprover[] @relation("DelegationTo")
-  approvalLayers ApprovalLayer[]
-  activities  ActivityLog[]
+  approvalLayers  ApprovalLayer[]
+  activities      ActivityLog[]
 }
 
 model AccessGroup {
-  id          String @id @default(cuid())
-  code        String @unique
+  id          String   @id @default(cuid())
+  code        String   @unique
   name        String
   description String?
   modulesJson String // JSON array of module permissions {module, view, create, edit, delete, approve}
@@ -728,7 +733,7 @@ model AccessGroup {
 }
 
 model AccessGroupMember {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   appUserId     String
   accessGroupId String
   isApprover    Boolean @default(false)
@@ -740,25 +745,25 @@ model AccessGroupMember {
 // ============ MULTIPLE APPROVAL ============
 
 model ApprovalTemplate {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  docType    String   @default("PersonnelAction")
-  layersJson String   // [{layer:1, role:"Dept Head"},...]
-  autoApprove Boolean @default(false) // auto approve when no approver found
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  docType     String   @default("PersonnelAction")
+  layersJson  String // [{layer:1, role:"Dept Head"},...]
+  autoApprove Boolean  @default(false) // auto approve when no approver found
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 model TemporaryApprover {
-  id          String   @id @default(cuid())
-  approverId  String   // AppUser: original approver
-  delegateId  String   // AppUser: delegate
-  docType     String   @default("PersonnelAction")
-  validFrom   DateTime
-  validTo     DateTime
-  reason      String?
-  active      Boolean  @default(true)
+  id         String   @id @default(cuid())
+  approverId String // AppUser: original approver
+  delegateId String // AppUser: delegate
+  docType    String   @default("PersonnelAction")
+  validFrom  DateTime
+  validTo    DateTime
+  reason     String?
+  active     Boolean  @default(true)
 
   approver AppUser @relation("DelegationFrom", fields: [approverId], references: [id], onDelete: Cascade)
   delegate AppUser @relation("DelegationTo", fields: [delegateId], references: [id], onDelete: Cascade)
@@ -767,18 +772,223 @@ model TemporaryApprover {
 // ============ ACTIVITY TRAIL ============
 
 model ActivityLog {
-  id         String   @id @default(cuid())
-  actorType  String   @default("user") // user|system
-  appUserId  String?
-  employeeId String?
+  id                String   @id @default(cuid())
+  actorType         String   @default("user") // user|system
+  appUserId         String?
+  employeeId        String?
   personnelActionId String?
-  action     String // Created|Updated|Deleted|Submitted|Approved|Rejected|Processed|Cancelled
-  entity     String // Employee|PersonnelAction|OrgUnit|...
-  entityId   String?
-  detail     String?
+  action            String // Created|Updated|Deleted|Submitted|Approved|Rejected|Processed|Cancelled
+  entity            String // Employee|PersonnelAction|OrgUnit|...
+  entityId          String?
+  detail            String?
+  createdAt         DateTime @default(now())
+
+  appUser         AppUser?         @relation(fields: [appUserId], references: [id])
+  employee        Employee?        @relation(fields: [employeeId], references: [id])
+  personnelAction PersonnelAction? @relation(fields: [personnelActionId], references: [id])
+}
+
+// ============ TIME ATTENDANCE (ref: ANALISA-ATTENDANCE.md) ============
+
+// Master tipe hari — padanan oranHR "Day Type": bentuk hari kerja
+// (jam masuk/keluar, istirahat, toleransi) atau hari libur.
+model WorkDayType {
+  id                    String   @id @default(cuid())
+  code                  String   @unique
+  name                  String
+  color                 String   @default("#99CCFF")
+  category              String   @default("Workday") // Workday|Off|Holiday — kategori hari utk multiplier lembur
+  timeIn                String? // "08:00" — null utk hari off/libur
+  timeOut               String?
+  nextDay               Boolean  @default(false) // shift lintas hari (mis. 22:00-06:00)
+  breakMinutes          Int      @default(0)
+  breakPaid             Boolean  @default(false)
+  normalMinutes         Int      @default(0) // jam kerja normal per hari
+  toleranceLateMinutes  Int      @default(0) // toleransi keterlambatan
+  toleranceEarlyMinutes Int      @default(0) // toleransi pulang cepat
+  flexible              Boolean  @default(false) // jam fleksibel — total jam dinormalkan
+  needOvertimeOrder     Boolean  @default(true) // lembur wajib punya work order
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  scheduleDays       WorkScheduleDay[]
+  dailyRecords       AttendanceDaily[]
+  overtimeOrders     OvertimeOrder[]
+  workoffPermissions WorkOffPermission[]
+}
+
+// Master jadwal kerja — padanan oranHR "Work Schedule": cycle berisi day type.
+model WorkSchedule {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  cycleDays Int      @default(7) // panjang cycle (umumnya 7 hari)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  days        WorkScheduleDay[]
+  assignments ScheduleAssignment[]
+}
+
+// Baris cycle jadwal: sequence ke-N memakai day type tertentu.
+model WorkScheduleDay {
+  id         String @id @default(cuid())
+  scheduleId String
+  sequence   Int
+  dayTypeId  String
+
+  schedule WorkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  dayType  WorkDayType  @relation(fields: [dayTypeId], references: [id])
+
+  @@unique([scheduleId, sequence])
+}
+
+// Penugasan jadwal per karyawan — padanan "Employee Schedule Assignment".
+model ScheduleAssignment {
+  id               String    @id @default(cuid())
+  employeeId       String
+  scheduleId       String
+  anchorMonday     DateTime // Senin pertama cycle (anchor rotasi)
+  anchorSequence   Int       @default(1) // sequence yang jatuh pada anchorMonday
+  clockingRequired Boolean   @default(true) // false = non-clocking (jam dianggap normal)
+  validFrom        DateTime  @default(now())
+  validTo          DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  schedule WorkSchedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([employeeId, validTo])
+}
+
+// Log presensi mentah — clock in/out manual/web (siap diperluas mesin & mobile).
+model AttendanceClockLog {
+  id         String   @id @default(cuid())
+  employeeId String
+  timestamp  DateTime
+  direction  String   @default("IN") // IN|OUT
+  source     String   @default("Manual") // Manual|Web|Mobile|Machine
+  note       String?
   createdAt  DateTime @default(now())
 
-  appUser AppUser? @relation(fields: [appUserId], references: [id])
-  employee Employee? @relation(fields: [employeeId], references: [id])
-  personnelAction PersonnelAction? @relation(fields: [personnelActionId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, timestamp])
+  @@index([timestamp])
+}
+
+// Rekap harian per karyawan — padanan "Employee Clocking" hasil kalkulasi:
+// hour buckets per kategori (menit) + status turunan utk UI.
+model AttendanceDaily {
+  id              String    @id @default(cuid())
+  employeeId      String
+  workDate        DateTime
+  dayTypeId       String?
+  state           String    @default("Prepared") // Prepared|Calculated|Revised
+  status          String    @default("Present") // Present|Late|Absent|Off|Holiday|WorkOff|OnLeave
+  presence        Int       @default(0) // 1 = hadir tercatat clocking
+  checkIn         DateTime?
+  checkOut        DateTime?
+  lateMinutes     Int       @default(0)
+  earlyMinutes    Int       @default(0)
+  workMinutes     Int       @default(0) // total jam kerja tercatat
+  normalMinutes   Int       @default(0) // jam kerja normal diakui
+  absenceMinutes  Int       @default(0) // jam absen tak dibayar (lewat toleransi)
+  overtimeMinutes Int       @default(0) // lembur terverifikasi (dari work order)
+  revised         Boolean   @default(false)
+  revisedBy       String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dayType  WorkDayType? @relation(fields: [dayTypeId], references: [id])
+
+  @@unique([employeeId, workDate])
+  @@index([workDate])
+}
+
+// Perintah lembur — padanan "Employee Overtime Work Order": Plan → Actual → Verified.
+model OvertimeOrder {
+  id              String    @id @default(cuid())
+  orderNo         String    @unique // OT-2026-001
+  employeeId      String
+  overtimeDate    DateTime
+  timeFrom        DateTime
+  timeTo          DateTime
+  planMinutes     Int       @default(0)
+  actualMinutes   Int       @default(0)
+  verifiedMinutes Int       @default(0) // jam lembur dibayar
+  dayCategory     String    @default("Weekday") // Weekday|Weekend|Holiday — kategori multiplier
+  rateMultiplier  Float     @default(1.5)
+  calculationTime Boolean   @default(true) // true = actual dihitung dari clocking
+  letterNo        String?
+  reason          String?
+  status          String    @default("Pending") // Pending|Approved|Rejected|Cancelled|Paid
+  approverId      String?
+  decidedAt       DateTime?
+  decisionNote    String?
+  paidRunNo       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDayType   WorkDayType? @relation(fields: [workDayTypeId], references: [id])
+  workDayTypeId String?
+
+  @@index([employeeId, overtimeDate])
+  @@index([status])
+}
+
+// Izin tidak masuk — padanan "Employee Work Off Permission".
+model WorkOffPermission {
+  id           String    @id @default(cuid())
+  docNo        String    @unique // WO-2026-001
+  employeeId   String
+  dateFrom     DateTime
+  dateTo       DateTime
+  allDay       Boolean   @default(true)
+  timeFrom     String? // "08:00" bila setengah hari
+  timeTo       String?
+  dayTypeId    String?
+  paid         Boolean   @default(true) // dibayar (gaji tetap masuk utk hari tsb)
+  deductLeave  Boolean   @default(true) // potong saldo cuti
+  recurrence   String?
+  reason       String?
+  documentNote String?
+  status       String    @default("Pending") // Pending|Approved|Rejected|Cancelled
+  approverId   String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dayType  WorkDayType? @relation(fields: [dayTypeId], references: [id])
+
+  @@index([employeeId, dateFrom])
+  @@index([status])
+}
+
+// Pengaturan absensi singleton per tenant — padanan "Overtime Specified" +
+// "User Defined Rounding" + kebijakan transfer ke payroll.
+model AttendanceRule {
+  id                               String   @id @default(cuid())
+  roundingMinutes                  Int      @default(5) // pembulatan menit clocking ke kelipatan
+  minOvertimeMinutes               Int      @default(30) // minimum menit agar dihitung lembur
+  overtimeRoundingMinutes          Int      @default(30) // pembulatan jam lembur ke kelipatan
+  nonClockingPolicy                String   @default("AssumeNormal") // AssumeNormal|ByHours|ByDays
+  // peta komponen payroll (kode WageComponent — padanan "Overtime Specified")
+  overtimeComponentCode            String   @default("LEMBUR")
+  lateDeductionComponentCode       String   @default("TLATE")
+  absenceDeductionComponentCode    String   @default("TABS")
+  attendanceAllowanceComponentCode String   @default("TKEHADIRAN")
+  attendanceAllowanceAmount        Float    @default(0) // tunjangan kehadiran penuh-hadir per bulan
+  lateDeductionPerHour             Float    @default(0) // 0 = proporsional upah per jam (1/173)
+  absenceDeductionPerDay           Float    @default(0) // 0 = 1/25 upah bulanan
+  updatedAt                        DateTime @updatedAt
 }
