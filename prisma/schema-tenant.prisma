@@ -161,6 +161,9 @@ model Employee {
   leaveEncashments     LeaveEncashment[]
   travelRequests       TravelRequest[]
   travelClaims         TravelClaim[]
+  medicalBalances     MedicalBalance[]
+  medicalClaims       MedicalClaim[]
+  medicalAdjustments  MedicalAdjustment[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -1335,4 +1338,178 @@ model TravelClaimExpense {
   overLimit   Boolean   @default(false) // amount > limit jenis (warning, tetap boleh)
 
   claim TravelClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+}
+
+// ============ MEDICAL BENEFIT (ref: ANALISA-MEDICAL.md) ============
+
+// Jenis benefit medis — padanan "Medical Benefit Type" (MedicalBenefitTypeDetail.jsp,
+// ±60 atribut oranHR → atribut kunci). Kebijakan limit: UNLIMITED | NOMINAL |
+// FACTOR (× gaji pokok) | WAGE_COMPONENT. Kebijakan saldo tak terpakai akhir period:
+// FORFEITED (hangus) | CASH (dibayar tunai via wage code → payroll UMC) | CARRY.
+model MedicalBenefitType {
+  id               String    @id @default(cuid())
+  code             String    @unique // RAWAT_INAP
+  name             String
+  description      String?
+  active           Boolean   @default(true)
+  needReceipt      Boolean   @default(true)
+  // limit benefit karyawan
+  limitRule        String    @default("NOMINAL") // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
+  limitValue       Float     @default(0) // nominal (NOMINAL) atau faktor gaji (FACTOR)
+  wageCode         String? // komponen upah dasar hitungan (WAGE_COMPONENT / info)
+  // frekuensi klaim per period
+  freqUnlimited    Boolean   @default(false)
+  freqValue        Int       @default(0)
+  freqPeriod       String    @default("YEAR") // MEDICAL|WORK|YEAR (padanan oranHR)
+  // pembayaran: company vs asuransi
+  pctCompany       Int       @default(100)
+  pctInsurance     Int       @default(0)
+  insuranceCompany String?
+  // saldo tak terpakai
+  unusedRule       String    @default("FORFEITED") // FORFEITED|CASH|CARRY
+  cashWageCode     String? // wage code jika CASH (padanan oranHR cash_wage_code)
+  maxCarryOver     Float     @default(0)
+  // kebijakan dependent (pasangan/anak)
+  dependentEnabled Boolean   @default(true)
+  maxDependents    Int       @default(2)
+  maxChildAge      Int       @default(21)
+  depLimitRule     String    @default("SHARED") // SHARED|TOTAL_SEPARATE|EACH
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  balances MedicalBalance[]
+  claims   MedicalClaim[]
+  adjustments MedicalAdjustment[]
+}
+
+// Rumah sakit & perusahaan asuransi — padanan Hospital.jsp + InsuranceCompany.jsp
+// (oranHR 2 halaman struktur identik → 1 model dengan kind).
+model MedicalProvider {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  kind      String   @default("HOSPITAL") // HOSPITAL|INSURANCE
+  city      String?
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// Saldo medis karyawan per tahun × jenis — padanan "Employee Medical Information"
+// (MedicalBenefitInformation.jsp + MyMedicalBenefitInformation.jsp ESS):
+// Benefit Limit = kebijakan jenis dihitung saat generate (factor × gaji aktif);
+// adjustment ± (Medical Adjustment), initialUsed saldo dibawa dari tahun lalu,
+// used bertambah saat klaim Settled. Sisa = benefit + adjustment − used.
+model MedicalBalance {
+  id               String   @id @default(cuid())
+  employeeId       String
+  typeId           String
+  year             Int
+  benefitAmount    Float    @default(0) // limit karyawan (dari kebijakan jenis)
+  adjustmentAmount Float    @default(0) // penyesuaian karyawan (±)
+  initialUsed      Float    @default(0) // used dibawa dari period lalu (Initial)
+  usedAmount       Float    @default(0) // klaim karyawan settled
+  depBenefitAmount Float    @default(0) // limit dependent (SHARED → 0)
+  depAdjustment    Float    @default(0)
+  depUsed          Float    @default(0)
+  carriedOver      Float    @default(0) // sisa tahun lalu (kebijakan CARRY)
+  generatedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  employee Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type     MedicalBenefitType @relation(fields: [typeId], references: [id])
+
+  @@unique([employeeId, typeId, year])
+  @@index([year])
+}
+
+// Klaim medis — padanan "Medical Claim" (MedicalBenefitClaim.jsp).
+// Status: Draft(Prepared) → Submitted → Approved → Settled; Rejected/Cancelled.
+// Snapshot saldo saat klaim (padanan oranHR Max Benefit/Used/Balance di header).
+// Settled → jurnal otomatis + used saldo bertambah; jurnal dibuang bila dibatalkan.
+model MedicalClaim {
+  id               String    @id @default(cuid())
+  docNo            String    @unique // MC-2026-001
+  employeeId       String
+  typeId           String
+  year             Int
+  claimDate        DateTime  @default(now())
+  letterNo         String? // surat rujukan dokter
+  state            String    @default("Draft") // Draft|Submitted|Approved|Rejected|Cancelled|Settled
+  forDependent     Boolean   @default(false) // klaim untuk anggota keluarga
+  maxBenefitAt     Float     @default(0) // snapshot limit saat ajukan
+  usedAt           Float     @default(0) // snapshot used saat ajukan
+  totalBill        Float     @default(0) // Total Amount on Bill
+  totalReimburse   Float     @default(0) // Total Reimbursement Amount
+  totalApproved    Float     @default(0) // Total Approved Amount
+  totalNonRe       Float     @default(0) // Total Non Reimbursement
+  statusLog        Json      @default("[]") // [{state,at,by,note}] — padanan Status Log oranHR
+  settleDate       DateTime?
+  journalNo        String? // jurnal settlement (posting saat Settle)
+  journalDate      DateTime?
+  periodCode       String? // period payroll target saat transfer UMC terkait
+  paidRunNo        String?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  settledById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  employee Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type     MedicalBenefitType @relation(fields: [typeId], references: [id])
+  lines    MedicalClaimLine[]
+
+  @@index([state])
+  @@index([year, typeId])
+}
+
+// Baris perawatan — padanan tab "Claim Information" + wizard ESS:
+// siapa dirawat, diagnosa, tanggal, CK (occupational injury), kwitansi, dokter,
+// rumah sakit, jumlah tagihan/reimburse/approved/non-reimburse.
+model MedicalClaimLine {
+  id                String    @id @default(cuid())
+  claimId           String
+  treatedName       String // nama yang dirawat (karyawan/dependent)
+  treatment         String? // diagnosa / jenis perawatan
+  treatmentDate     DateTime?
+  receiptNo         String?
+  physician         String?
+  hospital          String?
+  note              String?
+  occupationalInjury Boolean   @default(false) // kecelakaan/penyakit kerja
+  billAmount        Float     @default(0)
+  reimburseAmount   Float     @default(0)
+  approvedAmount    Float     @default(0)
+  nonReAmount       Float     @default(0)
+  currency          String    @default("IDR")
+
+  claim MedicalClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+}
+
+// Penyesuaian saldo — padanan "Medical Adjustment" (MedicalBenefitAdjustment.jsp):
+// ± amount utk karyawan atau dependent, dengan approval Approve|Reject|Cancel.
+model MedicalAdjustment {
+  id            String    @id @default(cuid())
+  docNo         String    @unique // MA-2026-001
+  employeeId    String
+  typeId        String
+  year          Int
+  forDependent  Boolean   @default(false)
+  amount        Float // + tambah / − kurangi
+  adjustmentDate DateTime @default(now())
+  note          String?
+  state         String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled
+  decidedById   String?
+  decidedAt     DateTime?
+  decisionNote  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type     MedicalBenefitType @relation(fields: [typeId], references: [id])
+
+  @@index([state])
 }

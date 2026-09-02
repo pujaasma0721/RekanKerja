@@ -1169,6 +1169,147 @@ CREATE TABLE "TravelClaimExpense" (
     CONSTRAINT "TravelClaimExpense_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "MedicalBenefitType" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "needReceipt" BOOLEAN NOT NULL DEFAULT true,
+    "limitRule" TEXT NOT NULL DEFAULT 'NOMINAL',
+    "limitValue" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "wageCode" TEXT,
+    "freqUnlimited" BOOLEAN NOT NULL DEFAULT false,
+    "freqValue" INTEGER NOT NULL DEFAULT 0,
+    "freqPeriod" TEXT NOT NULL DEFAULT 'YEAR',
+    "pctCompany" INTEGER NOT NULL DEFAULT 100,
+    "pctInsurance" INTEGER NOT NULL DEFAULT 0,
+    "insuranceCompany" TEXT,
+    "unusedRule" TEXT NOT NULL DEFAULT 'FORFEITED',
+    "cashWageCode" TEXT,
+    "maxCarryOver" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dependentEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "maxDependents" INTEGER NOT NULL DEFAULT 2,
+    "maxChildAge" INTEGER NOT NULL DEFAULT 21,
+    "depLimitRule" TEXT NOT NULL DEFAULT 'SHARED',
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MedicalBenefitType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MedicalProvider" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'HOSPITAL',
+    "city" TEXT,
+    "address" TEXT,
+    "phone" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MedicalProvider_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MedicalBalance" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "typeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "benefitAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "adjustmentAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "initialUsed" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "usedAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "depBenefitAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "depAdjustment" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "depUsed" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "carriedOver" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "generatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MedicalBalance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MedicalClaim" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "typeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "claimDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "letterNo" TEXT,
+    "state" TEXT NOT NULL DEFAULT 'Draft',
+    "forDependent" BOOLEAN NOT NULL DEFAULT false,
+    "maxBenefitAt" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "usedAt" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalBill" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalReimburse" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalApproved" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalNonRe" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "statusLog" JSONB NOT NULL DEFAULT '[]',
+    "settleDate" TIMESTAMP(3),
+    "journalNo" TEXT,
+    "journalDate" TIMESTAMP(3),
+    "periodCode" TEXT,
+    "paidRunNo" TEXT,
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "settledById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MedicalClaim_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MedicalClaimLine" (
+    "id" TEXT NOT NULL,
+    "claimId" TEXT NOT NULL,
+    "treatedName" TEXT NOT NULL,
+    "treatment" TEXT,
+    "treatmentDate" TIMESTAMP(3),
+    "receiptNo" TEXT,
+    "physician" TEXT,
+    "hospital" TEXT,
+    "note" TEXT,
+    "occupationalInjury" BOOLEAN NOT NULL DEFAULT false,
+    "billAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "reimburseAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "approvedAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "nonReAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "currency" TEXT NOT NULL DEFAULT 'IDR',
+
+    CONSTRAINT "MedicalClaimLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MedicalAdjustment" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "typeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "forDependent" BOOLEAN NOT NULL DEFAULT false,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "adjustmentDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "note" TEXT,
+    "state" TEXT NOT NULL DEFAULT 'Submitted',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MedicalAdjustment_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -1351,6 +1492,33 @@ CREATE UNIQUE INDEX "TravelRequest_docNo_key" ON "TravelRequest"("docNo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TravelClaim_docNo_key" ON "TravelClaim"("docNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MedicalBenefitType_code_key" ON "MedicalBenefitType"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MedicalProvider_code_key" ON "MedicalProvider"("code");
+
+-- CreateIndex
+CREATE INDEX "MedicalBalance_year_idx" ON "MedicalBalance"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MedicalBalance_employeeId_typeId_year_key" ON "MedicalBalance"("employeeId", "typeId", "year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MedicalClaim_docNo_key" ON "MedicalClaim"("docNo");
+
+-- CreateIndex
+CREATE INDEX "MedicalClaim_state_idx" ON "MedicalClaim"("state");
+
+-- CreateIndex
+CREATE INDEX "MedicalClaim_year_typeId_idx" ON "MedicalClaim"("year", "typeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MedicalAdjustment_docNo_key" ON "MedicalAdjustment"("docNo");
+
+-- CreateIndex
+CREATE INDEX "MedicalAdjustment_state_idx" ON "MedicalAdjustment"("state");
 
 -- AddForeignKey
 ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1576,4 +1744,25 @@ ALTER TABLE "TravelClaim" ADD CONSTRAINT "TravelClaim_templateId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "TravelClaimExpense" ADD CONSTRAINT "TravelClaimExpense_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "TravelClaim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalBalance" ADD CONSTRAINT "MedicalBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalBalance" ADD CONSTRAINT "MedicalBalance_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalClaim" ADD CONSTRAINT "MedicalClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalClaim" ADD CONSTRAINT "MedicalClaim_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalClaimLine" ADD CONSTRAINT "MedicalClaimLine_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "MedicalClaim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

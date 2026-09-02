@@ -21,6 +21,7 @@ import {
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
+  Hospital,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,7 @@ export const MODULES: { id: ModuleId; label: string; short: string; icon: React.
   { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: true },
   { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: true },
   { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: true },
-  { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: false },
+  { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: true },
 ];
 
 // ============ NAV PER MODULE ============
@@ -152,10 +153,15 @@ const TRAVEL_NAV: NavGroup[] = [
 const MEDICAL_NAV: NavGroup[] = [
   { section: "medical", children: [{ id: "claims", label: "Ringkasan", icon: LayoutDashboard }] },
   { section: "medical", label: "Benefit Medis", children: [
-    { id: "medical-info", label: "Info Medis Karyawan", icon: HeartPulse },
+    { id: "medical-info", label: "Saldo Medis Karyawan", icon: HeartPulse },
     { id: "medical-claim", label: "Klaim Medis", icon: Activity },
-    { id: "medical-approval", label: "Persetujuan Klaim", icon: CheckCircle2 },
+    { id: "medical-approval", label: "Persetujuan & Settlement", icon: CheckCircle2 },
+    { id: "medical-adjustment", label: "Penyesuaian Saldo", icon: ArrowLeftRight },
+  ] },
+  { section: "medical", label: "Master & Laporan", children: [
     { id: "medical-benefit-type", label: "Jenis Benefit", icon: Boxes },
+    { id: "medical-providers", label: "Rumah Sakit & Asuransi", icon: Hospital },
+    { id: "medical-reports", label: "Laporan Medis", icon: BarChart3 },
   ] },
 ];
 

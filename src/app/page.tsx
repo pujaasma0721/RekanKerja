@@ -13,6 +13,7 @@ import { PayrollModule } from "@/components/onevity/payroll/payroll-module";
 import { AttendanceModule } from "@/components/onevity/attendance/attendance-module";
 import { LeaveModule } from "@/components/onevity/leave/leave-module";
 import { TravelModule } from "@/components/onevity/travel/travel-module";
+import { MedicalModule } from "@/components/onevity/medical/medical-module";
 import { SettingsModule } from "@/components/onevity/settings/settings-module";
 import { ModulePlaceholder } from "@/components/onevity/module-placeholder";
 
@@ -42,9 +43,7 @@ export default function Page() {
             {section === "leave" && <LeaveModule view={view} />}
             {section === "travel" && <TravelModule view={view} />}
             {section === "settings" && <SettingsModule view={view} />}
-            {section === "medical" && (
-              <ModulePlaceholder module="medical" />
-            )}
+            {section === "medical" && <MedicalModule view={view} />}
           </motion.div>
         </AnimatePresence>
       </AppShell>

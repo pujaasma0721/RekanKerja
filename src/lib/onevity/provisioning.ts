@@ -469,6 +469,107 @@ export async function ensureLeaveReference(db: TenantDb): Promise<void> {
   }
 
   await ensureTravelReference(db);
+  await ensureMedicalReference(db);
+}
+
+// ============ MEDICAL REFERENCE (ref: ANALISA-MEDICAL.md) ============
+
+// Master medis idempoten — padanan General Setting oranHR (Medical Benefit Type:
+// 12 jenis MII + Hospital/InsuranceCompany). Jenis: limit UNLIMITED/NOMINAL/FACTOR×gaji,
+// frekuensi, kebijakan saldo tak terpakai (FORFEITED/CASH/CARRY), dependent.
+// Komponen UMC (padanan oranHR cash_wage_code "unused balance in cash") + akun 5106.
+export const MEDICAL_TYPE_DEFS: {
+  code: string; name: string; description?: string;
+  limitRule: string; limitValue?: number; wageCode?: string;
+  freqUnlimited?: boolean; freqValue?: number; freqPeriod?: string;
+  unusedRule?: string; maxCarryOver?: number;
+  dependentEnabled?: boolean; maxDependents?: number; maxChildAge?: number; depLimitRule?: string;
+  pctCompany?: number; pctInsurance?: number;
+}[] = [
+  { code: "RAWAT_INAP", name: "Rawat Inap", description: "Perawatan menginap di rumah sakit — 1× gaji pokok/tahun", limitRule: "FACTOR", limitValue: 1, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "RAWAT_JALAN", name: "Rawat Jalan", description: "Poliklinik, obat, lab — sisa boleh ditarik tunai akhir tahun", limitRule: "NOMINAL", limitValue: 25_000_000, freqUnlimited: true, unusedRule: "CASH", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "GIGI_MULUT", name: "Gigi & Mulut", description: "Perawatan gigi & mulut — 5 juta/tahun", limitRule: "NOMINAL", limitValue: 5_000_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "KACAMATA", name: "Kacamata", description: "Kacamata + lensa — 1× setiap 2 tahun (padanan oranHR Year Period)", limitRule: "NOMINAL", limitValue: 1_500_000, freqUnlimited: false, freqValue: 1, freqPeriod: "YEAR", unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "MEDICAL_UMUM", name: "Medical Umum", description: "Pemeriksaan umum & konsultasi", limitRule: "NOMINAL", limitValue: 6_500_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "IMUNISASI", name: "Imunisasi Anak", description: "Vaksinasi anak (dep. masing-masing)", limitRule: "NOMINAL", limitValue: 2_000_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 12, depLimitRule: "EACH" },
+  { code: "PERSALINAN", name: "Persalinan", description: "Melahirkan (karyawan/pasangan) — 8 juta sekali per kelahiran", limitRule: "NOMINAL", limitValue: 8_000_000, freqUnlimited: false, freqValue: 1, freqPeriod: "YEAR", unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 1, maxChildAge: 99, depLimitRule: "TOTAL_SEPARATE" },
+  { code: "KHUSUS_PJK", name: "Khusus Penyakit Kerja", description: "Perawatan akibat kecelakaan/penyakit kerja (CK) — unlimited", limitRule: "UNLIMITED", freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: false },
+];
+
+export const MEDICAL_PROVIDER_DEFS: {
+  code: string; name: string; kind: string; city?: string; address?: string; phone?: string;
+}[] = [
+  { code: "RS-SIL", name: "RS Siloam Surabaya", kind: "HOSPITAL", city: "Surabaya", address: "Jl. Raya Gubeng No. 70", phone: "031-9933-111" },
+  { code: "RS-ADH", name: "RS Aditya Husada", kind: "HOSPITAL", city: "Surabaya", address: "Jl. Manyar Kertoarjo V No. 11", phone: "031-594-1555" },
+  { code: "RS-HER", name: "RS Hertoni Bagyo", kind: "HOSPITAL", city: "Gresik", address: "Jl. Bagyo Husodo No. 10", phone: "031-397-2111" },
+  { code: "KLINK-MII", name: "Klinik Mitra Sehat", kind: "HOSPITAL", city: "Sidoarjo", address: "Kawasan Industri MII Blok C-12", phone: "031-801-2345" },
+  { code: "APOT-KP", name: "Apotek Kimia Farma", kind: "HOSPITAL", city: "Sidoarjo", address: "Jl. Basuki Rahmat 20", phone: "031-802-1199" },
+  { code: "ASR-AIA", name: "PT AIA Financial", kind: "INSURANCE", city: "Jakarta", address: "Menara AIA, Jl. Casablanca Raya Kav. 88", phone: "021-2978-8888" },
+  { code: "ASR-AXA", name: "PT Asuransi AXA Indonesia", kind: "INSURANCE", city: "Jakarta", address: "AXA Tower, Jl. Prof. Satrio Kav. 18", phone: "021-3003-8888" },
+  { code: "BPJS", name: "BPJS Kesehatan", kind: "INSURANCE", city: "Jakarta", address: "Jl. Letjen Suprapto No. 7", phone: "1500-400" },
+];
+
+export async function ensureMedicalReference(db: TenantDb): Promise<void> {
+  let sortOrder = 0;
+  for (const t of MEDICAL_TYPE_DEFS) {
+    sortOrder++;
+    await db.medicalBenefitType.upsert({
+      where: { code: t.code },
+      create: {
+        code: t.code, name: t.name, description: t.description ?? null,
+        active: true, needReceipt: true,
+        limitRule: t.limitRule,
+        limitValue: t.limitValue ?? 0,
+        wageCode: t.wageCode ?? null,
+        freqUnlimited: t.freqUnlimited ?? false,
+        freqValue: t.freqValue ?? 0,
+        freqPeriod: t.freqPeriod ?? "YEAR",
+        pctCompany: t.pctCompany ?? 100,
+        pctInsurance: t.pctInsurance ?? 0,
+        unusedRule: t.unusedRule ?? "FORFEITED",
+        cashWageCode: (t.unusedRule ?? "FORFEITED") === "CASH" ? "UMC" : null,
+        maxCarryOver: t.maxCarryOver ?? 0,
+        dependentEnabled: t.dependentEnabled ?? true,
+        maxDependents: t.maxDependents ?? 2,
+        maxChildAge: t.maxChildAge ?? 21,
+        depLimitRule: t.depLimitRule ?? "SHARED",
+        sortOrder,
+      },
+      update: {},
+    });
+  }
+
+  for (const p of MEDICAL_PROVIDER_DEFS) {
+    await db.medicalProvider.upsert({
+      where: { code: p.code },
+      create: {
+        code: p.code, name: p.name, kind: p.kind,
+        city: p.city ?? null, address: p.address ?? null, phone: p.phone ?? null,
+      },
+      update: {},
+    });
+  }
+
+  // akun beban medis (fallback klaim tanpa akun khusus)
+  const acc = await db.account.findUnique({ where: { code: "5106" } });
+  if (!acc) {
+    const ag = await db.accountGroup.findFirst({ where: { code: { startsWith: "5" } } });
+    await db.account.create({
+      data: { code: "5106", name: "Beban Kesejahteraan Medis", accountGroupId: ag?.id ?? null, balance: 0 },
+    });
+  }
+
+  // komponen UMC — padanan oranHR cash_wage_code (unused medical balance in cash)
+  const umc = await db.wageComponent.findUnique({ where: { code: "UMC" } });
+  if (!umc) {
+    await db.wageComponent.create({
+      data: {
+        code: "UMC", name: "Uang Sisa Saldo Medis", type: "Earning", wageType: "Compensation",
+        calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Regular",
+        taxable: true, includeInTHP: true, accountDebitCode: "5106",
+      },
+    });
+  }
 }
 
 // ============ TRAVEL REFERENCE (ref: ANALISA-TRAVEL.md) ============

@@ -1157,6 +1157,16 @@ async function main() {
     console.log(`   → ${travelRes.requests} permintaan travel, ${travelRes.claims} klaim, budget ${travelRes.budgetYear}`);
   }
 
+  // ============ MEDICAL (ref: ANALISA-MEDICAL.md — oranHR) ============
+  console.log(" seeding medical…");
+  const { seedMedicalDemoData } = await import("../src/lib/onevity/medical-seed");
+  const medRes = await seedMedicalDemoData(db);
+  if (medRes.skipped) {
+    console.log("   → data medical sudah ada / tanpa karyawan — skip");
+  } else {
+    console.log(`   → ${medRes.balances} saldo medis, ${medRes.claims} klaim, ${medRes.adjustments} penyesuaian`);
+  }
+
   // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
   const { regenerateRange } = await import("../src/lib/onevity/attendance-service");
   const days = await regenerateRange(db, from, to);

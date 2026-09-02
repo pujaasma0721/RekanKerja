@@ -11,6 +11,7 @@ import { markClaimsPaidForRun } from "@/lib/onevity/benefit-service";
 import { markOvertimePaidForRun } from "@/lib/onevity/attendance-service";
 import { markEncashmentPaidForRun } from "@/lib/onevity/leave-service";
 import { markTravelPaidForRun } from "@/lib/onevity/travel-service";
+import { markMedicalPaidForRun } from "@/lib/onevity/medical-service";
 
 export async function getActiveRegulation(db: TenantDb): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
@@ -372,6 +373,13 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
     await markTravelPaidForRun(db, runId);
   } catch {
     // non-fatal: klaim travel dapat ditandai manual bila gagal
+  }
+
+  // Transfer medis (UMC) pada period run → Paid (modul medical).
+  try {
+    await markMedicalPaidForRun(db, runId);
+  } catch {
+    // non-fatal: transfer medis dapat ditandai manual bila gagal
   }
 
   // Posting jurnal otomatis (P4) — idempotent; hasil run sudah dikunci aman.

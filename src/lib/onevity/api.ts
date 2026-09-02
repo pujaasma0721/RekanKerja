@@ -36,7 +36,7 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
   return { data, loading, error, refresh, setData };
 }
 
-export async function apiSend<T>(url: string, method: "POST" | "PATCH" | "PUT" | "DELETE", body?: unknown): Promise<T> {
+export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE", body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
