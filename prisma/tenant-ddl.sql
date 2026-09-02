@@ -878,6 +878,123 @@ CREATE TABLE "AttendanceRule" (
     CONSTRAINT "AttendanceRule_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "LeaveType" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "unit" TEXT NOT NULL DEFAULT 'DAY',
+    "entitlement" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "maxPerRequest" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "paid" BOOLEAN NOT NULL DEFAULT true,
+    "cashable" BOOLEAN NOT NULL DEFAULT false,
+    "periodMode" TEXT NOT NULL DEFAULT 'CALENDAR',
+    "prorateMonthly" BOOLEAN NOT NULL DEFAULT false,
+    "carryOverMax" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "waitingMonths" INTEGER NOT NULL DEFAULT 0,
+    "allowAdvance" BOOLEAN NOT NULL DEFAULT false,
+    "allowHalfDay" BOOLEAN NOT NULL DEFAULT true,
+    "needDocs" BOOLEAN NOT NULL DEFAULT false,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LeaveType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LeaveBalance" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "leaveTypeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "carriedOver" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "adjustment" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "cashed" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LeaveBalance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LeaveRequest" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "leaveTypeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "requestDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dateFrom" TIMESTAMP(3) NOT NULL,
+    "sessionFrom" TEXT NOT NULL DEFAULT 'AM',
+    "dateTo" TIMESTAMP(3) NOT NULL,
+    "sessionTo" TEXT NOT NULL DEFAULT 'PM',
+    "workingDays" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "balanceAtRequest" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "remainingAtRequest" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "backToWorkDate" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "source" TEXT NOT NULL DEFAULT 'Admin',
+    "reason" TEXT,
+    "note" TEXT,
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LeaveRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LeaveEncashment" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "leaveTypeId" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "requestDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "paymentDate" TIMESTAMP(3),
+    "days" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'Submitted',
+    "periodCode" TEXT,
+    "transferredRunNo" TEXT,
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LeaveEncashment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MassLeave" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "leaveTypeId" TEXT NOT NULL,
+    "letterNo" TEXT,
+    "dateFrom" TIMESTAMP(3) NOT NULL,
+    "dateTo" TIMESTAMP(3) NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "orgUnitName" TEXT,
+    "includeSubOrg" BOOLEAN NOT NULL DEFAULT true,
+    "excludeNonWorking" BOOLEAN NOT NULL DEFAULT true,
+    "excludeConflicted" BOOLEAN NOT NULL DEFAULT true,
+    "note" TEXT,
+    "generated" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MassLeave_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -1009,6 +1126,39 @@ CREATE INDEX "WorkOffPermission_employeeId_dateFrom_idx" ON "WorkOffPermission"(
 
 -- CreateIndex
 CREATE INDEX "WorkOffPermission_status_idx" ON "WorkOffPermission"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LeaveType_code_key" ON "LeaveType"("code");
+
+-- CreateIndex
+CREATE INDEX "LeaveBalance_year_idx" ON "LeaveBalance"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LeaveBalance_employeeId_leaveTypeId_year_key" ON "LeaveBalance"("employeeId", "leaveTypeId", "year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LeaveRequest_docNo_key" ON "LeaveRequest"("docNo");
+
+-- CreateIndex
+CREATE INDEX "LeaveRequest_employeeId_dateFrom_idx" ON "LeaveRequest"("employeeId", "dateFrom");
+
+-- CreateIndex
+CREATE INDEX "LeaveRequest_status_idx" ON "LeaveRequest"("status");
+
+-- CreateIndex
+CREATE INDEX "LeaveRequest_year_idx" ON "LeaveRequest"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LeaveEncashment_docNo_key" ON "LeaveEncashment"("docNo");
+
+-- CreateIndex
+CREATE INDEX "LeaveEncashment_status_idx" ON "LeaveEncashment"("status");
+
+-- CreateIndex
+CREATE INDEX "LeaveEncashment_employeeId_idx" ON "LeaveEncashment"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MassLeave_docNo_key" ON "MassLeave"("docNo");
 
 -- AddForeignKey
 ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1183,4 +1333,25 @@ ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_employeeId_fke
 
 -- AddForeignKey
 ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_dayTypeId_fkey" FOREIGN KEY ("dayTypeId") REFERENCES "WorkDayType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveBalance" ADD CONSTRAINT "LeaveBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveBalance" ADD CONSTRAINT "LeaveBalance_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveRequest" ADD CONSTRAINT "LeaveRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveRequest" ADD CONSTRAINT "LeaveRequest_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveEncashment" ADD CONSTRAINT "LeaveEncashment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LeaveEncashment" ADD CONSTRAINT "LeaveEncashment_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MassLeave" ADD CONSTRAINT "MassLeave_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

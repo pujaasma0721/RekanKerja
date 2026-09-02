@@ -1,23 +1,19 @@
 "use client";
-// Placeholder modul yang belum dibangun (Attendance / Leave / Travel / Medical)
+// Placeholder modul yang belum dibangun (Travel / Medical)
 import { ModuleId, MODULE_LABEL } from "@/lib/onevity/store";
 import { PageHeader } from "@/components/onevity/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, Palmtree, Plane, HeartPulse, Sparkles, ChevronLeft } from "lucide-react";
+import { Plane, HeartPulse, Sparkles, ChevronLeft } from "lucide-react";
 import { useNav } from "@/lib/onevity/store";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, React.ElementType> = {
-  attendance: CalendarClock,
-  leave: Palmtree,
   travel: Plane,
   medical: HeartPulse,
 };
 
 const PLANNED: Record<string, string[]> = {
-  attendance: ["Template & Assign Jadwal Kerja", "Matriks Jadwal Karyawan", "Data Clocking & Absensi", "Overtime (Lembur)", "Work Off Permission", "Integrasi ke Payroll (komponen kehadiran)"],
-  leave: ["Saldo & Informasi Cuti Karyawan", "Permintaan & Approval Cuti", "Jenis Cuti & Kebijakan", "Uang Pengganti Cuti (Encashment)", "Integrasi ke Payroll (potongan/penambahan)"],
   travel: ["Permintaan Perjalanan Dinas", "Klaim & Settlement Travel", "Budget Travel per Period", "Approval Berjenjang", "Integrasi Jurnal Akuntansi"],
   medical: ["Info Benefit Medis Karyawan", "Klaim Medis & Bukti Dokumen", "Approval Klaim (limit & overlimit)", "Jenis Benefit & Reset Period", "Pembayaran via Payroll"],
 };
@@ -33,10 +29,10 @@ export function ModulePlaceholder({ module }: { module: ModuleId }) {
       <PageHeader
         eyebrow={`MODUL ${label.toUpperCase()}`}
         title={`Modul ${label}`}
-        description="Modul ini sudah dirancang dalam roadmap OneVity dan akan dibangun setelah modul Payroll selesai."
+        description="Modul ini sudah dirancang dalam roadmap OneVity dan akan dibangun setelah modul inti selesai."
         actions={
-          <Button variant="outline" className="gap-2" onClick={() => setModule("payroll")}>
-            <ChevronLeft className="h-4 w-4" /> Lanjut ke Modul Payroll
+          <Button variant="outline" className="gap-2" onClick={() => setModule("leave")}>
+            <ChevronLeft className="h-4 w-4" /> Lihat Modul Leave
           </Button>
         }
       />

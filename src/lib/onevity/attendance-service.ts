@@ -134,6 +134,38 @@ async function workoffFor(db: TenantDb, employeeId: string, date: Date): Promise
   return { paid: w.paid, half: !w.allDay };
 }
 
+// Cuti efektif pada tanggal (modul Leave): request Approved/MassLeave menutup hari —
+// padanan oranHR Absence Code per jenis cuti. Setengah hari: sesi PM di tanggal mulai
+// atau sesi AM di tanggal selesai.
+interface LeaveCoverage {
+  typeName: string;
+  paid: boolean;
+  half: boolean;
+}
+
+async function leaveFor(db: TenantDb, employeeId: string, date: Date): Promise<LeaveCoverage | null> {
+  const start = dayStart(date);
+  const end = addDays(start, 1);
+  const rows = await db.leaveRequest.findMany({
+    where: {
+      employeeId,
+      status: { in: ["Approved", "MassLeave"] },
+      dateFrom: { lt: end },
+      dateTo: { gte: start },
+    },
+    orderBy: [{ status: "asc" }, { dateFrom: "desc" }],
+    include: { leaveType: { select: { name: true, paid: true } } },
+  });
+  const r = rows[0];
+  if (!r) return null;
+  const isFrom = r.dateFrom.getTime() === start.getTime();
+  const isTo = r.dateTo.getTime() === start.getTime();
+  let half = false;
+  if (isFrom && r.sessionFrom === "PM") half = true;
+  if (isTo && r.sessionTo === "AM") half = true;
+  return { typeName: r.leaveType.name, paid: r.leaveType.paid, half };
+}
+
 export interface DailyRow {
   employeeId: string;
   employeeNo: string;
@@ -254,6 +286,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     const checkOutRaw = [...empLogs].reverse().find((l) => l.direction === "OUT" && (!checkIn || l.timestamp > checkIn))?.timestamp ?? null;
 
     const wo = await workoffFor(db, emp.id, date);
+    const lv = await leaveFor(db, emp.id, date);
     const target = dayType?.normalMinutes ?? 0;
     const isOffDay = !dayType || dayType.category === "Off";
     const clockingRequired = assignment?.clockingRequired ?? true;
@@ -267,7 +300,30 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     let absenceMinutes = 0;
     let notes: string | null = null;
 
-    if (wo.paid !== null) {
+    if (isOffDay) {
+      if (checkIn && checkOutRaw) {
+        // bekerja pada hari off — hadir (lembur hari libur via work order)
+        status = "Present";
+        presence = 1;
+        workMinutes = Math.min(960, minutesBetween(checkIn, checkOutRaw));
+        normalMinutes = 0;
+        notes = "Bekerja pada hari off";
+      } else {
+        status = "Off";
+      }
+    } else if (lv) {
+      // Cuti (Approved/MassLeave) menutup hari kerja — padanan Absence Code oranHR.
+      status = "OnLeave";
+      if (lv.paid) {
+        normalMinutes = lv.half ? Math.floor(target / 2) : target;
+        absenceMinutes = lv.half ? Math.ceil(target / 2) : 0;
+        notes = lv.half ? `Cuti ${lv.typeName} (setengah hari, dibayar)` : `Cuti ${lv.typeName} (dibayar)`;
+      } else {
+        normalMinutes = 0;
+        absenceMinutes = lv.half ? Math.ceil(target / 2) : target;
+        notes = lv.half ? `Cuti ${lv.typeName} (setengah hari, tidak dibayar)` : `Cuti ${lv.typeName} (tidak dibayar)`;
+      }
+    } else if (wo.paid !== null) {
       // Izin tidak masuk (work off permission) menutup hari — padanan oranHR.
       status = "WorkOff";
       if (wo.paid) {
@@ -388,6 +444,8 @@ export interface RecapRow {
   absenceMinutes: number;
   workoffPaidDays: number;
   workoffUnpaidDays: number;
+  leavePaidDays: number;
+  leaveUnpaidDays: number;
   offDays: number;
   normalMinutes: number;
   overtimeMinutes: number;
@@ -437,12 +495,17 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
 
     let presentDays = 0, lateCount = 0, lateMinutes = 0, absentDays = 0, absenceMinutes = 0;
     let workoffPaid = 0, workoffUnpaid = 0, offDays = 0, normalMinutes = 0, overtimeMinutes = 0;
+    let leavePaid = 0, leaveUnpaid = 0;
     let scheduledDays = 0;
     for (const r of empRows) {
       switch (r.status) {
         case "Present": presentDays++; scheduledDays++; break;
         case "Late": presentDays++; lateCount++; scheduledDays++; break;
         case "Absent": absentDays++; scheduledDays++; break;
+        case "OnLeave":
+          if (r.notes?.includes("tidak dibayar")) leaveUnpaid++; else leavePaid++;
+          scheduledDays++;
+          break;
         case "WorkOff":
           if (r.notes?.includes("tidak dibayar")) workoffUnpaid++; else workoffPaid++;
           scheduledDays++;
@@ -459,19 +522,20 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
     const hourly = baseSalary / 173;
     const lateDeduction = Math.round((lateMinutes / 60) * (rule.lateDeductionPerHour > 0 ? rule.lateDeductionPerHour : hourly));
     const perDay = rule.absenceDeductionPerDay > 0 ? rule.absenceDeductionPerDay : baseSalary / 25;
-    const absenceDeduction = Math.round((absentDays + workoffUnpaid) * perDay);
+    const absenceDeduction = Math.round((absentDays + workoffUnpaid + leaveUnpaid) * perDay);
     const otPay = (otByEmp.get(emp.id) ?? []).reduce(
       (s, o) => s + overtimePayFor(baseSalary, o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes, o.dayCategory),
       0,
     );
-    const perfect = scheduledDays > 0 && lateCount === 0 && absentDays === 0 && workoffUnpaid === 0 &&
-      presentDays + workoffPaid === scheduledDays;
+    const perfect = scheduledDays > 0 && lateCount === 0 && absentDays === 0 && workoffUnpaid === 0 && leaveUnpaid === 0 &&
+      presentDays + workoffPaid + leavePaid === scheduledDays;
     const attendanceAllowance = perfect ? rule.attendanceAllowanceAmount : 0;
 
     out.push({
       employeeId: emp.id, employeeNo: emp.employeeNo, fullName: emp.fullName, orgUnitName: orgName,
       baseSalary, scheduledDays, presentDays, lateCount, lateMinutes,
       absentDays, absenceMinutes, workoffPaidDays: workoffPaid, workoffUnpaidDays: workoffUnpaid,
+      leavePaidDays: leavePaid, leaveUnpaidDays: leaveUnpaid,
       offDays, normalMinutes, overtimeMinutes,
       overtimePay: otPay, lateDeduction, absenceDeduction, attendanceAllowance,
     });
@@ -545,7 +609,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
     const amounts: [string, number, string][] = [
       [rule.overtimeComponentCode, includeOvertime ? r.overtimePay : 0, `Lembur ${Math.round(r.overtimeMinutes / 60)} jam`],
       [rule.lateDeductionComponentCode, includeLate ? r.lateDeduction : 0, `Telat ${r.lateCount}× (${Math.round(r.lateMinutes)} menit)`],
-      [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${r.workoffUnpaidDays} hari`],
+      [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${r.workoffUnpaidDays + r.leaveUnpaidDays} hari`],
       [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
     ];
     let any = false;

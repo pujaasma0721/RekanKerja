@@ -9,6 +9,7 @@ import {
 import { generateJournalForRun } from "@/lib/onevity/payroll-journal";
 import { markClaimsPaidForRun } from "@/lib/onevity/benefit-service";
 import { markOvertimePaidForRun } from "@/lib/onevity/attendance-service";
+import { markEncashmentPaidForRun } from "@/lib/onevity/leave-service";
 
 export async function getActiveRegulation(db: TenantDb): Promise<EngineRegulation> {
   const r = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });
@@ -356,6 +357,13 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
     await markOvertimePaidForRun(db, runId);
   } catch {
     // non-fatal: lembur dapat ditandai manual bila gagal
+  }
+
+  // Encashment cuti Transferred dalam window period → Paid (modul leave).
+  try {
+    await markEncashmentPaidForRun(db, runId);
+  } catch {
+    // non-fatal: encashment dapat ditandai manual bila gagal
   }
 
   // Posting jurnal otomatis (P4) — idempotent; hasil run sudah dikunci aman.

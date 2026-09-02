@@ -20,7 +20,7 @@ import {
   Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
-  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen,
+  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export const MODULES: { id: ModuleId; label: string; short: string; icon: React.
   { id: "hr", label: "Human Resource Base", short: "HR Base", icon: Users, ready: true },
   { id: "payroll", label: "Payroll", short: "Payroll", icon: Coins, ready: true },
   { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: true },
-  { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: false },
+  { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: true },
   { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: false },
   { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: false },
 ];
@@ -122,13 +122,15 @@ const ATTENDANCE_NAV: NavGroup[] = [
 const LEAVE_NAV: NavGroup[] = [
   { section: "leave", children: [{ id: "balances", label: "Ringkasan", icon: LayoutDashboard }] },
   { section: "leave", label: "Cuti Karyawan", children: [
-    { id: "leave-info", label: "Informasi Cuti", icon: Palmtree },
+    { id: "leave-info", label: "Informasi Cuti (Saldo)", icon: Palmtree },
     { id: "leave-request", label: "Permintaan Cuti", icon: Inbox },
     { id: "leave-approval", label: "Persetujuan", icon: CheckCircle2 },
+    { id: "leave-mass", label: "Cuti Massal (SKB)", icon: Users },
   ] },
-  { section: "leave", label: "Pengaturan Cuti", children: [
+  { section: "leave", label: "Pengaturan & Integrasi", children: [
     { id: "leave-type", label: "Jenis Cuti", icon: Layers },
     { id: "leave-encashment", label: "Uang Pengganti Cuti", icon: Wallet },
+    { id: "leave-reports", label: "Laporan Cuti", icon: BarChart3 },
   ] },
 ];
 

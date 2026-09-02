@@ -407,4 +407,64 @@ export async function ensureAttendanceReference(db: TenantDb): Promise<void> {
       });
     }
   }
+
+  await ensureLeaveReference(db);
+}
+
+// Master leave idempoten — 12 jenis cuti inti Indonesia (UU 13/2003 + PP 35/2021)
+// + komponen UCT (uang pengganti cuti). Dipakai provisioning & upgrade tenant.
+export const LEAVE_TYPE_DEFS: {
+  code: string; name: string; description?: string; unit?: string; entitlement: number;
+  maxPerRequest?: number; paid?: boolean; cashable?: boolean; periodMode?: string;
+  prorateMonthly?: boolean; carryOverMax?: number; waitingMonths?: number;
+  allowAdvance?: boolean; allowHalfDay?: boolean; needDocs?: boolean;
+}[] = [
+  { code: "CT-THN", name: "Cuti Tahunan", description: "12 hari kerja setelah 12 bulan kerja berlanjut (UU 13/2003 pasal 79)", entitlement: 12, prorateMonthly: true, carryOverMax: 6, waitingMonths: 6, allowAdvance: true, cashable: true },
+  { code: "CT-ANNIV", name: "Cuti Tahunan Anniversarry", description: "Periode per tanggal join karyawan", entitlement: 12, periodMode: "ANNIVERSARY", prorateMonthly: true, carryOverMax: 0, waitingMonths: 6, allowAdvance: true },
+  { code: "CT-BESAR", name: "Cuti Besar (Long Service)", description: "Cuti panjang masa kerja — periode per tanggal join", entitlement: 12, periodMode: "ANNIVERSARY", waitingMonths: 72, allowAdvance: false, needDocs: true },
+  { code: "CT-NIKAH", name: "Cuti Pernikahan", description: "Pernikahan karyawan sendiri (UU 13/2003 pasal 81)", entitlement: 3, waitingMonths: 0, needDocs: true },
+  { code: "CT-NIKAH-A", name: "Cuti Pernikahan Anak", description: "Pernikahan anak sah karyawan (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-KHITAN", name: "Cuti Baptis/Khitanan Anak", description: "Baptis/khitanan anak sah karyawan (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-LAHIR", name: "Cuti Kelahiran Anak", description: "Istri sah karyawan melahirkan (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-GUGUR-I", name: "Cuti Istri Keguguran", description: "Istri keguguran — untuk suami (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-MATI-I", name: "Cuti Kematian Keluarga Inti", description: "Kematian suami/istri, anak, orang tua, mertua (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-MATI-S", name: "Cuti Kematian Serumah/Saudara", description: "Kematian saudara/kakek/nenek/kenalan serumah (PP 35/2021)", entitlement: 1, needDocs: true },
+  { code: "CT-HAJI", name: "Cuti Haji", description: "Ibadah haji (perusahaan menanggung upah penuh)", entitlement: 40, needDocs: true },
+  { code: "CT-HAID", name: "Cuti Haid", description: "Cuti haid (UU 13/2003 pasal 81)", entitlement: 2, allowHalfDay: true },
+];
+
+export async function ensureLeaveReference(db: TenantDb): Promise<void> {
+  for (const t of LEAVE_TYPE_DEFS) {
+    await db.leaveType.upsert({
+      where: { code: t.code },
+      create: {
+        code: t.code, name: t.name, description: t.description ?? null,
+        unit: t.unit === "MONTH" ? "MONTH" : "DAY",
+        entitlement: t.entitlement,
+        maxPerRequest: t.maxPerRequest ?? 0,
+        paid: t.paid !== false,
+        cashable: Boolean(t.cashable),
+        periodMode: t.periodMode === "ANNIVERSARY" ? "ANNIVERSARY" : "CALENDAR",
+        prorateMonthly: Boolean(t.prorateMonthly),
+        carryOverMax: t.carryOverMax ?? 0,
+        waitingMonths: t.waitingMonths ?? 0,
+        allowAdvance: Boolean(t.allowAdvance),
+        allowHalfDay: t.allowHalfDay !== false,
+        needDocs: Boolean(t.needDocs),
+      },
+      update: {},
+    });
+  }
+
+  // komponen UCT (padanan oranHR wage code UCT "Cashable Leave")
+  const uct = await db.wageComponent.findUnique({ where: { code: "UCT" } });
+  if (!uct) {
+    await db.wageComponent.create({
+      data: {
+        code: "UCT", name: "Uang Pengganti Cuti", type: "Earning", wageType: "Compensation",
+        calcMethod: "Fixed", amount: 0, incomeTaxMethod: "Regular",
+        taxable: true, includeInTHP: true, accountDebitCode: "5102",
+      },
+    });
+  }
 }

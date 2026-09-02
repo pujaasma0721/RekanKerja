@@ -1137,6 +1137,16 @@ async function main() {
     });
   }
 
+  // ============ LEAVE (ref: ANALISA-LEAVE.md — oranHR) ============
+  console.log(" seeding leave…");
+  const { seedLeaveDemoData } = await import("../src/lib/onevity/leave-seed");
+  const leaveRes = await seedLeaveDemoData(db);
+  if (leaveRes.skipped) {
+    console.log("   → saldo leave 2026 sudah ada — skip");
+  } else {
+    console.log(`   → ${leaveRes.balances} saldo 2026, ${leaveRes.requests} permintaan, cuti massal ${leaveRes.massGenerated} karyawan, ${leaveRes.encashments} encashment`);
+  }
+
   // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
   const { regenerateRange } = await import("../src/lib/onevity/attendance-service");
   const days = await regenerateRange(db, from, to);

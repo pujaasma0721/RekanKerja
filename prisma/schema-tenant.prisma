@@ -156,6 +156,9 @@ model Employee {
   attendanceDailies    AttendanceDaily[]
   overtimeOrders       OvertimeOrder[]
   workoffPermissions   WorkOffPermission[]
+  leaveBalances        LeaveBalance[]
+  leaveRequests        LeaveRequest[]
+  leaveEncashments     LeaveEncashment[]
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -991,4 +994,147 @@ model AttendanceRule {
   lateDeductionPerHour             Float    @default(0) // 0 = proporsional upah per jam (1/173)
   absenceDeductionPerDay           Float    @default(0) // 0 = 1/25 upah bulanan
   updatedAt                        DateTime @updatedAt
+}
+
+// ============ LEAVE (Modul Cuti — padanan Leave Administration oranHR) ============
+
+// Master jenis cuti — padanan "Leave Type" (LeaveTypeDetail.jsp, 40+ atribut
+// diringkas ke atribut inti yang dipakai kalkulasi OneVity).
+model LeaveType {
+  id             String   @id @default(cuid())
+  code           String   @unique // CT-THN, CT-NIKAH, CT-BESAR...
+  name           String
+  description    String?
+  unit           String   @default("DAY") // DAY|MONTH — satuan saldo (oranHR: Day(s)/Month(s))
+  entitlement    Float    @default(0) // hak per periode
+  maxPerRequest  Float    @default(0) // 0 = sama dengan entitlement
+  paid           Boolean  @default(true) // cuti dibayar (absen berbayar → TA tidak memotong)
+  cashable       Boolean  @default(false) // saldo bisa diuangkan (encashment → payroll)
+  periodMode     String   @default("CALENDAR") // CALENDAR (1 Jan–31 Des) | ANNIVERSARY (per tgl join)
+  prorateMonthly Boolean  @default(false) // earned akumulasi bulan berlalu × hak/12
+  carryOverMax   Float    @default(0) // batas saldo bawa periode lalu (0 = tidak boleh bawa)
+  waitingMonths  Int      @default(0) // masa kerja minimum sebelum cuti bisa diambil
+  allowAdvance   Boolean  @default(false) // boleh saldo minus (advance leave)
+  allowHalfDay   Boolean  @default(true) // boleh setengah hari (sesi AM/PM)
+  needDocs       Boolean  @default(false) // perlu dokumen pendukung
+  active         Boolean  @default(true)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  balances    LeaveBalance[]
+  requests    LeaveRequest[]
+  encashments LeaveEncashment[]
+  massLeaves  MassLeave[]
+}
+
+// Saldo cuti per karyawan×jenis×tahun — padanan "Employee Leave Information".
+// Kolom statis: (a) carriedOver, (c) adjustment, (e) cashed.
+// (b) earned / (f) taken / (g) appliedNotTaken dihitung dinamis dari tanggal &
+// request berstatus Approved/MassLeave — formula saldo:
+//   balance = (a + b + c) − (d forfeited + e + f + g)
+model LeaveBalance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  year        Int
+  carriedOver Float    @default(0) // (a) saldo bawa dari periode lalu
+  adjustment  Float    @default(0) // (c) penyesuaian manual/massal (±)
+  cashed      Float    @default(0) // (e) hari yang diuangkan (encashment approved)
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([year])
+}
+
+// Permintaan cuti — padanan "Leave Request" (form auto-compute) + baris hasil
+// Mass Leave (status MassLeave, langsung efektif).
+model LeaveRequest {
+  id                String    @id @default(cuid())
+  docNo             String    @unique // LR-2026-001
+  employeeId        String
+  leaveTypeId       String
+  year              Int // periode saldo yang dipakai
+  requestDate       DateTime  @default(now())
+  dateFrom          DateTime
+  sessionFrom       String    @default("AM") // AM|PM — sesi mulai
+  dateTo            DateTime
+  sessionTo         String    @default("PM") // AM|PM — sesi selesai
+  workingDays       Float     @default(0) // hari kerja terpakai (auto dari jadwal TA)
+  balanceAtRequest  Float     @default(0) // saldo saat diajukan
+  remainingAtRequest Float    @default(0) // saldo sesudah (bisa minus = advance)
+  backToWorkDate    DateTime? // hari kerja pertama setelah cuti (auto)
+  status            String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled|MassLeave
+  source            String    @default("Admin") // Admin|ESS|MassLeave
+  reason            String?
+  note              String?
+  decidedById       String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([employeeId, dateFrom])
+  @@index([status])
+  @@index([year])
+}
+
+// Uang pengganti cuti — padanan "Leave Encashment" + "Employee Leave Cashable".
+// Approved → cashed bertambah; Transferred/Paid setelah masuk payroll run.
+model LeaveEncashment {
+  id               String   @id @default(cuid())
+  docNo            String   @unique // LE-2026-001
+  employeeId       String
+  leaveTypeId      String
+  year             Int
+  requestDate      DateTime @default(now())
+  paymentDate      DateTime?
+  days             Float    @default(0) // hari diuangkan
+  amount           Float    @default(0) // estimasi upah (hari × upah harian)
+  status           String   @default("Submitted") // Submitted|Approved|Rejected|Cancelled|Transferred|Paid
+  periodCode       String?  // period payroll target ( saat transfer)
+  transferredRunNo String?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([status])
+  @@index([employeeId])
+}
+
+// Cuti massal per organisasi — padanan "Mass Leave" (SKB cuti bersama):
+// generate baris LeaveRequest status MassLeave per karyawan pada rentang tanggal.
+model MassLeave {
+  id                String   @id @default(cuid())
+  docNo             String   @unique // ML-2026-001
+  leaveTypeId       String
+  letterNo          String?
+  dateFrom          DateTime
+  dateTo            DateTime
+  amount            Float    @default(1) // hari per tanggal per karyawan
+  orgUnitName       String?  // kosong = seluruh karyawan
+  includeSubOrg     Boolean  @default(true)
+  excludeNonWorking Boolean  @default(true) // lewati hari off/libur
+  excludeConflicted Boolean  @default(true) // lewati yang sudah punya cuti
+  note              String?
+  generated         Int      @default(0) // jumlah karyawan ter-generate
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
 }

@@ -11,6 +11,7 @@ import { EmployeeModule } from "@/components/onevity/employee/employee-module";
 import { ActionsModule } from "@/components/onevity/actions/actions-module";
 import { PayrollModule } from "@/components/onevity/payroll/payroll-module";
 import { AttendanceModule } from "@/components/onevity/attendance/attendance-module";
+import { LeaveModule } from "@/components/onevity/leave/leave-module";
 import { SettingsModule } from "@/components/onevity/settings/settings-module";
 import { ModulePlaceholder } from "@/components/onevity/module-placeholder";
 
@@ -37,8 +38,9 @@ export default function Page() {
             {section === "actions" && <ActionsModule view={view} />}
             {section === "payroll" && <PayrollModule view={view} />}
             {section === "attendance" && <AttendanceModule view={view} />}
+            {section === "leave" && <LeaveModule view={view} />}
             {section === "settings" && <SettingsModule view={view} />}
-            {(section === "leave" || section === "travel" || section === "medical") && (
+            {(section === "travel" || section === "medical") && (
               <ModulePlaceholder module={section} />
             )}
           </motion.div>
