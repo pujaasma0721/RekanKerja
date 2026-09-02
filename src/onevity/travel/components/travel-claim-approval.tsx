@@ -34,7 +34,7 @@ export function TravelClaimApprovalPage() {
   const api = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
     "/api/onevity/travel/claims?status=Submitted",
   );
-  const approved = useApi<{ claims: TravelClaimRowUI[] }>("/api/onevity/travel/claims?status=Approved");
+  const approved = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>("/api/onevity/travel/claims?status=Approved");
   const all = useApi<{ claims: TravelClaimRowUI[] }>("/api/onevity/travel/claims?status=all");
   const periods = useApi<{ periods: PeriodOptionUI[] }>("/api/onevity/payroll-periods");
 

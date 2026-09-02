@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@/generated/tenant";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { calculateAndSaveRun, nextRunNo } from "@/onevity/payroll/services/payroll-service";
+
+type RapelRun = Prisma.PayrollRunGetPayload<{ include: { period: true; processType: true } }>;
 
 interface RapelBreakdownRow {
   periodCode: string;
@@ -142,10 +145,11 @@ export async function POST(req: NextRequest) {
       include: { period: true, processType: true },
     });
 
-    let run = null;
+    let run: RapelRun | null = null;
     if (autoRun) {
       const existing = await db.payrollRun.findFirst({
         where: { periodId: targetPeriod.id, processTypeId: rapelType.id, status: { not: "Cancelled" } },
+        include: { period: true, processType: true },
       });
       run = existing ?? await db.payrollRun.create({
         data: {
@@ -157,7 +161,7 @@ export async function POST(req: NextRequest) {
         },
         include: { period: true, processType: true },
       });
-      if (run.status === "Draft") {
+      if (run && run.status === "Draft") {
         await calculateAndSaveRun(db, run.id);
         run = await db.payrollRun.findUnique({ where: { id: run.id }, include: { period: true, processType: true } });
       }

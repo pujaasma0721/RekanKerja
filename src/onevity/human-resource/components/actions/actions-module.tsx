@@ -1,7 +1,7 @@
 "use client";
 // OneVity — Modul Personnel Action: inbox, all documents, detail workflow
 import { useMemo, useState } from "react";
-import { useApi, apiSend, fmtDate, fmtDateTime, initials, avatarColor, paTypeLabelSafe } from "@/onevity/shared/lib/api";
+import { useApi, apiSend, fmtDate, fmtDateTime, fmtIDR, initials, avatarColor, paTypeLabelSafe } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows, PA_TYPES } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

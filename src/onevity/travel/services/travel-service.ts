@@ -798,7 +798,7 @@ export async function markTravelPaidForRun(db: TenantDb, runId: string): Promise
   if (!run || run.processType.code !== "SALARY") return 0;
   const res = await db.travelClaim.updateMany({
     where: { status: "Transferred", periodCode: run.period.code },
-    data: { status: "Paid", paidRunNo: run.runNo, transferredRunNo: run.transferredRunNo ?? run.runNo },
+    data: { status: "Paid", paidRunNo: run.runNo, transferredRunNo: run.runNo },
   });
   if (res.count > 0) {
     await db.activityLog.create({

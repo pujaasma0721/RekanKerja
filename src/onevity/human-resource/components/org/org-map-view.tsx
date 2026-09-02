@@ -967,7 +967,7 @@ function MobileUnitItem({
       <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
         <button type="button" onClick={() => openUnit(u.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", (LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).box)}>
-            {(LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).icon && <UnitLevelIcon level={u.level} />}
+            {(LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).icon != null && <UnitLevelIcon level={u.level} />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1">

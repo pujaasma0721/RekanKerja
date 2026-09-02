@@ -117,7 +117,7 @@ export function AttendanceAbsencePage() {
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
             <div>
-              <p className="text-[13px] font-bold">Rekap {month} — {api.data ? `${api.data.total?.employees ?? rows.length} karyawan` : "…"}</p>
+              <p className="text-[13px] font-bold">Rekap {month} — {api.data ? `${rows.length} karyawan` : "…"}</p>
               <p className="text-[11px] text-stone-400">Jendela {api.data ? `${fmtDate(api.data.from)} – ${fmtDate(api.data.to)}` : from}</p>
             </div>
             <div className="relative">

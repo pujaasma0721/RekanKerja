@@ -192,7 +192,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const session = useSession();
   const sessionUser = session.info?.user;
   const sessionTenant = session.info?.tenant;
-  const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
+  const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; benefitPendingClaims: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
 
   useEffect(() => {
     syncFromUrl();

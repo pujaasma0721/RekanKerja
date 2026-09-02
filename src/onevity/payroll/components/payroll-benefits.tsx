@@ -340,7 +340,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           )}
           {claim.status === "Scheduled" && claim.period && (
             <button
-              onClick={() => navigate("payroll", "runs", { period: claim.periodId ?? undefined })}
+              onClick={() => navigate("payroll", "runs", claim.periodId ? { period: claim.periodId } : undefined)}
               className="flex h-7 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:bg-stone-900 dark:text-violet-400 dark:hover:bg-violet-500/10"
             >
               Lihat Run <ChevronRight className="h-3 w-3" />

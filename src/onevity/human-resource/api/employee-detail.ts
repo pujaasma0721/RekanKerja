@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     const cur = employee.assignments[0] ?? null;
     // manager aktif + posisinya (nested: manager → assignment aktifnya)
-    let manager: { id: string; fullName: string; employeeNo: string; position: { title: string } | null } | null = null;
+    let manager: { id: string; fullName: string; employeeNo: string; position: { title: string | null } | null } | null = null;
     if (cur?.managerId) {
       const mgr = await db.employee.findUnique({
         where: { id: cur.managerId },

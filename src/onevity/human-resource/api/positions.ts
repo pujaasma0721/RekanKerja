@@ -114,7 +114,7 @@ export async function DELETE(req: NextRequest) {
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
-    const count = await db.employee.count({ where: { positionId: id } });
+    const count = await db.employeeAssignment.count({ where: { positionId: id } });
     if (count > 0) return NextResponse.json({ error: `Posisi masih dipegang ${count} karyawan` }, { status: 400 });
     const reports = await db.position.count({ where: { reportsToId: id } });
     if (reports > 0) return NextResponse.json({ error: `Posisi masih menjadi atasan dari ${reports} posisi lain` }, { status: 400 });

@@ -480,7 +480,7 @@ async function main() {
     code: string; name: string; type: string; wageType: string; calcMethod: string;
     amount?: number; formula?: string; incomeTaxMethod?: string; prorated?: boolean;
     includeInTHP?: boolean; includeInBasicIncome?: boolean; applyThrRules?: boolean;
-    jamsostekBasis?: string; sptReference?: string;
+    jamsostekBasis?: string; sptReference?: string; accountDebitCode?: string;
   };
   const compDefs: CompDef[] = [
     { code: "BASIC", name: "Gaji Pokok", type: "Earning", wageType: "BasicSalary", calcMethod: "Formula", formula: "BASE_SALARY", includeInBasicIncome: true, sptReference: "Gaji" },

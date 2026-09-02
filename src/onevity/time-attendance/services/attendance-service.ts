@@ -939,7 +939,7 @@ export async function attendanceStats(db: TenantDb, date: Date, monthFrom: Date,
 
   return {
     today: { date: fmtDate(date), ...today, total: daily.length },
-    month: { from: fmtDate(monthFrom), to: fmtDate(monthTo), ...month, total: month.rows ?? 0 },
+    month: { from: fmtDate(monthFrom), to: fmtDate(monthTo), ...month },
     pendingOvertime: pendingOT,
     pendingWorkoff: pendingWO,
     activeSchedules,
