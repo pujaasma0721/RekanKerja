@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, verifyPassword, buildSessionInfo,
-} from "@/lib/onevity/auth";
+} from "@/onevity/shared/lib/auth";
 
 // POST /api/auth/login { email, password } → session cookie (tid otomatis bila 1 workspace)
 export async function POST(req: NextRequest) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/onevity/auth";
+import { SESSION_COOKIE } from "@/onevity/shared/lib/auth";
 
 // POST /api/auth/logout — hapus cookie session
 export async function POST() {

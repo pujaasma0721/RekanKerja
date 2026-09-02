@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, buildSessionInfo, readSessionCookie } from "@/lib/onevity/auth";
+import { SESSION_COOKIE, buildSessionInfo, readSessionCookie } from "@/onevity/shared/lib/auth";
 
 // GET /api/auth/me — session saat ini (user + tenant terpilih + daftar workspace)
 export async function GET(req: NextRequest) {

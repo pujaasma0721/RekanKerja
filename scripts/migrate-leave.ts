@@ -4,9 +4,9 @@
 //   3. hitung ulang rekap kehadiran Agu–Sep (status OnLeave masuk)
 // Idempoten: saldo 2026 sudah ada → skip.
 // Jalankan: bun run scripts/migrate-leave.ts
-import { getTenantClient } from "@/lib/onevity/tenant-db";
-import { seedLeaveDemoData } from "@/lib/onevity/leave-seed";
-import { regenerateRange } from "@/lib/onevity/attendance-service";
+import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { seedLeaveDemoData } from "@/onevity/leave/services/leave-seed";
+import { regenerateRange } from "@/onevity/time-attendance/services/attendance-service";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

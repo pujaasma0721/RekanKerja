@@ -7,9 +7,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { getTenantClient } from "@/lib/onevity/tenant-db";
-import { ensureTravelReference } from "@/lib/onevity/provisioning";
-import { seedTravelDemoData } from "@/lib/onevity/travel-seed";
+import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { ensureTravelReference } from "@/onevity/shared/lib/provisioning";
+import { seedTravelDemoData } from "@/onevity/travel/services/travel-seed";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

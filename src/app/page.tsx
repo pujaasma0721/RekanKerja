@@ -1,21 +1,21 @@
 "use client";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNav } from "@/lib/onevity/store";
-import { AuthGate } from "@/components/onevity/auth/auth-gate";
-import { AppShell } from "@/components/onevity/shell/app-shell";
-import { DashboardModule } from "@/components/onevity/dashboard/dashboard-module";
-import { OrgModule } from "@/components/onevity/org/org-module";
-import { PositionModule } from "@/components/onevity/position/position-module";
-import { EmployeeModule } from "@/components/onevity/employee/employee-module";
-import { ActionsModule } from "@/components/onevity/actions/actions-module";
-import { PayrollModule } from "@/components/onevity/payroll/payroll-module";
-import { AttendanceModule } from "@/components/onevity/attendance/attendance-module";
-import { LeaveModule } from "@/components/onevity/leave/leave-module";
-import { TravelModule } from "@/components/onevity/travel/travel-module";
-import { MedicalModule } from "@/components/onevity/medical/medical-module";
-import { SettingsModule } from "@/components/onevity/settings/settings-module";
-import { ModulePlaceholder } from "@/components/onevity/module-placeholder";
+import { useNav } from "@/onevity/shared/lib/store";
+import { AuthGate } from "@/onevity/shared/components/auth/auth-gate";
+import { AppShell } from "@/onevity/shared/components/shell/app-shell";
+import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
+import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
+import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
+import { EmployeeModule } from "@/onevity/human-resource/components/employee/employee-module";
+import { ActionsModule } from "@/onevity/human-resource/components/actions/actions-module";
+import { PayrollModule } from "@/onevity/payroll/components/payroll-module";
+import { AttendanceModule } from "@/onevity/time-attendance/components/attendance-module";
+import { LeaveModule } from "@/onevity/leave/components/leave-module";
+import { TravelModule } from "@/onevity/travel/components/travel-module";
+import { MedicalModule } from "@/onevity/medical/components/medical-module";
+import { SettingsModule } from "@/onevity/shared/components/settings/settings-module";
+import { ModulePlaceholder } from "@/onevity/shared/components/module-placeholder";
 
 export default function Page() {
   const { section, view, syncFromUrl } = useNav();

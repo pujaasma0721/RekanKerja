@@ -1,9 +1,9 @@
 // OneVity seed — realistic Indonesian company "MII - Mitra Industri Internasional"
 import { PrismaClient } from "@/generated/tenant";
-import { calculateAndSaveRun, confirmRun } from "../src/lib/onevity/payroll-service";
+import { calculateAndSaveRun, confirmRun } from "../src/onevity/payroll/services/payroll-service";
 import {
   submitClaim, scheduleClaim, approveClaim, rejectClaim, markClaimPaidCash, nextClaimNo,
-} from "../src/lib/onevity/benefit-service";
+} from "../src/onevity/payroll/services/benefit-service";
 
 // Client tenant: 1 schema PostgreSQL per tenant — seed menarget schema SEED_TENANT_SCHEMA
 // (default tenant_seed) di atas TENANT_DB_BASE_URL. Jalankan: bun prisma/seed.ts
@@ -1139,7 +1139,7 @@ async function main() {
 
   // ============ LEAVE (ref: ANALISA-LEAVE.md — oranHR) ============
   console.log(" seeding leave…");
-  const { seedLeaveDemoData } = await import("../src/lib/onevity/leave-seed");
+  const { seedLeaveDemoData } = await import("../src/onevity/leave/services/leave-seed");
   const leaveRes = await seedLeaveDemoData(db);
   if (leaveRes.skipped) {
     console.log("   → saldo leave 2026 sudah ada — skip");
@@ -1149,7 +1149,7 @@ async function main() {
 
   // ============ TRAVEL (ref: ANALISA-TRAVEL.md — oranHR) ============
   console.log(" seeding travel…");
-  const { seedTravelDemoData } = await import("../src/lib/onevity/travel-seed");
+  const { seedTravelDemoData } = await import("../src/onevity/travel/services/travel-seed");
   const travelRes = await seedTravelDemoData(db);
   if (travelRes.skipped) {
     console.log("   → data travel sudah ada — skip");
@@ -1159,7 +1159,7 @@ async function main() {
 
   // ============ MEDICAL (ref: ANALISA-MEDICAL.md — oranHR) ============
   console.log(" seeding medical…");
-  const { seedMedicalDemoData } = await import("../src/lib/onevity/medical-seed");
+  const { seedMedicalDemoData } = await import("../src/onevity/medical/services/medical-seed");
   const medRes = await seedMedicalDemoData(db);
   if (medRes.skipped) {
     console.log("   → data medical sudah ada / tanpa karyawan — skip");
@@ -1168,7 +1168,7 @@ async function main() {
   }
 
   // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
-  const { regenerateRange } = await import("../src/lib/onevity/attendance-service");
+  const { regenerateRange } = await import("../src/onevity/time-attendance/services/attendance-service");
   const days = await regenerateRange(db, from, to);
   console.log(`   → ${days} rekap harian dihitung (1 Agu – 30 Sep 2026)`);
 

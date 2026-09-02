@@ -6,9 +6,9 @@
 // Jalankan: bun run scripts/restore-demo.ts
 import { spawnSync } from "node:child_process";
 import { db as platform } from "@/lib/db";
-import { hashPassword } from "@/lib/onevity/auth";
-import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug } from "@/lib/onevity/provisioning";
-import { getTenantClient } from "@/lib/onevity/tenant-db";
+import { hashPassword } from "@/onevity/shared/lib/auth";
+import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug } from "@/onevity/shared/lib/provisioning";
+import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
 

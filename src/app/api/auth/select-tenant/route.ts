@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, buildSessionInfo, readSessionCookie,
-} from "@/lib/onevity/auth";
+} from "@/onevity/shared/lib/auth";
 
 // POST /api/auth/select-tenant { tenantId } — pilih workspace aktif untuk sesi ini
 export async function POST(req: NextRequest) {

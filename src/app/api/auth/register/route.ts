@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo,
-} from "@/lib/onevity/auth";
-import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/lib/onevity/provisioning";
-import { getTenantClient } from "@/lib/onevity/tenant-db";
+} from "@/onevity/shared/lib/auth";
+import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/onevity/shared/lib/provisioning";
+import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 
 // POST /api/auth/register — daftar + BUAT WORKSPACE BARU (self-service SaaS):
 // validasi → slug unik → provision schema PostgreSQL tenant_<slug> (DDL + seed referensi)
