@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeftRight, Plus, Trash2, Landmark, Coins, ChevronDown, ChevronUp, History, PlayCircle, Calculator } from "lucide-react";
+import { ArrowLeftRight, Plus, Trash2, Landmark, Coins, ChevronDown, ChevronUp, History, PlayCircle, Calculator, CheckCircle2, XCircle } from "lucide-react";
 import { LoanRow, CompAssignmentRow, WageCompFull, PeriodRow, ProcessTypeRow, RapelBreakdownRow } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 
@@ -186,8 +186,33 @@ export function PayrollTransactionsPage() {
 
 function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void }) {
   const [expanded, setExpanded] = useState(false);
-  const pending = loan.installments.filter((i) => i.status === "Pending").length;
-  const progress = loan.installmentCount > 0 ? (loan.installmentCount - pending) / loan.installmentCount : 0;
+  const [busy, setBusy] = useState(false);
+  // pinjaman Submitted belum punya cicilan (dibuat saat disetujui penuh) — guard length
+  const settled = loan.installments.filter((i) => i.status !== "Pending").length;
+  const progress = loan.installments.length > 0 ? settled / loan.installments.length : 0;
+
+  // keputusan approval berjenjang pengajuan (Task 25) — PATCH { id, action }
+  const decide = async (action: "approve" | "reject") => {
+    setBusy(true);
+    try {
+      const res = await apiSend<{ loan: { status: string }; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null; final?: boolean } }>(
+        "/api/onevity/loans", "PATCH", { id: loan.id, action },
+      );
+      if (res.approval && res.approval.final !== true) {
+        // jenjang menengah disetujui — pinjaman tetap Submitted menunggu jenjang berikutnya
+        toast.success(`Jenjang ${res.approval.currentLevel - 1}/${res.approval.totalLevels} disetujui — menunggu ${res.approval.currentApprover ?? "jenjang berikutnya"}`);
+      } else if (action === "approve") {
+        toast.success(`${loan.letterNo} disetujui penuh — skedul ${loan.installmentCount}× cicilan dibuat, status Active`);
+      } else {
+        toast.success(`${loan.letterNo} ditolak`);
+      }
+      onChanged();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="p-4">
@@ -198,18 +223,35 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[13px] font-bold">{loan.letterNo} — {loan.employee.fullName}</p>
-            <StatusPill status={loan.status === "Active" ? "Open" : loan.status === "PaidOff" ? "Paid" : "Cancelled"} />
+            <StatusPill status={
+              loan.status === "Active" ? "Open" :
+              loan.status === "PaidOff" ? "Paid" :
+              loan.status === "Submitted" ? "Submitted" :
+              loan.status === "Rejected" ? "Rejected" : "Cancelled"
+            } />
+            {loan.approval?.status === "InProgress" && (
+              <span className="whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                Jenjang {loan.approval.currentLevel}/{loan.approval.totalLevels}
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-[11px] text-stone-400">
             Pokok {fmtIDR(loan.amount)} · {loan.installmentCount}× cicilan {fmtIDR(loan.installmentAmount)}{loan.interestRate > 0 ? ` · bunga ${loan.interestRate}%/thn flat` : " · tanpa bunga"}
             {loan.purpose && ` · ${loan.purpose}`}
           </p>
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+          {loan.approval?.status === "InProgress" && (
+            <p className="mt-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+              pengajuan menunggu {loan.approval.currentApprover ?? "jenjang berikutnya"}
+            </p>
+          )}
+          {loan.status !== "Submitted" && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+              </div>
+              <span className="text-[10px] font-bold text-stone-400">{Math.round(progress * 100)}% lunas</span>
             </div>
-            <span className="text-[10px] font-bold text-stone-400">{Math.round(progress * 100)}% lunas</span>
-          </div>
+          )}
         </div>
         <div className="hidden shrink-0 text-right sm:block">
           <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Outstanding</p>
@@ -218,37 +260,57 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
         {expanded ? <ChevronUp className="h-4 w-4 shrink-0 text-stone-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />}
       </button>
 
+      {expanded && loan.status === "Submitted" && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/5">
+          <p className="min-w-40 flex-1 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+            Pengajuan menunggu persetujuan{loan.approval?.status === "InProgress" ? ` berjenjang (jenjang ${loan.approval.currentLevel}/${loan.approval.totalLevels})` : ""} — skedul cicilan dibuat otomatis setelah seluruh jenjang disetujui.
+          </p>
+          <Button size="sm" onClick={() => decide("approve")} disabled={busy} className="h-8 gap-1.5 bg-emerald-600 text-xs font-bold hover:bg-emerald-700">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => decide("reject")} disabled={busy} className="h-8 gap-1.5 border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
+            <XCircle className="h-3.5 w-3.5" /> Tolak
+          </Button>
+        </div>
+      )}
+
       {expanded && (
         <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 dark:border-stone-800">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                <TableHead className="text-[10px] font-bold">Cicilan</TableHead>
-                <TableHead className="text-[10px] font-bold">Jatuh Tempo</TableHead>
-                <TableHead className="text-right text-[10px] font-bold">Nilai</TableHead>
-                <TableHead className="text-[10px] font-bold">Status</TableHead>
-                <TableHead className="text-[10px] font-bold">Run</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loan.installments.map((i) => (
-                <TableRow key={i.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                  <TableCell className="text-xs font-bold">#{i.sequence}</TableCell>
-                  <TableCell className="text-xs text-stone-500">{fmtDate(i.dueDate)}</TableCell>
-                  <TableCell className="text-right text-xs font-semibold">{fmtIDR(i.amount)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn("text-[9px] font-bold",
-                      i.status === "Deducted" ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400" :
-                      i.status === "Skipped" ? "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600" :
-                      "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400")}>
-                      {i.status === "Deducted" ? "Terpotong" : i.status === "Skipped" ? "Dilewati" : "Menunggu"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-[10px] text-stone-400">{i.deductedRunNo ?? (i.periodCode ?? "—")}</TableCell>
+          {loan.installments.length === 0 ? (
+            <p className="px-4 py-3 text-xs text-stone-500">
+              Cicilan belum dibuat — skedul dibuat otomatis setelah seluruh jenjang approval disetujui.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableHead className="text-[10px] font-bold">Cicilan</TableHead>
+                  <TableHead className="text-[10px] font-bold">Jatuh Tempo</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold">Nilai</TableHead>
+                  <TableHead className="text-[10px] font-bold">Status</TableHead>
+                  <TableHead className="text-[10px] font-bold">Run</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {loan.installments.map((i) => (
+                  <TableRow key={i.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableCell className="text-xs font-bold">#{i.sequence}</TableCell>
+                    <TableCell className="text-xs text-stone-500">{fmtDate(i.dueDate)}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{fmtIDR(i.amount)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("text-[9px] font-bold",
+                        i.status === "Deducted" ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400" :
+                        i.status === "Skipped" ? "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600" :
+                        "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400")}>
+                        {i.status === "Deducted" ? "Terpotong" : i.status === "Skipped" ? "Dilewati" : "Menunggu"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-[10px] text-stone-400">{i.deductedRunNo ?? (i.periodCode ?? "—")}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       )}
     </div>
@@ -273,14 +335,17 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     if (!employeeId || !letterNo.trim() || !amount || Number(amount) <= 0) { toast.error("Lengkapi karyawan, no surat & jumlah pinjaman"); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/loans", "POST", {
+      const res = await apiSend<{ loan: { letterNo: string }; approval?: { levels?: number; firstApprover?: string | null } }>("/api/onevity/loans", "POST", {
         employeeId, letterNo: letterNo.trim().toUpperCase(),
         amount: Number(amount), installmentCount: Number(installmentCount),
         interestRate: Number(interestRate) || 0,
         purpose: purpose.trim() || null,
         startPaymentDate: startPaymentDate || undefined,
       });
-      toast.success("Pinjaman dibuat — cicilan terpotong otomatis saat run dikonfirmasi");
+      toast.success(
+        `Pengajuan ${letterNo.trim().toUpperCase()} tersimpan — menunggu approval ${res.approval?.firstApprover ?? "jenjang berikutnya"}` +
+        (res.approval?.levels && res.approval.levels > 1 ? ` (jenjang 1/${res.approval.levels})` : ""),
+      );
       setEmployeeId(""); setLetterNo(""); setAmount(""); setInstallmentCount("12"); setInterestRate("0"); setPurpose(""); setStartPaymentDate("");
       onClose();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -335,6 +400,9 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
               Total tagihan {fmtIDR(totalDue)} · cicilan ± {fmtIDR(per)}/bulan (bunga flat)
             </p>
           )}
+          <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+            Pinjaman diajukan berstatus Menunggu — skedul cicilan dibuat otomatis setelah seluruh jenjang approval disetujui, lalu terpotong payroll saat run dikonfirmasi.
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>

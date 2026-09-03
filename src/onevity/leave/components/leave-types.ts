@@ -30,6 +30,16 @@ export interface RequestRowUI {
   balanceAtRequest: number; remainingAtRequest: number; backToWorkDate: string | null;
   status: string; source: string; reason: string | null; note: string | null;
   decisionNote: string | null; decidedAt: string | null;
+  /** info approval berjenjang (Task 25) — null bila tanpa chain */
+  approval?: ApprovalChainUI | null;
+}
+
+/** Ringkasan jalur approval berjenjang pada row list (Task 25). */
+export interface ApprovalChainUI {
+  status: "InProgress" | "Approved" | "Rejected" | "Cancelled";
+  currentLevel: number;
+  totalLevels: number;
+  currentApprover: string | null;
 }
 
 export interface EncashmentRowUI {

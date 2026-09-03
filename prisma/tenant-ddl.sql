@@ -22,6 +22,47 @@ CREATE TABLE "Company" (
 );
 
 -- CreateTable
+CREATE TABLE "CompanyOffice" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "address" TEXT,
+    "city" TEXT,
+    "phone" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CompanyOffice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WorkLocation" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "officeId" TEXT,
+    "address" TEXT,
+    "city" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WorkLocation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PositionLevel" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "PositionLevel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "OrgUnit" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -76,6 +117,7 @@ CREATE TABLE "Position" (
     "reportsToId" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "positionLevelId" TEXT,
 
     CONSTRAINT "Position_pkey" PRIMARY KEY ("id")
 );
@@ -108,6 +150,12 @@ CREATE TABLE "Employee" (
     "status" TEXT NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "orgUnitId" TEXT,
+    "positionId" TEXT,
+    "gradeId" TEXT,
+    "positionLevelId" TEXT,
+    "companyOfficeId" TEXT,
+    "workLocationId" TEXT,
 
     CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
 );
@@ -130,6 +178,8 @@ CREATE TABLE "EmployeeAssignment" (
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "companyOfficeId" TEXT,
+    "workLocationId" TEXT,
 
     CONSTRAINT "EmployeeAssignment_pkey" PRIMARY KEY ("id")
 );
@@ -220,6 +270,78 @@ CREATE TABLE "ApprovalLayer" (
     "decidedAt" TIMESTAMP(3),
 
     CONSTRAINT "ApprovalLayer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApprovalStructure" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "companyOfficeId" TEXT,
+    "workLocationId" TEXT,
+    "orgUnitId" TEXT,
+    "positionId" TEXT,
+    "gradeId" TEXT,
+    "positionLevelId" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApprovalStructure_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApprovalStructureLevel" (
+    "id" TEXT NOT NULL,
+    "structureId" TEXT NOT NULL,
+    "levelNo" INTEGER NOT NULL,
+    "approverType" TEXT NOT NULL,
+    "approverPositionId" TEXT,
+    "approverEmployeeId" TEXT,
+    "superiorLevel" INTEGER,
+    "minAmount" DOUBLE PRECISION,
+    "maxAmount" DOUBLE PRECISION,
+    "note" TEXT,
+
+    CONSTRAINT "ApprovalStructureLevel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApprovalChain" (
+    "id" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "docId" TEXT NOT NULL,
+    "structureId" TEXT,
+    "employeeId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION,
+    "status" TEXT NOT NULL DEFAULT 'InProgress',
+    "currentLevel" INTEGER NOT NULL DEFAULT 1,
+    "totalLevels" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ApprovalChain_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApprovalStep" (
+    "id" TEXT NOT NULL,
+    "chainId" TEXT NOT NULL,
+    "levelNo" INTEGER NOT NULL,
+    "approverType" TEXT NOT NULL,
+    "approverLabel" TEXT NOT NULL,
+    "approverEmployeeId" TEXT,
+    "approverPositionCode" TEXT,
+    "minAmount" DOUBLE PRECISION,
+    "maxAmount" DOUBLE PRECISION,
+    "status" TEXT NOT NULL DEFAULT 'Waiting',
+    "note" TEXT,
+    "decidedBy" TEXT,
+    "decidedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ApprovalStep_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1314,6 +1436,15 @@ CREATE TABLE "MedicalAdjustment" (
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "CompanyOffice_code_key" ON "CompanyOffice"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WorkLocation_code_key" ON "WorkLocation"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PositionLevel_code_key" ON "PositionLevel"("code");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "OrgUnit_code_key" ON "OrgUnit"("code");
 
 -- CreateIndex
@@ -1336,6 +1467,24 @@ CREATE INDEX "EmployeeAssignment_validTo_idx" ON "EmployeeAssignment"("validTo")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PersonnelAction_docNo_key" ON "PersonnelAction"("docNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApprovalStructure_code_key" ON "ApprovalStructure"("code");
+
+-- CreateIndex
+CREATE INDEX "ApprovalStructure_docType_active_idx" ON "ApprovalStructure"("docType", "active");
+
+-- CreateIndex
+CREATE INDEX "ApprovalStructureLevel_structureId_levelNo_idx" ON "ApprovalStructureLevel"("structureId", "levelNo");
+
+-- CreateIndex
+CREATE INDEX "ApprovalChain_docType_status_idx" ON "ApprovalChain"("docType", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApprovalChain_docType_docId_key" ON "ApprovalChain"("docType", "docId");
+
+-- CreateIndex
+CREATE INDEX "ApprovalStep_chainId_levelNo_idx" ON "ApprovalStep"("chainId", "levelNo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "WageComponent_code_key" ON "WageComponent"("code");
@@ -1521,6 +1670,15 @@ CREATE UNIQUE INDEX "MedicalAdjustment_docNo_key" ON "MedicalAdjustment"("docNo"
 CREATE INDEX "MedicalAdjustment_state_idx" ON "MedicalAdjustment"("state");
 
 -- AddForeignKey
+ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkLocation" ADD CONSTRAINT "WorkLocation_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkLocation" ADD CONSTRAINT "WorkLocation_officeId_fkey" FOREIGN KEY ("officeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrgUnit" ADD CONSTRAINT "OrgUnit_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1539,7 +1697,28 @@ ALTER TABLE "Position" ADD CONSTRAINT "Position_gradeId_fkey" FOREIGN KEY ("grad
 ALTER TABLE "Position" ADD CONSTRAINT "Position_reportsToId_fkey" FOREIGN KEY ("reportsToId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Position" ADD CONSTRAINT "Position_positionLevelId_fkey" FOREIGN KEY ("positionLevelId") REFERENCES "PositionLevel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Employee" ADD CONSTRAINT "Employee_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_orgUnitId_fkey" FOREIGN KEY ("orgUnitId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_gradeId_fkey" FOREIGN KEY ("gradeId") REFERENCES "Grade"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_positionLevelId_fkey" FOREIGN KEY ("positionLevelId") REFERENCES "PositionLevel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1555,6 +1734,12 @@ ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_gradeId_fkey
 
 -- AddForeignKey
 ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeAssignment" ADD CONSTRAINT "EmployeeAssignment_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeFamily" ADD CONSTRAINT "EmployeeFamily_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1576,6 +1761,42 @@ ALTER TABLE "ApprovalLayer" ADD CONSTRAINT "ApprovalLayer_personnelActionId_fkey
 
 -- AddForeignKey
 ALTER TABLE "ApprovalLayer" ADD CONSTRAINT "ApprovalLayer_approverId_fkey" FOREIGN KEY ("approverId") REFERENCES "AppUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_orgUnitId_fkey" FOREIGN KEY ("orgUnitId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_gradeId_fkey" FOREIGN KEY ("gradeId") REFERENCES "Grade"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructure" ADD CONSTRAINT "ApprovalStructure_positionLevelId_fkey" FOREIGN KEY ("positionLevelId") REFERENCES "PositionLevel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructureLevel" ADD CONSTRAINT "ApprovalStructureLevel_structureId_fkey" FOREIGN KEY ("structureId") REFERENCES "ApprovalStructure"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructureLevel" ADD CONSTRAINT "ApprovalStructureLevel_approverPositionId_fkey" FOREIGN KEY ("approverPositionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStructureLevel" ADD CONSTRAINT "ApprovalStructureLevel_approverEmployeeId_fkey" FOREIGN KEY ("approverEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalChain" ADD CONSTRAINT "ApprovalChain_structureId_fkey" FOREIGN KEY ("structureId") REFERENCES "ApprovalStructure"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStep" ADD CONSTRAINT "ApprovalStep_chainId_fkey" FOREIGN KEY ("chainId") REFERENCES "ApprovalChain"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalStep" ADD CONSTRAINT "ApprovalStep_approverEmployeeId_fkey" FOREIGN KEY ("approverEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WageTemplateItem" ADD CONSTRAINT "WageTemplateItem_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;

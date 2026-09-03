@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrgMapView } from "./org-map-view";
+import { OfficeLocationView } from "./office-location-view";
 
 interface UnitNode {
   id: string; code: string; name: string; parentId: string | null; level: number;
@@ -36,6 +37,7 @@ interface Emp {
 export function OrgModule({ view }: { view: string }) {
   if (view === "companies") return <CompanyProfile />;
   if (view === "chart") return <OrgMapView />;
+  if (view === "offices") return <OfficeLocationView />;
   return <OrgTree />;
 }
 

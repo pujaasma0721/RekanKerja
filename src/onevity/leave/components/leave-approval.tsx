@@ -46,14 +46,19 @@ export function LeaveApprovalPage() {
     if (action === "reject" && !note.trim()) { toast.error("Alasan penolakan wajib diisi"); return; }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; status: string; regeneratedDays: number }>(
+      const res = await apiSend<{ docNo: string; status: string; regeneratedDays: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>(
         "/api/onevity/leave/requests", "PATCH", { id: target.id, action, note },
       );
-      toast.success(
-        res.status === "Approved"
-          ? `${res.docNo} disetujui — ${res.regeneratedDays} hari rekap absensi diperbarui (OnLeave)`
-          : `${res.docNo} → ${LEAVE_STATUS_LABEL[res.status] ?? res.status}`,
-      );
+      if (res.approval) {
+        // approval parsial — jenjang menengah disetujui, dokumen tetap menunggu jenjang berikutnya
+        toast.success(`Jenjang ${res.approval.currentLevel - 1}/${res.approval.totalLevels} disetujui — menunggu ${res.approval.currentApprover ?? "jenjang berikutnya"}`);
+      } else {
+        toast.success(
+          res.status === "Approved"
+            ? `${res.docNo} disetujui — ${res.regeneratedDays} hari rekap absensi diperbarui (OnLeave)`
+            : `${res.docNo} → ${LEAVE_STATUS_LABEL[res.status] ?? res.status}`,
+        );
+      }
       setTarget(null);
       api.refresh();
     } catch (e) {
@@ -62,6 +67,9 @@ export function LeaveApprovalPage() {
   };
 
   const stats = api.data?.stats;
+
+  // kolom Approval hanya tampil bila ada row dengan chain aktif/ditolak (Task 25)
+  const hasChain = requests.some((r) => r.approval && (r.approval.status === "InProgress" || r.approval.status === "Rejected"));
 
   return (
     <div>
@@ -124,6 +132,7 @@ export function LeaveApprovalPage() {
                     <TableHead className="text-[11px] font-bold">Rentang</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">Hari</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">Sisa Saldo</TableHead>
+                    {hasChain && <TableHead className="text-[11px] font-bold">Approval</TableHead>}
                     <TableHead className="w-44" />
                   </TableRow>
                 </TableHeader>
@@ -150,6 +159,23 @@ export function LeaveApprovalPage() {
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
                       <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-stone-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
+                      {hasChain && (
+                        <TableCell>
+                          {r.approval && (r.approval.status === "InProgress" || r.approval.status === "Rejected") ? (
+                            <div className="space-y-0.5">
+                              <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                                r.approval.status === "InProgress"
+                                  ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                                  : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
+                                {r.approval.status === "InProgress" ? "Jenjang" : "Ditolak di"} {r.approval.currentLevel}/{r.approval.totalLevels}
+                              </span>
+                              {r.approval.status === "InProgress" && r.approval.currentApprover && (
+                                <p className="max-w-40 truncate text-[10px] text-stone-400" title={r.approval.currentApprover}>menunggu {r.approval.currentApprover}</p>
+                              )}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
@@ -194,6 +220,16 @@ export function LeaveApprovalPage() {
                 <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-[11px] leading-relaxed text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <p>Saat disetujui: saldo (g· terpakai mendatang) diperbarui, dan rekap absensi rentang cuti dihitung ulang menjadi <b>OnLeave</b> (dibayar bila jenis cuti dibayar).</p>
+                </div>
+              )}
+              {target.approval?.status === "InProgress" && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                  <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <p>
+                    Approval berjenjang: jenjang <b>{target.approval.currentLevel}</b> dari <b>{target.approval.totalLevels}</b> —
+                    menunggu keputusan <b>{target.approval.currentApprover ?? "jenjang berikutnya"}</b>.
+                    {action === "approve" && target.approval.currentLevel < target.approval.totalLevels && " Setujui jenjang ini untuk maju ke jenjang berikutnya."}
+                  </p>
                 </div>
               )}
               <div className="space-y-1.5">

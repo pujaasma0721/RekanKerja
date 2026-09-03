@@ -66,6 +66,16 @@ export interface LoanRow {
   status: string; paidAmount: number; outstanding: number; wageComponentCode: string | null;
   employee: { employeeNo: string; fullName: string };
   installments: { id: string; sequence: number; periodCode: string | null; dueDate: string; amount: number; status: string; deductedRunNo: string | null }[];
+  /** info approval berjenjang pengajuan (Task 25) — null bila tanpa chain */
+  approval?: LoanApprovalUI | null;
+}
+
+/** Ringkasan jalur approval berjenjang pinjaman (Task 25). */
+export interface LoanApprovalUI {
+  status: "InProgress" | "Approved" | "Rejected" | "Cancelled";
+  currentLevel: number;
+  totalLevels: number;
+  currentApprover: string | null;
 }
 
 export interface CompAssignmentRow {

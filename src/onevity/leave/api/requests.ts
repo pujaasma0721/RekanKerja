@@ -32,10 +32,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ajukan permintaan cuti (preview: true → hitung saja, tanpa simpan)
+// Task 25: requireMutator — identitas pengaju tercatat pada jalur approval berjenjang.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const input = {
       employeeId: String(b.employeeId ?? ""),
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
       reason: String(b.reason ?? ""),
       note: b.note ? String(b.note) : undefined,
       source: b.source ? String(b.source) : undefined,
+      actorName: m.actor.name,
     };
     if (b.preview) {
       const res = await previewRequest(db, input);
@@ -76,6 +79,7 @@ export async function PATCH(req: NextRequest) {
       action: b.action,
       note: b.note ? String(b.note) : undefined,
       actorId: m.actor.appUserId ?? m.actor.userId,
+      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     });
     return NextResponse.json(res);
   } catch (e) {

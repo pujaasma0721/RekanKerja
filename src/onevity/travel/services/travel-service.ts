@@ -4,6 +4,7 @@
 // jurnal otomatis → TRANSFER ke payroll (UTRP bayar / TRVSTLIN potong) → Paid.
 // Formula settlement oranHR dipertahankan:
 //   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
+import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 
@@ -164,6 +165,7 @@ export interface SubmitTravelRequestInput {
   destinations: DestinationInput[];
   advanceAmount?: number;
   advanceNote?: string;
+  actorName?: string;
 }
 
 export interface SubmitTravelRequestResult {
@@ -172,6 +174,8 @@ export interface SubmitTravelRequestResult {
   days: number;
   advanceAmount: number;
   settlementDue: string | null;
+  approvalLevels: number;
+  firstApprover: string | null;
 }
 
 export async function submitTravelRequest(db: TenantDb, input: SubmitTravelRequestInput): Promise<SubmitTravelRequestResult> {
@@ -247,6 +251,14 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
     });
   }
 
+  // Approval berjenjang (Task 25): nominal = uang muka (besaran benefit) — jenjang
+  // bersyarat nominal pada struktur Travel aktif hanya bila nominal masuk rentang.
+  const chain = await startApprovalChain(db, {
+    docType: "Travel", docId: req.id, employeeId: emp.id,
+    amount: advanceAmount > 0 ? advanceAmount : null,
+    createdBy: input.actorName ?? null,
+  });
+
   // jatuh tempo settlement = tanggal kembali + settlement day template (padanan oranHR)
   const dueDate = new Date(to);
   dueDate.setDate(dueDate.getDate() + template.settlementDay);
@@ -254,12 +266,14 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "TravelRequest", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${template.name} ${fmtDate(from)} → ${fmtDate(to)} (${input.destinations.length} destinasi${advanceAmount > 0 ? `, advance ${advanceAmount}` : ""})`,
+      detail: `${docNo}: ${emp.fullName} — ${template.name} ${fmtDate(from)} → ${fmtDate(to)} (${input.destinations.length} destinasi${advanceAmount > 0 ? `, advance ${advanceAmount}` : ""}) — approval berjenjang ${chain.totalLevels} level`,
     },
   });
   return {
     docNo, destinations: input.destinations.length, days,
     advanceAmount, settlementDue: template.settlementDay > 0 ? dueDate.toISOString() : null,
+    approvalLevels: chain.totalLevels,
+    firstApprover: chain.steps[0]?.approverLabel ?? null,
   };
 }
 
@@ -277,6 +291,8 @@ export interface TravelRequestRow {
   activeClaimDocNo: string | null;
   settlementDue: Date | null;
   overdue: boolean;
+  /** ringkasan jalur approval berjenjang (Task 25) */
+  approval: ChainSummary | null;
 }
 
 export async function listTravelRequests(db: TenantDb, opts: { status?: string; employeeId?: string } = {}): Promise<TravelRequestRow[]> {
@@ -294,6 +310,7 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
       claims: { select: { id: true, docNo: true, status: true } },
     },
   });
+  const chainMap = await attachChainSummaries(db, "Travel", rows.map((r) => ({ id: r.id })));
   return rows.map((r) => {
     const advanceAmount = r.advances.reduce((s, a) => s + a.amount, 0);
     const activeClaim = r.claims.find((c) => c.status !== "Rejected" && c.status !== "Cancelled") ?? null;
@@ -319,6 +336,7 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
       activeClaimDocNo: activeClaim?.docNo ?? null,
       settlementDue: r.template.settlementDay > 0 ? due : null,
       overdue: r.template.settlementDay > 0 && r.status === "Approved" && !r.claimRequestedAt && due.getTime() < Date.now(),
+      approval: chainMap.get(r.id) ?? null,
     };
   });
 }
@@ -326,13 +344,15 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
 export interface DecideResult {
   docNo: string;
   status: string;
+  /** info jenjang berjenjang — ada bila masih ada jenjang berikutnya */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
 export async function decideTravelRequest(
   db: TenantDb,
-  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
+  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string; actor?: DecideActor },
 ): Promise<DecideResult> {
-  const req = await db.travelRequest.findUnique({ where: { id: input.id }, include: { template: true } });
+  const req = await db.travelRequest.findUnique({ where: { id: input.id }, include: { template: true, advances: true } });
   if (!req) throw new Error("Permintaan travel tidak ditemukan");
 
   const map: Record<string, { to: string; from: string[]; log: string }> = {
@@ -343,6 +363,40 @@ export async function decideTravelRequest(
   const m = map[input.action];
   if (!m) throw new Error("Aksi tidak dikenal");
   if (!m.from.includes(req.status)) throw new Error(`Status ${req.status} tidak bisa ${m.log.toLowerCase()}`);
+
+  // ==== Approval berjenjang (Task 25) — nominal = uang muka ====
+  let chain = await getApprovalChain(db, "Travel", input.id);
+  if (!chain) {
+    const advanceAmount = req.advances.reduce((s, a) => s + a.amount, 0);
+    chain = await startApprovalChain(db, {
+      docType: "Travel", docId: input.id, employeeId: req.employeeId,
+      amount: advanceAmount > 0 ? advanceAmount : null, createdBy: "legacy-backfill",
+    });
+  }
+  if (chain.status === "InProgress" && req.status === "Submitted") {
+    const actor: DecideActor = input.actor ?? { role: "ADMIN", employeeId: null, name: input.actorId ?? "Sistem" };
+    const res = await decideApprovalChain(db, {
+      docType: "Travel", docId: input.id, action: input.action, note: input.note, actor,
+    });
+    if (!res.final) {
+      // jenjang menengah — request tetap Submitted, menunggu jenjang berikutnya
+      const currentStep = res.chain.steps.find((s) => s.status === "Current");
+      await db.activityLog.create({
+        data: {
+          action: "Approved", entity: "TravelRequest", entityId: req.docNo,
+          detail: `${req.docNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"}`,
+        },
+      });
+      return {
+        docNo: req.docNo, status: "Submitted",
+        approval: {
+          currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels,
+          currentApprover: currentStep?.approverLabel ?? null,
+        },
+      };
+    }
+    // jenjang terakhir / reject / cancel → lanjut alur lama di bawah
+  }
 
   if (input.action !== "approve") {
     // M-2 (24-FIX-TRAVEL): request yang sudah punya klaim di luar draft (Approved/

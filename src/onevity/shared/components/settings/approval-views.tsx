@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApi, apiSend, fmtDate, initials, avatarColor } from "@/onevity/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
+import { ApprovalStructureView } from "@/onevity/shared/components/settings/approval-structure-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Loader2, CheckCircle2, Layers, ArrowRight, Zap, Clock3,
-  UserRound, CalendarRange, PlusCircle, MinusCircle, UserCog, UserCheck,
+  UserRound, CalendarRange, PlusCircle, MinusCircle, UserCog, UserCheck, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,18 +55,22 @@ export function ApprovalEngineView() {
     <div>
       <PageHeader
         eyebrow="PENGATURAN"
-        title="Template Approval"
-        description="Template berlapis untuk alur persetujuan dokumen dan delegasi approver sementara."
+        title="Approval Berjenjang"
+        description="Struktur persetujuan multi-level per dokumen (cuti, travel, medical, pinjaman) — dicocokkan ke pemohon berdasarkan kantor, lokasi kerja, unit, posisi, grade & level jabatan, plus jenjang bersyarat nominal."
       />
-      <Tabs defaultValue="templates" className="space-y-5">
+      <Tabs defaultValue="structure" className="space-y-5">
         <TabsList className="h-12 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/70">
+          <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+            <GitBranch className="h-4 w-4" /> Struktur Berjenjang
+          </TabsTrigger>
           <TabsTrigger value="templates" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
-            <Layers className="h-4 w-4" /> Template
+            <Layers className="h-4 w-4" /> Template PA
           </TabsTrigger>
           <TabsTrigger value="temp" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
             <UserRound className="h-4 w-4" /> Temporary Approver
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="structure"><ApprovalStructureView /></TabsContent>
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
         <TabsContent value="temp"><TempApproversTab /></TabsContent>
       </Tabs>

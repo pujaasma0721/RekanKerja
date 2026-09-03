@@ -308,6 +308,40 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     autoApproveInLimit: false, payInPayroll: false,
   } });
 
+  // level jabatan + struktur approval berjenjang default (Task 25)
+  await db.positionLevel.createMany({
+    data: [
+      { code: "PL1", name: "Officer", sortOrder: 1 },
+      { code: "PL2", name: "Senior Officer", sortOrder: 2 },
+      { code: "PL3", name: "Supervisor", sortOrder: 3 },
+      { code: "PL4", name: "Assistant Manager", sortOrder: 4 },
+      { code: "PL5", name: "Manager", sortOrder: 5 },
+      { code: "PL6", name: "Senior Manager", sortOrder: 6 },
+      { code: "PL7", name: "General Manager", sortOrder: 7 },
+      { code: "PL8", name: "Director", sortOrder: 8 },
+    ],
+  });
+  const defaultStructures: { code: string; name: string; docType: string; levels: { approverType: string; minAmount?: number; note?: string }[] }[] = [
+    { code: "AS-LEAVE-STD", name: "Persetujuan Cuti (default)", docType: "Leave", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
+    { code: "AS-TRAVEL-STD", name: "Persetujuan Perjalanan Dinas (default)", docType: "Travel", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
+    { code: "AS-MED-STD", name: "Persetujuan Klaim Medis (default)", docType: "Medical", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
+    {
+      code: "AS-LOAN-STD", name: "Persetujuan Pinjaman (default)", docType: "Loan",
+      levels: [
+        { approverType: "ATASAN_LANGSUNG" },
+        { approverType: "HR_ADMIN", minAmount: 10_000_000, note: "≥ Rp 10 jt: Admin/HR" },
+      ],
+    },
+  ];
+  for (const s of defaultStructures) {
+    await db.approvalStructure.create({
+      data: {
+        code: s.code, name: s.name, docType: s.docType,
+        levels: { create: s.levels.map((l, i) => ({ levelNo: i + 1, approverType: l.approverType, minAmount: l.minAmount ?? null, note: l.note ?? null })) },
+      },
+    });
+  }
+
   await ensureAttendanceReference(db);
 }
 

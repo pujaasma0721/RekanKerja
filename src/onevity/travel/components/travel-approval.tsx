@@ -44,10 +44,15 @@ export function TravelApprovalPage() {
     if (!dialog.request || !dialog.action) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; status: string }>("/api/onevity/travel/requests", "PATCH", {
+      const res = await apiSend<{ docNo: string; status: string; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>("/api/onevity/travel/requests", "PATCH", {
         id: dialog.request.id, action: dialog.action, note: note || undefined,
       });
-      toast.success(`${res.docNo} — ${TRAVEL_STATUS_LABEL[res.status] ?? res.status}`);
+      if (res.approval) {
+        // approval parsial — jenjang menengah disetujui, request tetap menunggu jenjang berikutnya
+        toast.success(`Jenjang ${res.approval.currentLevel - 1}/${res.approval.totalLevels} disetujui — menunggu ${res.approval.currentApprover ?? "jenjang berikutnya"}`);
+      } else {
+        toast.success(`${res.docNo} — ${TRAVEL_STATUS_LABEL[res.status] ?? res.status}`);
+      }
       setDialog({ request: null, action: null });
       setNote("");
       api.refresh();
@@ -126,7 +131,14 @@ export function TravelApprovalPage() {
                     <p className="mt-0.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">{r.fullName}</p>
                     <p className="text-[11px] text-stone-500">{r.employeeNo}{r.orgUnitName ? ` · ${r.orgUnitName}` : ""}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
                   </div>
-                  <StatusPill status={TRAVEL_STATUS_LABEL[r.status] ?? r.status} />
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <StatusPill status={TRAVEL_STATUS_LABEL[r.status] ?? r.status} />
+                    {r.approval?.status === "InProgress" && (
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                        Jenjang {r.approval.currentLevel}/{r.approval.totalLevels}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-3 space-y-2 text-xs">
@@ -144,6 +156,12 @@ export function TravelApprovalPage() {
                     <span className="font-semibold">{r.templateName}</span>
                     {r.advanceAmount > 0 && <span className="font-bold text-amber-700 dark:text-amber-400">Muka {fmtIDR(r.advanceAmount)}</span>}
                   </div>
+                  {r.approval?.status === "InProgress" && (
+                    <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Menunggu jenjang {r.approval.currentLevel}/{r.approval.totalLevels} — {r.approval.currentApprover ?? "approver jenjang berikutnya"}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -216,6 +234,12 @@ export function TravelApprovalPage() {
                   <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-400">Uang muka {fmtIDR(dialog.request.advanceAmount)} akan dicairkan</p>
                 )}
               </div>
+              {dialog.request.approval?.status === "InProgress" && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                  Approval berjenjang: jenjang {dialog.request.approval.currentLevel} dari {dialog.request.approval.totalLevels} — menunggu keputusan {dialog.request.approval.currentApprover ?? "jenjang berikutnya"}.
+                  {dialog.action === "approve" && dialog.request.approval.currentLevel < dialog.request.approval.totalLevels && " Setujui jenjang ini untuk maju ke jenjang berikutnya."}
+                </p>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">Catatan keputusan (opsional)</Label>
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Mis. Disetujui — sertakan laporan audit" className="text-sm" />

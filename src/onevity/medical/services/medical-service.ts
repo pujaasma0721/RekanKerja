@@ -7,6 +7,7 @@
 // jenis CASH ditarik ke payroll (komponen UMC) → Paid saat run dikonfirmasi.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
+import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import type { Prisma } from "@/generated/tenant";
 
 // ============ util ============
@@ -600,6 +601,8 @@ export interface SubmitClaimResult {
   totalApproved: number;
   totalNonRe: number;
   remainingAfter: number;
+  approvalLevels: number;
+  firstApprover: string | null;
 }
 
 export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId: string): Promise<SubmitClaimResult> {
@@ -755,11 +758,24 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
       detail: `Klaim medis ${docNo} — ${preview.fullName} (${preview.typeCode}): approved ${totalApproved.toLocaleString("id-ID")}`,
     },
   });
+  // Approval berjenjang (Task 25): nominal = total tagihan (besaran benefit) —
+  // jenjang bersyarat nominal aktif hanya bila tagihan masuk rentang.
+  let approvalLevels = 0;
+  let firstApprover: string | null = null;
+  if (state === "Submitted") {
+    const chain = await startApprovalChain(db, {
+      docType: "Medical", docId: claim.id, employeeId: input.employeeId,
+      amount: totalBill, createdBy: actorId,
+    });
+    approvalLevels = chain.totalLevels;
+    firstApprover = chain.steps[0]?.approverLabel ?? null;
+  }
   return {
     id: claim.id, docNo, state,
     totalBill, totalReimburse: totalRe, totalApproved,
     totalNonRe: round2(totalBill - totalApproved),
     remainingAfter: avail.available,
+    approvalLevels, firstApprover,
   };
 }
 
@@ -780,6 +796,8 @@ export interface ClaimRow {
     approvedAmount: number; nonReAmount: number; note: string | null;
   }[];
   statusLog: StatusEntry[];
+  /** ringkasan jalur approval berjenjang (Task 25) */
+  approval: ChainSummary | null;
 }
 
 export async function listClaims(
@@ -806,6 +824,7 @@ export async function listClaims(
     orderBy: [{ claimDate: "desc" }, { docNo: "desc" }],
     take: 500,
   });
+  const chainMap = await attachChainSummaries(db, "Medical", rows.map((r) => ({ id: r.id })));
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, employeeId: c.employeeId,
     employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
@@ -829,6 +848,7 @@ export async function listClaims(
         }
       : {}),
     statusLog: parseStatusLog(c.statusLog),
+    approval: chainMap.get(c.id) ?? null,
   }));
 }
 
@@ -914,6 +934,8 @@ export interface DecideClaimInput {
    *  guard re-check K-1/K-2 (API TIDAK memetakan flag ini — operasi bisnis normal
    *  tetap ditolak 400). */
   allowOverLimit?: boolean;
+  /** aktor sesi (otorisasi & jejak jenjang approval berjenjang — Task 25) */
+  actor?: DecideActor;
 }
 
 export interface DecideClaimResult {
@@ -925,6 +947,8 @@ export interface DecideClaimResult {
   remaining: number;
   /** (additive, fix K-3) pool yang dipotong saat settle — "employee" | "dependent". */
   usedPool?: "employee" | "dependent";
+  /** info jenjang berjenjang — ada bila masih ada jenjang berikutnya (Task 25) */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
 /** Operasi klaim — padanan Operation oranHR: Submit | Return To Requester |
@@ -964,6 +988,47 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   };
   if (!allowed[input.action]?.includes(claim.state)) {
     throw new Error(`Operasi ${input.action} tidak valid untuk status ${claim.state}`);
+  }
+
+  // ==== Approval berjenjang (Task 25) — nominal = total tagihan ====
+  // submit → pastikan chain ada; approve/reject/cancel → putuskan jenjang saat ini.
+  // approve jenjang menengah: klaim tetap Submitted; jenjang terakhir → alur lama.
+  if (input.action === "submit") {
+    await startApprovalChain(db, {
+      docType: "Medical", docId: claim.id, employeeId: claim.employeeId,
+      amount: claim.totalBill, createdBy: actorId,
+    });
+  }
+  let chainInfo: { currentLevel: number; totalLevels: number; currentApprover: string | null } | undefined;
+  if (["approve", "reject", "cancel"].includes(input.action)) {
+    let chain = await getApprovalChain(db, "Medical", claim.id);
+    if (!chain) {
+      chain = await startApprovalChain(db, {
+        docType: "Medical", docId: claim.id, employeeId: claim.employeeId,
+        amount: claim.totalBill, createdBy: "legacy-backfill",
+      });
+    }
+    if (chain.status === "InProgress" && ["Submitted", "Returned"].includes(claim.state)) {
+      const actor: DecideActor = input.actor ?? { role: "ADMIN", employeeId: null, name: actorId || "Sistem" };
+      const res = await decideApprovalChain(db, {
+        docType: "Medical", docId: claim.id, action: input.action as "approve" | "reject" | "cancel", note: input.note, actor,
+      });
+      if (!res.final) {
+        // jenjang menengah disetujui — klaim tetap Submitted menunggu jenjang berikutnya
+        const currentStep = res.chain.steps.find((s) => s.status === "Current");
+        const middleLog = [...log, logEntry("Submitted", actorId, `Jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"}`)];
+        await db.medicalClaim.update({
+          where: { id: claim.id },
+          data: { statusLog: middleLog as unknown as Prisma.InputJsonValue },
+        });
+        chainInfo = {
+          currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels,
+          currentApprover: currentStep?.approverLabel ?? null,
+        };
+        return { docNo: claim.docNo, state: "Submitted", journalNo: null, journalLines: 0, usedAdded: 0, remaining: 0, approval: chainInfo };
+      }
+      // jenjang terakhir / reject / cancel → lanjut alur lama di bawah
+    }
   }
 
   let newState = claim.state;

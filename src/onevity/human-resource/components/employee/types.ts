@@ -141,6 +141,10 @@ export interface EmployeeDetail {
   orgUnitId: string | null;
   positionId: string | null;
   gradeId: string | null;
+  /** snapshot parameter penempatan (Task 25) — dimensi mesin approval berjenjang */
+  companyOfficeId?: string | null;
+  workLocationId?: string | null;
+  positionLevelId?: string | null;
   employmentStatus: string;
   joinDate: string;
   endDate: string | null;
@@ -154,6 +158,10 @@ export interface EmployeeDetail {
   orgUnit: RefName | null;
   position: { id: string; code: string; title: string; level: string | null } | null;
   grade: GradeRef | null;
+  /** referensi penempatan berjenjang (Task 25) — dikirim flatten bila tersedia */
+  companyOffice?: { code: string; name: string; city: string | null } | null;
+  workLocation?: { code: string; name: string; city: string | null } | null;
+  positionLevel?: { code: string; name: string } | null;
   manager: ManagerRef | null;
   directReports: DirectReportRef[];
   family: FamilyRow[];

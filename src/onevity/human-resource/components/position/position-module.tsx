@@ -21,10 +21,12 @@ import {
   ChevronDown, ChevronUp, Layers, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PositionLevelView } from "./level-view";
 
 export function PositionModule({ view }: { view: string }) {
   if (view === "jobs") return <JobLibrary />;
   if (view === "grades") return <GradeList />;
+  if (view === "levels") return <PositionLevelView />;
   return <PositionList />;
 }
 

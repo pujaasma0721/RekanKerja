@@ -39,6 +39,16 @@ export interface TravelRequestRowUI {
   activeClaimDocNo: string | null;
   settlementDue: string | null;
   overdue: boolean;
+  /** info approval berjenjang (Task 25) — null bila tanpa chain */
+  approval?: TravelApprovalUI | null;
+}
+
+/** Ringkasan jalur approval berjenjang pada row list (Task 25). */
+export interface TravelApprovalUI {
+  status: "InProgress" | "Approved" | "Rejected" | "Cancelled";
+  currentLevel: number;
+  totalLevels: number;
+  currentApprover: string | null;
 }
 
 export interface ClaimExpenseUI {

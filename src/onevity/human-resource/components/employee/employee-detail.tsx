@@ -69,6 +69,15 @@ export function EmployeeDetail({ id }: { id: string }) {
   const { navigate } = useNav();
   const { data, loading, error, refresh } = useApi<EmployeeDetailResp>(`/api/onevity/employee-detail?id=${encodeURIComponent(id)}`, [id]);
 
+  // referensi kantor & lokasi kerja (Task 25) — resolve nama dari snapshot ID
+  // bila response belum memuat object relasinya (flatten object dipakai bila ada)
+  const officeApi = useApi<{ offices: { id: string; code: string; name: string; city: string | null }[] }>(
+    data?.employee?.companyOfficeId && !data.employee.companyOffice ? "/api/onevity/company-offices" : null, [id],
+  );
+  const locationApi = useApi<{ locations: { id: string; code: string; name: string; city: string | null }[] }>(
+    data?.employee?.workLocationId && !data.employee.workLocation ? "/api/onevity/work-locations" : null, [id],
+  );
+
   const [editPersonal, setEditPersonal] = useState(false);
   const [editWork, setEditWork] = useState(false);
   const [familyOpen, setFamilyOpen] = useState(false);
@@ -102,6 +111,9 @@ export function EmployeeDetail({ id }: { id: string }) {
   const e = data.employee;
   const ttl = e.birthPlace || e.birthDate ? `${e.birthPlace ?? "?"}, ${fmtDateLong(e.birthDate)}` : "";
   const period = (s: string | null, en: string | null) => `${fmtDate(s)} — ${en ? fmtDate(en) : "sekarang"}`;
+  // Kantor/Lokasi Kerja — prioritas object flatten, fallback resolve via snapshot ID
+  const office = e.companyOffice ?? (e.companyOfficeId ? officeApi.data?.offices.find((o) => o.id === e.companyOfficeId) ?? null : null);
+  const workLoc = e.workLocation ?? (e.workLocationId ? locationApi.data?.locations.find((l) => l.id === e.workLocationId) ?? null : null);
 
   return (
     <div>
@@ -268,6 +280,12 @@ export function EmployeeDetail({ id }: { id: string }) {
                 <DetailItem icon={Building2} label="Unit Organisasi" value={e.orgUnit?.name ?? "—"} />
                 <DetailItem icon={BriefcaseBusiness} label="Posisi" value={e.position?.title ?? "—"} />
                 <DetailItem icon={GraduationCap} label="Grade" value={e.grade ? `${e.grade.code} · ${e.grade.name}` : "—"} />
+                {office && (
+                  <DetailItem icon={Building2} label="Kantor" value={`${office.code} · ${office.name}${office.city ? ` — ${office.city}` : ""}`} />
+                )}
+                {workLoc && (
+                  <DetailItem icon={MapPin} label="Lokasi Kerja" value={`${workLoc.code} · ${workLoc.name}${workLoc.city ? ` — ${workLoc.city}` : ""}`} />
+                )}
                 <DetailItem icon={Banknote} label="Gaji Pokok" value={fmtIDR(e.baseSalary)} />
                 {e.grade && (
                   <DetailItem icon={Wallet} label="Range Grade" value={`${fmtIDR(e.grade.minSalary)} – ${fmtIDR(e.grade.maxSalary)}`} />

@@ -13,6 +13,8 @@ export type AssignmentOverrides = Partial<{
   positionId: string | null;
   gradeId: string | null;
   managerId: string | null;
+  companyOfficeId: string | null;
+  workLocationId: string | null;
   employmentStatus: string;
   workShift: string;
   baseSalary: number;
@@ -26,18 +28,23 @@ export const CURRENT_ASSIGNMENT_INCLUDE = {
     take: 1,
     include: {
       orgUnit: { select: { name: true, code: true } },
-      position: { select: { title: true, code: true } },
+      position: { select: { title: true, code: true, positionLevelId: true, positionLevel: { select: { code: true, name: true } } } },
       grade: { select: { code: true, name: true } },
+      companyOffice: { select: { code: true, name: true, city: true } },
+      workLocation: { select: { code: true, name: true, city: true } },
     },
   },
 } as const;
 
 type CurAssign = {
   orgUnitId: string | null; positionId: string | null; gradeId: string | null; managerId: string | null;
+  companyOfficeId: string | null; workLocationId: string | null;
   employmentStatus: string; workShift: string; baseSalary: number;
   orgUnit: { name: string; code: string } | null;
-  position: { title: string; code: string } | null;
+  position: { title: string; code: string; positionLevelId: string | null; positionLevel: { code: string; name: string } | null } | null;
   grade: { code: string; name: string } | null;
+  companyOffice: { code: string; name: string; city: string | null } | null;
+  workLocation: { code: string; name: string; city: string | null } | null;
 };
 
 /** Flatten employee + assignments[] → objek dengan field pekerjaan lama (untuk response API). */
@@ -50,18 +57,27 @@ export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T) {
     positionId: cur?.positionId ?? null,
     gradeId: cur?.gradeId ?? null,
     managerId: cur?.managerId ?? null,
+    companyOfficeId: cur?.companyOfficeId ?? null,
+    workLocationId: cur?.workLocationId ?? null,
     employmentStatus: cur?.employmentStatus ?? "Permanent",
     workShift: cur?.workShift ?? "Regular",
     baseSalary: cur?.baseSalary ?? 0,
     orgUnit: cur?.orgUnit ?? null,
     position: cur?.position ?? null,
     grade: cur?.grade ?? null,
+    companyOffice: cur?.companyOffice ?? null,
+    workLocation: cur?.workLocation ?? null,
+    positionLevel: cur?.position?.positionLevel ?? null,
   } as unknown as Omit<T, "assignments"> & {
     orgUnitId: string | null; positionId: string | null; gradeId: string | null; managerId: string | null;
+    companyOfficeId: string | null; workLocationId: string | null;
     employmentStatus: string; workShift: string; baseSalary: number;
     orgUnit: { name: string; code: string } | null;
-    position: { title: string; code: string } | null;
+    position: { title: string; code: string; positionLevelId: string | null; positionLevel: { code: string; name: string } | null } | null;
     grade: { code: string; name: string } | null;
+    companyOffice: { code: string; name: string; city: string | null } | null;
+    workLocation: { code: string; name: string; city: string | null } | null;
+    positionLevel: { code: string; name: string } | null;
   };
 }
 
@@ -70,6 +86,35 @@ export async function getCurrentAssignment(db: DbOrTx, employeeId: string) {
   return db.employeeAssignment.findFirst({
     where: { employeeId, validTo: null },
     orderBy: { validFrom: "desc" },
+  });
+}
+
+/**
+ * Sinkronkan snapshot parameter penempatan pada Employee (orgUnit/posisi/grade/
+ * level jabatan/kantor/lokasi) dari assignment aktif — parameter inilah yang
+ * dipakai mesin approval berjenjang mencocokkan struktur (Task 25).
+ */
+export async function syncEmployeePlacementSnapshot(db: DbOrTx, employeeId: string): Promise<void> {
+  const assignment = await db.employeeAssignment.findFirst({
+    where: { employeeId, validTo: null },
+    orderBy: { validFrom: "desc" },
+    select: {
+      orgUnitId: true, positionId: true, gradeId: true,
+      companyOfficeId: true, workLocationId: true,
+      position: { select: { positionLevelId: true } },
+    },
+  });
+  if (!assignment) return;
+  await db.employee.update({
+    where: { id: employeeId },
+    data: {
+      orgUnitId: assignment.orgUnitId,
+      positionId: assignment.positionId,
+      gradeId: assignment.gradeId,
+      positionLevelId: assignment.position?.positionLevelId ?? null,
+      companyOfficeId: assignment.companyOfficeId,
+      workLocationId: assignment.workLocationId,
+    },
   });
 }
 
@@ -92,6 +137,8 @@ export async function applyAssignmentChange(
     positionId: overrides.positionId !== undefined && overrides.positionId !== null ? overrides.positionId : current.positionId,
     gradeId: overrides.gradeId !== undefined && overrides.gradeId !== null ? overrides.gradeId : current.gradeId,
     managerId: overrides.managerId !== undefined ? (overrides.managerId || null) : current.managerId,
+    companyOfficeId: overrides.companyOfficeId !== undefined ? (overrides.companyOfficeId || null) : current.companyOfficeId,
+    workLocationId: overrides.workLocationId !== undefined ? (overrides.workLocationId || null) : current.workLocationId,
     employmentStatus: overrides.employmentStatus ?? current.employmentStatus,
     workShift: overrides.workShift ?? current.workShift,
     baseSalary: overrides.baseSalary !== undefined ? overrides.baseSalary : current.baseSalary,
@@ -113,6 +160,8 @@ export async function applyAssignmentChange(
       notes: opts.notes ?? null,
     },
   });
+  // dorong snapshot parameter penempatan pada Employee (dimensi approval berjenjang)
+  await syncEmployeePlacementSnapshot(db, employeeId);
   return { changed: true, assignment };
 }
 

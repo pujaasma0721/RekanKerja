@@ -5,6 +5,10 @@
 //   berstatus Approved/MassLeave, forfeited dari tanggal kadaluarsa carry-over.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { dayStart, addDays, diffDays, resolveDayType } from "@/onevity/time-attendance/services/attendance-service";
+import {
+  startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries,
+  type ChainSummary, type DecideActor,
+} from "@/onevity/shared/services/approval-engine";
 
 // ============ util ============
 
@@ -488,6 +492,7 @@ export interface SubmitRequestInput {
   reason: string;
   note?: string;
   source?: string; // Admin|ESS
+  actorName?: string; // pelapor (chain.createdBy)
 }
 
 export interface SubmitRequestResult {
@@ -495,6 +500,8 @@ export interface SubmitRequestResult {
   workingDays: number;
   remaining: number;
   backToWork: string | null;
+  approvalLevels: number;
+  firstApprover: string | null;
 }
 
 /** Nomor dokumen berikutnya per prefix (LR/ML/LE) — max-suffix, bukan count+1,
@@ -629,7 +636,7 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   }
 
   const docNo = await nextDocNo(db, "LR");
-  await db.leaveRequest.create({
+  const created = await db.leaveRequest.create({
     data: {
       docNo, employeeId: input.employeeId, leaveTypeId: type.id, year,
       requestDate: asOf, dateFrom: from, sessionFrom: input.sessionFrom,
@@ -641,15 +648,23 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
       reason: input.reason.trim(), note: input.note?.trim() || null,
     },
   });
+  // Approval berjenjang (Task 25): bangun jalur persetujuan sesuai struktur yang
+  // cocok dengan parameter penempatan pemohon (fallback atasan langsung).
+  const chain = await startApprovalChain(db, {
+    docType: "Leave", docId: created.id, employeeId: input.employeeId,
+    createdBy: input.actorName ?? null,
+  });
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "LeaveRequest", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${type.name} ${fmtDate(from)} → ${fmtDate(to)} (${calc.workingDays} hari)`,
+      detail: `${docNo}: ${emp.fullName} — ${type.name} ${fmtDate(from)} → ${fmtDate(to)} (${calc.workingDays} hari) — approval berjenjang ${chain.totalLevels} level`,
     },
   });
   return {
     docNo, workingDays: calc.workingDays, remaining,
     backToWork: calc.backToWork ? iso(calc.backToWork) : null,
+    approvalLevels: chain.totalLevels,
+    firstApprover: chain.steps[0]?.approverLabel ?? null,
   };
 }
 
@@ -661,6 +676,8 @@ export interface RequestRow {
   balanceAtRequest: number; remainingAtRequest: number; backToWorkDate: Date | null;
   status: string; source: string; reason: string | null; note: string | null;
   decisionNote: string | null; decidedAt: Date | null;
+  /** ringkasan jalur approval berjenjang (Task 25) */
+  approval: ChainSummary | null;
 }
 
 export async function listRequests(
@@ -685,6 +702,7 @@ export async function listRequests(
     orderBy: [{ requestDate: "desc" }, { docNo: "desc" }],
     take: filter.limit ?? 500,
   });
+  const chainMap = await attachChainSummaries(db, "Leave", rows.map((r) => ({ id: r.id })));
   return rows.map((r) => ({
     id: r.id, docNo: r.docNo, employeeId: r.employeeId, employeeNo: r.employee.employeeNo,
     fullName: r.employee.fullName, orgUnitName: r.employee.assignments[0]?.orgUnit?.name ?? null,
@@ -694,21 +712,79 @@ export async function listRequests(
     balanceAtRequest: r.balanceAtRequest, remainingAtRequest: r.remainingAtRequest,
     backToWorkDate: r.backToWorkDate, status: r.status, source: r.source,
     reason: r.reason, note: r.note, decisionNote: r.decisionNote, decidedAt: r.decidedAt,
+    approval: chainMap.get(r.id) ?? null,
   }));
 }
 
 // ============ approval (padanan LeaveRequestToApprove: Approve|Reject|Cancel) ============
 
+export interface DecideRequestResult {
+  docNo: string;
+  status: string;
+  regeneratedDays: number;
+  /** info jenjang berjenjang — ada bila approval belum/di luar jenjang terakhir */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
+}
+
 export async function decideRequest(
   db: TenantDb,
-  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
-): Promise<{ docNo: string; status: string; regeneratedDays: number }> {
+  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string; actor?: DecideActor },
+): Promise<DecideRequestResult> {
   const req = await db.leaveRequest.findUnique({ where: { id: input.id }, include: { leaveType: true, employee: true } });
   if (!req) throw new Error("Permintaan tidak ditemukan");
   if (req.status !== "Submitted") {
     throw new Error(`Permintaan sudah berstatus ${req.status} — hanya permintaan menunggu (Submitted) yang bisa diproses`);
   }
   const type = req.leaveType as unknown as TypeLite;
+
+  // ==== Approval berjenjang (Task 25) ====
+  // Chain dibuat saat submit; dokumen legacy tanpa chain dibuat saat putusan ini.
+  // approve pada jenjang < total → status tetap Submitted (menunggu jenjang
+  // berikutnya); hanya jenjang TERAKHIR yang memicu validasi saldo + status Approved.
+  let chain = await getApprovalChain(db, "Leave", input.id);
+  if (!chain) {
+    chain = await startApprovalChain(db, { docType: "Leave", docId: input.id, employeeId: req.employeeId, createdBy: "legacy-backfill" });
+  }
+  if (chain.status === "InProgress") {
+    const actor: DecideActor = input.actor ?? { role: "ADMIN", employeeId: null, name: input.actorId ?? "Sistem" };
+    const res = await decideApprovalChain(db, {
+      docType: "Leave", docId: input.id, action: input.action, note: input.note, actor,
+    });
+    if (!res.final) {
+      // jenjang menengah disetujui — dokumen masih menunggu jenjang berikutnya
+      const currentStep = res.chain.steps.find((s) => s.status === "Current");
+      await db.activityLog.create({
+        data: {
+          action: "Approved", entity: "LeaveRequest", entityId: req.docNo,
+          detail: `${req.docNo}: jenjang ${chain!.currentLevel}/${chain!.totalLevels} disetujui — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"}`,
+        },
+      });
+      return {
+        docNo: req.docNo, status: "Submitted", regeneratedDays: 0,
+        approval: {
+          currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels,
+          currentApprover: currentStep?.approverLabel ?? null,
+        },
+      };
+    }
+    if (input.action !== "approve") {
+      // reject/cancel pada chain — dokumen ikut berstatus (tanpa validasi saldo)
+      const statusReject = input.action === "reject" ? "Rejected" : "Cancelled";
+      const upd = await db.leaveRequest.updateMany({
+        where: { id: input.id, status: "Submitted" },
+        data: { status: statusReject, decidedById: input.actorId ?? null, decidedAt: new Date(), decisionNote: input.note?.trim() || null },
+      });
+      if (upd.count === 0) throw new Error(`Permintaan sudah berstatus ${req.status}`);
+      await db.activityLog.create({
+        data: {
+          action: statusReject, entity: "LeaveRequest", entityId: req.docNo,
+          detail: `${req.docNo} (${req.employee.fullName}, ${req.leaveType.name}) → ${statusReject} di jenjang ${chain!.currentLevel}${input.note ? ` — ${input.note}` : ""}`,
+        },
+      });
+      return { docNo: req.docNo, status: statusReject, regeneratedDays: 0 };
+    }
+    // jenjang terakhir disetujui → lanjut ke validasi saldo + status Approved di bawah
+  }
 
   const status = input.action === "approve" ? "Approved" : input.action === "reject" ? "Rejected" : "Cancelled";
   const decided = {

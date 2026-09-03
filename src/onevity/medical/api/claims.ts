@@ -115,6 +115,7 @@ export async function PATCH(req: NextRequest) {
       claimId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
+      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     }, actorId);
     return NextResponse.json(res);
   } catch (e) {

@@ -22,11 +22,15 @@ import { motion } from "framer-motion";
 
 export interface WizardOptions {
   orgUnits: { id: string; name: string; level: number; code: string }[];
-  positions: { id: string; title: string; code: string; orgUnitId: string | null }[];
+  positions: { id: string; title: string; code: string; orgUnitId: string | null; positionLevel?: { code: string; name: string } | null }[];
   grades: { id: string; code: string; name: string; minSalary: number; maxSalary: number }[];
   managers: { id: string; fullName: string; employeeNo: string; position: { title: string } | null; orgUnitId: string | null }[];
   lookups: Record<string, { code: string; label: string }[]>;
 }
+
+// opsi referensi kantor & lokasi kerja (dimensi approval berjenjang — Task 25)
+interface CompanyOfficeOption { id: string; code: string; name: string; city: string | null }
+interface WorkLocationOption { id: string; code: string; name: string; city: string | null; officeId: string | null }
 
 const STEPS = [
   { id: 1, label: "Data Personal", icon: User },
@@ -41,6 +45,7 @@ const EMPTY_FORM: Record<string, string> = {
   fullName: "", gender: "M", birthPlace: "", birthDate: "", nationalId: "", taxId: "",
   maritalStatus: "", religion: "", bloodType: "", email: "", phone: "", address: "", city: "",
   orgUnitId: "", positionId: "", gradeId: "", employmentStatus: "Probation", joinDate: "", managerId: "", workShift: "Regular",
+  companyOfficeId: "", workLocationId: "",
   baseSalary: "", bankName: "", bankAccount: "",
 };
 
@@ -53,13 +58,16 @@ const TIPS: Record<number, { icon: React.ElementType; text: string }> = {
 
 const TRACKED_FIELDS = [
   "fullName", "birthDate", "nationalId", "taxId", "email", "phone", "address", "city",
-  "orgUnitId", "positionId", "gradeId", "joinDate", "managerId",
+  "orgUnitId", "positionId", "gradeId", "joinDate", "managerId", "companyOfficeId", "workLocationId",
   "baseSalary", "bankName", "bankAccount",
 ];
 
 export function OnboardingWizard() {
   const { navigate } = useNav();
   const opts = useApi<WizardOptions>("/api/onevity/employee-options");
+  // referensi kantor & lokasi kerja (Task 25) — penempatan dimensi approval berjenjang
+  const officesApi = useApi<{ offices: CompanyOfficeOption[] }>("/api/onevity/company-offices");
+  const locationsApi = useApi<{ locations: WorkLocationOption[] }>("/api/onevity/work-locations");
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<{ id: string; employeeNo: string; fullName: string } | null>(null);
@@ -141,6 +149,8 @@ export function OnboardingWizard() {
         joinDate: form.joinDate || undefined,
         managerId: form.managerId || null,
         gradeId: form.gradeId || null,
+        companyOfficeId: form.companyOfficeId || null,
+        workLocationId: form.workLocationId || null,
       });
       setCreated(res.employee);
       setStep(5);
@@ -165,6 +175,8 @@ export function OnboardingWizard() {
   const selectedPosition = opts.data?.positions.find((p) => p.id === form.positionId);
   const selectedUnit = opts.data?.orgUnits.find((u) => u.id === form.orgUnitId);
   const selectedManager = opts.data?.managers.find((m) => m.id === form.managerId);
+  const selectedOffice = officesApi.data?.offices.find((o) => o.id === form.companyOfficeId);
+  const selectedLocation = locationsApi.data?.locations.find((l) => l.id === form.workLocationId);
   const filteredPositions = useMemo(
     () => opts.data?.positions.filter((p) => !form.orgUnitId || p.orgUnitId === form.orgUnitId) ?? [],
     [opts.data, form.orgUnitId],
@@ -347,6 +359,9 @@ export function OnboardingWizard() {
                           {filteredPositions.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      {selectedPosition?.positionLevel && (
+                        <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Level Jabatan: {selectedPosition.positionLevel.code} — {selectedPosition.positionLevel.name}</p>
+                      )}
                     </Field>
                     <Field label="Grade" hint={selectedGrade ? `rentang ${fmtIDR(selectedGrade.minSalary)} – ${fmtIDR(selectedGrade.maxSalary)}` : "menentukan rentang gaji"}>
                       <Select value={form.gradeId || "none"} onValueChange={(v) => set("gradeId", v === "none" ? "" : v)}>
@@ -363,6 +378,28 @@ export function OnboardingWizard() {
                         <SelectContent>
                           <SelectItem value="none">— Tanpa atasan —</SelectItem>
                           {(opts.data?.managers ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} · {m.position?.title ?? "—"}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Kantor (Company Office)" hint="opsional — dimensi approval">
+                      <Select value={form.companyOfficeId || "none"} onValueChange={(v) => set("companyOfficeId", v === "none" ? "" : v)}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih kantor" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— Tanpa kantor —</SelectItem>
+                          {(officesApi.data?.offices ?? []).map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.code} — {o.name}{o.city ? ` (${o.city})` : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Lokasi Kerja (Work Location)" hint={selectedOffice ? `opsional · ${locationsApi.data?.locations.length ?? 0} lokasi` : "opsional"}>
+                      <Select value={form.workLocationId || "none"} onValueChange={(v) => set("workLocationId", v === "none" ? "" : v)}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih lokasi kerja" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— Tanpa lokasi —</SelectItem>
+                          {(locationsApi.data?.locations ?? []).map((l) => (
+                            <SelectItem key={l.id} value={l.id}>{l.code} — {l.name}{l.city ? ` (${l.city})` : ""}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -437,6 +474,8 @@ export function OnboardingWizard() {
                   <ReviewSection icon={Briefcase} title="Info Pekerjaan" onEdit={() => setStep(2)} items={[
                     ["Unit Organisasi", selectedUnit?.name ?? "—"], ["Posisi", selectedPosition?.title ?? "—"],
                     ["Grade", selectedGrade ? `${selectedGrade.code} — ${selectedGrade.name}` : "—"],
+                    ["Kantor", selectedOffice ? `${selectedOffice.code} — ${selectedOffice.name}` : "—"],
+                    ["Lokasi Kerja", selectedLocation ? `${selectedLocation.code} — ${selectedLocation.name}` : "—"],
                     ["Status Kepegawaian", form.employmentStatus], ["Tanggal Masuk", form.joinDate || "—"],
                     ["Jadwal Kerja", form.workShift], ["Atasan", selectedManager?.fullName ?? "—"],
                   ]} />

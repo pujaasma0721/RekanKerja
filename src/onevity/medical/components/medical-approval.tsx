@@ -71,11 +71,14 @@ export function MedicalApprovalPage() {
     if (!claim) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number }>(
+      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>(
         "/api/onevity/medical/claims", "PATCH",
         { id: claim.id, action, note: reason || undefined },
       );
-      if (action === "settle") {
+      if (res.approval) {
+        // approval parsial — jenjang menengah disetujui, klaim tetap menunggu jenjang berikutnya
+        toast.success(`Jenjang ${res.approval.currentLevel - 1}/${res.approval.totalLevels} disetujui — menunggu ${res.approval.currentApprover ?? "jenjang berikutnya"}`);
+      } else if (action === "settle") {
         toast.success(
           `${res.docNo} settled — used +${fmtIDR(res.usedAdded)}, sisa ${fmtIDR(res.remaining)}${res.journalNo ? ` · jurnal ${res.journalNo} (${res.journalLines} baris)` : ""}`,
         );
@@ -182,6 +185,11 @@ export function MedicalApprovalPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold text-stone-900 dark:text-stone-100">{c.docNo}</span>
                   <StatusPill status={c.state} />
+                  {c.approval?.status === "InProgress" && (
+                    <span className="whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                      Jenjang {c.approval.currentLevel}/{c.approval.totalLevels}
+                    </span>
+                  )}
                   {c.forDependent && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-400">dependent</span>}
                 </div>
                 <p className="mt-0.5 text-sm text-stone-600 dark:text-stone-300">
@@ -191,6 +199,11 @@ export function MedicalApprovalPage() {
                   tagihan {fmtIDR(c.totalBill)} → approved <span className="font-semibold text-stone-700 dark:text-stone-300">{fmtIDR(c.totalApproved)}</span>
                   {" · snapshot sisa saat ajukan: "}{fmtIDR(Math.max(0, c.maxBenefitAt - c.usedAt))}
                 </p>
+                {c.approval?.status === "InProgress" && (
+                  <p className="mt-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    menunggu keputusan {c.approval.currentApprover ?? "jenjang berikutnya"}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {(c.state === "Submitted" || c.state === "Returned") && (
@@ -259,6 +272,12 @@ export function MedicalApprovalPage() {
                   Tagihan {fmtIDR(claim.totalBill)} · Approved <span className="font-semibold">{fmtIDR(claim.totalApproved)}</span> · Non-re {fmtIDR(claim.totalNonRe)}
                 </p>
               </div>
+              {claim.approval?.status === "InProgress" && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                  Approval berjenjang: jenjang {claim.approval.currentLevel} dari {claim.approval.totalLevels} — menunggu keputusan {claim.approval.currentApprover ?? "jenjang berikutnya"}.
+                  {action === "approve" && claim.approval.currentLevel < claim.approval.totalLevels && " Setujui jenjang ini untuk maju ke jenjang berikutnya."}
+                </p>
+              )}
               {action === "settle" && (
                 <p className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-xs leading-relaxed text-teal-800 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300">
                   Settle akan: (1) membuat jurnal otomatis Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas,

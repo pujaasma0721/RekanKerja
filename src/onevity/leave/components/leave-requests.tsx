@@ -79,10 +79,13 @@ export function LeaveRequestsPage() {
     if (!form.reason.trim()) { toast.error("Alasan cuti wajib diisi"); return; }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; workingDays: number; remaining: number; backToWork: string | null }>(
+      const res = await apiSend<{ docNo: string; workingDays: number; remaining: number; backToWork: string | null; approvalLevels?: number; firstApprover?: string | null }>(
         "/api/onevity/leave/requests", "POST", form,
       );
-      toast.success(`${res.docNo} diajukan — ${res.workingDays} hari kerja, sisa saldo ${res.remaining}`);
+      toast.success(
+        `${res.docNo} diajukan — ${res.workingDays} hari kerja, sisa saldo ${res.remaining}` +
+        (res.firstApprover ? ` · menunggu approval ${res.firstApprover}` + (res.approvalLevels && res.approvalLevels > 1 ? ` (jenjang 1/${res.approvalLevels})` : "") : ""),
+      );
       setDialog(false);
       api.refresh();
     } catch (e) {

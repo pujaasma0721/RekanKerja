@@ -30,8 +30,61 @@ model Company {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  orgUnits  OrgUnit[]
-  employees Employee[]
+  orgUnits       OrgUnit[]
+  employees      Employee[]
+  companyOffices CompanyOffice[]
+  workLocations  WorkLocation[]
+}
+
+// Kantor perusahaan (branch office) — dimensi penempatan & kriteria approval.
+model CompanyOffice {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  companyId String
+  address   String?
+  city      String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  company       Company          @relation(fields: [companyId], references: [id])
+  workLocations WorkLocation[]
+  employees     Employee[]       @relation("EmployeeOffice")
+  assignments   EmployeeAssignment[]
+  approvalStructures ApprovalStructure[] @relation("StructureOffice")
+}
+
+// Lokasi kerja (site/plant) — dimensi penempatan & kriteria approval.
+model WorkLocation {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  companyId String
+  officeId  String? // opsional: lokasi di bawah kantor tertentu
+  address   String?
+  city      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  company       Company          @relation(fields: [companyId], references: [id])
+  office        CompanyOffice?   @relation(fields: [officeId], references: [id])
+  employees     Employee[]       @relation("EmployeeLocation")
+  assignments   EmployeeAssignment[]
+  approvalStructures ApprovalStructure[] @relation("StructureLocation")
+}
+
+// Level jabatan (Staff/Supervisor/Manager/Director…) — master terpisah dari Grade.
+model PositionLevel {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  name     String
+  sortOrder Int    @default(0)
+  active   Boolean @default(true)
+
+  positions        Position[]
+  employees        Employee[] @relation("EmployeePositionLevel")
+  approvalStructures ApprovalStructure[] @relation("StructurePositionLevel")
 }
 
 model OrgUnit {
@@ -50,6 +103,8 @@ model OrgUnit {
   company     Company              @relation(fields: [companyId], references: [id])
   positions   Position[]
   assignments EmployeeAssignment[]
+  employees          Employee[]           @relation("EmployeeOrgUnit")
+  approvalStructures ApprovalStructure[] @relation("StructureOrgUnit")
 }
 
 // ============ POSITION DEFINITION ============
@@ -77,6 +132,8 @@ model Grade {
 
   positions   Position[]
   assignments EmployeeAssignment[]
+  employees          Employee[]           @relation("EmployeeGrade")
+  approvalStructures ApprovalStructure[] @relation("StructureGrade")
 }
 
 model Position {
@@ -93,12 +150,18 @@ model Position {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  job           Job?                 @relation(fields: [jobId], references: [id])
-  orgUnit       OrgUnit?             @relation(fields: [orgUnitId], references: [id])
-  grade         Grade?               @relation(fields: [gradeId], references: [id])
-  reportsTo     Position?            @relation("PositionTree", fields: [reportsToId], references: [id])
-  directReports Position[]           @relation("PositionTree")
+  job            Job?            @relation(fields: [jobId], references: [id])
+  orgUnit        OrgUnit?        @relation(fields: [orgUnitId], references: [id])
+  grade          Grade?          @relation(fields: [gradeId], references: [id])
+  positionLevelId String?
+  reportsTo      Position?       @relation("PositionTree", fields: [reportsToId], references: [id])
+  directReports  Position[]      @relation("PositionTree")
   assignments   EmployeeAssignment[]
+
+  positionLevel         PositionLevel? @relation(fields: [positionLevelId], references: [id])
+  employees             Employee[]     @relation("EmployeePosition")
+  approvalStructures    ApprovalStructure[] @relation("StructurePosition")
+  structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverPosition")
 }
 
 // ============ EMPLOYEE INFORMATION ============
@@ -138,6 +201,23 @@ model Employee {
 
   company Company @relation(fields: [companyId], references: [id])
 
+  // ===== parameter penempatan aktif (snapshot — parameter matching approval) =====
+  // Didorong otomatis dari EmployeeAssignment aktif oleh service assignment;
+  // menjadi dimensi pencocokan ApprovalStructure berjenjang.
+  orgUnitId       String?
+  positionId      String?
+  gradeId         String?
+  positionLevelId String?
+  companyOfficeId String?
+  workLocationId  String?
+
+  orgUnit       OrgUnit?        @relation("EmployeeOrgUnit", fields: [orgUnitId], references: [id])
+  position      Position?       @relation("EmployeePosition", fields: [positionId], references: [id])
+  grade         Grade?          @relation("EmployeeGrade", fields: [gradeId], references: [id])
+  positionLevel PositionLevel?  @relation("EmployeePositionLevel", fields: [positionLevelId], references: [id])
+  companyOffice CompanyOffice? @relation("EmployeeOffice", fields: [companyOfficeId], references: [id])
+  workLocation  WorkLocation?  @relation("EmployeeLocation", fields: [workLocationId], references: [id])
+
   family               EmployeeFamily[]
   education            EmployeeEducation[]
   experiences          EmployeeExperience[]
@@ -164,6 +244,10 @@ model Employee {
   medicalBalances     MedicalBalance[]
   medicalClaims       MedicalClaim[]
   medicalAdjustments  MedicalAdjustment[]
+
+  // relasi approval berjenjang
+  structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
+  approvalStepsAsApprover   ApprovalStep[]          @relation("StepApproverEmployee")
 }
 
 // Riwayat penempatan kerja — setiap perubahan (mutasi/promosi/penyesuaian upah)
@@ -187,10 +271,14 @@ model EmployeeAssignment {
   updatedAt        DateTime  @updatedAt
 
   employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  orgUnit  OrgUnit?  @relation(fields: [orgUnitId], references: [id])
-  position Position? @relation(fields: [positionId], references: [id])
-  grade    Grade?    @relation(fields: [gradeId], references: [id])
-  manager  Employee? @relation("AssignmentManager", fields: [managerId], references: [id])
+  orgUnit        OrgUnit?        @relation(fields: [orgUnitId], references: [id])
+  position       Position?       @relation(fields: [positionId], references: [id])
+  grade          Grade?          @relation(fields: [gradeId], references: [id])
+  companyOfficeId String?
+  workLocationId  String?
+  manager        Employee?       @relation("AssignmentManager", fields: [managerId], references: [id])
+  companyOffice  CompanyOffice?  @relation(fields: [companyOfficeId], references: [id])
+  workLocation   WorkLocation?   @relation(fields: [workLocationId], references: [id])
 
   @@index([employeeId, validTo])
   @@index([validTo])
@@ -281,6 +369,112 @@ model ApprovalLayer {
 
   personnelAction PersonnelAction @relation(fields: [personnelActionId], references: [id], onDelete: Cascade)
   approver        AppUser?        @relation(fields: [approverId], references: [id])
+}
+
+// ============ APPROVAL STRUKTUR BERJENJANG (Task 25) ============
+// Template alur persetujuan multi-level. Struktur dicocokkan ke KARYAWAN PEMOHON
+// berdasarkan 6 dimensi penempatan (kantor, lokasi kerja, unit organisasi, posisi,
+// grade, level jabatan) — null = cocok untuk semua. Bila beberapa struktur cocok,
+// yang paling spesifik (kriteria terbanyak) dipakai.
+// Khusus docType Loan/Medical/Travel, tiap level dapat memakai syarat nominal
+// (minAmount/maxAmount) — level tambahan aktif hanya bila nominal masuk rentang.
+model ApprovalStructure {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  docType   String // Leave|Travel|Medical|Loan|Overtime
+  companyOfficeId  String?
+  workLocationId   String?
+  orgUnitId        String?
+  positionId       String?
+  gradeId          String?
+  positionLevelId  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyOffice CompanyOffice?  @relation("StructureOffice", fields: [companyOfficeId], references: [id])
+  workLocation  WorkLocation?   @relation("StructureLocation", fields: [workLocationId], references: [id])
+  orgUnit       OrgUnit?        @relation("StructureOrgUnit", fields: [orgUnitId], references: [id])
+  position      Position?       @relation("StructurePosition", fields: [positionId], references: [id])
+  grade         Grade?          @relation("StructureGrade", fields: [gradeId], references: [id])
+  positionLevel PositionLevel?  @relation("StructurePositionLevel", fields: [positionLevelId], references: [id])
+
+  levels ApprovalStructureLevel[]
+  chains ApprovalChain[]
+
+  @@index([docType, active])
+}
+
+// Satu jenjang dalam struktur. approverType:
+//   ATASAN_LANGSUNG   — atasan langsung pemohon (EmployeeAssignment.managerId)
+//   ATASAN_BERJENJANG — naik N tingkat dari pemohon (superiorLevel)
+//   POSISI            — pemegang posisi tertentu (approverPositionId)
+//   KARYAWAN          — karyawan tetap (approverEmployeeId)
+//   HR_ADMIN          — petugas HR/admin workspace (siapa pun role ADMIN/OWNER/HR)
+model ApprovalStructureLevel {
+  id                 String  @id @default(cuid())
+  structureId        String
+  levelNo            Int // 1..n berjenjang
+  approverType       String
+  approverPositionId String?
+  approverEmployeeId String?
+  superiorLevel      Int? // ATASAN_BERJENJANG: jumlah tingkat naik (1 = atasan langsung)
+  minAmount          Float? // level aktif bila nominal >= minAmount (Loan/Medical/Travel)
+  maxAmount          Float? // level aktif bila nominal <= maxAmount (null = tanpa batas)
+  note               String?
+
+  structure        ApprovalStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  approverPosition Position?        @relation("LevelApproverPosition", fields: [approverPositionId], references: [id])
+  approverEmployee Employee?        @relation("LevelApproverEmployee", fields: [approverEmployeeId], references: [id])
+
+  @@index([structureId, levelNo])
+}
+
+// ============ APPROVAL CHAIN (runtime) ============
+// Instance jalur persetujuan untuk satu dokumen (Leave/Travel/Medical/Loan).
+// Dibuat saat dokumen diajukan; step = jenjang tersimpan (approver direkam sebagai
+// label + id saat chain dibuat). currentLevel = jenjang yang menunggu keputusan.
+model ApprovalChain {
+  id          String    @id @default(cuid())
+  docType     String
+  docId       String
+  structureId String?
+  employeeId  String // pemohon
+  amount      Float?
+  status      String    @default("InProgress") // InProgress|Approved|Rejected|Cancelled
+  currentLevel Int      @default(1)
+  totalLevels  Int      @default(0)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  structure ApprovalStructure? @relation(fields: [structureId], references: [id])
+  steps     ApprovalStep[]
+
+  @@unique([docType, docId])
+  @@index([docType, status])
+}
+
+model ApprovalStep {
+  id                 String    @id @default(cuid())
+  chainId            String
+  levelNo            Int
+  approverType       String
+  approverLabel      String // nama tampilan saat chain dibuat (mis. "Sri Wahyuni — HR Manager")
+  approverEmployeeId String?
+  approverPositionCode String?
+  minAmount          Float?
+  maxAmount          Float?
+  status             String    @default("Waiting") // Waiting|Current|Approved|Rejected|Skipped
+  note               String?
+  decidedBy          String? // nama aktor keputusan
+  decidedAt          DateTime?
+
+  chain             ApprovalChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  approverEmployee  Employee?    @relation("StepApproverEmployee", fields: [approverEmployeeId], references: [id], onDelete: SetNull)
+
+  @@index([chainId, levelNo])
 }
 
 // ============ WAGE & ACCOUNTING RULES ============

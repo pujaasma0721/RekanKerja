@@ -47,6 +47,16 @@ export interface ClaimUI {
   lineCount: number;
   lines?: ClaimLineUI[];
   statusLog: { state: string; at: string; by: string; note?: string }[];
+  /** info approval berjenjang (Task 25) — null bila tanpa chain */
+  approval?: MedicalApprovalUI | null;
+}
+
+/** Ringkasan jalur approval berjenjang pada row list (Task 25). */
+export interface MedicalApprovalUI {
+  status: "InProgress" | "Approved" | "Rejected" | "Cancelled";
+  currentLevel: number;
+  totalLevels: number;
+  currentApprover: string | null;
 }
 
 export interface ClaimPreviewUI {

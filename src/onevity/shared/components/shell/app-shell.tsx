@@ -21,7 +21,7 @@ import {
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
-  Hospital,
+  Hospital, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,7 @@ const HR_NAV: NavGroup[] = [
   ] },
   { section: "org", label: "Perusahaan & Organisasi", children: [
     { id: "companies", label: "Perusahaan", icon: Landmark },
+    { id: "offices", label: "Kantor & Lokasi Kerja", icon: Building2 },
     { id: "tree", label: "Unit Organisasi", icon: Network },
     { id: "chart", label: "Peta Organisasi", icon: Waypoints },
   ] },
@@ -65,6 +66,7 @@ const HR_NAV: NavGroup[] = [
     { id: "list", label: "Daftar Posisi", icon: BriefcaseBusiness },
     { id: "jobs", label: "Katalog Jabatan", icon: FileText },
     { id: "grades", label: "Grade & Level", icon: GraduationCap },
+    { id: "levels", label: "Level Jabatan", icon: TrendingUp },
   ] },
   { section: "employee", label: "Karyawan", children: [
     { id: "directory", label: "Direktori Karyawan", icon: Users },
@@ -170,7 +172,7 @@ const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
     { id: "lookups", label: "Data Master", icon: Layers },
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
-    { id: "approval", label: "Template Approval", icon: CheckCircle2 },
+    { id: "approval", label: "Approval Berjenjang", icon: CheckCircle2 },
   ] },
 ];
 

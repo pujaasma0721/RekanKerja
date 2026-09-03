@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee } from "@/onevity/human-resource/services/assignment";
+import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
@@ -111,6 +111,14 @@ export async function POST(req: NextRequest) {
       const mgr = await db.employee.findUnique({ where: { id: b.managerId }, select: { id: true } });
       if (!mgr) return NextResponse.json({ error: "Atasan langsung tidak dikenal — pilih ulang atasan" }, { status: 400 });
     }
+    if (b.companyOfficeId) {
+      const o = await db.companyOffice.findUnique({ where: { id: b.companyOfficeId }, select: { id: true } });
+      if (!o) return NextResponse.json({ error: "Kantor tidak dikenal — pilih ulang kantor" }, { status: 400 });
+    }
+    if (b.workLocationId) {
+      const w = await db.workLocation.findUnique({ where: { id: b.workLocationId }, select: { id: true } });
+      if (!w) return NextResponse.json({ error: "Lokasi kerja tidak dikenal — pilih ulang lokasi" }, { status: 400 });
+    }
 
     // (b) gaji pokok tidak boleh negatif; bila grade dipilih dan mendefinisikan rentang
     // min/max, gaji wajib dalam rentang itu (wizard memang advisory — server yang menegakkan).
@@ -166,6 +174,8 @@ export async function POST(req: NextRequest) {
         positionId: b.positionId ?? null,
         gradeId: b.gradeId ?? null,
         managerId: b.managerId ?? null,
+        companyOfficeId: b.companyOfficeId ?? null,
+        workLocationId: b.workLocationId ?? null,
         employmentStatus: b.employmentStatus ?? "Probation",
         workShift: b.workShift ?? "Regular",
         baseSalary,
@@ -175,6 +185,8 @@ export async function POST(req: NextRequest) {
         notes: "Penempatan awal saat onboarding",
       },
     });
+    // dorong snapshot parameter penempatan (dimensi approval berjenjang — Task 25)
+    await syncEmployeePlacementSnapshot(db, employee.id);
 
     await db.activityLog.create({
       data: {
