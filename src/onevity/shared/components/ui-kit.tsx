@@ -1,6 +1,6 @@
 "use client";
 // OneVity shared UI kit
-import { ReactNode } from "react";
+import { isValidElement, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -90,14 +90,16 @@ export function paTypeLabel(t: string) {
 }
 
 export function EmptyState({ title, description, icon }: { title: string; description?: string; icon?: ReactNode | React.ElementType }) {
-  // icon boleh ReactNode (elemen) ATAU komponen ikon (mis. lucide) — komponen
-  // di-render sebagai <Icon className/> agar tidak jatuh sebagai object child.
-  const isComp = typeof icon === "function";
-  const IconComp = isComp ? (icon as unknown as React.ElementType) : null;
+  // icon boleh ReactNode (elemen React / string) ATAU komponen ikon — function klasik
+  // ATAU forwardRef object (lucide modern: {$$typeof, render}). Komponen di-render
+  // sebagai <Icon className/> agar tidak jatuh sebagai object child (crash runtime).
+  const isElement = isValidElement(icon);
+  const isScalar = typeof icon === "string" || typeof icon === "number";
+  const IconComp = !isElement && !isScalar && icon != null ? (icon as unknown as React.ElementType) : null;
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-14 text-center dark:border-stone-700 dark:bg-stone-900/30">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-stone-800">
-        {IconComp ? <IconComp className="h-6 w-6" /> : (isComp ? <FileSearch className="h-6 w-6" /> : (icon ?? <FileSearch className="h-6 w-6" />))}
+        {isElement || isScalar ? icon : IconComp ? <IconComp className="h-6 w-6" /> : <FileSearch className="h-6 w-6" />}
       </div>
       <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">{title}</p>
       {description && <p className="max-w-sm text-xs text-stone-500 dark:text-stone-500">{description}</p>}

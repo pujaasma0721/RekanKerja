@@ -51,6 +51,16 @@ async function main() {
   } else {
     console.log(`[MII] data sudah ada (${miiEmpCount} karyawan) — skip seed`);
   }
+  // ---------- 1b. struktur approval berjenjang (Task 25) — idempoten ----------
+  // restore-demo tidak men-seed struktur approval; pastikan struktur + chain
+  // approval ada setelah reset environment (skip bila sudah dibuat).
+  const miiStructCount = await getTenantClient(MII_SCHEMA).approvalStructure.count();
+  if (miiStructCount === 0) {
+    console.log("[MII] migrasi approval struktur berjenjang…");
+    const r = spawnSync("bun", ["scripts/migrate-approval-structure.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] migrasi approval gagal — jalankan manual: bun run scripts/migrate-approval-structure.ts");
+  }
+
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");
   await ensureMembership(hrdId, mii.id, "OWNER");
 
