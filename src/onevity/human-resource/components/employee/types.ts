@@ -9,6 +9,7 @@ export interface EmployeeRow {
   gender: string;
   email: string | null;
   phone: string | null;
+  photoUrl?: string | null;
   employmentStatus: string;
   joinDate: string;
   endDate: string | null;
@@ -60,6 +61,7 @@ export interface DirectReportRef {
   id: string;
   fullName: string;
   employeeNo: string;
+  photoUrl?: string | null;
   employmentStatus: string;
   status: string;
   position: { title: string } | null;

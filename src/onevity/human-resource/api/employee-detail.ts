@@ -57,13 +57,13 @@ export async function GET(req: NextRequest) {
 
     const cur = employee.assignments[0] ?? null;
     // manager aktif + posisinya (nested: manager → assignment aktifnya)
-    let manager: { id: string; fullName: string; employeeNo: string; position: { title: string | null } | null } | null = null;
+    let manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string | null } | null } | null = null;
     if (cur?.managerId) {
       const mgr = await db.employee.findUnique({
         where: { id: cur.managerId },
         include: { assignments: { where: { validTo: null }, take: 1, select: { position: { select: { title: true } } } } },
       });
-      if (mgr) manager = { id: mgr.id, fullName: mgr.fullName, employeeNo: mgr.employeeNo, position: { title: mgr.assignments[0]?.position?.title ?? null } };
+      if (mgr) manager = { id: mgr.id, fullName: mgr.fullName, employeeNo: mgr.employeeNo, photoUrl: mgr.photoUrl, position: { title: mgr.assignments[0]?.position?.title ?? null } };
     }
 
     // bawahan langsung: karyawan yang assignment aktifnya mengarah ke id ini
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
       grade: cur?.grade ?? null,
       manager,
       directReports: directReportsRaw.map((r) => ({
-        id: r.id, fullName: r.fullName, employeeNo: r.employeeNo,
+        id: r.id, fullName: r.fullName, employeeNo: r.employeeNo, photoUrl: r.photoUrl, status: r.status,
         position: r.assignments[0]?.position ?? null,
       })),
       assignments: assignments.map((a) => ({

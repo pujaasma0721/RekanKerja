@@ -1,10 +1,11 @@
 "use client";
 // OneVity — Modul Karyawan: direktori, profil detail multi-tab
 import { useMemo, useState } from "react";
-import { useApi, apiSend, fmtIDR, fmtDate, fmtDateLong, tenure, initials, avatarColor, genderLabel } from "@/onevity/shared/lib/api";
+import { useApi, apiSend, fmtIDR, fmtDate, fmtDateLong, tenure, genderLabel } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
+import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ interface AssignmentHistory {
 
 interface DetailEmp {
   id: string; employeeNo: string; fullName: string; gender: string;
+  photoUrl: string | null;
   birthPlace: string | null; birthDate: string | null;
   nationalId: string | null; taxId: string | null; bpjsHealth: string | null; bpjsEmpSkill: string | null;
   maritalStatus: string | null; religion: string | null; bloodType: string | null;
@@ -62,8 +64,8 @@ interface DetailEmp {
   orgUnit: { name: string; code: string } | null;
   position: { title: string; code: string; level: string | null } | null;
   grade: { code: string; name: string; minSalary: number; maxSalary: number } | null;
-  manager: { id: string; fullName: string; employeeNo: string; position: { title: string } | null } | null;
-  directReports: { id: string; fullName: string; employeeNo: string; position: { title: string } | null }[];
+  manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string } | null } | null;
+  directReports: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; status: string; position: { title: string } | null }[];
   family: { id: string; relation: string; name: string; gender: string; birthDate: string | null; occupation: string | null; isDependent: boolean }[];
   education: { id: string; level: string; institution: string; major: string | null; startYear: number | null; endYear: number | null; gpa: number | null }[];
   experiences: { id: string; company: string; position: string; startDate: string | null; endDate: string | null; notes: string | null }[];
@@ -95,11 +97,17 @@ function EmployeeDetail() {
       <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <div className="h-20 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800" />
         <CardContent className="relative p-6 pt-0">
-          <div className="-mt-10 flex flex-wrap items-end justify-between gap-4">
+          <div className="-mt-12 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
-              <div className={cn("flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white text-2xl font-extrabold shadow-lg dark:border-stone-900", avatarColor(e.fullName))}>
-                {initials(e.fullName)}
-              </div>
+              <EmployeeAvatar
+                name={e.fullName}
+                photoUrl={e.photoUrl}
+                size="xl"
+                status={e.status}
+                showStatus
+                className="shadow-lg"
+                ringClassName="ring-4 ring-white dark:ring-stone-900"
+              />
               <div className="pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{e.fullName}</h1>
@@ -130,9 +138,9 @@ function EmployeeDetail() {
         </CardContent>
       </Card>
 
-      {/* tabs */}
+      {/* tabs — satu baris scrollable (tanpa wrap berantakan) */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-stone-100/90 p-1 [scrollbar-width:none] dark:bg-stone-800/70 [&::-webkit-scrollbar]:hidden">
           {([
             ["personal", "Personal", User],
             ["work", "Pekerjaan", Briefcase],
@@ -141,12 +149,12 @@ function EmployeeDetail() {
             ["experience", "Pengalaman", History],
             ["discipline", "Disiplin", Scale],
           ] as const).map(([id, label, Icon]) => (
-            <TabsTrigger key={id} value={id} className="gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
-              <Icon className="h-3.5 w-3.5" /> {label}
-              {id === "work" && e.assignments.length > 1 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.assignments.length}</Badge>}
-              {id === "family" && e.family.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.family.length}</Badge>}
-              {id === "education" && e.education.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.education.length}</Badge>}
-              {id === "discipline" && e.disciplinary.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.disciplinary.length}</Badge>}
+            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:text-emerald-400 dark:data-[state=active]:ring-stone-100/10 [&[data-state=active]_[data-count]]:bg-emerald-100/90 [&[data-state=active]_[data-count]]:text-emerald-700 dark:[&[data-state=active]_[data-count]]:bg-emerald-500/15 dark:[&[data-state=active]_[data-count]]:text-emerald-400">
+              <Icon className="h-4 w-4" aria-hidden /> {label}
+              {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.assignments.length}</span>}
+              {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.family.length}</span>}
+              {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.education.length}</span>}
+              {id === "discipline" && e.disciplinary.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.disciplinary.length}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -211,7 +219,7 @@ function EmployeeDetail() {
                 <CardContent className="pt-0">
                   {e.manager ? (
                     <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-stone-800 dark:hover:bg-emerald-500/5">
-                      <span className={cn("flex h-10 w-10 items-center justify-center rounded-full text-xs font-extrabold", avatarColor(e.manager.fullName))}>{initials(e.manager.fullName)}</span>
+                      <EmployeeAvatar name={e.manager.fullName} photoUrl={e.manager.photoUrl} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">{e.manager.fullName}</p>
                         <p className="truncate text-[11px] text-stone-400">{e.manager.position?.title ?? "—"}</p>
@@ -227,7 +235,7 @@ function EmployeeDetail() {
                 <CardContent className="max-h-64 space-y-2 overflow-y-auto pt-0">
                   {e.directReports.length > 0 ? e.directReports.map((r) => (
                     <button key={r.id} onClick={() => navigate("employee", "detail", { id: r.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                      <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(r.fullName))}>{initials(r.fullName)}</span>
+                      <EmployeeAvatar name={r.fullName} photoUrl={r.photoUrl} size="xs" status={r.status} showStatus />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold">{r.fullName}</p>
                         <p className="truncate text-[10px] text-stone-400">{r.position?.title ?? "—"}</p>

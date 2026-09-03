@@ -3,7 +3,7 @@
 // (personal, pekerjaan, keluarga, pendidikan, pengalaman, disiplin)
 import { useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
-import { useApi, fmtDate, fmtDateLong, fmtIDR, initials, tenure, genderLabel, avatarColor } from "@/onevity/shared/lib/api";
+import { useApi, fmtDate, fmtDateLong, fmtIDR, tenure, genderLabel } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import {
   EMPLOYMENT_STATUS_LABEL, RELATION_LABEL, WARNING_LEVEL_META,
   type EmployeeDetailResp,
 } from "./types";
+import { EmployeeAvatar } from "./employee-avatar";
 import {
   EditPersonalDialog, EditWorkDialog, FamilyDialog, EducationDialog,
   ExperienceDialog, DisciplinaryDialog, DeleteRecordButton,
@@ -133,11 +134,17 @@ export function EmployeeDetail({ id }: { id: string }) {
 
         <div className="relative px-5 pb-5 sm:px-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            {/* avatar */}
+            {/* avatar — foto karyawan (fallback inisial gradient) */}
             <div className="-mt-14 flex items-end gap-4 sm:-mt-16">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-3xl font-extrabold text-white shadow-lg ring-4 ring-white dark:ring-stone-900 sm:h-28 sm:w-28">
-                {initials(e.fullName)}
-              </div>
+              <EmployeeAvatar
+                name={e.fullName}
+                photoUrl={e.photoUrl}
+                size="xl"
+                status={e.status}
+                showStatus
+                className="shadow-lg"
+                ringClassName="ring-4 ring-white dark:ring-stone-900"
+              />
             </div>
 
             {/* identity */}
@@ -306,9 +313,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                         className="group flex w-full items-center gap-3 rounded-xl border border-stone-200/80 bg-stone-50/50 p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60 dark:border-stone-800 dark:bg-stone-900/40 dark:hover:border-emerald-600/40 dark:hover:bg-emerald-500/10"
                         aria-label={`Buka profil ${r.fullName}`}
                       >
-                        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold", avatarColor(r.fullName))}>
-                          {initials(r.fullName)}
-                        </span>
+                        <EmployeeAvatar name={r.fullName} photoUrl={r.photoUrl} size="xs" status={r.status} showStatus />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13.5px] font-bold text-stone-800 group-hover:text-emerald-700 dark:text-stone-100 dark:group-hover:text-emerald-400">{r.fullName}</span>
                           <span className="block truncate text-[11px] text-stone-400">
