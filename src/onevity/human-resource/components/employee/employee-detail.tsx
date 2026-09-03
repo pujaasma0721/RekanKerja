@@ -127,12 +127,14 @@ export function EmployeeDetail({ id }: { id: string }) {
 
       {/* ============ header card ============ */}
       <div className="mb-6 overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
-        {/* banner */}
-        <div className="relative h-28 bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-500 sm:h-32">
-          <div className="absolute inset-0 opacity-[0.12]" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 30%, white 1px, transparent 1px)", backgroundSize: "48px 48px, 26px 26px" }} aria-hidden />
+        {/* banner — gradient diagonal tenang (teal tua → emerald), proporsional & tidak berat */}
+        <div className="relative h-24 bg-gradient-to-br from-teal-700 via-emerald-600 to-emerald-400 sm:h-28">
+          <div className="absolute inset-0 opacity-[0.10]" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 30%, white 1px, transparent 1px)", backgroundSize: "48px 48px, 26px 26px" }} aria-hidden />
+          <div className="absolute -right-10 -top-16 h-44 w-44 rounded-full bg-white/15 blur-2xl" aria-hidden />
         </div>
 
-        <div className="relative px-5 pb-5 sm:px-6">
+        {/* zona identitas — tint emerald lembut: transisi banner → konten menyatu, bukan dua potongan */}
+        <div className="relative bg-gradient-to-b from-emerald-100/70 to-emerald-50/20 px-5 pb-5 sm:px-6 dark:from-emerald-500/10 dark:to-emerald-500/[0.03]">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
             {/* avatar — foto karyawan (fallback inisial gradient) */}
             <div className="-mt-14 flex items-end gap-4 sm:-mt-16">
@@ -152,7 +154,16 @@ export function EmployeeDetail({ id }: { id: string }) {
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50 sm:text-[28px]">{e.fullName}</h2>
                 <StatusPill status={e.status} />
-                <Badge className={cn("border px-2.5 py-0.5 text-[11px] font-semibold", "border-transparent", e.employmentStatus === "Permanent" ? "bg-emerald-600" : e.employmentStatus === "Probation" ? "bg-amber-500" : e.employmentStatus === "Contract" ? "bg-teal-600" : "bg-orange-500")}>
+                <Badge className={cn(
+                  "border px-2.5 py-0.5 text-[11px] font-semibold",
+                  e.employmentStatus === "Permanent"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
+                    : e.employmentStatus === "Probation"
+                      ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                      : e.employmentStatus === "Contract"
+                        ? "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400"
+                        : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-400",
+                )}>
                   {EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus}
                 </Badge>
               </div>
@@ -182,24 +193,24 @@ export function EmployeeDetail({ id }: { id: string }) {
             </div>
           </div>
 
-          {/* quick stats */}
-          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-stone-100 pt-4 dark:border-stone-800/70">
+          {/* quick stats — aksen emerald seragam (visual tenang, tanpa kebisingan warna) */}
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-emerald-200/60 pt-4 dark:border-stone-800/70">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"><Clock3 className="h-5 w-5" /></span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"><Clock3 className="h-5 w-5" /></span>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Masa Kerja</p>
                 <p className="truncate text-sm font-extrabold text-stone-800 dark:text-stone-100">{tenure(e.joinDate)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"><Banknote className="h-5 w-5" /></span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"><Banknote className="h-5 w-5" /></span>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Gaji Pokok</p>
                 <p className="truncate text-sm font-extrabold text-stone-800 dark:text-stone-100">{fmtIDR(e.baseSalary)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400"><UserRound className="h-5 w-5" /></span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"><UserRound className="h-5 w-5" /></span>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Atasan</p>
                 <button
