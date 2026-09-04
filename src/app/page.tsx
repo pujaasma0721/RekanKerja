@@ -1,9 +1,12 @@
 "use client";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNav } from "@/onevity/shared/lib/store";
 import { AuthGate } from "@/onevity/shared/components/auth/auth-gate";
 import { AppShell } from "@/onevity/shared/components/shell/app-shell";
+// Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
+import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-lab";
 import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
 import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
 import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
@@ -18,9 +21,24 @@ import { SettingsModule } from "@/onevity/shared/components/settings/settings-mo
 import { ModulePlaceholder } from "@/onevity/shared/components/module-placeholder";
 
 export default function Page() {
+  // useSearchParams butuh boundary Suspense pada halaman statis (Next 16)
+  return (
+    <Suspense fallback={null}>
+      <PageInner />
+    </Suspense>
+  );
+}
+
+function PageInner() {
+  // Hooks dipanggil selalu (sebelum branch mockup) agar urutan konsisten.
   const { section, view, syncFromUrl } = useNav();
+  const searchParams = useSearchParams();
 
   useEffect(() => { syncFromUrl(); }, [syncFromUrl]);
+
+  // Mode mockup desain menu (?mockup=menu) — render lab tanpa AuthGate/shell,
+  // benar-benar terisolasi dari menu live.
+  if (searchParams.get("mockup") === "menu") return <MenuDesignLab />;
 
   return (
     <AuthGate>
