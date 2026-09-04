@@ -15,9 +15,20 @@ import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 // ---- lazy import nodemailer (server-only; bundling edge-safe) ----
 type Transporter = { sendMail(opts: MailOptions): Promise<{ messageId: string; response?: string }>; verify(): Promise<boolean>; close(): void };
 interface MailOptions { from: string; to: string; subject: string; text?: string; html?: string; cc?: string }
+type NodemailerModule = typeof import("nodemailer");
 async function createTransport(cfg: SmtpConfig): Promise<Transporter> {
-  const nodemailer = (await import("nodemailer")).default;
-  return nodemailer.createTransport({
+  let mod: NodemailerModule;
+  try {
+    mod = await import("nodemailer");
+  } catch {
+    // Paket belum terpasang di node_modules (mis. habis git pull tanpa install
+    // ulang). Didegradasi jadi pesan jelas — app TIDAK crash (serverExternalPackages
+    // menjadikan nodemailer runtime-external, bukan build-time).
+    throw new Error("Library pengiriman email (nodemailer) belum terpasang — jalankan `npm install` atau `bun install` di folder proyek lalu restart server dev");
+  }
+  // interop CJS: implementasi asli berada di .default (namespace juga valid)
+  const impl = (mod as unknown as { default?: NodemailerModule }).default ?? mod;
+  return impl.createTransport({
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,

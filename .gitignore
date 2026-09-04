@@ -75,3 +75,4 @@ worklog.md
 
 # Prisma generated clients (multi-tenant: platform + tenant)
 src/generated/
+/upload/
