@@ -100,3 +100,53 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
 export function templateLabelOf(event: string): string {
   return DEFAULT_TEMPLATES_PLACEHOLDER.find((t) => t.event === event)?.label ?? event;
 }
+
+// KATALOG PLACEHOLDER PER-EVENT =========================================
+// Sumber kebenaran variabel {{...}} yang BENAR-BENAR dikirim hook tiap
+// event (disalin dari pemanggilan notifyEmailEvent di API leave/travel/
+// medical/payroll/app-users). Dipakai UI editor template: chip klik-untuk-
+// sisipkan + preview langsung dengan nilai contoh. Placeholder tak
+// terdaftar tetap boleh dipakai — dirender apa adanya saat kirim.
+export interface PlaceholderDef { key: string; label: string; contoh: string }
+
+const PH_NAMA: PlaceholderDef = { key: "nama", label: "Nama karyawan pengaju", contoh: "Hartono Wijaksono" };
+const PH_DOC: PlaceholderDef = { key: "docNo", label: "Nomor dokumen", contoh: "LR-2026-010" };
+const PH_PERIODE: PlaceholderDef = { key: "periode", label: "Periode / rentang tanggal", contoh: "2026-10-12 → 2026-10-13" };
+const PH_CATATAN: PlaceholderDef = { key: "catatan", label: "Catatan approver saat keputusan", contoh: "Disetujui, selamat beristirahat" };
+const PH_JENISCUTI: PlaceholderDef = { key: "jenisCuti", label: "Nama jenis cuti", contoh: "Cuti Tahunan" };
+const PH_JUMLAHHARI: PlaceholderDef = { key: "jumlahHari", label: "Jumlah hari kerja (cuti)", contoh: "2" };
+const PH_ALASAN: PlaceholderDef = { key: "alasan", label: "Alasan pengajuan (cuti)", contoh: "Acara keluarga" };
+const PH_TUJUAN: PlaceholderDef = { key: "tujuan", label: "Kota tujuan perjalanan", contoh: "Surabaya, Jakarta" };
+const PH_BIAYA: PlaceholderDef = { key: "biaya", label: "Estimasi biaya / uang muka", contoh: "Rp 5.000.000" };
+const PH_JENIS: PlaceholderDef = { key: "jenis", label: "Jenis benefit medis", contoh: "Rawat Jalan" };
+const PH_JUMLAH: PlaceholderDef = { key: "jumlah", label: "Jumlah klaim (Rp)", contoh: "Rp 1.250.000" };
+const PH_RUNNO: PlaceholderDef = { key: "runNo", label: "Nomor run payroll", contoh: "PR-2026-09-001" };
+const PH_TOTAL: PlaceholderDef = { key: "total", label: "Total bruto (Rp)", contoh: "Rp 412.500.000" };
+
+export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
+  "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
+  "leave.approved": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_CATATAN],
+  "leave.rejected": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_CATATAN],
+  "travel.submitted": [PH_NAMA, PH_DOC, PH_TUJUAN, PH_PERIODE, PH_BIAYA],
+  "travel.approved": [PH_NAMA, PH_DOC, PH_TUJUAN, PH_PERIODE, PH_CATATAN],
+  "travel.rejected": [PH_NAMA, PH_DOC, PH_TUJUAN, PH_PERIODE, PH_CATATAN],
+  "travel.claim.submitted": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE],
+  "travel.claim.approved": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
+  "travel.claim.rejected": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
+  "medical.claim.submitted": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH],
+  "medical.claim.approved": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],
+  "medical.claim.rejected": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],
+  "medical.claim.settled": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],
+  "payroll.run.confirmed": [PH_RUNNO, PH_PERIODE, { ...PH_JUMLAH, label: "Jumlah karyawan dalam run", contoh: "44" }, PH_TOTAL],
+  "payroll.run.paid": [PH_RUNNO, PH_PERIODE, PH_TOTAL],
+  "user.created": [
+    { key: "nama", label: "Nama pengguna baru", contoh: "Tri Handayani" },
+    { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },
+    { key: "password", label: "Kata sandi sementara (sekali tampil)", contoh: "Onevity!2026" },
+  ],
+};
+
+/** Daftar placeholder untuk event (fallback: kosong — contoh config.test sistem). */
+export function placeholdersOf(event: string): PlaceholderDef[] {
+  return EVENT_PLACEHOLDERS[event] ?? [];
+}

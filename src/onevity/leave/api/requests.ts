@@ -129,6 +129,7 @@ export async function PATCH(req: NextRequest) {
                 nama: lr.employee?.fullName ?? "-", docNo: lr.docNo,
                 jenisCuti: lr.leaveType?.name ?? "-",
                 periode: `${new Date(lr.dateFrom).toISOString().slice(0, 10)} → ${new Date(lr.dateTo).toISOString().slice(0, 10)}`,
+                jumlahHari: String(res.regeneratedDays ?? "-"),
                 catatan: b.note ? String(b.note) : "-",
               },
             });

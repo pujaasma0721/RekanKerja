@@ -5,7 +5,7 @@
 // otomatis saat ada pengajuan / persetujuan (cuti, travel, klaim medis,
 // payroll). 3 tab: Server SMTP · Template & Pemicu · Riwayat Kirim.
 // ========================================================================
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   Mail, Send, Server, FileText, History, CheckCircle2, XCircle, MinusCircle,
-  Pencil, Save, KeyRound, Zap,
+  Pencil, Save, KeyRound, Zap, RotateCcw, Eye, EyeOff, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { placeholdersOf, DEFAULT_TEMPLATES_PLACEHOLDER } from "@/onevity/shared/services/email-defaults";
 
 // ---------- tipe ----------
 
@@ -353,18 +354,47 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
   const [body, setBody] = useState("");
   const [recipients, setRecipients] = useState({ notifyEmployee: true, notifyApprover: true, notifyHrd: false });
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const key = tpl?.id ?? "none";
+
+  // katalog placeholder spesifik event ini (akurat sesuai hook backend)
+  const phDefs = useMemo(() => placeholdersOf(tpl?.event ?? ""), [tpl?.event]);
+  const defaultTpl = useMemo(() => DEFAULT_TEMPLATES_PLACEHOLDER.find((t) => t.event === tpl?.event), [tpl?.event]);
 
   useEffect(() => {
     if (tpl) {
       setSubject(tpl.subject); setBody(tpl.body);
       setRecipients({ notifyEmployee: tpl.notifyEmployee, notifyApprover: tpl.notifyApprover, notifyHrd: tpl.notifyHrd });
+      setPreview(false);
     }
   }, [key, tpl]);
+
+  const noRecipient = !recipients.notifyEmployee && !recipients.notifyApprover && !recipients.notifyHrd;
+
+  // nilai contoh per placeholder → untuk pratinjau
+  const contoh = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const p of phDefs) m[p.key] = p.contoh;
+    return m;
+  }, [phDefs]);
+
+  const render = (text: string) => text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) => contoh[k] ?? `{{${k}}}`);
+
+  // sisipkan {{key}} pada posisi kursor textarea isi email
+  const insertAtCursor = (snippet: string) => {
+    const el = bodyRef.current;
+    if (!el) { setBody((b) => b + snippet); return; }
+    const s = el.selectionStart ?? body.length;
+    const e = el.selectionEnd ?? body.length;
+    setBody(body.slice(0, s) + snippet + body.slice(e));
+    requestAnimationFrame(() => { el.focus(); const pos = s + snippet.length; el.setSelectionRange(pos, pos); });
+  };
 
   const save = async () => {
     if (!tpl) return;
     if (!subject.trim()) { toast.error("Subjek tidak boleh kosong"); return; }
+    if (noRecipient) { toast.error("Pilih minimal satu penerima (Pengaju/Approver/HRD) — jika tidak, email tidak pernah terkirim"); return; }
     setSaving(true);
     try {
       await apiSend("/api/onevity/email-templates", "PUT", { event: tpl.event, subject, body, ...recipients });
@@ -374,23 +404,37 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
     finally { setSaving(false); }
   };
 
-  const placeholders = useMemo(() => {
-    const found = [...subject.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)].map((m) => m[1]);
-    return [...new Set([...found, ...tpl?.label.toLowerCase().includes("cuti") ? ["nama", "docNo", "periode"] : []])].slice(0, 8);
-  }, [subject, tpl]);
+  const fillDefault = () => {
+    if (!defaultTpl) { toast.error("Tidak ada template default untuk event ini"); return; }
+    setSubject(defaultTpl.subject); setBody(defaultTpl.body);
+    setRecipients({ notifyEmployee: defaultTpl.notifyEmployee, notifyApprover: defaultTpl.notifyApprover, notifyHrd: defaultTpl.notifyHrd });
+    toast.info("Template default dimuat — periksa lalu tekan Simpan Template");
+  };
+
+  // placeholder yang benar-benar terpakai di subjek+body (bukan cuma subjek)
+  const usedKeys = useMemo(() => {
+    const found = [...subject.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g), ...body.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)].map((m) => m[1]);
+    return [...new Set(found)];
+  }, [subject, body]);
+  const unknownKeys = usedKeys.filter((k) => !contoh[k]);
 
   return (
     <Dialog open={!!tpl} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
+          <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
             <FileText className="h-4 w-4 text-emerald-600" /> Edit Template — {tpl?.label}
+            {defaultTpl && (
+              <Button type="button" variant="outline" size="sm" onClick={fillDefault} className="ml-auto h-7 gap-1.5 rounded-full px-3 text-[11px] font-bold">
+                <RotateCcw className="h-3.5 w-3.5" /> Muat Default
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
             <Label className="text-xs font-semibold">Penerima</Label>
-            <div className="mt-2 flex flex-wrap gap-3">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               {([
                 ["notifyEmployee", "Pengaju"],
                 ["notifyApprover", "Approver"],
@@ -402,28 +446,68 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
                 </div>
               ))}
             </div>
+            {noRecipient && (
+              <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                <AlertTriangle className="h-3.5 w-3.5" /> Tidak ada penerima aktif — email event ini tidak akan pernah terkirim.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Subjek</Label>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="text-[13px]" />
+            {preview ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[13px] font-semibold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                {render(subject) || <span className="italic text-stone-400">(subjek kosong)</span>}
+              </div>
+            ) : (
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="text-[13px]" />
+            )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Isi Email</Label>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="text-[13px] leading-relaxed" />
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Isi Email</Label>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPreview((p) => !p)} className="h-7 gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/50">
+                {preview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />} {preview ? "Mode Edit" : "Pratinjau"}
+              </Button>
+            </div>
+            {preview ? (
+              <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 text-[13px] leading-relaxed text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                {render(body) || <span className="italic text-stone-400">(isi kosong)</span>}
+              </div>
+            ) : (
+              <Textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="text-[13px] leading-relaxed" />
+            )}
           </div>
-          <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 text-[11px] dark:border-stone-800 dark:bg-stone-900/60">
-            <p className="font-bold text-stone-600 dark:text-stone-300">Placeholder yang tersedia:</p>
-            <p className="mt-1 leading-relaxed text-stone-500">
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{nama}}"}</code>{" "}
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{docNo}}"}</code>{" "}
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{periode}}"}</code>{" "}
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{jumlah}}"}</code>{" "}
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{catatan}}"}</code>{" "}
-              <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{"{{status}}"}</code>
-              {" "}— placeholder tak dikenal ditampilkan apa adanya.
+          <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
+            <p className="font-bold text-stone-600 dark:text-stone-300">Variabel untuk event ini — klik untuk menyisipkan ke kursor:</p>
+            {phDefs.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {phDefs.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    title={`${p.label} · contoh: ${p.contoh}`}
+                    onClick={() => insertAtCursor(`{{${p.key}}}`)}
+                    disabled={preview}
+                    className="rounded-full border border-stone-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-stone-700 transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+                  >
+                    {`{{${p.key}}}`}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-[11px] text-stone-500">Event ini tidak memiliki variabel dinamis (teks sistem).</p>
+            )}
+            <p className="mt-2 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+              Nilai variabel diisi otomatis dari data pengajuan saat email dikirim. Variabel tak dikenal tampil apa adanya.
             </p>
-            {placeholders.length > 0 && (
-              <p className="mt-1.5 font-mono text-[10px] text-emerald-600">terpakai: {placeholders.map((p) => `{{${p}}}`).join(" ")}</p>
+            {usedKeys.length > 0 && (
+              <p className="mt-1.5 font-mono text-[10px] text-emerald-600">terpakai: {usedKeys.map((p) => `{{${p}}}`).join(" ") || "—"}</p>
+            )}
+            {unknownKeys.length > 0 && (
+              <p className="mt-1 flex items-start gap-1.5 text-[10px] leading-snug text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                Variabel berikut tidak dikenali untuk event ini dan akan tampil sebagai teks mentah: {unknownKeys.map((p) => `{{${p}}}`).join(" ")}
+              </p>
             )}
           </div>
         </div>
