@@ -147,6 +147,12 @@ async function main() {
   await client.connect();
 
   for (const schema of SCHEMAS) {
+    // guard: schema tenant belum di-provision → skip (bukan error — mis. environment parsial)
+    const exists = await client.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [schema]);
+    if ((exists.rowCount ?? 0) === 0) {
+      console.log(`[${schema}] schema belum ada — skip (jalankan provision tenant dulu)`);
+      continue;
+    }
     console.log(`[${schema}] migrasi konfigurasi email…`);
     await client.query(`SET search_path TO "${schema}"`);
     await client.query(DDL);

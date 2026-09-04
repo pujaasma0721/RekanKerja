@@ -754,8 +754,97 @@ CREATE TABLE "AppUser" (
     "employeeId" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "lastLogin" TIMESTAMP(3),
+    "passwordChangedAt" TIMESTAMP(3),
 
     CONSTRAINT "AppUser_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PasswordPolicy" (
+    "id" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "minLength" INTEGER NOT NULL DEFAULT 8,
+    "maxLength" INTEGER NOT NULL DEFAULT 64,
+    "requireUppercase" BOOLEAN NOT NULL DEFAULT true,
+    "requireLowercase" BOOLEAN NOT NULL DEFAULT true,
+    "requireNumber" BOOLEAN NOT NULL DEFAULT true,
+    "requireSpecial" BOOLEAN NOT NULL DEFAULT true,
+    "minUniqueChars" INTEGER NOT NULL DEFAULT 4,
+    "maxRepeated" INTEGER NOT NULL DEFAULT 3,
+    "maxSequential" INTEGER NOT NULL DEFAULT 3,
+    "blockUsername" BOOLEAN NOT NULL DEFAULT true,
+    "blockName" BOOLEAN NOT NULL DEFAULT true,
+    "blockCommon" BOOLEAN NOT NULL DEFAULT true,
+    "lifetimeDays" INTEGER NOT NULL DEFAULT 90,
+    "warnDays" INTEGER NOT NULL DEFAULT 7,
+    "historyCount" INTEGER NOT NULL DEFAULT 6,
+    "maxFailedAttempts" INTEGER NOT NULL DEFAULT 5,
+    "lockoutMinutes" INTEGER NOT NULL DEFAULT 15,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PasswordPolicy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PasswordHistory" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "setAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "setById" TEXT,
+
+    CONSTRAINT "PasswordHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmailConfig" (
+    "id" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "smtpHost" TEXT NOT NULL DEFAULT '',
+    "smtpPort" INTEGER NOT NULL DEFAULT 587,
+    "smtpSecure" BOOLEAN NOT NULL DEFAULT false,
+    "smtpUser" TEXT NOT NULL DEFAULT '',
+    "smtpPassword" TEXT NOT NULL DEFAULT '',
+    "fromEmail" TEXT NOT NULL DEFAULT '',
+    "fromName" TEXT NOT NULL DEFAULT 'OneVity HRIS',
+    "lastTestOk" BOOLEAN,
+    "lastTestAt" TIMESTAMP(3),
+    "lastTestMessage" TEXT,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmailConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmailTemplate" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "notifyEmployee" BOOLEAN NOT NULL DEFAULT true,
+    "notifyApprover" BOOLEAN NOT NULL DEFAULT true,
+    "notifyHrd" BOOLEAN NOT NULL DEFAULT false,
+    "subject" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmailTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmailLog" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "toEmail" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "error" TEXT,
+    "body" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmailLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1581,6 +1670,18 @@ CREATE UNIQUE INDEX "Lookup_category_code_key" ON "Lookup"("category", "code");
 CREATE UNIQUE INDEX "AppUser_username_key" ON "AppUser"("username");
 
 -- CreateIndex
+CREATE INDEX "PasswordHistory_appUserId_setAt_idx" ON "PasswordHistory"("appUserId", "setAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmailTemplate_event_key" ON "EmailTemplate"("event");
+
+-- CreateIndex
+CREATE INDEX "EmailLog_createdAt_idx" ON "EmailLog"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "EmailLog_event_idx" ON "EmailLog"("event");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AccessGroup_code_key" ON "AccessGroup"("code");
 
 -- CreateIndex
@@ -1906,6 +2007,9 @@ ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_employeeId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "PayrollPeriod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PasswordHistory" ADD CONSTRAINT "PasswordHistory_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
