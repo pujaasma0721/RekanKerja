@@ -928,6 +928,7 @@ model AppUser {
   tempDelegations TemporaryApprover[] @relation("DelegationTo")
   approvalLayers  ApprovalLayer[]
   activities      ActivityLog[]
+  menuAccess      UserMenuAccess? @relation("UserMenuAccess")
 }
 
 model AccessGroup {
@@ -984,6 +985,23 @@ model DataAccessRule {
   positionLevel PositionLevel? @relation("AccessRulePositionLevel", fields: [positionLevelId], references: [id])
 
   @@index([subjectType, active])
+}
+
+// Hak akses MENU per pengguna (Task 31) — konfigurasi INDIVIDUAL, bukan per
+// grup/role: tiap pengguna bisa berbeda hak meski level/role sama.
+// mode "ALL" = semua menu (default bila baris tidak ada); mode "CUSTOM" =
+// hanya menu dengan key di menusJson ("module:view", mis. "hr:directory",
+// "payroll:runs", "settings:security"). Super admin (role Admin / platform
+// OWNER|ADMIN) otomatis semua menu — tanpa baris konfigurasi.
+model UserMenuAccess {
+  id        String   @id @default(cuid())
+  appUserId String   @unique
+  mode      String   @default("ALL") // ALL | CUSTOM
+  menusJson String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appUser AppUser @relation("UserMenuAccess", fields: [appUserId], references: [id], onDelete: Cascade)
 }
 
 model AccessGroupMember {

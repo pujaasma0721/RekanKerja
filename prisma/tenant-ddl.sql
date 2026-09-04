@@ -796,6 +796,18 @@ CREATE TABLE "DataAccessRule" (
 );
 
 -- CreateTable
+CREATE TABLE "UserMenuAccess" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "mode" TEXT NOT NULL DEFAULT 'ALL',
+    "menusJson" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserMenuAccess_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "AccessGroupMember" (
     "id" TEXT NOT NULL,
     "appUserId" TEXT NOT NULL,
@@ -1578,6 +1590,9 @@ CREATE UNIQUE INDEX "DataAccessRule_code_key" ON "DataAccessRule"("code");
 CREATE INDEX "DataAccessRule_subjectType_active_idx" ON "DataAccessRule"("subjectType", "active");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "UserMenuAccess_appUserId_key" ON "UserMenuAccess"("appUserId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ApprovalTemplate_code_key" ON "ApprovalTemplate"("code");
 
 -- CreateIndex
@@ -1915,6 +1930,9 @@ ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_gradeId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_positionLevelId_fkey" FOREIGN KEY ("positionLevelId") REFERENCES "PositionLevel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserMenuAccess" ADD CONSTRAINT "UserMenuAccess_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccessGroupMember" ADD CONSTRAINT "AccessGroupMember_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;

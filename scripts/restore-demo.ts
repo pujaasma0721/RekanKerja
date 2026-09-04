@@ -71,13 +71,13 @@ async function main() {
     if (r.status !== 0) console.warn("[!] relink foto gagal — jalankan manual: bun run scripts/gen-employee-photos.ts");
   }
 
-  // ---------- 1d. skema akses data karyawan (Task 30) — idempoten ----------
-  // Tabel DataAccessRule + rule default (HR full access, contoh parameter
-  // Approver → unit Production). Super admin/atasan langsung otomatis mesin.
+  // ---------- 1d. rule akses data karyawan PER PENGGUNA (Task 30/31) — idempoten ----------
+  // Tabel DataAccessRule + rule per pengguna (Bambang→Finance, Joko→Produksi).
+  // Super admin/atasan langsung otomatis mesin. Subjek rule = pengguna (Task 31).
   try {
     const accCount = await getTenantClient(MII_SCHEMA).dataAccessRule.count();
     if (accCount === 0) {
-      console.log("[MII] migrasi skema akses data (rule parametrik)…");
+      console.log("[MII] migrasi rule akses data per pengguna…");
       const r = spawnSync("bun", ["scripts/migrate-access-scope.ts"], { stdio: "inherit" });
       if (r.status !== 0) console.warn("[!] migrasi akses gagal — jalankan manual: bun run scripts/migrate-access-scope.ts");
     }
@@ -85,6 +85,17 @@ async function main() {
     // tabel belum ada — jalankan migrasi DDL
     const r = spawnSync("bun", ["scripts/migrate-access-scope.ts"], { stdio: "inherit" });
     if (r.status !== 0) console.warn("[!] migrasi akses gagal — jalankan manual: bun run scripts/migrate-access-scope.ts");
+  }
+
+  // ---------- 1e. hak akses menu per pengguna (Task 31) — idempoten ----------
+  // Tabel UserMenuAccess + seed konfigurasi menu per pengguna MII (3 Approver
+  // level sama dengan hak berbeda + Viewer minimal) + bersihkan rule legacy
+  // ROLE/ACCESS_GROUP + akun demo agus@mii.co.id (role HR — bukan super admin,
+  // agar batasan menunya bisa dilihat langsung dengan login).
+  {
+    console.log("[MII] migrasi hak akses menu per pengguna…");
+    const r = spawnSync("bun", ["scripts/migrate-user-menu-access.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] migrasi menu akses gagal — jalankan manual: bun run scripts/migrate-user-menu-access.ts");
   }
 
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");

@@ -1,41 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import {
-  ACCESS_DIMENSIONS, ACCESS_SUBJECT_TYPES,
   resolveAccessScope, scopeWhere,
-  type AccessDimension,
 } from "@/onevity/shared/services/access-scope";
 import { readSessionCookie } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 
-// ============ SKEMA AKSES DATA (Task 30) ============
+// ============ RULE AKSES DATA KARYAWAN PER PENGGUNA (Task 31) ============
 // CRUD rule akses data karyawan berbasis parameter (seperti struktur
-// approval berjenjang) + simulasi akses efektif per pengguna
-// (?action=preview&userId=) yang memperhitungkan akses otomatis
-// (super admin, atasan langsung, diri sendiri).
+// approval berjenjang) — subjek rule SELALU pengguna tertentu (per user,
+// bukan per grup/role: tiap pengguna bisa hak berbeda meski level sama)
+// + simulasi akses efektif (?action=preview&userId=) yang memperhitungkan
+// akses otomatis (super admin, atasan langsung, diri sendiri).
 
 const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer"];
 
-/** Validasi & normalisasi payload rule (kriteria AND, null bila kosong). */
+/** Validasi & normalisasi payload rule (per pengguna; kriteria AND, null bila kosong). */
 function normalizeRule(b: Record<string, unknown>) {
   if (!b.code || !b.name) return { error: "Kode & nama rule wajib diisi" } as const;
-  const subjectType = String(b.subjectType ?? "ROLE");
-  if (!(ACCESS_SUBJECT_TYPES as readonly string[]).includes(subjectType)) {
-    return { error: "Tipe subjek tidak valid (ROLE|USER|ACCESS_GROUP)" } as const;
-  }
-  const role = subjectType === "ROLE" ? String(b.role ?? "") : null;
-  const appUserId = subjectType === "USER" ? (b.appUserId ? String(b.appUserId) : null) : null;
-  const accessGroupId = subjectType === "ACCESS_GROUP" ? (b.accessGroupId ? String(b.accessGroupId) : null) : null;
-  if (subjectType === "ROLE" && !role) return { error: "Pilih role untuk subjek rule" } as const;
-  if (subjectType === "USER" && !appUserId) return { error: "Pilih pengguna untuk subjek rule" } as const;
-  if (subjectType === "ACCESS_GROUP" && !accessGroupId) return { error: "Pilih access group untuk subjek rule" } as const;
-  if (role != null && !APP_ROLES.includes(role)) return { error: `Role tidak dikenal (${APP_ROLES.join("|")})` } as const;
+
+  // Task 31: subjek rule selalu PENGUNGGUNA TERTENTU (per user, bukan grup/role)
+  const appUserId = b.appUserId ? String(b.appUserId) : "";
+  if (!appUserId) return { error: "Pilih pengguna pemegang rule (hak akses diatur per pengguna)" } as const;
 
   const data: Record<string, unknown> = {
     code: String(b.code), name: String(b.name),
     description: b.description ? String(b.description) : null,
-    subjectType, role, appUserId, accessGroupId,
+    subjectType: "USER", role: null, appUserId, accessGroupId: null,
     companyOfficeId: b.companyOfficeId || null,
     workLocationId: b.workLocationId || null,
     orgUnitId: b.orgUnitId || null,
@@ -108,12 +100,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // ---- daftar rule + referensi subjek & kriteria ----
-    const [rules, users, groups, offices, locations, units, positions, grades, levels] = await Promise.all([
+    // ---- daftar rule (per pengguna) + referensi subjek & kriteria ----
+    const userId = req.nextUrl.searchParams.get("userId");
+    const [rules, users, offices, locations, units, positions, grades, levels] = await Promise.all([
       db.dataAccessRule.findMany({
+        where: { subjectType: "USER", ...(userId ? { appUserId: userId } : {}) },
         include: {
           appUser: { select: { username: true, fullName: true, role: true } },
-          accessGroup: { select: { code: true, name: true } },
           companyOffice: { select: { code: true, name: true } },
           workLocation: { select: { code: true, name: true } },
           orgUnit: { select: { code: true, name: true } },
@@ -124,7 +117,6 @@ export async function GET(req: NextRequest) {
         orderBy: [{ active: "desc" }, { priority: "asc" }, { createdAt: "asc" }],
       }),
       db.appUser.findMany({ select: { id: true, username: true, fullName: true, role: true, active: true }, orderBy: { username: "asc" } }),
-      db.accessGroup.findMany({ select: { id: true, code: true, name: true }, orderBy: { code: "asc" } }),
       db.companyOffice.findMany({ where: { active: true }, select: { id: true, code: true, name: true, city: true }, orderBy: { code: "asc" } }),
       db.workLocation.findMany({ where: { active: true }, select: { id: true, code: true, name: true, city: true }, orderBy: { code: "asc" } }),
       db.orgUnit.findMany({ select: { id: true, code: true, name: true }, orderBy: { code: "asc" } }),
@@ -135,7 +127,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       rules,
       users,
-      groups,
       roles: APP_ROLES,
       employmentStatuses: ["Permanent", "Contract", "Probation", "Outsourcing"],
       references: { offices, locations, units, positions, grades, levels },
@@ -145,7 +136,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/onevity/data-access-rules { code, name, subjectType, role/appUserId/accessGroupId, kriteria…, priority, active }
+// POST /api/onevity/data-access-rules { code, name, appUserId, kriteria…, priority, active }
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMutator(req);

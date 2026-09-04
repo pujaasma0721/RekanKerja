@@ -1,9 +1,9 @@
-// Migrasi SKEMA AKSES DATA (Task 30) ke tenant existing:
+// Migrasi RULE AKSES DATA KARYAWAN PER PENGGUNA (Task 30, dikaji ulang
+// Task 31 — hak akses diatur per user, bukan per grup/role) ke tenant existing:
 //   1. DDL idempoten — tabel DataAccessRule (+ FK & index) bila belum ada
-//   2. seed rule default bermakna:
-//      a. ROLE "HR Manager"  → akses penuh (tanpa kriteria)
-//      b. ROLE "HR Staff"    → akses penuh (tanpa kriteria)
-//      c. ROLE "Approver"    → parameter demo: unit organisasi Production
+//   2. seed rule per pengguna bermakna:
+//      a. Bambang (MII000002) — parameter demo: unit Finance
+//      b. Joko (MII000003)    — parameter demo: unit Production
 // (super admin role Admin & workspace OWNER/ADMIN, atasan langsung, dan
 //  data diri sendiri otomatis — tanpa rule, diterapkan mesin akses.)
 // Jalankan: bun run scripts/migrate-access-scope.ts
@@ -74,35 +74,37 @@ async function main() {
       }
     }
 
-    // ---- seed rule default (idempoten via code unik) ----
-    const exists = await client.query(`SELECT COUNT(*)::int AS n FROM "DataAccessRule"`);
-    if (exists.rows[0].n > 0) {
-      console.log(`  rule akses sudah ada (${exists.rows[0].n}) — skip seed`);
-      continue;
-    }
+    // ---- seed rule per pengguna (idempoten per kode rule) ----
+    const seedUserRule = async (code: string, name: string, desc: string, username: string, orgUnitId: string | null) => {
+      if (!orgUnitId) return false;
+      const ex = await client.query(`SELECT 1 FROM "DataAccessRule" WHERE "code" = $1`, [code]);
+      if ((ex.rowCount ?? 0) > 0) return false;
+      const ins = await client.query(
+        `INSERT INTO "DataAccessRule" ("id","code","name","description","subjectType","appUserId","orgUnitId","priority","active","updatedAt")
+         SELECT gen_random_uuid()::text, $1,$2,$3,'USER', u."id", $4, 20, true, CURRENT_TIMESTAMP
+         FROM "AppUser" u WHERE u."username" = $5 RETURNING "id"`,
+        [code, name, desc, orgUnitId, username],
+      );
+      return (ins.rowCount ?? 0) > 0;
+    };
 
-    // unit organisasi Production (MII) — untuk rule demo parameter Approver
-    const prod = await client.query(`SELECT "id" FROM "OrgUnit" WHERE "code" = 'PROD' OR "name" ILIKE '%production%' LIMIT 1`);
+    // unit organisasi demo (MII) — Finance & Production
+    const fin = await client.query(`SELECT "id" FROM "OrgUnit" WHERE "code" LIKE '%FIN%' OR "name" ILIKE '%finance%' ORDER BY "level" ASC LIMIT 1`);
+    const finId = fin.rows[0]?.id ?? null;
+    const prod = await client.query(`SELECT "id" FROM "OrgUnit" WHERE "code" LIKE '%PROD%' OR "name" ILIKE '%production%' ORDER BY "level" ASC LIMIT 1`);
     const prodId = prod.rows[0]?.id ?? null;
 
-    await client.query(
-      `INSERT INTO "DataAccessRule" ("id","code","name","description","subjectType","role","priority","active","updatedAt")
-       VALUES (gen_random_uuid()::text, $1,$2,$3,'ROLE','HR Manager',10,true, CURRENT_TIMESTAMP)`,
-      ["ACC-HR-FULL", "Akses Penuh — HR Manager", "Semua pemegang role HR Manager dapat mengakses seluruh data karyawan (HR ops penuh)."],
+    const a = await seedUserRule(
+      "ACC-BAMBANG-FIN", "Bambang — Unit Finance",
+      "Rule parametrik per pengguna: Bambang Prakoso dapat mengakses karyawan di unit organisasi Finance & Accounting.",
+      "MII000002", finId,
     );
-    await client.query(
-      `INSERT INTO "DataAccessRule" ("id","code","name","description","subjectType","role","priority","active","updatedAt")
-       VALUES (gen_random_uuid()::text, $1,$2,$3,'ROLE','HR Staff',10,true, CURRENT_TIMESTAMP)`,
-      ["ACC-HRSTAFF-FULL", "Akses Penuh — HR Staff", "Semua pemegang role HR Staff dapat mengakses seluruh data karyawan (operasional HR)."],
+    const b = await seedUserRule(
+      "ACC-JOKO-PROD", "Joko — Unit Produksi",
+      "Rule parametrik per pengguna: Joko Susilo dapat mengakses karyawan di unit organisasi Production.",
+      "MII000003", prodId,
     );
-    if (prodId) {
-      await client.query(
-        `INSERT INTO "DataAccessRule" ("id","code","name","description","subjectType","role","orgUnitId","priority","active","updatedAt")
-         VALUES (gen_random_uuid()::text, $1,$2,$3,'ROLE','Approver',$4,20,true, CURRENT_TIMESTAMP)`,
-        ["ACC-APPROVER-PROD", "Approver — Unit Produksi", "Contoh rule parametrik: pemegang role Approver hanya dapat mengakses karyawan di unit organisasi Production.", prodId],
-      );
-    }
-    console.log(`  seed: ACC-HR-FULL, ACC-HRSTAFF-FULL${prodId ? ", ACC-APPROVER-PROD" : ""}`);
+    if (a || b) console.log(`  seed rule per pengguna: ${a ? "ACC-BAMBANG-FIN " : ""}${b ? "ACC-JOKO-PROD" : ""}`.trim());
   }
 
   await client.end();

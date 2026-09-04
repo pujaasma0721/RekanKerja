@@ -2,6 +2,7 @@
 // OneVity Dashboard — live KPIs, charts, approval feed
 import { useApi, fmtIDRShort, fmtIDR, fmtDateTime, initials, avatarColor, paTypeLabelSafe } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useSession } from "@/onevity/shared/lib/session-store";
 import { LoadingCards, LoadingRows, StatusPill } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ const CHART_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--col
 
 export function DashboardModule() {
   const { navigate } = useNav();
+  const session = useSession();
+  const sessionUser = session.info?.user;
   const { data, loading } = useApi<DashData>("/api/onevity/dashboard");
 
   if (loading && !data) {
@@ -69,7 +72,7 @@ export function DashboardModule() {
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-200 ring-1 ring-white/15 backdrop-blur">
                 <Sparkles className="h-3 w-3" /> Human Resource Base
               </div>
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Selamat pagi, Tri 👋</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Selamat pagi, {sessionUser ? sessionUser.name.split(" ")[0] : "Anda"} 👋</h1>
               <p className="mt-1.5 max-w-xl text-sm text-emerald-100/85">
                 {data.pendingActions > 0
                   ? `Ada ${data.pendingActions} pengajuan karyawan menunggu persetujuan Anda. ${growth >= 0 ? `Headcount tumbuh ${growth >= 0 ? "+" : ""}${growth} YTD.` : ""}`

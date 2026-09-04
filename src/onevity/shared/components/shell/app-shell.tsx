@@ -1,6 +1,6 @@
 "use client";
 // OneVity App Shell — obsidian sidebar (module dropdown + nav per modul) + topbar + command palette
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
@@ -17,7 +17,7 @@ import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Com
 import {
   LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
-  Scale, ShieldCheck, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
+  Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
@@ -168,7 +168,7 @@ const MEDICAL_NAV: NavGroup[] = [
 ];
 
 // Pengaturan sistem — cross-module, selalu tampil di bagian bawah sidebar semua modul.
-const SETTINGS_NAV: NavGroup[] = [
+export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
     { id: "lookups", label: "Data Master", icon: Layers },
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
@@ -196,6 +196,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sessionTenant = session.info?.tenant;
   const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; benefitPendingClaims: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
 
+  // ===== hak akses MENU per pengguna (Task 31) =====
+  // ALL (default/super admin) → semua menu; CUSTOM → hanya key "module:view"
+  // pada daftar. Belum termuat → sementara semua (hindari flicker/lockout).
+  const meMenu = useApi<{ all: boolean; menus: string[]; isSuperAdmin: boolean }>("/api/onevity/user-menu-access?action=me");
+  const menuAll = meMenu.data ? meMenu.data.all : true;
+  const allowedKeys = useMemo(() => (menuAll ? null : new Set(meMenu.data?.menus ?? [])), [menuAll, meMenu.data]);
+
+  /** Apakah item menu boleh diakses pengguna sesi? (mod: "hr"…"medical" | "settings") */
+  const itemAllowed = useCallback(
+    (mod: string, itemId: string) => allowedKeys == null || allowedKeys.has(`${mod}:${itemId}`),
+    [allowedKeys],
+  );
+  /** Varian per section nav (settings = lintas modul). */
+  const menuAllowed = useCallback(
+    (sec: SectionId, itemId: string) => itemAllowed(sec === "settings" ? "settings" : moduleOfSection(sec), itemId),
+    [itemAllowed],
+  );
+
   useEffect(() => {
     syncFromUrl();
     const onKey = (e: KeyboardEvent) => {
@@ -213,8 +231,66 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const go = (s: SectionId, v: string) => { navigate(s, v); setMobileOpen(false); };
 
+  // ===== nav per modul, DISARING sesuai hak akses menu pengguna =====
   const nav = navOfModule(module);
-  const groups = module === "hr" ? [...nav, ...SETTINGS_NAV] : module === "payroll" ? [...nav, ...SETTINGS_NAV] : [...nav, ...SETTINGS_NAV];
+  const groups = useMemo(() => {
+    const base = [...nav, ...SETTINGS_NAV];
+    if (allowedKeys == null) return base;
+    return base
+      .map((g) => ({ ...g, children: g.children.filter((c) => menuAllowed(g.section, c.id)) }))
+      .filter((g) => g.children.length > 0);
+    // catatan: bila modul aktif tidak punya menu terizinkan (URL langsung),
+    // nav kosong + panel konten terblokir akan mengarahkan pengguna kembali.
+  }, [nav, allowedKeys, menuAllowed]);
+
+  // modul yang punya ≥1 menu diizinkan (dropdown switcher)
+  const allowedModules = useMemo(() => {
+    if (allowedKeys == null) return MODULES;
+    const vis = MODULES.filter((m) => navOfModule(m.id).some((g) => g.children.some((c) => itemAllowed(m.id, c.id))));
+    return vis.length > 0 ? vis : MODULES; // safety fallback — hindari lockout
+  }, [allowedKeys, itemAllowed]);
+
+  // menu pertama yang diizinkan pada suatu modul (untuk home & switch modul)
+  const firstAllowedOfModule = useCallback(
+    (m: ModuleId): { section: SectionId; view: string } | null => {
+      if (allowedKeys == null) return null;
+      for (const g of navOfModule(m)) {
+        const c = g.children.find((ch) => itemAllowed(m, ch.id));
+        if (c) return { section: g.section, view: c.id };
+      }
+      return null;
+    },
+    [allowedKeys, itemAllowed],
+  );
+
+  // ===== guard view saat ini: view di luar cakupan menu → panel terblokir =====
+  // (menangani URL langsung / stale state; sub-view internal tanpa menu sendiri
+  // mengikuti menu induknya — view "detail" → directory, "run" → runs)
+  const viewAllowed = useMemo(() => {
+    if (allowedKeys == null) return true;
+    if (section === "settings") return itemAllowed("settings", view);
+    const mapped = view === "detail" ? "directory" : view === "run" ? "runs" : view;
+    let known = false;
+    for (const g of [...navOfModule(module), ...SETTINGS_NAV]) {
+      const ownerMod = g.section === "settings" ? "settings" : moduleOfSection(g.section);
+      // view persis item nav → cek kunci item
+      if (g.children.some((c) => c.id === view)) {
+        known = true;
+        if (itemAllowed(ownerMod, view)) return true;
+      }
+      // sub-view dipetakan ke menu induk (detail→directory, run→runs)
+      if (mapped !== view && g.children.some((c) => c.id === mapped)) {
+        known = true;
+        if (itemAllowed(ownerMod, mapped)) return true;
+      }
+      // grup matchViews (mis. "run" milik grup runs) → boleh bila ≥1 item grup diizinkan
+      if (g.matchViews?.includes(view)) {
+        known = true;
+        if (g.children.some((c) => itemAllowed(ownerMod, c.id))) return true;
+      }
+    }
+    return !known; // view internal tanpa menu sendiri → ikut menu induk (bebas)
+  }, [allowedKeys, section, view, module, itemAllowed]);
 
   const crumbs = useMemo(() => {
     const group = groups.find((g) => g.section === section && (!g.matchViews || g.matchViews.includes(view) || g.children.some((c) => c.id === view)));
@@ -301,13 +377,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="start" side="right" className="w-60">
                 <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Modul OneVity</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {MODULES.map((m) => {
+                {allowedModules.map((m) => {
                   const Icon = m.icon;
                   const isActive = m.id === module;
                   return (
                     <DropdownMenuItem
                       key={m.id}
-                      onClick={() => { setModule(m.id); setMobileOpen(false); }}
+                      onClick={() => {
+                        // navigasikan ke menu pertama yang diizinkan di modul tsb
+                        const target = firstAllowedOfModule(m.id);
+                        if (target) navigate(target.section, target.view);
+                        else setModule(m.id);
+                        setMobileOpen(false);
+                      }}
                       className={cn("gap-3 py-2.5", isActive && "bg-emerald-50 dark:bg-emerald-500/10")}
                     >
                       <div className={cn(
@@ -331,7 +413,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* nav — menu mengikuti modul aktif */}
           <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-0.5" aria-label="Navigasi utama">
-            {groups.map((group) => {
+            {groups.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-4 text-center">
+                <ShieldOff className="mx-auto h-5 w-5 text-stone-500" />
+                <p className="mt-2 text-[11px] font-semibold leading-relaxed text-stone-400">
+                  Tidak ada menu yang tersedia untuk Anda di modul ini.
+                </p>
+              </div>
+            ) : groups.map((group) => {
               const active =
                 section === group.section &&
                 (group.children.some((c) => c.id === view) || (group.matchViews?.includes(view) ?? false));
@@ -426,7 +515,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* breadcrumbs */}
             <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex" aria-label="Breadcrumb">
-              <button onClick={() => navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module))} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">OneVity</button>
+              <button
+                onClick={() => {
+                  const target = firstAllowedOfModule(module);
+                  if (target) navigate(target.section, target.view);
+                  else navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module));
+                }}
+                className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              >OneVity</button>
               {crumbs.map((c, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   <ChevronRight className="h-3.5 w-3.5 text-stone-300 dark:text-stone-600" />
@@ -462,11 +558,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => navigate("employee", "wizard")}><UserPlus className="h-4 w-4 text-emerald-600" /> Onboarding Karyawan</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("payroll", "runs")}><PlayCircle className="h-4 w-4 text-teal-600" /> Proses Payroll</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("actions", "all")}><Workflow className="h-4 w-4 text-amber-600" /> Pengajuan Karyawan</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("org", "tree")}><Network className="h-4 w-4 text-teal-600" /> Unit Organisasi</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("position", "list")}><BriefcaseBusiness className="h-4 w-4 text-orange-600" /> Posisi Baru</DropdownMenuItem>
+                {([
+                  { s: "employee" as SectionId, v: "wizard", icon: UserPlus, cls: "text-emerald-600", label: "Onboarding Karyawan" },
+                  { s: "payroll" as SectionId, v: "runs", icon: PlayCircle, cls: "text-teal-600", label: "Proses Payroll" },
+                  { s: "actions" as SectionId, v: "all", icon: Workflow, cls: "text-amber-600", label: "Pengajuan Karyawan" },
+                  { s: "org" as SectionId, v: "tree", icon: Network, cls: "text-teal-600", label: "Unit Organisasi" },
+                  { s: "position" as SectionId, v: "list", icon: BriefcaseBusiness, cls: "text-orange-600", label: "Posisi Baru" },
+                ] as const).filter((q) => menuAllowed(q.s, q.v)).map((q) => (
+                  <DropdownMenuItem key={q.label} onClick={() => navigate(q.s, q.v)}><q.icon className={cn("h-4 w-4", q.cls)} /> {q.label}</DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -477,9 +577,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </header>
 
-          {/* content */}
+          {/* content — view di luar cakupan menu pengguna → panel terblokir (Task 31) */}
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8" id="onevity-main">
-            {children}
+            {!viewAllowed ? (
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <div className="max-w-md rounded-2xl border border-stone-200/80 bg-white p-8 text-center shadow-sm dark:border-stone-800 dark:bg-stone-900">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-500/10">
+                    <ShieldOff className="h-7 w-7 text-rose-500 dark:text-rose-400" />
+                  </div>
+                  <p className="mt-4 text-base font-bold text-stone-900 dark:text-stone-50">Menu tidak tersedia</p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    Anda tidak memiliki hak akses ke menu ini. Hak akses menu diatur per pengguna — hubungi admin bila memerlukan akses.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const target = firstAllowedOfModule(module) ?? (allowedModules.length > 0 ? firstAllowedOfModule(allowedModules[0].id) : null);
+                      if (target) navigate(target.section, target.view);
+                      else navigate("dashboard", "overview");
+                    }}
+                    className="mt-5 gap-2 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700"
+                  >
+                    <LayoutDashboard className="h-4 w-4" /> Ke Menu yang Tersedia
+                  </Button>
+                </div>
+              </div>
+            ) : children}
           </main>
 
           {/* footer */}
@@ -491,7 +613,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* command palette */}
-        <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} module={module} />
+        <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} module={module} menuAllowed={menuAllowed} />
       </div>
     </TooltipProvider>
   );
@@ -561,7 +683,10 @@ function NotificationBell({ pendingActions }: { pendingActions: number }) {
   );
 }
 
-function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; setOpen: (v: boolean) => void; onNavigate: (s: SectionId, v: string) => void; module: ModuleId }) {
+function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
+  open: boolean; setOpen: (v: boolean) => void; onNavigate: (s: SectionId, v: string) => void; module: ModuleId;
+  menuAllowed: (s: SectionId, itemId: string) => boolean;
+}) {
   const [q, setQ] = useState("");
   const results = useApi<{ employees: { id: string; fullName: string; employeeNo: string; position: { title: string } | null }[] }>(q.length >= 2 ? `/api/onevity/employees?q=${encodeURIComponent(q)}&limit=6` : null);
 
@@ -569,8 +694,8 @@ function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; 
 
   const items = useMemo(() => {
     const groups = [...navOfModule(module), ...SETTINGS_NAV];
-    return groups.flatMap((g) => g.children.map((c) => ({ g, c })));
-  }, [module]);
+    return groups.flatMap((g) => g.children.filter((c) => menuAllowed(g.section, c.id)).map((c) => ({ g, c })));
+  }, [module, menuAllowed]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

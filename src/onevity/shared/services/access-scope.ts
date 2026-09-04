@@ -1,4 +1,4 @@
-// OneVity — Mesin SKEMA AKSES DATA KARYAWAN (Task 30)
+// OneVity — Mesin SKEMA AKSES DATA KARYAWAN (Task 30, dikaji ulang Task 31)
 // =====================================================================
 // Hak akses data karyawan berbasis parameter — selaras pola Approval
 // Structure berjenjang. Akses efektif seorang pengguna = UNION:
@@ -7,9 +7,10 @@
 //        OWNER/ADMIN) → akses SEMUA data karyawan.
 //      • Atasan langsung → akses seluruh bawahan aktifnya.
 //      • Setiap user → akses data dirinya sendiri.
-//   2. RULE parametrik (DataAccessRule aktif yang subjeknya cocok):
-//      ROLE | USER | ACCESS_GROUP × kriteria penempatan (office, lokasi,
-//      unit, posisi, grade, level jabatan, status kerja — AND).
+//   2. RULE parametrik PER PENGGUNA (Task 31 — bukan per grup/role:
+//      tiap pengguna bisa haknya berbeda meski level sama):
+//      subjek USER × kriteria penempatan (office, lokasi, unit, posisi,
+//      grade, level jabatan, status kerja — AND).
 //      Rule tanpa kriteria = akses penuh.
 // Tanpa rule & tanpa otomatis → tidak dapat mengakses data karyawan lain.
 // =====================================================================
@@ -20,14 +21,8 @@ import { db as platformDb } from "@/lib/db";
 
 // ============ konstanta domain ============
 
-export const ACCESS_SUBJECT_TYPES = ["ROLE", "USER", "ACCESS_GROUP"] as const;
-export type AccessSubjectType = (typeof ACCESS_SUBJECT_TYPES)[number];
-
-export const ACCESS_SUBJECT_LABEL: Record<AccessSubjectType, string> = {
-  ROLE: "Semua pemegang role",
-  USER: "Pengguna tertentu",
-  ACCESS_GROUP: "Anggota access group",
-};
+/** Subjek rule akses data — selalu PER PENGGUNA (Task 31). */
+export const ACCESS_SUBJECT_TYPE = "USER";
 
 /** AppUser.role yang otomatis super admin (akses semua tanpa setting). */
 export const SUPER_ADMIN_APP_ROLES = ["Admin"];
@@ -140,11 +135,13 @@ export async function resolveAccessScope(
     }
   }
 
-  // 3) rule parametrik aktif yang cocok dengan aktor
+  // 3) rule parametrik aktif PER PENGGUNA yang cocok dengan aktor
+  //    (Task 31: subjek rule hanya USER — rule ROLE/ACCESS_GROUP legacy
+  //    dihapus migrasi & diabaikan mesin agar semantik selalu per pengguna)
   let rules: RuleRow[] = [];
   try {
     rules = await db.dataAccessRule.findMany({
-      where: { active: true },
+      where: { active: true, subjectType: "USER", appUserId: { not: null } },
       select: {
         code: true, name: true, subjectType: true, role: true, appUserId: true, accessGroupId: true,
         companyOfficeId: true, workLocationId: true, orgUnitId: true, positionId: true,
@@ -189,26 +186,10 @@ export async function resolveAccessScope(
   };
 }
 
-/** Rule cocok dengan aktor? (subject ROLE / USER / ACCESS_GROUP) */
-async function ruleMatchesActor(db: TenantDb, r: RuleRow, actor: { appUserId: string | null; appUserRole: string | null }): Promise<boolean> {
-  if (r.subjectType === "ROLE") {
-    return r.role != null && r.role === actor.appUserRole;
-  }
-  if (r.subjectType === "USER") {
-    return r.appUserId != null && r.appUserId === actor.appUserId;
-  }
-  if (r.subjectType === "ACCESS_GROUP" && r.accessGroupId && actor.appUserId) {
-    try {
-      const m = await db.accessGroupMember.findFirst({
-        where: { accessGroupId: r.accessGroupId, appUserId: actor.appUserId },
-        select: { id: true },
-      });
-      return m != null;
-    } catch {
-      return false;
-    }
-  }
-  return false;
+/** Rule cocok dengan aktor? (subjek rule = pengguna tertentu — per user) */
+async function ruleMatchesActor(db: TenantDb, r: RuleRow, actor: { appUserId: string | null }): Promise<boolean> {
+  void db; // kueri DB tidak diperlukan lagi — pencocokan langsung per user
+  return r.subjectType === "USER" && r.appUserId != null && r.appUserId === actor.appUserId;
 }
 
 // ============ konversi → Prisma where ============
