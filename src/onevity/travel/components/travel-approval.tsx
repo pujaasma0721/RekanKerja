@@ -129,7 +129,7 @@ export function TravelApprovalPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{r.docNo}</p>
+                    <p className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</p>
                     <p className="mt-0.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">{r.fullName}</p>
                     <p className="text-[11px] text-stone-500">{r.employeeNo}{r.orgUnitName ? ` · ${r.orgUnitName}` : ""}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
                   </div>
@@ -209,7 +209,7 @@ export function TravelApprovalPage() {
                 <tbody>
                   {recent.map((r) => (
                     <tr key={r.id} className="border-b border-stone-50 last:border-0 dark:border-stone-800/60">
-                      <td className="px-4 py-2 font-mono font-bold text-orange-700 dark:text-orange-400">{r.docNo}</td>
+                      <td className="px-4 py-2 font-mono font-bold ov-text-accent">{r.docNo}</td>
                       <td className="px-2 py-2 font-semibold text-stone-700 dark:text-stone-300">{r.fullName}</td>
                       <td className="hidden px-2 py-2 text-stone-500 sm:table-cell">{r.destinations.map((d) => d.city).join(" → ")}</td>
                       <td className="px-2 py-2"><StatusPill status={TRAVEL_STATUS_LABEL[r.status] ?? r.status} /></td>
@@ -235,7 +235,7 @@ export function TravelApprovalPage() {
           {dialog.request && (
             <div className="space-y-3 text-sm">
               <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800/60">
-                <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{dialog.request.docNo}</p>
+                <p className="font-mono text-xs font-bold ov-text-accent">{dialog.request.docNo}</p>
                 <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{dialog.request.fullName}</p>
                 <p className="text-xs text-stone-500">{dialog.request.destinations.map((d) => d.city).join(" → ")} · {dialog.request.days} hari</p>
                 {dialog.request.advanceAmount > 0 && (

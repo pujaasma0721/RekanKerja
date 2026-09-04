@@ -86,7 +86,7 @@ export function LeaveTypesPage() {
         title="Jenis Cuti"
         description="Master jenis cuti & kebijakannya — hak, satuan, prorate, carry-over, waiting period, dokumen (padanan Leave Type)"
         actions={
-          <Button onClick={openCreate} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+          <Button onClick={openCreate} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Jenis Cuti Baru
           </Button>
         }
@@ -136,7 +136,7 @@ export function LeaveTypesPage() {
                         <div className="flex max-w-64 flex-wrap gap-1">
                           {t.paid && <Badge className="bg-emerald-100 text-[9px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-400">Dibayar</Badge>}
                           {t.cashable && <Badge className="bg-teal-100 text-[9px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">Cashable</Badge>}
-                          {t.carryOverMax > 0 && <Badge className="bg-orange-100 text-[9px] font-bold text-orange-700 hover:bg-orange-100 dark:bg-orange-500/15 dark:text-orange-400">Carry {t.carryOverMax}</Badge>}
+                          {t.carryOverMax > 0 && <Badge className="bg-primary/10 text-[9px] font-bold text-primary">Carry {t.carryOverMax}</Badge>}
                           {t.waitingMonths > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">Tunggu {t.waitingMonths} bln</Badge>}
                           {t.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">Advance</Badge>}
                           {t.needDocs && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Dokumen</Badge>}
@@ -166,7 +166,7 @@ export function LeaveTypesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Layers className="h-4 w-4 text-orange-600" />
+              <Layers className="h-4 w-4 ov-text-accent" />
               {editTarget ? `Ubah: ${editTarget.name}` : "Jenis Cuti Baru"}
             </DialogTitle>
           </DialogHeader>
@@ -243,7 +243,7 @@ export function LeaveTypesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={save} disabled={busy} className="gap-1.5 bg-orange-600 text-xs font-bold hover:bg-orange-700">
+            <Button onClick={save} disabled={busy} className="gap-1.5 text-xs font-bold">
               <Coins className="h-3.5 w-3.5" /> {editTarget ? "Simpan" : "Buat Jenis Cuti"}
             </Button>
           </DialogFooter>

@@ -182,7 +182,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-600/20">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl ov-fill ov-glow">
               <Workflow className="h-5 w-5" />
             </span>
             Dokumen Personnel Action Baru
@@ -230,7 +230,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                             <span className="block truncate text-[13px] font-semibold">{e.fullName}</span>
                             <span className="block truncate text-[11px] text-stone-400">{e.employeeNo} · {e.position?.title ?? "—"}</span>
                           </span>
-                          <Check className={cn("h-4 w-4", employeeId === e.id ? "opacity-100 text-emerald-600" : "opacity-0")} />
+                          <Check className={cn("h-4 w-4", employeeId === e.id ? "opacity-100 ov-text-accent" : "opacity-0")} />
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -363,7 +363,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">Batal</Button>
           {perms.can("hr", "all", "create") && (
-            <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+            <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 px-6 font-bold">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Workflow className="h-4 w-4" />}
               Buat Dokumen Draft
             </Button>

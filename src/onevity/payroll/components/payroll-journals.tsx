@@ -117,7 +117,7 @@ export function PayrollJournalsPage() {
                       {journals.map((j) => (
                         <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => openDetail(j)}>
                           <TableCell>
-                            <p className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{j.journalNo}</p>
+                            <p className="font-mono text-[11px] font-bold ov-text-accent">{j.journalNo}</p>
                             <p className="text-[10px] text-stone-400">{fmtDateTime(j.journalDate)}</p>
                           </TableCell>
                           <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
@@ -128,14 +128,14 @@ export function PayrollJournalsPage() {
                           <TableCell>
                             <div className="flex items-center gap-1.5">
                               <StatusPill status={j.status} />
-                              <Badge variant="outline" className="gap-0.5 border-emerald-200 text-[9px] text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-400">
+                              <Badge variant="outline" className="gap-0.5 ov-soft text-[9px]">
                                 <Scale className="h-2.5 w-2.5" /> balance
                               </Badge>
                             </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300">
+                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300">
                                 <FileDown className="h-3 w-3" /> CSV
                               </a>
                               <button
@@ -159,7 +159,7 @@ export function PayrollJournalsPage() {
           {/* Penjelasan struktur jurnal */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-4">
-              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 text-emerald-600" /> Struktur posting (pattern "Transfer to Accounting")</p>
+              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 ov-text-accent" /> Struktur posting (pattern "Transfer to Accounting")</p>
               <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 sm:grid-cols-3">
                 <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
                   <p className="font-bold text-stone-700 dark:text-stone-300">1 · Beban</p>
@@ -193,7 +193,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4 text-emerald-600" />
+            <BookOpen className="h-4 w-4 ov-text-accent" />
             <span className="font-mono">{journal?.journalNo}</span>
             {journal?.runNo && <Badge variant="secondary" className="font-mono text-[10px]">{journal.runNo}</Badge>}
           </DialogTitle>

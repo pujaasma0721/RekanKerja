@@ -10,6 +10,7 @@ import {
   ArrowRight, Calculator, Landmark, AlertTriangle,
 } from "lucide-react";
 import { TravelStatsUI, BudgetRowUI, fmtIDRShort } from "./travel-types";
+import { cn } from "@/lib/utils";
 
 export function TravelOverview() {
   const { navigate } = useNav();
@@ -20,26 +21,26 @@ export function TravelOverview() {
     {
       label: "Menunggu Persetujuan", value: s ? String(s.pendingRequestApprovals + s.pendingClaimApprovals) : "—",
       sub: s ? `${s.pendingRequestApprovals} permintaan · ${s.pendingClaimApprovals} klaim` : undefined,
-      icon: Inbox, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+      icon: Inbox, hero: true,
       onClick: () => navigate("travel", "travel-approval"),
     },
     {
       label: "Permintaan Bulan Ini", value: s ? String(s.requestsThisMonth) : "—",
       sub: s ? `${s.requestsApprovedYtd} disetujui tahun ini` : undefined,
-      icon: Plane, tone: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
+      icon: Plane,
       onClick: () => navigate("travel", "travel-request"),
     },
     {
       label: "Klaim Tahun Ini", value: s ? fmtIDRShort(s.claimsYtdAmount) : "—",
       sub: s ? `${s.claimsYtd} klaim · ${s.paidCount} dibayar via payroll` : undefined,
-      icon: FileText, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
+      icon: FileText,
       onClick: () => navigate("travel", "travel-claim"),
     },
     {
       label: s?.budgetYear ? `Budget ${s.budgetYear} Terpakai` : "Budget Terpakai",
       value: s ? (s.budgetTotal > 0 ? `${Math.round((s.budgetUsed / s.budgetTotal) * 100)}%` : "—") : "—",
       sub: s ? `${fmtIDRShort(s.budgetUsed)} dari ${fmtIDRShort(s.budgetTotal)}` : undefined,
-      icon: Wallet, tone: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
+      icon: Wallet,
       onClick: () => navigate("travel", "travel-budget"),
     },
   ];
@@ -80,7 +81,7 @@ export function TravelOverview() {
                     <p className="mt-1 truncate text-2xl font-black text-stone-900 dark:text-stone-100">{k.value}</p>
                     {k.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{k.sub}</p>}
                   </div>
-                  <div className={`rounded-xl p-2.5 ${k.tone}`}>
+                  <div className={cn("rounded-xl p-2.5", k.hero ? "ov-fill" : "ov-tile")}>
                     <k.icon className="h-5 w-5" />
                   </div>
                 </CardContent>
@@ -92,7 +93,7 @@ export function TravelOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 text-orange-600" /> Alur Perjalanan Dinas
+                  <TrendingUp className="h-4 w-4 ov-text-accent" /> Alur Perjalanan Dinas
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -100,9 +101,9 @@ export function TravelOverview() {
                   <button
                     key={st.n}
                     onClick={() => navigate("travel", st.view)}
-                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:border-orange-300 hover:bg-orange-50 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-orange-700 dark:hover:bg-orange-950/30"
+                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-sm font-black text-white">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-fill text-sm font-black">
                       {st.n}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -121,7 +122,7 @@ export function TravelOverview() {
               <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <Calculator className="h-4 w-4 text-orange-600" /> Formula Settlement
+                    <Calculator className="h-4 w-4 ov-text-accent" /> Formula Settlement
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -134,7 +135,7 @@ export function TravelOverview() {
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
                     <span className="text-stone-600 dark:text-stone-300">(c) Kembali ke perusahaan</span>
                   </div>
-                  <div className="rounded-lg border-2 border-orange-200 bg-orange-50 px-3 py-2 text-center font-black text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400">
+                  <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
                     Total = (a) + (b) − (c)
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
@@ -149,7 +150,7 @@ export function TravelOverview() {
                 <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base font-bold">
-                      <Wallet className="h-4 w-4 text-orange-600" /> Budget {budget.year}
+                      <Wallet className="h-4 w-4 ov-text-accent" /> Budget {budget.year}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -157,7 +158,7 @@ export function TravelOverview() {
                       <span className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(budget.used)}</span>
                       <span className="text-xs text-stone-500 dark:text-stone-400">dari {fmtIDRShort(budget.totalBudget)}</span>
                     </div>
-                    <Progress value={budgetPct} className="h-2 [&>div]:bg-orange-600" />
+                    <Progress value={budgetPct} className="h-2 [&>div]:ov-bar" />
                     {overBudget && (
                       <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
                         <AlertTriangle className="h-3.5 w-3.5" /> Terpakai melebihi budget — perilaku standar: warning, klaim tetap diproses
@@ -185,7 +186,7 @@ export function TravelOverview() {
                             <span className="text-stone-500 dark:text-stone-400">{fmtIDRShort(k.amount)}</span>
                           </div>
                           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                            <div className="h-full rounded-full bg-orange-500" style={{ width: `${(k.amount / max) * 100}%` }} />
+                            <div className="h-full rounded-full ov-bar" style={{ width: `${(k.amount / max) * 100}%` }} />
                           </div>
                         </div>
                       );

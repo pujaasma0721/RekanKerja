@@ -126,7 +126,7 @@ export function TravelRequestsPage() {
                 setDests([emptyDest(todayISO(), todayISO())]);
                 setDialog(true);
               }}
-              className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
+              className="gap-2 font-bold"
             >
               <Plus className="h-4 w-4" /> Ajukan Perjalanan
             </Button>
@@ -142,7 +142,7 @@ export function TravelRequestsPage() {
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
               statusFilter === f.key
-                ? "bg-orange-600 text-white shadow-sm"
+                ? "ov-fill shadow-sm"
                 : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
             )}
           >
@@ -186,7 +186,7 @@ export function TravelRequestsPage() {
                         <TableCell className="p-2">
                           {expanded === r.docNo ? <ChevronDown className="h-4 w-4 text-stone-400" /> : <ChevronRight className="h-4 w-4 text-stone-400" />}
                         </TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{r.docNo}</TableCell>
+                        <TableCell className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</TableCell>
                         <TableCell>
                           <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{r.fullName}</p>
                           <p className="text-[11px] text-stone-500">{r.employeeNo}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
@@ -245,7 +245,7 @@ export function TravelRequestsPage() {
                                 <div className="space-y-1.5">
                                   {r.destinations.map((d, i) => (
                                     <div key={i} className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs dark:bg-stone-900">
-                                      <span className="flex h-5 w-5 items-center justify-center rounded bg-orange-600 text-[10px] font-black text-white">{d.seq}</span>
+                                      <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{d.seq}</span>
                                       <span className="font-semibold text-stone-800 dark:text-stone-200">{d.city}</span>
                                       <span className="text-stone-500">{d.country}</span>
                                       {d.overseas && <Globe2 className="h-3 w-3 text-teal-600" />}
@@ -294,7 +294,7 @@ export function TravelRequestsPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5 text-orange-600" /> Ajukan Perjalanan Dinas
+              <Plane className="h-5 w-5 ov-text-accent" /> Ajukan Perjalanan Dinas
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
@@ -348,7 +348,7 @@ export function TravelRequestsPage() {
                 {dests.map((d, i) => (
                   <div key={i} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="flex h-5 w-5 items-center justify-center rounded bg-orange-600 text-[10px] font-black text-white">{i + 1}</span>
+                      <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{i + 1}</span>
                       {dests.length > 1 && (
                         <button className="text-[11px] font-bold text-rose-600 hover:text-rose-700" onClick={() => setDests(dests.filter((_, x) => x !== i))}>
                           Hapus
@@ -423,7 +423,7 @@ export function TravelRequestsPage() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="gap-2 font-bold">
               <Send className="h-4 w-4" /> {busy ? "Mengirim…" : "Ajukan Permintaan"}
             </Button>
           </DialogFooter>

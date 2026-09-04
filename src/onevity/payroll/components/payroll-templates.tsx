@@ -37,7 +37,7 @@ export function PayrollTemplatesPage() {
         title="Template Upah"
         description="Paket komponen upah yang bisa dipilih per karyawan — cth: DEFAULT (tunjangan+BPJS penuh), BS (gaji pokok saja)"
         actions={
-          <Button onClick={() => setDialog({ open: true, tpl: null })} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setDialog({ open: true, tpl: null })} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Template Baru
           </Button>
         }
@@ -144,7 +144,7 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><LayoutTemplate className="h-4 w-4 text-emerald-600" /> {tpl ? "Edit Template" : "Template Upah Baru"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><LayoutTemplate className="h-4 w-4 ov-text-accent" /> {tpl ? "Edit Template" : "Template Upah Baru"}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           {!tpl && (
             <div>
@@ -191,7 +191,7 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -54,7 +54,7 @@ export function WageComponentsPage() {
         title="Komponen Upah"
         description="Master komponen dengan klasifikasi upah, metode pajak, formula, dan aturan iuran — jantung perhitungan payroll"
         actions={
-          <Button onClick={() => setDialog({ open: true, comp: null })} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setDialog({ open: true, comp: null })} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Komponen Baru
           </Button>
         }
@@ -108,7 +108,7 @@ export function WageComponentsPage() {
                       <TableCell className="max-w-52">
                         {c.calcMethod === "Fixed" && c.amount > 0 && <span className="text-xs font-semibold">{fmtIDR(c.amount)}</span>}
                         {c.calcMethod === "Formula" && c.formula && (
-                          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:bg-stone-800 dark:text-emerald-400">{c.formula}</code>
+                          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-bold ov-text-accent dark:bg-stone-800">{c.formula}</code>
                         )}
                         {c.calcMethod === "Tax" && <Badge variant="outline" className="text-[9px]">dihitung engine</Badge>}
                       </TableCell>
@@ -158,7 +158,7 @@ function TypeCard({ label, value, icon: Icon, tone, active, onClick }: { label: 
   return (
     <button onClick={onClick} className={cn(
       "flex items-center gap-3 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
-      active ? "border-emerald-400 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
+      active ? "ov-soft ov-border-accent" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
     )}>
       <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}><Icon className="h-5 w-5" /></div>
       <div>
@@ -231,7 +231,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 text-emerald-600" /> {comp ? "Edit Komponen" : "Komponen Baru"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 ov-text-accent" /> {comp ? "Edit Komponen" : "Komponen Baru"}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {!comp && (
             <div>
@@ -298,7 +298,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
                 <div className="grid gap-1 sm:grid-cols-2">
                   {FORMULA_VARIABLES.map((v) => (
                     <p key={v.name} className="text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
-                      <code className="font-bold text-emerald-700 dark:text-emerald-400">{v.name}</code> — {v.desc}
+                      <code className="font-bold ov-text-accent">{v.name}</code> — {v.desc}
                     </p>
                   ))}
                 </div>
@@ -341,7 +341,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

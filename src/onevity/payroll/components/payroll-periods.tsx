@@ -34,7 +34,7 @@ export function PayrollPeriodsPage() {
         title="Periode Payroll"
         description="Period gaji dengan jendela payroll & kehadiran (TA) terpisah, bulan pajak, dan status kunci period"
         actions={
-          <Button onClick={() => setOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setOpen(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Period Baru
           </Button>
         }
@@ -75,7 +75,7 @@ export function PayrollPeriodsPage() {
                       <TableCell className="text-center">
                         <button
                           onClick={() => navigate("payroll", "runs", { period: p.id })}
-                          className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-bold text-stone-600 transition hover:bg-emerald-100 hover:text-emerald-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-400"
+                          className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-bold text-stone-600 transition hover:ov-soft dark:bg-stone-800 dark:text-stone-300"
                         >
                           {p._count.runs} <ChevronRight className="h-3 w-3" />
                         </button>
@@ -88,7 +88,7 @@ export function PayrollPeriodsPage() {
                               <Lock className="h-3 w-3" /> Tutup
                             </Button>
                           )}
-                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400" onClick={() => navigate("payroll", "runs", { period: p.id })}>
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-[11px] font-bold ov-text-accent" onClick={() => navigate("payroll", "runs", { period: p.id })}>
                             Runs <ChevronRight className="h-3 w-3" />
                           </Button>
                         </div>
@@ -128,7 +128,7 @@ function PeriodDialog({ open, onClose }: { open: boolean; onClose: () => void })
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><CalendarRange className="h-4 w-4 text-emerald-600" /> Period Payroll Baru</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><CalendarRange className="h-4 w-4 ov-text-accent" /> Period Payroll Baru</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div>
@@ -151,7 +151,7 @@ function PeriodDialog({ open, onClose }: { open: boolean; onClose: () => void })
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Buat Period"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Buat Period"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

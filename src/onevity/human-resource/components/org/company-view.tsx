@@ -134,7 +134,7 @@ export function CompanyView() {
         title="Perusahaan"
         description="Profil legal dan identitas perusahaan induk yang menjadi induk seluruh unit, posisi, dan karyawan."
         actions={
-          <Button size="sm" className="h-10 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setEditOpen(true)} disabled={!company}>
+          <Button size="sm" className="h-10 px-4 font-bold" onClick={() => setEditOpen(true)} disabled={!company}>
             <Pencil className="h-4 w-4" /> Edit Profil
           </Button>
         }
@@ -149,7 +149,7 @@ export function CompanyView() {
           {/* ==== profile card ==== */}
           <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
             {/* gradient banner */}
-            <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-6 pb-6 pt-7">
+            <div className="relative ov-hero px-6 pb-6 pt-7">
               <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ backgroundImage: "radial-gradient(circle at 85% 20%, white 1.5px, transparent 1.5px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)", backgroundSize: "42px 42px, 28px 28px" }} />
               <div className="relative flex flex-wrap items-center gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-extrabold text-white shadow-lg ring-1 ring-white/25 backdrop-blur">
@@ -181,7 +181,7 @@ export function CompanyView() {
                 <InfoRow icon={CalendarDays} label="Terdaftar Sejak" value={fmtDate(company.createdAt)} />
               </div>
 
-              <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-4 text-xs leading-relaxed text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-200">
+              <div className="rounded-xl border ov-border-accent ov-soft p-4 text-xs leading-relaxed">
                 <p className="mb-1 flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
                   <Building2 className="h-3.5 w-3.5" /> Entitas Induk
                 </p>
@@ -197,21 +197,18 @@ export function CompanyView() {
               label="Karyawan Aktif"
               value={data?.stats.activeEmployees ?? 0}
               sub="berdasarkan status kepegawaian"
-              cls="from-emerald-500 to-teal-600"
             />
             <StatCard
               icon={Network}
               label="Unit Organisasi"
               value={data?.stats.orgUnits ?? 0}
               sub="dari level CEO hingga sub-unit"
-              cls="from-teal-500 to-emerald-600"
             />
             <StatCard
               icon={BriefcaseBusiness}
               label="Posisi Aktif"
               value={data?.stats.activePositions ?? 0}
               sub="definisi posisi aktif"
-              cls="from-amber-500 to-orange-600"
             />
           </div>
         </div>
@@ -236,11 +233,11 @@ function InfoRow({ icon: Icon, label, value, className }: { icon: React.ElementT
   );
 }
 
-function StatCard({ icon: Icon, label, value, sub, cls }: { icon: React.ElementType; label: string; value: number; sub: string; cls: string }) {
+function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: number; sub: string }) {
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm transition hover:shadow-md dark:border-stone-800">
       <CardContent className="flex items-center gap-4 p-5">
-        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md", cls)}>
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ov-tile shadow-md">
           <Icon className="h-6 w-6" />
         </div>
         <div className="min-w-0">

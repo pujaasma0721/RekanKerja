@@ -141,7 +141,7 @@ export function GradeView() {
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
             </Button>
-            <Button size="sm" className="h-10 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Grade Baru
             </Button>
           </>
@@ -168,7 +168,7 @@ export function GradeView() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-[13px] font-extrabold text-white shadow-md">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl ov-tile text-[13px] font-extrabold shadow-md">
                         {g.code}
                       </span>
                       <div className="min-w-0">
@@ -181,7 +181,7 @@ export function GradeView() {
                     <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(g); setFormOpen(true); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:text-emerald-700 dark:hover:bg-stone-800 dark:hover:text-emerald-400"
+                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
                         aria-label={`Ubah grade ${g.code}`}
                       >
                         <Pencil className="h-4 w-4" />
@@ -200,14 +200,14 @@ export function GradeView() {
                   <div className="mt-5">
                     <div className="relative h-2.5 w-full rounded-full bg-stone-100 dark:bg-stone-800">
                       <div
-                        className="absolute h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                        className="absolute h-full rounded-full ov-chart"
                         style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
                       />
-                      <span className="absolute -top-1 h-4.5 w-4.5 rounded-full border-2 border-emerald-500 bg-white dark:bg-stone-900" style={{ left: `calc(${Math.min(left + width, 100)}% - 9px)` }} />
+                      <span className="absolute -top-1 h-4.5 w-4.5 rounded-full border-2 border-ring bg-white dark:bg-stone-900" style={{ left: `calc(${Math.min(left + width, 100)}% - 9px)` }} />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-stone-400">
                       <span>min {fmtIDR(g.minSalary)}</span>
-                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                      <span className="flex items-center gap-1 ov-text-accent">
                         <TrendingUp className="h-3 w-3" /> span {fmtIDRShort(g.maxSalary - g.minSalary)}
                       </span>
                       <span>max {fmtIDR(g.maxSalary)}</span>
@@ -216,7 +216,7 @@ export function GradeView() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
-                      <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {g._count.employees} karyawan
+                      <Users className="h-3.5 w-3.5 ov-text-accent" /> {g._count.employees} karyawan
                     </span>
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
                       <BriefcaseBusiness className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> {g._count.positions} posisi

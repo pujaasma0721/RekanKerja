@@ -75,9 +75,9 @@ export function LeaveReportsPage() {
               <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="ml-auto flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2 dark:bg-orange-950/30">
-            <CalendarDays className="h-4 w-4 text-orange-600" />
-            <p className="text-xs font-bold text-orange-700 dark:text-orange-400">{api.data?.onLeaveToday ?? 0} karyawan sedang cuti hari ini</p>
+          <div className="ml-auto flex items-center gap-2 rounded-xl ov-soft px-3 py-2">
+            <CalendarDays className="h-4 w-4" />
+            <p className="text-xs font-bold">{api.data?.onLeaveToday ?? 0} karyawan sedang cuti hari ini</p>
           </div>
         </CardContent>
       </Card>
@@ -87,7 +87,7 @@ export function LeaveReportsPage() {
           <Card className="min-w-0 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
             <CardContent className="p-0">
               <div className="flex items-center gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-                <CalendarSearch className="h-4 w-4 text-orange-600" />
+                <CalendarSearch className="h-4 w-4 ov-text-accent" />
                 <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
                   Karyawan Cuti {new Date(from).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} – {new Date(to).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })} — {onLeave.length} orang
                 </p>
@@ -110,7 +110,7 @@ export function LeaveReportsPage() {
                       {onLeave.map((r) => {
                         const isToday = new Date(r.dateFrom) <= today && new Date(r.dateTo) >= today;
                         return (
-                          <TableRow key={r.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", isToday && "bg-orange-50/60 dark:bg-orange-950/20")}>
+                          <TableRow key={r.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", isToday && "ov-soft")}>
                             <TableCell>
                               <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo} {isToday && "· hari ini"}</p>
                               <p className="text-[10px] text-stone-400">{r.fullName} · {r.orgUnitName ?? "—"}</p>
@@ -137,7 +137,7 @@ export function LeaveReportsPage() {
           <Card className="min-w-0 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-0">
               <div className="flex items-center gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-                <BarChart3 className="h-4 w-4 text-teal-600" />
+                <BarChart3 className="h-4 w-4 ov-text-accent" />
                 <p className="text-xs font-bold text-stone-600 dark:text-stone-300">Penggunaan per Jenis {year}</p>
               </div>
               {(api.data?.typeUsage ?? []).length === 0 ? (
@@ -152,7 +152,7 @@ export function LeaveReportsPage() {
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-orange-400 to-rose-400"
+                          className="h-full rounded-full ov-chart"
                           style={{ width: `${Math.max(3, (t.taken / maxTaken) * 100)}%` }}
                         />
                       </div>

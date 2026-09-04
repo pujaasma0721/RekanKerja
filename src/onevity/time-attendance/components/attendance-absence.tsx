@@ -89,7 +89,7 @@ export function AttendanceAbsencePage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-32 text-xs font-bold" />
-            <Button onClick={openTransfer} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={openTransfer} className="gap-2 font-bold">
               <ArrowRightLeft className="h-4 w-4" /> Transfer ke Payroll
             </Button>
           </div>
@@ -166,10 +166,10 @@ export function AttendanceAbsencePage() {
                       <TableCell className={cn("text-right text-xs font-bold", r.workoffUnpaidDays > 0 ? "text-orange-600 dark:text-orange-400" : "text-stone-400")}>
                         {r.workoffUnpaidDays > 0 ? `${r.workoffUnpaidDays} h` : "—"}
                       </TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-stone-400")}>
+                      <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "ov-text-accent" : "text-stone-400")}>
                         {r.overtimeMinutes > 0 ? `${(r.overtimeMinutes / 60).toFixed(1)} j` : "—"}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold text-teal-700 dark:text-teal-400">{r.overtimePay > 0 ? fmtIDR(r.overtimePay) : "—"}</TableCell>
+                      <TableCell className="text-right text-xs font-bold ov-text-accent">{r.overtimePay > 0 ? fmtIDR(r.overtimePay) : "—"}</TableCell>
                       <TableCell className="text-right text-xs font-bold text-rose-600 dark:text-rose-400">
                         {r.lateDeduction + r.absenceDeduction > 0 ? `−${fmtIDRShort(r.lateDeduction + r.absenceDeduction)}` : "—"}
                       </TableCell>
@@ -269,7 +269,7 @@ export function AttendanceAbsencePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferDialog(false)}>Batal</Button>
-            <Button onClick={runTransfer} disabled={busy || !transfer.periodId} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={runTransfer} disabled={busy || !transfer.periodId} className="gap-2 font-bold">
               {busy ? "Memproses…" : <><ArrowRightLeft className="h-4 w-4" /> Jalankan Transfer</>}
             </Button>
           </DialogFooter>

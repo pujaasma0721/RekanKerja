@@ -174,7 +174,7 @@ export function TravelClaimsPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             {perms.can("travel", "travel-claim", "create") && (
-              <Button onClick={() => openDialog("request")} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+              <Button onClick={() => openDialog("request")} className="gap-2 font-bold">
                 <Plus className="h-4 w-4" /> Klaim dari Permintaan
               </Button>
             )}
@@ -195,7 +195,7 @@ export function TravelClaimsPage() {
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
               statusFilter === f.key
-                ? "bg-orange-600 text-white shadow-sm"
+                ? "ov-fill shadow-sm"
                 : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
             )}
           >
@@ -239,7 +239,7 @@ export function TravelClaimsPage() {
                           {expanded === c.docNo ? <ChevronDown className="h-4 w-4 text-stone-400" /> : <ChevronRight className="h-4 w-4 text-stone-400" />}
                         </TableCell>
                         <TableCell>
-                          <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{c.docNo}</p>
+                          <p className="font-mono text-xs font-bold ov-text-accent">{c.docNo}</p>
                           <p className="text-[11px] text-stone-500">{fmtDateID(c.claimDate)}{c.voucherNo ? ` · ${c.voucherNo}` : ""}</p>
                         </TableCell>
                         <TableCell>
@@ -300,9 +300,9 @@ export function TravelClaimsPage() {
                                     <p className="text-[10px] font-bold text-stone-500">(c) Ke perusahaan</p>
                                     <p className="text-sm font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                                   </div>
-                                  <div className="rounded-lg border-2 border-orange-200 bg-orange-50 px-3 py-2 dark:border-orange-800 dark:bg-orange-950/40">
-                                    <p className="text-[10px] font-bold text-orange-700 dark:text-orange-400">TOTAL</p>
-                                    <p className="text-sm font-black text-orange-700 dark:text-orange-400">{fmtIDR(c.totalSettlement)}</p>
+                                  <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2">
+                                    <p className="text-[10px] font-bold">TOTAL</p>
+                                    <p className="text-sm font-black">{fmtIDR(c.totalSettlement)}</p>
                                   </div>
                                 </div>
                                 {c.remark && <p className="mt-2 text-[11px] text-stone-500">{c.remark}</p>}
@@ -348,7 +348,7 @@ export function TravelClaimsPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5 text-orange-600" /> Klaim Settlement
+              <Calculator className="h-5 w-5 ov-text-accent" /> Klaim Settlement
             </DialogTitle>
           </DialogHeader>
 
@@ -378,10 +378,10 @@ export function TravelClaimsPage() {
             )}
 
             {previewData && (
-              <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3 text-xs dark:border-orange-800 dark:bg-orange-950/20">
+              <div className="rounded-xl border ov-border-accent ov-soft p-3 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-mono text-[11px] font-bold text-orange-700 dark:text-orange-400">{previewData.docNo} — {previewData.employee.fullName}</p>
+                    <p className="font-mono text-[11px] font-bold">{previewData.docNo} — {previewData.employee.fullName}</p>
                     <p className="mt-0.5 text-stone-600 dark:text-stone-300">{previewData.destinations.map((d) => d.city).join(" → ")} · {previewData.templateName}</p>
                   </div>
                   <div className="text-right">
@@ -476,8 +476,8 @@ export function TravelClaimsPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border-2 border-orange-200 bg-orange-50/40 p-3 dark:border-orange-800 dark:bg-orange-950/20">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-black text-orange-700 dark:text-orange-400">
+            <div className="rounded-xl border-2 ov-border-accent ov-soft p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-black">
                 <Calculator className="h-3.5 w-3.5" /> Formula Settlement — Total = (a) + (b) − (c)
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -510,7 +510,7 @@ export function TravelClaimsPage() {
                   <span>Total rincian + (a) = {fmtIDR(grossRealisasi)}</span>
                   <span>(b)/(c) dihitung otomatis server dari rincian vs uang muka</span>
                 </div>
-                <span className="rounded-lg border-2 border-orange-300 bg-white px-3 py-1 font-black text-orange-700 dark:border-orange-700 dark:bg-stone-900 dark:text-orange-400">
+                <span className="rounded-lg border-2 ov-border-accent bg-white px-3 py-1 font-black ov-text-accent dark:bg-stone-900">
                   Total = {fmtIDR(totalFormula)}
                 </span>
               </div>
@@ -530,7 +530,7 @@ export function TravelClaimsPage() {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="gap-2 font-bold">
               <FileText className="h-4 w-4" /> {busy ? "Menyimpan…" : "Ajukan Klaim"}
             </Button>
           </DialogFooter>

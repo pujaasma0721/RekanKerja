@@ -72,7 +72,7 @@ export function TravelReportsPage() {
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
-              className="h-9 w-full rounded-md border border-stone-200 bg-transparent px-3 text-sm shadow-sm focus:border-orange-400 dark:border-stone-800 dark:bg-stone-900"
+              className="h-9 w-full rounded-md border border-stone-200 bg-transparent px-3 text-sm shadow-sm focus:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
             >
               <option value="">Semua karyawan</option>
               {(master.data?.employees ?? []).map((e) => (
@@ -90,9 +90,9 @@ export function TravelReportsPage() {
 
       {summary && (
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-orange-200 bg-orange-50/50 shadow-sm dark:border-orange-800 dark:bg-orange-950/20">
+          <Card className="ov-border-accent bg-primary/10 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">Total Settlement</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider ov-text-accent">Total Settlement</p>
               <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.totalSettlement)}</p>
               <p className="text-[11px] text-stone-500">{summary.claims} klaim</p>
             </CardContent>
@@ -123,7 +123,7 @@ export function TravelReportsPage() {
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
-              <BarChart3 className="h-4 w-4 text-orange-600" /> Komposisi per Kelompok
+              <BarChart3 className="h-4 w-4 ov-text-accent" /> Komposisi per Kelompok
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -142,7 +142,7 @@ export function TravelReportsPage() {
                     <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDRShort(k.amount)}</span>
                   </div>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                    <div className="h-full rounded-full bg-orange-500" style={{ width: `${(k.amount / maxKind) * 100}%` }} />
+                    <div className="h-full rounded-full ov-bar" style={{ width: `${(k.amount / maxKind) * 100}%` }} />
                   </div>
                 </div>
               ))
@@ -168,7 +168,7 @@ export function TravelReportsPage() {
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-2">
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-3">
             <CardTitle className="flex min-w-0 items-center gap-2 text-base font-bold">
-              <FileText className="h-4 w-4 shrink-0 text-orange-600" /> Daftar Klaim ({rows.length})
+              <FileText className="h-4 w-4 shrink-0 ov-text-accent" /> Daftar Klaim ({rows.length})
             </CardTitle>
             <div className="relative w-full min-w-0 sm:w-44">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
@@ -197,7 +197,7 @@ export function TravelReportsPage() {
                     {rows.map((r) => (
                       <TableRow key={r.docNo} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                         <TableCell>
-                          <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{r.docNo}</p>
+                          <p className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</p>
                           <p className="text-[11px] text-stone-500">{fmtDateID(r.claimDate)}</p>
                         </TableCell>
                         <TableCell>

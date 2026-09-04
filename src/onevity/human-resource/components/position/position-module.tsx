@@ -82,7 +82,7 @@ function PositionList() {
         title="Daftar Posisi"
         description={`${stats.total} posisi · ${stats.filled} terisi · ${stats.open} lowongan`}
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Posisi Baru
           </Button>
         }
@@ -90,10 +90,10 @@ function PositionList() {
 
       {/* mini stats */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Total Posisi" value={stats.total} icon={BriefcaseBusiness} tone="emerald" />
-        <MiniStat label="Terisi" value={stats.filled} icon={Users} tone="teal" />
-        <MiniStat label="Lowongan" value={stats.open} icon={Layers} tone="amber" />
-        <MiniStat label="Non-aktif" value={stats.inactive} icon={ChevronDown} tone="stone" />
+        <MiniStat label="Total Posisi" value={stats.total} icon={BriefcaseBusiness} />
+        <MiniStat label="Terisi" value={stats.filled} icon={Users} />
+        <MiniStat label="Lowongan" value={stats.open} icon={Layers} />
+        <MiniStat label="Non-aktif" value={stats.inactive} icon={ChevronDown} />
       </div>
 
       {/* toolbar */}
@@ -151,7 +151,7 @@ function PositionList() {
                       <TableCell><Badge variant="outline" className="text-[10px] font-bold">{p.grade?.code ?? "—"}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Progress value={p.headcount ? (p.filled / p.headcount) * 100 : 0} className="h-1.5 w-16 [&>div]:bg-emerald-500" />
+                          <Progress value={p.headcount ? (p.filled / p.headcount) * 100 : 0} className="h-1.5 w-16 [&>div]:ov-bar" />
                           <span className="text-[10px] font-bold text-stone-500">{p.filled}/{p.headcount}</span>
                         </div>
                       </TableCell>
@@ -184,7 +184,7 @@ function PositionList() {
         <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-lg">
           {selected && (
             <>
-              <SheetHeader className="border-b border-stone-100 bg-gradient-to-br from-emerald-50/60 to-transparent p-6 dark:border-stone-800 dark:from-emerald-500/5">
+              <SheetHeader className="border-b border-stone-100 ov-soft p-6 dark:border-stone-800">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono text-[10px]">{selected.code}</Badge>
                   {selected.grade && <Badge className="text-[10px]">G {selected.grade.code}</Badge>}
@@ -220,7 +220,7 @@ function PositionList() {
                     <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">Pemegang Posisi</p>
                     <div className="space-y-2">
                       {selected.employees.map((e) => (
-                        <button key={e.id} onClick={() => { setSelected(null); navigate("employee", "detail", { id: e.id }); }} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-stone-800 dark:hover:bg-emerald-500/5">
+                        <button key={e.id} onClick={() => { setSelected(null); navigate("employee", "detail", { id: e.id }); }} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:ov-border-accent hover:ov-soft dark:border-stone-800">
                           <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(e.fullName))}>{initials(e.fullName)}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold">{e.fullName}</p>
@@ -256,17 +256,11 @@ function InfoGrid({ items }: { items: [string, string][] }) {
   );
 }
 
-function MiniStat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: React.ElementType; tone: string }) {
-  const tones: Record<string, string> = {
-    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
-    teal: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
-    amber: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
-    stone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400",
-  };
+function MiniStat({ label, value, icon: Icon }: { label: string; value: number; icon: React.ElementType }) {
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardContent className="flex items-center gap-3 p-4">
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tones[tone])}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ov-tile">
           <Icon className="h-4.5 w-4.5 h-4 w-4" />
         </div>
         <div className="min-w-0">
@@ -311,7 +305,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 text-emerald-600" /> Posisi Baru</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> Posisi Baru</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-xs">Kode *</Label>
@@ -368,7 +362,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan Posisi"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan Posisi"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -396,7 +390,7 @@ function JobLibrary() {
         title="Katalog Jabatan"
         description={`${data?.jobs.length ?? 0} job master di kategori Executive, Managerial, Supervisory, dan Staff`}
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Job Baru
           </Button>
         }
@@ -427,7 +421,7 @@ function JobLibrary() {
                   </div>
                   <div className="mt-4 flex items-center justify-between border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
                     <span className="text-[11px] text-stone-400">Dipakai oleh</span>
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">{j.positionCount} posisi</span>
+                    <span className="text-[11px] font-bold ov-text-accent">{j.positionCount} posisi</span>
                   </div>
                 </CardContent>
               </Card>
@@ -502,7 +496,7 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -532,7 +526,7 @@ function GradeList() {
               <Card key={g.id} className="rounded-2xl border-stone-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-extrabold text-white shadow-md">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl ov-tile text-sm font-extrabold shadow-md">
                       {g.code}
                     </div>
                     <Badge variant="secondary" className="text-[10px]">{g.name}</Badge>
@@ -548,7 +542,7 @@ function GradeList() {
                     </div>
                     <div className="relative h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                       <div
-                        className="absolute h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"
+                        className="absolute h-full rounded-full ov-chart"
                         style={{ left: `${pctMin}%`, width: `${Math.max(pctMax - pctMin, 2)}%` }}
                       />
                     </div>
@@ -582,7 +576,7 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
     <Card className="mt-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl ov-tile">
             <GraduationCap className="h-5 w-5" />
           </div>
           <div>

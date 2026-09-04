@@ -169,7 +169,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
     <Dialog open={!!row} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><IdCard className="h-4 w-4 text-emerald-600" /> Data Payroll — {row.fullName}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><IdCard className="h-4 w-4 ov-text-accent" /> Data Payroll — {row.fullName}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
@@ -195,7 +195,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
                 ))}
               </SelectContent>
             </Select>
-            {selectedPtkp && <p className="mt-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">PTKP tahunan: {fmtIDR(selectedPtkp.ptkp)}</p>}
+            {selectedPtkp && <p className="mt-1 text-[11px] font-bold ov-text-accent">PTKP tahunan: {fmtIDR(selectedPtkp.ptkp)}</p>}
           </div>
           <div>
             <Label className="text-xs">Jumlah Tanggungan (max 3)</Label>
@@ -235,7 +235,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

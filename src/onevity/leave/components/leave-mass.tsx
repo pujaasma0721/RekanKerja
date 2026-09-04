@@ -77,16 +77,16 @@ export function LeaveMassPage() {
                 amount: "1", orgUnitName: "", excludeNonWorking: true, excludeConflicted: true, note: "",
               });
               setDialog(true);
-            }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Cuti Massal Baru
             </Button>
           </div>
         }
       />
 
-      <div className="mb-4 rounded-2xl border border-rose-200/80 bg-gradient-to-r from-rose-50 to-orange-50 p-4 shadow-sm dark:border-rose-900/50 dark:from-rose-950/30 dark:to-orange-950/30">
+      <div className="mb-4 rounded-2xl border ov-border-accent ov-soft p-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-rose-100 p-2 dark:bg-rose-500/15"><Megaphone className="h-5 w-5 text-rose-600 dark:text-rose-400" /></div>
+          <div className="rounded-xl ov-tile p-2"><Megaphone className="h-5 w-5" /></div>
           <div>
             <p className="text-sm font-bold text-stone-800 dark:text-stone-100">Mekanisme SKB 3 Menteri</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
@@ -133,7 +133,7 @@ export function LeaveMassPage() {
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{m.amount}</TableCell>
                       <TableCell className="text-right">
-                        <p className="text-xs font-extrabold text-orange-600 dark:text-orange-400">{m.generated}</p>
+                        <p className="text-xs font-extrabold ov-text-accent">{m.generated}</p>
                         <p className="text-[10px] text-stone-400">ter-generate</p>
                       </TableCell>
                       <TableCell>
@@ -157,7 +157,7 @@ export function LeaveMassPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Users className="h-4 w-4 text-orange-600" /> Cuti Massal Baru
+              <Users className="h-4 w-4 ov-text-accent" /> Cuti Massal Baru
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
@@ -210,14 +210,14 @@ export function LeaveMassPage() {
                 Lewati karyawan bentrok cuti
               </label>
             </div>
-            <div className="flex items-start gap-2 rounded-lg bg-orange-50 p-2.5 text-[11px] leading-relaxed text-orange-700 dark:bg-orange-950/30 dark:text-orange-400">
+            <div className="flex items-start gap-2 rounded-lg ov-soft p-2.5 text-[11px] leading-relaxed">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>Baris cuti massal langsung berstatus <b>Cuti Massal</b> (efektif, tanpa approval per karyawan) — karyawan dengan saldo tidak cukup otomatis dilewati agar saldo tidak minus.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="gap-1.5 bg-orange-600 text-xs font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="gap-1.5 text-xs font-bold">
               <Users className="h-3.5 w-3.5" /> Generate Cuti Massal
             </Button>
           </DialogFooter>

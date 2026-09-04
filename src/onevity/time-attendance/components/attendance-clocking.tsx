@@ -81,7 +81,7 @@ export function AttendanceClockingPage() {
             <Button variant="outline" onClick={regenerate} className="gap-2 font-bold">
               <RefreshCw className="h-4 w-4" /> Refresh Clocking
             </Button>
-            <Button onClick={() => { setForm({ employeeId: api.data?.employees[0]?.id ?? "", time: "08:00", direction: "IN", note: "" }); setClockDialog(true); }} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={() => { setForm({ employeeId: api.data?.employees[0]?.id ?? "", time: "08:00", direction: "IN", note: "" }); setClockDialog(true); }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Catat Clock
             </Button>
           </div>
@@ -109,10 +109,10 @@ export function AttendanceClockingPage() {
           <Tabs defaultValue="recap">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3 dark:border-stone-800">
               <TabsList className="h-auto rounded-xl bg-stone-100 p-1 dark:bg-stone-900">
-                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
                   <Activity className="h-3.5 w-3.5" /> Rekap ({api.data?.rows.length ?? 0})
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
                   <Clock className="h-3.5 w-3.5" /> Log Mentah ({api.data?.logs.length ?? 0})
                 </TabsTrigger>
               </TabsList>
@@ -181,7 +181,7 @@ export function AttendanceClockingPage() {
                           <TableCell className="text-right text-xs font-semibold">
                             {r.workMinutes > 0 ? `${(r.workMinutes / 60).toFixed(1)} j` : "—"}
                           </TableCell>
-                          <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-stone-400")}>
+                          <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "ov-text-accent" : "text-stone-400")}>
                             {r.overtimeMinutes > 0 ? `${(r.overtimeMinutes / 60).toFixed(1)} j` : "—"}
                           </TableCell>
                           <TableCell>
@@ -281,7 +281,7 @@ export function AttendanceClockingPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setClockDialog(false)}>Batal</Button>
-            <Button onClick={submitClock} disabled={!form.employeeId} className="bg-emerald-600 font-bold hover:bg-emerald-700">Catat Clock</Button>
+            <Button onClick={submitClock} disabled={!form.employeeId} className="font-bold">Catat Clock</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

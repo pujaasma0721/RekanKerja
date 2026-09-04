@@ -112,7 +112,7 @@ export function LeaveEncashmentPage() {
             <Button onClick={() => {
               setForm({ employeeId: typesApi.data?.employees[0]?.id ?? "", year: String(new Date().getFullYear()), days: "2", paymentDate: "", note: "" });
               setDialog(true);
-            }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Ajukan Encashment
             </Button>
           </div>
@@ -144,7 +144,7 @@ export function LeaveEncashmentPage() {
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-orange-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
                 )}>
                   {f.label}
                 </button>
@@ -218,7 +218,7 @@ export function LeaveEncashmentPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Wallet className="h-4 w-4 text-orange-600" /> Ajukan Uang Pengganti Cuti
+              <Wallet className="h-4 w-4 ov-text-accent" /> Ajukan Uang Pengganti Cuti
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
@@ -261,7 +261,7 @@ export function LeaveEncashmentPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="gap-1.5 bg-orange-600 text-xs font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="gap-1.5 text-xs font-bold">
               <Send className="h-3.5 w-3.5" /> Ajukan
             </Button>
           </DialogFooter>

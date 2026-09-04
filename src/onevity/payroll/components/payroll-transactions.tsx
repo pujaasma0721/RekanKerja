@@ -38,20 +38,20 @@ export function PayrollTransactionsPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setRapelDialog(true)} className="gap-2 font-bold"><History className="h-4 w-4 text-teal-600" /> Rapel Baru</Button>
             <Button variant="outline" onClick={() => setCompDialog(true)} className="gap-2 font-bold"><Coins className="h-4 w-4 text-amber-600" /> Komponen Baru</Button>
-            <Button onClick={() => setLoanDialog(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700"><Plus className="h-4 w-4" /> Pinjaman Baru</Button>
+            <Button onClick={() => setLoanDialog(true)} className="gap-2 font-bold"><Plus className="h-4 w-4" /> Pinjaman Baru</Button>
           </div>
         }
       />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Landmark className="h-3.5 w-3.5" /> Pinjaman ({loansApi.data?.loans.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Coins className="h-3.5 w-3.5" /> Komponen Khusus & Periodik ({compsApi.data?.assignments.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <History className="h-3.5 w-3.5" /> Rapel / Back-Pay
           </TabsTrigger>
         </TabsList>
@@ -143,7 +143,7 @@ export function PayrollTransactionsPage() {
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-5">
               <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl ov-fill shadow-md">
                   <History className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -247,7 +247,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
           {loan.status !== "Submitted" && (
             <div className="mt-1.5 flex items-center gap-2">
               <div className="h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+                <div className="h-full rounded-full ov-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
               </div>
               <span className="text-[10px] font-bold text-stone-400">{Math.round(progress * 100)}% lunas</span>
             </div>
@@ -354,7 +354,7 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4 text-emerald-600" /> Pinjaman Karyawan</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4 ov-text-accent" /> Pinjaman Karyawan</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div>
             <Label className="text-xs">Karyawan *</Label>
@@ -396,7 +396,7 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
             <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="cth: renovasi rumah" className="mt-1.5" />
           </div>
           {Number(amount) > 0 && (
-            <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+            <p className="ov-soft rounded-xl px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold">
               Total tagihan {fmtIDR(totalDue)} · cicilan ± {fmtIDR(per)}/bulan (bunga flat)
             </p>
           )}
@@ -406,7 +406,7 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Buat Pinjaman"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Buat Pinjaman"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -521,7 +521,7 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Tambah"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Tambah"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -689,7 +689,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                         <TableCell className="text-[11px] font-semibold">{b.periodName}</TableCell>
                         <TableCell className="text-right text-[11px] text-stone-500">{fmtIDR(b.paid)}</TableCell>
                         <TableCell className="text-right text-[11px]">{fmtIDR(b.expected)}</TableCell>
-                        <TableCell className="text-right text-[11px] font-bold text-emerald-700 dark:text-emerald-400">+{fmtIDR(b.diff)}</TableCell>
+                        <TableCell className="text-right text-[11px] font-bold ov-text-accent">+{fmtIDR(b.diff)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -710,7 +710,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               <Calculator className="h-4 w-4" />{busy ? "Menghitung…" : "Preview Selisih"}
             </Button>
           ) : (
-            <Button onClick={doCreate} disabled={saving} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={doCreate} disabled={saving} className="gap-2 font-bold">
               <PlayCircle className="h-4 w-4" />{saving ? "Membuat run…" : `Buat Run Rapel · ${fmtIDR(preview.totalDiff)}`}
             </Button>
           )}

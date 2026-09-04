@@ -123,7 +123,7 @@ export function LeaveRequestsPage() {
               });
               setPreview(null);
               setDialog(true);
-            }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Ajukan Cuti
             </Button>
           )
@@ -155,7 +155,7 @@ export function LeaveRequestsPage() {
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-orange-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
                 )}>
                   {f.label}
                 </button>
@@ -231,7 +231,7 @@ export function LeaveRequestsPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Send className="h-4 w-4 text-orange-600" /> Ajukan Permintaan Cuti
+              <Send className="h-4 w-4 ov-text-accent" /> Ajukan Permintaan Cuti
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
@@ -286,21 +286,21 @@ export function LeaveRequestsPage() {
             </div>
 
             {/* panel auto-compute — padanan (Number of Working Applied dsb.) */}
-            <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 dark:border-orange-900 dark:bg-orange-950/30">
+            <div className="rounded-xl border ov-border-accent ov-soft p-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:text-orange-400">Hitungan Otomatis {previewBusy && "…"}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide">Hitungan Otomatis {previewBusy && "…"}</p>
                 {selectedType && (
                   <div className="flex gap-1">
-                    {selectedType.allowHalfDay && <Badge className="bg-white text-[9px] font-bold text-orange-700">½ hari OK</Badge>}
-                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold text-orange-700">advance OK</Badge>}
-                    {selectedType.waitingMonths > 0 && <Badge className="bg-white text-[9px] font-bold text-orange-700">tunggu {selectedType.waitingMonths} bln</Badge>}
+                    {selectedType.allowHalfDay && <Badge className="bg-white text-[9px] font-bold">½ hari OK</Badge>}
+                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold">advance OK</Badge>}
+                    {selectedType.waitingMonths > 0 && <Badge className="bg-white text-[9px] font-bold">tunggu {selectedType.waitingMonths} bln</Badge>}
                   </div>
                 )}
               </div>
               <div className="mt-2 grid grid-cols-4 gap-2 text-center">
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">Hari Kerja</p>
-                  <p className="text-sm font-extrabold text-orange-700 dark:text-orange-400">{preview ? fmtDay(preview.workingDays) : "—"}</p>
+                  <p className="text-sm font-extrabold">{preview ? fmtDay(preview.workingDays) : "—"}</p>
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">Saldo Saat Ini</p>
@@ -308,7 +308,7 @@ export function LeaveRequestsPage() {
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">Sisa Saldo</p>
-                  <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "text-emerald-700 dark:text-emerald-400")}>{preview ? fmtDay(preview.remaining) : "—"}</p>
+                  <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>{preview ? fmtDay(preview.remaining) : "—"}</p>
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">Kembali Kerja</p>
@@ -340,7 +340,7 @@ export function LeaveRequestsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="gap-1.5 bg-orange-600 text-xs font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="gap-1.5 text-xs font-bold">
               <Send className="h-3.5 w-3.5" /> Ajukan Permintaan
             </Button>
           </DialogFooter>

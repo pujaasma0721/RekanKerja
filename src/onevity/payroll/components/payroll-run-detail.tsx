@@ -101,7 +101,7 @@ export function PayrollRunDetailPage() {
             {(run.status === "Confirmed" || run.status === "Paid") && (
               <button
                 onClick={() => navigate("payroll", "journals")}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300"
               >
                 <BookOpen className="h-4 w-4" /> Jurnal
               </button>
@@ -176,7 +176,7 @@ export function PayrollRunDetailPage() {
                       <TableCell className="text-right text-xs">{fmtIDR(l.bruto)}</TableCell>
                       <TableCell className="text-right text-xs text-rose-600 dark:text-rose-400">{fmtIDR(l.deduction)}</TableCell>
                       <TableCell className="text-right text-xs text-amber-700 dark:text-amber-400">{fmtIDR(l.taxRegular + l.taxIrregular)}</TableCell>
-                      <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{fmtIDR(l.net)}</TableCell>
+                      <TableCell className="text-right text-xs font-bold ov-text-accent">{fmtIDR(l.net)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px] font-bold" onClick={() => setSlipLine(l)}>
                           <Receipt className="h-3 w-3" /> Slip
@@ -191,7 +191,7 @@ export function PayrollRunDetailPage() {
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(run.totalTax)}</TableCell>
-                    <TableCell className="text-right text-xs font-extrabold text-emerald-700 dark:text-emerald-400">{fmtIDR(run.totalNet)}</TableCell>
+                    <TableCell className="text-right text-xs font-extrabold ov-text-accent">{fmtIDR(run.totalNet)}</TableCell>
                     <TableCell />
                   </TableRow>
                 </TableBody>
@@ -265,7 +265,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Receipt className="h-4 w-4 text-emerald-600" /> Slip Gaji — {line.employeeName}
+            <Receipt className="h-4 w-4 ov-text-accent" /> Slip Gaji — {line.employeeName}
           </DialogTitle>
         </DialogHeader>
 

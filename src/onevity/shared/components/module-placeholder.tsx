@@ -39,14 +39,14 @@ export function ModulePlaceholder({ module }: { module: ModuleId }) {
 
       <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <div className="relative flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-stone-50 to-white px-6 py-14 text-center dark:from-stone-900/60 dark:to-background">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-900/30">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl ov-fill ov-glow">
             <Icon className="h-8 w-8" />
           </div>
           <div>
             <p className="text-lg font-bold tracking-tight text-stone-900 dark:text-stone-50">Modul {label} — Segera Hadir</p>
             <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
               Struktur menu dan proses bisnis modul {label} telah dipetakan dari studi aplikasi HRIS referensi.
-              Gunakan dropdown <span className="font-semibold text-emerald-700 dark:text-emerald-400">Modul Aktif</span> di sidebar
+              Gunakan dropdown <span className="font-semibold ov-text-accent">Modul Aktif</span> di sidebar
               untuk berpindah antar modul.
             </p>
           </div>

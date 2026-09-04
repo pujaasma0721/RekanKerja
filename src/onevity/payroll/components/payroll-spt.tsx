@@ -60,7 +60,7 @@ export function PayrollSptPage() {
         actions={
           <a
             href={`/api/onevity/payroll-spt?year=${year}&export=a1`}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700"
+            className="ov-fill hover:ov-fill-deep inline-flex h-9 items-center gap-2 rounded-xl px-4 text-[13px] font-bold shadow-sm transition"
           >
             <FileDown className="h-4 w-4" /> Ekspor 1721-A1 (CSV)
           </a>

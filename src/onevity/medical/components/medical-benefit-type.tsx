@@ -105,7 +105,7 @@ export function MedicalBenefitTypePage() {
         title="Jenis Benefit Medis"
         description="Kebijakan per jenis: limit (unlimited / nominal / faktor × gaji pokok), frekuensi klaim, pembagian company/asuransi, kebijakan sisa saldo akhir tahun, dan dependent (padanan Medical Benefit Type)"
         actions={(
-          <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
+          <Button onClick={openNew}>
             <Plus className="h-4 w-4" /> Jenis Baru
           </Button>
         )}
@@ -184,7 +184,7 @@ export function MedicalBenefitTypePage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <HeartPulse className="h-5 w-5 text-rose-600" /> {form.id ? "Ubah Jenis Benefit" : "Jenis Benefit Baru"}
+              <HeartPulse className="h-5 w-5 ov-text-accent" /> {form.id ? "Ubah Jenis Benefit" : "Jenis Benefit Baru"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -307,7 +307,7 @@ export function MedicalBenefitTypePage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={save} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={save} disabled={busy}>
               {busy ? "Menyimpan…" : "Simpan"}
             </Button>
           </DialogFooter>

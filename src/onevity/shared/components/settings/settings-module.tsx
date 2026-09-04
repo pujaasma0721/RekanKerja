@@ -66,7 +66,7 @@ function LookupPage() {
         title="Data Master"
         description={`${data?.lookups.length ?? 0} entri lookup di ${categories.length} kategori — agama, status, pendidikan, shift, dan lainnya`}
         actions={
-          <Button onClick={() => setAddOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setAddOpen(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Entri Baru
           </Button>
         }
@@ -78,7 +78,7 @@ function LookupPage() {
           {/* categories */}
           <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 text-emerald-600" /> Kategori</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 ov-text-accent" /> Kategori</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
               {categories.map((c) => {
@@ -87,7 +87,7 @@ function LookupPage() {
                 return (
                   <button key={c} onClick={() => setCategory(c)} className={cn(
                     "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition",
-                    c === current ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25" : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+                    c === current ? "ov-fill shadow-md" : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
                   )}>
                     <span className="flex-1 truncate">{c}</span>
                     <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-500")}>
@@ -181,7 +181,7 @@ function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpe
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} className="bg-emerald-600 font-bold hover:bg-emerald-700">Simpan</Button>
+          <Button onClick={submit} className="font-bold">Simpan</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -194,7 +194,7 @@ function SecurityPage() {
   const [tab, setTab] = useState("users");
   const [focusUser, setFocusUser] = useState<string | null>(null);
 
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
 
   return (
     <div>

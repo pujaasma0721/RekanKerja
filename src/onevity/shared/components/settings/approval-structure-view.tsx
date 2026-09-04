@@ -206,7 +206,7 @@ export function ApprovalStructureView() {
           <Button variant="outline" onClick={() => setSimulating(true)} className="h-10 gap-2 rounded-xl">
             <Wand2 className="h-4 w-4" /> Simulasi Jalur
           </Button>
-          <Button onClick={() => setCreating(true)} className="h-10 gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
+          <Button onClick={() => setCreating(true)} className="h-10 gap-2 rounded-xl">
             <Plus className="h-4 w-4" /> Struktur Baru
           </Button>
         </div>
@@ -667,7 +667,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={p.onClose} className="rounded-xl">Batal</Button>
-          <Button onClick={submit} disabled={saving} className="gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
+          <Button onClick={submit} disabled={saving} className="gap-2 rounded-xl font-bold">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {s ? "Simpan Perubahan" : "Buat Struktur"}
           </Button>
@@ -711,7 +711,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 text-emerald-700" /> Simulasi Jalur Persetujuan</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 ov-text-accent" /> Simulasi Jalur Persetujuan</DialogTitle>
           <DialogDescription>
             Lihat struktur mana yang cocok untuk seorang pemohon dan jenjang siapa saja yang akan menunggu keputusan — tanpa mengajukan dokumen.
           </DialogDescription>
@@ -744,7 +744,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
           </div>
         </div>
 
-        <Button onClick={run} disabled={loading} className="w-full gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
+        <Button onClick={run} disabled={loading} className="w-full gap-2 rounded-xl font-bold">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Simulasikan
         </Button>
 

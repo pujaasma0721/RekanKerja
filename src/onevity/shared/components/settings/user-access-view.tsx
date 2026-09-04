@@ -356,8 +356,8 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
       </div>
 
       {/* catatan: per pengguna + akses otomatis */}
-      <div className="rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/40 p-4 dark:border-emerald-500/25 dark:from-emerald-500/10 dark:to-teal-500/5">
-        <p className="flex items-center gap-2 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+      <div className="rounded-2xl border ov-border-accent ov-soft p-4">
+        <p className="flex items-center gap-2 text-[13px] font-bold">
           <ShieldCheck className="h-4 w-4" /> Hak akses diatur <b>per pengguna</b> — bukan per grup; pengguna dengan role sama bisa haknya berbeda
         </p>
         <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300 sm:grid-cols-2 xl:grid-cols-4">
@@ -366,7 +366,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
             <span><b>Super Admin</b> otomatis akses semua menu &amp; data — tanpa diatur.</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
-            <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <UserCheck className="mt-0.5 h-4 w-4 shrink-0 ov-text-accent" />
             <span><b>Atasan langsung</b> otomatis mengakses data seluruh bawahannya.</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
@@ -392,7 +392,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
           <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                <Users className="h-4 w-4 text-emerald-600" /> Pengguna ({users.length})
+                <Users className="h-4 w-4 ov-text-accent" /> Pengguna ({users.length})
               </CardTitle>
               <div className="relative mt-1">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
@@ -409,11 +409,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       onClick={() => setSelectedId(u.id)}
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition",
-                        active ? "bg-emerald-600 shadow-md shadow-emerald-600/20" : "hover:bg-stone-100 dark:hover:bg-stone-800",
+                        active ? "ov-fill shadow-md" : "hover:bg-stone-100 dark:hover:bg-stone-800",
                       )}
                     >
                       <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold",
-                        active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400")}>
+                        active ? "bg-white/20 text-white" : "ov-tile")}>
                         {initials(u.fullName)}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -421,7 +421,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           {u.fullName}
                           {u.isSuperAdmin && <Crown className="h-3 w-3 shrink-0 text-amber-400" />}
                         </span>
-                        <span className={cn("block truncate text-[10px]", active ? "text-emerald-100" : "text-stone-400")}>
+                        <span className={cn("block truncate text-[10px]", active ? "text-white/70" : "text-stone-400")}>
                           @{u.username} · {u.role}
                           {u.menuMode === "CUSTOM" ? ` · ${u.menus.length} menu` : ""}
                         </span>
@@ -449,7 +449,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardContent className="p-5">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-xs font-extrabold text-white shadow">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full ov-fill text-xs font-extrabold shadow">
                       {initials(selected.fullName)}
                     </span>
                     <div className="min-w-0">
@@ -491,7 +491,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                    <LayoutGrid className="h-4 w-4 text-emerald-600" /> Akses Menu
+                    <LayoutGrid className="h-4 w-4 ov-text-accent" /> Akses Menu
                     {selected.menuMode === "CUSTOM" && (
                       <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
                         dibatasi — {selected.menus.length} menu
@@ -519,7 +519,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                               onClick={() => { setDraftMode(m.v); setDirty(true); }}
                               className={cn(
                                 "rounded-lg px-3 py-1.5 text-[12px] font-bold transition",
-                                draftMode === m.v ? "bg-emerald-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300",
+                                draftMode === m.v ? "ov-fill shadow-sm" : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300",
                               )}
                             >
                               {m.label}
@@ -534,7 +534,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       {draftMode === "CUSTOM" ? (
                         <>
                         <p className="flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
-                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
                           <span>
                             Menu tercentang mendapat <b>seluruh aksi</b> (Baru/Ubah/Hapus + operasi khusus). Klik ikon <SlidersHorizontal className="inline h-3 w-3 -translate-y-px" /> di samping menu untuk membatasi — ikon amber menandai menu dengan aksi terbatas.
                           </span>
@@ -553,7 +553,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                   title="Pilih semua = seluruh menu modul ini dengan seluruh aksi"
                                 >
                                   <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
-                                    allOn ? "border-emerald-600 bg-emerald-600" : "border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")}>
+                                    allOn ? "ov-fill" : "border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")}>
                                     {allOn && <Check className="h-3 w-3 text-white" />}
                                   </span>
                                   <span className="flex-1 text-[12px] font-bold text-stone-700 dark:text-stone-200">{mod.label}</span>
@@ -579,12 +579,12 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                                 className={cn(
                                                   "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition",
                                                   on
-                                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                                    ? "ov-soft ov-border-accent"
                                                     : "border-stone-200 text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:text-stone-400",
                                                 )}
                                               >
                                                 <span className={cn("flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border transition",
-                                                  on ? "border-emerald-600 bg-emerald-600" : "border-stone-300 dark:border-stone-600")}>
+                                                  on ? "ov-fill" : "border-stone-300 dark:border-stone-600")}>
                                                   {on && <Check className="h-2.5 w-2.5 text-white" />}
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate">{it.label}</span>
@@ -598,7 +598,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                                   className={cn(
                                                     "h-7 w-7 shrink-0 rounded-lg",
                                                     full
-                                                      ? "text-stone-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+                                                      ? "text-stone-400 hover:ov-soft"
                                                       : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400",
                                                   )}
                                                   aria-label={`Atur aksi menu ${it.label}`}
@@ -628,7 +628,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       )}
 
                       <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <Button onClick={saveMenu} disabled={savingMenu || !dirty} className="h-9 gap-2 rounded-xl bg-emerald-700 font-bold hover:bg-emerald-800">
+                        <Button onClick={saveMenu} disabled={savingMenu || !dirty} className="h-9 gap-2 rounded-xl font-bold">
                           {savingMenu && <Loader2 className="h-4 w-4 animate-spin" />} Simpan Hak Akses Menu
                         </Button>
                         <Button
@@ -650,16 +650,16 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                    <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Akses Data Karyawan
+                    <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> Akses Data Karyawan
                     <Badge variant="outline" className="text-[10px] font-bold text-stone-400">{userRules.filter((r) => r.active).length} rule aktif</Badge>
                   </CardTitle>
-                  <Button onClick={() => setRuleDialog({ open: true, rule: null })} className="h-9 gap-1.5 rounded-xl bg-emerald-700 text-xs font-bold hover:bg-emerald-800">
+                  <Button onClick={() => setRuleDialog({ open: true, rule: null })} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
                     <Plus className="h-3.5 w-3.5" /> Rule Baru
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <p className="mb-3 flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
-                    <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
                     Rule parametrik <b>untuk {selected.fullName}</b> — karyawan yang dapat diakses sesuai penempatan (semua kriteria terpilih = AND). Tanpa kriteria = akses penuh. Bawahan langsung &amp; data diri selalu otomatis.
                   </p>
                   {rulesResp.loading && !rulesResp.data ? (
@@ -684,7 +684,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                    <Wand2 className="h-4 w-4 text-emerald-600" /> Simulasi Akses Efektif
+                    <Wand2 className="h-4 w-4 ov-text-accent" /> Simulasi Akses Efektif
                   </CardTitle>
                   <Button variant="outline" onClick={runPreview} disabled={previewLoading} className="h-9 gap-2 rounded-xl text-xs font-bold">
                     {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />} Jalankan Simulasi
@@ -726,7 +726,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           )}
                           {preview.sources.map((s, i) => (
                             <p key={i} className="flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs font-medium text-stone-600 dark:bg-stone-900/40 dark:text-stone-300">
-                              <UserCog className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> {s}
+                              <UserCog className="h-3.5 w-3.5 shrink-0 ov-text-accent" /> {s}
                             </p>
                           ))}
                         </div>
@@ -938,12 +938,12 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
 
         <div className="grid gap-4">
           <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">{initials(user.fullName)}</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full ov-tile text-[10px] font-extrabold">{initials(user.fullName)}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-stone-900 dark:text-stone-50">Subjek: {user.fullName}</p>
               <p className="text-[10px] text-stone-400">@{user.username} · {user.role} — tetap, tidak bisa diubah</p>
             </div>
-            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">per pengguna</Badge>
+            <Badge variant="outline" className="ov-soft ov-border-accent text-[10px] font-bold">per pengguna</Badge>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -959,7 +959,7 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
 
           <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 dark:border-stone-800 dark:bg-stone-900/40">
             <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
-              <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Kriteria sasaran — karyawan yang dapat diakses {user.fullName}
+              <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> Kriteria sasaran — karyawan yang dapat diakses {user.fullName}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {([
@@ -1010,7 +1010,7 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">Batal</Button>
-          <Button onClick={save} disabled={saving} className="h-10 gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
+          <Button onClick={save} disabled={saving} className="h-10 gap-2 rounded-xl font-bold">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Simpan Rule
           </Button>
         </DialogFooter>
@@ -1096,7 +1096,7 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
           {/* aksi dasar CRUD */}
           <div className="space-y-1.5">
             <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Aksi Dasar
+              <ShieldCheck className="h-4 w-4 ov-text-accent" /> Aksi Dasar
             </p>
             {MENU_ACTION_DEFS.map((d) => {
               const locked = d.key === "view";
@@ -1125,7 +1125,7 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
           {ops.length > 0 && (
             <div className="space-y-1.5">
               <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
-                <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Operasi Khusus Menu
+                <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> Operasi Khusus Menu
               </p>
               <p className="text-[11px] leading-snug text-stone-400">Operasi spesifik pada menu ini — masing-masing dapat diizinkan atau dibatasi.</p>
               {ops.map((o) => (
@@ -1147,7 +1147,7 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">Batal</Button>
-            <Button onClick={save} className="h-10 gap-2 rounded-xl bg-emerald-700 font-bold hover:bg-emerald-800">Simpan</Button>
+            <Button onClick={save} className="h-10 gap-2 rounded-xl font-bold">Simpan</Button>
           </div>
         </DialogFooter>
       </DialogContent>

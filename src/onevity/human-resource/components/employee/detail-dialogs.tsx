@@ -36,7 +36,7 @@ function DialogFooterBar({ busy, onCancel, label }: { busy: boolean; onCancel: (
   return (
     <DialogFooter className="mt-1 gap-2">
       <Button variant="outline" className="h-11 px-5" onClick={onCancel} disabled={busy}>Batal</Button>
-      <Button type="submit" className="h-11 gap-2 bg-emerald-600 px-6 font-bold hover:bg-emerald-700" disabled={busy}>
+      <Button type="submit" className="h-11 gap-2 px-6 font-bold" disabled={busy}>
         {busy && <Loader2 className="h-4 w-4 animate-spin" />} {label}
       </Button>
     </DialogFooter>

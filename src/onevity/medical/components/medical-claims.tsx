@@ -155,7 +155,7 @@ export function MedicalClaimsPage() {
         description="Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim)"
         actions={(
           perms.can("medical", "medical-claim", "create") && (
-            <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={openDialog}>
               <Plus className="h-4 w-4" /> Ajukan Klaim
             </Button>
           )
@@ -170,7 +170,7 @@ export function MedicalClaimsPage() {
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               statusFilter === f.key
-                ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                ? "ov-soft ov-border-accent"
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
@@ -330,7 +330,7 @@ export function MedicalClaimsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-rose-600" /> Ajukan Klaim Medis
+              <Activity className="h-5 w-5 ov-text-accent" /> Ajukan Klaim Medis
             </DialogTitle>
           </DialogHeader>
 
@@ -375,28 +375,28 @@ export function MedicalClaimsPage() {
           </div>
 
           {preview && (
-            <div className="grid gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm dark:border-rose-800 dark:bg-rose-950/30 sm:grid-cols-4">
+            <div className="grid gap-2 rounded-xl border ov-border-accent ov-soft p-3 text-sm sm:grid-cols-4">
               <div>
-                <p className="text-[11px] font-bold uppercase text-rose-500">Limit</p>
-                <p className="font-black">{preview.limitRule === "UNLIMITED" ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
+                <p className="text-[11px] font-bold uppercase ov-text-accent">Limit</p>
+                <p className="font-black text-stone-900 dark:text-stone-50">{preview.limitRule === "UNLIMITED" ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase text-rose-500">Sudah Terpakai</p>
-                <p className="font-black">{fmtIDR(preview.usedAmount)}</p>
+                <p className="text-[11px] font-bold uppercase ov-text-accent">Sudah Terpakai</p>
+                <p className="font-black text-stone-900 dark:text-stone-50">{fmtIDR(preview.usedAmount)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase text-rose-500">
+                <p className="text-[11px] font-bold uppercase ov-text-accent">
                   Sisa Saldo{preview.claimPool === "dependent" ? " (Dependent)" : forDependent && preview.claimPool === "employee" ? " (Bersama)" : ""}
                 </p>
-                <p className="font-black">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
+                <p className="font-black text-stone-900 dark:text-stone-50">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
                 {preview.poolNote && <p className="text-xs text-stone-500">{preview.poolNote}</p>}
                 {(preview.pendingReserved ?? 0) > 0 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">menunggu klaim lain: {fmtIDR(preview.pendingReserved ?? 0)}</p>
                 )}
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase text-rose-500">Frekuensi</p>
-                <p className="font-black">
+                <p className="text-[11px] font-bold uppercase ov-text-accent">Frekuensi</p>
+                <p className="font-black text-stone-900 dark:text-stone-50">
                   {preview.freqUnlimited ? "Unlimited" : `${preview.freqValue}× / ${preview.freqPeriod}`}
                 </p>
                 <p className="text-xs text-stone-500">{preview.claimCountYear} klaim tahun ini</p>
@@ -470,17 +470,17 @@ export function MedicalClaimsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
-            <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 text-rose-600" /> Total</span>
+            <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 ov-text-accent" /> Total</span>
             <span className="text-stone-600 dark:text-stone-300">Tagihan <span className="font-black">{fmtIDR(totals.bill)}</span></span>
             <span className="text-stone-600 dark:text-stone-300">Reimburse <span className="font-black">{fmtIDR(totals.re)}</span></span>
-            <span className="text-rose-700 dark:text-rose-400">Approved <span className="font-black">{fmtIDR(totals.approved)}</span></span>
+            <span className="ov-text-accent">Approved <span className="font-black">{fmtIDR(totals.approved)}</span></span>
           </div>
 
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan pengajuan (opsional)…" rows={2} />
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={submit} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={submit} disabled={busy}>
               {busy ? "Mengirim…" : "Ajukan Klaim"}
             </Button>
           </DialogFooter>

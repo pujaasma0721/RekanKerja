@@ -376,7 +376,7 @@ export function OrgMapView() {
         actions={
           <div className="flex items-center gap-2">
             {model.searchOn && (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <span className="rounded-full border ov-border-accent ov-soft px-2.5 py-1 text-[11px] font-bold">
                 {matchesCount} hasil
               </span>
             )}
@@ -400,7 +400,7 @@ export function OrgMapView() {
               onClick={() => setMode("orang")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "orang" ? "bg-emerald-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                mode === "orang" ? "ov-fill shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
               )}
             >
               <Users className="h-3.5 w-3.5" /> Orang
@@ -410,7 +410,7 @@ export function OrgMapView() {
               onClick={() => setMode("unit")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "unit" ? "bg-emerald-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                mode === "unit" ? "ov-fill shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
               )}
             >
               <Building2 className="h-3.5 w-3.5" /> Unit
@@ -652,17 +652,17 @@ function PersonCard({
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className={cn(
-        "relative w-60 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+        "relative w-60 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         root
-          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md shadow-emerald-900/10 dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900"
+          ? "ov-border-accent ov-soft shadow-md"
           : "border-stone-200 bg-white shadow-sm hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700",
-        matched && "ring-2 ring-emerald-500",
+        matched && "ring-2 ring-ring",
         dimmed && "opacity-40 saturate-50"
       )}
     >
       <div className="flex items-start gap-2.5">
         <span className="relative flex shrink-0">
-          <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(p.fullName), root && "ring-2 ring-emerald-500/40")}>
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(p.fullName), root && "ring-2 ring-ring/40")}>
             {initials(p.fullName)}
           </span>
           <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
@@ -699,7 +699,7 @@ function PersonCard({
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggle(); }}
               title={expanded ? "Tutup cabang" : "Buka cabang"}
-              className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[9.5px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+              className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[9.5px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300"
             >
               <Users className="h-2.5 w-2.5" />
               {total}
@@ -815,11 +815,11 @@ function UnitCard({
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className={cn(
-        "w-64 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+        "w-64 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         root
-          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900"
+          ? "ov-border-accent ov-soft shadow-md"
           : "border-stone-200 bg-white shadow-sm hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700",
-        matched && "ring-2 ring-emerald-500",
+        matched && "ring-2 ring-ring",
         dimmed && "opacity-40 saturate-50"
       )}
     >
@@ -877,7 +877,7 @@ function UnitCard({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-stone-200 bg-stone-50 py-1 text-[9.5px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-stone-200 bg-stone-50 py-1 text-[9.5px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300"
         >
           <Layers className="h-2.5 w-2.5" /> {subCount} sub-unit
           <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", expanded && "rotate-180")} />
@@ -903,7 +903,7 @@ function MobilePersonItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-ring", dimmed && "opacity-40")}>
         <button type="button" onClick={() => openPerson(p.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className="relative flex shrink-0">
             <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</span>
@@ -964,7 +964,7 @@ function MobileUnitItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-ring", dimmed && "opacity-40")}>
         <button type="button" onClick={() => openUnit(u.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", (LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).box)}>
             {(LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).icon != null && <UnitLevelIcon level={u.level} />}
@@ -1060,7 +1060,7 @@ function PersonDrawer({
                     <p className="truncate text-base font-bold text-stone-900 dark:text-stone-50">{e.fullName}</p>
                     <StatusPill status={e.status} />
                   </div>
-                  <p className="mt-0.5 truncate text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">{e.position?.title ?? "Tanpa jabatan"}</p>
+                  <p className="mt-0.5 truncate text-[13px] font-semibold ov-text-accent">{e.position?.title ?? "Tanpa jabatan"}</p>
                   <p className="mt-0.5 truncate text-[11px] text-stone-400">
                     {e.employeeNo} · {e.orgUnit?.name ?? "—"} {e.grade?.code ? `· Grade ${e.grade.code}` : ""}
                   </p>
@@ -1098,7 +1098,7 @@ function PersonDrawer({
                       <button
                         type="button"
                         onClick={() => onSelectPerson(m.id)}
-                        className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-1 text-[10.5px] font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+                        className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-1 text-[10.5px] font-semibold text-stone-700 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
                       >
                         <span className={cn("flex h-4.5 w-4.5 items-center justify-center rounded-full text-[7px] font-extrabold", avatarColor(m.fullName))}>{initials(m.fullName)}</span>
                         {m.fullName}
@@ -1106,7 +1106,7 @@ function PersonDrawer({
                     </Fragment>
                   ))}
                   <ChevronRight className="h-3 w-3 text-stone-300 dark:text-stone-600" />
-                  <span className="rounded-full bg-emerald-600 px-2 py-1 text-[10.5px] font-bold text-white">{e.fullName}</span>
+                  <span className="rounded-full ov-fill px-2 py-1 text-[10.5px] font-bold">{e.fullName}</span>
                 </div>
               </div>
             )}
@@ -1121,7 +1121,7 @@ function PersonDrawer({
                       key={r.id}
                       type="button"
                       onClick={() => onSelectPerson(r.id)}
-                      className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white p-2 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-500/50"
+                      className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white p-2 text-left transition hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
                     >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold", avatarColor(r.fullName))}>{initials(r.fullName)}</span>
                       <span className="min-w-0 flex-1">
@@ -1184,11 +1184,11 @@ function PersonDrawer({
                           <span>{fmtIDRShort(grade!.maxSalary)}</span>
                         </div>
                         <div className="relative mt-1.5 h-2.5 rounded-full bg-stone-100 dark:bg-stone-800">
-                          <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${bandPct}%` }} />
+                          <div className="absolute inset-y-0 left-0 rounded-full ov-chart" style={{ width: `${bandPct}%` }} />
                           <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-stone-900 shadow dark:border-stone-900 dark:bg-white" style={{ left: `${bandPct}%` }} />
                         </div>
                         <p className="mt-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
-                          Gaji pokok <span className="font-bold text-emerald-700 dark:text-emerald-400">{fmtIDR(e.baseSalary)}</span> · {Math.round(bandPct)}% dari band
+                          Gaji pokok <span className="font-bold ov-text-accent">{fmtIDR(e.baseSalary)}</span> · {Math.round(bandPct)}% dari band
                         </p>
                       </>
                     ) : (
@@ -1205,7 +1205,7 @@ function PersonDrawer({
                       <div className="space-y-1.5">
                         {e.education.map((ed) => (
                           <div key={ed.id} className="flex items-start gap-2.5 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"><GraduationCap className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ov-tile"><GraduationCap className="h-3.5 w-3.5" /></span>
                             <div className="min-w-0 flex-1">
                               <p className="text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{ed.level} · {ed.institution}</p>
                               <p className="truncate text-[10px] text-stone-400">
@@ -1369,7 +1369,7 @@ function UnitDrawer({
                 <button
                   type="button"
                   onClick={() => onSelectPerson(head.id)}
-                  className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-stone-200 p-2.5 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-500/50"
+                  className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-stone-200 p-2.5 text-left transition hover:ov-border-accent dark:border-stone-800"
                 >
                   <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(head.fullName))}>{initials(head.fullName)}</span>
                   <span className="min-w-0 flex-1">
@@ -1396,7 +1396,7 @@ function UnitDrawer({
                       key={m.id}
                       type="button"
                       onClick={() => onSelectPerson(m.id)}
-                      className="flex w-full items-center gap-2 rounded-lg border border-stone-200 p-2 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-500/50"
+                      className="flex w-full items-center gap-2 rounded-lg border border-stone-200 p-2 text-left transition hover:ov-border-accent dark:border-stone-800"
                     >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold", avatarColor(m.fullName))}>{initials(m.fullName)}</span>
                       <span className="min-w-0 flex-1">

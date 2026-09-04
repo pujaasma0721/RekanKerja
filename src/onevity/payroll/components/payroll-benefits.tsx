@@ -68,7 +68,7 @@ export function PayrollBenefitsPage() {
             <Button variant="outline" onClick={() => { setEditType(null); setTypeDialog(true); }} className="gap-2 font-bold">
               <Sparkles className="h-4 w-4 text-violet-600" /> Jenis Benefit
             </Button>
-            <Button onClick={() => setClaimDialog(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={() => setClaimDialog(true)} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Ajukan Klaim
             </Button>
           </div>
@@ -105,10 +105,10 @@ export function PayrollBenefitsPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <HeartHandshake className="h-3.5 w-3.5" /> Klaim ({claimsApi.data?.claims.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Sparkles className="h-3.5 w-3.5" /> Jenis Benefit ({typesApi.data?.types.length ?? 0})
           </TabsTrigger>
         </TabsList>
@@ -122,7 +122,7 @@ export function PayrollBenefitsPage() {
                 className={cn(
                   "rounded-full border px-3 py-1 text-[11px] font-bold transition-colors",
                   statusFilter === f.key
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400"
+                    ? "ov-soft ov-border-accent"
                     : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
                 )}
               >
@@ -539,7 +539,7 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Mengirim…" : "Ajukan Klaim"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Mengirim…" : "Ajukan Klaim"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

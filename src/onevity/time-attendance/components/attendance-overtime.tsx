@@ -80,7 +80,7 @@ export function AttendanceOvertimePage() {
         title="Lembur (Overtime Work Order)"
         description="Perintah lembur Plan → Actual → Verified — upah 1/173 × gaji pokok dengan multiplier per kategori hari (PP 35/2021)"
         actions={
-          <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setOrderDialog(true); }} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setOrderDialog(true); }} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Ajukan Lembur
           </Button>
         }
@@ -116,7 +116,7 @@ export function AttendanceOvertimePage() {
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-emerald-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
                 )}>
                   {f.label}
                 </button>
@@ -174,8 +174,8 @@ export function AttendanceOvertimePage() {
                       </TableCell>
                       <TableCell className="text-right text-xs">{(o.planMinutes / 60).toFixed(1)} j</TableCell>
                       <TableCell className="text-right text-xs">{o.actualMinutes > 0 ? `${(o.actualMinutes / 60).toFixed(1)} j` : "—"}</TableCell>
-                      <TableCell className="text-right text-xs font-bold text-teal-700 dark:text-teal-400">{o.verifiedMinutes > 0 ? `${(o.verifiedMinutes / 60).toFixed(1)} j` : "—"}</TableCell>
-                      <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{o.estPay > 0 ? fmtIDR(o.estPay) : "—"}</TableCell>
+                      <TableCell className="text-right text-xs font-bold ov-text-accent">{o.verifiedMinutes > 0 ? `${(o.verifiedMinutes / 60).toFixed(1)} j` : "—"}</TableCell>
+                      <TableCell className="text-right text-xs font-bold ov-text-accent">{o.estPay > 0 ? fmtIDR(o.estPay) : "—"}</TableCell>
                       <TableCell>
                         <StatusPill status={o.status} />
                         {o.paidRunNo && <p className="font-mono text-[9px] text-stone-400">{o.paidRunNo}</p>}
@@ -199,7 +199,7 @@ export function AttendanceOvertimePage() {
                           {o.status === "Approved" && (
                             <>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Verifikasi jam" onClick={() => { setVerifyTarget(o); setVerifyMinutes(String(o.verifiedMinutes || o.actualMinutes || o.planMinutes)); }} aria-label="Verifikasi jam lembur">
-                                <Pencil className="h-4 w-4 text-teal-600" />
+                                <Pencil className="h-4 w-4 ov-text-accent" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Batalkan" onClick={() => decide(o, "cancel", { note: "Dibatalkan admin" })} aria-label="Batalkan lembur">
                                 <Ban className="h-4 w-4 text-stone-400" />
@@ -263,7 +263,7 @@ export function AttendanceOvertimePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOrderDialog(false)}>Batal</Button>
-            <Button onClick={submit} disabled={busy || !form.employeeId} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={submit} disabled={busy || !form.employeeId} className="font-bold">
               {busy ? "Mengirim…" : "Ajukan Lembur"}
             </Button>
           </DialogFooter>
@@ -302,7 +302,7 @@ export function AttendanceOvertimePage() {
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-stone-50 p-3 text-center text-[11px] dark:bg-stone-900/60">
                 <div><p className="font-bold text-stone-400">RENCANA</p><p className="font-extrabold">{(verifyTarget.planMinutes / 60).toFixed(1)} jam</p></div>
                 <div><p className="font-bold text-stone-400">AKTUAL</p><p className="font-extrabold">{(verifyTarget.actualMinutes / 60).toFixed(1)} jam</p></div>
-                <div><p className="font-bold text-stone-400">SAAT INI</p><p className="font-extrabold text-teal-600">{(verifyTarget.verifiedMinutes / 60).toFixed(1)} jam</p></div>
+                <div><p className="font-bold text-stone-400">SAAT INI</p><p className="font-extrabold ov-text-accent">{(verifyTarget.verifiedMinutes / 60).toFixed(1)} jam</p></div>
               </div>
             )}
             <div className="space-y-1.5">
@@ -313,7 +313,7 @@ export function AttendanceOvertimePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setVerifyTarget(null)}>Batal</Button>
-            <Button onClick={async () => { if (verifyTarget) { await decide(verifyTarget, "verify", { verifiedMinutes: parseInt(verifyMinutes, 10) }); setVerifyTarget(null); } }} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={async () => { if (verifyTarget) { await decide(verifyTarget, "verify", { verifiedMinutes: parseInt(verifyMinutes, 10) }); setVerifyTarget(null); } }} className="font-bold">
               Simpan Verifikasi
             </Button>
           </DialogFooter>

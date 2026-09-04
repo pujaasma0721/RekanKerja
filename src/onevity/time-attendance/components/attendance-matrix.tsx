@@ -62,7 +62,7 @@ export function AttendanceMatrixPage() {
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
             <div className="flex items-center gap-2.5">
-              <Layers className="h-4 w-4 text-emerald-600" />
+              <Layers className="h-4 w-4 ov-text-accent" />
               <p className="text-[13px] font-bold">Pekan {from} — {iso(shiftDate(from, 6))} · {api.data?.total ?? 0} karyawan</p>
             </div>
             <div className="flex items-center gap-2">

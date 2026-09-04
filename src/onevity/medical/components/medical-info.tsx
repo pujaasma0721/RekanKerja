@@ -84,7 +84,7 @@ export function MedicalInfoPage() {
         title="Saldo Medis Karyawan"
         description="Benefit limit per karyawan × jenis per tahun — dihitung dari kebijakan (faktor × gaji pokok / nominal), penyesuaian, dan pemakaian klaim settled (padanan Employee Medical Information)"
         actions={(
-          <Button onClick={() => setGenOpen(true)} className="bg-rose-600 hover:bg-rose-700">
+          <Button onClick={() => setGenOpen(true)}>
             <RefreshCw className="h-4 w-4" /> Generate Saldo
           </Button>
         )}
@@ -132,7 +132,7 @@ export function MedicalInfoPage() {
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Sisa</p>
-            <p className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-400">{fmtIDR(totals.remaining)}</p>
+            <p className="mt-1 text-2xl font-black ov-text-accent">{fmtIDR(totals.remaining)}</p>
             <p className="mt-1 text-xs text-stone-500">jenis CASH ditarik tunai akhir tahun</p>
           </CardContent>
         </Card>
@@ -201,7 +201,7 @@ export function MedicalInfoPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-rose-600" /> Generate Saldo Medis
+              <RefreshCw className="h-5 w-5 ov-text-accent" /> Generate Saldo Medis
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-stone-600 dark:text-stone-300">
@@ -233,7 +233,7 @@ export function MedicalInfoPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenOpen(false)}>Batal</Button>
-            <Button onClick={generate} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={generate} disabled={busy}>
               {busy ? "Menggenerate…" : "Process"}
             </Button>
           </DialogFooter>

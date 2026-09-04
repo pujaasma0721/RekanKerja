@@ -58,7 +58,7 @@ export function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <KeyRound className="h-4 w-4 text-emerald-600" /> Ganti Kata Sandi
+            <KeyRound className="h-4 w-4 ov-text-accent" /> Ganti Kata Sandi
           </DialogTitle>
           <DialogDescription>
             Akun <b>{info?.user.email}</b> — sandi baru divalidasi kebijakan workspace &amp; riwayat {policy.historyCount} sandi terakhir.
@@ -103,7 +103,7 @@ export function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={submit} disabled={busy} className="font-bold">
             {busy ? "Menyimpan…" : "Ganti Kata Sandi"}
           </Button>
         </DialogFooter>

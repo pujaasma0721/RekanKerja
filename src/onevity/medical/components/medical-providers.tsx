@@ -67,7 +67,7 @@ export function MedicalProvidersPage() {
         title="Rumah Sakit & Asuransi"
         description="Direktori rumah sakit / klinik / apotek rekanan dan perusahaan asuransi — dipakai saat pengajuan klaim (padanan Hospital + Insurance Company)"
         actions={(
-          <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
+          <Button onClick={openNew}>
             <Plus className="h-4 w-4" /> Provider Baru
           </Button>
         )}
@@ -84,7 +84,7 @@ export function MedicalProvidersPage() {
             className={cn(
               "flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-all",
               tab === t.key
-                ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                ? "ov-soft ov-border-accent"
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
@@ -143,7 +143,7 @@ export function MedicalProvidersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {form.kind === "HOSPITAL" ? <Hospital className="h-5 w-5 text-rose-600" /> : <ShieldCheck className="h-5 w-5 text-rose-600" />}
+              {form.kind === "HOSPITAL" ? <Hospital className="h-5 w-5 ov-text-accent" /> : <ShieldCheck className="h-5 w-5 ov-text-accent" />}
               {form.id ? "Ubah Provider" : "Provider Baru"}
             </DialogTitle>
           </DialogHeader>
@@ -183,7 +183,7 @@ export function MedicalProvidersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={save} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={save} disabled={busy}>
               {busy ? "Menyimpan…" : "Simpan"}
             </Button>
           </DialogFooter>

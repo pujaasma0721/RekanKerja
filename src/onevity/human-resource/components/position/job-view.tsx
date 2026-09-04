@@ -155,7 +155,7 @@ export function JobView() {
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
             </Button>
-            <Button size="sm" className="h-10 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={openCreate}>
+            <Button size="sm" className="h-10 px-4 font-bold" onClick={openCreate}>
               <Plus className="h-4 w-4" /> Job Baru
             </Button>
           </>
@@ -223,7 +223,7 @@ export function JobView() {
                     <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={(e) => { e.stopPropagation(); openEdit(j); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:text-emerald-700 dark:hover:bg-stone-800 dark:hover:text-emerald-400"
+                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
                         aria-label={`Ubah job ${j.title}`}
                       >
                         <Pencil className="h-4 w-4" />

@@ -17,7 +17,7 @@ export function BankExportMenu({ runId, runNo, compact }: { runId: string; runNo
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1 rounded-lg border border-stone-200 font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300 dark:hover:border-emerald-600/40 dark:hover:text-emerald-400",
+          "inline-flex items-center gap-1 rounded-lg border border-stone-200 font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300",
           compact ? "h-7 px-2.5 text-[11px]" : "h-9 gap-2 px-4 text-[13px]"
         )}
         aria-label={`Ekspor file bank run ${runNo}`}

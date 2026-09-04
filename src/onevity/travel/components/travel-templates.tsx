@@ -102,7 +102,7 @@ export function TravelTemplatesPage() {
             onClick={() => setTab(t.key)}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors",
-              tab === t.key ? "bg-orange-600 text-white shadow-sm" : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
+              tab === t.key ? "ov-fill shadow-sm" : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
             )}
           >
             <t.icon className="h-3.5 w-3.5" /> {t.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", tab === t.key ? "bg-white/20" : "bg-stone-100 dark:bg-stone-800")}>{t.count}</span>
@@ -110,12 +110,12 @@ export function TravelTemplatesPage() {
         ))}
         <div className="ml-auto flex gap-2">
           {tab === "template" && (
-            <Button onClick={() => { setTplForm(emptyTpl); setTplDialog(true); }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={() => { setTplForm(emptyTpl); setTplDialog(true); }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Template Baru
             </Button>
           )}
           {tab === "expense" && (
-            <Button onClick={() => { setExpForm(emptyExp); setExpDialog(true); }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={() => { setExpForm(emptyExp); setExpDialog(true); }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Jenis Biaya Baru
             </Button>
           )}
@@ -146,7 +146,7 @@ export function TravelTemplatesPage() {
                   <TableBody>
                     {templates.map((t) => (
                       <TableRow key={t.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
-                        <TableCell className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{t.code}</TableCell>
+                        <TableCell className="font-mono text-xs font-bold ov-text-accent">{t.code}</TableCell>
                         <TableCell className="text-sm font-semibold text-stone-900 dark:text-stone-100">{t.name}</TableCell>
                         <TableCell className="hidden max-w-xs truncate text-xs text-stone-500 md:table-cell">{t.description ?? "—"}</TableCell>
                         <TableCell>
@@ -156,7 +156,7 @@ export function TravelTemplatesPage() {
                           <p className="text-[11px] text-stone-500">{t.settlementMethod}</p>
                         </TableCell>
                         <TableCell className="text-center">
-                          {t.isDefault ? <Badge className="bg-orange-100 text-[10px] font-bold text-orange-700 hover:bg-orange-100 dark:bg-orange-500/15 dark:text-orange-400">DEFAULT</Badge> : <span className="text-stone-300">—</span>}
+                          {t.isDefault ? <Badge className="bg-primary/10 text-[10px] font-bold text-primary">DEFAULT</Badge> : <span className="text-stone-300">—</span>}
                         </TableCell>
                         <TableCell className="text-right text-[11px] text-stone-500">{t.requestCount} req · {t.claimCount} klaim</TableCell>
                         <TableCell>
@@ -184,7 +184,7 @@ export function TravelTemplatesPage() {
             <Card key={kind} className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                  <CircleDollarSign className="h-4 w-4 text-orange-600" />
+                  <CircleDollarSign className="h-4 w-4 ov-text-accent" />
                   {EXPENSE_KIND_LABEL[kind] ?? kind}
                   <Badge variant="secondary" className="text-[10px] font-bold">{list.length}</Badge>
                 </CardTitle>
@@ -206,7 +206,7 @@ export function TravelTemplatesPage() {
                     <TableBody>
                       {list.map((t) => (
                         <TableRow key={t.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
-                          <TableCell className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{t.code}</TableCell>
+                          <TableCell className="font-mono text-xs font-bold ov-text-accent">{t.code}</TableCell>
                           <TableCell className="text-sm font-semibold text-stone-900 dark:text-stone-100">{t.name}</TableCell>
                           <TableCell className="hidden max-w-[200px] truncate text-xs text-stone-500 md:table-cell">{t.description ?? "—"}</TableCell>
                           <TableCell className="text-right">
@@ -251,11 +251,11 @@ export function TravelTemplatesPage() {
             <Card key={z.id} className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
               <CardContent className="flex items-start justify-between p-4">
                 <div>
-                  <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{z.code}</p>
+                  <p className="font-mono text-xs font-bold ov-text-accent">{z.code}</p>
                   <p className="mt-1 text-sm font-bold text-stone-900 dark:text-stone-100">{z.name}</p>
                   <Badge variant="secondary" className="mt-1.5 text-[9px] font-bold">Zona dasar</Badge>
                 </div>
-                <div className={cn("rounded-xl p-2.5", z.overseas ? "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400" : "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400")}>
+                <div className={cn("rounded-xl p-2.5", z.overseas ? "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400" : "ov-tile")}>
                   {z.overseas ? <Globe2 className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
                 </div>
               </CardContent>
@@ -268,7 +268,7 @@ export function TravelTemplatesPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LayoutTemplate className="h-5 w-5 text-orange-600" /> {tplForm.id ? `Ubah Template ${tplForm.code}` : "Template Baru"}
+              <LayoutTemplate className="h-5 w-5 ov-text-accent" /> {tplForm.id ? `Ubah Template ${tplForm.code}` : "Template Baru"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -303,13 +303,13 @@ export function TravelTemplatesPage() {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={tplForm.isDefault} onChange={(e) => setTplForm({ ...tplForm, isDefault: e.target.checked })} className="h-4 w-4 accent-orange-600" />
+              <input type="checkbox" checked={tplForm.isDefault} onChange={(e) => setTplForm({ ...tplForm, isDefault: e.target.checked })} className="h-4 w-4 accent-primary" />
               <span className="font-semibold">Jadikan template default (padanan Is Default)</span>
             </label>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setTplDialog(false)} className="font-bold">Batal</Button>
-            <Button onClick={saveTemplate} disabled={busy} className="bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={saveTemplate} disabled={busy} className="font-bold">
               {busy ? "Menyimpan…" : "Simpan"}
             </Button>
           </DialogFooter>
@@ -320,7 +320,7 @@ export function TravelTemplatesPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Boxes className="h-5 w-5 text-orange-600" /> {expForm.id ? `Ubah Jenis Biaya ${expForm.code}` : "Jenis Biaya Baru"}
+              <Boxes className="h-5 w-5 ov-text-accent" /> {expForm.id ? `Ubah Jenis Biaya ${expForm.code}` : "Jenis Biaya Baru"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -372,18 +372,18 @@ export function TravelTemplatesPage() {
             </div>
             <div className="flex flex-col gap-2 text-sm">
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={expForm.unlimited} onChange={(e) => setExpForm({ ...expForm, unlimited: e.target.checked })} className="h-4 w-4 accent-orange-600" />
+                <input type="checkbox" checked={expForm.unlimited} onChange={(e) => setExpForm({ ...expForm, unlimited: e.target.checked })} className="h-4 w-4 accent-primary" />
                 <span className="font-semibold">Tanpa limit nominal (Unlimited)</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={expForm.needDocs} onChange={(e) => setExpForm({ ...expForm, needDocs: e.target.checked })} className="h-4 w-4 accent-orange-600" />
+                <input type="checkbox" checked={expForm.needDocs} onChange={(e) => setExpForm({ ...expForm, needDocs: e.target.checked })} className="h-4 w-4 accent-primary" />
                 <span className="font-semibold">Perlu dokumen pendukung (kwitansi)</span>
               </label>
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setExpDialog(false)} className="font-bold">Batal</Button>
-            <Button onClick={saveExpense} disabled={busy} className="bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={saveExpense} disabled={busy} className="font-bold">
               {busy ? "Menyimpan…" : "Simpan"}
             </Button>
           </DialogFooter>

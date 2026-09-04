@@ -70,7 +70,7 @@ function OrgTree() {
           className={cn(
             "group flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-all",
             isSel
-              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+              ? "ov-fill shadow-md"
               : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
           )}
           style={{ paddingLeft: `${depth * 16 + 10}px` }}
@@ -79,7 +79,7 @@ function OrgTree() {
           {hasChildren ? (
             isOpen && depth < 3 ? <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" />
           ) : (
-            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isSel ? "bg-emerald-200" : "bg-stone-300 dark:bg-stone-600")} />
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isSel ? "bg-white/60" : "bg-stone-300 dark:bg-stone-600")} />
           )}
           {depth === 0 ? <Landmark className="h-4 w-4 shrink-0" /> : depth === 1 ? <Building className="h-4 w-4 shrink-0" /> : <Building2 className="h-4 w-4 shrink-0" />}
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{node.name}</span>
@@ -116,7 +116,7 @@ function OrgTree() {
         title="Unit Organisasi"
         description={`${data?.units.length ?? 0} unit organisasi dalam 4 level hierarki`}
         actions={
-          <Button onClick={() => setDialogOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setDialogOpen(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Unit Baru
           </Button>
         }
@@ -126,7 +126,7 @@ function OrgTree() {
         <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Network className="h-4 w-4 text-emerald-600" /> Pohon Organisasi
+              <Network className="h-4 w-4 ov-text-accent" /> Pohon Organisasi
             </CardTitle>
           </CardHeader>
           <CardContent className="max-h-[70vh] overflow-y-auto pt-0">
@@ -161,7 +161,7 @@ function OrgTree() {
                       <span>Okupasi vs Budget</span>
                       <span>{selected.employeeCount}/{selected.headcountBudget} ({Math.round((selected.employeeCount / selected.headcountBudget) * 100)}%)</span>
                     </div>
-                    <Progress value={Math.min((selected.employeeCount / selected.headcountBudget) * 100, 100)} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
+                    <Progress value={Math.min((selected.employeeCount / selected.headcountBudget) * 100, 100)} className="h-2 [&>div]:ov-chart" />
                   </div>
                 )}
               </CardContent>
@@ -170,7 +170,7 @@ function OrgTree() {
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                  <Users className="h-4 w-4 text-emerald-600" /> Karyawan di Unit Ini
+                  <Users className="h-4 w-4 ov-text-accent" /> Karyawan di Unit Ini
                   <Badge variant="secondary" className="ml-auto font-mono">{employees.data?.total ?? 0}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -217,7 +217,7 @@ function OrgTree() {
         ) : (
           <Card className="flex min-h-[320px] items-center justify-center rounded-2xl border-dashed border-stone-300 bg-stone-50/50 dark:border-stone-700 dark:bg-stone-900/30">
             <div className="p-8 text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ov-fill shadow-lg">
                 <Network className="h-7 w-7" />
               </div>
               <p className="text-sm font-bold text-stone-700 dark:text-stone-300">Pilih unit organisasi</p>
@@ -301,7 +301,7 @@ function NewUnitDialog({ open, setOpen, units, onCreated }: { open: boolean; set
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><Building2 className="h-4 w-4 text-emerald-600" /> Unit Organisasi Baru</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><Building2 className="h-4 w-4 ov-text-accent" /> Unit Organisasi Baru</DialogTitle>
         </DialogHeader>
         <div className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
@@ -335,7 +335,7 @@ function NewUnitDialog({ open, setOpen, units, onCreated }: { open: boolean; set
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan Unit"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan Unit"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -395,7 +395,7 @@ function CompanyProfile() {
       />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
-          <div className="h-24 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800" />
+          <div className="h-24 ov-hero" />
           <CardContent className="relative p-6 pt-0">
             <div className="-mt-10 mb-4 flex items-end gap-4">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-amber-400 to-amber-600 text-lg font-extrabold text-white shadow-lg dark:border-stone-900">
@@ -423,9 +423,9 @@ function CompanyProfile() {
         </Card>
 
         <div className="space-y-4">
-          <StatCard label="Karyawan Aktif" value={String(c?.activeEmployees ?? 0)} icon={Users} gradient="from-emerald-500 to-teal-600" />
-          <StatCard label="Unit Organisasi" value={String(c?.orgUnitCount ?? 0)} icon={Network} gradient="from-teal-500 to-emerald-600" />
-          <StatCard label="Posisi Terdefinisi" value={String(c?.positions ?? 0)} icon={Building2} gradient="from-amber-400 to-orange-500" />
+          <StatCard label="Karyawan Aktif" value={String(c?.activeEmployees ?? 0)} icon={Users} />
+          <StatCard label="Unit Organisasi" value={String(c?.orgUnitCount ?? 0)} icon={Network} />
+          <StatCard label="Posisi Terdefinisi" value={String(c?.positions ?? 0)} icon={Building2} />
         </div>
       </div>
 
@@ -447,7 +447,7 @@ function CompanyProfile() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
-            <Button onClick={save} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+            <Button onClick={save} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -458,7 +458,7 @@ function CompanyProfile() {
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm dark:bg-stone-800">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ov-text-accent shadow-sm dark:bg-stone-800">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
@@ -469,11 +469,11 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
-function StatCard({ label, value, icon: Icon, gradient }: { label: string; value: string; icon: React.ElementType; gradient: string }) {
+function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardContent className="flex items-center gap-4 p-5">
-        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", gradient)}>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ov-tile shadow-md">
           <Icon className="h-5 w-5" />
         </div>
         <div>

@@ -105,7 +105,7 @@ function TemplatesTab() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-stone-500 dark:text-stone-400">{templates.length} template — menentukan layer approval per jenis dokumen.</p>
-        <Button onClick={() => setCreating(true)} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
+        <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
           <Plus className="h-4 w-4" /> Template Baru
         </Button>
       </div>
@@ -122,7 +122,7 @@ function TemplatesTab() {
             <article key={t.id} className="group rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/60">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-600/20">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl ov-fill ov-glow">
                     <CheckCircle2 className="h-5.5 w-5.5" />
                   </span>
                   <div>
@@ -138,7 +138,7 @@ function TemplatesTab() {
                     </Badge>
                   )}
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                    <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-emerald-600" onClick={() => setEditing(t)} aria-label={`Edit ${t.code}`}>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:ov-text-accent" onClick={() => setEditing(t)} aria-label={`Edit ${t.code}`}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(t)} disabled={t.code === "AT-PA-STD"} aria-label={`Hapus ${t.code}`}>
@@ -300,7 +300,7 @@ function TemplateDialog({ initial, onClose, onDone }: { initial: ApprovalTemplat
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onClose} disabled={busy} className="h-11 px-5">Batal</Button>
-          <Button onClick={() => void submit()} disabled={busy} className="h-11 bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+          <Button onClick={() => void submit()} disabled={busy} className="h-11 px-6 font-bold">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Simpan
           </Button>
         </DialogFooter>
@@ -346,7 +346,7 @@ function TempApproversTab() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-stone-500 dark:text-stone-400">{delegations.length} delegasi approver aktif/tercatat.</p>
-        <Button onClick={() => setCreating(true)} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
+        <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
           <Plus className="h-4 w-4" /> Delegasi Baru
         </Button>
       </div>
@@ -376,13 +376,13 @@ function TempApproversTab() {
                       </p>
                       <p className="font-mono text-[10px] text-stone-400">{d.approver.username} · {d.approver.role}</p>
                     </div>
-                    <ArrowRight className="mx-1 h-5 w-5 shrink-0 text-emerald-500" aria-label="mendelegasikan ke" />
-                    <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ring-2 ring-emerald-400/60", avatarColor(d.delegate.fullName))} title={`${d.delegate.fullName} (${d.delegate.role})`}>
+                    <ArrowRight className="mx-1 h-5 w-5 shrink-0 ov-text-accent" aria-label="mendelegasikan ke" />
+                    <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ring-2 ring-(--ov-accent)/60", avatarColor(d.delegate.fullName))} title={`${d.delegate.fullName} (${d.delegate.role})`}>
                       {initials(d.delegate.fullName)}
                     </span>
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 text-[13px] font-bold text-stone-900 dark:text-stone-50">
-                        <UserCheck className="h-4 w-4 shrink-0 text-emerald-500" />
+                        <UserCheck className="h-4 w-4 shrink-0 ov-text-accent" />
                         <span className="truncate">{d.delegate.fullName}</span>
                       </p>
                       <p className="font-mono text-[10px] text-stone-400">{d.delegate.username} · {d.delegate.role}</p>
@@ -394,7 +394,7 @@ function TempApproversTab() {
                       {st.label}
                     </span>
                     <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                      <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-emerald-600" onClick={() => setEditing(d)} aria-label="Edit delegasi">
+                      <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:ov-text-accent" onClick={() => setEditing(d)} aria-label="Edit delegasi">
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(d)} aria-label="Hapus delegasi">
@@ -504,7 +504,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl ov-fill">
               <UserRound className="h-4.5 w-4.5" />
             </span>
             {initial ? "Edit Delegasi Approver" : "Delegasi Approver Baru"}
@@ -562,7 +562,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onClose} disabled={busy} className="h-11 px-5">Batal</Button>
-          <Button onClick={() => void submit()} disabled={busy} className="h-11 bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+          <Button onClick={() => void submit()} disabled={busy} className="h-11 px-6 font-bold">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Simpan
           </Button>
         </DialogFooter>

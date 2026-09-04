@@ -20,7 +20,13 @@ export function PageHeader({
   return (
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-stone-200/70 pb-4 dark:border-stone-800/70">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-0.5 text-xs font-medium text-stone-400 dark:text-stone-500">{eyebrow}</p>}
+        {eyebrow && (
+          <p className="mb-1 flex items-center gap-2">
+            {/* Task D-3: identitas modul — bar & label aksen mengikuti modul aktif */}
+            <span className="ov-bar h-[3px] w-5 rounded-full" aria-hidden />
+            <span className="ov-text-accent text-[11px] font-bold uppercase tracking-[0.14em]">{eyebrow}</span>
+          </p>
+        )}
         <h1 className="truncate text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-50">{title}</h1>
         {description && <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">{description}</p>}
       </div>

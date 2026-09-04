@@ -81,7 +81,7 @@ export function LeaveBalancesPage() {
         title="Informasi Cuti (Saldo Karyawan)"
         description="Saldo per karyawan × jenis — formula (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai"
         actions={
-          <Button onClick={() => { setGenForm({ year: String(year), leaveTypeId: "all" }); setGenDialog(true); }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+          <Button onClick={() => { setGenForm({ year: String(year), leaveTypeId: "all" }); setGenDialog(true); }} className="gap-2 font-bold">
             <Sparkles className="h-4 w-4" /> Generate Leave Information
           </Button>
         }
@@ -166,7 +166,7 @@ export function LeaveBalancesPage() {
                       <TableCell className="text-right text-xs tabular-nums text-teal-600">{fmtDay(b.cashed)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.taken)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.applied)}</TableCell>
-                      <TableCell className={cn("text-right text-xs font-extrabold tabular-nums", b.remaining < 0 ? "text-rose-600" : "text-emerald-700 dark:text-emerald-400")}>
+                      <TableCell className={cn("text-right text-xs font-extrabold tabular-nums", b.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>
                         {fmtDay(b.remaining)} {b.unit === "MONTH" ? "bln" : "hr"}
                       </TableCell>
                       <TableCell>
@@ -187,7 +187,7 @@ export function LeaveBalancesPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 text-orange-600" /> Generate Leave Information
+              <Sparkles className="h-4 w-4 ov-text-accent" /> Generate Leave Information
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -218,7 +218,7 @@ export function LeaveBalancesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={generate} disabled={busy} className="bg-orange-600 text-xs font-bold hover:bg-orange-700">Generate</Button>
+            <Button onClick={generate} disabled={busy} className="text-xs font-bold">Generate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

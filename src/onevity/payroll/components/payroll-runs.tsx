@@ -65,7 +65,7 @@ export function PayrollRunsPage() {
         description="Satu period dapat diproses berkali-kali (gaji, THR, bonus) — tiap run menyimpan snapshot hasil per karyawan"
         actions={
           perms.can("payroll", "runs", "create") && (
-            <Button onClick={() => setOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={() => setOpen(true)} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Proses Payroll Baru
             </Button>
           )
@@ -138,7 +138,7 @@ export function PayrollRunsPage() {
                       <TableCell className="text-center text-xs font-semibold">{r.employeeCount || "—"}</TableCell>
                       <TableCell className="text-right text-xs">{r.status === "Draft" ? "—" : fmtIDR(r.totalBruto)}</TableCell>
                       <TableCell className="text-right text-xs text-amber-700 dark:text-amber-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalTax)}</TableCell>
-                      <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
+                      <TableCell className="text-right text-xs font-bold ov-text-accent">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           {(r.status === "Draft" || r.status === "Calculated") && perms.canOp("payroll", "runs", "calculate") && (
@@ -224,7 +224,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><Play className="h-4 w-4 text-emerald-600" /> Proses Payroll Baru</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><Play className="h-4 w-4 ov-text-accent" /> Proses Payroll Baru</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div>
@@ -270,7 +270,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Membuat…" : "Buat Run"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Membuat…" : "Buat Run"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

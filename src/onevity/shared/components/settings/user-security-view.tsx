@@ -120,7 +120,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <div className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5 border-b border-stone-200/80 px-6 pb-3 pt-6 dark:border-stone-800/80">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <UserCog className="h-4 w-4 text-emerald-600" /> Pengguna Aplikasi ({users.length})
+          <UserCog className="h-4 w-4 ov-text-accent" /> Pengguna Aplikasi ({users.length})
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="gap-1 font-mono text-[10px]">
@@ -130,7 +130,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
             onClick={() => setCreateOpen(true)}
             disabled={!can("create")}
             title={can("create") ? "Tambah pengguna aplikasi baru" : "Anda tidak memiliki aksi Baru pada menu ini"}
-            className="h-8 gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-bold hover:bg-emerald-700"
+            className="h-8 gap-1.5 rounded-xl px-3 text-xs font-bold"
           >
             <Plus className="h-3.5 w-3.5" /> Tambah Pengguna
           </Button>
@@ -208,7 +208,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                         <div className="flex gap-0.5">
                           <button
                             onClick={() => onConfigureAccess(u.id)}
-                            className="rounded-lg p-1.5 text-stone-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
+                            className="rounded-lg p-1.5 text-stone-400 transition hover:ov-soft"
                             aria-label={`Atur hak akses ${u.fullName}`}
                             title="Atur hak akses (menu & data)"
                           >
@@ -365,7 +365,7 @@ function UserCreateDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <UserRound className="h-4 w-4 text-emerald-600" /> Tambah Pengguna
+            <UserRound className="h-4 w-4 ov-text-accent" /> Tambah Pengguna
           </DialogTitle>
           <DialogDescription>
             Pengguna aplikasi workspace ini + akun login (email &amp; kata sandi awal divalidasi kebijakan kata sandi).
@@ -448,7 +448,7 @@ function UserCreateDialog({
 
         <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
           <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Validasi Kebijakan Kata Sandi
+            <ShieldCheck className="h-3.5 w-3.5 ov-text-accent" /> Validasi Kebijakan Kata Sandi
           </p>
           <PasswordStrengthBar password={password} />
           <PasswordRuleChecklist
@@ -477,7 +477,7 @@ function UserCreateDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={submit} disabled={busy} className="font-bold">
             {busy ? "Menyimpan…" : "Buat Pengguna"}
           </Button>
         </DialogFooter>
@@ -587,7 +587,7 @@ function UserEditDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -657,7 +657,7 @@ function ResetPasswordDialog({
 
           <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
             <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
-              <History className="h-3.5 w-3.5 text-emerald-600" />
+              <History className="h-3.5 w-3.5 ov-text-accent" />
               Tidak boleh sama dengan {policy.historyCount} kata sandi terakhir pengguna ini
             </p>
             <PasswordStrengthBar password={password} />
@@ -753,7 +753,7 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Gauge className="h-4 w-4 text-emerald-600" /> Kompleksitas &amp; Kombinasi
+              <Gauge className="h-4 w-4 ov-text-accent" /> Kompleksitas &amp; Kombinasi
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
@@ -780,7 +780,7 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <CalendarClock className="h-4 w-4 text-emerald-600" /> Umur &amp; Riwayat
+              <CalendarClock className="h-4 w-4 ov-text-accent" /> Umur &amp; Riwayat
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
@@ -800,7 +800,7 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Lock className="h-4 w-4 text-emerald-600" /> Percobaan Login Gagal
+              <Lock className="h-4 w-4 ov-text-accent" /> Percobaan Login Gagal
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -820,7 +820,7 @@ export function PasswordPolicyPanel() {
             onClick={save}
             disabled={!dirty || saving || !crossValid || !can("update")}
             title={!can("update") ? "Anda tidak memiliki aksi Ubah pada menu ini" : undefined}
-            className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700"
+            className="gap-2 font-bold"
           >
             <Save className="h-4 w-4" /> {saving ? "Menyimpan…" : dirty ? "Simpan Kebijakan" : "Tersimpan"}
           </Button>
@@ -841,7 +841,7 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <FlaskConical className="h-4 w-4 text-emerald-600" /> Uji Coba Sandi
+              <FlaskConical className="h-4 w-4 ov-text-accent" /> Uji Coba Sandi
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
@@ -873,7 +873,7 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Eye className="h-4 w-4 text-emerald-600" /> Penerapan
+              <Eye className="h-4 w-4 ov-text-accent" /> Penerapan
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -924,7 +924,7 @@ function PolicyNumber({
 
 function PolicySwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-stone-200 px-3 py-2.5 transition hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-600/40">
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-stone-200 px-3 py-2.5 transition hover:ov-border-accent dark:border-stone-800">
       <span className="text-xs font-semibold leading-tight">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </label>

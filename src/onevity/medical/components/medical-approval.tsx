@@ -165,7 +165,7 @@ export function MedicalApprovalPage() {
       <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
-            <Inbox className="h-4 w-4 text-rose-600" /> Antrean Persetujuan
+            <Inbox className="h-4 w-4 ov-text-accent" /> Antrean Persetujuan
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2.5">
@@ -320,7 +320,7 @@ export function MedicalApprovalPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-rose-600" /> Tarik Sisa Saldo → Payroll (UMC)
+              <Wallet className="h-5 w-5 ov-text-accent" /> Tarik Sisa Saldo → Payroll (UMC)
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -347,7 +347,7 @@ export function MedicalApprovalPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferOpen(false)}>Batal</Button>
-            <Button onClick={transfer} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={transfer} disabled={busy}>
               {busy ? "Mentransfer…" : "Transfer ke Payroll"}
             </Button>
           </DialogFooter>

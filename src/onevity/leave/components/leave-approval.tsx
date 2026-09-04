@@ -88,16 +88,16 @@ export function LeaveApprovalPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Menunggu Keputusan", value: stats?.submitted ?? 0, sub: "permintaan cuti", icon: Inbox, tone: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-500/15" },
-          { label: "Total Hari Diminta", value: stats?.pendingDays ?? 0, sub: "akumulasi hari kerja", icon: CalendarClock, tone: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-500/15" },
-          { label: "Efek Approve", value: "OnLeave", sub: "status rekap absensi", icon: ShieldCheck, tone: "text-teal-600", bg: "bg-teal-100 dark:bg-teal-500/15" },
-          { label: "Dokumen Wajib", value: String(requests.filter((r) => r.leaveTypeCode.startsWith("CT-MATI") || r.leaveTypeCode === "CT-NIKAH" || r.leaveTypeCode.startsWith("CT-KHITAN")).length), sub: "perlu verifikasi dokumen", icon: CheckCircle2, tone: "text-rose-600", bg: "bg-rose-100 dark:bg-rose-500/15" },
+          { label: "Menunggu Keputusan", value: stats?.submitted ?? 0, sub: "permintaan cuti", icon: Inbox, hero: true },
+          { label: "Total Hari Diminta", value: stats?.pendingDays ?? 0, sub: "akumulasi hari kerja", icon: CalendarClock },
+          { label: "Efek Approve", value: "OnLeave", sub: "status rekap absensi", icon: ShieldCheck },
+          { label: "Dokumen Wajib", value: String(requests.filter((r) => r.leaveTypeCode.startsWith("CT-MATI") || r.leaveTypeCode === "CT-NIKAH" || r.leaveTypeCode.startsWith("CT-KHITAN")).length), sub: "perlu verifikasi dokumen", icon: CheckCircle2 },
         ].map((k) => {
           const Icon = k.icon;
           return (
             <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
               <div className="flex items-center gap-2">
-                <div className={`rounded-lg p-1.5 ${k.bg}`}><Icon className={cn("h-3.5 w-3.5", k.tone)} /></div>
+                <div className={cn("rounded-lg p-1.5", k.hero ? "ov-fill" : "ov-tile")}><Icon className="h-3.5 w-3.5" /></div>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
               </div>
               <p className="mt-1.5 text-lg font-extrabold text-stone-800 dark:text-stone-100">{k.value}</p>
@@ -117,7 +117,7 @@ export function LeaveApprovalPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Cari karyawan / no. dokumen…"
-                className="h-8 w-56 rounded-md border border-stone-200 bg-white pl-8 pr-3 text-xs outline-none focus:border-orange-400 dark:border-stone-700 dark:bg-stone-900"
+                className="h-8 w-56 rounded-md border border-stone-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-stone-700 dark:bg-stone-900"
               />
             </div>
           </div>

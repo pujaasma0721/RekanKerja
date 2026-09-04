@@ -49,13 +49,13 @@ function ActivePill({ active }: { active: boolean }) {
   );
 }
 
-function MiniStat({ label, value, hint, icon: Icon, gradient }: {
-  label: string; value: string; hint?: string; icon: React.ElementType; gradient: string;
+function MiniStat({ label, value, hint, icon: Icon }: {
+  label: string; value: string; hint?: string; icon: React.ElementType;
 }) {
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardContent className="flex items-center gap-4 p-5">
-        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", gradient)}>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ov-tile shadow-md">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -111,17 +111,17 @@ export function OfficeLocationView() {
 
       {/* stat ringkas */}
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MiniStat label="Kantor Perusahaan" value={String(offices.length)} hint={`${activeOffices} aktif`} icon={Building2} gradient="from-emerald-500 to-teal-600" />
-        <MiniStat label="Lokasi Kerja" value={String(locations.length)} hint={`${activeLocations} aktif`} icon={MapPin} gradient="from-amber-400 to-orange-500" />
-        <MiniStat label="Karyawan Terpenempatan" value={String(placedEmployees)} hint="karyawan aktif ber-kantor / ber-lokasi" icon={Users} gradient="from-teal-500 to-emerald-600" />
+        <MiniStat label="Kantor Perusahaan" value={String(offices.length)} hint={`${activeOffices} aktif`} icon={Building2} />
+        <MiniStat label="Lokasi Kerja" value={String(locations.length)} hint={`${activeLocations} aktif`} icon={MapPin} />
+        <MiniStat label="Karyawan Terpenempatan" value={String(placedEmployees)} hint="karyawan aktif ber-kantor / ber-lokasi" icon={Users} />
       </div>
 
       <Tabs defaultValue="offices">
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Building2 className="h-3.5 w-3.5" /> Kantor Perusahaan
           </TabsTrigger>
-          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <MapPin className="h-3.5 w-3.5" /> Lokasi Kerja
           </TabsTrigger>
         </TabsList>
@@ -182,7 +182,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
               <p className="text-[13px] font-bold">Master Kantor Perusahaan</p>
               <p className="text-[11px] text-stone-400">{offices.length} kantor · {totalEmployees} karyawan terpenempat</p>
             </div>
-            <Button size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-3.5 w-3.5" /> Tambah Kantor
             </Button>
           </div>
@@ -212,7 +212,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
                     <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ov-tile shadow-sm">
                             <Building2 className="h-4 w-4" />
                           </span>
                           <div className="min-w-0">
@@ -227,7 +227,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
-                          <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {o.employeeCount}
+                          <Users className="h-3.5 w-3.5 ov-text-accent" /> {o.employeeCount}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -317,7 +317,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
               <p className="text-[13px] font-bold">Master Lokasi Kerja</p>
               <p className="text-[11px] text-stone-400">{locations.length} lokasi · {totalEmployees} karyawan terpenempat</p>
             </div>
-            <Button size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-3.5 w-3.5" /> Tambah Lokasi
             </Button>
           </div>
@@ -345,7 +345,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                     <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-sm">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ov-tile shadow-sm">
                             <MapPin className="h-4 w-4" />
                           </span>
                           <div className="min-w-0">
@@ -370,7 +370,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                       <TableCell className="text-xs text-stone-600 dark:text-stone-300">{l.city || "—"}</TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
-                          <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {l.employeeCount}
+                          <Users className="h-3.5 w-3.5 ov-text-accent" /> {l.employeeCount}
                         </span>
                       </TableCell>
                       <TableCell>

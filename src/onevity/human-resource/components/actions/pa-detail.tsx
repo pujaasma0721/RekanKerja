@@ -98,7 +98,7 @@ export function PADetail({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="font-mono text-xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{pa.docNo}</h2>
               <StatusPill status={pa.status} className="px-3 py-1 text-xs" />
-              <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <Badge variant="outline" className="rounded-full ov-border-accent ov-soft px-3 py-1 text-[11px] font-bold">
                 {paTypeLabel(pa.type)}
               </Badge>
             </div>
@@ -126,7 +126,7 @@ export function PADetail({ id }: { id: string }) {
             </span>
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-base font-bold text-stone-900 hover:text-emerald-700 dark:text-stone-50 dark:hover:text-emerald-400">{emp.fullName}</span>
+                <span className="truncate text-base font-bold text-stone-900 hover:ov-text-accent dark:text-stone-50">{emp.fullName}</span>
                 <span className="font-mono text-[11px] text-stone-400">{emp.employeeNo}</span>
                 <StatusPill status={emp.status} />
               </span>
@@ -375,7 +375,7 @@ function WorkflowBar({
       <div className="flex flex-wrap items-center gap-2">
         {pa.status === "Prepared" && (
           <>
-            <Button onClick={() => void send("submit")} disabled={loading} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
+            <Button onClick={() => void send("submit")} disabled={loading} className="h-11 gap-2 px-5 font-bold">
               {busyLocal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit untuk Approval
             </Button>
             <Button variant="outline" onClick={() => onConfirm("cancel")} disabled={loading} className="h-11 gap-2 px-5">

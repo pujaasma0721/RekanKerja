@@ -74,7 +74,7 @@ export function TravelBudgetPage() {
         title="Budget Perjalanan Dinas"
         description="Budget tahunan + rincian per cost center — pemakaian dihitung dari klaim Transferred/Paid. Over-budget memunculkan warning tanpa memblokir klaim (padanan Travel Budget)"
         actions={
-          <Button onClick={() => openDialog()} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+          <Button onClick={() => openDialog()} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Tahun Baru
           </Button>
         }
@@ -99,7 +99,7 @@ export function TravelBudgetPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-base font-bold">
-                      <Wallet className="h-4 w-4 text-orange-600" /> Budget {b.year}
+                      <Wallet className="h-4 w-4 ov-text-accent" /> Budget {b.year}
                     </span>
                     <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => openDialog(b)}>
                       <Pencil className="h-3 w-3" /> Ubah
@@ -123,7 +123,7 @@ export function TravelBudgetPage() {
                   </div>
 
                   <div>
-                    <Progress value={pct} className="h-2 [&>div]:bg-orange-600" />
+                    <Progress value={pct} className="h-2 [&>div]:ov-bar" />
                     <div className="mt-1 flex items-center justify-between text-[11px] text-stone-500">
                       <span>{b.claimCount} klaim dalam periode</span>
                       <span className="font-bold">{Math.round(pct)}%</span>
@@ -160,7 +160,7 @@ export function TravelBudgetPage() {
                                 <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDR(i.amount)}</span>
                               </div>
                               <div className="mt-1 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700">
-                                <div className="h-full bg-orange-400" style={{ width: `${Math.min(100, iPct)}%` }} />
+                                <div className="h-full ov-bar" style={{ width: `${Math.min(100, iPct)}%` }} />
                               </div>
                             </div>
                           );
@@ -181,7 +181,7 @@ export function TravelBudgetPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-orange-600" /> {editId ? `Ubah Budget ${form.year}` : "Budget Tahun Baru"}
+              <Wallet className="h-5 w-5 ov-text-accent" /> {editId ? `Ubah Budget ${form.year}` : "Budget Tahun Baru"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -228,7 +228,7 @@ export function TravelBudgetPage() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
-            <Button onClick={submit} disabled={busy} className="bg-orange-600 font-bold hover:bg-orange-700">
+            <Button onClick={submit} disabled={busy} className="font-bold">
               {busy ? "Menyimpan…" : editId ? "Simpan Perubahan" : "Buat Budget"}
             </Button>
           </DialogFooter>

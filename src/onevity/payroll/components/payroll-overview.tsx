@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RUN_STATUS_LABEL, PeriodRow, RunRow } from "@/onevity/payroll/components/payroll-types";
 import { CalendarRange, PlayCircle, Wallet, Users, BanknoteArrowDown, Receipt, ChevronRight, Coins } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OverviewData {
   periods: PeriodRow[];
@@ -31,22 +32,22 @@ export function PayrollOverview() {
   const kpi = [
     {
       label: "Period Aktif", value: activePeriod?.name ?? "—", sub: activePeriod ? `${fmtDate(activePeriod.startDate)} – ${fmtDate(activePeriod.endDate)}` : "Buat period payroll pertama",
-      icon: CalendarRange, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
+      icon: CalendarRange, hero: true,
       onClick: () => navigate("payroll", "periods"),
     },
     {
       label: "Payroll Terakhir Dibayar", value: lastPaid ? fmtIDRShort(lastPaid.totalNet) : "—", sub: lastPaid ? `${lastPaid.runNo} · ${lastPaid.employeeCount} karyawan` : "Belum ada run selesai",
-      icon: Wallet, tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+      icon: Wallet,
       onClick: () => navigate("payroll", "runs"),
     },
     {
       label: "Run Berjalan", value: String(drafts.length), sub: drafts.length ? `${drafts.filter((r) => r.status === "Draft").length} draft · ${drafts.filter((r) => r.status === "Calculated").length} terhitung` : "Semua run selesai",
-      icon: PlayCircle, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+      icon: PlayCircle,
       onClick: () => navigate("payroll", "runs"),
     },
     {
       label: "Karyawan Payroll", value: String(profileCount), sub: "Profil pajak & template upah aktif",
-      icon: Users, tone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
+      icon: Users,
       onClick: () => navigate("payroll", "profiles"),
     },
   ];
@@ -58,7 +59,7 @@ export function PayrollOverview() {
         title="Ringkasan Payroll"
         description="Period, proses, hasil, dan parameter pajak — dari master komponen sampai take home pay"
         actions={
-          <Button onClick={() => navigate("payroll", "runs")} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => navigate("payroll", "runs")} className="gap-2 font-bold">
             <PlayCircle className="h-4 w-4" /> Proses Payroll
           </Button>
         }
@@ -73,8 +74,8 @@ export function PayrollOverview() {
             {kpi.map((k) => {
               const Icon = k.icon;
               return (
-                <button key={k.label} onClick={k.onClick} className="group flex items-start gap-3 rounded-2xl border border-stone-200/80 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-600/40">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${k.tone}`}><Icon className="h-5 w-5" /></div>
+                <button key={k.label} onClick={k.onClick} className="group flex items-start gap-3 rounded-2xl border border-stone-200/80 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:ov-border-accent hover:shadow-md dark:border-stone-800 dark:bg-stone-900">
+                  <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", k.hero ? "ov-fill" : "ov-tile")}><Icon className="h-5 w-5" /></div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
                     <p className="truncate text-lg font-extrabold text-stone-900 dark:text-stone-50">{k.value}</p>
@@ -113,7 +114,7 @@ export function PayrollOverview() {
             <CardContent className="p-0">
               <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
                 <p className="text-[13px] font-bold">Riwayat Proses Payroll</p>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400" onClick={() => navigate("payroll", "runs")}>
+                <Button variant="ghost" size="sm" className="ov-text-accent gap-1 text-xs font-bold hover:ov-text-accent" onClick={() => navigate("payroll", "runs")}>
                   Semua run <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -140,7 +141,7 @@ export function PayrollOverview() {
                           <TableCell className="text-xs text-stone-500">{r.processType.name}</TableCell>
                           <TableCell><StatusPill status={r.status} /></TableCell>
                           <TableCell className="text-right text-xs font-semibold">{r.employeeCount}</TableCell>
-                          <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
+                          <TableCell className="text-right text-xs font-bold ov-text-accent">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

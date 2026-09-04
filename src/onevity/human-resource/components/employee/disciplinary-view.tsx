@@ -43,7 +43,7 @@ export function DisciplinaryView() {
         title="Catatan Disiplin"
         description="Catatan pelanggaran seluruh karyawan — peringatan verbal, tertulis, hingga peringatan akhir."
         actions={
-          <Button onClick={() => setDialogOpen(true)} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setDialogOpen(true)} className="h-11 gap-2 px-5 font-bold">
             <Plus className="h-4 w-4" /> Catat Pelanggaran
           </Button>
         }
@@ -57,11 +57,11 @@ export function DisciplinaryView() {
           className={cn(
             "flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-all hover:shadow-md",
             level === "all"
-              ? "border-emerald-400 bg-emerald-50/70 dark:border-emerald-500/50 dark:bg-emerald-500/10"
+              ? "ov-border-accent ov-soft"
               : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
           )}
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile">
             <Scale className="h-5 w-5" />
           </span>
           <span>

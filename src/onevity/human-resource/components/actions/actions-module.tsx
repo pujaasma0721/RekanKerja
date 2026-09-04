@@ -115,12 +115,12 @@ function ApprovalInbox() {
           })}
         </div>
       ) : (
-        <Card className="rounded-2xl border-emerald-200 bg-emerald-50/40 shadow-sm dark:border-emerald-500/25 dark:bg-emerald-500/5">
+        <Card className="rounded-2xl ov-border-accent ov-soft shadow-sm">
           <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full ov-tile">
+              <CheckCircle2 className="h-7 w-7 ov-text-accent" />
             </div>
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Semua approval selesai! 🎉</p>
+            <p className="text-sm font-bold ov-text-accent">Semua approval selesai! 🎉</p>
             <p className="text-xs text-stone-500">Tidak ada pengajuan yang menunggu keputusan Anda saat ini.</p>
           </CardContent>
         </Card>
@@ -212,7 +212,7 @@ function AllDocuments() {
         description="Riwayat lengkap pengajuan karyawan (Personnel Action) — 12 jenis aksi"
         actions={
           perms.can("hr", "all", "create") && (
-            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> Pengajuan Baru
             </Button>
           )
@@ -223,7 +223,7 @@ function AllDocuments() {
         {statCards.map(([st, label, val]) => (
           <button key={st} onClick={() => { setStatus(status === st ? "all" : st); }} className={cn(
             "rounded-2xl border p-3.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
-            status === st ? "border-emerald-400 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
+            status === st ? "ov-border-accent ov-soft" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
           )}>
             <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
             <p className="mt-0.5 text-xl font-extrabold text-stone-900 dark:text-stone-50">{val}</p>
@@ -371,7 +371,7 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-xl">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Workflow className="h-4 w-4 text-emerald-600" /> Dokumen Personnel Action Baru</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Workflow className="h-4 w-4 ov-text-accent" /> Dokumen Personnel Action Baru</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label className="text-xs">Karyawan *</Label>
@@ -481,7 +481,7 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Membuat…" : "Buat Dokumen (Draft)"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Membuat…" : "Buat Dokumen (Draft)"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -545,7 +545,7 @@ function ActionDetail() {
 
   return (
     <div>
-      <button onClick={() => { setParams({}); navigate("actions", "all"); }} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 hover:underline dark:text-emerald-400">
+      <button onClick={() => { setParams({}); navigate("actions", "all"); }} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold ov-text-accent hover:underline">
         <ArrowLeft className="h-4 w-4" /> Kembali ke Daftar
       </button>
 
@@ -588,7 +588,7 @@ function ActionDetail() {
           {detailRows.length > 0 && (
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold"><FileText className="h-4 w-4 text-emerald-600" /> Detail Perubahan</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-sm font-bold"><FileText className="h-4 w-4 ov-text-accent" /> Detail Perubahan</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -606,7 +606,7 @@ function ActionDetail() {
           {/* approval timeline */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><History className="h-4 w-4 text-emerald-600" /> Alur Approval</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><History className="h-4 w-4 ov-text-accent" /> Alur Approval</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <ol className="relative ml-2 space-y-0 border-l-2 border-stone-100 pl-6 dark:border-stone-800">
@@ -644,7 +644,7 @@ function ActionDetail() {
           {/* activity trail */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><PenLine className="h-4 w-4 text-emerald-600" /> Jejak Aktivitas</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><PenLine className="h-4 w-4 ov-text-accent" /> Jejak Aktivitas</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <ol className="space-y-3">
@@ -670,7 +670,7 @@ function ActionDetail() {
         <div className="space-y-4">
           <Card className="sticky top-20 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Workflow className="h-4 w-4 text-emerald-600" /> Aksi Workflow</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Workflow className="h-4 w-4 ov-text-accent" /> Aksi Workflow</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5 pt-0">
               {/* progress */}
@@ -679,7 +679,7 @@ function ActionDetail() {
                   <span className="text-stone-400">Progress Approval</span>
                   <span className="text-stone-600 dark:text-stone-400">{a.currentLayer}/{a.layers.length} layer</span>
                 </div>
-                <Progress value={(a.currentLayer / Math.max(a.layers.length, 1)) * 100} className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
+                <Progress value={(a.currentLayer / Math.max(a.layers.length, 1)) * 100} className="h-2 [&>div]:ov-chart" />
               </div>
 
               {a.status === "Prepared" && (

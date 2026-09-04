@@ -69,16 +69,16 @@ export function PayrollParametersPage() {
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
               <Landmark className="h-3.5 w-3.5" /> Regulasi & BPJS
             </TabsTrigger>
-            <TabsTrigger value="brackets" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="brackets" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
               <Scale className="h-3.5 w-3.5" /> Bracket Progresif
             </TabsTrigger>
-            <TabsTrigger value="ter" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="ter" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
               <Percent className="h-3.5 w-3.5" /> TER (PP 58/2023)
             </TabsTrigger>
-            <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
               PTKP
             </TabsTrigger>
           </TabsList>
@@ -88,8 +88,8 @@ export function PayrollParametersPage() {
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
-                    <span className="flex items-center gap-2"><Landmark className="h-4 w-4 text-emerald-600" /> {reg.name} <Badge variant="outline" className="font-mono text-[10px]">{reg.code}</Badge></span>
-                    <Button onClick={save} disabled={busy} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+                    <span className="flex items-center gap-2"><Landmark className="h-4 w-4 ov-text-accent" /> {reg.name} <Badge variant="outline" className="font-mono text-[10px]">{reg.code}</Badge></span>
+                    <Button onClick={save} disabled={busy} className="gap-2 font-bold">
                       <Save className="h-4 w-4" /> {busy ? "Menyimpan…" : "Simpan Parameter"}
                     </Button>
                   </CardTitle>
@@ -151,7 +151,7 @@ export function PayrollParametersPage() {
                       <TableRow key={b.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                         <TableCell className="text-xs font-semibold">{fmtIDR(b.lowerLimit)}</TableCell>
                         <TableCell className="text-xs">{b.upperLimit ? fmtIDR(b.upperLimit) : <Badge variant="outline" className="text-[10px]">∞ tanpa batas</Badge>}</TableCell>
-                        <TableCell className="text-right text-xs font-extrabold text-emerald-700 dark:text-emerald-400">{(b.rateNpwp * 100).toFixed(0)}%</TableCell>
+                        <TableCell className="text-right text-xs font-extrabold ov-text-accent">{(b.rateNpwp * 100).toFixed(0)}%</TableCell>
                         <TableCell className="text-right text-xs font-bold text-rose-600 dark:text-rose-400">{(b.rateNonNpwp * 100).toFixed(0)}%</TableCell>
                       </TableRow>
                     ))}
@@ -164,7 +164,7 @@ export function PayrollParametersPage() {
           <TabsContent value="ter">
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 text-emerald-600" /> Tarif Efektif Rata-rata (TER) — PP 58/2023</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 ov-text-accent" /> Tarif Efektif Rata-rata (TER) — PP 58/2023</CardTitle>
                 <p className="text-[11px] text-stone-400">
                   Tarif bulanan atas bruto. Kategori A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3.
                   Aktif jika switch TER dihidupkan ({data?.regulation?.useTer ? <span className="font-bold text-emerald-600">aktif</span> : <span className="font-bold text-stone-500">non-aktif — progresif</span>}).
@@ -214,7 +214,7 @@ export function PayrollParametersPage() {
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
                   {Object.entries(data?.ptkp ?? {}).map(([status, value]) => (
                     <div key={status} className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3 text-center dark:border-stone-800 dark:bg-stone-900/40">
-                      <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">{status.replace(/(\d+)$/, "/$1").replace(/^KI/, "K/I/")}</p>
+                      <p className="text-xs font-extrabold ov-text-accent">{status.replace(/(\d+)$/, "/$1").replace(/^KI/, "K/I/")}</p>
                       <p className="mt-0.5 text-[11px] font-bold">{fmtIDR(value)}</p>
                     </div>
                   ))}

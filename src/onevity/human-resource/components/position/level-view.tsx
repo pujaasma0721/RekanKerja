@@ -159,7 +159,7 @@ export function PositionLevelView() {
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
             </Button>
-            <Button size="sm" className="h-10 gap-1.5 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Button size="sm" className="h-10 gap-1.5 px-4 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Level Baru
             </Button>
           </>
@@ -198,7 +198,7 @@ export function PositionLevelView() {
                     <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 font-mono text-[11px] font-extrabold text-white shadow-md">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ov-tile font-mono text-[11px] font-extrabold shadow-md">
                             {l.code}
                           </span>
                           <div className="min-w-0">
@@ -219,7 +219,7 @@ export function PositionLevelView() {
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
-                          <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {l.employeeCount}
+                          <Users className="h-3.5 w-3.5 ov-text-accent" /> {l.employeeCount}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -288,7 +288,7 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl ov-tile">
             <Users className="h-5 w-5" />
           </div>
           <div>

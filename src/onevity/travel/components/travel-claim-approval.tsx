@@ -104,7 +104,7 @@ export function TravelClaimApprovalPage() {
             <Button
               onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }}
               disabled={!approvedClaims.length}
-              className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
+              className="gap-2 font-bold"
             >
               <Landmark className="h-4 w-4" /> Transfer ke Payroll {approvedClaims.length ? `(${approvedClaims.length})` : ""}
             </Button>
@@ -161,7 +161,7 @@ export function TravelClaimApprovalPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{c.docNo}</p>
+                    <p className="font-mono text-xs font-bold ov-text-accent">{c.docNo}</p>
                     <p className="mt-0.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">{c.fullName}</p>
                     <p className="text-[11px] text-stone-500">
                       {c.employeeNo}{c.requestDocNo ? ` · dari ${c.requestDocNo}` : " · mandiri"} · {fmtDateID(c.claimDate)}
@@ -183,9 +183,9 @@ export function TravelClaimApprovalPage() {
                     <p className="text-[9px] font-bold text-rose-700 dark:text-rose-400">(c) perusahaan</p>
                     <p className="text-xs font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                   </div>
-                  <div className="rounded-lg border border-orange-200 bg-orange-50 py-1.5 dark:border-orange-800 dark:bg-orange-950/40">
-                    <p className="text-[9px] font-bold text-orange-700 dark:text-orange-400">TOTAL</p>
-                    <p className="text-xs font-black text-orange-700 dark:text-orange-400">{fmtIDR(c.totalSettlement)}</p>
+                  <div className="rounded-lg border ov-border-accent ov-soft py-1.5">
+                    <p className="text-[9px] font-bold">TOTAL</p>
+                    <p className="text-xs font-black">{fmtIDR(c.totalSettlement)}</p>
                   </div>
                 </div>
 
@@ -257,7 +257,7 @@ export function TravelClaimApprovalPage() {
                 <tbody>
                   {recent.map((c) => (
                     <tr key={c.id} className="border-b border-stone-50 last:border-0 dark:border-stone-800/60">
-                      <td className="px-4 py-2 font-mono font-bold text-orange-700 dark:text-orange-400">{c.docNo}</td>
+                      <td className="px-4 py-2 font-mono font-bold ov-text-accent">{c.docNo}</td>
                       <td className="px-2 py-2 font-semibold text-stone-700 dark:text-stone-300">{c.fullName}</td>
                       <td className="px-2 py-2 text-right font-bold text-stone-700 dark:text-stone-300">{fmtIDR(c.totalSettlement)}</td>
                       <td className="px-2 py-2"><StatusPill status={TRAVEL_STATUS_LABEL[c.status] ?? c.status} /></td>
@@ -287,14 +287,14 @@ export function TravelClaimApprovalPage() {
           {decide.claim && (
             <div className="space-y-3 text-sm">
               <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800/60">
-                <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{decide.claim.docNo}</p>
+                <p className="font-mono text-xs font-bold ov-text-accent">{decide.claim.docNo}</p>
                 <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{decide.claim.fullName}</p>
                 <p className="text-xs text-stone-500">{decide.claim.expenseLines} baris biaya · {fmtIDR(decide.claim.totalExpenses)}</p>
                 <div className="mt-2 grid grid-cols-4 gap-1.5 text-center text-[10px]">
                   <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-stone-500">(a)</p><p className="font-black">{fmtIDR(decide.claim.otherCompanyExp + decide.claim.exchangeLoss)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-teal-600">(b)</p><p className="font-black text-teal-700">{fmtIDR(decide.claim.payableEmployee)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
-                  <div className="rounded border border-orange-200 bg-orange-50 py-1 dark:border-orange-800 dark:bg-orange-950/40"><p className="text-orange-600">TOTAL</p><p className="font-black text-orange-700">{fmtIDR(decide.claim.totalSettlement)}</p></div>
+                  <div className="rounded border ov-border-accent ov-soft py-1"><p>TOTAL</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>
                 </div>
               </div>
               <div className="space-y-1.5">

@@ -91,13 +91,13 @@ function EmployeeDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate("employee", "directory")} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 hover:underline dark:text-emerald-400">
+      <button onClick={() => navigate("employee", "directory")} className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold ov-text-accent hover:underline">
         <ArrowLeft className="h-4 w-4" /> Kembali ke Direktori
       </button>
 
       {/* header card */}
       <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <div className="h-20 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800" />
+        <div className="h-20 ov-hero" />
         <CardContent className="relative p-6 pt-0">
           <div className="-mt-12 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
@@ -120,7 +120,7 @@ function EmployeeDetail() {
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">{e.employmentStatus}</Badge>
-                  {e.grade && <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400">Grade {e.grade.code}</Badge>}
+                  {e.grade && <Badge>Grade {e.grade.code}</Badge>}
                   <Badge variant="secondary" className="text-[10px]">Masa kerja {tenure(e.joinDate)}</Badge>
                 </div>
               </div>
@@ -153,7 +153,7 @@ function EmployeeDetail() {
             ["experience", "Pengalaman", History],
             ["discipline", "Disiplin", Scale],
           ] as const).map(([id, label, Icon]) => (
-            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:text-emerald-400 dark:data-[state=active]:ring-stone-100/10 [&[data-state=active]_[data-count]]:bg-emerald-100/90 [&[data-state=active]_[data-count]]:text-emerald-700 dark:[&[data-state=active]_[data-count]]:bg-emerald-500/15 dark:[&[data-state=active]_[data-count]]:text-emerald-400">
+            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10 [&[data-state=active]_[data-count]]:ov-tile">
               <Icon className="h-4 w-4" aria-hidden /> {label}
               {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.assignments.length}</span>}
               {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.family.length}</span>}
@@ -203,7 +203,7 @@ function EmployeeDetail() {
                       <div className="sm:col-span-2">
                         <InfoItem icon={GraduationCap} label="Rentang Grade" value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
                         <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                          <div className="absolute inset-y-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{
+                          <div className="absolute inset-y-0 rounded-full ov-chart" style={{
                             left: `${Math.max((e.baseSalary - e.grade.minSalary) / (e.grade.maxSalary - e.grade.minSalary || 1) * 100, 2)}%`,
                             width: "14%",
                           }} />
@@ -222,7 +222,7 @@ function EmployeeDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {e.manager ? (
-                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-stone-800 dark:hover:bg-emerald-500/5">
+                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:ov-border-accent dark:border-stone-800">
                       <EmployeeAvatar name={e.manager.fullName} photoUrl={e.manager.photoUrl} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">{e.manager.fullName}</p>
@@ -300,7 +300,7 @@ function EmployeeDetail() {
         <TabsContent value="discipline">
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Scale className="h-4 w-4 text-emerald-600" /> Catatan Disiplin</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Scale className="h-4 w-4 ov-text-accent" /> Catatan Disiplin</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {e.disciplinary.length > 0 ? (
@@ -329,8 +329,8 @@ function EmployeeDetail() {
                   ))}
                 </ol>
               ) : (
-                <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center dark:border-emerald-500/25 dark:bg-emerald-500/5">
-                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Rekam jejak bersih ✨</p>
+                <div className="rounded-xl border border-dashed ov-border-accent ov-soft p-6 text-center">
+                  <p className="text-sm font-bold ov-text-accent">Rekam jejak bersih ✨</p>
                   <p className="mt-0.5 text-xs text-stone-400">Tidak ada catatan pelanggaran untuk karyawan ini.</p>
                 </div>
               )}
@@ -383,7 +383,7 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <History className="h-4 w-4 text-emerald-600" /> Riwayat Pekerjaan
+          <History className="h-4 w-4 ov-text-accent" /> Riwayat Pekerjaan
           <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{assignments.length} periode</Badge>
         </CardTitle>
       </CardHeader>
@@ -396,23 +396,23 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
               <li key={a.id} className="relative pb-5 last:pb-0">
                 {/* titik timeline */}
                 <span className={cn(
-                  "absolute -left-[27px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ring-4",
+                  "absolute -left-[27px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full",
                   active
-                    ? "border-emerald-600 bg-emerald-500 ring-emerald-500/15"
-                    : "border-stone-300 bg-white ring-white dark:border-stone-600 dark:bg-stone-900 dark:ring-stone-900",
+                    ? "ov-fill ov-glow"
+                    : "border-2 border-stone-300 bg-white ring-4 ring-white dark:border-stone-600 dark:bg-stone-900 dark:ring-stone-900",
                 )} />
                 <div className={cn(
                   "rounded-xl border p-3.5 transition",
                   active
-                    ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5"
+                    ? "ov-border-accent ov-soft"
                     : "border-stone-200/80 bg-white hover:border-stone-300 dark:border-stone-800 dark:bg-transparent dark:hover:border-stone-700",
                 )}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold", REASON_TONE[a.changeReason] ?? REASON_TONE.Initial)}>
                       {a.changeReasonLabel ?? a.changeReason}
                     </span>
-                    <span className={cn("text-[11px] font-bold", active ? "text-emerald-700 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400")}>{period(a)}</span>
-                    {active && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-extrabold tracking-wide text-white">SAAT INI</span>}
+                    <span className={cn("text-[11px] font-bold", active ? "ov-text-accent" : "text-stone-500 dark:text-stone-400")}>{period(a)}</span>
+                    {active && <span className="rounded-full ov-fill px-2 py-0.5 text-[9px] font-extrabold tracking-wide">SAAT INI</span>}
                     {a.sourceDocNo && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-stone-400" title="Dokumen sumber">
                         <FileText className="h-3 w-3" /> {a.sourceDocNo}
@@ -454,7 +454,7 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
 function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+      <Icon className="h-3.5 w-3.5 shrink-0 ov-text-accent" />
       <span className="truncate">{text}</span>
     </span>
   );
@@ -463,7 +463,7 @@ function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: stri
 function InfoItem({ icon: Icon, label, value, mono, span }: { icon: React.ElementType; label: string; value: string; mono?: boolean; span?: boolean }) {
   return (
     <div className={cn("flex items-start gap-3", span && "sm:col-span-2 lg:col-span-3")}>
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-50 text-emerald-600 dark:bg-stone-900">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-tile">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
@@ -494,11 +494,11 @@ function ListSection({ title, addLabel, items, renderAdd }: {
       </CardHeader>
       <CardContent className="space-y-2.5 pt-0">
         {items.length > 0 ? items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-stone-100 p-3.5 transition hover:border-emerald-200 dark:border-stone-800 dark:hover:border-emerald-500/30">
+          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-stone-100 p-3.5 transition hover:ov-border-accent dark:border-stone-800">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-stone-800 dark:text-stone-200">{it.title}</p>
               <p className="truncate text-[11px] text-stone-400">{it.subtitle}</p>
-              {it.right && <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{it.right}</p>}
+              {it.right && <p className="truncate text-[11px] font-semibold ov-text-accent">{it.right}</p>}
             </div>
             {perms.can("hr", "directory", "delete") && (
               <button
@@ -566,7 +566,7 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { setOpen(false); onSaved(); }}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -626,7 +626,7 @@ function AddEducationDialog({ employeeId, onSaved }: { employeeId: string; onSav
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { setOpen(false); onSaved(); }}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -668,7 +668,7 @@ function AddExperienceDialog({ employeeId, onSaved }: { employeeId: string; onSa
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { setOpen(false); onSaved(); }}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -716,7 +716,7 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan Perubahan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan Perubahan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

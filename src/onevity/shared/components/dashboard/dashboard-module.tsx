@@ -52,10 +52,10 @@ export function DashboardModule() {
   const growth = data.newHiresThisYear - data.exitsYTD;
 
   const kpis = [
-    { label: "Total Karyawan Aktif", value: data.activeEmployees.toLocaleString("id-ID"), sub: `${data.totalEmployees - data.activeEmployees} tidak aktif`, icon: Users, accent: "from-emerald-500 to-teal-600", trend: `+${data.newHiresThisYear} hiring YTD` },
-    { label: "Approval Menunggu", value: data.pendingActions.toLocaleString("id-ID"), sub: "Pengajuan karyawan", icon: Clock, accent: "from-amber-400 to-orange-500", trend: "Butuh keputusan" },
-    { label: "Unit Organisasi", value: String(data.orgUnits), sub: `${data.positions} posisi terdefinisi`, icon: Network, accent: "from-teal-400 to-emerald-600", trend: "Struktur hidup" },
-    { label: "Rata-rata Gaji Pokok", value: fmtIDRShort(data.avgSalary), sub: "Karyawan aktif", icon: Wallet, accent: "from-stone-500 to-stone-700", trend: "Grade G1–G8" },
+    { label: "Total Karyawan Aktif", value: data.activeEmployees.toLocaleString("id-ID"), sub: `${data.totalEmployees - data.activeEmployees} tidak aktif`, icon: Users, hero: true, trend: `+${data.newHiresThisYear} hiring YTD` },
+    { label: "Approval Menunggu", value: data.pendingActions.toLocaleString("id-ID"), sub: "Pengajuan karyawan", icon: Clock, trend: "Butuh keputusan" },
+    { label: "Unit Organisasi", value: String(data.orgUnits), sub: `${data.positions} posisi terdefinisi`, icon: Network, trend: "Struktur hidup" },
+    { label: "Rata-rata Gaji Pokok", value: fmtIDRShort(data.avgSalary), sub: "Karyawan aktif", icon: Wallet, trend: "Grade G1–G8" },
   ];
 
   const genderData = data.genderSplit.map((g) => ({ name: g.gender === "F" ? "Perempuan" : "Laki-laki", value: g.count }));
@@ -64,23 +64,23 @@ export function DashboardModule() {
     <div className="space-y-6">
       {/* hero */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 p-6 text-white shadow-xl shadow-emerald-900/20 sm:p-8">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-teal-300/10 blur-3xl" />
+        <div className="relative overflow-hidden rounded-3xl ov-hero p-6 text-white ov-glow sm:p-8">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
           <div className="relative flex flex-wrap items-end justify-between gap-6">
             <div>
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-200 ring-1 ring-white/15 backdrop-blur">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white ring-1 ring-white/15 backdrop-blur">
                 <Sparkles className="h-3 w-3" /> Human Resource Base
               </div>
               <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Selamat pagi, {sessionUser ? sessionUser.name.split(" ")[0] : "Anda"} 👋</h1>
-              <p className="mt-1.5 max-w-xl text-sm text-emerald-100/85">
+              <p className="mt-1.5 max-w-xl text-sm text-white/80">
                 {data.pendingActions > 0
                   ? `Ada ${data.pendingActions} pengajuan karyawan menunggu persetujuan Anda. ${growth >= 0 ? `Headcount tumbuh ${growth >= 0 ? "+" : ""}${growth} YTD.` : ""}`
                   : "Semua pengajuan sudah selesai. Workspace Anda bersih hari ini."}
               </p>
             </div>
             <div className="flex flex-wrap gap-2.5">
-              <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-emerald-800 hover:bg-emerald-50 shadow-lg">
+              <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-stone-900 hover:bg-stone-100 shadow-lg">
                 <CheckCircle2 className="h-4 w-4" /> Lihat Pengajuan
                 {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-stone-900">{data.pendingActions}</span>}
               </Button>
@@ -106,11 +106,11 @@ export function DashboardModule() {
                       <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{k.value}</p>
                       <p className="mt-1 text-[11px] text-stone-400">{k.sub}</p>
                     </div>
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${k.accent} text-white shadow-md`}>
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${k.hero ? "ov-fill" : "ov-tile"}`}>
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-stone-100 pt-3 text-[11px] font-bold text-emerald-600 dark:border-stone-800 dark:text-emerald-400">
+                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-stone-100 pt-3 text-[11px] font-bold ov-text-accent dark:border-stone-800">
                     <ArrowUpRight className="h-3.5 w-3.5" /> {k.trend}
                   </div>
                 </CardContent>
@@ -230,7 +230,7 @@ export function DashboardModule() {
                         initial={{ width: 0 }}
                         animate={{ width: `${(g.count / max) * 100}%` }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
-                        className="flex h-full items-center rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 px-2"
+                        className="flex h-full items-center rounded-md ov-chart px-2"
                       >
                         <span className="text-[10px] font-extrabold text-white">{g.count}</span>
                       </motion.div>
@@ -247,7 +247,7 @@ export function DashboardModule() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">Pengajuan Terbaru</CardTitle>
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400" onClick={() => navigate("actions", "all")}>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-bold ov-text-accent hover:ov-text-accent" onClick={() => navigate("actions", "all")}>
               Lihat semua <ArrowRight className="h-3 w-3" />
             </Button>
           </CardHeader>
@@ -271,17 +271,17 @@ export function DashboardModule() {
       {/* activity feed */}
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 text-emerald-600" /> Aktivitas Terakhir</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 ov-text-accent" /> Aktivitas Terakhir</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
             {data.activities.map((a) => (
               <li key={a.id} className="relative">
-                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-500/20 dark:ring-stone-950">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ov-tile ring-4 ring-white dark:ring-stone-950">
+                  <span className="h-1.5 w-1.5 rounded-full ov-bar" />
                 </span>
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-stone-400">· {a.action}</span> <span className="font-semibold text-emerald-700 dark:text-emerald-400">{a.entity}</span></p>
+                  <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-stone-400">· {a.action}</span> <span className="font-semibold ov-text-accent">{a.entity}</span></p>
                   <time className="text-[10px] text-stone-400">{fmtDateTime(a.createdAt)}</time>
                 </div>
                 <p className="mt-0.5 text-[11px] text-stone-500">{a.detail}</p>
@@ -296,8 +296,8 @@ export function DashboardModule() {
 
 function Badge2({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/25">
-      <span className="relative flex h-1.5 w-1.5"><span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
+    <span className="inline-flex items-center gap-1.5 rounded-full ov-soft px-2.5 py-0.5 text-[10px] font-extrabold ring-1 ring-(--ov-accent)/30">
+      <span className="relative flex h-1.5 w-1.5"><span className="absolute h-full w-full animate-ping rounded-full ov-bar opacity-75" /><span className="h-1.5 w-1.5 rounded-full ov-bar" /></span>
       {label}
     </span>
   );

@@ -51,7 +51,7 @@ interface EmailLogRow {
 
 export function EmailConfigView() {
   const [tab, setTab] = useState("server");
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
 
   return (
     <div>
@@ -144,7 +144,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <Server className="h-4 w-4 text-emerald-600" /> Server SMTP & Pengirim
+            <Server className="h-4 w-4 ov-text-accent" /> Server SMTP & Pengirim
           </CardTitle>
           {statusBadge}
         </CardHeader>
@@ -195,7 +195,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
           </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button onClick={save} disabled={saving} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={save} disabled={saving} className="gap-2 font-bold">
               <Save className="h-4 w-4" /> {saving ? "Menyimpan…" : "Simpan Konfigurasi"}
             </Button>
           </div>
@@ -205,14 +205,14 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
       <div className="space-y-4">
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 text-emerald-600" /> Tes Kirim Email</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 ov-text-accent" /> Tes Kirim Email</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Email Tujuan Uji</Label>
               <Input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="nama@email.com" className="text-[13px]" />
             </div>
-            <Button onClick={test} disabled={testing} className="w-full gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+            <Button onClick={test} disabled={testing} className="w-full gap-2 font-bold">
               <Send className="h-4 w-4" /> {testing ? "Mengirim…" : "Kirim Email Uji"}
             </Button>
             {cfg?.lastTestAt && (
@@ -234,7 +234,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
 
         <Card className="rounded-2xl border-stone-200/80 bg-stone-50/60 shadow-sm dark:border-stone-800 dark:bg-stone-900/40">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Mail className="h-4 w-4 text-teal-600" /> Petunjuk Cepat</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Mail className="h-4 w-4 ov-text-accent" /> Petunjuk Cepat</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 pt-0 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
             <p><b className="text-stone-700 dark:text-stone-300">Gmail:</b> aktifkan 2FA lalu buat <i>App Password</i> (16 huruf) — isi sebagai password SMTP, host <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">smtp.gmail.com</code> port 587.</p>
@@ -302,7 +302,7 @@ function TemplatesPanel() {
           <Card key={mod} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                <FileText className="h-4 w-4 text-emerald-600" /> {MODULE_LABEL[mod] ?? mod}
+                <FileText className="h-4 w-4 ov-text-accent" /> {MODULE_LABEL[mod] ?? mod}
                 <Badge variant="secondary" className="ml-auto rounded-full font-mono text-[10px]">{items.length}</Badge>
               </CardTitle>
             </CardHeader>
@@ -310,7 +310,7 @@ function TemplatesPanel() {
               {items.map((t) => (
                 <div key={t.id} className={cn(
                   "rounded-xl border p-3 transition",
-                  t.active ? "border-stone-200 bg-white hover:border-emerald-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-500/40"
+                  t.active ? "border-stone-200 bg-white hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
                            : "border-stone-200 bg-stone-50 opacity-70 dark:border-stone-800 dark:bg-stone-900/50",
                 )}>
                   <div className="flex items-start justify-between gap-2">
@@ -423,7 +423,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
       <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
-            <FileText className="h-4 w-4 text-emerald-600" /> Edit Template — {tpl?.label}
+            <FileText className="h-4 w-4 ov-text-accent" /> Edit Template — {tpl?.label}
             {defaultTpl && (
               <Button type="button" variant="outline" size="sm" onClick={fillDefault} className="ml-auto h-7 gap-1.5 rounded-full px-3 text-[11px] font-bold">
                 <RotateCcw className="h-3.5 w-3.5" /> Muat Default
@@ -455,7 +455,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Subjek</Label>
             {preview ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[13px] font-semibold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <div className="rounded-lg border ov-border-accent ov-soft px-3 py-2 text-[13px] font-semibold">
                 {render(subject) || <span className="italic text-stone-400">(subjek kosong)</span>}
               </div>
             ) : (
@@ -465,12 +465,12 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold">Isi Email</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setPreview((p) => !p)} className="h-7 gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/50">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPreview((p) => !p)} className="h-7 gap-1.5 rounded-full px-2.5 text-[11px] font-bold ov-text-accent hover:ov-soft">
                 {preview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />} {preview ? "Mode Edit" : "Pratinjau"}
               </Button>
             </div>
             {preview ? (
-              <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 text-[13px] leading-relaxed text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+              <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border ov-border-accent ov-soft px-3 py-2.5 text-[13px] leading-relaxed">
                 {render(body) || <span className="italic text-stone-400">(isi kosong)</span>}
               </div>
             ) : (
@@ -488,7 +488,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
                     title={`${p.label} · contoh: ${p.contoh}`}
                     onClick={() => insertAtCursor(`{{${p.key}}}`)}
                     disabled={preview}
-                    className="rounded-full border border-stone-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-stone-700 transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+                    className="rounded-full border border-stone-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-stone-700 transition-colors hover:ov-soft hover:ov-border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
                   >
                     {`{{${p.key}}}`}
                   </button>
@@ -501,7 +501,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
               Nilai variabel diisi otomatis dari data pengajuan saat email dikirim. Variabel tak dikenal tampil apa adanya.
             </p>
             {usedKeys.length > 0 && (
-              <p className="mt-1.5 font-mono text-[10px] text-emerald-600">terpakai: {usedKeys.map((p) => `{{${p}}}`).join(" ") || "—"}</p>
+              <p className="mt-1.5 font-mono text-[10px] ov-text-accent">terpakai: {usedKeys.map((p) => `{{${p}}}`).join(" ") || "—"}</p>
             )}
             {unknownKeys.length > 0 && (
               <p className="mt-1 flex items-start gap-1.5 text-[10px] leading-snug text-amber-600 dark:text-amber-400">
@@ -513,7 +513,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={save} disabled={saving} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={save} disabled={saving} className="gap-2 font-bold">
             <Save className="h-4 w-4" /> {saving ? "Menyimpan…" : "Simpan Template"}
           </Button>
         </DialogFooter>
@@ -555,7 +555,7 @@ function LogsPanel() {
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <History className="h-4 w-4 text-emerald-600" /> Riwayat Pengiriman
+            <History className="h-4 w-4 ov-text-accent" /> Riwayat Pengiriman
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="rounded-full font-mono text-[10px]">total {data?.total ?? 0}</Badge>

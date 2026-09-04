@@ -410,6 +410,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [session.info]);
 
+  // Task D-3: tema halaman mengikuti modul aktif — <html data-module=…> agar
+  // token aksen (ov-* + --primary/--ring) berlaku untuk seluruh konten,
+  // termasuk dialog/dropdown/command yang di-render via portal ke body.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.module = inSettings ? "settings" : module;
+    return () => { delete root.dataset.module; };
+  }, [module, inSettings]);
+
   // ===== hak aksi MENU per pengguna (Task 31 + 32) =====
   const meMenu = useApi<{ all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean }>("/api/onevity/user-menu-access?action=me");
   const menuAll = meMenu.data ? meMenu.data.all : true;
@@ -759,7 +768,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <button
                 onClick={() => setPwOpen(true)}
-                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-emerald-300"
+                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:ov-text-accent-base"
                 aria-label="Ganti kata sandi"
                 title="Ganti kata sandi"
               >

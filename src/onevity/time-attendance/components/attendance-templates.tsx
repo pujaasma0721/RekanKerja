@@ -32,13 +32,13 @@ export function AttendanceTemplatesPage() {
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="day-types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="day-types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Palette className="h-3.5 w-3.5" /> Tipe Hari
           </TabsTrigger>
-          <TabsTrigger value="schedules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="schedules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <CalendarClock className="h-3.5 w-3.5" /> Jadwal Cycle
           </TabsTrigger>
-          <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
             <Settings2 className="h-3.5 w-3.5" /> Pengaturan
           </TabsTrigger>
         </TabsList>
@@ -125,7 +125,7 @@ function DayTypesTab() {
             <p className="text-[13px] font-bold">Master Tipe Hari</p>
             <p className="text-[11px] text-stone-400">Padanan Day Type — jam kerja, istirahat, toleransi telat/pulang cepat</p>
           </div>
-          <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={openCreate} size="sm" className="gap-1.5 font-bold">
             <Plus className="h-3.5 w-3.5" /> Tipe Hari
           </Button>
         </div>
@@ -280,7 +280,7 @@ function DayTypesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={save} className="bg-emerald-600 font-bold hover:bg-emerald-700">{edit ? "Simpan Perubahan" : "Buat Tipe Hari"}</Button>
+            <Button onClick={save} className="font-bold">{edit ? "Simpan Perubahan" : "Buat Tipe Hari"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -344,7 +344,7 @@ function SchedulesTab() {
             <p className="text-[13px] font-bold">Jadwal Cycle (Rotasi)</p>
             <p className="text-[11px] text-stone-400">Padanan Work Schedule — urutan day type per cycle (umumnya 7 hari)</p>
           </div>
-          <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={openCreate} size="sm" className="gap-1.5 font-bold">
             <Plus className="h-3.5 w-3.5" /> Jadwal
           </Button>
         </div>
@@ -356,7 +356,7 @@ function SchedulesTab() {
               <div key={s.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl ov-tile">
                       <Layers className="h-4 w-4" />
                     </div>
                     <div>
@@ -418,13 +418,13 @@ function SchedulesTab() {
                     </button>
                   </span>
                 ))}
-                <button type="button" onClick={() => setForm({ ...form, days: [...form.days, "OFFICE"] })} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-stone-300 px-2 py-1 text-[10px] font-bold text-stone-500 hover:border-emerald-400 hover:text-emerald-600 dark:border-stone-700" aria-label="Tambah urutan">
+                <button type="button" onClick={() => setForm({ ...form, days: [...form.days, "OFFICE"] })} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-stone-300 px-2 py-1 text-[10px] font-bold text-stone-500 hover:ov-border-accent hover:ov-text-accent dark:border-stone-700" aria-label="Tambah urutan">
                   <Plus className="h-3 w-3" /> hari
                 </button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {dayTypes.map((d) => (
-                  <button key={d.id} type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1).concat([d.code]) })} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold text-stone-600 transition hover:border-emerald-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300" title={`Ganti hari terakhir → ${d.code}`}>
+                  <button key={d.id} type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1).concat([d.code]) })} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold text-stone-600 transition hover:ov-border-accent dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300" title={`Ganti hari terakhir → ${d.code}`}>
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
                     {d.code}
                   </button>
@@ -440,7 +440,7 @@ function SchedulesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={save} className="bg-emerald-600 font-bold hover:bg-emerald-700">{edit ? "Simpan Perubahan" : "Buat Jadwal"}</Button>
+            <Button onClick={save} className="font-bold">{edit ? "Simpan Perubahan" : "Buat Jadwal"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -486,7 +486,7 @@ function RulesTab() {
               <p className="text-[13px] font-bold">Perhitungan & Pembulatan</p>
               <p className="text-[11px] text-stone-400">Padanan User Defined Rounding + kebijakan non-clocking</p>
             </div>
-            <Settings2 className="h-5 w-5 text-emerald-600" />
+            <Settings2 className="h-5 w-5 ov-text-accent" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -580,7 +580,7 @@ function RulesTab() {
                   <RotateCcw className="h-3.5 w-3.5" /> Reset
                 </Button>
               )}
-              <Button size="sm" disabled={!dirty} onClick={save} className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
+              <Button size="sm" disabled={!dirty} onClick={save} className="gap-1.5 font-bold">
                 Simpan Pengaturan
               </Button>
             </div>

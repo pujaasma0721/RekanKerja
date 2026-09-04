@@ -230,7 +230,7 @@ function PositionDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-lg">
-        <SheetHeader className="space-y-0 border-b border-stone-200/80 bg-gradient-to-br from-emerald-50 to-teal-50/60 px-5 py-5 dark:border-stone-800 dark:from-emerald-500/10 dark:to-teal-500/5">
+        <SheetHeader className="space-y-0 border-b border-stone-200/80 ov-soft px-5 py-5 dark:border-stone-800">
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -243,7 +243,7 @@ function PositionDetailSheet({
                 {position.job ? `${position.job.title} · ` : ""}{position.orgUnit?.name ?? "Tanpa unit"}
               </SheetDescription>
             </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ov-tile">
               <BriefcaseBusiness className="h-5 w-5" />
             </span>
           </div>
@@ -254,11 +254,11 @@ function PositionDetailSheet({
           <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
             <div className="mb-3 flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
-                <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Okupansi Posisi
+                <Users className="h-4 w-4 ov-text-accent" /> Okupansi Posisi
               </p>
-              <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{act} / {position.headcount}</p>
+              <p className="text-sm font-bold tabular-nums ov-text-accent">{act} / {position.headcount}</p>
             </div>
-            <Progress value={pct} className="h-2.5 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
+            <Progress value={pct} className="h-2.5 [&>div]:ov-chart" />
             <p className="mt-2 text-[11px] text-stone-500">{position.headcount > 0 ? `Terisi ${pct}% dari kuota headcount.` : "Headcount belum ditetapkan."}</p>
           </div>
 
@@ -287,7 +287,7 @@ function PositionDetailSheet({
                   <button
                     key={r.id}
                     onClick={() => onSelectPosition(r.id)}
-                    className="flex min-h-9 items-center gap-1.5 rounded-full border border-stone-200/80 bg-white px-3 text-[11px] font-semibold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-600/50"
+                    className="flex min-h-9 items-center gap-1.5 rounded-full border border-stone-200/80 bg-white px-3 text-[11px] font-semibold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                     title={`${r.code} — ${r.title}`}
                   >
                     <span className="font-mono text-[9px] text-stone-400">{r.code}</span> {r.title}
@@ -433,7 +433,7 @@ export function PositionListView() {
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refreshAll}>
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
             </Button>
-            <Button size="sm" className="h-10 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
+            <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Posisi Baru
             </Button>
           </>
@@ -553,7 +553,7 @@ export function PositionListView() {
                         </TableCell>
                         <TableCell className="py-3">
                           <div className="flex min-w-28 items-center gap-2">
-                            <Progress value={pct} className="h-1.5 w-14 shrink-0 [&>div]:bg-emerald-600" />
+                            <Progress value={pct} className="h-1.5 w-14 shrink-0 [&>div]:ov-bar" />
                             <span className={cn(
                               "text-xs font-semibold tabular-nums",
                               act > p.headcount ? "text-amber-600 dark:text-amber-400" : "text-stone-600 dark:text-stone-300"

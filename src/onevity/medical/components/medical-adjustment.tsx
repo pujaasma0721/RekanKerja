@@ -115,7 +115,7 @@ export function MedicalAdjustmentPage() {
         title="Penyesuaian Saldo Medis"
         description="Tambah/kurangi benefit limit karyawan atau dependent (± amount) dengan alur persetujuan — padanan Medical Adjustment + Medical Adjustment Approval"
         actions={(
-          <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
+          <Button onClick={openDialog}>
             <Plus className="h-4 w-4" /> Ajukan Penyesuaian
           </Button>
         )}
@@ -129,7 +129,7 @@ export function MedicalAdjustmentPage() {
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               stateFilter === f.key
-                ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                ? "ov-soft ov-border-accent"
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
@@ -166,7 +166,7 @@ export function MedicalAdjustmentPage() {
       <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
-            <Activity className="h-4 w-4 text-rose-600" /> Riwayat Penyesuaian
+            <Activity className="h-4 w-4 ov-text-accent" /> Riwayat Penyesuaian
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -236,7 +236,7 @@ export function MedicalAdjustmentPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-rose-600" /> Ajukan Penyesuaian Saldo
+              <Activity className="h-5 w-5 ov-text-accent" /> Ajukan Penyesuaian Saldo
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -284,7 +284,7 @@ export function MedicalAdjustmentPage() {
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan / alasan penyesuaian…" rows={2} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={submit} disabled={busy} className="bg-rose-600 hover:bg-rose-700">
+            <Button onClick={submit} disabled={busy}>
               {busy ? "Mengirim…" : "Ajukan"}
             </Button>
           </DialogFooter>

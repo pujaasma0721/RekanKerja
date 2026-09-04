@@ -9,6 +9,7 @@ import {
   ArrowRight, Landmark, Boxes, Wallet,
 } from "lucide-react";
 import { MedicalStatsUI, fmtIDRShort, fmtIDR } from "./medical-types";
+import { cn } from "@/lib/utils";
 
 export function MedicalOverview() {
   const { navigate } = useNav();
@@ -19,25 +20,25 @@ export function MedicalOverview() {
     {
       label: "Menunggu Persetujuan", value: s ? String(s.pendingClaims) : "—",
       sub: s ? `${s.totalClaims} klaim tahun ${s.year}` : undefined,
-      icon: Inbox, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+      icon: Inbox, hero: true,
       onClick: () => navigate("medical", "medical-approval"),
     },
     {
       label: "Klaim Disetujui (Settled)", value: s ? String(s.settledClaims) : "—",
       sub: s ? `${fmtIDRShort(s.settledApproved)} dibayarkan — tagihan ${fmtIDRShort(s.settledBill)}` : undefined,
-      icon: CheckCircle2, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
+      icon: CheckCircle2,
       onClick: () => navigate("medical", "medical-approval"),
     },
     {
       label: "Sisa Saldo Medis", value: s ? fmtIDRShort(s.remaining) : "—",
       sub: s ? `${s.totalBalances} saldo karyawan × ${s.types} jenis` : undefined,
-      icon: Wallet, tone: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
+      icon: Wallet,
       onClick: () => navigate("medical", "medical-info"),
     },
     {
       label: "Penyesuaian Saldo", value: s ? String(s.adjustments) : "—",
       sub: "Medical Adjustment (± employee/dependent)",
-      icon: Activity, tone: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
+      icon: Activity,
       onClick: () => navigate("medical", "medical-adjustment"),
     },
   ];
@@ -74,7 +75,7 @@ export function MedicalOverview() {
                     <p className="mt-1 truncate text-2xl font-black text-stone-900 dark:text-stone-100">{k.value}</p>
                     {k.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{k.sub}</p>}
                   </div>
-                  <div className={`rounded-xl p-2.5 ${k.tone}`}>
+                  <div className={cn("rounded-xl p-2.5", k.hero ? "ov-fill" : "ov-tile")}>
                     <k.icon className="h-5 w-5" />
                   </div>
                 </CardContent>
@@ -86,7 +87,7 @@ export function MedicalOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 text-rose-600" /> Alur Klaim Medis
+                  <TrendingUp className="h-4 w-4 ov-text-accent" /> Alur Klaim Medis
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -94,9 +95,9 @@ export function MedicalOverview() {
                   <button
                     key={st.n}
                     onClick={() => navigate("medical", st.view)}
-                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:border-rose-300 hover:bg-rose-50 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-rose-700 dark:hover:bg-rose-950/30"
+                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:ov-border-accent hover:ov-soft dark:border-stone-800 dark:bg-stone-900"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-sm font-black text-white">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-fill text-sm font-black">
                       {st.n}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -115,7 +116,7 @@ export function MedicalOverview() {
               <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <HeartPulse className="h-4 w-4 text-rose-600" /> Formula Saldo Medis
+                    <HeartPulse className="h-4 w-4 ov-text-accent" /> Formula Saldo Medis
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -125,7 +126,7 @@ export function MedicalOverview() {
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
                     <span className="text-stone-600 dark:text-stone-300">+ Penyesuaian ± + Carry-over − Used</span>
                   </div>
-                  <div className="rounded-lg border-2 border-rose-200 bg-rose-50 px-3 py-2 text-center font-black text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
+                  <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
                     Sisa = Limit + Adj. + Carry − Used
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
@@ -151,7 +152,7 @@ export function MedicalOverview() {
                             <span className="text-stone-500 dark:text-stone-400">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
                           </div>
                           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                            <div className="h-full rounded-full bg-rose-500" style={{ width: `${(k.approvedAmount / max) * 100}%` }} />
+                            <div className="h-full rounded-full ov-chart" style={{ width: `${(k.approvedAmount / max) * 100}%` }} />
                           </div>
                         </div>
                       );

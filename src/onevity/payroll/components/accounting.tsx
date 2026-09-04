@@ -43,13 +43,13 @@ export function AccountingPage() {
         <div className="space-y-4">
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-              <TabsTrigger value="accounts" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+              <TabsTrigger value="accounts" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
                 <Landmark className="h-3.5 w-3.5" /> Akun ({data?.accounts.length ?? 0})
               </TabsTrigger>
-              <TabsTrigger value="postings" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+              <TabsTrigger value="postings" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Event Posting ({data?.postings.length ?? 0})
               </TabsTrigger>
-              <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+              <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
                 <BookOpen className="h-3.5 w-3.5" /> Jurnal Payroll ({journals.length})
               </TabsTrigger>
             </TabsList>
@@ -103,7 +103,7 @@ export function AccountingPage() {
                   <Card key={p.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                     <CardContent className="p-5">
                       <div className="flex items-center justify-between">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl ov-fill shadow-md">
                           <ArrowLeftRight className="h-5 w-5" />
                         </div>
                         <StatusPill status={p.active ? "Active" : "Cancelled"} />
@@ -112,7 +112,7 @@ export function AccountingPage() {
                       <p className="font-mono text-[10px] text-stone-400">{p.code}</p>
                       <div className="mt-3 border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Trigger</p>
-                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{p.trigger}</p>
+                        <p className="text-xs font-semibold ov-text-accent">{p.trigger}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -124,7 +124,7 @@ export function AccountingPage() {
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
-                    <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-emerald-600" /> Jurnal Payroll Terposting ({journals.length})</span>
+                    <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 ov-text-accent" /> Jurnal Payroll Terposting ({journals.length})</span>
                     <Button variant="outline" size="sm" onClick={() => navigate("payroll", "journals")} className="gap-1.5 font-bold">
                       Buka Jurnal Payroll <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
@@ -152,7 +152,7 @@ export function AccountingPage() {
                         <TableBody>
                           {journals.slice(0, 5).map((j) => (
                             <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "journals")}>
-                              <TableCell className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{j.journalNo}</TableCell>
+                              <TableCell className="font-mono text-[11px] font-bold ov-text-accent">{j.journalNo}</TableCell>
                               <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
                               <TableCell className="text-center text-xs">{j._count.lines}</TableCell>
                               <TableCell className="text-right text-xs font-bold">{fmtIDRLite(j.totalDebit)}</TableCell>

@@ -186,7 +186,7 @@ function TreeNode({
           className={cn(
             "flex min-h-11 flex-1 items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition",
             isSelected
-              ? "bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/40"
+              ? "ov-soft shadow-sm ring-1 ring-ring/30"
               : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-900/70"
           )}
         >
@@ -203,7 +203,7 @@ function TreeNode({
               over
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                 : isSelected
-                  ? "bg-emerald-600 text-white"
+                  ? "ov-fill"
                   : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
             )}
             title={`${node._count.employees} karyawan aktif · budget ${node.headcountBudget}`}
@@ -320,7 +320,7 @@ export function UnitTreeView() {
             >
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
             </Button>
-            <Button size="sm" className="h-10 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
+            <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
               <Plus className="h-4 w-4" /> Unit Baru
             </Button>
           </>
@@ -333,7 +333,7 @@ export function UnitTreeView() {
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Network className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Struktur Unit
+                <Network className="h-4 w-4 ov-text-accent" /> Struktur Unit
               </CardTitle>
               <CardDescription className="mt-1 text-xs">{units.length} unit terdaftar</CardDescription>
             </div>
@@ -434,7 +434,7 @@ export function UnitTreeView() {
                   <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
-                        <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Headcount: Budget vs Aktual
+                        <Users className="h-4 w-4 ov-text-accent" /> Headcount: Budget vs Aktual
                       </p>
                       <p className={cn(
                         "text-sm font-bold tabular-nums",
@@ -445,7 +445,7 @@ export function UnitTreeView() {
                         {selected._count.employees} / {selected.headcountBudget || "—"} orang
                       </p>
                     </div>
-                    <Progress value={budgetPct} className="h-2.5 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
+                    <Progress value={budgetPct} className="h-2.5 [&>div]:ov-chart" />
                     <p className="mt-2 text-[11px] text-stone-500">
                       {selected.headcountBudget === 0
                         ? "Budget headcount belum ditetapkan."
@@ -461,7 +461,7 @@ export function UnitTreeView() {
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <UserRound className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Karyawan di Unit Ini
+                      <UserRound className="h-4 w-4 ov-text-accent" /> Karyawan di Unit Ini
                     </CardTitle>
                     <CardDescription className="mt-1 text-xs">{employees.length} karyawan · klik untuk membuka profil</CardDescription>
                   </div>

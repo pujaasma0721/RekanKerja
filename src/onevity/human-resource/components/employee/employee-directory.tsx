@@ -150,7 +150,7 @@ export function EmployeeDirectory() {
                 className={cn(
                   "rounded-full px-1.5 py-px text-[11px] font-bold tabular-nums",
                   t.active
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                    ? "ov-tile"
                     : "bg-stone-200/80 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400",
                 )}
               >
@@ -320,10 +320,10 @@ export function EmployeeDirectory() {
               <button
                 key={e.id}
                 onClick={() => setQuick(e)}
-                className="group flex flex-col items-center rounded-2xl border border-stone-200/70 bg-white px-5 pb-4 pt-7 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_12px_32px_-12px_rgb(0_0_0/0.18)] focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none dark:border-stone-800 dark:bg-stone-900/50 dark:hover:border-stone-600 dark:hover:shadow-[0_12px_32px_-12px_rgb(0_0_0/0.6)]"
+                className="group flex flex-col items-center rounded-2xl border border-stone-200/70 bg-white px-5 pb-4 pt-7 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_12px_32px_-12px_rgb(0_0_0/0.18)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:border-stone-800 dark:bg-stone-900/50 dark:hover:border-stone-600 dark:hover:shadow-[0_12px_32px_-12px_rgb(0_0_0/0.6)]"
               >
                 <EmployeeAvatar name={e.fullName} photoUrl={e.photoUrl} size="lg" status={e.status} showStatus
-                  ringClassName="ring-2 ring-stone-100 dark:ring-stone-800 group-hover:ring-emerald-100 dark:group-hover:ring-emerald-500/20 transition-shadow" />
+                  ringClassName="ring-2 ring-stone-100 dark:ring-stone-800 group-hover:ring-ring/20 transition-shadow" />
                 <p className="mt-3.5 max-w-full truncate text-[15px] font-semibold text-stone-800 dark:text-stone-100">{e.fullName}</p>
                 <p className="mt-0.5 max-w-full truncate text-[13px] text-stone-500 dark:text-stone-400">{e.position?.title ?? "—"}</p>
 
@@ -375,7 +375,7 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
         {emp && (
           <div className="flex h-full flex-col overflow-hidden">
             {/* cover */}
-            <div className="relative h-32 shrink-0 overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-800 dark:via-teal-800 dark:to-emerald-900">
+            <div className="relative h-32 shrink-0 overflow-hidden ov-hero">
               <div aria-hidden className="absolute -top-12 -right-10 h-40 w-40 rounded-full bg-white/10" />
               <div aria-hidden className="absolute -bottom-20 -left-8 h-36 w-36 rounded-full bg-white/[0.07]" />
               <div aria-hidden className="top-8 left-1/3 absolute h-20 w-20 rounded-full bg-white/10 blur-2xl" />

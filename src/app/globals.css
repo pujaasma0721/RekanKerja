@@ -167,12 +167,162 @@
   background: oklch(0.55 0.01 90 / 50%);
 }
 
-/* OneVity utility flourishes */
-@utility glow-emerald {
-  box-shadow: 0 0 0 1px oklch(0.55 0.13 165 / 25%), 0 8px 30px -12px oklch(0.55 0.13 165 / 45%);
+/* ============================================================
+   OneVity Module Theme — aksen halaman mengikuti modul aktif
+   Shell menandai <html data-module="…">; token di bawah membuat
+   seluruh area konten (termasuk dialog/portal) mengikuti warna
+   identitas modul: HR emerald · Payroll amber · Attendance teal ·
+   Leave cyan · Travel violet · Medical rose · Settings stone.
+   Warna SEMANTIK (status/sukses/gagal) tetap dari token dasar.
+   ============================================================ */
+
+html[data-module="hr"] {
+  --ov-accent: #10b981; --ov-accent-strong: #059669; --ov-accent-solid: #059669;
+  --ov-accent-deep: #047857; --ov-accent-ink: #064e3b;
+  --ov-accent-soft: #ecfdf5; --ov-accent-mist: #d1fae5; --ov-accent-border: #a7f3d0;
+  --ov-accent-glow: rgba(16, 185, 129, 0.28); --ov-accent-fg: #ffffff;
 }
-@utility text-gradient-emerald {
-  background: linear-gradient(135deg, oklch(0.55 0.13 165), oklch(0.7 0.12 155));
+html.dark[data-module="hr"] {
+  --ov-accent: #34d399; --ov-accent-strong: #34d399; --ov-accent-solid: #10b981;
+  --ov-accent-deep: #047857; --ov-accent-ink: #065f46;
+  --ov-accent-soft: rgba(16, 185, 129, 0.12); --ov-accent-mist: rgba(16, 185, 129, 0.18);
+  --ov-accent-border: rgba(52, 211, 153, 0.30); --ov-accent-glow: rgba(16, 185, 129, 0.22);
+}
+html[data-module="payroll"] {
+  --ov-accent: #f59e0b; --ov-accent-strong: #d97706; --ov-accent-solid: #d97706;
+  --ov-accent-deep: #b45309; --ov-accent-ink: #78350f;
+  --ov-accent-soft: #fffbeb; --ov-accent-mist: #fef3c7; --ov-accent-border: #fde68a;
+  --ov-accent-glow: rgba(245, 158, 11, 0.30); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="payroll"] {
+  --ov-accent: #fbbf24; --ov-accent-strong: #fbbf24; --ov-accent-solid: #f59e0b;
+  --ov-accent-deep: #b45309; --ov-accent-ink: #92400e;
+  --ov-accent-soft: rgba(245, 158, 11, 0.12); --ov-accent-mist: rgba(245, 158, 11, 0.18);
+  --ov-accent-border: rgba(251, 191, 36, 0.32); --ov-accent-glow: rgba(245, 158, 11, 0.24);
+}
+html[data-module="attendance"] {
+  --ov-accent: #14b8a6; --ov-accent-strong: #0d9488; --ov-accent-solid: #0d9488;
+  --ov-accent-deep: #0f766e; --ov-accent-ink: #134e4a;
+  --ov-accent-soft: #f0fdfa; --ov-accent-mist: #ccfbf1; --ov-accent-border: #99f6e4;
+  --ov-accent-glow: rgba(20, 184, 166, 0.28); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="attendance"] {
+  --ov-accent: #2dd4bf; --ov-accent-strong: #2dd4bf; --ov-accent-solid: #14b8a6;
+  --ov-accent-deep: #0f766e; --ov-accent-ink: #115e59;
+  --ov-accent-soft: rgba(20, 184, 166, 0.12); --ov-accent-mist: rgba(20, 184, 166, 0.18);
+  --ov-accent-border: rgba(45, 212, 191, 0.30); --ov-accent-glow: rgba(20, 184, 166, 0.22);
+}
+html[data-module="leave"] {
+  --ov-accent: #06b6d4; --ov-accent-strong: #0891b2; --ov-accent-solid: #0891b2;
+  --ov-accent-deep: #0e7490; --ov-accent-ink: #164e63;
+  --ov-accent-soft: #ecfeff; --ov-accent-mist: #cff4fe; --ov-accent-border: #a5f3fc;
+  --ov-accent-glow: rgba(6, 182, 212, 0.28); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="leave"] {
+  --ov-accent: #22d3ee; --ov-accent-strong: #22d3ee; --ov-accent-solid: #06b6d4;
+  --ov-accent-deep: #0e7490; --ov-accent-ink: #155e75;
+  --ov-accent-soft: rgba(6, 182, 212, 0.12); --ov-accent-mist: rgba(6, 182, 212, 0.18);
+  --ov-accent-border: rgba(34, 211, 238, 0.30); --ov-accent-glow: rgba(6, 182, 212, 0.22);
+}
+html[data-module="travel"] {
+  --ov-accent: #8b5cf6; --ov-accent-strong: #7c3aed; --ov-accent-solid: #7c3aed;
+  --ov-accent-deep: #6d28d9; --ov-accent-ink: #4c1d95;
+  --ov-accent-soft: #f5f3ff; --ov-accent-mist: #ede9fe; --ov-accent-border: #ddd6fe;
+  --ov-accent-glow: rgba(139, 92, 246, 0.30); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="travel"] {
+  --ov-accent: #a78bfa; --ov-accent-strong: #a78bfa; --ov-accent-solid: #8b5cf6;
+  --ov-accent-deep: #6d28d9; --ov-accent-ink: #5b21b6;
+  --ov-accent-soft: rgba(139, 92, 246, 0.14); --ov-accent-mist: rgba(139, 92, 246, 0.20);
+  --ov-accent-border: rgba(167, 139, 250, 0.32); --ov-accent-glow: rgba(139, 92, 246, 0.24);
+}
+html[data-module="medical"] {
+  --ov-accent: #f43f5e; --ov-accent-strong: #e11d48; --ov-accent-solid: #e11d48;
+  --ov-accent-deep: #be123c; --ov-accent-ink: #881337;
+  --ov-accent-soft: #fff1f2; --ov-accent-mist: #ffe4e6; --ov-accent-border: #fecdd3;
+  --ov-accent-glow: rgba(244, 63, 94, 0.28); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="medical"] {
+  --ov-accent: #fb7185; --ov-accent-strong: #fb7185; --ov-accent-solid: #f43f5e;
+  --ov-accent-deep: #be123c; --ov-accent-ink: #9f1239;
+  --ov-accent-soft: rgba(244, 63, 94, 0.12); --ov-accent-mist: rgba(244, 63, 94, 0.18);
+  --ov-accent-border: rgba(251, 113, 133, 0.30); --ov-accent-glow: rgba(244, 63, 94, 0.22);
+}
+html[data-module="settings"] {
+  --ov-accent: #a8a29e; --ov-accent-strong: #78716c; --ov-accent-solid: #78716c;
+  --ov-accent-deep: #57534e; --ov-accent-ink: #1c1917;
+  --ov-accent-soft: #fafaf9; --ov-accent-mist: #f5f5f4; --ov-accent-border: #e7e5e4;
+  --ov-accent-glow: rgba(120, 113, 108, 0.22); --ov-accent-fg: #ffffff;
+}
+html.dark[data-module="settings"] {
+  --ov-accent: #a8a29e; --ov-accent-strong: #a8a29e; --ov-accent-solid: #78716c;
+  --ov-accent-deep: #57534e; --ov-accent-ink: #292524;
+  --ov-accent-soft: rgba(168, 162, 158, 0.10); --ov-accent-mist: rgba(168, 162, 158, 0.16);
+  --ov-accent-border: rgba(168, 162, 158, 0.28); --ov-accent-glow: rgba(120, 113, 108, 0.18);
+}
+
+/* Jembatan ke token shadcn — komponen UI (Button/Badge/Tabs/Checkbox/
+   Dropdown hover/focus ring) otomatis mengikuti aksen modul di dalam
+   cakupan data-module (termasuk konten portal: dialog, dropdown, command). */
+html[data-module] {
+  --primary: var(--ov-accent-solid);
+  --primary-foreground: var(--ov-accent-fg);
+  --ring: var(--ov-accent);
+  --accent: var(--ov-accent-soft);
+  --accent-foreground: var(--ov-accent-strong);
+  --chart-1: var(--ov-accent-solid);
+}
+html[data-module] ::selection {
+  background: var(--ov-accent-mist);
+}
+
+/* Utilitas aksen modul — dipakai komponen halaman; varian hover:/dark: otomatis */
+@utility ov-text-accent {
+  color: var(--ov-accent-strong);
+}
+@utility ov-text-accent-base {
+  color: var(--ov-accent);
+}
+@utility ov-fill {
+  background-color: var(--ov-accent-solid);
+  color: var(--ov-accent-fg);
+}
+@utility ov-fill-deep {
+  background-color: var(--ov-accent-deep);
+  color: var(--ov-accent-fg);
+}
+@utility ov-fill-base {
+  background-color: var(--ov-accent);
+  color: var(--ov-accent-fg);
+}
+@utility ov-tile {
+  background-color: var(--ov-accent-mist);
+  color: var(--ov-accent-strong);
+}
+@utility ov-soft {
+  background-color: var(--ov-accent-soft);
+  color: var(--ov-accent-strong);
+}
+@utility ov-border-accent {
+  border-color: var(--ov-accent-border);
+}
+@utility ov-bar {
+  background-color: var(--ov-accent);
+}
+@utility ov-chart {
+  background-image: linear-gradient(180deg, var(--ov-accent), var(--ov-accent-deep));
+}
+@utility ov-hero {
+  background-image: linear-gradient(135deg, var(--ov-accent-deep) 0%, var(--ov-accent-ink) 72%);
+  color: var(--ov-accent-fg);
+}
+@utility ov-glow {
+  box-shadow: 0 8px 24px -12px var(--ov-accent-glow);
+}
+
+/* OneVity utility flourish — aksen mengikuti modul aktif */
+@utility text-gradient-accent {
+  background: linear-gradient(135deg, var(--ov-accent-strong), var(--ov-accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

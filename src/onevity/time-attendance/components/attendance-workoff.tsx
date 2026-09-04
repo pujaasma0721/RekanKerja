@@ -88,7 +88,7 @@ export function AttendanceWorkoffPage() {
         title="Work Off Permission (Izin Tidak Masuk)"
         description="Izin dengan kebijakan dibayar/tidak & potong saldo cuti — padanan Employee Work Off Permission"
         actions={
-          <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setDialog(true); }} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setDialog(true); }} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Ajukan Izin
           </Button>
         }
@@ -124,7 +124,7 @@ export function AttendanceWorkoffPage() {
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-emerald-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
                 )}>
                   {f.label}
                 </button>
@@ -287,7 +287,7 @@ export function AttendanceWorkoffPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={submit} disabled={busy || !form.employeeId || !form.reason.trim()} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+            <Button onClick={submit} disabled={busy || !form.employeeId || !form.reason.trim()} className="font-bold">
               {busy ? "Mengirim…" : "Ajukan Izin"}
             </Button>
           </DialogFooter>

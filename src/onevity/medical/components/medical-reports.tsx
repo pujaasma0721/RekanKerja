@@ -96,7 +96,7 @@ export function MedicalReportsPage() {
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Settled (Dibayar)</p>
-            <p className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-400">{fmtIDRShort(totals.settled)}</p>
+            <p className="mt-1 text-2xl font-black ov-text-accent">{fmtIDRShort(totals.settled)}</p>
           </CardContent>
         </Card>
       </div>
@@ -105,7 +105,7 @@ export function MedicalReportsPage() {
         <Card className="min-w-0 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
-              <BarChart3 className="h-4 w-4 text-rose-600" /> Rekap per Jenis (Settled)
+              <BarChart3 className="h-4 w-4 ov-text-accent" /> Rekap per Jenis (Settled)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -118,7 +118,7 @@ export function MedicalReportsPage() {
                   <span className="text-stone-500">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
-                  <div className="h-full rounded-full bg-rose-500" style={{ width: `${(k.approvedAmount / maxType) * 100}%` }} />
+                  <div className="h-full rounded-full ov-chart" style={{ width: `${(k.approvedAmount / maxType) * 100}%` }} />
                 </div>
               </div>
             ))}
@@ -128,7 +128,7 @@ export function MedicalReportsPage() {
         <Card className="min-w-0 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
-              <FileText className="h-4 w-4 text-rose-600" /> Klaim dalam Rentang
+              <FileText className="h-4 w-4 ov-text-accent" /> Klaim dalam Rentang
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">

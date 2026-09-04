@@ -96,7 +96,7 @@ export function AttendanceAssignmentsPage() {
         title="Assign Jadwal Karyawan"
         description="Penugasan jadwal cycle per karyawan — padanan Employee Schedule Assignment dengan anchor Senin rotasi"
         actions={
-          <Button onClick={() => setDialog(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setDialog(true)} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> Assign Jadwal
           </Button>
         }
@@ -176,7 +176,7 @@ export function AttendanceAssignmentsPage() {
                       </TableCell>
                       <TableCell>
                         <button onClick={() => toggleClocking(a)} className="inline-flex items-center gap-1.5" title={a.clockingRequired ? "Non-clocking: jam dianggap normal" : "Wajib clocking"}>
-                          <span className={cn("relative h-4 w-7 rounded-full transition", a.clockingRequired ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-700")}>
+                          <span className={cn("relative h-4 w-7 rounded-full transition", a.clockingRequired ? "ov-fill" : "bg-stone-300 dark:bg-stone-700")}>
                             <span className={cn("absolute top-0.5 h-3 w-3 rounded-full bg-white transition", a.clockingRequired ? "left-3.5" : "left-0.5")} />
                           </span>
                           <span className="text-[10px] font-bold text-stone-500">{a.clockingRequired ? "Wajib" : "Non-clock"}</span>
@@ -270,7 +270,7 @@ export function AttendanceAssignmentsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={submit} disabled={!form.employeeId || !form.scheduleId} className="bg-emerald-600 font-bold hover:bg-emerald-700">Assign Jadwal</Button>
+            <Button onClick={submit} disabled={!form.employeeId || !form.scheduleId} className="font-bold">Assign Jadwal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

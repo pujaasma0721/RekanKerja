@@ -221,8 +221,8 @@ export function OnboardingWizard() {
                     >
                       <span className={cn(
                         "flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-all",
-                        done ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25 group-hover:bg-emerald-500" :
-                        active ? "bg-white text-emerald-700 ring-2 ring-emerald-600 ring-offset-2 ring-offset-stone-50 dark:bg-stone-900 dark:ring-offset-stone-900" :
+                        done ? "ov-fill ov-glow group-hover:ov-fill-deep" :
+                        active ? "bg-white ov-text-accent ring-2 ring-ring ring-offset-2 ring-offset-stone-50 dark:bg-stone-900 dark:ring-offset-stone-900" :
                         "bg-stone-200/80 text-stone-400 dark:bg-stone-800 dark:text-stone-500",
                       )}>
                         {done ? <Check className="h-3.5 w-3.5" /> : s.id}
@@ -233,7 +233,7 @@ export function OnboardingWizard() {
                       )}>{s.label}</span>
                     </button>
                     {i < STEPS.length - 1 && (
-                      <div className={cn("mx-2 mb-4 h-0.5 flex-1 rounded-full sm:mx-3", step > s.id ? "bg-emerald-500" : "bg-stone-200 dark:bg-stone-800")} />
+                      <div className={cn("mx-2 mb-4 h-0.5 flex-1 rounded-full sm:mx-3", step > s.id ? "ov-bar" : "bg-stone-200 dark:bg-stone-800")} />
                     )}
                   </li>
                 );
@@ -242,11 +242,11 @@ export function OnboardingWizard() {
             {/* mobile: mini progress */}
             <div className="sm:hidden">
               <div className="flex items-baseline justify-between">
-                <p className="text-xs font-bold text-stone-800 dark:text-stone-200">Langkah {Math.min(step, 4)} dari 4 · <span className="font-semibold text-emerald-700 dark:text-emerald-400">{stepMeta?.label}</span></p>
+                <p className="text-xs font-bold text-stone-800 dark:text-stone-200">Langkah {Math.min(step, 4)} dari 4 · <span className="font-semibold ov-text-accent">{stepMeta?.label}</span></p>
                 <p className="text-[10px] font-semibold text-stone-400">{pct}% terisi</p>
               </div>
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
-                <div className="h-full rounded-full bg-emerald-600 transition-all duration-500" style={{ width: `${pct}%` }} />
+                <div className="h-full rounded-full ov-chart transition-all duration-500" style={{ width: `${pct}%` }} />
               </div>
             </div>
           </div>
@@ -362,7 +362,7 @@ export function OnboardingWizard() {
                         </SelectContent>
                       </Select>
                       {selectedPosition?.positionLevel && (
-                        <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Level Jabatan: {selectedPosition.positionLevel.code} — {selectedPosition.positionLevel.name}</p>
+                        <p className="text-[11px] font-bold ov-text-accent">Level Jabatan: {selectedPosition.positionLevel.code} — {selectedPosition.positionLevel.name}</p>
                       )}
                     </Field>
                     <Field label="Grade" hint={selectedGrade ? `rentang ${fmtIDR(selectedGrade.minSalary)} – ${fmtIDR(selectedGrade.maxSalary)}` : "menentukan rentang gaji"}>
@@ -438,7 +438,7 @@ export function OnboardingWizard() {
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
                     <Field label="Gaji Pokok" hint="di luar tunjangan">
                       <Input type="number" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="5500000" inputMode="numeric" className="h-9 font-mono" />
-                      {form.baseSalary && <p className="mt-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{fmtIDR(Number(form.baseSalary))} / bulan</p>}
+                      {form.baseSalary && <p className="mt-1 text-[11px] font-bold ov-text-accent">{fmtIDR(Number(form.baseSalary))} / bulan</p>}
                     </Field>
                   </div>
                   {selectedGrade && Number(form.baseSalary) > 0 && (
@@ -491,22 +491,22 @@ export function OnboardingWizard() {
 
             {step === 5 && created && (
               <motion.div key="success" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <div className="rounded-xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-6 py-8 text-center text-white sm:px-10">
+                <div className="rounded-xl ov-hero px-6 py-8 text-center sm:px-10">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.08 }} className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/15 ring-4 ring-white/20 backdrop-blur">
                     <CheckCircle2 className="h-7 w-7" />
                   </motion.div>
                   <h2 className="text-lg font-bold tracking-tight">Onboarding selesai</h2>
-                  <p className="mt-1 text-sm text-emerald-100/85">Karyawan baru telah tersimpan di master data</p>
+                  <p className="mt-1 text-sm text-white/85">Karyawan baru telah tersimpan di master data</p>
                   <div className="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-3 rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur">
                     <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-xs font-extrabold", "bg-white/20 text-white")}>{initials(created.fullName)}</span>
                     <span className="text-left">
                       <p className="text-sm font-bold leading-tight">{created.fullName}</p>
-                      <p className="font-mono text-[11px] text-emerald-100/80">{created.employeeNo}</p>
+                      <p className="font-mono text-[11px] text-white/80">{created.employeeNo}</p>
                     </span>
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-                  <Button onClick={() => navigate("employee", "detail", { id: created.id })} className="h-9 gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+                  <Button onClick={() => navigate("employee", "detail", { id: created.id })} className="h-9 gap-2 font-bold">
                     <User className="h-4 w-4" /> Lihat Profil Karyawan
                   </Button>
                   {perms.can("hr", "wizard", "create") && (
@@ -535,11 +535,11 @@ export function OnboardingWizard() {
               <div className="flex items-center gap-3">
                 <p className="hidden text-[11px] font-medium text-stone-400 md:block">Langkah {step} dari 4</p>
                 {step < 4 ? (
-                  <Button onClick={next} className="h-9 gap-1.5 bg-emerald-600 px-5 text-sm font-bold hover:bg-emerald-700">
+                  <Button onClick={next} className="h-9 gap-1.5 px-5 text-sm font-bold">
                     Lanjut <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : perms.can("hr", "wizard", "create") ? (
-                  <Button onClick={submit} disabled={busy} className="h-9 gap-2 bg-emerald-600 px-5 text-sm font-bold hover:bg-emerald-700">
+                  <Button onClick={submit} disabled={busy} className="h-9 gap-2 px-5 text-sm font-bold">
                     {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><CheckCircle2 className="h-4 w-4" /> Simpan Karyawan</>}
                   </Button>
                 ) : (
@@ -579,7 +579,7 @@ export function OnboardingWizard() {
             {draftAt && step < 5 && (
               <div className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/90 bg-stone-50/70 px-3.5 py-2.5 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
                 <span className="flex items-center gap-1.5 font-medium">
-                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                  <Sparkles className="h-3.5 w-3.5 ov-text-accent" />
                   Draft tersimpan · {draftAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                 </span>
                 <button onClick={reset} className="flex items-center gap-1 font-semibold text-stone-400 transition-colors hover:text-rose-600" title="Buang draft">
@@ -589,11 +589,11 @@ export function OnboardingWizard() {
             )}
 
             {TIPS[step] && (
-              <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
+              <div className="rounded-xl border ov-border-accent ov-soft p-3.5">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold ov-text-accent">
                   <Lightbulb className="h-3.5 w-3.5" /> Tips langkah {step}
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-emerald-900/75 dark:text-emerald-100/60">{TIPS[step].text}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">{TIPS[step].text}</p>
               </div>
             )}
           </div>
@@ -608,7 +608,7 @@ export function OnboardingWizard() {
 function SectionLabel({ icon: Icon, title, className }: { icon: React.ElementType; title: string; className?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <Icon className="h-3.5 w-3.5 text-emerald-600" />
+      <Icon className="h-3.5 w-3.5 ov-text-accent" />
       <h3 className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{title}</h3>
       <div className="h-px flex-1 bg-stone-100 dark:bg-stone-800" />
     </div>
@@ -651,7 +651,7 @@ function ProgressRing({ pct }: { pct: number }) {
     <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
       <svg viewBox="0 0 48 48" className="h-12 w-12 -rotate-90">
         <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" className="stroke-stone-200 dark:stroke-stone-800" />
-        <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" strokeLinecap="round" className="stroke-emerald-600 transition-all duration-500"
+        <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" strokeLinecap="round" className="ov-text-accent stroke-current transition-all duration-500"
           strokeDasharray={c} strokeDashoffset={c - (c * pct) / 100} />
       </svg>
       <span className="absolute text-[10px] font-extrabold text-stone-700 dark:text-stone-300">{pct}%</span>
@@ -672,8 +672,8 @@ function SalaryMeter({ grade, salary }: { grade: { code: string; name: string; m
         )}
       </div>
       <div className="relative mt-3 h-1.5 rounded-full bg-gradient-to-r from-stone-200 to-stone-200 dark:from-stone-700 dark:to-stone-700">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${pct}%` }} />
-        <div className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-600 shadow-sm dark:border-stone-900" style={{ left: `${pct}%` }} />
+        <div className="absolute inset-y-0 left-0 rounded-full ov-chart" style={{ width: `${pct}%` }} />
+        <div className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ov-fill shadow-sm dark:border-stone-900" style={{ left: `${pct}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-[10px] font-semibold text-stone-400">
         <span>min {fmtIDR(grade.minSalary)}</span>
@@ -687,7 +687,7 @@ function ReviewSection({ icon: Icon, title, items, onEdit }: { icon: React.Eleme
   return (
     <div className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-xs font-bold text-stone-800 dark:text-stone-200"><Icon className="h-3.5 w-3.5 text-emerald-600" /> {title}</p>
+        <p className="flex items-center gap-2 text-xs font-bold text-stone-800 dark:text-stone-200"><Icon className="h-3.5 w-3.5 ov-text-accent" /> {title}</p>
         <dl className="mt-3 grid gap-x-6 gap-y-2.5 sm:grid-cols-3">
           {items.map(([k, v]) => (
             <div key={k} className="min-w-0">
@@ -735,7 +735,7 @@ export function DisciplinaryPage() {
         title="Catatan Disiplin"
         description="Catatan pelanggaran disiplin seluruh karyawan — peringatan verbal, tertulis, dan final"
         actions={
-          <Button onClick={() => setAddOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+          <Button onClick={() => setAddOpen(true)} className="gap-2 font-bold">
             <Scale className="h-4 w-4" /> Catat Pelanggaran
           </Button>
         }
@@ -835,7 +835,7 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 text-emerald-600" /> Catat Pelanggaran</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 ov-text-accent" /> Catat Pelanggaran</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           <div>
             <Label className="text-xs">Karyawan *</Label>
@@ -869,7 +869,7 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
