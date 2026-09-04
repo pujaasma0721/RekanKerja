@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
+import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
@@ -13,6 +14,16 @@ class WorkflowError extends Error {
 }
 
 const PRIVILEGED_ROLES = ["OWNER", "ADMIN", "HR"];
+
+// Label Indonesia jenis Personnel Action (dipakai data notifikasi email).
+const PA_TYPE_LABEL: Record<string, string> = {
+  Hire: "Pengangkatan", Promotion: "Promosi", Demotion: "Demosi", Transfer: "Transfer",
+  Mutation: "Mutasi", SalaryAdjustment: "Penyesuaian Upah", ContractRenewal: "Perpanjangan Kontrak",
+  ChangeStatus: "Perubahan Status", ExtendProbation: "Perpanjangan Probation",
+  Resignation: "Pengunduran Diri", Termination: "Pemutusan Hubungan Kerja", Retirement: "Pensiun",
+};
+const paTypeLabel = (t: string): string => PA_TYPE_LABEL[t] ?? t;
+const paDate = (d: Date): string => d.toISOString().slice(0, 10);
 
 /** Guard keputusan (fix K-03): aktor boleh memutus bila berperan OWNER/ADMIN/HR,
  *  ATAU layer menunjuk aktor tersebut, ATAU layer tanpa approver tertentu. */
@@ -136,6 +147,33 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
       if (upd.count === 0) return NextResponse.json({ error: "Dokumen sudah tidak berstatus Draft (mungkin baru saja disubmit)" }, { status: 409 });
       await log(`${action.docNo} disubmit untuk approval (${action.layers.length} layer) oleh ${actorLabel}`);
+
+      // ===== Notifikasi email otomatis (Task 34) — ke approver layer aktif =====
+      void (async () => {
+        try {
+          const layer = action.layers[0];
+          let to: { email: string; name?: string }[] = [];
+          let approverName = layer?.approverRole ?? "Approver";
+          if (layer?.approverId) {
+            const au = await db.appUser.findUnique({ where: { id: layer.approverId }, select: { email: true, fullName: true } });
+            if (au?.email) {
+              to = [{ email: au.email, name: au.fullName ?? undefined }];
+              approverName = au.fullName ?? approverName;
+            }
+          }
+          if (to.length === 0) to = await approverEmailsOf(db, action.employeeId);
+          if (to.length === 0) return;
+          notifyEmailEvent(db, {
+            event: "pa.submitted",
+            to,
+            data: {
+              nama: action.employee.fullName ?? "-", docNo: action.docNo, jenisAksi: paTypeLabel(action.type),
+              tanggalEfektif: paDate(action.effectiveDate), alasan: action.reason ?? "-",
+              layer: layer?.approverRole ?? "-", approver: approverName,
+            },
+          });
+        } catch { /* notifikasi tidak pernah mengganggu proses utama */ }
+      })();
       return NextResponse.json({ ok: true, status: "Submitted" });
     }
 
@@ -194,10 +232,42 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
       if (act === "reject") {
         await log(`${action.docNo} DITOLAK di layer ${pending.layerNo} (${pending.approverRole}) oleh ${actorLabel}${note ? ` — alasan: ${note}` : ""}`);
+
+        // ===== Notifikasi email — keputusan final DITOLAK ke karyawan =====
+        void (async () => {
+          try {
+            const emp = action.employee;
+            if (!emp.email) return;
+            notifyEmailEvent(db, {
+              event: "pa.rejected",
+              to: [{ email: emp.email, name: emp.fullName ?? undefined }],
+              data: {
+                nama: emp.fullName ?? "-", docNo: action.docNo, jenisAksi: paTypeLabel(action.type),
+                tanggalEfektif: paDate(action.effectiveDate), catatan: note ?? "-",
+              },
+            });
+          } catch { /* never */ }
+        })();
         return NextResponse.json({ ok: true, status: "Rejected" });
       }
       if (isLast) {
         await log(`${action.docNo} disetujui di layer terakhir oleh ${actorLabel} (${pending.approverRole}) — siap diproses`);
+
+        // ===== Notifikasi email — DISETUJUI (layer terakhir) ke karyawan =====
+        void (async () => {
+          try {
+            const emp = action.employee;
+            if (!emp.email) return;
+            notifyEmailEvent(db, {
+              event: "pa.approved",
+              to: [{ email: emp.email, name: emp.fullName ?? undefined }],
+              data: {
+                nama: emp.fullName ?? "-", docNo: action.docNo, jenisAksi: paTypeLabel(action.type),
+                tanggalEfektif: paDate(action.effectiveDate), catatan: note ?? "-",
+              },
+            });
+          } catch { /* never */ }
+        })();
         return NextResponse.json({ ok: true, status: "Approved" });
       }
       await log(`Layer ${pending.layerNo} (${pending.approverRole}) disetujui ${actorLabel} — ${action.docNo} lanjut layer ${pending.layerNo + 1}`);
@@ -298,6 +368,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
 
       await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})`);
+
+      // ===== Notifikasi email — DIPROSES (perubahan diterapkan) ke karyawan =====
+      void (async () => {
+        try {
+          const emp = action.employee;
+          if (!emp.email) return;
+          notifyEmailEvent(db, {
+            event: "pa.processed",
+            to: [{ email: emp.email, name: emp.fullName ?? undefined }],
+            data: {
+              nama: emp.fullName ?? "-", docNo: action.docNo, jenisAksi: paTypeLabel(action.type),
+              tanggalEfektif: paDate(action.effectiveDate), alasan: action.reason ?? "-",
+            },
+          });
+        } catch { /* never */ }
+      })();
       return NextResponse.json({ ok: true, status: "Processed" });
     }
 

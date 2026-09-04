@@ -136,6 +136,26 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
     body: "Run payroll {{runNo}} periode {{periode}} telah ditandai dibayarkan (total {{total}}).\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
   {
+    event: "pa.submitted", label: "Personnel Action — Pengajuan Baru", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[Perlu Persetujuan] Personnel Action {{docNo}} — {{nama}} ({{jenisAksi}})",
+    body: "Halo {{approver}},\n\n{{nama}} mengajukan Personnel Action {{jenisAksi}} ({{docNo}}):\n- Tanggal efektif: {{tanggalEfektif}}\n- Alasan: {{alasan}}\n- Menunggu persetujuan: {{layer}}\n\nSilakan buka OneVity HRIS untuk menyetujui atau menolak pengajuan ini.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "pa.approved", label: "Personnel Action — Disetujui", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "Personnel Action {{docNo}} ({{jenisAksi}}) DISSETUJUI",
+    body: "Halo {{nama}},\n\nPengajuan Personnel Action {{jenisAksi}} ({{docNo}}) telah DISSETUJUI.\n- Tanggal efektif: {{tanggalEfektif}}\n- Catatan approver: {{catatan}}\n\nPerubahan akan diterapkan setelah dokumen diproses oleh tim HR.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "pa.rejected", label: "Personnel Action — Ditolak", notifyEmployee: true, notifyApprover: false, notifyHrd: false,
+    subject: "Personnel Action {{docNo}} ({{jenisAksi}}) DITOLAK",
+    body: "Halo {{nama}},\n\nMohon maaf, pengajuan Personnel Action {{jenisAksi}} ({{docNo}}) DITOLAK.\n- Tanggal efektif: {{tanggalEfektif}}\n- Alasan penolakan: {{catatan}}\n\nSilakan hubungi HRD untuk informasi lebih lanjut atau ajukan kembali bila diperlukan.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "pa.processed", label: "Personnel Action — Diproses", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "Personnel Action {{docNo}} ({{jenisAksi}}) TELAH DIPROSES",
+    body: "Halo {{nama}},\n\nPersonnel Action {{jenisAksi}} ({{docNo}}) telah DIPROSES dan perubahan sudah diterapkan pada data kepegawaian Anda.\n- Tanggal efektif: {{tanggalEfektif}}\n- Alasan: {{alasan}}\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
     event: "user.created", label: "Pengguna Baru Dibuat", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
     subject: "Akun OneVity HRIS Anda telah dibuat",
     body: "Halo {{nama}},\n\nAkun Anda untuk aplikasi OneVity HRIS telah dibuat:\n- Email login: {{email}}\n- Kata sandi sementara: {{password}}\n\nSegera login dan ganti kata sandi Anda. Kata sandi sementara hanya ditampilkan sekali.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
