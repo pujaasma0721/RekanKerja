@@ -1,5 +1,5 @@
 "use client";
-// OneVity — Modul Medical: router view (padanan Medical Benefit oranHR)
+// OneVity — Modul Medical: router view (padanan Medical Benefit)
 import { MedicalOverview } from "@/onevity/medical/components/medical-overview";
 import { MedicalInfoPage } from "@/onevity/medical/components/medical-info";
 import { MedicalClaimsPage } from "@/onevity/medical/components/medical-claims";

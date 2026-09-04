@@ -123,7 +123,7 @@ function DayTypesTab() {
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
           <div>
             <p className="text-[13px] font-bold">Master Tipe Hari</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Day Type — jam kerja, istirahat, toleransi telat/pulang cepat</p>
+            <p className="text-[11px] text-stone-400">Padanan Day Type — jam kerja, istirahat, toleransi telat/pulang cepat</p>
           </div>
           <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-3.5 w-3.5" /> Tipe Hari
@@ -342,7 +342,7 @@ function SchedulesTab() {
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
           <div>
             <p className="text-[13px] font-bold">Jadwal Cycle (Rotasi)</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Work Schedule — urutan day type per cycle (umumnya 7 hari)</p>
+            <p className="text-[11px] text-stone-400">Padanan Work Schedule — urutan day type per cycle (umumnya 7 hari)</p>
           </div>
           <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-3.5 w-3.5" /> Jadwal
@@ -484,7 +484,7 @@ function RulesTab() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-bold">Perhitungan & Pembulatan</p>
-              <p className="text-[11px] text-stone-400">Padanan oranHR User Defined Rounding + kebijakan non-clocking</p>
+              <p className="text-[11px] text-stone-400">Padanan User Defined Rounding + kebijakan non-clocking</p>
             </div>
             <Settings2 className="h-5 w-5 text-emerald-600" />
           </div>
@@ -513,7 +513,7 @@ function RulesTab() {
                   <SelectItem value="ByDays">Hitung per hari</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-stone-400">Padanan "Non Clocking Normal Hours Calculation" oranHR</p>
+              <p className="text-[10px] text-stone-400">Padanan "Non Clocking Normal Hours Calculation"</p>
             </div>
           </div>
         </CardContent>
@@ -523,7 +523,7 @@ function RulesTab() {
         <CardContent className="p-5">
           <div className="mb-4">
             <p className="text-[13px] font-bold">Pemetaan Komponen Payroll & Nilai</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Overtime Specified — jam absensi → komponen upah saat Transfer to Payroll</p>
+            <p className="text-[11px] text-stone-400">Padanan Overtime Specified — jam absensi → komponen upah saat Transfer to Payroll</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">

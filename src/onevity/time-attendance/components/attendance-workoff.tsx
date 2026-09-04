@@ -86,7 +86,7 @@ export function AttendanceWorkoffPage() {
       <PageHeader
         eyebrow="MODUL ATTENDANCE"
         title="Work Off Permission (Izin Tidak Masuk)"
-        description="Izin dengan kebijakan dibayar/tidak & potong saldo cuti — padanan Employee Work Off Permission oranHR"
+        description="Izin dengan kebijakan dibayar/tidak & potong saldo cuti — padanan Employee Work Off Permission"
         actions={
           <Button onClick={() => { setForm({ ...form, employeeId: employeesApi.data?.employees[0]?.id ?? "" }); setDialog(true); }} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-4 w-4" /> Ajukan Izin

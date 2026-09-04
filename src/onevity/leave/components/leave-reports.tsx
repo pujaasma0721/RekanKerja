@@ -1,6 +1,6 @@
 "use client";
 // OneVity Leave — Laporan: siapa sedang cuti (Query Emp on Leave) + ringkasan per jenis
-// (padanan History: Summary Based on Leave Type / Employee oranHR).
+// (padanan History: Summary Based on Leave Type / Employee).
 import { useMemo, useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -50,7 +50,7 @@ export function LeaveReportsPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Laporan Cuti"
-        description="Siapa yang sedang cuti pada rentang tanggal + ringkasan penggunaan per jenis cuti (padanan Query Employee on Leave & History oranHR)"
+        description="Siapa yang sedang cuti pada rentang tanggal + ringkasan penggunaan per jenis cuti (padanan Query Employee on Leave & History)"
         actions={
           <Button variant="outline" onClick={() => api.refresh()} className="gap-2 font-bold">
             <RefreshCw className="h-4 w-4" /> Segarkan

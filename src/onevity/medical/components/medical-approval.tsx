@@ -1,6 +1,6 @@
 "use client";
 // OneVity Medical — Persetujuan Klaim & Settlement: antrean Submitted/Approved,
-// Operation oranHR (Approve/Reject/Cancel/Settle — settle = jurnal otomatis +
+// Operation (Approve/Reject/Cancel/Settle — settle = jurnal otomatis +
 // saldo used bertambah) + Transfer Sisa Saldo CASH → payroll UMC.
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
@@ -123,7 +123,7 @@ export function MedicalApprovalPage() {
       <PageHeader
         eyebrow="MEDICAL · PERSETUJUAN"
         title="Persetujuan Klaim & Settlement"
-        description="Operation oranHR: Submit → Approve → Settle. Settle membuat jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) dan menambah saldo terpakai — plus transfer sisa saldo CASH ke payroll (UMC)"
+        description="Operation: Submit → Approve → Settle. Settle membuat jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) dan menambah saldo terpakai — plus transfer sisa saldo CASH ke payroll (UMC)"
         actions={(
           <Button variant="outline" onClick={() => setTransferOpen(true)}>
             <Wallet className="h-4 w-4" /> Tarik Sisa Saldo → Payroll
@@ -295,7 +295,7 @@ export function MedicalApprovalPage() {
                 </p>
               )}
               <div className="space-y-1.5">
-                <Label>Alasan (padanan &quot;Enter Reason&quot; oranHR)</Label>
+                <Label>Alasan (padanan &quot;Enter Reason&quot;)</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="mis. sesuai kwitansi & surat rujukan" />
               </div>
             </div>
@@ -325,7 +325,7 @@ export function MedicalApprovalPage() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-stone-600 dark:text-stone-300">
-              Padanan oranHR <span className="font-semibold">&quot;Paid to employee in cash at end of period with Wage Code&quot;</span>:
+              Padanan <span className="font-semibold">&quot;Paid to employee in cash at end of period with Wage Code&quot;</span>:
               sisa saldo jenis dengan kebijakan <span className="font-semibold">CASH</span> (mis. Rawat Jalan)
               dibayarkan tunai ke karyawan melalui komponen upah <span className="font-semibold">UMC</span> di period payroll terpilih.
             </p>

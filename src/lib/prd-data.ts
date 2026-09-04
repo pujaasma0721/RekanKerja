@@ -1,9 +1,9 @@
-// PRD data untuk module Human Resource Base — hasil studi demo.oranhr.com
+// PRD data untuk module Human Resource Base — hasil studi aplikasi HRIS referensi
 export const meta = {
-  product: "OranHR — Human Resource Base",
+  product: "OneVity — Human Resource Base",
   docType: "Product Requirements Document (PRD)",
   purpose: "Blueprint untuk AI Agent membangun ulang aplikasi",
-  source: "https://demo.oranhr.com",
+  source: "PRD internal OneVity",
   version: "11.08.00",
   account: "MII000001 / MII1",
   company: "MII - Mitra Industri Internasional",
@@ -580,5 +580,5 @@ export const glossary = [
   { term: "SC", def: "Service Charge" },
   { term: "SPV / DIRUT", def: "Supervisor / Direktur Utama" },
   { term: "PA", def: "Personnel Action — dokumen transaksi perubahan status karyawan" },
-  { term: "golid/golversion", def: "PK & version kolom sistem OranHR → rebuild sebagai id + version" },
+  { term: "golid/golversion", def: "PK & version kolom sistem legacy → rebuild sebagai id + version" },
 ];

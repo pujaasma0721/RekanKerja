@@ -151,7 +151,7 @@ export function PayrollTransactionsPage() {
                   <p className="mt-0.5 text-[12px] leading-relaxed text-stone-500 dark:text-stone-400">
                     Nilai komponen naik di tengah tahun? Hitung selisih <b>dari period s.d. period</b> terhadap run gaji yang
                     sudah dibayarkan, lalu bayarkan selisihnya sekali sebagai komponen Back Pay pada period target —
-                    pola <i>Back Pay Process</i> oranHR (fromPeriod → wageCode back pay).
+                    pola <i>Back Pay Process</i> (fromPeriod → wageCode back pay).
                   </p>
                 </div>
                 <Button onClick={() => setRapelDialog(true)} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">

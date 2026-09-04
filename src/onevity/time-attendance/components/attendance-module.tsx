@@ -1,5 +1,5 @@
 "use client";
-// OneVity — Modul Attendance: router view (padanan Time Attendance oranHR)
+// OneVity — Modul Attendance: router view (padanan Time Attendance)
 import { AttendanceOverview } from "@/onevity/time-attendance/components/attendance-overview";
 import { AttendanceTemplatesPage } from "@/onevity/time-attendance/components/attendance-templates";
 import { AttendanceAssignmentsPage } from "@/onevity/time-attendance/components/attendance-assignments";

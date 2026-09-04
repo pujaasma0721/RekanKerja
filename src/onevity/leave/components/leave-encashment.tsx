@@ -1,6 +1,6 @@
 "use client";
 // OneVity Leave — Uang Pengganti Cuti: encashment + transfer payroll
-// (padanan LeaveEncashment + LeaveEncashmentToApprove + EmpLeaveCashable oranHR).
+// (padanan LeaveEncashment + LeaveEncashmentToApprove + EmpLeaveCashable).
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -103,7 +103,7 @@ export function LeaveEncashmentPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Uang Pengganti Cuti (Encashment)"
-        description="Saldo cuti tahunan diuangkan → komponen UCT masuk payroll period → Dibayar saat run dikonfirmasi (padanan Employee Leave Cashable oranHR)"
+        description="Saldo cuti tahunan diuangkan → komponen UCT masuk payroll period → Dibayar saat run dikonfirmasi (padanan Employee Leave Cashable)"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferDialog(true); }} className="gap-2 font-bold">
@@ -278,7 +278,7 @@ export function LeaveEncashmentPage() {
           <div className="space-y-3">
             <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
               Semua encashment <b>Disetujui</b> dengan tanggal bayar dalam period terpilih ditulis sebagai
-              komponen <b>UCT (Uang Pengganti Cuti)</b> — padanan <i>Employee Leave Cashable</i> oranHR.
+              komponen <b>UCT (Uang Pengganti Cuti)</b> — padanan <i>Employee Leave Cashable</i>.
               Idempoten: assignment UCT lama period ini ditulis ulang.
             </p>
             <div className="space-y-1.5">

@@ -158,7 +158,7 @@ export function AttendanceOverview() {
           {/* alur kerja */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-5">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">Alur Kerja (mengikuti oranHR Time Attendance)</p>
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">Alur Kerja (mengikuti Time Attendance)</p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <FlowStep no="1" title="Setup Master" desc="Tipe hari, jadwal cycle, aturan toleransi & pembulatan" onClick={() => navigate("attendance", "templates-schedule")} />
                 <FlowStep no="2" title="Assign Jadwal" desc="Penugasan jadwal per karyawan + anchor Senin" onClick={() => navigate("attendance", "assignment-schedule")} />

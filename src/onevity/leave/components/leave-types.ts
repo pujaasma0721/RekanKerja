@@ -1,5 +1,5 @@
 "use client";
-// OneVity Leave — shared types (padanan modul Leave Administration oranHR)
+// OneVity Leave — shared types (padanan modul Leave Administration)
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }

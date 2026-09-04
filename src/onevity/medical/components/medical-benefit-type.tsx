@@ -103,7 +103,7 @@ export function MedicalBenefitTypePage() {
       <PageHeader
         eyebrow="MEDICAL · MASTER"
         title="Jenis Benefit Medis"
-        description="Kebijakan per jenis: limit (unlimited / nominal / faktor × gaji pokok), frekuensi klaim, pembagian company/asuransi, kebijakan sisa saldo akhir tahun, dan dependent (padanan Medical Benefit Type oranHR)"
+        description="Kebijakan per jenis: limit (unlimited / nominal / faktor × gaji pokok), frekuensi klaim, pembagian company/asuransi, kebijakan sisa saldo akhir tahun, dan dependent (padanan Medical Benefit Type)"
         actions={(
           <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
             <Plus className="h-4 w-4" /> Jenis Baru

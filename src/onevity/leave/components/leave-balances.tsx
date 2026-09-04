@@ -1,5 +1,5 @@
 "use client";
-// OneVity Leave — Informasi Cuti (Saldo): kolom a–g + formula oranHR
+// OneVity Leave — Informasi Cuti (Saldo): kolom a–g + formula
 // (padanan Employee Leave Information + Generate + Leave Adjustment)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
@@ -79,7 +79,7 @@ export function LeaveBalancesPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Informasi Cuti (Saldo Karyawan)"
-        description="Saldo per karyawan × jenis — formula oranHR (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai"
+        description="Saldo per karyawan × jenis — formula (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai"
         actions={
           <Button onClick={() => { setGenForm({ year: String(year), leaveTypeId: "all" }); setGenDialog(true); }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
             <Sparkles className="h-4 w-4" /> Generate Leave Information
@@ -194,7 +194,7 @@ export function LeaveBalancesPage() {
             <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
               Membuat baris saldo per karyawan × jenis untuk tahun tertentu. Carry-over dihitung dari
               saldo sisa tahun sebelumnya (maksimum sesuai jenis, hangus 31 Des). Padanan
-              <i> GenerateLeaveInfoProcess.jsp</i> oranHR.
+              <i> GenerateLeaveInfoProcess.jsp</i>.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -247,7 +247,7 @@ export function LeaveBalancesPage() {
                 </div>
               </div>
               <p className="text-[10px] leading-relaxed text-stone-400">
-                Padanan <i>Leave Adjustment</i> oranHR — kolom (c) pada formula saldo.
+                Padanan <i>Leave Adjustment</i> — kolom (c) pada formula saldo.
               </p>
             </div>
           )}

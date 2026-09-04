@@ -65,7 +65,7 @@ export function MedicalProvidersPage() {
       <PageHeader
         eyebrow="MEDICAL · MASTER"
         title="Rumah Sakit & Asuransi"
-        description="Direktori rumah sakit / klinik / apotek rekanan dan perusahaan asuransi — dipakai saat pengajuan klaim (padanan Hospital + Insurance Company oranHR)"
+        description="Direktori rumah sakit / klinik / apotek rekanan dan perusahaan asuransi — dipakai saat pengajuan klaim (padanan Hospital + Insurance Company)"
         actions={(
           <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
             <Plus className="h-4 w-4" /> Provider Baru

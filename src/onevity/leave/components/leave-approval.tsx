@@ -1,6 +1,6 @@
 "use client";
 // OneVity Leave — Persetujuan: Approve | Reject | Cancel (padanan LeaveRequestToApprove.jsp
-// menu Operation oranHR). Approve → hari cuti masuk rekap absensi (OnLeave).
+// menu Operation). Approve → hari cuti masuk rekap absensi (OnLeave).
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
@@ -78,7 +78,7 @@ export function LeaveApprovalPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Persetujuan Cuti"
-        description="Keputusan permintaan cuti menunggu — Approve / Reject / Cancel (padanan Operation oranHR); hari cuti otomatis masuk rekap absensi"
+        description="Keputusan permintaan cuti menunggu — Approve / Reject / Cancel (padanan Operation); hari cuti otomatis masuk rekap absensi"
         actions={
           <Button variant="outline" onClick={() => navigate("leave", "leave-request")} className="gap-2 font-bold">
             <Inbox className="h-4 w-4" /> Lihat Semua Permintaan

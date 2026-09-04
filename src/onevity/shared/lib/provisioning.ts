@@ -490,7 +490,7 @@ export async function ensureLeaveReference(db: TenantDb): Promise<void> {
     });
   }
 
-  // komponen UCT (padanan oranHR wage code UCT "Cashable Leave")
+  // komponen UCT (padanan wage code UCT "Cashable Leave")
   const uct = await db.wageComponent.findUnique({ where: { code: "UCT" } });
   if (!uct) {
     await db.wageComponent.create({
@@ -508,10 +508,10 @@ export async function ensureLeaveReference(db: TenantDb): Promise<void> {
 
 // ============ MEDICAL REFERENCE (ref: ANALISA-MEDICAL.md) ============
 
-// Master medis idempoten — padanan General Setting oranHR (Medical Benefit Type:
+// Master medis idempoten — padanan General Setting (Medical Benefit Type:
 // 12 jenis MII + Hospital/InsuranceCompany). Jenis: limit UNLIMITED/NOMINAL/FACTOR×gaji,
 // frekuensi, kebijakan saldo tak terpakai (FORFEITED/CASH/CARRY), dependent.
-// Komponen UMC (padanan oranHR cash_wage_code "unused balance in cash") + akun 5106.
+// Komponen UMC (padanan cash_wage_code "unused balance in cash") + akun 5106.
 export const MEDICAL_TYPE_DEFS: {
   code: string; name: string; description?: string;
   limitRule: string; limitValue?: number; wageCode?: string;
@@ -523,7 +523,7 @@ export const MEDICAL_TYPE_DEFS: {
   { code: "RAWAT_INAP", name: "Rawat Inap", description: "Perawatan menginap di rumah sakit — 1× gaji pokok/tahun", limitRule: "FACTOR", limitValue: 1, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
   { code: "RAWAT_JALAN", name: "Rawat Jalan", description: "Poliklinik, obat, lab — sisa boleh ditarik tunai akhir tahun", limitRule: "NOMINAL", limitValue: 25_000_000, freqUnlimited: true, unusedRule: "CASH", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
   { code: "GIGI_MULUT", name: "Gigi & Mulut", description: "Perawatan gigi & mulut — 5 juta/tahun", limitRule: "NOMINAL", limitValue: 5_000_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
-  { code: "KACAMATA", name: "Kacamata", description: "Kacamata + lensa — 1× setiap 2 tahun (padanan oranHR Year Period)", limitRule: "NOMINAL", limitValue: 1_500_000, freqUnlimited: false, freqValue: 1, freqPeriod: "YEAR", unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
+  { code: "KACAMATA", name: "Kacamata", description: "Kacamata + lensa — 1× setiap 2 tahun (padanan Year Period)", limitRule: "NOMINAL", limitValue: 1_500_000, freqUnlimited: false, freqValue: 1, freqPeriod: "YEAR", unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
   { code: "MEDICAL_UMUM", name: "Medical Umum", description: "Pemeriksaan umum & konsultasi", limitRule: "NOMINAL", limitValue: 6_500_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 21, depLimitRule: "SHARED" },
   { code: "IMUNISASI", name: "Imunisasi Anak", description: "Vaksinasi anak (dep. masing-masing)", limitRule: "NOMINAL", limitValue: 2_000_000, freqUnlimited: true, unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 3, maxChildAge: 12, depLimitRule: "EACH" },
   { code: "PERSALINAN", name: "Persalinan", description: "Melahirkan (karyawan/pasangan) — 8 juta sekali per kelahiran", limitRule: "NOMINAL", limitValue: 8_000_000, freqUnlimited: false, freqValue: 1, freqPeriod: "YEAR", unusedRule: "FORFEITED", dependentEnabled: true, maxDependents: 1, maxChildAge: 99, depLimitRule: "TOTAL_SEPARATE" },
@@ -593,7 +593,7 @@ export async function ensureMedicalReference(db: TenantDb): Promise<void> {
     });
   }
 
-  // komponen UMC — padanan oranHR cash_wage_code (unused medical balance in cash)
+  // komponen UMC — padanan cash_wage_code (unused medical balance in cash)
   const umc = await db.wageComponent.findUnique({ where: { code: "UMC" } });
   if (!umc) {
     await db.wageComponent.create({
@@ -608,7 +608,7 @@ export async function ensureMedicalReference(db: TenantDb): Promise<void> {
 
 // ============ TRAVEL REFERENCE (ref: ANALISA-TRAVEL.md) ============
 
-// Master travel idempoten — padanan General Setting oranHR (12 halaman → master OneVity):
+// Master travel idempoten — padanan General Setting (12 halaman → master OneVity):
 // 4 zona (Domestic Zone), 5 template (ClaimTmpl — settlement day 14), 14 jenis biaya
 // (Expense Definition + Rules: limit & akun), komponen upah UTRP/TRVSTLIN (Wage
 // Definition: compensation & deduction), akun 5105, budget tahun berjalan.
@@ -625,9 +625,9 @@ export const TRAVEL_TEMPLATE_DEFS: {
 }[] = [
   { code: "TRAVEL", name: "Perjalanan Dinas Standar", description: "Template default semua perjalanan dinas", isDefault: true, settlementDay: 14, settlementMethod: "Kas" },
   { code: "TRAVEL-LOCAL", name: "Perjalanan Dinas Lokal", description: "Perjalanan dalam kota / radius dekat", settlementDay: 14, settlementMethod: "Kas" },
-  { code: "TRAVEL-LOCAL-150", name: "Perjalanan Lokal ≤150 km", description: "Padanan oranHR TRAVEL LOCAL 150KM — settled by cash", settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-LOCAL-150", name: "Perjalanan Lokal ≤150 km", description: "Padanan TRAVEL LOCAL 150KM — settled by cash", settlementDay: 14, settlementMethod: "Kas" },
   { code: "TRAVEL-OVERSEAS", name: "Perjalanan Dinas Luar Negeri", description: "Dinas ke luar negeri (expense O-*, kurs)", settlementDay: 14, settlementMethod: "Kas" },
-  { code: "TRAVEL-KA", name: "Perjalanan Dinas Kereta", description: "Padanan oranHR TRAVEL_KA — transportasi KA", settlementDay: 14, settlementMethod: "Kas" },
+  { code: "TRAVEL-KA", name: "Perjalanan Dinas Kereta", description: "Padanan TRAVEL_KA — transportasi KA", settlementDay: 14, settlementMethod: "Kas" },
 ];
 
 export const TRAVEL_EXPENSE_DEFS: {

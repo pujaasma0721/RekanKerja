@@ -1,5 +1,5 @@
 "use client";
-// OneVity — Modul Travel: router view (padanan Travel Administration oranHR)
+// OneVity — Modul Travel: router view (padanan Travel Administration)
 import { TravelOverview } from "@/onevity/travel/components/travel-overview";
 import { TravelRequestsPage } from "@/onevity/travel/components/travel-requests";
 import { TravelApprovalPage } from "@/onevity/travel/components/travel-approval";

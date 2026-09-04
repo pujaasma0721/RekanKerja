@@ -18,7 +18,7 @@ interface RapelBreakdownRow {
 //         targetPeriodId, preview?, autoRun? }
 // Menghitung selisih retroaktif (nilai baru vs dibayar) pada run gaji bulanan yang
 // sudah dikonfirmasi/dibayar, lalu menjadwalkan komponen RAPEL pada period target —
-// pola Back Pay oranHR (fromPeriod → selisih → wageCode back pay).
+// pola Back Pay (fromPeriod → selisih → wageCode back pay).
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMutator(req);

@@ -1,5 +1,5 @@
 // OneVity Payroll Engine — kalkulasi payroll per karyawan (murni TypeScript, tanpa IO).
-// Acuan desain: ANALISA-PAYROLL.md (modul Payroll oranHR) + regulasi Indonesia:
+// Acuan desain: ANALISA-PAYROLL.md (modul Payroll) + regulasi Indonesia:
 // - PPh21 progresif UU HPP (bracket NPWP/non-NPWP, PTKP, biaya jabatan, annualized)
 // - TER PP 58/2023 (opsional via regulation.useTer, kategori A/B/C)
 // - BPJS: JHT 3,7%/2%, JP 2%/1% (cap), JKK, JKM, JPK 4%/1% (cap)

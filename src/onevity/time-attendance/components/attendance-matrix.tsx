@@ -1,6 +1,6 @@
 "use client";
 // OneVity Attendance — Matriks Jadwal: karyawan × 7 hari (padanan Employee
-// Schedule Matrix oranHR) dengan warna day type.
+// Schedule Matrix) dengan warna day type.
 import { useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
@@ -44,7 +44,7 @@ export function AttendanceMatrixPage() {
       <PageHeader
         eyebrow="MODUL ATTENDANCE"
         title="Matriks Jadwal Karyawan"
-        description="Day type efektif per karyawan × 7 hari — padanan Employee Schedule Matrix oranHR"
+        description="Day type efektif per karyawan × 7 hari — padanan Employee Schedule Matrix"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setFrom(iso(shiftDate(from, -7)))} className="gap-1" aria-label="Minggu sebelumnya">

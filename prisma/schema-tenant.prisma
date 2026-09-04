@@ -485,7 +485,7 @@ model ApprovalStep {
 
 // ============ WAGE & ACCOUNTING RULES ============
 
-// Master komponen upah — sejajar dengan "Salary Component" oranHR:
+// Master komponen upah — sejajar dengan "Salary Component":
 // klasifikasi wageType (13), incomeTaxMethod (8), formula, prorata, basis JAMSOSTEK,
 // referensi SPT/natura, pasangan back-pay, dsb.
 model WageComponent {
@@ -561,7 +561,7 @@ model ProcessType {
   componentAssignments EmployeeComponentAssignment[]
 }
 
-// Paket komponen upah per karyawan (gaya "Wage Template" oranHR).
+// Paket komponen upah per karyawan (gaya "Wage Template").
 model WageTemplate {
   id          String   @id @default(cuid())
   code        String   @unique
@@ -677,7 +677,7 @@ model PayrollRun {
   lines       PayrollRunLine[]
 }
 
-// Header hasil per karyawan per run — snapshot (seperti "Wage Transaction" oranHR):
+// Header hasil per karyawan per run — snapshot (seperti "Wage Transaction"):
 // PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
 model PayrollRunLine {
   id           String  @id @default(cuid())
@@ -778,7 +778,7 @@ model EmployeeComponentAssignment {
 
 // ============ PAYROLL JURNAL (P4 — Posting Otomatis) ============
 // Jurnal payroll — di-generate otomatis saat run dikonfirmasi (pattern "Transfer to
-// Accounting" oranHR: Journal No/Type/Date tercatat pada wage transaction).
+// Accounting": Journal No/Type/Date tercatat pada wage transaction).
 model PayrollJournal {
   id          String   @id @default(cuid())
   journalNo   String   @unique // JV-2026-001
@@ -838,7 +838,7 @@ model PostingEvent {
 }
 
 // ============ EMPLOYEE BENEFIT (P5 — Benefit & Klaim) ============
-// Jenis benefit (pola oranHR "BenefitType"): limit per siklus reset (bulanan/
+// Jenis benefit (pola "BenefitType"): limit per siklus reset (bulanan/
 // kuartalan/tahunan), auto-approve saat dalam limit, pay-in-payroll (dibayar via
 // run payroll ProcessType BENEFIT) atau dibayar langsung dari kas.
 model BenefitType {
@@ -1178,7 +1178,7 @@ model ActivityLog {
 
 // ============ TIME ATTENDANCE (ref: ANALISA-ATTENDANCE.md) ============
 
-// Master tipe hari — padanan oranHR "Day Type": bentuk hari kerja
+// Master tipe hari — padanan "Day Type": bentuk hari kerja
 // (jam masuk/keluar, istirahat, toleransi) atau hari libur.
 model WorkDayType {
   id                    String   @id @default(cuid())
@@ -1206,7 +1206,7 @@ model WorkDayType {
   workoffPermissions WorkOffPermission[]
 }
 
-// Master jadwal kerja — padanan oranHR "Work Schedule": cycle berisi day type.
+// Master jadwal kerja — padanan "Work Schedule": cycle berisi day type.
 model WorkSchedule {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -1381,7 +1381,7 @@ model AttendanceRule {
   updatedAt                        DateTime @updatedAt
 }
 
-// ============ LEAVE (Modul Cuti — padanan Leave Administration oranHR) ============
+// ============ LEAVE (Modul Cuti — padanan Leave Administration) ============
 
 // Master jenis cuti — padanan "Leave Type" (LeaveTypeDetail.jsp, 40+ atribut
 // diringkas ke atribut inti yang dipakai kalkulasi OneVity).
@@ -1390,7 +1390,7 @@ model LeaveType {
   code           String   @unique // CT-THN, CT-NIKAH, CT-BESAR...
   name           String
   description    String?
-  unit           String   @default("DAY") // DAY|MONTH — satuan saldo (oranHR: Day(s)/Month(s))
+  unit           String   @default("DAY") // DAY|MONTH — satuan saldo (Day(s)/Month(s))
   entitlement    Float    @default(0) // hak per periode
   maxPerRequest  Float    @default(0) // 0 = sama dengan entitlement
   paid           Boolean  @default(true) // cuti dibayar (absen berbayar → TA tidak memotong)
@@ -1524,7 +1524,7 @@ model MassLeave {
   leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
 }
 
-// ============ TRAVEL ADMINISTRATION (ref: ANALISA-TRAVEL.md — oranHR 12 halaman) ============
+// ============ TRAVEL ADMINISTRATION (ref: ANALISA-TRAVEL.md — 12 halaman) ============
 
 // Zona wilayah perjalanan — padanan "Domestic Zone Definition" (LOCAL/JAWA BARAT/ASIA/OTHERS).
 model TravelZone {
@@ -1539,7 +1539,7 @@ model TravelZone {
 }
 
 // Template perjalanan — padanan "Travel Administration Template" (ClaimTmpl.jsp):
-// settlementDay = batas hari settlement setelah kembali (oranHR: 14).
+// settlementDay = batas hari settlement setelah kembali (default: 14).
 model TravelTemplate {
   id               String   @id @default(cuid())
   code             String   @unique // TRAVEL|TRAVEL-LOCAL|TRAVEL-OVERSEAS|...
@@ -1558,7 +1558,7 @@ model TravelTemplate {
 
 // Jenis biaya + aturan — padanan "Travel Expense Definition" + "Definition Rules"
 // (ExpenseDefinition.jsp + ExpenseDefinitionDesc.jsp): limit nominal, akun Debit/Kredit,
-// komponen upah kompensasi (interface payroll oranHR "Compensation Wage").
+// komponen upah kompensasi (interface payroll "Compensation Wage").
 model TravelExpenseType {
   id            String   @id @default(cuid())
   code          String   @unique // L-HOTEL|O-HOTEL|L-POCKET|E-GIFT|L-BBM|ADVANCE
@@ -1580,7 +1580,7 @@ model TravelExpenseType {
 
 // Budget travel tahunan — padanan "Travel Budget" (TravelPeriod.jsp):
 // total terpakai dihitung dari klaim Transferred; over-budget = warning (bukan blokir),
-// sesuai perilaku nyata oranHR MII (2024: used > budget tetap diproses).
+// sesuai perilaku nyata MII (2024: used > budget tetap diproses).
 model TravelBudget {
   id          String   @id @default(cuid())
   year        Int      @unique
@@ -1653,7 +1653,7 @@ model TravelDestination {
 }
 
 // Uang muka perjalanan — padanan "Cash Advance" (request): tercatat sebagai pinjaman
-// (wage code TRVLOAN oranHR); diselesaikan saat klaim transfer.
+// (wage code TRVLOAN); diselesaikan saat klaim transfer.
 model TravelAdvance {
   id        String    @id @default(cuid())
   requestId String
@@ -1665,13 +1665,13 @@ model TravelAdvance {
 }
 
 // Klaim / settlement — padanan "Travel & Entertainment Settlement" (TravelClaim.jsp).
-// Formula oranHR dipertahankan:
+// Formula dipertahankan:
 //   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
 // Status final "Transferred"/"Paid" setelah masuk payroll run (wage UTRP/TRVSTLIN).
 model TravelClaim {
   id               String    @id @default(cuid())
   docNo            String    @unique // CL-2026-001
-  requestId        String?   // klaim mandiri tanpa request diperbolehkan (padanan oranHR)
+  requestId        String?   // klaim mandiri tanpa request diperbolehkan
   employeeId       String
   claimDate        DateTime  @default(now())
   templateId       String
@@ -1703,7 +1703,7 @@ model TravelClaim {
   expenses  TravelClaimExpense[]
 }
 
-// Baris biaya klaim — padanan 4 tab oranHR (General Expense / Allowance / Mileage /
+// Baris biaya klaim — padanan 4 tab (General Expense / Allowance / Mileage /
 // Entertainment Expense + Guest) menjadi satu tabel dengan kind + limit check per jenis.
 model TravelClaimExpense {
   id          String    @id @default(cuid())
@@ -1723,7 +1723,7 @@ model TravelClaimExpense {
 // ============ MEDICAL BENEFIT (ref: ANALISA-MEDICAL.md) ============
 
 // Jenis benefit medis — padanan "Medical Benefit Type" (MedicalBenefitTypeDetail.jsp,
-// ±60 atribut oranHR → atribut kunci). Kebijakan limit: UNLIMITED | NOMINAL |
+// ±60 atribut → atribut kunci). Kebijakan limit: UNLIMITED | NOMINAL |
 // FACTOR (× gaji pokok) | WAGE_COMPONENT. Kebijakan saldo tak terpakai akhir period:
 // FORFEITED (hangus) | CASH (dibayar tunai via wage code → payroll UMC) | CARRY.
 model MedicalBenefitType {
@@ -1740,14 +1740,14 @@ model MedicalBenefitType {
   // frekuensi klaim per period
   freqUnlimited    Boolean   @default(false)
   freqValue        Int       @default(0)
-  freqPeriod       String    @default("YEAR") // MEDICAL|WORK|YEAR (padanan oranHR)
+  freqPeriod       String    @default("YEAR") // MEDICAL|WORK|YEAR
   // pembayaran: company vs asuransi
   pctCompany       Int       @default(100)
   pctInsurance     Int       @default(0)
   insuranceCompany String?
   // saldo tak terpakai
   unusedRule       String    @default("FORFEITED") // FORFEITED|CASH|CARRY
-  cashWageCode     String? // wage code jika CASH (padanan oranHR cash_wage_code)
+  cashWageCode     String? // wage code jika CASH (padanan cash_wage_code)
   maxCarryOver     Float     @default(0)
   // kebijakan dependent (pasangan/anak)
   dependentEnabled Boolean   @default(true)
@@ -1764,7 +1764,7 @@ model MedicalBenefitType {
 }
 
 // Rumah sakit & perusahaan asuransi — padanan Hospital.jsp + InsuranceCompany.jsp
-// (oranHR 2 halaman struktur identik → 1 model dengan kind).
+// (2 halaman struktur identik → 1 model dengan kind).
 model MedicalProvider {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -1807,7 +1807,7 @@ model MedicalBalance {
 
 // Klaim medis — padanan "Medical Claim" (MedicalBenefitClaim.jsp).
 // Status: Draft(Prepared) → Submitted → Approved → Settled; Rejected/Cancelled.
-// Snapshot saldo saat klaim (padanan oranHR Max Benefit/Used/Balance di header).
+// Snapshot saldo saat klaim (padanan Max Benefit/Used/Balance di header).
 // Settled → jurnal otomatis + used saldo bertambah; jurnal dibuang bila dibatalkan.
 model MedicalClaim {
   id               String    @id @default(cuid())
@@ -1825,7 +1825,7 @@ model MedicalClaim {
   totalReimburse   Float     @default(0) // Total Reimbursement Amount
   totalApproved    Float     @default(0) // Total Approved Amount
   totalNonRe       Float     @default(0) // Total Non Reimbursement
-  statusLog        Json      @default("[]") // [{state,at,by,note}] — padanan Status Log oranHR
+  statusLog        Json      @default("[]") // [{state,at,by,note}] — padanan Status Log
   settleDate       DateTime?
   journalNo        String? // jurnal settlement (posting saat Settle)
   journalDate      DateTime?

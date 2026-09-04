@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 
 // GET /api/onevity/payroll-run-export?id=&bank=umum|bca|mandiri|bni
-// File transfer bank (pattern "Transfer Bank Payment" oranHR: file per bank).
+// File transfer bank (pattern "Transfer Bank Payment": file per bank).
 // Baris difilter sesuai bank terdaftar pada profil/employee; "umum" = rekap semua.
 const BANKS: Record<string, { label: string; match: (bank: string) => boolean }> = {
   bca: { label: "BCA", match: (b) => b.includes("BCA") },

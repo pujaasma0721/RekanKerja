@@ -1,5 +1,5 @@
 "use client";
-// OneVity Medical — shared types (padanan modul Medical Benefit oranHR)
+// OneVity Medical — shared types (padanan modul Medical Benefit)
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }

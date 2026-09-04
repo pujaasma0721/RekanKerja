@@ -3,7 +3,7 @@ import { requireMutator } from "@/onevity/shared/lib/tenant-db";
 import { transferUnusedToPayroll } from "@/onevity/medical/services/medical-service";
 
 // POST /api/onevity/medical/transfer — sisa saldo jenis CASH akhir tahun →
-// komponen Specific UMC (padanan oranHR "Paid to employee in cash at end of
+// komponen Specific UMC (padanan "Paid to employee in cash at end of
 // period with Wage Code"). Idempoten per period.
 // Guard (fix audit K-2b): menolak bila masih ada klaim Submitted/Approved atas
 // jenis CASH tahun tsb; requireMutator (VIEWER 403 + aktor sesi).

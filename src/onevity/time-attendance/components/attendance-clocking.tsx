@@ -74,7 +74,7 @@ export function AttendanceClockingPage() {
       <PageHeader
         eyebrow="MODUL ATTENDANCE"
         title="Data Clocking Harian"
-        description="Rekap presensi per tanggal — hour buckets telat/pulang cepat/normal/absen, padanan Employee Clocking oranHR"
+        description="Rekap presensi per tanggal — hour buckets telat/pulang cepat/normal/absen, padanan Employee Clocking"
         actions={
           <div className="flex flex-wrap gap-2">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 w-36 text-xs font-bold" />

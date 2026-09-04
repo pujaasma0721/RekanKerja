@@ -1,4 +1,4 @@
-// OneVity Attendance Service (ref: ANALISA-ATTENDANCE.md — modul Time Attendance oranHR).
+// OneVity Attendance Service (ref: ANALISA-ATTENDANCE.md — modul Time Attendance).
 // Engine inti: resolusi day type per karyawan (jadwal cycle + anchor) → rekap harian
 // (hour buckets: telat/pulang cepat/kerja normal/absen) dari clock log → lembur
 // (Plan → Actual → Verified, multiplier PP 35/2021) → Transfer to Payroll
@@ -42,7 +42,7 @@ export function floorToMultiple(minutes: number, multiple: number): number {
   return Math.max(0, Math.floor(minutes / multiple) * multiple);
 }
 
-// ============ resolusi jadwal (padanan Employee Schedule Assignment oranHR) ============
+// ============ resolusi jadwal (padanan Employee Schedule Assignment) ============
 
 interface ResolvedSchedule {
   assignment: { id: string; clockingRequired: boolean; scheduleId: string };
@@ -135,7 +135,7 @@ async function workoffFor(db: TenantDb, employeeId: string, date: Date): Promise
 }
 
 // Cuti efektif pada tanggal (modul Leave): request Approved/MassLeave menutup hari —
-// padanan oranHR Absence Code per jenis cuti. Setengah hari: sesi PM di tanggal mulai
+// padanan Absence Code per jenis cuti. Setengah hari: sesi PM di tanggal mulai
 // atau sesi AM di tanggal selesai.
 interface LeaveCoverage {
   typeName: string;
@@ -239,7 +239,7 @@ export async function listDaily(db: TenantDb, date: Date, employeeId?: string): 
 }
 
 /**
- * Hitung ulang rekap satu tanggal — padanan "Refresh Clocking" oranHR:
+ * Hitung ulang rekap satu tanggal — padanan "Refresh Clocking":
  * clock log (IN pertama → OUT terakhir, window sampai tengah hari berikutnya utk
  * shift malam) + toleransi day type + izin work off + lembur terverifikasi.
  * Idempoten: upsert per (employee, workDate).
@@ -330,7 +330,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
         status = "Off";
       }
     } else if (lv) {
-      // Cuti (Approved/MassLeave) menutup hari kerja — padanan Absence Code oranHR.
+      // Cuti (Approved/MassLeave) menutup hari kerja — padanan Absence Code.
       status = "OnLeave";
       if (lv.paid) {
         normalMinutes = lv.half ? Math.floor(target / 2) : target;
@@ -342,7 +342,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
         notes = lv.half ? `Cuti ${lv.typeName} (setengah hari, tidak dibayar)` : `Cuti ${lv.typeName} (tidak dibayar)`;
       }
     } else if (wo.paid !== null) {
-      // Izin tidak masuk (work off permission) menutup hari — padanan oranHR.
+      // Izin tidak masuk (work off permission) menutup hari — padanan.
       status = "WorkOff";
       if (wo.paid) {
         normalMinutes = wo.half ? Math.floor(target / 2) : target;

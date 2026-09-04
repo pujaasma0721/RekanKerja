@@ -152,7 +152,7 @@ export function MedicalClaimsPage() {
       <PageHeader
         eyebrow="MEDICAL · TRANSAKSI"
         title="Klaim Medis"
-        description="Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim oranHR)"
+        description="Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim)"
         actions={(
           perms.can("medical", "medical-claim", "create") && (
             <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
@@ -299,7 +299,7 @@ export function MedicalClaimsPage() {
 
                                   {detail.statusLog?.length > 0 && (
                                     <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-stone-400">Status Log (padanan oranHR)</p>
+                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-stone-400">Status Log</p>
                                       <div className="space-y-1">
                                         {detail.statusLog.map((sl, i) => (
                                           <p key={i} className="text-xs text-stone-600 dark:text-stone-400">

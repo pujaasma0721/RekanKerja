@@ -85,7 +85,7 @@ export function AttendanceAbsencePage() {
       <PageHeader
         eyebrow="MODUL ATTENDANCE"
         title="Rekap Absensi & Transfer ke Payroll"
-        description="Rekap bulanan kehadiran (padanan Query Employee Attendance/Absence/Tidiness) dan jembatan Transfer to Payroll oranHR"
+        description="Rekap bulanan kehadiran (padanan Query Employee Attendance/Absence/Tidiness) dan jembatan Transfer to Payroll"
         actions={
           <div className="flex flex-wrap gap-2">
             <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-32 text-xs font-bold" />
@@ -209,7 +209,7 @@ export function AttendanceAbsencePage() {
           </DialogHeader>
           <div className="grid gap-3.5 py-1">
             <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
-              Padanan oranHR <span className="font-bold">Transfer to Payroll</span>: rekap jendela absensi ditulis sebagai komponen gaji <span className="font-bold">Specific</span> pada period & process type terpilih (idempoten — re-transfer menimpa nilai lama). Jendela wajib berada dalam jendela period & tidak boleh beririsan dengan window period lain yang sudah ditransfer; jendela diisi otomatis dari window period bila tersedia.
+              Padanan <span className="font-bold">Transfer to Payroll</span>: rekap jendela absensi ditulis sebagai komponen gaji <span className="font-bold">Specific</span> pada period & process type terpilih (idempoten — re-transfer menimpa nilai lama). Jendela wajib berada dalam jendela period & tidak boleh beririsan dengan window period lain yang sudah ditransfer; jendela diisi otomatis dari window period bila tersedia.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

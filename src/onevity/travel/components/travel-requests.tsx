@@ -114,7 +114,7 @@ export function TravelRequestsPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Permintaan Perjalanan Dinas"
-        description="Pengajuan dinas dengan destinasi multi-kaki (kota, zona, luar negeri) dan uang muka — padanan Travel Request oranHR (format nomor TR-tahun-urut)"
+        description="Pengajuan dinas dengan destinasi multi-kaki (kota, zona, luar negeri) dan uang muka — padanan Travel Request (format nomor TR-tahun-urut)"
         actions={
           perms.can("travel", "travel-request", "create") && (
             <Button

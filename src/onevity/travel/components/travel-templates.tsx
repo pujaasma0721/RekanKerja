@@ -1,6 +1,6 @@
 "use client";
 // OneVity Travel — Master: template (settlement day/metode), jenis biaya + limit
-// + akun Debit/Kredit, zona wilayah (padanan General Setting oranHR: ClaimTmpl +
+// + akun Debit/Kredit, zona wilayah (padanan General Setting: ClaimTmpl +
 // ExpenseDefinition + Rules + DomesticZone + Expense Chart of Account).
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
@@ -92,7 +92,7 @@ export function TravelTemplatesPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Master Perjalanan Dinas"
-        description="Template (hari jatuh tempo settlement), jenis biaya + limit + akun jurnal, dan zona wilayah — padanan General Setting oranHR (12 halaman → 3 tab)"
+        description="Template (hari jatuh tempo settlement), jenis biaya + limit + akun jurnal, dan zona wilayah — padanan General Setting (12 halaman → 3 tab)"
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -304,7 +304,7 @@ export function TravelTemplatesPage() {
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={tplForm.isDefault} onChange={(e) => setTplForm({ ...tplForm, isDefault: e.target.checked })} className="h-4 w-4 accent-orange-600" />
-              <span className="font-semibold">Jadikan template default (padanan oranHR Is Default)</span>
+              <span className="font-semibold">Jadikan template default (padanan Is Default)</span>
             </label>
           </div>
           <DialogFooter className="gap-2">
@@ -336,7 +336,7 @@ export function TravelTemplatesPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Kelompok (padanan tab oranHR)</Label>
+                <Label className="text-xs font-bold">Kelompok (padanan tab)</Label>
                 <Select value={expForm.expenseKind} onValueChange={(v) => setExpForm({ ...expForm, expenseKind: v })}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>

@@ -1,4 +1,4 @@
-// OneVity Leave Service (ref: ANALISA-LEAVE.md — modul Leave Administration oranHR).
+// OneVity Leave Service (ref: ANALISA-LEAVE.md — modul Leave Administration).
 // Desain mengikuti ANALISA-LEAVE.md:
 //   saldo = (a carried + b earned + c adjustment) − (d forfeited + e cashed + f taken + g applied)
 //   earned dihitung dinamis (prorate bulanan opsional), taken/applied dari request
@@ -54,7 +54,7 @@ export function yearForDate(
 }
 
 /** Bulan penuh berlaku dalam periode (prorate) — bulan berjalan dihitung penuh
- *  ("Leave Earned by End Of Month" oranHR), dihitung dari max(start periode, join). */
+ *  ("Leave Earned by End Of Month"), dihitung dari max(start periode, join). */
 export function earnedMonths(
   from: Date,
   joinDate: Date,

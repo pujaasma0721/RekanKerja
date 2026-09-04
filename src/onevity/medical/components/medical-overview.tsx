@@ -45,7 +45,7 @@ export function MedicalOverview() {
   const steps = [
     { n: 1, title: "Master & Saldo", desc: "Jenis benefit (limit faktor × gaji / nominal, frekuensi, dependent, kebijakan sisa saldo) + generate saldo per tahun", icon: Boxes, view: "medical-benefit-type" },
     { n: 2, title: "Klaim Medis", desc: "Pengajuan perawatan (rawat inap/jalan, gigi, kacamata…) — baris per perawatan: yang dirawat, diagnosa, kwitansi, dokter, RS, tagihan/reimburse/approved", icon: FileText, view: "medical-claim" },
-    { n: 3, title: "Persetujuan & Settlement", desc: "Operation oranHR: Submit → Approve → Settle. Settle = jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) + saldo used bertambah", icon: CheckCircle2, view: "medical-approval" },
+    { n: 3, title: "Persetujuan & Settlement", desc: "Operation: Submit → Approve → Settle. Settle = jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) + saldo used bertambah", icon: CheckCircle2, view: "medical-approval" },
     { n: 4, title: "Sisa Saldo → Payroll", desc: "Jenis dengan kebijakan CASH → Tarik Sisa Saldo akhir tahun → komponen UMC masuk payslip → Dibayar saat run dikonfirmasi", icon: Landmark, view: "medical-approval" },
   ];
 
@@ -54,7 +54,7 @@ export function MedicalOverview() {
       <PageHeader
         eyebrow="MODUL MEDICAL"
         title="Ringkasan Medical Benefit"
-        description="Klaim medis karyawan & dependent — saldo per jenis (limit faktor gaji/nominal), settlement dengan jurnal, penyesuaian, dan sisa saldo ditarik ke payroll (padanan Medical Benefit oranHR)"
+        description="Klaim medis karyawan & dependent — saldo per jenis (limit faktor gaji/nominal), settlement dengan jurnal, penyesuaian, dan sisa saldo ditarik ke payroll (padanan Medical Benefit)"
       />
 
       {loading && !s ? (
@@ -86,7 +86,7 @@ export function MedicalOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 text-rose-600" /> Alur Klaim Medis (padanan oranHR)
+                  <TrendingUp className="h-4 w-4 text-rose-600" /> Alur Klaim Medis
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -129,7 +129,7 @@ export function MedicalOverview() {
                     Sisa = Limit + Adj. + Carry − Used
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
-                    Padanan <span className="font-semibold">My Medical Information</span> oranHR: snapshot
+                    Padanan <span className="font-semibold">My Medical Information</span>: snapshot
                     Max Benefit / Used / Balance tercatat di tiap klaim. Sisa &gt; 0 pada jenis CASH
                     ditarik tunai via komponen <span className="font-semibold">UMC</span> di payroll.
                   </p>

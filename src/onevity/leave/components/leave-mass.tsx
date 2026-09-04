@@ -64,7 +64,7 @@ export function LeaveMassPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Cuti Massal (SKB Cuti Bersama)"
-        description="Cuti bersama pemerintah / lockdown per organisasi — baris permintaan cuti dibuat otomatis per karyawan (padanan Mass Leave oranHR)"
+        description="Cuti bersama pemerintah / lockdown per organisasi — baris permintaan cuti dibuat otomatis per karyawan (padanan Mass Leave)"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => navigate("leave", "leave-request")} className="gap-2 font-bold">
@@ -92,7 +92,7 @@ export function LeaveMassPage() {
             <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
               Cuti bersama resmi (mis. menjelang Idulfitri) dijalankan lewat cuti massal: pilih tanggal + jenis cuti penanggung saldo,
               sistem membuat baris permintaan <b>status Cuti Massal</b> untuk setiap karyawan organisasi — hari non-kerja & yang
-              sudah punya cuti otomatis dilewati. Contoh nyata MII oranHR: 3 tanggal SKB ditanggung saldo Cuti Besar.
+              sudah punya cuti otomatis dilewati. Contoh nyata MII: 3 tanggal SKB ditanggung saldo Cuti Besar.
             </p>
           </div>
         </div>

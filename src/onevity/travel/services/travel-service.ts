@@ -1,8 +1,8 @@
-// OneVity Travel Service (ref: ANALISA-TRAVEL.md — modul Travel Administration oranHR).
+// OneVity Travel Service (ref: ANALISA-TRAVEL.md — modul Travel Administration).
 // Alur: Travel Request (destinasi + advance) → approval → Travel Claim / Settlement
 // (rincian biaya per jenis: General/Allowance/Mileage/Entertainment) → approval →
 // jurnal otomatis → TRANSFER ke payroll (UTRP bayar / TRVSTLIN potong) → Paid.
-// Formula settlement oranHR dipertahankan:
+// Formula settlement dipertahankan:
 //   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
@@ -43,7 +43,7 @@ async function nextDocNo(db: TenantDb, prefix: "TR" | "CL"): Promise<string> {
   return `${prefix}-${year}-${String(max + 1).padStart(3, "0")}`;
 }
 
-// ============ master (padanan General Setting oranHR) ============
+// ============ master (padanan General Setting) ============
 
 export interface TemplateRow {
   id: string; code: string; name: string; isDefault: boolean; description: string | null;
@@ -259,7 +259,7 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
     createdBy: input.actorName ?? null,
   });
 
-  // jatuh tempo settlement = tanggal kembali + settlement day template (padanan oranHR)
+  // jatuh tempo settlement = tanggal kembali + settlement day template
   const dueDate = new Date(to);
   dueDate.setDate(dueDate.getDate() + template.settlementDay);
 
@@ -545,7 +545,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     totalExpenses += Math.max(0, e.amount);
   }
 
-  // request opsional — klaim mandiri diperbolehkan (padanan oranHR: claim tanpa request)
+  // request opsional — klaim mandiri diperbolehkan (padanan: claim tanpa request)
   let req = null as Awaited<ReturnType<typeof db.travelRequest.findUnique>>;
   let advanceAmount = 0;
   if (input.requestId) {
@@ -599,7 +599,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
   }
 
   // M-1 (24-FIX-TRAVEL): (b)/(c) DIHITUNG SERVER dari rincian vs uang muka (formula
-  // oranHR — padanan saran UI): gross = Σ baris + (a) + rugi kurs;
+  // — padanan saran UI): gross = Σ baris + (a) + rugi kurs;
   // b = max(0, gross − advance); c = max(0, advance − gross). Nilai b/c dari klien
   // DIABAIKAN — input bebas menghasilkan kasbon tak tertagih / overpay (bukti CL-2026-006 b=c=0).
   const a = Math.max(0, input.otherCompanyExp);
@@ -855,7 +855,7 @@ export async function decideClaim(
   let journalLines = 0;
 
   if (input.action === "approve") {
-    // posting jurnal otomatis (padanan Journal No/Type/Date oranHR)
+    // posting jurnal otomatis (padanan Journal No/Type/Date)
     const j = await generateClaimJournal(db, claim.id);
     journalNo = j.journalNo || null;
     journalLines = j.lines;

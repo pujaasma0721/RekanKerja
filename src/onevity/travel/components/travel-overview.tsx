@@ -47,7 +47,7 @@ export function TravelOverview() {
   const steps = [
     { n: 1, title: "Permintaan Travel", desc: "Pengajuan perjalanan dinas — destinasi multi-kaki (kota, zona, luar negeri) + uang muka (cash advance)", icon: Plane, view: "travel-request" },
     { n: 2, title: "Persetujuan", desc: "Approve / Reject / Cancel permintaan & klaim — jatuh tempo settlement otomatis dari template (14 hari)", icon: CheckCircle2, view: "travel-approval" },
-    { n: 3, title: "Klaim & Settlement", desc: "Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula oranHR (a)+(b)−(c)", icon: FileText, view: "travel-claim" },
+    { n: 3, title: "Klaim & Settlement", desc: "Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula (a)+(b)−(c)", icon: FileText, view: "travel-claim" },
     { n: 4, title: "Jurnal & Payroll", desc: "Approve → jurnal otomatis (akun per jenis biaya) → Transfer → komponen UTRP/TRVSTLIN masuk payslip → Dibayar", icon: Landmark, view: "travel-claim-approval" },
   ];
 
@@ -60,7 +60,7 @@ export function TravelOverview() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Ringkasan Perjalanan Dinas"
-        description="Permintaan, uang muka, klaim & settlement perjalanan dinas — budget per cost center, jurnal akuntansi, dan pembayaran via payroll (padanan Travel Administration oranHR)"
+        description="Permintaan, uang muka, klaim & settlement perjalanan dinas — budget per cost center, jurnal akuntansi, dan pembayaran via payroll (padanan Travel Administration)"
       />
 
       {loading && !data ? (
@@ -92,7 +92,7 @@ export function TravelOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 text-orange-600" /> Alur Perjalanan Dinas (padanan oranHR)
+                  <TrendingUp className="h-4 w-4 text-orange-600" /> Alur Perjalanan Dinas
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -121,7 +121,7 @@ export function TravelOverview() {
               <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <Calculator className="h-4 w-4 text-orange-600" /> Formula Settlement oranHR
+                    <Calculator className="h-4 w-4 text-orange-600" /> Formula Settlement
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -140,7 +140,7 @@ export function TravelOverview() {
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
                     Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat — padanan
                     <span className="font-semibold"> Travel &amp; Entertainment Settlement </span>
-                    oranHR dengan status akhir Transferred → Paid via payroll.
+                    dengan status akhir Transferred → Paid via payroll.
                   </p>
                 </CardContent>
               </Card>
@@ -160,7 +160,7 @@ export function TravelOverview() {
                     <Progress value={budgetPct} className="h-2 [&>div]:bg-orange-600" />
                     {overBudget && (
                       <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
-                        <AlertTriangle className="h-3.5 w-3.5" /> Terpakai melebihi budget — perilaku oranHR: warning, klaim tetap diproses
+                        <AlertTriangle className="h-3.5 w-3.5" /> Terpakai melebihi budget — perilaku standar: warning, klaim tetap diproses
                       </p>
                     )}
                     <p className="text-xs text-stone-500 dark:text-stone-400">

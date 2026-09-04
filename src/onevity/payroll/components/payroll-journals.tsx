@@ -159,7 +159,7 @@ export function PayrollJournalsPage() {
           {/* Penjelasan struktur jurnal */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-4">
-              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 text-emerald-600" /> Struktur posting (pattern oranHR "Transfer to Accounting")</p>
+              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 text-emerald-600" /> Struktur posting (pattern "Transfer to Accounting")</p>
               <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 sm:grid-cols-3">
                 <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
                   <p className="font-bold text-stone-700 dark:text-stone-300">1 · Beban</p>

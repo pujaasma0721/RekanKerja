@@ -1,6 +1,6 @@
 "use client";
 // OneVity Travel — Klaim & Settlement: buat klaim dari request Approved dengan
-// rincian biaya per jenis (padanan 4 tab oranHR: General/Allowance/Mileage/
+// rincian biaya per jenis (padanan 4 tab: General/Allowance/Mileage/
 // Entertainment+Guest) + formula (a)+(b)-(c) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
@@ -89,7 +89,7 @@ export function TravelClaimsPage() {
     [approvedRequests.data],
   );
 
-  // pratinjau otomatis saat request dipilih (padanan LOV Travel Request oranHR)
+  // pratinjau otomatis saat request dipilih (padanan LOV Travel Request)
   useEffect(() => {
     if (!dialog || mode !== "request" || !requestId) { setPreviewData(null); return; }
     (async () => {
@@ -102,7 +102,7 @@ export function TravelClaimsPage() {
     })();
   }, [dialog, mode, requestId]);
 
-  // hitung (b)/(c) dari total rincian + uang muka (padanan Expense Summary oranHR) —
+  // hitung (b)/(c) dari total rincian + uang muka (padanan Expense Summary) —
   // M-1 (24-FIX-TRAVEL): server menghitung ulang & memakai hasilnya (input klien diabaikan).
   const totalExpenses = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const advance = previewData?.advanceAmount ?? 0;
@@ -170,7 +170,7 @@ export function TravelClaimsPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Klaim & Settlement Perjalanan"
-        description="Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula oranHR Total = (a)+(b)−(c) — uang muka otomatis dikurangkan"
+        description="Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula Total = (a)+(b)−(c) — uang muka otomatis dikurangkan"
         actions={
           <div className="flex flex-wrap gap-2">
             {perms.can("travel", "travel-claim", "create") && (
@@ -282,7 +282,7 @@ export function TravelClaimsPage() {
                           <TableCell colSpan={7} className="px-6 py-3">
                             <div className="grid gap-3 lg:grid-cols-3">
                               <div className="lg:col-span-2">
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Formula Settlement (oranHR)</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Formula Settlement</p>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
                                     <p className="text-[10px] font-bold text-stone-500">(a) Pihak lain</p>
@@ -478,7 +478,7 @@ export function TravelClaimsPage() {
 
             <div className="rounded-xl border-2 border-orange-200 bg-orange-50/40 p-3 dark:border-orange-800 dark:bg-orange-950/20">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-black text-orange-700 dark:text-orange-400">
-                <Calculator className="h-3.5 w-3.5" /> Formula Settlement oranHR — Total = (a) + (b) − (c)
+                <Calculator className="h-3.5 w-3.5" /> Formula Settlement — Total = (a) + (b) − (c)
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="space-y-1">

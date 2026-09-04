@@ -110,7 +110,7 @@ const PAYROLL_NAV: NavGroup[] = [
   ] },
 ];
 
-// Modul Attendance — terinspirasi struktur menu Time Attendance oranHR (28 halaman → 8 view).
+// Modul Attendance — terinspirasi struktur menu Time Attendance (28 halaman → 8 view).
 const ATTENDANCE_NAV: NavGroup[] = [
   { section: "attendance", children: [{ id: "schedules", label: "Ringkasan", icon: LayoutDashboard }] },
   { section: "attendance", label: "Jadwal & Shift", children: [
@@ -654,7 +654,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* footer */}
           <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
             <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
-              © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Modul {activeModule.label} · dibangun ulang dari studi OranHR
+              © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Modul {activeModule.label}
             </p>
           </footer>
         </div>

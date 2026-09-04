@@ -285,7 +285,7 @@ export function LeaveRequestsPage() {
               </div>
             </div>
 
-            {/* panel auto-compute — padanan oranHR (Number of Working Applied dsb.) */}
+            {/* panel auto-compute — padanan (Number of Working Applied dsb.) */}
             <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 dark:border-orange-900 dark:bg-orange-950/30">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:text-orange-400">Hitungan Otomatis {previewBusy && "…"}</p>

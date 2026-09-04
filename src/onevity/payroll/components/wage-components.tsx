@@ -1,5 +1,5 @@
 "use client";
-// OneVity Payroll — Komponen Upah: master komponen dgn klasifikasi oranHR-grade
+// OneVity Payroll — Komponen Upah: master komponen dgn klasifikasi standar industri
 // (wageType 13-way, incomeTaxMethod, formula, prorata, iuran perusahaan)
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/onevity/shared/lib/api";

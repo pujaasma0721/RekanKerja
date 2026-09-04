@@ -45,7 +45,7 @@ export function ModulePlaceholder({ module }: { module: ModuleId }) {
           <div>
             <p className="text-lg font-bold tracking-tight text-stone-900 dark:text-stone-50">Modul {label} — Segera Hadir</p>
             <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
-              Struktur menu dan proses bisnis modul {label} telah dipetakan dari studi OranHR.
+              Struktur menu dan proses bisnis modul {label} telah dipetakan dari studi aplikasi HRIS referensi.
               Gunakan dropdown <span className="font-semibold text-emerald-700 dark:text-emerald-400">Modul Aktif</span> di sidebar
               untuk berpindah antar modul.
             </p>

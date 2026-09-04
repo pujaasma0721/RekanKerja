@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — Operation oranHR: submit | return | approve | reject | cancel | settle.
+// PATCH — Operation: submit | return | approve | reject | cancel | settle.
 // Settle = jurnal otomatis + saldo used bertambah. Guard re-check sisa plafon
 // (K-1/K-2) + guard VIEWER 403 (decidedBy/settledBy = aktor sesi).
 // Task 32-d: guard hak AKSI menu per pengguna — submit → op:submit & cancel →

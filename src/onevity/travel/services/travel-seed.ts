@@ -185,7 +185,7 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
       payableEmployee: 0, payableCompany: 1_000_000,
       targetStatus: "Submitted", remark: "Kelebihan uang muka akan dikembalikan via potongan payroll",
     },
-    // klaim entertainment mandiri (tanpa request — padanan oranHR claim bebas)
+    // klaim entertainment mandiri (tanpa request — padanan claim bebas)
     {
       empIdx: 14, template: "TRAVEL", claimDate: "2026-09-24",
       purpose: "Entertainment pelanggan prioritas (dinner + hadiah)", costCenter: "OP",

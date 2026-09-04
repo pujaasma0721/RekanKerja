@@ -1,6 +1,6 @@
 "use client";
 // OneVity Medical — Laporan: rekap klaim per jenis (SummaryType) + rentang klaim
-// per karyawan (SummaryEmployee) + komposisi (padanan 3 laporan History oranHR).
+// per karyawan (SummaryEmployee) + komposisi (padanan 3 laporan History).
 import { useMemo, useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -48,7 +48,7 @@ export function MedicalReportsPage() {
       <PageHeader
         eyebrow="MEDICAL · LAPORAN"
         title="Laporan Medis"
-        description="Rekap klaim per jenis benefit, rentang klaim per karyawan, dan komposisi beban — padanan Medical Summary Based on Benefit Type / Employee oranHR"
+        description="Rekap klaim per jenis benefit, rentang klaim per karyawan, dan komposisi beban — padanan Medical Summary Based on Benefit Type / Employee"
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-2">

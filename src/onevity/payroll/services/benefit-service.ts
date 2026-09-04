@@ -1,6 +1,6 @@
 // OneVity Benefit Service (P5) — engine limit klaim + lifecycle persetujuan +
 // integrasi pay-in-payroll (klaim Scheduled → komponen Specific run BENEFIT).
-// Pola oranHR "Employee Benefit": BenefitType (limit/reset/auto-approve) +
+// Pola "Employee Benefit": BenefitType (limit/reset/auto-approve) +
 // BenefitClaim dengan snapshot audit limit saat pengajuan.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 

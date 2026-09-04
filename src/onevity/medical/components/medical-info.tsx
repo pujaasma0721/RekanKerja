@@ -82,7 +82,7 @@ export function MedicalInfoPage() {
       <PageHeader
         eyebrow="MEDICAL · SALDO"
         title="Saldo Medis Karyawan"
-        description="Benefit limit per karyawan × jenis per tahun — dihitung dari kebijakan (faktor × gaji pokok / nominal), penyesuaian, dan pemakaian klaim settled (padanan Employee Medical Information oranHR)"
+        description="Benefit limit per karyawan × jenis per tahun — dihitung dari kebijakan (faktor × gaji pokok / nominal), penyesuaian, dan pemakaian klaim settled (padanan Employee Medical Information)"
         actions={(
           <Button onClick={() => setGenOpen(true)} className="bg-rose-600 hover:bg-rose-700">
             <RefreshCw className="h-4 w-4" /> Generate Saldo
@@ -205,7 +205,7 @@ export function MedicalInfoPage() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-stone-600 dark:text-stone-300">
-            Padanan <span className="font-semibold">Generate Employee Medical Information</span> oranHR —
+            Padanan <span className="font-semibold">Generate Employee Medical Information</span> —
             membuat baris saldo karyawan aktif × jenis untuk tahun terpilih.
             Limit dihitung dari gaji pokok assignment aktif.
           </p>

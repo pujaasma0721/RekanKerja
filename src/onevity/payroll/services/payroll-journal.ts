@@ -1,5 +1,5 @@
 // OneVity Payroll Journal (P4) — posting jurnal otomatis dari run confirmed.
-// Pattern "Transfer to Accounting" oranHR: Journal No/Type/Date melekat pada hasil
+// Pattern "Transfer to Accounting": Journal No/Type/Date melekat pada hasil
 // payroll; tiap baris = snapshot akun + nominal + komponen asal.
 //
 // Struktur jurnal (selalu balance):

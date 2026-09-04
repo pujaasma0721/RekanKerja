@@ -113,7 +113,7 @@ export function MedicalAdjustmentPage() {
       <PageHeader
         eyebrow="MEDICAL · PENYESUAIAN"
         title="Penyesuaian Saldo Medis"
-        description="Tambah/kurangi benefit limit karyawan atau dependent (± amount) dengan alur persetujuan — padanan Medical Adjustment + Medical Adjustment Approval oranHR"
+        description="Tambah/kurangi benefit limit karyawan atau dependent (± amount) dengan alur persetujuan — padanan Medical Adjustment + Medical Adjustment Approval"
         actions={(
           <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
             <Plus className="h-4 w-4" /> Ajukan Penyesuaian

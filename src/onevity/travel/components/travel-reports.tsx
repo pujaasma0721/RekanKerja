@@ -1,6 +1,6 @@
 "use client";
 // OneVity Travel — Laporan: klaim per rentang + komposisi biaya per jenis & kode
-// (padanan TravelClaim report + Summary per jenis oranHR)
+// (padanan TravelClaim report + Summary per jenis)
 import { useMemo, useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -54,7 +54,7 @@ export function TravelReportsPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Laporan Klaim Perjalanan"
-        description="Rekap klaim settlement per rentang tanggal — komposisi biaya per kelompok (General/Allowance/Mileage/Entertainment) dan per kode biaya, padanan laporan Travel oranHR"
+        description="Rekap klaim settlement per rentang tanggal — komposisi biaya per kelompok (General/Allowance/Mileage/Entertainment) dan per kode biaya, padanan laporan Travel"
       />
 
       <Card className="mb-4 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">

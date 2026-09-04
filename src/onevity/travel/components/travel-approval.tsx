@@ -71,7 +71,7 @@ export function TravelApprovalPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Persetujuan Perjalanan Dinas"
-        description="Antrean permintaan travel menunggu keputusan — padanan Travel Request Approval oranHR (24 antrean MII) dengan operasi Approve / Reject / Cancel"
+        description="Antrean permintaan travel menunggu keputusan — padanan Travel Request Approval (24 antrean MII) dengan operasi Approve / Reject / Cancel"
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">

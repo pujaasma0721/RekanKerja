@@ -1,5 +1,5 @@
 "use client";
-// OneVity — Modul Leave: router view (padanan Leave Administration oranHR)
+// OneVity — Modul Leave: router view (padanan Leave Administration)
 import { LeaveOverview } from "@/onevity/leave/components/leave-overview";
 import { LeaveTypesPage } from "@/onevity/leave/components/leave-templates";
 import { LeaveBalancesPage } from "@/onevity/leave/components/leave-balances";

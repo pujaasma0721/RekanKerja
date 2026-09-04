@@ -1,5 +1,5 @@
 "use client";
-// OneVity Travel — shared types (padanan modul Travel Administration oranHR)
+// OneVity Travel — shared types (padanan modul Travel Administration)
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }

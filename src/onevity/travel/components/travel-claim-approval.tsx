@@ -1,7 +1,7 @@
 "use client";
 // OneVity Travel — Persetujuan Klaim & Transfer Payroll: approve → jurnal otomatis
 // → Transfer → komponen UTRP/TRVSTLIN (padanan TravelClaimToApprove.jsp +
-// Operation Transfer + Travel Wage Definition oranHR)
+// Operation Transfer + Travel Wage Definition)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
@@ -98,7 +98,7 @@ export function TravelClaimApprovalPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Persetujuan Klaim & Transfer Payroll"
-        description="Approve klaim → jurnal akuntansi otomatis per baris biaya → Transfer ke payroll (UTRP bayar karyawan / TRVSTLIN potong kelebihan uang muka) — padanan Settlement Approval + Wage Definition oranHR"
+        description="Approve klaim → jurnal akuntansi otomatis per baris biaya → Transfer ke payroll (UTRP bayar karyawan / TRVSTLIN potong kelebihan uang muka) — padanan Settlement Approval + Wage Definition"
         actions={
           perms.canOp("travel", "travel-claim-approval", "transfer") && (
             <Button
@@ -233,7 +233,7 @@ export function TravelClaimApprovalPage() {
                   <p className="font-bold text-stone-800 dark:text-stone-200">
                     {approvedClaims.length} klaim Approved — bayar karyawan {fmtIDR(aStats?.payableEmployee ?? 0)} + potong perusahaan {fmtIDR(aStats?.payableCompany ?? 0)}
                   </p>
-                  <p className="text-xs text-stone-500">Komponen payroll: UTRP (earning) untuk (b) &amp; TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition oranHR</p>
+                  <p className="text-xs text-stone-500">Komponen payroll: UTRP (earning) untuk (b) &amp; TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition</p>
                 </div>
                 {perms.canOp("travel", "travel-claim-approval", "transfer") && (
                   <Button onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">

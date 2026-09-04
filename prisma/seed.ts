@@ -476,7 +476,7 @@ async function main() {
     },
   });
 
-  // ============ WAGE COMPONENTS (klasifikasi oranHR-grade) ============
+  // ============ WAGE COMPONENTS (klasifikasi standar industri) ============
   // type=wageCategory, wageType=13-way, calcMethod, amount, formula, incomeTaxMethod, flags
   type CompDef = {
     code: string; name: string; type: string; wageType: string; calcMethod: string;
@@ -911,7 +911,7 @@ async function main() {
   await mkRun("2026-09"); // Draft — sengaja dibiarkan utk demo
 
 
-  // ============ TIME ATTENDANCE (ref: ANALISA-ATTENDANCE.md — oranHR) ============
+  // ============ TIME ATTENDANCE (ref: ANALISA-ATTENDANCE.md) ============
   console.log(" seeding attendance…");
   // -- tipe hari (padanan DayType.jsp)
   const dayTypeDefs: { code: string; name: string; color: string; category: string; timeIn?: string; timeOut?: string; nextDay?: boolean; breakMinutes?: number; normalMinutes?: number; tolLate?: number; tolEarly?: number; flexible?: boolean }[] = [
@@ -1139,7 +1139,7 @@ async function main() {
     });
   }
 
-  // ============ LEAVE (ref: ANALISA-LEAVE.md — oranHR) ============
+  // ============ LEAVE (ref: ANALISA-LEAVE.md) ============
   console.log(" seeding leave…");
   const { seedLeaveDemoData } = await import("../src/onevity/leave/services/leave-seed");
   const leaveRes = await seedLeaveDemoData(db);
@@ -1149,7 +1149,7 @@ async function main() {
     console.log(`   → ${leaveRes.balances} saldo 2026, ${leaveRes.requests} permintaan, cuti massal ${leaveRes.massGenerated} karyawan, ${leaveRes.encashments} encashment`);
   }
 
-  // ============ TRAVEL (ref: ANALISA-TRAVEL.md — oranHR) ============
+  // ============ TRAVEL (ref: ANALISA-TRAVEL.md) ============
   console.log(" seeding travel…");
   const { seedTravelDemoData } = await import("../src/onevity/travel/services/travel-seed");
   const travelRes = await seedTravelDemoData(db);
@@ -1159,7 +1159,7 @@ async function main() {
     console.log(`   → ${travelRes.requests} permintaan travel, ${travelRes.claims} klaim, budget ${travelRes.budgetYear}`);
   }
 
-  // ============ MEDICAL (ref: ANALISA-MEDICAL.md — oranHR) ============
+  // ============ MEDICAL (ref: ANALISA-MEDICAL.md) ============
   console.log(" seeding medical…");
   const { seedMedicalDemoData } = await import("../src/onevity/medical/services/medical-seed");
   const medRes = await seedMedicalDemoData(db);

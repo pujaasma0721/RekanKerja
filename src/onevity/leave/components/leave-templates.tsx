@@ -84,7 +84,7 @@ export function LeaveTypesPage() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Jenis Cuti"
-        description="Master jenis cuti & kebijakannya — hak, satuan, prorate, carry-over, waiting period, dokumen (padanan Leave Type oranHR)"
+        description="Master jenis cuti & kebijakannya — hak, satuan, prorate, carry-over, waiting period, dokumen (padanan Leave Type)"
         actions={
           <Button onClick={openCreate} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
             <Plus className="h-4 w-4" /> Jenis Cuti Baru

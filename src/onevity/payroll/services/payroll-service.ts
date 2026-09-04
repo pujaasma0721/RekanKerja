@@ -128,7 +128,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   const workingDays = workingDaysBetween(period.startDate, period.endDate);
   const rows: EngineRow[] = [];
 
-  // Semantik multi-run (mengikuti oranHR): hanya run SALARY yang memproses
+  // Semantik multi-run (perilaku standar industri): hanya run SALARY yang memproses
   // payroll penuh (template + periodic + pinjaman). Run THR/BONUS/TERMINATION/
   // YEAR_END_ADJ adalah run suplemental — hanya komponen Specific yang cocok
   // (period × processType) yang diproses, agar tidak terjadi pembayaran ganda.

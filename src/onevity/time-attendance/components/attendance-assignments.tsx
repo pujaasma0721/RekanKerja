@@ -1,6 +1,6 @@
 "use client";
 // OneVity Attendance — Assign Jadwal: penugasan jadwal per karyawan
-// (padanan oranHR EmpWorkSchedule.jsp) + anchor Senin + non-clocking.
+// (padanan EmpWorkSchedule.jsp) + anchor Senin + non-clocking.
 import { useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -94,7 +94,7 @@ export function AttendanceAssignmentsPage() {
       <PageHeader
         eyebrow="MODUL ATTENDANCE"
         title="Assign Jadwal Karyawan"
-        description="Penugasan jadwal cycle per karyawan — padanan Employee Schedule Assignment oranHR dengan anchor Senin rotasi"
+        description="Penugasan jadwal cycle per karyawan — padanan Employee Schedule Assignment dengan anchor Senin rotasi"
         actions={
           <Button onClick={() => setDialog(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-4 w-4" /> Assign Jadwal

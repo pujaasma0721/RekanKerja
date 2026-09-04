@@ -74,7 +74,7 @@ export function LeaveOverview() {
       <PageHeader
         eyebrow="MODUL LEAVE"
         title="Ringkasan Cuti Karyawan"
-        description="Saldo, permintaan, cuti massal, dan uang pengganti cuti — terintegrasi jadwal absensi & payroll (padanan Leave Administration oranHR)"
+        description="Saldo, permintaan, cuti massal, dan uang pengganti cuti — terintegrasi jadwal absensi & payroll (padanan Leave Administration)"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={generateThisYear} className="gap-2 font-bold">
@@ -143,7 +143,7 @@ export function LeaveOverview() {
             <div className="rounded-2xl border border-stone-200/80 bg-gradient-to-br from-orange-500 to-rose-500 p-5 text-white shadow-sm">
               <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4" />
-                <h3 className="text-sm font-bold">Formula Saldo oranHR</h3>
+                <h3 className="text-sm font-bold">Formula Saldo</h3>
               </div>
               <p className="mt-3 font-mono text-[11px] leading-relaxed text-orange-50">
                 saldo = (a carried + b earned + c adj)<br />

@@ -1,7 +1,7 @@
 "use client";
 // OneVity Travel — Budget: period tahunan + rincian per cost center + progress
 // (padanan TravelPeriod.jsp "Total Budget | Used | Unused" + Budget Per Cost
-// Center). Over-budget = warning, bukan blokir (perilaku nyata oranHR MII).
+// Center). Over-budget = warning, bukan blokir (perilaku nyata MII).
 import { useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -72,7 +72,7 @@ export function TravelBudgetPage() {
       <PageHeader
         eyebrow="MODUL TRAVEL"
         title="Budget Perjalanan Dinas"
-        description="Budget tahunan + rincian per cost center — pemakaian dihitung dari klaim Transferred/Paid. Over-budget memunculkan warning tanpa memblokir klaim (padanan Travel Budget oranHR)"
+        description="Budget tahunan + rincian per cost center — pemakaian dihitung dari klaim Transferred/Paid. Over-budget memunculkan warning tanpa memblokir klaim (padanan Travel Budget)"
         actions={
           <Button onClick={() => openDialog()} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
             <Plus className="h-4 w-4" /> Tahun Baru
@@ -133,7 +133,7 @@ export function TravelBudgetPage() {
                   {over && (
                     <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      Terpakai {fmtIDR(b.used - b.totalBudget)} melebihi budget — padanan oranHR: klaim tetap diproses, budget alat monitoring
+                      Terpakai {fmtIDR(b.used - b.totalBudget)} melebihi budget — padanan: klaim tetap diproses, budget alat monitoring
                     </p>
                   )}
                   {!over && b.totalBudget > 0 && b.claimCount > 0 && (

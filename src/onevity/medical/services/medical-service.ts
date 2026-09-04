@@ -1,4 +1,4 @@
-// OneVity Medical Service (ref: ANALISA-MEDICAL.md — modul Medical Benefit oranHR).
+// OneVity Medical Service (ref: ANALISA-MEDICAL.md — modul Medical Benefit).
 // Alur: master jenis benefit (limit UNLIMITED/NOMINAL/FACTOR×gaji) → Generate saldo
 // per tahun (padanan Generate Employee Medical Information) → klaim medis (baris
 // perawatan: treated/diagnosa/kwitansi/dokter/RS + bill/reimburse/approved/nonRe) →
@@ -356,7 +356,7 @@ export async function generateBalances(
           )
         : 0;
       // K-4 (fix audit BPA-medical): initialUsed = 0 — auto-carry used tahun lalu
-      // DIHAPUS. Padanan oranHR "Initial Medical Benefit" adalah MIGRASI MANUAL
+      // DIHAPUS. Padanan "Initial Medical Benefit" adalah MIGRASI MANUAL
       // saldo awal (input eksplisit), bukan auto-carry:
       // (a) CASH — sisa tahun lalu SUDAH dicairkan via UMC sehingga pemakaian lama
       //     tidak relevan (auto-carry memberi seluruh karyawan sisa 0 di tahun baru);
@@ -951,7 +951,7 @@ export interface DecideClaimResult {
   approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
-/** Operasi klaim — padanan Operation oranHR: Submit | Return To Requester |
+/** Operasi klaim — padanan Operation: Submit | Return To Requester |
  *  Approve | Reject | Cancel | Settle. Settle = jurnal + saldo used bertambah.
  *
  *  Fix audit K-1/K-2/K-3: approve & settle RE-CHECK sisa plafon pool yang benar
@@ -1272,7 +1272,7 @@ export async function listAdjustments(db: TenantDb, input: { state?: string; yea
   }));
 }
 
-// ============ transfer sisa saldo ke payroll (padanan cash_wage_code oranHR) ============
+// ============ transfer sisa saldo ke payroll (padanan cash_wage_code) ============
 
 export interface MedTransferResult {
   periodName: string;
@@ -1366,7 +1366,7 @@ export async function transferUnusedToPayroll(
   }
 
   // saldo CASH dikonsumsi saat ditransfer (used bertambah) — mencegah transfer
-  // ganda ke period lain (padanan oranHR: saldo hangus saat dibayar tunai).
+  // ganda ke period lain (padanan: saldo hangus saat dibayar tunai).
   for (const r of rows) {
     const bal = balances.find((b) => b.id === r.balanceId);
     if (!bal) continue;

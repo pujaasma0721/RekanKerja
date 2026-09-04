@@ -308,7 +308,7 @@ export function AttendanceOvertimePage() {
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Jam dibayar (menit) *</Label>
               <Input type="number" min={30} max={600} step={15} value={verifyMinutes} onChange={(e) => setVerifyMinutes(e.target.value)} className="text-sm" />
-              <p className="text-[10px] text-stone-400">Padanan kolom Verified Overtime oranHR — jam inilah yang dibayar lewat transfer payroll.</p>
+              <p className="text-[10px] text-stone-400">Padanan kolom Verified Overtime — jam inilah yang dibayar lewat transfer payroll.</p>
             </div>
           </div>
           <DialogFooter>
