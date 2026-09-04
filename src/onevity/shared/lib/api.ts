@@ -1,6 +1,7 @@
 "use client";
 // OneVity shared API hooks + formatters (client side)
 import { useCallback, useEffect, useState } from "react";
+import { getLang } from "@/onevity/shared/lib/i18n-core";
 
 export function useApi<T>(url: string | null, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -54,12 +55,22 @@ export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" |
 }
 
 // ============ formatters ============
+// Formatter tanggal/mata uang/tenure mengikuti bahasa aktif (i18n-core) —
+// dipilih via useI18n().setLang sehingga seluruh modul ikut berganti.
+
+const dateLocale = () => (getLang() === "en" ? "en-US" : "id-ID");
+
 export const fmtIDR = (n: number | null | undefined) =>
-  n == null ? "—" : new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+  n == null ? "—" : `Rp ${new Intl.NumberFormat(dateLocale()).format(n)}`;
 
 export const fmtIDRShort = (n: number) => {
   const sign = n < 0 ? "-" : "";
   const a = Math.abs(n);
+  if (getLang() === "en") {
+    if (a >= 1_000_000_000) return `Rp ${sign}${(a / 1_000_000_000).toFixed(1)}B`;
+    if (a >= 1_000_000) return `Rp ${sign}${(a / 1_000_000).toFixed(1)}M`;
+    return `Rp ${sign}${new Intl.NumberFormat("en-US").format(a)}`;
+  }
   if (a >= 1_000_000_000) return `Rp ${sign}${(a / 1_000_000_000).toFixed(1)} M`;
   if (a >= 1_000_000) return `Rp ${sign}${(a / 1_000_000).toFixed(1)} jt`;
   if (a >= 1_000) return `Rp ${sign}${(a / 1_000).toFixed(0)} rb`;
@@ -70,21 +81,21 @@ export const fmtDate = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   if (isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short", year: "numeric" }).format(date);
 };
 
 export const fmtDateLong = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   if (isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "long", year: "numeric" }).format(date);
 };
 
 export const fmtDateTime = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   if (isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
 };
 
 export const initials = (name: string) =>
@@ -96,6 +107,13 @@ export const tenure = (joinDate: string | Date | null | undefined) => {
   if (isNaN(d.getTime())) return "—";
   const now = new Date();
   const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (getLang() === "en") {
+    if (months < 1) return "< 1 month";
+    if (months < 12) return `${months} mo`;
+    const years = Math.floor(months / 12);
+    const rem = months % 12;
+    return rem ? `${years} yr ${rem} mo` : `${years} yr${years > 1 ? "s" : ""}`;
+  }
   if (months < 1) return "< 1 bulan";
   if (months < 12) return `${months} bulan`;
   const years = Math.floor(months / 12);
@@ -103,7 +121,7 @@ export const tenure = (joinDate: string | Date | null | undefined) => {
   return rem ? `${years} thn ${rem} bln` : `${years} tahun`;
 };
 
-export const genderLabel = (g: string) => (g === "F" ? "Perempuan" : "Laki-laki");
+export const genderLabel = (g: string) => (getLang() === "en" ? (g === "F" ? "Female" : "Male") : g === "F" ? "Perempuan" : "Laki-laki");
 
 // PA type label (safe import for modules without ui-kit)
 export const paTypeLabelSafe = (t: string): string => {
@@ -113,6 +131,13 @@ export const paTypeLabelSafe = (t: string): string => {
     ChangeStatus: "Perubahan Status", ExtendProbation: "Perpanjangan Probation",
     Resignation: "Resignasi", Termination: "PHK", Retirement: "Pensiun",
   };
+  const en: Record<string, string> = {
+    Hire: "Hire", Promotion: "Promotion", Demotion: "Demotion", Transfer: "Transfer",
+    Mutation: "Mutation", SalaryAdjustment: "Salary Adjustment", ContractRenewal: "Contract Renewal",
+    ChangeStatus: "Status Change", ExtendProbation: "Probation Extension",
+    Resignation: "Resignation", Termination: "Termination", Retirement: "Retirement",
+  };
+  if (getLang() === "en") return en[t] ?? t;
   return map[t] ?? t;
 };
 

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Landmark, ArrowLeftRight, BookOpen, ChevronRight } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 interface AccountData {
   groups: { id: string; code: string; name: string; accountType: string; accountCount: number }[];
@@ -24,6 +25,7 @@ interface JournalSummary {
 
 export function AccountingPage() {
   const { navigate } = useNav();
+  const { t, locale } = useI18n();
   const { data, loading } = useApi<AccountData>("/api/onevity/accounts");
   const journalsApi = useApi<JournalSummary>("/api/onevity/payroll-journals");
   const [tab, setTab] = useState("accounts");
@@ -33,9 +35,9 @@ export function AccountingPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="Akun & Posting"
-        description="Integrasi akun buku besar dan event posting payroll ke sistem akuntansi"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("Akun & Posting")}
+        description={t("Integrasi akun buku besar dan event posting payroll ke sistem akuntansi", "Integration of general ledger accounts and payroll posting events to the accounting system")}
       />
       {loading && !data ? (
         <LoadingRows rows={5} />
@@ -44,13 +46,13 @@ export function AccountingPage() {
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
               <TabsTrigger value="accounts" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-                <Landmark className="h-3.5 w-3.5" /> Akun ({data?.accounts.length ?? 0})
+                <Landmark className="h-3.5 w-3.5" /> {t("Akun", "Accounts")} ({data?.accounts.length ?? 0})
               </TabsTrigger>
               <TabsTrigger value="postings" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-                <ArrowLeftRight className="h-3.5 w-3.5" /> Event Posting ({data?.postings.length ?? 0})
+                <ArrowLeftRight className="h-3.5 w-3.5" /> {t("Event Posting", "Posting Events")} ({data?.postings.length ?? 0})
               </TabsTrigger>
               <TabsTrigger value="journal" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-                <BookOpen className="h-3.5 w-3.5" /> Jurnal Payroll ({journals.length})
+                <BookOpen className="h-3.5 w-3.5" /> {t("Jurnal Payroll")} ({journals.length})
               </TabsTrigger>
             </TabsList>
 
@@ -65,7 +67,7 @@ export function AccountingPage() {
                           <Badge variant="secondary" className="text-[9px]">{g.accountType}</Badge>
                         </div>
                         <p className="mt-1.5 text-[13px] font-bold">{g.name}</p>
-                        <p className="mt-1 text-[11px] text-stone-400">{g.accountCount} akun</p>
+                        <p className="mt-1 text-[11px] text-stone-400">{t("{n} akun", "{n} accounts", { n: g.accountCount })}</p>
                       </CardContent>
                     </Card>
                   ))}
@@ -76,9 +78,9 @@ export function AccountingPage() {
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                            <TableHead className="text-[11px] font-bold">Kode</TableHead>
-                            <TableHead className="text-[11px] font-bold">Nama Akun</TableHead>
-                            <TableHead className="text-[11px] font-bold">Grup</TableHead>
+                            <TableHead className="text-[11px] font-bold">{t("Kode")}</TableHead>
+                            <TableHead className="text-[11px] font-bold">{t("Nama Akun", "Account Name")}</TableHead>
+                            <TableHead className="text-[11px] font-bold">{t("Grup", "Group")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -124,29 +126,29 @@ export function AccountingPage() {
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
-                    <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 ov-text-accent" /> Jurnal Payroll Terposting ({journals.length})</span>
+                    <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 ov-text-accent" /> {t("Jurnal Payroll Terposting", "Posted Payroll Journals")} ({journals.length})</span>
                     <Button variant="outline" size="sm" onClick={() => navigate("payroll", "journals")} className="gap-1.5 font-bold">
-                      Buka Jurnal Payroll <ChevronRight className="h-3.5 w-3.5" />
+                      {t("Buka Jurnal Payroll", "Open Payroll Journals")} <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                   </CardTitle>
                   <p className="text-[11px] text-stone-400">
-                    Posting otomatis saat run dikonfirmasi{missing.length > 0 ? ` · ${missing.length} run menunggu backfill` : ""}
+                    {t("Posting otomatis saat run dikonfirmasi", "Automatic posting when a run is confirmed")}{missing.length > 0 ? t(" · {n} run menunggu backfill", " · {n} runs awaiting backfill", { n: missing.length }) : ""}
                   </p>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {journals.length === 0 ? (
                     <div className="rounded-xl bg-stone-50 px-4 py-6 text-center text-xs text-stone-400 dark:bg-stone-900">
-                      Belum ada jurnal — konfirmasi run payroll atau buka menu Jurnal Payroll untuk backfill.
+                      {t("Belum ada jurnal — konfirmasi run payroll atau buka menu Jurnal Payroll untuk backfill.", "No journals yet — confirm a payroll run or open the Payroll Journals menu to backfill.")}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                            <TableHead className="text-[11px] font-bold">Jurnal</TableHead>
-                            <TableHead className="text-[11px] font-bold">Sumber Run</TableHead>
-                            <TableHead className="text-center text-[11px] font-bold">Baris</TableHead>
-                            <TableHead className="text-right text-[11px] font-bold">Debit = Kredit</TableHead>
+                            <TableHead className="text-[11px] font-bold">{t("Jurnal", "Journal")}</TableHead>
+                            <TableHead className="text-[11px] font-bold">{t("Sumber Run", "Source Run")}</TableHead>
+                            <TableHead className="text-center text-[11px] font-bold">{t("Baris", "Lines")}</TableHead>
+                            <TableHead className="text-right text-[11px] font-bold">{t("Debit = Kredit", "Debit = Credit")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -155,7 +157,7 @@ export function AccountingPage() {
                               <TableCell className="font-mono text-[11px] font-bold ov-text-accent">{j.journalNo}</TableCell>
                               <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
                               <TableCell className="text-center text-xs">{j._count.lines}</TableCell>
-                              <TableCell className="text-right text-xs font-bold">{fmtIDRLite(j.totalDebit)}</TableCell>
+                              <TableCell className="text-right text-xs font-bold">{fmtIDRLite(j.totalDebit, locale)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -172,6 +174,6 @@ export function AccountingPage() {
   );
 }
 
-function fmtIDRLite(n: number) {
-  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+function fmtIDRLite(n: number, locale: string) {
+  return `Rp ${Math.round(n).toLocaleString(locale)}`;
 }

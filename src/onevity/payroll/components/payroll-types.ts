@@ -245,4 +245,46 @@ export const FORMULA_VARIABLES = [
   { name: "JP_RATE_CO / JP_RATE_EMP", desc: "Tarif JP perusahaan / pegawai" },
   { name: "JPK_RATE_CO / JPK_RATE_EMP", desc: "Tarif JPK perusahaan / pegawai" },
   { name: "JKK_RATE / JKM_RATE", desc: "Tarif JKK & JKM" },
-];
+]
+
+// ============ LABEL EN (peta paralel — render: t(MAP[k], MAP_EN[k])) ============
+export const WAGE_TYPE_LABEL_EN: Record<string, string> = {
+  BasicSalary: "Base Salary", Compensation: "Allowance/Compensation", CompensationNatura: "Natura Compensation",
+  Deduction: "Deduction", Overtime: "Overtime", Jamsostek: "BPJS/Jamsostek", Loan: "Loan",
+  THPRounding: "THP Rounding", FinalTax: "Final Tax", IncomeTax: "PPh21", Information: "Information",
+  BackPay: "Back Pay (Retro Pay)", ServiceCharge: "Service Charge",
+};
+
+export const TAX_METHOD_LABEL_EN: Record<string, string> = {
+  NonTaxable: "Non-Taxable", Regular: "Regular", Irregular: "Irregular",
+  FixedRateFinal: "Final Rate", SeveranceFinal: "Final (Severance)", PensionFinal: "Final (Pension)",
+  PKP: "PKP", Final2Years: "Final > 2 Yrs",
+};
+
+export const PERIOD_STATUS_LABEL_EN: Record<string, string> = {
+  Open: "Open", Processed: "Processed", Closed: "Closed", Locked: "Locked",
+};
+
+export const RUN_STATUS_LABEL_EN: Record<string, string> = {
+  Draft: "Draft", Calculated: "Calculated", Confirmed: "Confirmed", Paid: "Paid", Cancelled: "Cancelled",
+};
+
+export const TAX_STATUS_OPTION_EN: Record<string, string> = {
+  TK0: "TK/0 — Single", TK1: "TK/1 — +1 dependent", TK2: "TK/2 — +2 dependents", TK3: "TK/3 — +3 dependents",
+  K0: "K/0 — Married", K1: "K/1 — Married +1", K2: "K/2 — Married +2", K3: "K/3 — Married +3",
+  KI0: "K/I/0 — Married, working spouse", KI1: "K/I/1 — K/I +1", KI2: "K/I/2 — K/I +2", KI3: "K/I/3 — K/I +3",
+};
+
+export const FORMULA_VARIABLES_EN: Record<string, string> = {
+  BASE_SALARY: "Base salary from the employee's active placement",
+  WORKING_DAYS: "Working days of the period (Monday–Friday)",
+  PRORATE: "Employment prorate factor (0–1)",
+  BPJS_BASE: "BPJS basis (= base salary)",
+  JHT_BASE: "JHT basis (no cap)",
+  JP_BASE: "JP basis (capped by regulation)",
+  JPK_BASE: "JPK basis (capped by regulation)",
+  "JHT_RATE_CO / JHT_RATE_EMP": "JHT rate company / employee",
+  "JP_RATE_CO / JP_RATE_EMP": "JP rate company / employee",
+  "JPK_RATE_CO / JPK_RATE_EMP": "JPK rate company / employee",
+  "JKK_RATE / JKM_RATE": "JKK & JKM rates",
+};

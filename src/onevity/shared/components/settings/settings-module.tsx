@@ -23,6 +23,7 @@ import {
   Layers, ShieldCheck, CheckCircle2, Plus, Pencil, Trash2, UserCog, KeyRound, FileKey,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 export function SettingsModule({ view }: { view: string }) {
   if (view === "security") return <SecurityPage />;
@@ -35,6 +36,7 @@ export function SettingsModule({ view }: { view: string }) {
 interface LookupItem { id: string; category: string; code: string; label: string; sortOrder: number; active: boolean }
 
 function LookupPage() {
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<{ lookups: LookupItem[]; grouped: Record<string, LookupItem[]> }>("/api/onevity/lookups");
   const [category, setCategory] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -54,7 +56,7 @@ function LookupPage() {
   const remove = async (l: LookupItem) => {
     try {
       await apiSend(`/api/onevity/lookups?id=${l.id}`, "DELETE");
-      toast.success("Entri dihapus");
+      toast.success(t("Entri dihapus", "Entry deleted"));
       refresh();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -62,12 +64,12 @@ function LookupPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="PENGATURAN"
-        title="Data Master"
-        description={`${data?.lookups.length ?? 0} entri lookup di ${categories.length} kategori — agama, status, pendidikan, shift, dan lainnya`}
+        eyebrow={t("PENGATURAN", "SETTINGS")}
+        title={t("Data Master", "Master Data")}
+        description={t("{n} entri lookup di {m} kategori — agama, status, pendidikan, shift, dan lainnya", "{n} lookup entries in {m} categories — religion, status, education, shifts, and more", { n: data?.lookups.length ?? 0, m: categories.length })}
         actions={
           <Button onClick={() => setAddOpen(true)} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> Entri Baru
+            <Plus className="h-4 w-4" /> {t("Entri Baru", "New Entry")}
           </Button>
         }
       />
@@ -78,7 +80,7 @@ function LookupPage() {
           {/* categories */}
           <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 ov-text-accent" /> Kategori</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 ov-text-accent" /> {t("Kategori", "Categories")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 pt-0">
               {categories.map((c) => {
@@ -103,18 +105,18 @@ function LookupPage() {
           {/* entries */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-bold">Entri: {current}</CardTitle>
-              <Badge variant="secondary" className="font-mono text-[10px]">{items.length} item</Badge>
+              <CardTitle className="text-sm font-bold">{t("Entri: {cat}", "Entries: {cat}", { cat: current })}</CardTitle>
+              <Badge variant="secondary" className="font-mono text-[10px]">{t("{n} item", "{n} items", { n: items.length })}</Badge>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                      <TableHead className="text-[11px] font-bold">Label</TableHead>
-                      <TableHead className="text-[11px] font-bold">Kode</TableHead>
-                      <TableHead className="text-[11px] font-bold">Urutan</TableHead>
-                      <TableHead className="text-[11px] font-bold">Aktif</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("Label")}</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("Kode")}</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("Urutan", "Order")}</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("Aktif")}</TableHead>
                       <TableHead className="w-24" />
                     </TableRow>
                   </TableHeader>
@@ -130,7 +132,7 @@ function LookupPage() {
                             <button onClick={() => setEditing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
+                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -152,20 +154,21 @@ function LookupPage() {
 }
 
 function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpen: (v: boolean) => void; category: string; item: LookupItem | null }) {
+  const { t } = useI18n();
   const [label, setLabel] = useState(item?.label ?? "");
   const [key, setKey] = useState("");
   const itemKey = item?.id ?? "new";
   if (key !== itemKey) { setKey(itemKey); setLabel(item?.label ?? ""); }
 
   const submit = async () => {
-    if (!label.trim()) { toast.error("Label wajib diisi"); return; }
+    if (!label.trim()) { toast.error(t("Label wajib diisi", "Label is required")); return; }
     try {
       if (item) {
         await apiSend("/api/onevity/lookups", "PATCH", { id: item.id, label });
-        toast.success("Entri diperbarui");
+        toast.success(t("Entri diperbarui", "Entry updated"));
       } else {
         await apiSend("/api/onevity/lookups", "POST", { category, label });
-        toast.success("Entri ditambahkan");
+        toast.success(t("Entri ditambahkan", "Entry added"));
       }
       setOpen(false);
     } catch (e) { toast.error((e as Error).message); }
@@ -174,14 +177,14 @@ function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpe
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="text-base">{item ? "Edit Entri" : "Entri Baru"} — {category}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="text-base">{item ? t("Edit Entri", "Edit Entry") : t("Entri Baru", "New Entry")} — {category}</DialogTitle></DialogHeader>
         <div>
-          <Label className="text-xs">Label *</Label>
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} className="mt-1.5" placeholder="cth: Buddha" />
+          <Label className="text-xs">{t("Label *", "Label *")}</Label>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} className="mt-1.5" placeholder={t("cth: Buddha", "e.g. Buddha")} />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} className="font-bold">Simpan</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} className="font-bold">{t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -191,6 +194,7 @@ function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpe
 // ================= SECURITY =================
 
 function SecurityPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState("users");
   const [focusUser, setFocusUser] = useState<string | null>(null);
 
@@ -199,20 +203,20 @@ function SecurityPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="PENGATURAN"
-        title="Keamanan & Akses"
-        description="Pengguna aplikasi & kebijakan kata sandi (tambah pengguna, validasi sandi, umur, riwayat, lockout) + hak akses menu & data per pengguna — super admin dan atasan langsung otomatis tanpa setting."
+        eyebrow={t("PENGATURAN", "SETTINGS")}
+        title={t("Keamanan & Akses")}
+        description={t("Pengguna aplikasi & kebijakan kata sandi (tambah pengguna, validasi sandi, umur, riwayat, lockout) + hak akses menu & data per pengguna — super admin dan atasan langsung otomatis tanpa setting.", "Application users & password policy (add user, password validation, age, history, lockout) + menu & data access rights per user — super admins and direct superiors are automatic without any setting.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
           <TabsTrigger value="users" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
-            <UserCog className="h-3.5 w-3.5" /> Pengguna
+            <UserCog className="h-3.5 w-3.5" /> {t("Pengguna", "Users")}
           </TabsTrigger>
           <TabsTrigger value="policy" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
-            <FileKey className="h-3.5 w-3.5" /> Kebijakan Kata Sandi
+            <FileKey className="h-3.5 w-3.5" /> {t("Kebijakan Kata Sandi", "Password Policy")}
           </TabsTrigger>
           <TabsTrigger value="access" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
-            <KeyRound className="h-3.5 w-3.5" /> Hak Akses per Pengguna
+            <KeyRound className="h-3.5 w-3.5" /> {t("Hak Akses per Pengguna", "Access Rights per User")}
           </TabsTrigger>
         </TabsList>
 

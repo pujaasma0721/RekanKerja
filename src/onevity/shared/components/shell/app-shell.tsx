@@ -11,6 +11,8 @@ import { useSession } from "@/onevity/shared/lib/session-store";
 import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
 import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
+import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -268,14 +270,15 @@ function AvatarStack({ names }: { names: string[] }) {
 }
 
 function PayrollRing({ hex, days }: { hex: string; days: number }) {
+  const { t } = useI18n();
   const C = 2 * Math.PI * 13;
   const frac = Math.max(0, Math.min(1, days / 30));
   return (
     <span
       className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center"
       role="img"
-      aria-label={`Periode payroll aktif berakhir ${days} hari lagi`}
-      title={`Periode payroll aktif berakhir ${days} hari lagi`}
+      aria-label={t("Periode payroll aktif berakhir {days} hari lagi", "Active payroll period ends in {days} days", { days })}
+      title={t("Periode payroll aktif berakhir {days} hari lagi", "Active payroll period ends in {days} days", { days })}
     >
       <svg viewBox="0 0 36 36" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
         <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" />
@@ -308,6 +311,7 @@ function LiveDot({ hex, label }: { hex: string; label: string }) {
 
 /** Widget hidup item menu — HANYA sinyal data nyata (opsi B, versi produksi yang tenang). */
 function ItemWidget({ mod, item, meta, accent }: { mod: string; item: NavItem; meta: ShellMeta | null | undefined; accent: string }) {
+  const { t } = useI18n();
   if (item.badge === "pending") {
     const n = meta?.pendingActions ?? 0;
     if (n <= 0) return null;
@@ -327,10 +331,10 @@ function ItemWidget({ mod, item, meta, accent }: { mod: string; item: NavItem; m
   }
   if (item.badge === "benefitPending") {
     const n = meta?.benefitPendingClaims ?? 0;
-    return n > 0 ? <LiveDot hex="#f59e0b" label={`${n} menunggu`} /> : null;
+    return n > 0 ? <LiveDot hex="#f59e0b" label={t("{n} menunggu", "{n} pending", { n })} /> : null;
   }
   if (mod === "settings" && item.id === "email") {
-    return meta?.emailActive ? <LiveDot hex="#10b981" label="aktif" /> : null;
+    return meta?.emailActive ? <LiveDot hex="#10b981" label={t("aktif", "active")} /> : null;
   }
   return null;
 }
@@ -385,6 +389,7 @@ function RailButton({ label, icon: Icon, hex, active, badge, onClick }: {
 type MobileSheet = null | "all" | ModuleId;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const { section, view, params, module, navigate, setModule, syncFromUrl } = useNav();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false); // dialog Ganti Kata Sandi (Task 33)
@@ -404,11 +409,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!pw || !uid || pwWarnedFor.current === uid) return;
     pwWarnedFor.current = uid;
     if (pw.expired) {
-      toast.error("Kata sandi Anda kedaluwarsa. Silakan ganti lewat tombol kunci di bagian bawah panel menu.", { duration: 9000 });
+      toast.error(t("Kata sandi Anda kedaluwarsa. Silakan ganti lewat tombol kunci di bagian bawah panel menu.", "Your password has expired. Please change it via the key button at the bottom of the menu panel."), { duration: 9000 });
     } else if (pw.warn) {
-      toast.warning(`Kata sandi Anda ${pw.label.toLowerCase()} — pertimbangkan menggantinya (tombol kunci di panel menu).`, { duration: 7000 });
+      toast.warning(t("Kata sandi Anda {status} — pertimbangkan menggantinya (tombol kunci di panel menu).", "Your password is {status} — consider changing it (key button in the menu panel).", { status: pw.label.toLowerCase() }), { duration: 7000 });
     }
-  }, [session.info]);
+  }, [session.info, t]);
 
   // Task D-3: tema halaman mengikuti modul aktif — <html data-module=…> agar
   // token aksen (ov-* + --primary/--ring) berlaku untuk seluruh konten,
@@ -556,19 +561,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const crumbs = useMemo(() => {
     const group = groups.find((g) => g.section === section && (!g.matchViews || g.matchViews.includes(view) || g.children.some((c) => c.id === view)));
     const item = group?.children.find((c) => c.id === view);
-    const out: string[] = [inSettings ? "Pengaturan" : MODULE_LABEL[module]];
-    if (group?.label && !(inSettings && group.section === "settings")) out.push(group.label);
-    if (item && item.id !== "overview" && item.id !== view) out.push(item.label);
-    if (item && item.id === view && item.id !== "overview") out.push(item.label);
-    if (view === "run" && section === "payroll") out.push("Detail Proses");
+    const out: string[] = [inSettings ? t("Pengaturan") : MODULE_LABEL[module]];
+    if (group?.label && !(inSettings && group.section === "settings")) out.push(t(group.label));
+    if (item && item.id !== "overview" && item.id !== view) out.push(t(item.label));
+    if (item && item.id === view && item.id !== "overview") out.push(t(item.label));
+    if (view === "run" && section === "payroll") out.push(t("Detail Proses", "Run Detail"));
     if (params.id) out.push(params.id);
     return out.filter(Boolean);
-  }, [section, view, params, module, groups, inSettings]);
+  }, [section, view, params, module, groups, inSettings, t]);
 
   const activeModule = MODULES.find((m) => m.id === module) ?? MODULES[0];
   const accent = inSettings ? SETTINGS_META.hex : activeModule.hex;
-  const panelLabel = inSettings ? SETTINGS_META.label : activeModule.label;
-  const panelDesc = inSettings ? SETTINGS_META.desc : activeModule.desc;
+  const panelLabel = inSettings ? t(SETTINGS_META.label) : activeModule.label;
+  const panelDesc = inSettings ? t(SETTINGS_META.desc) : t(activeModule.desc);
   const PanelIcon = inSettings ? Settings2 : activeModule.icon;
 
   /** Badge modul di rail/tab — sinyal nyata dari meta. */
@@ -604,13 +609,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* ============ RAIL MODUL (desktop) — ★ opsi A ============ */}
         <aside
           className="hidden w-[72px] shrink-0 flex-col items-center gap-1.5 bg-[oklch(0.16_0.007_240)] py-4 lg:sticky lg:top-0 lg:flex lg:h-screen"
-          aria-label="Rail modul OneVity"
+          aria-label={t("Rail modul OneVity", "OneVity module rail")}
         >
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={goHome}
-                aria-label="OneVity — kembali ke beranda modul"
+                aria-label={t("OneVity — kembali ke beranda modul", "OneVity — back to module home")}
                 className="group flex h-9 w-9 items-center justify-center rounded-xl transition-transform hover:scale-105"
                 style={{ background: grad(accent), boxShadow: `0 8px 20px -6px ${hexA(accent, 0.5)}` }}
               >
@@ -620,7 +625,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <TooltipContent side="right">OneVity HR Suite</TooltipContent>
           </Tooltip>
           <div className="my-2 h-px w-8 bg-white/10" aria-hidden />
-          <nav className="flex flex-col items-center gap-1.5" aria-label="Pilih modul">
+          <nav className="flex flex-col items-center gap-1.5" aria-label={t("Pilih modul", "Select module")}>
             {allowedModules.map((m) => (
               <RailButton
                 key={m.id}
@@ -639,7 +644,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => navigate("settings", firstSettingsView)}
-                    aria-label="Pengaturan Sistem"
+                    aria-label={t("Pengaturan Sistem")}
                     aria-current={inSettings ? "page" : undefined}
                     className={cn(
                       "group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
@@ -649,7 +654,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-stone-200" : "text-stone-500 group-hover:text-stone-200")} aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Pengaturan Sistem</TooltipContent>
+                <TooltipContent side="right">{t("Pengaturan Sistem")}</TooltipContent>
               </Tooltip>
             </div>
           )}
@@ -658,7 +663,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* ============ PANEL MENU MODUL (desktop) ============ */}
         <aside
           className="hidden w-[264px] shrink-0 flex-col border-l border-white/[0.06] bg-[oklch(0.185_0.008_240)] text-stone-300 lg:sticky lg:top-0 lg:flex lg:h-screen"
-          aria-label="Menu modul aktif"
+          aria-label={t("Menu modul aktif", "Active module menu")}
         >
           {/* header modul — identitas warna (opsi C) */}
           <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
@@ -672,12 +677,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* nav — menu mengikuti modul aktif, stagger saat ganti modul */}
-          <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1" aria-label="Navigasi utama">
+          <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1" aria-label={t("Navigasi utama", "Main navigation")}>
             {groups.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-4 text-center">
                 <ShieldOff className="mx-auto h-5 w-5 text-stone-500" />
                 <p className="mt-2 text-[11px] font-semibold leading-relaxed text-stone-400">
-                  Tidak ada menu yang tersedia untuk Anda di modul ini.
+                  {t("Tidak ada menu yang tersedia untuk Anda di modul ini.", "No menus are available to you in this module.")}
                 </p>
               </div>
             ) : (
@@ -708,7 +713,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           )}
                           style={active ? { color: accent } : undefined}
                         >
-                          {group.label}
+                          {group.label ? t(group.label) : ""}
                         </button>
                       ) : (
                         <div className="h-1" />
@@ -743,7 +748,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                               style={isActive ? { color: accent } : undefined}
                               aria-hidden
                             />
-                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{item.label}</span>
+                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{t(item.label)}</span>
                             <ItemWidget mod={isSettingsGroup ? "settings" : module} item={item} meta={meta.data} accent={accent} />
                           </button>
                         );
@@ -764,26 +769,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
-                <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
+                <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
               </div>
               <button
                 onClick={() => setPwOpen(true)}
                 className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:ov-text-accent-base"
-                aria-label="Ganti kata sandi"
-                title="Ganti kata sandi"
+                aria-label={t("Ganti kata sandi", "Change password")}
+                title={t("Ganti kata sandi", "Change password")}
               >
                 <KeyRound className="h-4 w-4" />
               </button>
               <button
                 onClick={() => void session.logout()}
                 className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-rose-300"
-                aria-label="Keluar dari sesi"
-                title="Keluar"
+                aria-label={t("Keluar dari sesi", "Log out of session")}
+                title={t("Keluar")}
               >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {inSettings ? "Pengaturan" : activeModule.short}</p>
+            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {inSettings ? t("Pengaturan") : t(activeModule.short)}</p>
           </div>
         </aside>
 
@@ -800,12 +805,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-[13px] font-extrabold leading-none tracking-tight text-stone-900 dark:text-stone-50">
                   One<span style={{ color: accent }}>Vity</span>
                 </p>
-                <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-wider text-stone-400">{inSettings ? "Pengaturan" : activeModule.short}</p>
+                <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-wider text-stone-400">{inSettings ? t("Pengaturan") : t(activeModule.short)}</p>
               </div>
             </div>
 
             {/* breadcrumbs */}
-            <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex" aria-label="Breadcrumb">
+            <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex" aria-label={t("Breadcrumb", "Breadcrumb")}>
               <button
                 onClick={() => {
                   if (inSettings) navigate("settings", firstSettingsView);
@@ -836,12 +841,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="hidden items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-[13px] text-stone-400 transition hover:border-stone-300 hover:text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:hover:border-stone-500 md:flex"
             >
               <Search className="h-4 w-4" />
-              <span>Cari karyawan, dokumen…</span>
+              <span>{t("Cari karyawan, dokumen…", "Search employees, documents…")}</span>
               <kbd className="ml-4 flex items-center gap-0.5 rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-stone-400 dark:border-stone-700 dark:bg-stone-800">
                 <CommandIcon className="h-2.5 w-2.5" />K
               </kbd>
             </button>
-            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label="Cari">
+            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label={t("Cari")}>
               <Search className="h-5 w-5" />
             </button>
 
@@ -853,7 +858,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="hidden gap-1.5 px-3.5 font-bold text-white hover:brightness-110 active:brightness-95 sm:flex"
                   style={{ background: accent }}
                 >
-                  <Plus className="h-4 w-4" /> Buat Baru
+                  <Plus className="h-4 w-4" /> {t("Buat Baru")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -864,13 +869,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   { s: "org" as SectionId, v: "tree", icon: Network, cls: "text-teal-600", label: "Unit Organisasi" },
                   { s: "position" as SectionId, v: "list", icon: BriefcaseBusiness, cls: "text-orange-600", label: "Posisi Baru" },
                 ] as const).filter((q) => menuAllowed(q.s, q.v) && permsCan(moduleOfSection(q.s), q.v, "create")).map((q) => (
-                  <DropdownMenuItem key={q.label} onClick={() => navigate(q.s, q.v)}><q.icon className={cn("h-4 w-4", q.cls)} /> {q.label}</DropdownMenuItem>
+                  <DropdownMenuItem key={q.label} onClick={() => navigate(q.s, q.v)}><q.icon className={cn("h-4 w-4", q.cls)} /> {t(q.label)}</DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* notifications */}
             <NotificationBell pendingActions={meta.data?.pendingActions ?? 0} />
+
+            {/* language switcher (ID/EN) */}
+            <LanguageSwitcher />
 
             {/* theme toggle */}
             <ThemeToggle />
@@ -885,9 +893,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-500/10">
                     <ShieldOff className="h-7 w-7 text-rose-500 dark:text-rose-400" />
                   </div>
-                  <p className="mt-4 text-base font-bold text-stone-900 dark:text-stone-50">Menu tidak tersedia</p>
+                  <p className="mt-4 text-base font-bold text-stone-900 dark:text-stone-50">{t("Menu tidak tersedia", "Menu unavailable")}</p>
                   <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
-                    Anda tidak memiliki hak akses ke menu ini. Hak akses menu diatur per pengguna — hubungi admin bila memerlukan akses.
+                    {t("Anda tidak memiliki hak akses ke menu ini. Hak akses menu diatur per pengguna — hubungi admin bila memerlukan akses.", "You do not have access to this menu. Menu access is managed per user — contact your admin if you need access.")}
                   </p>
                   <Button
                     onClick={() => {
@@ -898,7 +906,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     className="mt-5 gap-2 rounded-xl font-bold text-white hover:brightness-110"
                     style={{ background: accent }}
                   >
-                    <LayoutDashboard className="h-4 w-4" /> Ke Menu yang Tersedia
+                    <LayoutDashboard className="h-4 w-4" /> {t("Ke Menu yang Tersedia", "Go to Available Menu")}
                   </Button>
                 </div>
               </div>
@@ -918,7 +926,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* ============ NAVIGASI MOBILE: bottom tab + bottom sheet ============ */}
-        <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label="Navigasi modul">
+        <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label={t("Navigasi modul", "Module navigation")}>
           <div
             className="flex items-stretch justify-around border-t border-stone-200 bg-white/95 pt-1 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-900/95"
             style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.375rem)" }}
@@ -930,7 +938,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   key={m.id}
                   onClick={() => onTabTap(m.id)}
-                  aria-label={active ? `${m.label} — buka menu modul` : m.label}
+                  aria-label={active ? t("{m} — buka menu modul", "{m} — open module menu", { m: m.label }) : m.label}
                   aria-current={active ? "page" : undefined}
                   className="relative flex min-w-[56px] flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 transition-transform active:scale-95"
                 >
@@ -958,7 +966,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
             <button
               onClick={() => setSheet("all")}
-              aria-label="Modul lainnya, pengaturan, dan akun"
+              aria-label={t("Modul lainnya, pengaturan, dan akun", "More modules, settings, and account")}
               aria-current={moreActive ? "page" : undefined}
               className="relative flex min-w-[56px] flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 transition-transform active:scale-95"
             >
@@ -974,7 +982,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <MoreHorizontal className={cn("relative h-[18px] w-[18px]", !moreActive && "text-stone-400 dark:text-stone-500")} style={moreActive ? { color: accent } : undefined} aria-hidden />
               </span>
               <span className={cn("text-[9px] font-bold", !moreActive && "text-stone-400 dark:text-stone-500")} style={moreActive ? { color: accent } : undefined}>
-                Lainnya
+                {t("Lainnya", "More")}
               </span>
             </button>
           </div>
@@ -995,7 +1003,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <motion.div
                 role="dialog"
                 aria-modal="true"
-                aria-label={sheet === "all" ? "Modul lainnya, pengaturan, dan akun" : `Menu ${sheetModule?.label ?? ""}`}
+                aria-label={sheet === "all" ? t("Modul lainnya, pengaturan, dan akun", "More modules, settings, and account") : t("Menu {label}", "Menu {label}", { label: sheetModule?.label ?? "" })}
                 className="fixed inset-x-0 bottom-0 z-[70] max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl lg:hidden dark:bg-stone-900 dark:text-stone-100"
                 style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.25rem)" }}
                 initial={{ y: "100%" }}
@@ -1049,9 +1057,10 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
   onPw: () => void;
   onLogout: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div>
-      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-stone-400">Semua Modul</p>
+      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("Semua Modul", "All Modules")}</p>
       <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.035 } } }}>
         {allowedModules.map((m) => {
           const current = !inSettings && m.id === module;
@@ -1079,7 +1088,7 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-stone-400 text-white">
               <Settings2 className="h-4 w-4" />
             </span>
-            <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">Pengaturan Sistem</span>
+            <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">{t("Pengaturan Sistem")}</span>
             {inSettings ? <Check className="h-4 w-4 shrink-0 text-stone-400" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />}
           </motion.button>
         )}
@@ -1093,7 +1102,7 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12px] font-bold text-stone-800 dark:text-stone-100">{sessionUser?.name ?? "—"}</p>
-            <p className="truncate text-[10px] text-stone-400">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
+            <p className="truncate text-[10px] text-stone-400">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
           </div>
         </div>
         <div className="mt-3 flex gap-2">
@@ -1101,13 +1110,13 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
             onClick={onPw}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 py-2 text-[11px] font-bold text-stone-600 transition hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
-            <KeyRound className="h-3.5 w-3.5" /> Ganti Sandi
+            <KeyRound className="h-3.5 w-3.5" /> {t("Ganti Sandi")}
           </button>
           <button
             onClick={onLogout}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-200 py-2 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
           >
-            <LogOut className="h-3.5 w-3.5" /> Keluar
+            <LogOut className="h-3.5 w-3.5" /> {t("Keluar")}
           </button>
         </div>
       </div>
@@ -1122,6 +1131,7 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
   onGo: (s: SectionId, v: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const MIcon = m.icon;
   return (
     <div>
@@ -1130,7 +1140,7 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
           <MIcon className="h-4 w-4" />
         </span>
         <p className="flex-1 text-[14px] font-extrabold text-stone-800 dark:text-stone-100">{m.label}</p>
-        <button className="rounded-full p-1.5 transition hover:bg-stone-100 dark:hover:bg-stone-800" onClick={onClose} aria-label="Tutup">
+        <button className="rounded-full p-1.5 transition hover:bg-stone-100 dark:hover:bg-stone-800" onClick={onClose} aria-label={t("Tutup")}>
           <X className="h-4 w-4 text-stone-400" />
         </button>
       </div>
@@ -1138,7 +1148,7 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
         {groups.map((g, gi) => (
           <motion.div key={`${gi}-${g.label ?? "root"}`} variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
             {g.label ? (
-              <p className="px-2 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">{g.label}</p>
+              <p className="px-2 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">{t(g.label)}</p>
             ) : (
               <div className="h-1" />
             )}
@@ -1153,7 +1163,7 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
                   onClick={() => onGo(g.section, item.id)}
                 >
                   <IIcon className="h-4 w-4 shrink-0" style={{ color: c }} aria-hidden />
-                  <span className="flex-1 text-[13px] font-semibold text-stone-700 dark:text-stone-200">{item.label}</span>
+                  <span className="flex-1 text-[13px] font-semibold text-stone-700 dark:text-stone-200">{t(item.label)}</span>
                 </motion.button>
               );
             })}
@@ -1178,6 +1188,7 @@ function defaultSectionOfModuleFor(m: ModuleId): SectionId {
 const subscribeNoop = () => () => {};
 
 function ThemeToggle() {
+  const { t } = useI18n();
   const { theme, setTheme } = useTheme();
   // mounted via useSyncExternalStore (server snapshot false, client snapshot true)
   const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
@@ -1186,7 +1197,7 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(dark ? "light" : "dark")}
       className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-      aria-label="Ganti tema"
+      aria-label={t("Ganti tema", "Toggle theme")}
     >
       {mounted && dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
     </button>
@@ -1195,18 +1206,19 @@ function ThemeToggle() {
 
 function NotificationBell({ pendingActions }: { pendingActions: number }) {
   const { navigate } = useNav();
+  const { t } = useI18n();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200" aria-label="Notifikasi">
+        <button className="relative rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200" aria-label={t("Notifikasi", "Notifications")}>
           <Bell className="h-[18px] w-[18px]" />
           {pendingActions > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold text-stone-900">{pendingActions}</span>}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
         <div className="border-b border-stone-100 px-4 py-3 dark:border-stone-800">
-          <p className="text-sm font-bold">Notifikasi</p>
-          <p className="text-[11px] text-stone-400">{pendingActions} approval menunggu keputusan Anda</p>
+          <p className="text-sm font-bold">{t("Notifikasi", "Notifications")}</p>
+          <p className="text-[11px] text-stone-400">{t("{n} approval menunggu keputusan Anda", "{n} approvals awaiting your decision", { n: pendingActions })}</p>
         </div>
         <div className="max-h-72 overflow-y-auto p-2">
           {pendingActions > 0 ? (
@@ -1215,12 +1227,12 @@ function NotificationBell({ pendingActions }: { pendingActions: number }) {
                 <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold">Approval Personnel Action</p>
-                <p className="text-[11px] leading-relaxed text-stone-500">{pendingActions} dokumen menunggu persetujuan Anda</p>
+                <p className="text-xs font-bold">{t("Approval Personnel Action", "Personnel Action Approvals")}</p>
+                <p className="text-[11px] leading-relaxed text-stone-500">{t("{n} dokumen menunggu persetujuan Anda", "{n} documents awaiting your approval", { n: pendingActions })}</p>
               </div>
             </button>
           ) : (
-            <p className="px-3 py-6 text-center text-xs text-stone-400">Tidak ada notifikasi baru</p>
+            <p className="px-3 py-6 text-center text-xs text-stone-400">{t("Tidak ada notifikasi baru", "No new notifications")}</p>
           )}
         </div>
       </DropdownMenuContent>
@@ -1232,6 +1244,7 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
   open: boolean; setOpen: (v: boolean) => void; onNavigate: (s: SectionId, v: string) => void; module: ModuleId;
   menuAllowed: (s: SectionId, itemId: string) => boolean;
 }) {
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const results = useApi<{ employees: { id: string; fullName: string; employeeNo: string; position: { title: string } | null }[] }>(q.length >= 2 ? `/api/onevity/employees?q=${encodeURIComponent(q)}&limit=6` : null);
 
@@ -1245,35 +1258,36 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="top-[15%] translate-y-0 gap-0 overflow-hidden p-0 shadow-2xl" aria-describedby={undefined}>
-        <DialogTitle className="sr-only">Pencarian global OneVity</DialogTitle>
+        <DialogTitle className="sr-only">{t("Pencarian global OneVity", "OneVity global search")}</DialogTitle>
         <Command shouldFilter={false} className="[&_[cmdk-group-heading]]:px-4">
           <div className="flex items-center gap-3 border-b border-stone-100 px-4 dark:border-stone-800">
             <Search className="h-4 w-4 shrink-0 text-stone-400" />
             <CommandInput
               value={q}
               onValueChange={setQ}
-              placeholder="Cari karyawan, aksi, atau navigasi…"
+              placeholder={t("Cari karyawan, aksi, atau navigasi…", "Search employees, actions, or navigation…")}
               className="h-12 flex-1 border-0 text-sm shadow-none focus:ring-0 dark:bg-transparent"
             />
             <kbd className="rounded border border-stone-200 px-1.5 py-0.5 font-mono text-[10px] text-stone-400 dark:border-stone-700">ESC</kbd>
           </div>
           <CommandList className="max-h-[420px] overflow-y-auto p-2">
-            <CommandGroup heading={`Navigasi · ${MODULE_LABEL[module]}`}>
+            <CommandGroup heading={`${t("Navigasi")} · ${MODULE_LABEL[module]}`}>
               {items.map(({ g, c }) => {
                 const Icon = c.icon;
+                const groupLabel = g.label ? t(g.label) : t("Beranda");
                 return (
                   <CommandItem key={`${g.section}-${c.id}`} value={`${g.label ?? "Beranda"} ${c.label}`} onSelect={() => runNav(g.section, c.id)} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
                     <Icon className="h-4 w-4 text-stone-400" />
-                    <span>{c.label}</span>
-                    <span className="ml-auto text-[10px] uppercase tracking-wider text-stone-300 dark:text-stone-600">{g.label ?? "Beranda"}</span>
+                    <span>{t(c.label)}</span>
+                    <span className="ml-auto text-[10px] uppercase tracking-wider text-stone-300 dark:text-stone-600">{groupLabel}</span>
                   </CommandItem>
                 );
               })}
             </CommandGroup>
             {q.length >= 2 && (
-              <CommandGroup heading="Karyawan">
-                <CommandEmpty className="py-6 text-center text-xs text-stone-400">Tidak ditemukan</CommandEmpty>
-                {results.loading && <p className="px-3 py-4 text-xs text-stone-400">Mencari…</p>}
+              <CommandGroup heading={t("Karyawan")}>
+                <CommandEmpty className="py-6 text-center text-xs text-stone-400">{t("Tidak ditemukan", "No results found")}</CommandEmpty>
+                {results.loading && <p className="px-3 py-4 text-xs text-stone-400">{t("Mencari…")}</p>}
                 {results.data?.employees?.map((e) => (
                   <CommandItem key={e.id} value={e.employeeNo + e.fullName} onSelect={() => { setOpen(false); setQ(""); useNav.getState().navigate("employee", "detail", { id: e.id }); }} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-[10px] font-bold text-stone-500">{initials(e.fullName)}</div>
@@ -1296,6 +1310,7 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
 // ============ Workspace switcher (multi-tenant SaaS) ============
 function WorkspaceMenu() {
   const { info, selectTenant, logout } = useSession();
+  const { t } = useI18n();
   const [switching, setSwitching] = useState(false);
   const tenant = info?.tenant;
   if (!tenant) return null;
@@ -1313,7 +1328,7 @@ function WorkspaceMenu() {
       <DropdownMenuTrigger asChild>
         <button
           disabled={switching}
-          aria-label={`Ganti workspace — ${tenant.name}`}
+          aria-label={t("Ganti workspace — {name}", "Switch workspace — {name}", { name: tenant.name })}
           title={tenant.name}
           className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-stone-700 transition hover:border-stone-300 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-stone-500"
         >
@@ -1338,7 +1353,7 @@ function WorkspaceMenu() {
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => void logout()}>
-          <LogOut className="h-4 w-4" /> Keluar
+          <LogOut className="h-4 w-4" /> {t("Keluar")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

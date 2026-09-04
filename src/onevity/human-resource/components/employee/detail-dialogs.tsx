@@ -15,8 +15,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
-  RELIGIONS, MARITAL_STATUSES, BLOOD_TYPES, BANKS, WORK_SHIFTS, EDUCATION_LEVELS, RELATIONS, WARNING_LEVELS,
+  RELIGIONS, RELIGIONS_EN, MARITAL_STATUSES, MARITAL_STATUSES_EN, BLOOD_TYPES, BANKS, WORK_SHIFTS, WORK_SHIFTS_EN, EDUCATION_LEVELS, RELATIONS, WARNING_LEVELS,
   type EmployeeDetail, type EmployeeOptions,
 } from "./types";
 
@@ -33,9 +34,10 @@ function Field({ label, htmlFor, children, className }: { label: string; htmlFor
 }
 
 function DialogFooterBar({ busy, onCancel, label }: { busy: boolean; onCancel: () => void; label: string }) {
+  const { t } = useI18n();
   return (
     <DialogFooter className="mt-1 gap-2">
-      <Button variant="outline" className="h-11 px-5" onClick={onCancel} disabled={busy}>Batal</Button>
+      <Button variant="outline" className="h-11 px-5" onClick={onCancel} disabled={busy}>{t("Batal")}</Button>
       <Button type="submit" className="h-11 gap-2 px-6 font-bold" disabled={busy}>
         {busy && <Loader2 className="h-4 w-4 animate-spin" />} {label}
       </Button>
@@ -58,6 +60,7 @@ export function EditPersonalDialog({
     email: "", phone: "", address: "", city: "", bankName: "none", bankAccount: "",
   });
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +87,7 @@ export function EditPersonalDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fullName.trim()) { toast.error("Nama lengkap wajib diisi"); return; }
+    if (!form.fullName.trim()) { toast.error(t("Nama lengkap wajib diisi", "Full name is required")); return; }
     setBusy(true);
     try {
       await apiSend(`/api/onevity/employee-detail?id=${employee.id}`, "PATCH", {
@@ -106,11 +109,11 @@ export function EditPersonalDialog({
         bankName: form.bankName === "none" ? null : form.bankName,
         bankAccount: form.bankAccount.trim() || null,
       });
-      toast.success("Data personal tersimpan", { description: `Profil ${form.fullName.trim()} berhasil diperbarui.` });
+      toast.success(t("Data personal tersimpan", "Personal data saved"), { description: t("Profil {name} berhasil diperbarui.", "{name}'s profile was successfully updated.", { name: form.fullName.trim() }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal menyimpan data personal", { description: (err as Error).message });
+      toast.error(t("Gagal menyimpan data personal", "Failed to save personal data"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -120,92 +123,92 @@ export function EditPersonalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Data Personal</DialogTitle>
-          <DialogDescription>Perbarui identitas dan data kependudukan {employee.fullName}.</DialogDescription>
+          <DialogTitle>{t("Edit Data Personal", "Edit Personal Data")}</DialogTitle>
+          <DialogDescription>{t("Perbarui identitas dan data kependudukan {name}.", "Update the identity and civil data of {name}.", { name: employee.fullName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
-          <Field label="Nama Lengkap *" htmlFor="ep-name" className="sm:col-span-2">
-            <Input id="ep-name" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} placeholder="Nama sesuai KTP" required />
+          <Field label={t("Nama Lengkap") + " *"} htmlFor="ep-name" className="sm:col-span-2">
+            <Input id="ep-name" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} placeholder={t("Nama sesuai KTP", "Name as per ID card")} required />
           </Field>
-          <Field label="Jenis Kelamin *">
+          <Field label={t("Jenis Kelamin", "Gender") + " *"}>
             <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v }))}>
-              <SelectTrigger className="h-11" aria-label="Jenis kelamin"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Jenis kelamin", "Gender")}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="M" className="py-2.5">Laki-laki</SelectItem>
-                <SelectItem value="F" className="py-2.5">Perempuan</SelectItem>
+                <SelectItem value="M" className="py-2.5">{t("Laki-laki", "Male")}</SelectItem>
+                <SelectItem value="F" className="py-2.5">{t("Perempuan", "Female")}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Tempat Lahir" htmlFor="ep-bp">
+          <Field label={t("Tempat Lahir", "Place of Birth")} htmlFor="ep-bp">
             <Input id="ep-bp" value={form.birthPlace} onChange={(e) => setForm((f) => ({ ...f, birthPlace: e.target.value }))} placeholder="Bogor" />
           </Field>
-          <Field label="Tanggal Lahir" htmlFor="ep-bd">
+          <Field label={t("Tanggal Lahir", "Date of Birth")} htmlFor="ep-bd">
             <Input id="ep-bd" type="date" value={form.birthDate} onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />
           </Field>
-          <Field label="Agama">
+          <Field label={t("Agama", "Religion")}>
             <Select value={form.religion} onValueChange={(v) => setForm((f) => ({ ...f, religion: v }))}>
-              <SelectTrigger className="h-11" aria-label="Agama"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Agama", "Religion")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="py-2.5">— Tidak diisi —</SelectItem>
-                {RELIGIONS.map((r) => <SelectItem key={r} value={r} className="py-2.5">{r}</SelectItem>)}
+                <SelectItem value="none" className="py-2.5">{t("— Tidak diisi —", "— Not set —")}</SelectItem>
+                {RELIGIONS.map((r) => <SelectItem key={r} value={r} className="py-2.5">{t(r, RELIGIONS_EN[r])}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Status Pernikahan">
+          <Field label={t("Status Pernikahan", "Marital Status")}>
             <Select value={form.maritalStatus} onValueChange={(v) => setForm((f) => ({ ...f, maritalStatus: v }))}>
-              <SelectTrigger className="h-11" aria-label="Status pernikahan"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Status pernikahan", "Marital status")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="py-2.5">— Tidak diisi —</SelectItem>
-                {MARITAL_STATUSES.map((m) => <SelectItem key={m} value={m} className="py-2.5">{m}</SelectItem>)}
+                <SelectItem value="none" className="py-2.5">{t("— Tidak diisi —", "— Not set —")}</SelectItem>
+                {MARITAL_STATUSES.map((m) => <SelectItem key={m} value={m} className="py-2.5">{t(m, MARITAL_STATUSES_EN[m])}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Golongan Darah">
+          <Field label={t("Golongan Darah", "Blood Type")}>
             <Select value={form.bloodType} onValueChange={(v) => setForm((f) => ({ ...f, bloodType: v }))}>
-              <SelectTrigger className="h-11" aria-label="Golongan darah"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Golongan darah", "Blood type")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="py-2.5">— Tidak diisi —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tidak diisi —", "— Not set —")}</SelectItem>
                 {BLOOD_TYPES.map((b) => <SelectItem key={b} value={b} className="py-2.5">{b}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Email" htmlFor="ep-email">
+          <Field label={t("Email")} htmlFor="ep-email">
             <Input id="ep-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="nama@mii.co.id" />
           </Field>
-          <Field label="Telepon" htmlFor="ep-phone">
+          <Field label={t("Telepon")} htmlFor="ep-phone">
             <Input id="ep-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0812…" />
           </Field>
-          <Field label="NIK (KTP)" htmlFor="ep-nik">
-            <Input id="ep-nik" value={form.nationalId} onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value }))} placeholder="16 digit" className="font-mono" />
+          <Field label={t("NIK (KTP)", "NIK (ID Card)")} htmlFor="ep-nik">
+            <Input id="ep-nik" value={form.nationalId} onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value }))} placeholder={t("16 digit", "16 digits")} className="font-mono" />
           </Field>
-          <Field label="NPWP" htmlFor="ep-npwp">
-            <Input id="ep-npwp" value={form.taxId} onChange={(e) => setForm((f) => ({ ...f, taxId: e.target.value }))} placeholder="15 digit" className="font-mono" />
+          <Field label={t("NPWP")} htmlFor="ep-npwp">
+            <Input id="ep-npwp" value={form.taxId} onChange={(e) => setForm((f) => ({ ...f, taxId: e.target.value }))} placeholder={t("15 digit", "15 digits")} className="font-mono" />
           </Field>
-          <Field label="No. BPJS Kesehatan" htmlFor="ep-bpjsk">
+          <Field label={t("No. BPJS Kesehatan", "BPJS Health No.")} htmlFor="ep-bpjsk">
             <Input id="ep-bpjsk" value={form.bpjsHealth} onChange={(e) => setForm((f) => ({ ...f, bpjsHealth: e.target.value }))} className="font-mono" />
           </Field>
-          <Field label="No. BPJS Ketenagakerjaan (JHT)" htmlFor="ep-bpjsh">
+          <Field label={t("No. BPJS Ketenagakerjaan (JHT)", "BPJS Employment No. (JHT)")} htmlFor="ep-bpjsh">
             <Input id="ep-bpjsh" value={form.bpjsEmpSkill} onChange={(e) => setForm((f) => ({ ...f, bpjsEmpSkill: e.target.value }))} className="font-mono" />
           </Field>
-          <Field label="Alamat" htmlFor="ep-addr" className="sm:col-span-2">
+          <Field label={t("Alamat")} htmlFor="ep-addr" className="sm:col-span-2">
             <Textarea id="ep-addr" rows={2} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Jl. …" />
           </Field>
-          <Field label="Kota" htmlFor="ep-city">
+          <Field label={t("Kota", "City")} htmlFor="ep-city">
             <Input id="ep-city" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder="Bandung" />
           </Field>
-          <Field label="Bank">
+          <Field label={t("Bank")}>
             <Select value={form.bankName} onValueChange={(v) => setForm((f) => ({ ...f, bankName: v }))}>
-              <SelectTrigger className="h-11" aria-label="Bank"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Bank")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="py-2.5">— Tidak diisi —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tidak diisi —", "— Not set —")}</SelectItem>
                 {BANKS.map((b) => <SelectItem key={b} value={b} className="py-2.5">{b}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="No. Rekening" htmlFor="ep-rek" className="sm:col-span-2">
+          <Field label={t("No. Rekening", "Account No.")} htmlFor="ep-rek" className="sm:col-span-2">
             <Input id="ep-rek" value={form.bankAccount} onChange={(e) => setForm((f) => ({ ...f, bankAccount: e.target.value }))} className="font-mono" />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Simpan Perubahan" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Simpan Perubahan", "Save Changes")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -222,6 +225,7 @@ export function EditWorkDialog({
   onDone: () => void;
 }) {
   const opts = useApi<EmployeeOptions>(open ? "/api/onevity/employee-options" : null, [open]);
+  const { t } = useI18n();
   const [form, setForm] = useState({
     orgUnitId: "none", positionId: "none", gradeId: "none", employmentStatus: "Probation",
     workShift: "Regular", joinDate: "", endDate: "", managerId: "none", baseSalary: "", status: "Active",
@@ -246,7 +250,7 @@ export function EditWorkDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.joinDate) { toast.error("Tanggal masuk wajib diisi"); return; }
+    if (!form.joinDate) { toast.error(t("Tanggal masuk wajib diisi", "Join date is required")); return; }
     setBusy(true);
     try {
       await apiSend(`/api/onevity/employee-detail?id=${employee.id}`, "PATCH", {
@@ -261,11 +265,11 @@ export function EditWorkDialog({
         baseSalary: form.baseSalary === "" ? 0 : Number(form.baseSalary),
         status: form.status,
       });
-      toast.success("Info pekerjaan tersimpan", { description: `Data kepegawaian ${employee.fullName} berhasil diperbarui.` });
+      toast.success(t("Info pekerjaan tersimpan", "Job information saved"), { description: t("Data kepegawaian {name} berhasil diperbarui.", "Employment data of {name} was successfully updated.", { name: employee.fullName }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal menyimpan info pekerjaan", { description: (err as Error).message });
+      toast.error(t("Gagal menyimpan info pekerjaan", "Failed to save job information"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -275,84 +279,84 @@ export function EditWorkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Info Pekerjaan</DialogTitle>
-          <DialogDescription>Penempatan, status kerja, dan upah {employee.fullName}.</DialogDescription>
+          <DialogTitle>{t("Edit Info Pekerjaan", "Edit Job Information")}</DialogTitle>
+          <DialogDescription>{t("Penempatan, status kerja, dan upah {name}.", "Placement, employment status, and salary of {name}.", { name: employee.fullName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
-          <Field label="Unit Organisasi">
+          <Field label={t("Unit Organisasi")}>
             <Select value={form.orgUnitId} onValueChange={(v) => setForm((f) => ({ ...f, orgUnitId: v }))}>
-              <SelectTrigger className="h-11" aria-label="Unit organisasi"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Unit organisasi")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none" className="py-2.5">— Tanpa unit —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tanpa unit —", "— No unit —")}</SelectItem>
                 {(opts.data?.orgUnits ?? []).map((u) => (
                   <SelectItem key={u.id} value={u.id} className="py-2.5">{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Posisi">
+          <Field label={t("Posisi")}>
             <Select value={form.positionId} onValueChange={(v) => setForm((f) => ({ ...f, positionId: v }))}>
-              <SelectTrigger className="h-11" aria-label="Posisi"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Posisi")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none" className="py-2.5">— Tanpa posisi —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tanpa posisi —", "— No position —")}</SelectItem>
                 {(opts.data?.positions ?? []).map((p) => (
                   <SelectItem key={p.id} value={p.id} className="py-2.5">{p.title}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Grade">
+          <Field label={t("Grade")}>
             <Select value={form.gradeId} onValueChange={(v) => setForm((f) => ({ ...f, gradeId: v }))}>
-              <SelectTrigger className="h-11" aria-label="Grade"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Grade")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="py-2.5">— Tanpa grade —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tanpa grade —", "— No grade —")}</SelectItem>
                 {(opts.data?.grades ?? []).map((g) => (
                   <SelectItem key={g.id} value={g.id} className="py-2.5">{g.code} · {g.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Atasan Langsung">
+          <Field label={t("Atasan Langsung", "Direct Manager")}>
             <Select value={form.managerId} onValueChange={(v) => setForm((f) => ({ ...f, managerId: v }))}>
-              <SelectTrigger className="h-11" aria-label="Atasan langsung"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Atasan langsung", "Direct manager")}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none" className="py-2.5">— Tanpa atasan —</SelectItem>
+                <SelectItem value="none" className="py-2.5">{t("— Tanpa atasan —", "— No manager —")}</SelectItem>
                 {(opts.data?.managers ?? []).filter((m) => m.id !== employee.id).map((m) => (
                   <SelectItem key={m.id} value={m.id} className="py-2.5">{m.fullName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Status Kerja">
+          <Field label={t("Status Kerja", "Employment Status")}>
             <Select value={form.employmentStatus} onValueChange={(v) => setForm((f) => ({ ...f, employmentStatus: v }))}>
-              <SelectTrigger className="h-11" aria-label="Status kerja"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Status kerja", "Employment status")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Permanent", "Probation", "Contract", "Outsourcing"].map((s) => (
-                  <SelectItem key={s} value={s} className="py-2.5">{s === "Permanent" ? "Tetap" : s}</SelectItem>
+                  <SelectItem key={s} value={s} className="py-2.5">{s === "Permanent" ? t("Tetap", "Permanent") : s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Shift Kerja">
+          <Field label={t("Shift Kerja", "Work Shift")}>
             <Select value={form.workShift} onValueChange={(v) => setForm((f) => ({ ...f, workShift: v }))}>
-              <SelectTrigger className="h-11" aria-label="Shift kerja"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Shift kerja", "Work shift")}><SelectValue /></SelectTrigger>
               <SelectContent>
-                {WORK_SHIFTS.map((s) => <SelectItem key={s} value={s} className="py-2.5">{s}</SelectItem>)}
+                {WORK_SHIFTS.map((s) => <SelectItem key={s} value={s} className="py-2.5">{t(s, WORK_SHIFTS_EN[s])}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Tanggal Masuk *" htmlFor="ew-join">
+          <Field label={t("Tanggal Masuk", "Join Date") + " *"} htmlFor="ew-join">
             <Input id="ew-join" type="date" value={form.joinDate} onChange={(e) => setForm((f) => ({ ...f, joinDate: e.target.value }))} required />
           </Field>
-          <Field label="Tanggal Keluar" htmlFor="ew-end">
+          <Field label={t("Tanggal Keluar", "End Date")} htmlFor="ew-end">
             <Input id="ew-end" type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
           </Field>
-          <Field label="Gaji Pokok (Rp)" htmlFor="ew-salary">
+          <Field label={t("Gaji Pokok (Rp)", "Base Salary (Rp)")} htmlFor="ew-salary">
             <Input id="ew-salary" type="number" min={0} step={100000} value={form.baseSalary} onChange={(e) => setForm((f) => ({ ...f, baseSalary: e.target.value }))} className="font-mono" />
           </Field>
-          <Field label="Status Kepegawaian">
+          <Field label={t("Status Kepegawaian", "Employment Status")}>
             <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
-              <SelectTrigger className="h-11" aria-label="Status kepegawaian"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Status kepegawaian", "Employment status")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Active", "Resigned", "Terminated", "Blacklisted"].map((s) => (
                   <SelectItem key={s} value={s} className="py-2.5">{s}</SelectItem>
@@ -360,7 +364,7 @@ export function EditWorkDialog({
               </SelectContent>
             </Select>
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Simpan Perubahan" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Simpan Perubahan", "Save Changes")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -379,6 +383,7 @@ export function FamilyDialog({
 }) {
   const [form, setForm] = useState({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) setForm({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
@@ -386,7 +391,7 @@ export function FamilyDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error("Nama anggota keluarga wajib diisi"); return; }
+    if (!form.name.trim()) { toast.error(t("Nama anggota keluarga wajib diisi", "Family member name is required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/family", "POST", {
@@ -398,11 +403,11 @@ export function FamilyDialog({
         occupation: form.occupation.trim() || null,
         isDependent: form.isDependent,
       });
-      toast.success("Anggota keluarga ditambahkan", { description: `${form.name.trim()} ditambahkan ke profil ${employeeName}.` });
+      toast.success(t("Anggota keluarga ditambahkan", "Family member added"), { description: t("{name} ditambahkan ke profil {emp}.", "{name} was added to {emp}'s profile.", { name: form.name.trim(), emp: employeeName }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal menambah keluarga", { description: (err as Error).message });
+      toast.error(t("Gagal menambah keluarga", "Failed to add family member"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -412,48 +417,48 @@ export function FamilyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Tambah Anggota Keluarga</DialogTitle>
-          <DialogDescription>Data keluarga {employeeName} — untuk keperluan BPJS & tunjangan.</DialogDescription>
+          <DialogTitle>{t("Tambah Anggota Keluarga", "Add Family Member")}</DialogTitle>
+          <DialogDescription>{t("Data keluarga {name} — untuk keperluan BPJS & tunjangan.", "Family data of {name} — for BPJS & allowance purposes.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
-          <Field label="Hubungan Keluarga *">
+          <Field label={t("Hubungan Keluarga", "Family Relation") + " *"}>
             <Select value={form.relation} onValueChange={(v) => setForm((f) => ({ ...f, relation: v }))}>
-              <SelectTrigger className="h-11" aria-label="Hubungan keluarga"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Hubungan keluarga", "Family relation")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {RELATIONS.map((r) => (
                   <SelectItem key={r} value={r} className="py-2.5">
-                    {r === "Spouse" ? "Pasangan" : r === "Child" ? "Anak" : r === "Parent" ? "Orang Tua" : "Saudara"}
+                    {t(r === "Spouse" ? "Pasangan" : r === "Child" ? "Anak" : r === "Parent" ? "Orang Tua" : "Saudara", r === "Spouse" ? "Spouse" : r === "Child" ? "Child" : r === "Parent" ? "Parent" : "Sibling")}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Jenis Kelamin">
+          <Field label={t("Jenis Kelamin", "Gender")}>
             <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v }))}>
-              <SelectTrigger className="h-11" aria-label="Jenis kelamin"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Jenis kelamin", "Gender")}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="M" className="py-2.5">Laki-laki</SelectItem>
-                <SelectItem value="F" className="py-2.5">Perempuan</SelectItem>
+                <SelectItem value="M" className="py-2.5">{t("Laki-laki", "Male")}</SelectItem>
+                <SelectItem value="F" className="py-2.5">{t("Perempuan", "Female")}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Nama Lengkap *" htmlFor="f-name" className="sm:col-span-2">
-            <Input id="f-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama sesuai dokumen" required />
+          <Field label={t("Nama Lengkap") + " *"} htmlFor="f-name" className="sm:col-span-2">
+            <Input id="f-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("Nama sesuai dokumen", "Name as per document")} required />
           </Field>
-          <Field label="Tanggal Lahir" htmlFor="f-birth">
+          <Field label={t("Tanggal Lahir", "Date of Birth")} htmlFor="f-birth">
             <Input id="f-birth" type="date" value={form.birthDate} onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />
           </Field>
-          <Field label="Pekerjaan" htmlFor="f-occ">
-            <Input id="f-occ" value={form.occupation} onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))} placeholder="Ibu Rumah Tangga" />
+          <Field label={t("Pekerjaan", "Occupation")} htmlFor="f-occ">
+            <Input id="f-occ" value={form.occupation} onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))} placeholder={t("Ibu Rumah Tangga", "Homemaker")} />
           </Field>
           <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3.5 dark:border-stone-800 sm:col-span-2">
             <div>
-              <Label htmlFor="f-dep" className="text-sm font-semibold">Tanggungan (Dependen)</Label>
-              <p className="text-xs text-stone-500 dark:text-stone-400">Masuk perhitungan tunjangan keluarga & BPJS.</p>
+              <Label htmlFor="f-dep" className="text-sm font-semibold">{t("Tanggungan (Dependen)", "Dependent")}</Label>
+              <p className="text-xs text-stone-500 dark:text-stone-400">{t("Masuk perhitungan tunjangan keluarga & BPJS.", "Included in family allowance & BPJS calculations.")}</p>
             </div>
             <Switch id="f-dep" checked={form.isDependent} onCheckedChange={(v) => setForm((f) => ({ ...f, isDependent: v }))} />
           </div>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Tambah Keluarga" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Keluarga", "Add Family")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -472,6 +477,7 @@ export function EducationDialog({
 }) {
   const [form, setForm] = useState({ level: "S1", institution: "", major: "", startYear: "", endYear: "", gpa: "" });
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) setForm({ level: "S1", institution: "", major: "", startYear: "", endYear: "", gpa: "" });
@@ -479,9 +485,9 @@ export function EducationDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.institution.trim()) { toast.error("Nama institusi wajib diisi"); return; }
+    if (!form.institution.trim()) { toast.error(t("Nama institusi wajib diisi", "Institution name is required")); return; }
     if (form.startYear && form.endYear && Number(form.endYear) < Number(form.startYear)) {
-      toast.error("Tahun lulus tidak boleh sebelum tahun masuk");
+      toast.error(t("Tahun lulus tidak boleh sebelum tahun masuk", "Graduation year cannot be before the start year"));
       return;
     }
     setBusy(true);
@@ -495,11 +501,11 @@ export function EducationDialog({
         endYear: form.endYear ? Number(form.endYear) : null,
         gpa: form.gpa === "" ? null : Number(form.gpa),
       });
-      toast.success("Riwayat pendidikan ditambahkan", { description: `${form.level} — ${form.institution.trim()} (${employeeName}).` });
+      toast.success(t("Riwayat pendidikan ditambahkan", "Education record added"), { description: t("{lvl} — {inst} ({name}).", "{lvl} — {inst} ({name}).", { lvl: form.level, inst: form.institution.trim(), name: employeeName }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal menambah pendidikan", { description: (err as Error).message });
+      toast.error(t("Gagal menambah pendidikan", "Failed to add education"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -509,34 +515,34 @@ export function EducationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Tambah Riwayat Pendidikan</DialogTitle>
-          <DialogDescription>Jenjang pendidikan formal {employeeName}.</DialogDescription>
+          <DialogTitle>{t("Tambah Riwayat Pendidikan", "Add Education Record")}</DialogTitle>
+          <DialogDescription>{t("Jenjang pendidikan formal {name}.", "Formal education of {name}.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
-          <Field label="Jenjang *">
+          <Field label={t("Jenjang", "Level") + " *"}>
             <Select value={form.level} onValueChange={(v) => setForm((f) => ({ ...f, level: v }))}>
-              <SelectTrigger className="h-11" aria-label="Jenjang pendidikan"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11" aria-label={t("Jenjang pendidikan", "Education level")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {EDUCATION_LEVELS.map((l) => <SelectItem key={l} value={l} className="py-2.5">{l}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Jurusan" htmlFor="ed-major">
+          <Field label={t("Jurusan", "Major")} htmlFor="ed-major">
             <Input id="ed-major" value={form.major} onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))} placeholder="Manajemen" />
           </Field>
-          <Field label="Institusi *" htmlFor="ed-inst" className="sm:col-span-2">
-            <Input id="ed-inst" value={form.institution} onChange={(e) => setForm((f) => ({ ...f, institution: e.target.value }))} placeholder="Universitas Indonesia" required />
+          <Field label={t("Institusi") + " *"} htmlFor="ed-inst" className="sm:col-span-2">
+            <Input id="ed-inst" value={form.institution} onChange={(e) => setForm((f) => ({ ...f, institution: e.target.value }))} placeholder={t("Universitas Indonesia", "University of Indonesia")} required />
           </Field>
-          <Field label="Tahun Masuk" htmlFor="ed-start">
+          <Field label={t("Tahun Masuk", "Start Year")} htmlFor="ed-start">
             <Input id="ed-start" type="number" min={1960} max={2100} value={form.startYear} onChange={(e) => setForm((f) => ({ ...f, startYear: e.target.value }))} placeholder="2012" />
           </Field>
-          <Field label="Tahun Lulus" htmlFor="ed-end">
+          <Field label={t("Tahun Lulus", "Graduation Year")} htmlFor="ed-end">
             <Input id="ed-end" type="number" min={1960} max={2100} value={form.endYear} onChange={(e) => setForm((f) => ({ ...f, endYear: e.target.value }))} placeholder="2016" />
           </Field>
-          <Field label="IPK / GPA (0–4)" htmlFor="ed-gpa">
+          <Field label={t("IPK / GPA (0–4)", "GPA (0–4)")} htmlFor="ed-gpa">
             <Input id="ed-gpa" type="number" min={0} max={4} step={0.01} value={form.gpa} onChange={(e) => setForm((f) => ({ ...f, gpa: e.target.value }))} placeholder="3.45" />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Tambah Pendidikan" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Pendidikan", "Add Education")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -555,6 +561,7 @@ export function ExperienceDialog({
 }) {
   const [form, setForm] = useState({ company: "", position: "", startDate: "", endDate: "", notes: "" });
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) setForm({ company: "", position: "", startDate: "", endDate: "", notes: "" });
@@ -562,7 +569,7 @@ export function ExperienceDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.company.trim() || !form.position.trim()) { toast.error("Perusahaan dan posisi wajib diisi"); return; }
+    if (!form.company.trim() || !form.position.trim()) { toast.error(t("Perusahaan dan posisi wajib diisi", "Company and position are required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/experiences", "POST", {
@@ -573,11 +580,11 @@ export function ExperienceDialog({
         endDate: form.endDate || null,
         notes: form.notes.trim() || null,
       });
-      toast.success("Pengalaman kerja ditambahkan", { description: `${form.position.trim()} @ ${form.company.trim()} (${employeeName}).` });
+      toast.success(t("Pengalaman kerja ditambahkan", "Work experience added"), { description: t("{pos} @ {co} ({name}).", "{pos} @ {co} ({name}).", { pos: form.position.trim(), co: form.company.trim(), name: employeeName }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal menambah pengalaman", { description: (err as Error).message });
+      toast.error(t("Gagal menambah pengalaman", "Failed to add experience"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -587,26 +594,26 @@ export function ExperienceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Tambah Pengalaman Kerja</DialogTitle>
-          <DialogDescription>Riwayat pekerjaan {employeeName} sebelum bergabung.</DialogDescription>
+          <DialogTitle>{t("Tambah Pengalaman Kerja", "Add Work Experience")}</DialogTitle>
+          <DialogDescription>{t("Riwayat pekerjaan {name} sebelum bergabung.", "Work history of {name} before joining.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
-          <Field label="Perusahaan *" htmlFor="x-company">
-            <Input id="x-company" value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder="PT Maju Bersama" required />
+          <Field label={t("Perusahaan", "Company") + " *"} htmlFor="x-company">
+            <Input id="x-company" value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder={t("PT Maju Bersama", "PT Maju Bersama")} required />
           </Field>
-          <Field label="Posisi *" htmlFor="x-position">
-            <Input id="x-position" value={form.position} onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))} placeholder="Staff Akuntansi" required />
+          <Field label={t("Posisi") + " *"} htmlFor="x-position">
+            <Input id="x-position" value={form.position} onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))} placeholder={t("Staff Akuntansi", "Accounting Staff")} required />
           </Field>
-          <Field label="Tanggal Mulai" htmlFor="x-start">
+          <Field label={t("Tanggal Mulai", "Start Date")} htmlFor="x-start">
             <Input id="x-start" type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
           </Field>
-          <Field label="Tanggal Selesai" htmlFor="x-end">
+          <Field label={t("Tanggal Selesai", "End Date")} htmlFor="x-end">
             <Input id="x-end" type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
           </Field>
-          <Field label="Catatan" htmlFor="x-notes" className="sm:col-span-2">
-            <Textarea id="x-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Riwayat pencapaian / alasan keluar…" />
+          <Field label={t("Catatan")} htmlFor="x-notes" className="sm:col-span-2">
+            <Textarea id="x-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("Riwayat pencapaian / alasan keluar…", "Achievements / reason for leaving…")} />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Tambah Pengalaman" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Pengalaman", "Add Experience")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -626,6 +633,7 @@ export function DisciplinaryDialog({
   const opts = useApi<EmployeeOptions>(open && !employeeId ? "/api/onevity/employee-options" : null, [open, employeeId]);
   const [form, setForm] = useState({ employeeId: "none", warningLevel: "Verbal", violation: "", sanction: "", issuedAt: today(), expiresAt: "", notes: "" });
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) setForm({ employeeId: "none", warningLevel: "Verbal", violation: "", sanction: "", issuedAt: today(), expiresAt: "", notes: "" });
@@ -634,8 +642,8 @@ export function DisciplinaryDialog({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetId = employeeId ?? (form.employeeId === "none" ? null : form.employeeId);
-    if (!targetId) { toast.error("Pilih karyawan yang melakukan pelanggaran"); return; }
-    if (!form.violation.trim()) { toast.error("Jenis pelanggaran wajib diisi"); return; }
+    if (!targetId) { toast.error(t("Pilih karyawan yang melakukan pelanggaran", "Select the employee who committed the violation")); return; }
+    if (!form.violation.trim()) { toast.error(t("Jenis pelanggaran wajib diisi", "Violation type is required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/disciplinary", "POST", {
@@ -647,11 +655,11 @@ export function DisciplinaryDialog({
         expiresAt: form.expiresAt || null,
         notes: form.notes.trim() || null,
       });
-      toast.success("Pelanggaran dicatat", { description: `Tingkat ${form.warningLevel} — ${form.violation.trim()}.` });
+      toast.success(t("Pelanggaran dicatat", "Violation recorded"), { description: t("Tingkat {lvl} — {v}.", "Level {lvl} — {v}.", { lvl: form.warningLevel, v: form.violation.trim() }) });
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error("Gagal mencatat pelanggaran", { description: (err as Error).message });
+      toast.error(t("Gagal mencatat pelanggaran", "Failed to record the violation"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -661,18 +669,18 @@ export function DisciplinaryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Catat Pelanggaran Disiplin</DialogTitle>
+          <DialogTitle>{t("Catat Pelanggaran Disiplin", "Record Disciplinary Violation")}</DialogTitle>
           <DialogDescription>
-            {employeeId && employeeName ? `Catatan disiplin untuk ${employeeName}.` : "Pilih karyawan lalu isi rincian pelanggaran."}
+            {employeeId && employeeName ? t("Catatan disiplin untuk {name}.", "Disciplinary record for {name}.", { name: employeeName }) : t("Pilih karyawan lalu isi rincian pelanggaran.", "Select an employee then fill in the violation details.")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
           {!employeeId && (
-            <Field label="Karyawan *" className="sm:col-span-2">
+            <Field label={t("Karyawan") + " *"} className="sm:col-span-2">
               <Select value={form.employeeId} onValueChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}>
-                <SelectTrigger className="h-11" aria-label="Pilih karyawan"><SelectValue placeholder="Pilih karyawan…" /></SelectTrigger>
+                <SelectTrigger className="h-11" aria-label={t("Pilih karyawan", "Select employee")}><SelectValue placeholder={t("Pilih karyawan…", "Select an employee…")} /></SelectTrigger>
                 <SelectContent className="max-h-64">
-                  <SelectItem value="none" className="py-2.5">— Pilih karyawan —</SelectItem>
+                  <SelectItem value="none" className="py-2.5">{t("— Pilih karyawan —", "— Select employee —")}</SelectItem>
                   {(opts.data?.managers ?? []).map((m) => (
                     <SelectItem key={m.id} value={m.id} className="py-2.5">
                       {m.fullName} <span className="text-stone-400">· {m.employeeNo}</span>
@@ -682,7 +690,7 @@ export function DisciplinaryDialog({
               </Select>
             </Field>
           )}
-          <Field label="Tingkat Peringatan *" className="sm:col-span-2">
+          <Field label={t("Tingkat Peringatan", "Warning Level") + " *"} className="sm:col-span-2">
             <div className="grid grid-cols-3 gap-2">
               {WARNING_LEVELS.map((lvl) => (
                 <button
@@ -701,27 +709,27 @@ export function DisciplinaryDialog({
                   )}
                   aria-pressed={form.warningLevel === lvl}
                 >
-                  {lvl === "Verbal" ? "Verbal" : lvl === "Written" ? "Tertulis" : "Akhir"}
+                  {t(lvl === "Verbal" ? "Verbal" : lvl === "Written" ? "Tertulis" : "Akhir", lvl === "Verbal" ? "Verbal" : lvl === "Written" ? "Written" : "Final")}
                 </button>
               ))}
             </div>
           </Field>
-          <Field label="Jenis Pelanggaran *" htmlFor="d-violation" className="sm:col-span-2">
-            <Input id="d-violation" value={form.violation} onChange={(e) => setForm((f) => ({ ...f, violation: e.target.value }))} placeholder="Terlambat kerja berulang tanpa keterangan" required />
+          <Field label={t("Jenis Pelanggaran", "Violation Type") + " *"} htmlFor="d-violation" className="sm:col-span-2">
+            <Input id="d-violation" value={form.violation} onChange={(e) => setForm((f) => ({ ...f, violation: e.target.value }))} placeholder={t("Terlambat kerja berulang tanpa keterangan", "Repeatedly late for work without notice")} required />
           </Field>
-          <Field label="Sanksi" htmlFor="d-sanction" className="sm:col-span-2">
-            <Input id="d-sanction" value={form.sanction} onChange={(e) => setForm((f) => ({ ...f, sanction: e.target.value }))} placeholder="Skorsing 3 hari / pemotongan tunjangan" />
+          <Field label={t("Sanksi", "Sanction")} htmlFor="d-sanction" className="sm:col-span-2">
+            <Input id="d-sanction" value={form.sanction} onChange={(e) => setForm((f) => ({ ...f, sanction: e.target.value }))} placeholder={t("Skorsing 3 hari / pemotongan tunjangan", "3-day suspension / allowance deduction")} />
           </Field>
-          <Field label="Tanggal Diterbitkan" htmlFor="d-issued">
+          <Field label={t("Tanggal Diterbitkan", "Date Issued")} htmlFor="d-issued">
             <Input id="d-issued" type="date" value={form.issuedAt} onChange={(e) => setForm((f) => ({ ...f, issuedAt: e.target.value }))} />
           </Field>
-          <Field label="Berlaku Hingga" htmlFor="d-exp">
+          <Field label={t("Berlaku Hingga", "Valid Until")} htmlFor="d-exp">
             <Input id="d-exp" type="date" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} />
           </Field>
-          <Field label="Catatan" htmlFor="d-notes" className="sm:col-span-2">
-            <Textarea id="d-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Kronologi / bukti pendukung…" />
+          <Field label={t("Catatan")} htmlFor="d-notes" className="sm:col-span-2">
+            <Textarea id="d-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("Kronologi / bukti pendukung…", "Chronology / supporting evidence…")} />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label="Catat Pelanggaran" />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Catat Pelanggaran", "Record Violation")} />
         </form>
       </DialogContent>
     </Dialog>
@@ -739,14 +747,15 @@ export function DeleteRecordButton({
   className?: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
   const remove = async () => {
     setBusy(true);
     try {
       await apiSend(url, "DELETE");
-      toast.success(title, { description: "Data berhasil dihapus." });
+      toast.success(title, { description: t("Data berhasil dihapus.", "Data successfully deleted.") });
       onDone();
     } catch (err) {
-      toast.error("Gagal menghapus", { description: (err as Error).message });
+      toast.error(t("Gagal menghapus", "Failed to delete"), { description: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -758,7 +767,7 @@ export function DeleteRecordButton({
           variant="ghost"
           size="icon"
           className={cn("h-11 w-11 text-stone-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10", className)}
-          aria-label="Hapus data"
+          aria-label={t("Hapus data", "Delete data")}
           disabled={busy}
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -770,9 +779,9 @@ export function DeleteRecordButton({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="h-11">Batal</AlertDialogCancel>
+          <AlertDialogCancel className="h-11">{t("Batal")}</AlertDialogCancel>
           <AlertDialogAction className="h-11 bg-rose-600 font-bold hover:bg-rose-700" onClick={remove}>
-            Ya, Hapus
+            {t("Ya, Hapus", "Yes, Delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

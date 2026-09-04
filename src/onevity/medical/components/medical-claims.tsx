@@ -17,11 +17,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   ClaimUI, ClaimPreviewUI, ClaimLineUI, BenefitTypeUI, EmployeeOption,
-  CLAIM_STATUS_LABEL, fmtIDR, fmtDateID, fmtDateTimeID, todayISO,
+  CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN, fmtIDR, fmtDateID, fmtDateTimeID, todayISO,
 } from "./medical-types";
 import {
   FileText, Plus, Search, ChevronDown, ChevronRight, Trash2, Activity, Calculator,
 } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
@@ -47,6 +48,7 @@ const newLine = (treatedName = ""): LineForm => ({
 
 export function MedicalClaimsPage() {
   const perms = useMenuPerms();
+  const { t } = useI18n();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -117,8 +119,8 @@ export function MedicalClaimsPage() {
 
   const submit = async () => {
     const valid = lines.filter((l) => l.treatedName.trim() && Number(l.billAmount) > 0 && Number(l.approvedAmount) >= 0);
-    if (!employeeId || !typeId) { toast.error("Pilih karyawan & jenis benefit"); return; }
-    if (valid.length === 0) { toast.error("Minimal 1 baris perawatan lengkap (nama yang dirawat + tagihan)"); return; }
+    if (!employeeId || !typeId) { toast.error(t("Pilih karyawan & jenis benefit", "Select employee & benefit type")); return; }
+    if (valid.length === 0) { toast.error(t("Minimal 1 baris perawatan lengkap (nama yang dirawat + tagihan)", "At least 1 complete treatment line (treated name + bill)")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; totalApproved: number; remainingAfter: number }>("/api/onevity/medical/claims", "POST", {
@@ -134,12 +136,12 @@ export function MedicalClaimsPage() {
           approvedAmount: Number(l.approvedAmount) || 0,
         })),
       });
-      toast.success(`Klaim ${res.docNo} diajukan — approved ${fmtIDR(res.totalApproved)} · sisa saldo ${fmtIDR(res.remainingAfter)}`);
+      toast.success(t("Klaim {d} diajukan — approved {a} · sisa saldo {r}", "Claim {d} submitted — approved {a} · remaining balance {r}", { d: res.docNo, a: fmtIDR(res.totalApproved), r: fmtIDR(res.remainingAfter) }));
       setDialog(false);
       api.refresh();
       detailApi.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengajukan klaim");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengajukan klaim", "Failed to submit claim"));
     } finally {
       setBusy(false);
     }
@@ -150,13 +152,13 @@ export function MedicalClaimsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MEDICAL · TRANSAKSI"
-        title="Klaim Medis"
-        description="Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim)"
+        eyebrow={t("Medical · Transaksi", "Medical · Transactions")}
+        title={t("Klaim Medis")}
+        description={t("Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim)", "Employee & dependent treatment reimbursement claims — balance snapshot, treatment lines with receipt/physician/hospital, per-type frequency validation (equivalent to Medical Claim)")}
         actions={(
           perms.can("medical", "medical-claim", "create") && (
             <Button onClick={openDialog}>
-              <Plus className="h-4 w-4" /> Ajukan Klaim
+              <Plus className="h-4 w-4" /> {t("Ajukan Klaim", "Submit Claim")}
             </Button>
           )
         )}
@@ -174,7 +176,7 @@ export function MedicalClaimsPage() {
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
-            {f.label}
+            {t(f.label)}
             {f.key !== "all" && api.data?.stats && (
               <span className="ml-1 opacity-60">
                 {f.key === "Draft" ? api.data.stats.total - api.data.stats.submitted - api.data.stats.approved - api.data.stats.settled : undefined}
@@ -184,7 +186,7 @@ export function MedicalClaimsPage() {
         ))}
         <div className="relative ml-auto w-full sm:w-56">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / no. dokumen…" className="pl-8" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / no. dokumen…", "Search name / doc. no.…")} className="pl-8" />
         </div>
       </div>
 
@@ -193,20 +195,20 @@ export function MedicalClaimsPage() {
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
           ) : claims.length === 0 ? (
-            <div className="p-6"><EmptyState title="Belum ada klaim medis" description="Ajukan klaim reimbursement perawatan pertama — pilih karyawan & jenis benefit." icon={FileText} /></div>
+            <div className="p-6"><EmptyState title={t("Belum ada klaim medis", "No medical claims yet")} description={t("Ajukan klaim reimbursement perawatan pertama — pilih karyawan & jenis benefit.", "Submit the first treatment reimbursement claim — pick an employee & benefit type.")} icon={FileText} /></div>
           ) : (
             <div className="max-h-[30rem] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
                     <TableHead className="w-8" />
-                    <TableHead>No. Dokumen</TableHead>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead>Jenis</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead className="text-right">Tagihan</TableHead>
+                    <TableHead>{t("No. Dokumen", "Doc. No.")}</TableHead>
+                    <TableHead>{t("Karyawan")}</TableHead>
+                    <TableHead>{t("Jenis")}</TableHead>
+                    <TableHead>{t("Tanggal")}</TableHead>
+                    <TableHead className="text-right">{t("Tagihan", "Bill")}</TableHead>
                     <TableHead className="text-right">Approved</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -240,14 +242,14 @@ export function MedicalClaimsPage() {
                           <TableRow className="bg-stone-50/70 dark:bg-stone-900/60 hover:bg-stone-50/70">
                             <TableCell colSpan={8} className="p-4">
                               {!detail ? (
-                                <p className="text-sm text-stone-500">Memuat rincian…</p>
+                                <p className="text-sm text-stone-500">{t("Memuat rincian…", "Loading details…")}</p>
                               ) : (
                                 <div className="space-y-4">
                                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                     <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
                                       <p className="text-[11px] font-bold uppercase text-stone-400">Snapshot Limit</p>
                                       <p className="text-sm font-black">{fmtIDR(c.maxBenefitAt)}</p>
-                                      <p className="text-xs text-stone-500">used saat ajukan: {fmtIDR(c.usedAt)}</p>
+                                      <p className="text-xs text-stone-500">{t("used saat ajukan: {v}", "used at submission: {v}", { v: fmtIDR(c.usedAt) })}</p>
                                     </div>
                                     <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
                                       <p className="text-[11px] font-bold uppercase text-stone-400">Total Reimbursement</p>
@@ -260,7 +262,7 @@ export function MedicalClaimsPage() {
                                     <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
                                       <p className="text-[11px] font-bold uppercase text-stone-400">Settlement</p>
                                       <p className="text-sm font-black">{c.settleDate ? fmtDateID(c.settleDate) : "—"}</p>
-                                      {c.journalNo && <p className="text-xs text-stone-500">jurnal {c.journalNo}</p>}
+                                      {c.journalNo && <p className="text-xs text-stone-500">{t("jurnal {n}", "journal {n}", { n: c.journalNo })}</p>}
                                     </div>
                                   </div>
 
@@ -268,11 +270,11 @@ export function MedicalClaimsPage() {
                                     <Table>
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead>Yang Dirawat</TableHead>
-                                          <TableHead>Perawatan</TableHead>
-                                          <TableHead>Tanggal</TableHead>
-                                          <TableHead>Dokter / RS</TableHead>
-                                          <TableHead className="text-right">Tagihan</TableHead>
+                                          <TableHead>{t("Yang Dirawat", "Treated Person")}</TableHead>
+                                          <TableHead>{t("Perawatan", "Treatment")}</TableHead>
+                                          <TableHead>{t("Tanggal")}</TableHead>
+                                          <TableHead>{t("Dokter / RS", "Physician / Hospital")}</TableHead>
+                                          <TableHead className="text-right">{t("Tagihan", "Bill")}</TableHead>
                                           <TableHead className="text-right">Approved</TableHead>
                                         </TableRow>
                                       </TableHeader>
@@ -287,7 +289,7 @@ export function MedicalClaimsPage() {
                                             <TableCell className="text-sm">{fmtDateID(l.treatmentDate)}</TableCell>
                                             <TableCell className="text-sm">
                                               {l.physician || l.hospital ? `${l.physician ?? ""}${l.hospital ? ` · ${l.hospital}` : ""}` : "—"}
-                                              {l.receiptNo && <span className="block text-xs text-stone-500">kwitansi {l.receiptNo}</span>}
+                                              {l.receiptNo && <span className="block text-xs text-stone-500">{t("kwitansi {n}", "receipt {n}", { n: l.receiptNo })}</span>}
                                             </TableCell>
                                             <TableCell className="text-right">{fmtIDR(l.billAmount)}</TableCell>
                                             <TableCell className="text-right font-semibold">{fmtIDR(l.approvedAmount)}</TableCell>
@@ -303,7 +305,7 @@ export function MedicalClaimsPage() {
                                       <div className="space-y-1">
                                         {detail.statusLog.map((sl, i) => (
                                           <p key={i} className="text-xs text-stone-600 dark:text-stone-400">
-                                            <span className="font-semibold">{CLAIM_STATUS_LABEL[sl.state] ?? sl.state}</span>
+                                            <span className="font-semibold">{t(CLAIM_STATUS_LABEL[sl.state] ?? sl.state, CLAIM_STATUS_LABEL_EN[sl.state])}</span>
                                             {" · "}{fmtDateTimeID(sl.at)}{sl.note ? ` · ${sl.note}` : ""}
                                           </p>
                                         ))}
@@ -330,15 +332,15 @@ export function MedicalClaimsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 ov-text-accent" /> Ajukan Klaim Medis
+              <Activity className="h-5 w-5 ov-text-accent" /> {t("Ajukan Klaim Medis", "Submit Medical Claim")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Karyawan *</Label>
+              <Label>{t("Karyawan *", "Employee *")}</Label>
               <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>{e.employeeNo} — {e.fullName}</SelectItem>
@@ -347,9 +349,9 @@ export function MedicalClaimsPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Jenis Benefit *</Label>
+              <Label>{t("Jenis Benefit *", "Benefit Type *")}</Label>
               <Select value={typeId} onValueChange={setTypeId}>
-                <SelectTrigger><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Pilih jenis", "Select type")} /></SelectTrigger>
                 <SelectContent>
                   {types.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -358,19 +360,19 @@ export function MedicalClaimsPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Tanggal Klaim *</Label>
+              <Label>{t("Tanggal Klaim *", "Claim Date *")}</Label>
               <Input type="date" value={claimDate} onChange={(e) => setClaimDate(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>No. Surat Rujukan</Label>
-              <Input value={letterNo} onChange={(e) => setLetterNo(e.target.value)} placeholder="opsional" />
+              <Label>{t("No. Surat Rujukan", "Referral Letter No.")}</Label>
+              <Input value={letterNo} onChange={(e) => setLetterNo(e.target.value)} placeholder={t("opsional", "optional")} />
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={forDependent} onCheckedChange={(v) => setForDependent(Boolean(v))} />
-              Klaim untuk anggota keluarga (dependent)
+              {t("Klaim untuk anggota keluarga (dependent)", "Claim for a family member (dependent)")}
             </label>
           </div>
 
@@ -381,34 +383,34 @@ export function MedicalClaimsPage() {
                 <p className="font-black text-stone-900 dark:text-stone-50">{preview.limitRule === "UNLIMITED" ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase ov-text-accent">Sudah Terpakai</p>
+                <p className="text-[11px] font-bold uppercase ov-text-accent">{t("Sudah Terpakai", "Used So Far")}</p>
                 <p className="font-black text-stone-900 dark:text-stone-50">{fmtIDR(preview.usedAmount)}</p>
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase ov-text-accent">
-                  Sisa Saldo{preview.claimPool === "dependent" ? " (Dependent)" : forDependent && preview.claimPool === "employee" ? " (Bersama)" : ""}
+                  {t("Sisa Saldo", "Remaining Balance")}{preview.claimPool === "dependent" ? " (Dependent)" : forDependent && preview.claimPool === "employee" ? t(" (Bersama)", " (Shared)") : ""}
                 </p>
                 <p className="font-black text-stone-900 dark:text-stone-50">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
                 {preview.poolNote && <p className="text-xs text-stone-500">{preview.poolNote}</p>}
                 {(preview.pendingReserved ?? 0) > 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">menunggu klaim lain: {fmtIDR(preview.pendingReserved ?? 0)}</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t("menunggu klaim lain: {v}", "reserved by other pending claims: {v}", { v: fmtIDR(preview.pendingReserved ?? 0) })}</p>
                 )}
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase ov-text-accent">Frekuensi</p>
+                <p className="text-[11px] font-bold uppercase ov-text-accent">{t("Frekuensi", "Frequency")}</p>
                 <p className="font-black text-stone-900 dark:text-stone-50">
                   {preview.freqUnlimited ? "Unlimited" : `${preview.freqValue}× / ${preview.freqPeriod}`}
                 </p>
-                <p className="text-xs text-stone-500">{preview.claimCountYear} klaim tahun ini</p>
+                <p className="text-xs text-stone-500">{t("{n} klaim tahun ini", "{n} claims this year", { n: preview.claimCountYear })}</p>
               </div>
             </div>
           )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-bold">Baris Perawatan</Label>
+              <Label className="text-sm font-bold">{t("Baris Perawatan", "Treatment Lines")}</Label>
               <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, newLine()])}>
-                <Plus className="h-3.5 w-3.5" /> Baris
+                <Plus className="h-3.5 w-3.5" /> {t("Baris", "Row")}
               </Button>
             </div>
             <div className="max-h-64 space-y-2 overflow-y-auto">
@@ -416,31 +418,31 @@ export function MedicalClaimsPage() {
                 <div key={i} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Nama yang Dirawat *</Label>
-                      <Input value={l.treatedName} onChange={(e) => setLine(i, { treatedName: e.target.value })} placeholder="karyawan / anggota keluarga" />
+                      <Label className="text-xs">{t("Nama yang Dirawat *", "Treated Person Name *")}</Label>
+                      <Input value={l.treatedName} onChange={(e) => setLine(i, { treatedName: e.target.value })} placeholder={t("karyawan / anggota keluarga", "employee / family member")} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Perawatan / Diagnosa</Label>
-                      <Input value={l.treatment} onChange={(e) => setLine(i, { treatment: e.target.value })} placeholder="mis. konsultasi, scaling, rawat inap 2 hari" />
+                      <Label className="text-xs">{t("Perawatan / Diagnosa", "Treatment / Diagnosis")}</Label>
+                      <Input value={l.treatment} onChange={(e) => setLine(i, { treatment: e.target.value })} placeholder={t("mis. konsultasi, scaling, rawat inap 2 hari", "e.g. consultation, scaling, 2-day inpatient care")} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Tanggal Perawatan</Label>
+                      <Label className="text-xs">{t("Tanggal Perawatan", "Treatment Date")}</Label>
                       <Input type="date" value={l.treatmentDate} onChange={(e) => setLine(i, { treatmentDate: e.target.value })} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">No. Kwitansi {preview?.needReceipt ? "*" : ""}</Label>
-                      <Input value={l.receiptNo} onChange={(e) => setLine(i, { receiptNo: e.target.value })} placeholder="mis. INV-2026-0042" />
+                      <Label className="text-xs">{t("No. Kwitansi", "Receipt No.")} {preview?.needReceipt ? "*" : ""}</Label>
+                      <Input value={l.receiptNo} onChange={(e) => setLine(i, { receiptNo: e.target.value })} placeholder={t("mis. INV-2026-0042", "e.g. INV-2026-0042")} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Dokter</Label>
+                      <Label className="text-xs">{t("Dokter", "Physician")}</Label>
                       <Input value={l.physician} onChange={(e) => setLine(i, { physician: e.target.value })} placeholder="dr. …" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Rumah Sakit / Klinik</Label>
-                      <Input value={l.hospital} onChange={(e) => setLine(i, { hospital: e.target.value })} placeholder="mis. RS Siloam Surabaya" />
+                      <Label className="text-xs">{t("Rumah Sakit / Klinik", "Hospital / Clinic")}</Label>
+                      <Input value={l.hospital} onChange={(e) => setLine(i, { hospital: e.target.value })} placeholder={t("mis. RS Siloam Surabaya", "e.g. Siloam Hospital Surabaya")} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Tagihan (Bill) *</Label>
+                      <Label className="text-xs">{t("Tagihan (Bill) *", "Bill *")}</Label>
                       <Input type="number" min={0} value={l.billAmount} onChange={(e) => {
                         const bill = e.target.value;
                         setLine(i, { billAmount: bill, approvedAmount: l.approvedAmount || bill });
@@ -457,7 +459,7 @@ export function MedicalClaimsPage() {
                     <div className="flex items-end justify-between gap-2">
                       <label className="flex items-center gap-2 text-xs">
                         <Checkbox checked={l.occupationalInjury} onCheckedChange={(v) => setLine(i, { occupationalInjury: Boolean(v) })} />
-                        Kecelakaan/Penyakit Kerja (CK)
+                        {t("Kecelakaan/Penyakit Kerja (CK)", "Occupational Injury / Illness (CK)")}
                       </label>
                       <Button variant="ghost" size="sm" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))} disabled={lines.length === 1}>
                         <Trash2 className="h-3.5 w-3.5 text-rose-500" />
@@ -470,18 +472,18 @@ export function MedicalClaimsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
-            <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 ov-text-accent" /> Total</span>
-            <span className="text-stone-600 dark:text-stone-300">Tagihan <span className="font-black">{fmtIDR(totals.bill)}</span></span>
+            <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 ov-text-accent" /> {t("Total")}</span>
+            <span className="text-stone-600 dark:text-stone-300">{t("Tagihan", "Bill")} <span className="font-black">{fmtIDR(totals.bill)}</span></span>
             <span className="text-stone-600 dark:text-stone-300">Reimburse <span className="font-black">{fmtIDR(totals.re)}</span></span>
             <span className="ov-text-accent">Approved <span className="font-black">{fmtIDR(totals.approved)}</span></span>
           </div>
 
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan pengajuan (opsional)…" rows={2} />
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Catatan pengajuan (opsional)…", "Submission note (optional)…")} rows={2} />
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy}>
-              {busy ? "Mengirim…" : "Ajukan Klaim"}
+              {busy ? t("Mengirim…", "Submitting…") : t("Ajukan Klaim", "Submit Claim")}
             </Button>
           </DialogFooter>
         </DialogContent>

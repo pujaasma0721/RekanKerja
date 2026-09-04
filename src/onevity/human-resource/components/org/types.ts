@@ -80,3 +80,15 @@ export const LEVEL_META: Record<number, { label: string; icon: string }> = {
 export function levelLabel(level: number): string {
   return LEVEL_META[level]?.label ?? `Level ${level}`;
 }
+
+// EN paralel (Task I-2 i18n) — render: t(levelLabel(k), levelLabelEn(k))
+export const LEVEL_META_EN: Record<number, string> = {
+  1: "CEO Office",
+  2: "Management",
+  3: "Division",
+  4: "Sub-Unit",
+};
+
+export function levelLabelEn(level: number): string {
+  return LEVEL_META_EN[level] ?? `Level ${level}`;
+}

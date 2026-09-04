@@ -15,9 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { RequestRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, SESSION_LABEL, fmtDay } from "./leave-types";
+import { RequestRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
 import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -28,6 +29,11 @@ const STATUS_FILTERS = [
   { key: "Cancelled", label: "Dibatalkan" },
 ];
 
+// LABEL EN (peta paralel — render: t(f.label, STATUS_FILTERS_EN[f.key]))
+const STATUS_FILTERS_EN: Record<string, string> = {
+  all: "All", Submitted: "Pending", Approved: "Approved", MassLeave: "Mass Leave", Rejected: "Rejected", Cancelled: "Cancelled",
+};
+
 interface PreviewResult {
   workingDays: number; balance: number; remaining: number;
   backToWork: string | null; maxPerRequest: number; unit: string;
@@ -37,6 +43,7 @@ interface PreviewResult {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function LeaveRequestsPage() {
+  const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -61,7 +68,7 @@ export function LeaveRequestsPage() {
   // preview auto-compute saat form berubah (debounce)
   useEffect(() => {
     if (!dialog || !form.employeeId || !form.leaveTypeId || !form.dateFrom || !form.dateTo) { setPreview(null); return; }
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setPreviewBusy(true);
       try {
         const res = await apiSend<PreviewResult>("/api/onevity/leave/requests", "POST", { ...form, preview: true });
@@ -71,38 +78,38 @@ export function LeaveRequestsPage() {
         // error validasi ditampilkan saat submit; preview silent-fail
       } finally { setPreviewBusy(false); }
     }, 350);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [dialog, form]);
 
-  const selectedType = (typesApi.data?.types ?? []).find((t) => t.id === form.leaveTypeId);
+  const selectedType = (typesApi.data?.types ?? []).find((ty) => ty.id === form.leaveTypeId);
 
   const submit = async () => {
-    if (!form.employeeId || !form.leaveTypeId) { toast.error("Karyawan & jenis cuti wajib dipilih"); return; }
-    if (!form.reason.trim()) { toast.error("Alasan cuti wajib diisi"); return; }
+    if (!form.employeeId || !form.leaveTypeId) { toast.error(t("Karyawan & jenis cuti wajib dipilih", "Employee & leave type are required")); return; }
+    if (!form.reason.trim()) { toast.error(t("Alasan cuti wajib diisi", "Leave reason is required")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; workingDays: number; remaining: number; backToWork: string | null; approvalLevels?: number; firstApprover?: string | null }>(
         "/api/onevity/leave/requests", "POST", form,
       );
       toast.success(
-        `${res.docNo} diajukan — ${res.workingDays} hari kerja, sisa saldo ${res.remaining}` +
-        (res.firstApprover ? ` · menunggu approval ${res.firstApprover}` + (res.approvalLevels && res.approvalLevels > 1 ? ` (jenjang 1/${res.approvalLevels})` : "") : ""),
+        t("{doc} diajukan — {d} hari kerja, sisa saldo {r}", "{doc} submitted — {d} working days, remaining balance {r}", { doc: res.docNo, d: res.workingDays, r: res.remaining }) +
+        (res.firstApprover ? t(" · menunggu approval {a}", " · awaiting approval by {a}", { a: res.firstApprover }) + (res.approvalLevels && res.approvalLevels > 1 ? t(" (jenjang 1/{n})", " (tier 1/{n})", { n: res.approvalLevels }) : "") : ""),
       );
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengajukan cuti");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengajukan cuti", "Failed to submit the leave request"));
     } finally { setBusy(false); }
   };
 
   const cancelRequest = async (r: RequestRowUI) => {
-    if (r.status !== "Submitted") { toast.error("Hanya permintaan berstatus Menunggu yang bisa dibatalkan"); return; }
+    if (r.status !== "Submitted") { toast.error(t("Hanya permintaan berstatus Menunggu yang bisa dibatalkan", "Only requests in Pending status can be cancelled")); return; }
     try {
       const res = await apiSend<{ docNo: string; status: string }>("/api/onevity/leave/requests", "PATCH", { id: r.id, action: "cancel", note: "Dibatalkan pemberi kuasa" });
-      toast.success(`${res.docNo} dibatalkan`);
+      toast.success(t("{doc} dibatalkan", "{doc} cancelled", { doc: res.docNo }));
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal membatalkan");
+      toast.error(e instanceof Error ? e.message : t("Gagal membatalkan", "Failed to cancel"));
     }
   };
 
@@ -111,20 +118,20 @@ export function LeaveRequestsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL LEAVE"
-        title="Permintaan Cuti"
-        description="Pengajuan cuti dengan hitungan otomatis — hari kerja dari jadwal absensi, saldo saat ini, sisa saldo & tanggal kembali kerja"
+        eyebrow={t("MODUL LEAVE", "LEAVE MODULE")}
+        title={t("Permintaan Cuti")}
+        description={t("Pengajuan cuti dengan hitungan otomatis — hari kerja dari jadwal absensi, saldo saat ini, sisa saldo & tanggal kembali kerja", "Leave requests with automatic computation — working days from the attendance schedule, current balance, remaining balance & back-to-work date")}
         actions={
           perms.can("leave", "leave-request", "create") && (
             <Button onClick={() => {
               setForm({
-                employeeId: typesApi.data?.employees[0]?.id ?? "", leaveTypeId: (typesApi.data?.types ?? []).find((t) => t.code === "CT-THN")?.id ?? typesApi.data?.types[0]?.id ?? "",
+                employeeId: typesApi.data?.employees[0]?.id ?? "", leaveTypeId: (typesApi.data?.types ?? []).find((ty) => ty.code === "CT-THN")?.id ?? typesApi.data?.types[0]?.id ?? "",
                 dateFrom: todayISO(), sessionFrom: "AM", dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
               });
               setPreview(null);
               setDialog(true);
             }} className="gap-2 font-bold">
-              <Plus className="h-4 w-4" /> Ajukan Cuti
+              <Plus className="h-4 w-4" /> {t("Ajukan Cuti", "Request Leave")}
             </Button>
           )
         }
@@ -132,10 +139,10 @@ export function LeaveRequestsPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Menunggu Approval", value: stats?.submitted ?? 0, sub: `${stats?.pendingDays ?? 0} hari diminta`, icon: Inbox, tone: "text-amber-600" },
-          { label: "Disetujui", value: (stats?.approved ?? 0) + (stats?.massLeave ?? 0), sub: `${stats?.approvedDays ?? 0} hari total`, icon: CheckCircle2, tone: "text-emerald-600" },
-          { label: "Cuti Massal", value: stats?.massLeave ?? 0, sub: "baris dari SKB", icon: Inbox, tone: "text-rose-600" },
-          { label: "Total Permintaan", value: stats?.total ?? 0, sub: `${stats?.rejected ?? 0} ditolak · ${stats?.cancelled ?? 0} batal`, icon: Inbox, tone: "text-stone-500" },
+          { label: t("Menunggu Approval", "Pending Approvals"), value: stats?.submitted ?? 0, sub: t("{n} hari diminta", "{n} days requested", { n: stats?.pendingDays ?? 0 }), icon: Inbox, tone: "text-amber-600" },
+          { label: t("Disetujui"), value: (stats?.approved ?? 0) + (stats?.massLeave ?? 0), sub: t("{n} hari total", "{n} days total", { n: stats?.approvedDays ?? 0 }), icon: CheckCircle2, tone: "text-emerald-600" },
+          { label: t("Cuti Massal", "Mass Leave"), value: stats?.massLeave ?? 0, sub: t("baris dari SKB", "rows from SKB"), icon: Inbox, tone: "text-rose-600" },
+          { label: t("Total Permintaan", "Total Requests"), value: stats?.total ?? 0, sub: t("{r} ditolak · {c} batal", "{r} rejected · {c} cancelled", { r: stats?.rejected ?? 0, c: stats?.cancelled ?? 0 }), icon: Inbox, tone: "text-stone-500" },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -157,30 +164,30 @@ export function LeaveRequestsPage() {
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
                   statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
                 )}>
-                  {f.label}
+                  {t(f.label, STATUS_FILTERS_EN[f.key])}
                 </button>
               ))}
             </div>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan / no. dokumen…" className="h-8 w-56 pl-8 text-xs" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")} className="h-8 w-56 pl-8 text-xs" />
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : requests.length === 0 ? (
-            <div className="p-5"><EmptyState title="Tidak ada permintaan cuti" description="Ajukan cuti baru — hari kerja & saldo dihitung otomatis dari jadwal." icon={<Inbox className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Tidak ada permintaan cuti", "No leave requests")} description={t("Ajukan cuti baru — hari kerja & saldo dihitung otomatis dari jadwal.", "Submit a new leave request — working days & balance are computed automatically from schedules.")} icon={<Inbox className="h-6 w-6" />} /></div>
           ) : (
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    <TableHead className="text-[11px] font-bold">Dokumen</TableHead>
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Jenis</TableHead>
-                    <TableHead className="text-[11px] font-bold">Rentang</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">Hari Kerja</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">Sisa Saldo</TableHead>
-                    <TableHead className="text-[11px] font-bold">Kembali Kerja</TableHead>
-                    <TableHead className="text-[11px] font-bold">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Rentang", "Range")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold">{t("Hari Kerja", "Working Days")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold">{t("Sisa Saldo", "Remaining Balance")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Kembali Kerja", "Back to Work")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
@@ -189,7 +196,7 @@ export function LeaveRequestsPage() {
                     <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>
-                        <p className="text-[10px] text-stone-400">{new Date(r.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })} · {r.source}</p>
+                        <p className="text-[10px] text-stone-400">{new Date(r.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" })} · {r.source}</p>
                       </TableCell>
                       <TableCell>
                         <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo}</p>
@@ -197,23 +204,23 @@ export function LeaveRequestsPage() {
                       </TableCell>
                       <TableCell>
                         <p className="text-xs text-stone-700 dark:text-stone-200">{r.leaveTypeName}</p>
-                        {!r.paid && <Badge className="mt-0.5 bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Tidak dibayar</Badge>}
+                        {!r.paid && <Badge className="mt-0.5 bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t("Tidak dibayar", "Unpaid")}</Badge>}
                       </TableCell>
                       <TableCell className="text-[11px]">
                         <p className="font-semibold text-stone-700 dark:text-stone-200">
-                          {new Date(r.dateFrom).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionFrom]} → {new Date(r.dateTo).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionTo]}
+                          {new Date(r.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionFrom], SESSION_LABEL_EN[r.sessionFrom])} → {new Date(r.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionTo], SESSION_LABEL_EN[r.sessionTo])}
                         </p>
                         <p className="max-w-56 truncate text-[10px] text-stone-400" title={r.reason ?? ""}>{r.reason}</p>
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
                       <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-stone-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
                       <TableCell className="text-[11px] text-stone-500">
-                        {r.backToWorkDate ? <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-stone-400" />{new Date(r.backToWorkDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}</span> : "—"}
+                        {r.backToWorkDate ? <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-stone-400" />{new Date(r.backToWorkDate).toLocaleDateString(locale, { day: "2-digit", month: "short" })}</span> : "—"}
                       </TableCell>
                       <TableCell><StatusPill status={r.status === "Submitted" ? "Submitted" : r.status === "Approved" || r.status === "MassLeave" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Cancelled"} /></TableCell>
                       <TableCell>
                         {r.status === "Submitted" && perms.canOp("leave", "leave-request", "cancel") && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => cancelRequest(r)} title="Batalkan">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => cancelRequest(r)} title={t("Batalkan", "Cancel")}>
                             <Ban className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
                         )}
@@ -231,15 +238,15 @@ export function LeaveRequestsPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Send className="h-4 w-4 ov-text-accent" /> Ajukan Permintaan Cuti
+              <Send className="h-4 w-4 ov-text-accent" /> {t("Ajukan Permintaan Cuti", "Submit Leave Request")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Karyawan *</Label>
+                <Label className="text-xs font-bold">{t("Karyawan *", "Employee *")}</Label>
                 <Select value={form.employeeId} onValueChange={(v) => setForm({ ...form, employeeId: v })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {(typesApi.data?.employees ?? []).map((e) => (
                       <SelectItem key={e.id} value={e.id}>{e.employeeNo} — {e.fullName}</SelectItem>
@@ -248,12 +255,12 @@ export function LeaveRequestsPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Jenis Cuti *</Label>
+                <Label className="text-xs font-bold">{t("Jenis Cuti *", "Leave Type *")}</Label>
                 <Select value={form.leaveTypeId} onValueChange={(v) => setForm({ ...form, leaveTypeId: v })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("Pilih jenis", "Select type")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {(typesApi.data?.types ?? []).map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name} ({t.entitlement} {t.unit === "MONTH" ? "bln" : "hr"})</SelectItem>
+                    {(typesApi.data?.types ?? []).map((ty) => (
+                      <SelectItem key={ty.id} value={ty.id}>{ty.name} ({ty.entitlement} {ty.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -262,25 +269,25 @@ export function LeaveRequestsPage() {
 
             <div className="grid grid-cols-4 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Mulai *</Label>
+                <Label className="text-xs font-bold">{t("Mulai *", "Start *")}</Label>
                 <Input type="date" value={form.dateFrom} onChange={(e) => setForm({ ...form, dateFrom: e.target.value })} className="h-8 text-xs" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Sesi</Label>
+                <Label className="text-xs font-bold">{t("Sesi", "Session")}</Label>
                 <Select value={form.sessionFrom} onValueChange={(v) => setForm({ ...form, sessionFrom: v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="AM">Pagi</SelectItem><SelectItem value="PM">Siang</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="AM">{t("Pagi", "Morning")}</SelectItem><SelectItem value="PM">{t("Siang", "Afternoon")}</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Sampai *</Label>
+                <Label className="text-xs font-bold">{t("Sampai *", "Until *")}</Label>
                 <Input type="date" value={form.dateTo} onChange={(e) => setForm({ ...form, dateTo: e.target.value })} className="h-8 text-xs" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Sesi</Label>
+                <Label className="text-xs font-bold">{t("Sesi", "Session")}</Label>
                 <Select value={form.sessionTo} onValueChange={(v) => setForm({ ...form, sessionTo: v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="AM">Pagi</SelectItem><SelectItem value="PM">Siang</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="AM">{t("Pagi", "Morning")}</SelectItem><SelectItem value="PM">{t("Siang", "Afternoon")}</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
@@ -288,60 +295,60 @@ export function LeaveRequestsPage() {
             {/* panel auto-compute — padanan (Number of Working Applied dsb.) */}
             <div className="rounded-xl border ov-border-accent ov-soft p-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wide">Hitungan Otomatis {previewBusy && "…"}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide">{t("Hitungan Otomatis", "Auto Computation")} {previewBusy && "…"}</p>
                 {selectedType && (
                   <div className="flex gap-1">
-                    {selectedType.allowHalfDay && <Badge className="bg-white text-[9px] font-bold">½ hari OK</Badge>}
-                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold">advance OK</Badge>}
-                    {selectedType.waitingMonths > 0 && <Badge className="bg-white text-[9px] font-bold">tunggu {selectedType.waitingMonths} bln</Badge>}
+                    {selectedType.allowHalfDay && <Badge className="bg-white text-[9px] font-bold">{t("½ hari OK", "½ day OK")}</Badge>}
+                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold">{t("advance OK")}</Badge>}
+                    {selectedType.waitingMonths > 0 && <Badge className="bg-white text-[9px] font-bold">{t("tunggu {n} bln", "wait {n} mo", { n: selectedType.waitingMonths })}</Badge>}
                   </div>
                 )}
               </div>
               <div className="mt-2 grid grid-cols-4 gap-2 text-center">
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Hari Kerja</p>
+                  <p className="text-[9px] font-bold uppercase text-stone-400">{t("Hari Kerja", "Working Days")}</p>
                   <p className="text-sm font-extrabold">{preview ? fmtDay(preview.workingDays) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Saldo Saat Ini</p>
+                  <p className="text-[9px] font-bold uppercase text-stone-400">{t("Saldo Saat Ini", "Current Balance")}</p>
                   <p className="text-sm font-extrabold text-stone-700 dark:text-stone-200">{preview ? fmtDay(preview.balance) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Sisa Saldo</p>
+                  <p className="text-[9px] font-bold uppercase text-stone-400">{t("Sisa Saldo", "Remaining Balance")}</p>
                   <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>{preview ? fmtDay(preview.remaining) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Kembali Kerja</p>
+                  <p className="text-[9px] font-bold uppercase text-stone-400">{t("Kembali Kerja", "Back to Work")}</p>
                   <p className="text-xs font-bold text-stone-700 dark:text-stone-200">
-                    {preview?.backToWork ? new Date(preview.backToWork).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) : "—"}
+                    {preview?.backToWork ? new Date(preview.backToWork).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—"}
                   </p>
                 </div>
               </div>
               {preview && (
                 <p className="mt-1.5 text-[10px] text-stone-500 dark:text-stone-400">
-                  Periode saldo: {preview.periodLabel} · max {preview.maxPerRequest} per permintaan{preview.remaining < 0 && " · saldo minus (advance leave)"}
+                  {t("Periode saldo:", "Balance period:")} {loc(preview.periodLabel)} · {t("max {n} per permintaan", "max {n} per request", { n: preview.maxPerRequest })}{preview.remaining < 0 && t(" · saldo minus (advance leave)", " · negative balance (advance leave)")}
                 </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Alasan *</Label>
-              <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="mis. Acara keluarga / wisuda / kesehatan" className="min-h-16 text-xs" />
+              <Label className="text-xs font-bold">{t("Alasan *", "Reason *")}</Label>
+              <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("mis. Acara keluarga / wisuda / kesehatan", "e.g. Family event / graduation / health")} className="min-h-16 text-xs" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Catatan</Label>
-              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Opsional — no. surat dsb." className="h-8 text-xs" />
+              <Label className="text-xs font-bold">{t("Catatan")}</Label>
+              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={t("Opsional — no. surat dsb.", "Optional — letter no. etc.")} className="h-8 text-xs" />
             </div>
             {selectedType?.needDocs && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                Jenis ini memerlukan dokumen pendukung — serahkan ke HR saat approval.
+                {t("Jenis ini memerlukan dokumen pendukung — serahkan ke HR saat approval.", "This type requires supporting documents — hand them to HR during approval.")}
               </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} className="text-xs font-bold">{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy} className="gap-1.5 text-xs font-bold">
-              <Send className="h-3.5 w-3.5" /> Ajukan Permintaan
+              <Send className="h-3.5 w-3.5" /> {t("Ajukan Permintaan", "Submit Request")}
             </Button>
           </DialogFooter>
         </DialogContent>

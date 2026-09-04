@@ -18,13 +18,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   TravelClaimRowUI, TravelRequestRowUI, ExpenseTypeRowUI, EmployeeOption,
-  TRAVEL_STATUS_LABEL, EXPENSE_KIND_LABEL, fmtIDR, fmtIDRShort, fmtDateID,
+  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./travel-types";
 import {
   FileText, Plus, Search, Calculator, Wallet, ChevronDown, ChevronRight,
   Landmark, AlertTriangle, Trash2, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -34,6 +35,16 @@ const STATUS_FILTERS = [
   { key: "Paid", label: "Dibayar" },
   { key: "Rejected", label: "Ditolak" },
 ];
+
+// Peta EN paralel STATUS_FILTERS (render: t(f.label, STATUS_FILTERS_EN[f.key])).
+const STATUS_FILTERS_EN: Record<string, string> = {
+  all: "All",
+  Submitted: "Pending",
+  Approved: "Approved",
+  Transferred: "Transferred",
+  Paid: "Paid",
+  Rejected: "Rejected",
+};
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -56,6 +67,7 @@ const newLine = (defaultCode: string): ExpenseLine => ({
 });
 
 export function TravelClaimsPage() {
+  const { t } = useI18n();
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -97,7 +109,7 @@ export function TravelClaimsPage() {
         const res = await apiSend<ClaimPreviewData>(`/api/onevity/travel/claims?requestId=${requestId}`, "GET");
         setPreviewData(res);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Gagal memuat pratinjau klaim");
+        toast.error(e instanceof Error ? e.message : t("Gagal memuat pratinjau klaim", "Failed to load claim preview"));
       }
     })();
   }, [dialog, mode, requestId]);
@@ -123,9 +135,9 @@ export function TravelClaimsPage() {
 
   const submit = async () => {
     const validLines = lines.filter((l) => l.expenseCode && Number(l.amount) > 0);
-    if (validLines.length === 0) { toast.error("Minimal 1 baris biaya dengan jenis & nominal terisi"); return; }
-    if (mode === "request" && !requestId) { toast.error("Pilih permintaan travel Approved sebagai dasar klaim"); return; }
-    if (mode === "standalone" && !master.data?.employees?.length) { toast.error("Data karyawan belum tersedia"); return; }
+    if (validLines.length === 0) { toast.error(t("Minimal 1 baris biaya dengan jenis & nominal terisi", "At least 1 expense line with type & amount filled")); return; }
+    if (mode === "request" && !requestId) { toast.error(t("Pilih permintaan travel Approved sebagai dasar klaim", "Select an Approved travel request as the claim basis")); return; }
+    if (mode === "standalone" && !master.data?.employees?.length) { toast.error(t("Data karyawan belum tersedia", "Employee data not yet available")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; totalSettlement: number; totalExpenses: number; overLimitLines: number }>(
@@ -153,13 +165,17 @@ export function TravelClaimsPage() {
         },
       );
       toast.success(
-        `${res.docNo} diajukan — total settlement ${fmtIDR(res.totalSettlement)}${res.overLimitLines > 0 ? ` (${res.overLimitLines} baris lewat limit — perlu perhatian approver)` : ""}`,
+        t("{no} diajukan — total settlement {total}{warn}", "{no} submitted — total settlement {total}{warn}", {
+          no: res.docNo,
+          total: fmtIDR(res.totalSettlement),
+          warn: res.overLimitLines > 0 ? t(" ({n} baris lewat limit — perlu perhatian approver)", " ({n} lines over limit — needs approver attention)", { n: res.overLimitLines }) : "",
+        }),
       );
       setDialog(false);
       api.refresh();
       detailApi.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal membuat klaim");
+      toast.error(e instanceof Error ? e.message : t("Gagal membuat klaim", "Failed to create the claim"));
     } finally { setBusy(false); }
   };
 
@@ -168,19 +184,19 @@ export function TravelClaimsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL TRAVEL"
-        title="Klaim & Settlement Perjalanan"
-        description="Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula Total = (a)+(b)−(c) — uang muka otomatis dikurangkan"
+        eyebrow={t("MODUL TRAVEL", "TRAVEL MODULE")}
+        title={t("Klaim & Settlement Perjalanan", "Travel Claims & Settlement")}
+        description={t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula Total = (a)+(b)−(c) — uang muka otomatis dikurangkan", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) with the formula Total = (a)+(b)−(c) — advance automatically deducted")}
         actions={
           <div className="flex flex-wrap gap-2">
             {perms.can("travel", "travel-claim", "create") && (
               <Button onClick={() => openDialog("request")} className="gap-2 font-bold">
-                <Plus className="h-4 w-4" /> Klaim dari Permintaan
+                <Plus className="h-4 w-4" /> {t("Klaim dari Permintaan", "Claim from Request")}
               </Button>
             )}
             {perms.can("travel", "travel-claim", "create") && (
               <Button variant="outline" onClick={() => openDialog("standalone")} className="gap-2 font-bold">
-                <FileText className="h-4 w-4" /> Klaim Mandiri
+                <FileText className="h-4 w-4" /> {t("Klaim Mandiri", "Standalone Claim")}
               </Button>
             )}
           </div>
@@ -199,7 +215,7 @@ export function TravelClaimsPage() {
                 : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
             )}
           >
-            {f.label}
+            {t(f.label, STATUS_FILTERS_EN[f.key])}
             {f.key === "all" && stats ? ` (${stats.total})` : ""}
             {f.key === "Submitted" && stats ? ` (${stats.submitted})` : ""}
             {f.key === "Approved" && stats ? ` (${stats.approved})` : ""}
@@ -207,7 +223,7 @@ export function TravelClaimsPage() {
         ))}
         <div className="relative ml-auto">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / nomor klaim…" className="w-56 pl-9 text-sm" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor klaim…", "Search name / claim number…")} className="w-56 pl-9 text-sm" />
         </div>
       </div>
 
@@ -216,19 +232,19 @@ export function TravelClaimsPage() {
           {api.loading && !api.data ? (
             <LoadingRows rows={6} />
           ) : claims.length === 0 ? (
-            <EmptyState icon={FileText} title="Belum ada klaim" description="Buat klaim settlement dari permintaan Approved atau klaim mandiri." />
+            <EmptyState icon={FileText} title={t("Belum ada klaim", "No claims yet")} description={t("Buat klaim settlement dari permintaan Approved atau klaim mandiri.", "Create a settlement claim from an Approved request or a standalone claim.")} />
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    <TableHead>Nomor</TableHead>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead className="hidden md:table-cell">Basis</TableHead>
+                    <TableHead>{t("Nomor", "No.")}</TableHead>
+                    <TableHead>{t("Karyawan")}</TableHead>
+                    <TableHead className="hidden md:table-cell">{t("Basis", "Basis")}</TableHead>
                     <TableHead className="text-right">(a)+(b)−(c)</TableHead>
-                    <TableHead className="hidden lg:table-cell">Jurnal</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden lg:table-cell">{t("Jurnal", "Journal")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -250,7 +266,7 @@ export function TravelClaimsPage() {
                           {c.requestDocNo ? (
                             <Badge variant="outline" className="font-mono text-[10px] font-bold">{c.requestDocNo}</Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-[10px] font-bold">Mandiri</Badge>
+                            <Badge variant="secondary" className="text-[10px] font-bold">{t("Mandiri", "Standalone")}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -258,7 +274,7 @@ export function TravelClaimsPage() {
                             {fmtIDRShort(c.totalSettlement)}
                           </p>
                           <p className="text-[11px] text-stone-500">
-                            {c.expenseLines} baris · {c.advanceAmount > 0 ? `muka ${fmtIDRShort(c.advanceAmount)}` : "tanpa muka"}
+                            {t("{n} baris · {muka}", "{n} lines · {muka}", { n: c.expenseLines, muka: c.advanceAmount > 0 ? t("muka {amt}", "advance {amt}", { amt: fmtIDRShort(c.advanceAmount) }) : t("tanpa muka", "no advance") })}
                           </p>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
@@ -271,9 +287,9 @@ export function TravelClaimsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <StatusPill status={TRAVEL_STATUS_LABEL[c.status] ?? c.status} />
+                          <StatusPill status={t(TRAVEL_STATUS_LABEL[c.status] ?? c.status, TRAVEL_STATUS_LABEL_EN[c.status] ?? c.status)} />
                           {c.overLimitLines > 0 && (
-                            <Badge className="ml-1 bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">LEBIH LIMIT</Badge>
+                            <Badge className="ml-1 bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("LEBIH LIMIT", "OVER LIMIT")}</Badge>
                           )}
                         </TableCell>
                       </TableRow>
@@ -282,22 +298,22 @@ export function TravelClaimsPage() {
                           <TableCell colSpan={7} className="px-6 py-3">
                             <div className="grid gap-3 lg:grid-cols-3">
                               <div className="lg:col-span-2">
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Formula Settlement</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">{t("Formula Settlement")}</p>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(a) Pihak lain</p>
+                                    <p className="text-[10px] font-bold text-stone-500">{t("(a) Pihak lain", "(a) Third party")}</p>
                                     <p className="text-sm font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.otherCompanyExp)}</p>
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(a) Rugi kurs</p>
+                                    <p className="text-[10px] font-bold text-stone-500">{t("(a) Rugi kurs", "(a) Exchange loss")}</p>
                                     <p className="text-sm font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.exchangeLoss)}</p>
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(b) Ke karyawan</p>
+                                    <p className="text-[10px] font-bold text-stone-500">{t("(b) Ke karyawan", "(b) To employee")}</p>
                                     <p className="text-sm font-black text-teal-700 dark:text-teal-400">{fmtIDR(c.payableEmployee)}</p>
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(c) Ke perusahaan</p>
+                                    <p className="text-[10px] font-bold text-stone-500">{t("(c) Ke perusahaan", "(c) To company")}</p>
                                     <p className="text-sm font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                                   </div>
                                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2">
@@ -308,22 +324,22 @@ export function TravelClaimsPage() {
                                 {c.remark && <p className="mt-2 text-[11px] text-stone-500">{c.remark}</p>}
                                 {c.status === "Paid" && c.paidRunNo && (
                                   <p className="mt-2 flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
-                                    <Landmark className="h-3 w-3" /> Dibayar via payroll run {c.paidRunNo} (period {c.periodCode})
+                                    <Landmark className="h-3 w-3" /> {t("Dibayar via payroll run {no} (period {p})", "Paid via payroll run {no} (period {p})", { no: c.paidRunNo, p: c.periodCode })}
                                   </p>
                                 )}
                                 {c.status === "Transferred" && (
                                   <p className="mt-2 flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-                                    <Landmark className="h-3 w-3" /> Menunggu run payroll period {c.periodCode} dikonfirmasi → Dibayar
+                                    <Landmark className="h-3 w-3" /> {t("Menunggu run payroll period {p} dikonfirmasi → Dibayar", "Waiting for the payroll run of period {p} to be confirmed → Paid", { p: c.periodCode })}
                                   </p>
                                 )}
                               </div>
                               <div>
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Jenis Biaya</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">{t("Jenis Biaya", "Expense Types")}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {c.expenseKinds.map((k) => (
                                     <Badge key={k} variant="outline" className="text-[10px] font-bold">{EXPENSE_KIND_LABEL[k] ?? k}</Badge>
                                   ))}
-                                  <span className="text-[11px] text-stone-500">total biaya {fmtIDR(c.totalExpenses)}</span>
+                                  <span className="text-[11px] text-stone-500">{t("total biaya {amt}", "total expenses {amt}", { amt: fmtIDR(c.totalExpenses) })}</span>
                                 </div>
                                 {c.decisionNote && (
                                   <p className="mt-2 rounded-lg bg-white px-3 py-2 text-[11px] text-stone-600 dark:bg-stone-900 dark:text-stone-300">
@@ -348,16 +364,16 @@ export function TravelClaimsPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5 ov-text-accent" /> Klaim Settlement
+              <Calculator className="h-5 w-5 ov-text-accent" /> {t("Klaim Settlement", "Settlement Claim")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             {mode === "request" && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Permintaan Travel (Approved) *</Label>
+                <Label className="text-xs font-bold">{t("Permintaan Travel (Approved) *", "Travel Request (Approved) *")}</Label>
                 <Select value={requestId} onValueChange={setRequestId}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Pilih permintaan" /></SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder={t("Pilih permintaan", "Select a request")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {claimableRequests.map((r) => (
                       <SelectItem key={r.id} value={r.id} className="text-sm">
@@ -366,13 +382,13 @@ export function TravelClaimsPage() {
                     ))}
                     {claimableRequests.length === 0 && (
                       <SelectItem value="none" disabled className="text-xs">
-                        Tidak ada permintaan Approved yang belum diklaim
+                        {t("Tidak ada permintaan Approved yang belum diklaim", "No unclaimed Approved requests")}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-stone-500">
-                  Hanya permintaan Approved tanpa klaim aktif yang ditampilkan — satu permintaan hanya boleh satu klaim aktif.
+                  {t("Hanya permintaan Approved tanpa klaim aktif yang ditampilkan — satu permintaan hanya boleh satu klaim aktif.", "Only Approved requests without an active claim are shown — one request may have only one active claim.")}
                 </p>
               </div>
             )}
@@ -385,7 +401,7 @@ export function TravelClaimsPage() {
                     <p className="mt-0.5 text-stone-600 dark:text-stone-300">{previewData.destinations.map((d) => d.city).join(" → ")} · {previewData.templateName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-amber-700 dark:text-amber-400">Uang muka: {fmtIDR(previewData.advanceAmount)}</p>
+                    <p className="font-bold text-amber-700 dark:text-amber-400">{t("Uang muka: {amt}", "Advance: {amt}", { amt: fmtIDR(previewData.advanceAmount) })}</p>
                     {previewData.costCenter && <p className="text-[11px] text-stone-500">CC {previewData.costCenter}</p>}
                   </div>
                 </div>
@@ -395,30 +411,30 @@ export function TravelClaimsPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold">Rincian Biaya *</Label>
+                <Label className="text-xs font-bold">{t("Rincian Biaya *", "Expense Details *")}</Label>
                 <Button variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => setLines([...lines, newLine("")])}>
-                  <Plus className="h-3 w-3" /> Tambah Baris
+                  <Plus className="h-3 w-3" /> {t("Tambah Baris", "Add Line")}
                 </Button>
               </div>
               <div className="space-y-2">
                 {lines.map((l, i) => {
-                  const t = l.expenseCode ? typeByCode.get(l.expenseCode) : undefined;
-                  const overLimit = t && !t.unlimited && t.limitAmount > 0 && (Number(l.amount) || 0) > t.limitAmount;
+                  const et = l.expenseCode ? typeByCode.get(l.expenseCode) : undefined;
+                  const overLimit = et && !et.unlimited && et.limitAmount > 0 && (Number(l.amount) || 0) > et.limitAmount;
                   return (
                     <div key={i} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-stone-500">Baris {i + 1}</span>
+                        <span className="text-[11px] font-bold text-stone-500">{t("Baris {n}", "Line {n}", { n: i + 1 })}</span>
                         {lines.length > 1 && (
                           <button className="flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700" onClick={() => setLines(lines.filter((_, x) => x !== i))}>
-                            <Trash2 className="h-3 w-3" /> Hapus
+                            <Trash2 className="h-3 w-3" /> {t("Hapus")}
                           </button>
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Jenis biaya *</Label>
+                          <Label className="text-[10px] font-bold text-stone-500">{t("Jenis biaya *", "Expense type *")}</Label>
                           <Select value={l.expenseCode} onValueChange={(v) => setLines(lines.map((x, xi) => xi === i ? { ...x, expenseCode: v } : x))}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("Pilih jenis", "Select type")} /></SelectTrigger>
                             <SelectContent className="max-h-56">
                               {expenseTypes.map((t2) => (
                                 <SelectItem key={t2.id} value={t2.code} className="text-xs">
@@ -429,39 +445,39 @@ export function TravelClaimsPage() {
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Tanggal</Label>
+                          <Label className="text-[10px] font-bold text-stone-500">{t("Tanggal")}</Label>
                           <Input type="date" value={l.expenseDate} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, expenseDate: e.target.value } : x))} className="h-8 text-sm" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Nominal (Rp) *</Label>
+                          <Label className="text-[10px] font-bold text-stone-500">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
                           <Input type="number" min="0" value={l.amount} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, amount: e.target.value } : x))} placeholder="0" className="h-8 text-sm" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-[10px] font-bold text-stone-500">
-                            {t?.kind === "MILEAGE" ? "Km / unit" : t?.kind === "ALLOWANCE" ? "Jumlah hari" : "Qty"}
+                            {et?.kind === "MILEAGE" ? t("Km / unit", "Km / unit") : et?.kind === "ALLOWANCE" ? t("Jumlah hari", "Number of days") : "Qty"}
                           </Label>
                           <Input type="number" min="0" value={l.qty} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, qty: e.target.value } : x))} className="h-8 text-sm" />
                         </div>
                         <div className="col-span-2 space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Keterangan</Label>
-                          <Input value={l.description} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, description: e.target.value } : x))} placeholder="Mis. Hotel 2 malam" className="h-8 text-sm" />
+                          <Label className="text-[10px] font-bold text-stone-500">{t("Keterangan")}</Label>
+                          <Input value={l.description} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, description: e.target.value } : x))} placeholder={t("Mis. Hotel 2 malam", "e.g. Hotel for 2 nights")} className="h-8 text-sm" />
                         </div>
-                        {t?.kind === "ENTERTAINMENT" && (
+                        {et?.kind === "ENTERTAINMENT" && (
                           <div className="col-span-2 space-y-1">
                             <Label className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
-                              <Users className="h-3 w-3" /> Tamu / Relasi (Entertainment Guest)
+                              <Users className="h-3 w-3" /> {t("Tamu / Relasi (Entertainment Guest)", "Guest / Relation (Entertainment Guest)")}
                             </Label>
-                            <Input value={l.guestName} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, guestName: e.target.value } : x))} placeholder="Mis. Direktur PT Sinar Abadi + 3" className="h-8 text-sm" />
+                            <Input value={l.guestName} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, guestName: e.target.value } : x))} placeholder={t("Mis. Direktur PT Sinar Abadi + 3", "e.g. Director of PT Sinar Abadi + 3")} className="h-8 text-sm" />
                           </div>
                         )}
                       </div>
-                      {t && (
+                      {et && (
                         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                          <Badge variant="outline" className="text-[9px] font-bold">{EXPENSE_KIND_LABEL[t.kind] ?? t.kind}</Badge>
-                          {t.needDocs && <Badge variant="secondary" className="text-[9px] font-bold">Perlu dokumen</Badge>}
-                          {t.limitAmount > 0 && !t.unlimited && (
+                          <Badge variant="outline" className="text-[9px] font-bold">{EXPENSE_KIND_LABEL[et.kind] ?? et.kind}</Badge>
+                          {et.needDocs && <Badge variant="secondary" className="text-[9px] font-bold">{t("Perlu dokumen", "Docs required")}</Badge>}
+                          {et.limitAmount > 0 && !et.unlimited && (
                             <span className={cn("font-semibold", overLimit ? "text-rose-600" : "text-stone-500")}>
-                              {overLimit ? <><AlertTriangle className="mr-1 inline h-3 w-3" />Melebihi limit {fmtIDR(t.limitAmount)} — tetap bisa diajukan (warning)</> : `Limit ${fmtIDR(t.limitAmount)}`}
+                              {overLimit ? <><AlertTriangle className="mr-1 inline h-3 w-3" />{t("Melebihi limit {amt} — tetap bisa diajukan (warning)", "Exceeds limit {amt} — can still be submitted (warning)", { amt: fmtIDR(et.limitAmount) })}</> : t("Limit {amt}", "Limit {amt}", { amt: fmtIDR(et.limitAmount) })}
                             </span>
                           )}
                         </div>
@@ -471,7 +487,7 @@ export function TravelClaimsPage() {
                 })}
               </div>
               <div className="flex items-center justify-between rounded-lg bg-stone-100 px-3 py-2 text-xs font-bold dark:bg-stone-800">
-                <span className="text-stone-600 dark:text-stone-300">Total rincian biaya</span>
+                <span className="text-stone-600 dark:text-stone-300">{t("Total rincian biaya", "Total expenses")}</span>
                 <span className="text-stone-900 dark:text-stone-100">{fmtIDR(totalExpenses)}</span>
               </div>
             </div>
@@ -482,22 +498,22 @@ export function TravelClaimsPage() {
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-stone-500">(a) Biaya pihak lain</Label>
+                  <Label className="text-[10px] font-bold text-stone-500">{t("(a) Biaya pihak lain", "(a) Third-party costs")}</Label>
                   <Input type="number" min="0" value={amounts.otherCompanyExp} onChange={(e) => setAmounts({ ...amounts, otherCompanyExp: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-stone-500">(a) Rugi kurs</Label>
+                  <Label className="text-[10px] font-bold text-stone-500">{t("(a) Rugi kurs", "(a) Exchange loss")}</Label>
                   <Input type="number" min="0" value={amounts.exchangeLoss} onChange={(e) => setAmounts({ ...amounts, exchangeLoss: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-teal-700 dark:text-teal-400">(b) Dibayar ke karyawan</Label>
+                  <Label className="text-[10px] font-bold text-teal-700 dark:text-teal-400">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</Label>
                   <Input
                     type="number" min="0" readOnly value={suggestedB}
                     placeholder={String(suggestedB)} className="h-8 bg-stone-50 text-sm font-bold dark:bg-stone-900"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) Kembali ke perusahaan</Label>
+                  <Label className="text-[10px] font-bold text-rose-700 dark:text-rose-400">{t("(c) Kembali ke perusahaan", "(c) Returned to company")}</Label>
                   <Input
                     type="number" min="0" readOnly value={suggestedC}
                     placeholder={String(suggestedC)} className="h-8 bg-stone-50 text-sm font-bold dark:bg-stone-900"
@@ -506,9 +522,9 @@ export function TravelClaimsPage() {
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
-                  {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />Uang muka {fmtIDR(advance)}</span>}
-                  <span>Total rincian + (a) = {fmtIDR(grossRealisasi)}</span>
-                  <span>(b)/(c) dihitung otomatis server dari rincian vs uang muka</span>
+                  {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />{t("Uang muka {amt}", "Advance {amt}", { amt: fmtIDR(advance) })}</span>}
+                  <span>{t("Total rincian + (a) = {amt}", "Total expenses + (a) = {amt}", { amt: fmtIDR(grossRealisasi) })}</span>
+                  <span>{t("(b)/(c) dihitung otomatis server dari rincian vs uang muka", "(b)/(c) computed automatically by the server from expenses vs advance")}</span>
                 </div>
                 <span className="rounded-lg border-2 ov-border-accent bg-white px-3 py-1 font-black ov-text-accent dark:bg-stone-900">
                   Total = {fmtIDR(totalFormula)}
@@ -518,20 +534,20 @@ export function TravelClaimsPage() {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs font-bold">No. Voucher</Label>
+                <Label className="text-xs font-bold">{t("No. Voucher", "Voucher No.")}</Label>
                 <Input value={amounts.voucherNo} onChange={(e) => setAmounts({ ...amounts, voucherNo: e.target.value })} placeholder="V-2609-001" className="h-8 text-sm" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-bold">Catatan</Label>
-                <Input value={amounts.remark} onChange={(e) => setAmounts({ ...amounts, remark: e.target.value })} placeholder="Kwitansi terlampir" className="h-8 text-sm" />
+                <Label className="text-xs font-bold">{t("Catatan")}</Label>
+                <Input value={amounts.remark} onChange={(e) => setAmounts({ ...amounts, remark: e.target.value })} placeholder={t("Kwitansi terlampir", "Receipts attached")} className="h-8 text-sm" />
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy} className="gap-2 font-bold">
-              <FileText className="h-4 w-4" /> {busy ? "Menyimpan…" : "Ajukan Klaim"}
+              <FileText className="h-4 w-4" /> {busy ? t("Menyimpan…") : t("Ajukan Klaim", "Submit Claim")}
             </Button>
           </DialogFooter>
         </DialogContent>

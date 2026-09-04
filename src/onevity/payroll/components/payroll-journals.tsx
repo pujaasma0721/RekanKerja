@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { BookOpen, FileDown, Sparkles, ChevronRight, Scale, Landmark } from "lucide-react";
 import { JournalRow, JournalLine, MissingRunRow } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
+import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
 interface JournalsData {
   journals: JournalRow[];
@@ -22,6 +23,7 @@ interface JournalsData {
 
 export function PayrollJournalsPage() {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<JournalsData>("/api/onevity/payroll-journals");
   const [detail, setDetail] = useState<JournalRow & { lines: JournalLine[] } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function PayrollJournalsPage() {
     setBusyId(r.id);
     try {
       const res = await apiSend<{ journal: JournalRow }>("/api/onevity/payroll-journals", "POST", { runId: r.id });
-      toast.success(`Jurnal ${res.journal.journalNo} dibuat dari ${r.runNo} (D = C = ${fmtIDRShort(res.journal.totalDebit)})`);
+      toast.success(t("Jurnal {j} dibuat dari {r} (D = C = {v})", "Journal {j} created from {r} (D = C = {v})", { j: res.journal.journalNo, r: r.runNo, v: fmtIDRShort(res.journal.totalDebit) }));
       refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); }
   };
@@ -51,9 +53,9 @@ export function PayrollJournalsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="Jurnal Payroll"
-        description="Posting jurnal otomatis saat run dikonfirmasi — beban dibebankan, hutang gaji/PPh21/BPJS dicatat, pembayaran ke kas & bank"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("Jurnal Payroll")}
+        description={t("Posting jurnal otomatis saat run dikonfirmasi — beban dibebankan, hutang gaji/PPh21/BPJS dicatat, pembayaran ke kas & bank", "Automatic journal posting when a run is confirmed — expenses charged, salary/PPh21/BPJS liabilities recorded, payments to cash & bank")}
       />
 
       {loading && !data ? (
@@ -67,7 +69,7 @@ export function PayrollJournalsPage() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-amber-600" />
                   <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
-                    {missing.length} run selesai belum diposting ke jurnal
+                    {t("{n} run selesai belum diposting ke jurnal", "{n} completed runs not yet posted to journals", { n: missing.length })}
                   </p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -79,8 +81,8 @@ export function PayrollJournalsPage() {
                       className="inline-flex h-8 items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 text-[11px] font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-100/60 disabled:opacity-50 dark:border-amber-500/40 dark:bg-stone-900 dark:text-amber-300"
                     >
                       <BookOpen className="h-3 w-3" />
-                      {busyId === r.id ? "Memposting…" : `Post ${r.runNo}`}
-                      <span className="text-amber-500/80">· {r.periodName}</span>
+                      {busyId === r.id ? t("Memposting…", "Posting…") : t("Post {no}", "Post {no}", { no: r.runNo })}
+                      <span className="text-amber-500/80">· {loc(r.periodName)}</span>
                     </button>
                   ))}
                 </div>
@@ -93,8 +95,8 @@ export function PayrollJournalsPage() {
               {journals.length === 0 ? (
                 <div className="p-5">
                   <EmptyState
-                    title="Belum ada jurnal payroll"
-                    description="Jurnal dibuat otomatis saat run payroll dikonfirmasi. Konfirmasi run di menu Proses & Hasil, atau post manual run lama di atas."
+                    title={t("Belum ada jurnal payroll", "No payroll journals yet")}
+                    description={t("Jurnal dibuat otomatis saat run payroll dikonfirmasi. Konfirmasi run di menu Proses & Hasil, atau post manual run lama di atas.", "Journals are created automatically when a payroll run is confirmed. Confirm a run in the Runs & Results menu, or manually post an old run above.")}
                     icon={<BookOpen className="h-6 w-6" />}
                   />
                 </div>
@@ -103,13 +105,13 @@ export function PayrollJournalsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                        <TableHead className="text-[11px] font-bold">Jurnal</TableHead>
-                        <TableHead className="text-[11px] font-bold">Sumber Run</TableHead>
-                        <TableHead className="text-[11px] font-bold">Deskripsi</TableHead>
-                        <TableHead className="text-center text-[11px] font-bold">Baris</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">Debit</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">Kredit</TableHead>
-                        <TableHead className="text-[11px] font-bold">Status</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Jurnal", "Journal")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Sumber Run", "Source Run")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Deskripsi")}</TableHead>
+                        <TableHead className="text-center text-[11px] font-bold">{t("Baris", "Lines")}</TableHead>
+                        <TableHead className="text-right text-[11px] font-bold">{t("Debit")}</TableHead>
+                        <TableHead className="text-right text-[11px] font-bold">{t("Kredit", "Credit")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                         <TableHead className="w-[150px]" />
                       </TableRow>
                     </TableHeader>
@@ -141,7 +143,7 @@ export function PayrollJournalsPage() {
                               <button
                                 onClick={() => j.runId ? navigate("payroll", "run", { id: j.runId }) : openDetail(j)}
                                 className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-500 transition hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
-                                aria-label="buka run"
+                                aria-label={t("buka run", "open run")}
                               >
                                 <ChevronRight className="h-3 w-3" />
                               </button>
@@ -159,23 +161,23 @@ export function PayrollJournalsPage() {
           {/* Penjelasan struktur jurnal */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-4">
-              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 ov-text-accent" /> Struktur posting (pattern "Transfer to Accounting")</p>
+              <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 ov-text-accent" /> {t('Struktur posting (pattern "Transfer to Accounting")', 'Posting structure (pattern "Transfer to Accounting")')}</p>
               <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 sm:grid-cols-3">
                 <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">1 · Beban</p>
-                  <p>D komponen THP → 5101/5102 · D iuran BPJS perusahaan → 5103 / C hutang BPJS 2103</p>
+                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("1 · Beban", "1 · Expenses")}</p>
+                  <p>{t("D komponen THP → 5101/5102 · D iuran BPJS perusahaan → 5103 / C hutang BPJS 2103", "D THP components → 5101/5102 · D company BPJS contributions → 5103 / C BPJS payable 2103")}</p>
                 </div>
                 <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">2 · Kewajiban</p>
-                  <p>D hutang gaji 2101 → C PPh21 2102 / BPJS 2103 / pinjaman 2104 / lain-lain 2105</p>
+                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("2 · Kewajiban", "2 · Liabilities")}</p>
+                  <p>{t("D hutang gaji 2101 → C PPh21 2102 / BPJS 2103 / pinjaman 2104 / lain-lain 2105", "D salaries payable 2101 → C PPh21 2102 / BPJS 2103 / loans 2104 / others 2105")}</p>
                 </div>
                 <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">3 · Pembayaran</p>
-                  <p>D hutang gaji 2101 (net + pembulatan) → C kas &amp; bank 1101 — D selalu = C</p>
+                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("3 · Pembayaran", "3 · Payment")}</p>
+                  <p>{t("D hutang gaji 2101 (net + pembulatan) → C kas & bank 1101 — D selalu = C", "D salaries payable 2101 (net + rounding) → C cash & bank 1101 — D always equals C")}</p>
                 </div>
               </div>
               <p className="mt-3 text-[11px] text-stone-400">
-                Mapping akun per komponen dapat ditimpa lewat kolom "Akun Debit/Kredit" di menu Komponen Upah (Salary Chart of Account).
+                {t('Mapping akun per komponen dapat ditimpa lewat kolom "Akun Debit/Kredit" di menu Komponen Upah (Salary Chart of Account).', 'Per-component account mapping can be overridden via the "Debit/Credit Account" column in the Wage Components menu (Salary Chart of Account).')}
               </p>
             </CardContent>
           </Card>
@@ -188,6 +190,7 @@ export function PayrollJournalsPage() {
 }
 
 function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { lines: JournalLine[] }) | null; onClose: () => void }) {
+  const { t } = useI18n();
   return (
     <Dialog open={!!journal} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-2xl">
@@ -203,10 +206,10 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
                 <TableRow>
-                  <TableHead className="text-[10px] font-bold">Akun</TableHead>
-                  <TableHead className="text-[10px] font-bold">Memo</TableHead>
-                  <TableHead className="text-right text-[10px] font-bold">Debit</TableHead>
-                  <TableHead className="text-right text-[10px] font-bold">Kredit</TableHead>
+                  <TableHead className="text-[10px] font-bold">{t("Akun", "Account")}</TableHead>
+                  <TableHead className="text-[10px] font-bold">{t("Memo")}</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold">{t("Debit")}</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold">{t("Kredit", "Credit")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,7 +229,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
                   </TableRow>
                 ))}
                 <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Total — balance ✓</TableCell>
+                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total — balance ✓", "Total — balanced ✓")}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">{fmtIDR(journal.totalDebit)}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(journal.totalCredit)}</TableCell>
                 </TableRow>
@@ -234,7 +237,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
             </Table>
           </div>
         )}
-        <Button variant="outline" onClick={onClose}>Tutup</Button>
+        <Button variant="outline" onClick={onClose}>{t("Tutup")}</Button>
       </DialogContent>
     </Dialog>
   );

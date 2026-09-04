@@ -4,11 +4,13 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Loader2, Waypoints } from "lucide-react";
 import { useSession } from "@/onevity/shared/lib/session-store";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { AuthScreen } from "./auth-screen";
 import { TenantSelect } from "./tenant-select";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { status, load } = useSession();
+  const { t } = useI18n();
   const bootstrapped = useRef(false);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-2 text-sm font-medium text-stone-500 dark:text-stone-400">
             <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
-            Memuat sesi…
+            {t("Memuat sesi…", "Loading session…")}
           </div>
         </div>
       </div>

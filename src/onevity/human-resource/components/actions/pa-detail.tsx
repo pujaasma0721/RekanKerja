@@ -3,15 +3,17 @@
 // approval timeline, detail payload, activity trail
 import { useMemo, useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
-import { useApi, apiSend, fmtDate, fmtDateTime, fmtIDR, initials, avatarColor, tenure } from "@/onevity/shared/lib/api";
-import { PageHeader, StatusPill, paTypeLabel, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
+import { useApi, apiSend, fmtDate, fmtDateTime, fmtIDR, initials, avatarColor, tenure, paTypeLabelSafe } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
+import { translate } from "@/onevity/shared/lib/i18n-core";
+import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DecisionDialog } from "./pa-decision-dialog";
-import { parseDetail, DETAIL_LABELS, detailValue, processEffectSummary } from "./pa-types";
+import { parseDetail, DETAIL_LABELS, DETAIL_LABELS_EN, detailValue, processEffectSummary } from "./pa-types";
 import type { PADetailResp, PADetail as PADetailType, PAActivity } from "./pa-types";
 import { toast } from "sonner";
 import {
@@ -23,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 export function PADetail({ id }: { id: string }) {
   const { setParams, navigate } = useNav();
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<PADetailResp>(`/api/onevity/personnel-actions/${id}`, [id]);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [confirm, setConfirm] = useState<"process" | "cancel" | null>(null);
@@ -43,7 +46,7 @@ export function PADetail({ id }: { id: string }) {
       setConfirm(null);
       setDecision(null);
     } catch (e) {
-      toast.error("Aksi gagal", { description: (e as Error).message });
+      toast.error(t("Aksi gagal", "Action failed"), { description: (e as Error).message });
     } finally {
       setBusy(null);
     }
@@ -52,7 +55,7 @@ export function PADetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div>
-        <PageHeader eyebrow="PENGAJUAN & PERSETUJUAN" title="Detail Pengajuan" description="Memuat dokumen…" />
+        <PageHeader eyebrow={t("Pengajuan & Persetujuan")} title={t("Detail Pengajuan", "Request Details")} description={t("Memuat dokumen…", "Loading document…")} />
         <LoadingRows rows={8} />
       </div>
     );
@@ -60,14 +63,14 @@ export function PADetail({ id }: { id: string }) {
   if (error || !pa) {
     return (
       <div>
-        <PageHeader eyebrow="PENGAJUAN & PERSETUJUAN" title="Detail Pengajuan" />
+        <PageHeader eyebrow={t("Pengajuan & Persetujuan")} title={t("Detail Pengajuan", "Request Details")} />
         <EmptyState
-          title="Pengajuan tidak ditemukan"
-          description={error ?? "Pengajuan mungkin telah dihapus."}
+          title={t("Pengajuan tidak ditemukan", "Request not found")}
+          description={error ?? t("Pengajuan mungkin telah dihapus.", "The request may have been deleted.")}
           icon={<FileText className="h-6 w-6" />}
         />
         <div className="mt-4 flex justify-center">
-          <Button variant="outline" onClick={back} className="h-11 gap-2"><ArrowLeft className="h-4 w-4" /> Kembali ke daftar</Button>
+          <Button variant="outline" onClick={back} className="h-11 gap-2"><ArrowLeft className="h-4 w-4" /> {t("Kembali ke daftar", "Back to list")}</Button>
         </div>
       </div>
     );
@@ -81,12 +84,12 @@ export function PADetail({ id }: { id: string }) {
   return (
     <div>
       <PageHeader
-        eyebrow="PENGAJUAN & PERSETUJUAN"
-        title={`Detail Pengajuan ${pa.docNo}`}
+        eyebrow={t("Pengajuan & Persetujuan")}
+        title={t("Detail Pengajuan {doc}", "Request Details {doc}", { doc: pa.docNo })}
         description=""
         actions={
           <Button variant="outline" onClick={back} className="h-11 gap-2">
-            <ArrowLeft className="h-4 w-4" /> Kembali
+            <ArrowLeft className="h-4 w-4" /> {t("Kembali")}
           </Button>
         }
       />
@@ -99,17 +102,17 @@ export function PADetail({ id }: { id: string }) {
               <h2 className="font-mono text-xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{pa.docNo}</h2>
               <StatusPill status={pa.status} className="px-3 py-1 text-xs" />
               <Badge variant="outline" className="rounded-full ov-border-accent ov-soft px-3 py-1 text-[11px] font-bold">
-                {paTypeLabel(pa.type)}
+                {paTypeLabelSafe(pa.type)}
               </Badge>
             </div>
             <p className="mt-1.5 text-sm text-stone-500 dark:text-stone-400">
-              {pa.reason || "Tanpa keterangan alasan."}
+              {pa.reason || t("Tanpa keterangan alasan.", "No reason provided.")}
             </p>
           </div>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs sm:grid-cols-4">
-            <MetaItem label="Efektif" value={fmtDate(pa.effectiveDate)} />
-            <MetaItem label="Dibuat" value={fmtDate(pa.createdAt)} />
-            <MetaItem label="Oleh" value={pa.createdBy ?? "—"} mono />
+            <MetaItem label={t("Efektif", "Effective")} value={fmtDate(pa.effectiveDate)} />
+            <MetaItem label={t("Dibuat", "Created")} value={fmtDate(pa.createdAt)} />
+            <MetaItem label={t("Oleh", "By")} value={pa.createdBy ?? "—"} mono />
             <MetaItem label="Submitted" value={pa.submittedAt ? fmtDate(pa.submittedAt) : "—"} />
           </dl>
         </div>
@@ -119,7 +122,7 @@ export function PADetail({ id }: { id: string }) {
           <button
             onClick={() => navigate("employee", "detail", { id: emp.id })}
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-3.5 text-left"
-            aria-label={`Buka profil ${emp.fullName}`}
+            aria-label={t("Buka profil {name}", "Open profile {name}", { name: emp.fullName })}
           >
             <span className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold", avatarColor(emp.fullName))}>
               {initials(emp.fullName)}
@@ -160,17 +163,17 @@ export function PADetail({ id }: { id: string }) {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {/* detail payload */}
-          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label="Detail perubahan">
+          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Detail perubahan", "Change details")}>
             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
-              <FileText className="h-4 w-4" /> Detail Perubahan
+              <FileText className="h-4 w-4" /> {t("Detail Perubahan", "Change Details")}
             </h3>
             {Object.keys(detail).length === 0 ? (
-              <p className="mt-4 text-sm text-stone-400">Tidak ada payload detail untuk dokumen ini.</p>
+              <p className="mt-4 text-sm text-stone-400">{t("Tidak ada payload detail untuk dokumen ini.", "No detail payload for this document.")}</p>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {Object.entries(detail).map(([k, v]) => (
                   <div key={k} className="rounded-xl border border-stone-200/70 bg-stone-50/60 px-4 py-3 dark:border-stone-700/70 dark:bg-stone-800/40">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{DETAIL_LABELS[k] ?? k}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t(DETAIL_LABELS[k] ?? k, DETAIL_LABELS_EN[k])}</p>
                     <p className="mt-1 text-sm font-bold text-stone-800 dark:text-stone-100">{detailValue(k, v)}</p>
                   </div>
                 ))}
@@ -179,12 +182,12 @@ export function PADetail({ id }: { id: string }) {
           </section>
 
           {/* activity trail */}
-          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label="Jejak aktivitas">
+          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Jejak aktivitas", "Activity trail")}>
             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
-              <History className="h-4 w-4" /> Jejak Aktivitas
+              <History className="h-4 w-4" /> {t("Jejak Aktivitas", "Activity Trail")}
             </h3>
             <ol className="mt-4 max-h-96 space-y-0 overflow-y-auto pr-1">
-              {pa.activities.length === 0 && <p className="text-sm text-stone-400">Belum ada aktivitas tercatat.</p>}
+              {pa.activities.length === 0 && <p className="text-sm text-stone-400">{t("Belum ada aktivitas tercatat.", "No activity recorded yet.")}</p>}
               {pa.activities.map((a, i) => (
                 <ActivityRow key={a.id} a={a} last={i === pa.activities.length - 1} />
               ))}
@@ -193,9 +196,9 @@ export function PADetail({ id }: { id: string }) {
         </div>
 
         {/* approval timeline */}
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label="Timeline approval">
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Timeline approval", "Approval timeline")}>
           <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
-            <ChevronDown className="h-4 w-4 -rotate-90" /> Timeline Approval
+            <ChevronDown className="h-4 w-4 -rotate-90" /> {t("Timeline Approval", "Approval Timeline")}
           </h3>
           <ol className="relative mt-5 space-y-0">
             {pa.layers.map((l, idx) => {
@@ -235,10 +238,10 @@ export function PADetail({ id }: { id: string }) {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Badge variant="outline" className="h-5 rounded-md px-1.5 font-mono text-[10px] font-bold text-stone-500 dark:text-stone-400">L{l.layerNo}</Badge>
                       <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{l.approverRole}</p>
-                      {isCurrent && <Badge className="rounded-full bg-amber-400/90 px-2 text-[10px] font-extrabold text-stone-900 hover:bg-amber-400">SEKARANG</Badge>}
+                      {isCurrent && <Badge className="rounded-full bg-amber-400/90 px-2 text-[10px] font-extrabold text-stone-900 hover:bg-amber-400">{t("SEKARANG", "NOW")}</Badge>}
                     </div>
                     <p className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">
-                      {l.approver ? `${l.approver.fullName} · ${l.approver.username}` : "Approver belum ditentukan"}
+                      {l.approver ? `${l.approver.fullName} · ${l.approver.username}` : t("Approver belum ditentukan", "Approver not assigned yet")}
                     </p>
                     {l.note && (
                       <p className={cn("mt-2 rounded-lg px-3 py-2 text-xs italic", l.status === "Rejected" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" : "bg-stone-100/80 text-stone-500 dark:bg-stone-800/80 dark:text-stone-400")}>
@@ -254,7 +257,7 @@ export function PADetail({ id }: { id: string }) {
 
           {pa.status === "Prepared" && (
             <p className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-3 py-2 text-[11px] text-stone-400 dark:border-stone-700 dark:bg-stone-900/40">
-              <CircleDot className="h-3.5 w-3.5" /> Dokumen belum disubmit — timeline aktif setelah submit.
+              <CircleDot className="h-3.5 w-3.5" /> {t("Dokumen belum disubmit — timeline aktif setelah submit.", "Document not submitted yet — the timeline activates after submission.")}
             </p>
           )}
         </section>
@@ -296,6 +299,7 @@ function MetaItem({ label, value, mono }: { label: string; value: string; mono?:
 }
 
 function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
+  const { t } = useI18n();
   const icon =
     a.action === "Approved" ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
     : a.action === "Rejected" ? <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
@@ -315,7 +319,7 @@ function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
           <p className="text-[11px] text-stone-400">{fmtDateTime(a.createdAt)}</p>
         </div>
         {a.detail && <p className="mt-0.5 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{a.detail}</p>}
-        <p className="mt-0.5 text-[11px] text-stone-400">oleh {a.appUser?.fullName ?? "Sistem"}</p>
+        <p className="mt-0.5 text-[11px] text-stone-400">{t("oleh", "by")} {a.appUser?.fullName ?? t("Sistem", "System")}</p>
       </div>
     </li>
   );
@@ -332,6 +336,7 @@ function WorkflowBar({
   onDecision: (v: "approve" | "reject") => void;
   onConfirm: (v: "process" | "cancel") => void;
 }) {
+  const { t } = useI18n();
   const [busyLocal, setBusyLocal] = useState(false);
 
   const send = async (action: string, noteArg?: string | null) => {
@@ -341,7 +346,7 @@ function WorkflowBar({
       toast.success(aksiLabel(action, pa.docNo));
       onRefresh();
     } catch (e) {
-      toast.error("Aksi gagal", { description: (e as Error).message });
+      toast.error(t("Aksi gagal", "Action failed"), { description: (e as Error).message });
     } finally {
       setBusyLocal(false);
     }
@@ -357,18 +362,18 @@ function WorkflowBar({
         : pa.status === "Approved" ? "border-emerald-300/70 bg-gradient-to-r from-emerald-50/80 to-stone-50/50 dark:border-emerald-500/30 dark:from-emerald-500/[0.07] dark:to-stone-900/40"
         : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
       )}
-      aria-label="Aksi dokumen"
+      aria-label={t("Aksi dokumen", "Document actions")}
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-stone-800 dark:text-stone-100">
-          {pa.status === "Prepared" && "Dokumen Draft — submit untuk memulai proses approval 3 layer."}
+          {pa.status === "Prepared" && t("Dokumen Draft — submit untuk memulai proses approval 3 layer.", "Draft document — submit to start the 3-layer approval process.")}
           {pa.status === "Submitted" && (canAct
-            ? `Menunggu keputusan Anda (Layer ${Math.max(pa.currentLayer, 1)} — ${curRole ?? "—"}).`
-            : `Menunggu keputusan Layer ${Math.max(pa.currentLayer, 1)} (${curRole ?? "—"}).`)}
-          {pa.status === "Approved" && "Disetujui semua layer — siap diproses untuk diterapkan ke data karyawan."}
-          {pa.status === "Rejected" && "Dokumen ditolak — kembalikan ke Draft untuk revisi atau arsipkan."}
-          {pa.status === "Processed" && "Dokumen telah diproses dan efeknya diterapkan ke data karyawan. Read-only."}
-          {pa.status === "Cancelled" && "Dokumen dibatalkan. Read-only."}
+            ? t("Menunggu keputusan Anda (Layer {n} — {role}).", "Waiting for your decision (Layer {n} — {role}).", { n: Math.max(pa.currentLayer, 1), role: curRole ?? "—" })
+            : t("Menunggu keputusan Layer {n} ({role}).", "Waiting for the Layer {n} decision ({role}).", { n: Math.max(pa.currentLayer, 1), role: curRole ?? "—" }))}
+          {pa.status === "Approved" && t("Disetujui semua layer — siap diproses untuk diterapkan ke data karyawan.", "Approved by all layers — ready to be processed and applied to employee data.")}
+          {pa.status === "Rejected" && t("Dokumen ditolak — kembalikan ke Draft untuk revisi atau arsipkan.", "Document rejected — return it to Draft for revision or archive it.")}
+          {pa.status === "Processed" && t("Dokumen telah diproses dan efeknya diterapkan ke data karyawan. Read-only.", "The document has been processed and its effects applied to employee data. Read-only.")}
+          {pa.status === "Cancelled" && t("Dokumen dibatalkan. Read-only.", "Document cancelled. Read-only.")}
         </p>
       </div>
 
@@ -376,10 +381,10 @@ function WorkflowBar({
         {pa.status === "Prepared" && (
           <>
             <Button onClick={() => void send("submit")} disabled={loading} className="h-11 gap-2 px-5 font-bold">
-              {busyLocal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit untuk Approval
+              {busyLocal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t("Submit untuk Approval", "Submit for Approval")}
             </Button>
             <Button variant="outline" onClick={() => onConfirm("cancel")} disabled={loading} className="h-11 gap-2 px-5">
-              <Ban className="h-4 w-4" /> Batalkan
+              <Ban className="h-4 w-4" /> {t("Batalkan", "Cancel")}
             </Button>
           </>
         )}
@@ -396,13 +401,13 @@ function WorkflowBar({
         )}
         {pa.status === "Submitted" && !canAct && (
           <span className="inline-flex items-center gap-2 rounded-xl bg-stone-100 px-3 py-2.5 text-xs font-semibold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
-            <Clock3 className="h-4 w-4" /> Menunggu approver lain
+            <Clock3 className="h-4 w-4" /> {t("Menunggu approver lain", "Waiting for another approver")}
           </span>
         )}
 
         {pa.status === "Approved" && (
           <Button onClick={() => onConfirm("process")} disabled={loading} className="h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 px-6 text-[15px] font-extrabold shadow-md shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700">
-            <Zap className="h-5 w-5" /> Proses Sekarang
+            <Zap className="h-5 w-5" /> {t("Proses Sekarang", "Process Now")}
           </Button>
         )}
 
@@ -414,7 +419,7 @@ function WorkflowBar({
 
         {(pa.status === "Processed" || pa.status === "Cancelled") && (
           <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-stone-500 dark:text-stone-400">
-            <Ban className="h-3.5 w-3.5" /> Dokumen terkunci
+            <Ban className="h-3.5 w-3.5" /> {t("Dokumen terkunci", "Document locked")}
           </Badge>
         )}
       </div>
@@ -432,6 +437,7 @@ function ConfirmDialog({
   onConfirm: (note: string | null) => void;
   busy: boolean;
 }) {
+  const { t } = useI18n();
   const [note, setNote] = useState("");
   const isProcess = kind === "process";
   const effects = processEffectSummary(pa);
@@ -450,37 +456,37 @@ function ConfirmDialog({
                 <Ban className="h-5 w-5 text-stone-500" />
               </span>
             )}
-            {isProcess ? "Proses Dokumen?" : "Batalkan Dokumen?"}
+            {isProcess ? t("Proses Dokumen?", "Process Document?") : t("Batalkan Dokumen?", "Cancel Document?")}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3">
               {isProcess ? (
                 <>
-                  <p>Dokumen <b>{pa.docNo}</b> akan diproses dan perubahan berikut diterapkan ke data <b>{pa.employee.fullName}</b>:</p>
+                  <p>{t("Dokumen", "Document")} <b>{pa.docNo}</b> {t("akan diproses dan perubahan berikut diterapkan ke data", "will be processed and the following changes applied to the data of")} <b>{pa.employee.fullName}</b>:</p>
                   <ul className="list-disc space-y-1 pl-5 text-stone-600 dark:text-stone-300">
                     {effects.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
-                  <p className="text-xs text-stone-400">Aksi ini tidak dapat dibatalkan. Setiap efek dicatat di jejak aktivitas.</p>
+                  <p className="text-xs text-stone-400">{t("Aksi ini tidak dapat dibatalkan. Setiap efek dicatat di jejak aktivitas.", "This action cannot be undone. Every effect is recorded in the activity trail.")}</p>
                 </>
               ) : (
-                <p>Dokumen <b>{pa.docNo}</b> akan dibatalkan dan tidak dapat diproses lagi.</p>
+                <p>{t("Dokumen", "Document")} <b>{pa.docNo}</b> {t("akan dibatalkan dan tidak dapat diproses lagi.", "will be cancelled and can no longer be processed.")}</p>
               )}
               <div className="space-y-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-                <Label htmlFor="confirm-note" className="text-xs">Catatan (opsional)</Label>
-                <Textarea id="confirm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="resize-none" placeholder={isProcess ? "Contoh: Diproses sesuai jadwal efektif." : "Contoh: Dibatalkan karena data belum final."} />
+                <Label htmlFor="confirm-note" className="text-xs">{t("Catatan (opsional)", "Note (optional)")}</Label>
+                <Textarea id="confirm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="resize-none" placeholder={isProcess ? t("Contoh: Diproses sesuai jadwal efektif.", "Example: Processed per the effective schedule.") : t("Contoh: Dibatalkan karena data belum final.", "Example: Cancelled because the data is not final.")} />
               </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy} className="h-11">Batal</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy} className="h-11">{t("Batal")}</AlertDialogCancel>
           <AlertDialogAction
             disabled={busy}
             onClick={(e) => { e.preventDefault(); onConfirm(note.trim() || null); }}
             className={cn("h-11 gap-2 font-bold", isProcess ? "bg-emerald-600 hover:bg-emerald-700" : "")}
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isProcess ? "Ya, Proses Sekarang" : "Ya, Batalkan"}
+            {isProcess ? t("Ya, Proses Sekarang", "Yes, Process Now") : t("Ya, Batalkan", "Yes, Cancel")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -489,11 +495,12 @@ function ConfirmDialog({
 }
 
 function aksiLabel(action: string, docNo: string): string {
+  // helper non-React → translate() dari i18n-core (ikut bahasa aktif — Task I-3)
   switch (action) {
-    case "submit": return `${docNo} disubmit untuk approval`;
-    case "process": return `${docNo} diproses — efek diterapkan ke data karyawan`;
-    case "cancel": return `${docNo} dibatalkan`;
-    case "return": return `${docNo} dikembalikan ke Draft`;
-    default: return `${docNo} diperbarui`;
+    case "submit": return translate("{doc} disubmit untuk approval", "{doc} submitted for approval", { doc: docNo });
+    case "process": return translate("{doc} diproses — efek diterapkan ke data karyawan", "{doc} processed — effects applied to employee data", { doc: docNo });
+    case "cancel": return translate("{doc} dibatalkan", "{doc} cancelled", { doc: docNo });
+    case "return": return translate("{doc} dikembalikan ke Draft", "{doc} returned to Draft", { doc: docNo });
+    default: return translate("{doc} diperbarui", "{doc} updated", { doc: docNo });
   }
 }

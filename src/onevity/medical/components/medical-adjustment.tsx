@@ -18,6 +18,7 @@ import {
   AdjustmentUI, BenefitTypeUI, EmployeeOption, fmtIDR, fmtDateID, todayISO,
 } from "./medical-types";
 import { Activity, Plus, XCircle, Ban, TrendingUp } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const STATE_FILTERS = [
@@ -28,6 +29,7 @@ const STATE_FILTERS = [
 ];
 
 export function MedicalAdjustmentPage() {
+  const { t } = useI18n();
   const currentYear = new Date().getFullYear();
   const [stateFilter, setStateFilter] = useState("all");
   const [dialog, setDialog] = useState(false);
@@ -72,19 +74,19 @@ export function MedicalAdjustmentPage() {
 
   const submit = async () => {
     const amt = Number(amount);
-    if (!employeeId || !typeId) { toast.error("Pilih karyawan & jenis"); return; }
-    if (!Number.isFinite(amt) || amt === 0) { toast.error("Jumlah harus ≠ 0 (boleh negatif)"); return; }
+    if (!employeeId || !typeId) { toast.error(t("Pilih karyawan & jenis", "Select employee & type")); return; }
+    if (!Number.isFinite(amt) || amt === 0) { toast.error(t("Jumlah harus ≠ 0 (boleh negatif)", "Amount must be ≠ 0 (can be negative)")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string }>("/api/onevity/medical/adjustments", "POST", {
         employeeId, typeId, year: Number(year), forDependent,
         amount: amt, adjustmentDate, note: note || undefined,
       });
-      toast.success(`Penyesuaian ${res.docNo} diajukan — menunggu approval`);
+      toast.success(t("Penyesuaian {d} diajukan — menunggu approval", "Adjustment {d} submitted — awaiting approval", { d: res.docNo }));
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengajukan penyesuaian");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengajukan penyesuaian", "Failed to submit adjustment"));
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,7 @@ export function MedicalAdjustmentPage() {
       setReason("");
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal memproses");
+      toast.error(e instanceof Error ? e.message : t("Gagal memproses", "Failed to process"));
     } finally {
       setBusy(false);
     }
@@ -111,12 +113,12 @@ export function MedicalAdjustmentPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MEDICAL · PENYESUAIAN"
-        title="Penyesuaian Saldo Medis"
-        description="Tambah/kurangi benefit limit karyawan atau dependent (± amount) dengan alur persetujuan — padanan Medical Adjustment + Medical Adjustment Approval"
+        eyebrow={t("Medical · Penyesuaian", "Medical · Adjustment")}
+        title={t("Penyesuaian Saldo Medis", "Medical Balance Adjustment")}
+        description={t("Tambah/kurangi benefit limit karyawan atau dependent (± amount) dengan alur persetujuan — padanan Medical Adjustment + Medical Adjustment Approval", "Add/reduce an employee or dependent benefit limit (± amount) with an approval flow — equivalent to Medical Adjustment + Medical Adjustment Approval")}
         actions={(
           <Button onClick={openDialog}>
-            <Plus className="h-4 w-4" /> Ajukan Penyesuaian
+            <Plus className="h-4 w-4" /> {t("Ajukan Penyesuaian", "Submit Adjustment")}
           </Button>
         )}
       />
@@ -133,7 +135,7 @@ export function MedicalAdjustmentPage() {
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
-            {f.label}
+            {t(f.label)}
           </button>
         ))}
       </div>
@@ -141,24 +143,24 @@ export function MedicalAdjustmentPage() {
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Menunggu Approval</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Menunggu Approval", "Pending Approval")}</p>
             <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.submitted ?? 0}</p>
           </CardContent>
         </Card>
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Total Disetujui</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Total Disetujui", "Total Approved")}</p>
             <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.approved ?? 0}</p>
             <p className="mt-1 text-xs text-stone-500">net {fmtIDR(stats.approvedAmount)}</p>
           </CardContent>
         </Card>
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Efek</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Efek", "Effect")}</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-              <TrendingUp className="h-4 w-4 text-emerald-600" /> Approve → saldo ± langsung
+              <TrendingUp className="h-4 w-4 text-emerald-600" /> {t("Approve → saldo ± langsung", "Approve → balance ± applied immediately")}
             </p>
-            <p className="mt-1 text-xs text-stone-500">employee / dependent terpisah</p>
+            <p className="mt-1 text-xs text-stone-500">{t("employee / dependent terpisah", "employee / dependent tracked separately")}</p>
           </CardContent>
         </Card>
       </div>
@@ -166,27 +168,27 @@ export function MedicalAdjustmentPage() {
       <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
-            <Activity className="h-4 w-4 ov-text-accent" /> Riwayat Penyesuaian
+            <Activity className="h-4 w-4 ov-text-accent" /> {t("Riwayat Penyesuaian", "Adjustment History")}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
           ) : adjustments.length === 0 ? (
-            <div className="p-6"><EmptyState title="Belum ada penyesuaian" description="Ajukan penyesuaian saldo ± untuk karyawan tertentu." icon={Activity} /></div>
+            <div className="p-6"><EmptyState title={t("Belum ada penyesuaian", "No adjustments yet")} description={t("Ajukan penyesuaian saldo ± untuk karyawan tertentu.", "Submit a ± balance adjustment for a specific employee.")} icon={Activity} /></div>
           ) : (
             <div className="max-h-[26rem] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
-                    <TableHead>No. Dokumen</TableHead>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead>Jenis</TableHead>
-                    <TableHead>Untuk</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-32">Aksi</TableHead>
+                    <TableHead>{t("No. Dokumen", "Doc. No.")}</TableHead>
+                    <TableHead>{t("Karyawan")}</TableHead>
+                    <TableHead>{t("Jenis")}</TableHead>
+                    <TableHead>{t("Untuk", "For")}</TableHead>
+                    <TableHead className="text-right">{t("Jumlah")}</TableHead>
+                    <TableHead>{t("Tanggal")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
+                    <TableHead className="w-32">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -202,7 +204,7 @@ export function MedicalAdjustmentPage() {
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", a.forDependent
                           ? "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400"
                           : "bg-stone-100 text-stone-600 dark:bg-stone-500/15 dark:text-stone-400")}>
-                          {a.forDependent ? "Dependent" : "Karyawan"}
+                          {a.forDependent ? "Dependent" : t("Karyawan")}
                         </span>
                       </TableCell>
                       <TableCell className={cn("text-right font-bold", a.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
@@ -214,10 +216,10 @@ export function MedicalAdjustmentPage() {
                         {a.state === "Submitted" && (
                           <div className="flex gap-1">
                             <Button size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700" onClick={() => { setDecideDialog({ adj: a, action: "approve" }); setReason(""); }}>
-                              <XCircle className="mr-0.5 h-3 w-3 rotate-45" /> Setujui
+                              <XCircle className="mr-0.5 h-3 w-3 rotate-45" /> {t("Setujui", "Approve")}
                             </Button>
                             <Button size="sm" variant="outline" className="h-7" onClick={() => { setDecideDialog({ adj: a, action: "reject" }); setReason(""); }}>
-                              Tolak
+                              {t("Tolak", "Reject")}
                             </Button>
                           </div>
                         )}
@@ -236,14 +238,14 @@ export function MedicalAdjustmentPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 ov-text-accent" /> Ajukan Penyesuaian Saldo
+              <Activity className="h-5 w-5 ov-text-accent" /> {t("Ajukan Penyesuaian Saldo", "Submit Balance Adjustment")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Karyawan *</Label>
+              <Label>{t("Karyawan *", "Employee *")}</Label>
               <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>{e.employeeNo} — {e.fullName}</SelectItem>
@@ -252,9 +254,9 @@ export function MedicalAdjustmentPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Jenis Benefit *</Label>
+              <Label>{t("Jenis Benefit *", "Benefit Type *")}</Label>
               <Select value={typeId} onValueChange={setTypeId}>
-                <SelectTrigger><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Pilih jenis", "Select type")} /></SelectTrigger>
                 <SelectContent>
                   {types.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -263,29 +265,29 @@ export function MedicalAdjustmentPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Tahun Saldo *</Label>
+              <Label>{t("Tahun Saldo *", "Balance Year *")}</Label>
               <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Jumlah (±) *</Label>
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="mis. 500000 atau -250000" />
+              <Label>{t("Jumlah (±) *", "Amount (±) *")}</Label>
+              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("mis. 500000 atau -250000", "e.g. 500000 or -250000")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Tanggal</Label>
+              <Label>{t("Tanggal")}</Label>
               <Input type="date" value={adjustmentDate} onChange={(e) => setAdjustmentDate(e.target.value)} />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={forDependent} onCheckedChange={(v) => setForDependent(Boolean(v))} />
-                Untuk dependent
+                {t("Untuk dependent", "For dependent")}
               </label>
             </div>
           </div>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan / alasan penyesuaian…" rows={2} />
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Catatan / alasan penyesuaian…", "Adjustment note / reason…")} rows={2} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy}>
-              {busy ? "Mengirim…" : "Ajukan"}
+              {busy ? t("Mengirim…", "Submitting…") : t("Ajukan", "Submit")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -297,7 +299,7 @@ export function MedicalAdjustmentPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {decideDialog?.action === "approve" ? <XCircle className="h-5 w-5 rotate-45 text-emerald-600" /> : <Ban className="h-5 w-5 text-rose-600" />}
-              {decideDialog?.action === "approve" ? "Setujui Penyesuaian" : "Tolak Penyesuaian"}
+              {decideDialog?.action === "approve" ? t("Setujui Penyesuaian", "Approve Adjustment") : t("Tolak Penyesuaian", "Reject Adjustment")}
             </DialogTitle>
           </DialogHeader>
           {decideDialog && (
@@ -305,7 +307,7 @@ export function MedicalAdjustmentPage() {
               <div className="rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
                 <p className="font-bold">{decideDialog.adj.docNo} — {decideDialog.adj.fullName}</p>
                 <p className="text-stone-600 dark:text-stone-300">
-                  {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? "dependent" : "karyawan"} · {fmtDateID(decideDialog.adj.adjustmentDate)}
+                  {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? "dependent" : t("karyawan", "employee")} · {fmtDateID(decideDialog.adj.adjustmentDate)}
                 </p>
                 <p className="text-sm font-black">
                   {decideDialog.adj.amount > 0 ? "+" : ""}{fmtIDR(decideDialog.adj.amount)}
@@ -314,19 +316,19 @@ export function MedicalAdjustmentPage() {
               </div>
               {decideDialog.action === "approve" && (
                 <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-                  Approve akan langsung mengubah saldo: {decideDialog.adj.forDependent ? "depAdjustment" : "adjustmentAmount"} {decideDialog.adj.amount > 0 ? "bertambah" : "berkurang"} {fmtIDR(Math.abs(decideDialog.adj.amount))}.
+                  {t("Approve akan langsung mengubah saldo:", "Approve will immediately change the balance:")} {decideDialog.adj.forDependent ? "depAdjustment" : "adjustmentAmount"} {decideDialog.adj.amount > 0 ? t("bertambah", "increases") : t("berkurang", "decreases")} {fmtIDR(Math.abs(decideDialog.adj.amount))}.
                 </p>
               )}
               <div className="space-y-1.5">
-                <Label>Alasan</Label>
+                <Label>{t("Alasan", "Reason")}</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDecideDialog(null)}>Batal</Button>
+            <Button variant="outline" onClick={() => setDecideDialog(null)}>{t("Batal")}</Button>
             <Button onClick={decide} disabled={busy} className={decideDialog?.action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}>
-              {busy ? "Memproses…" : decideDialog?.action === "approve" ? "Setujui" : "Tolak"}
+              {busy ? t("Memproses…", "Processing…") : decideDialog?.action === "approve" ? t("Setujui", "Approve") : t("Tolak", "Reject")}
             </Button>
           </DialogFooter>
         </DialogContent>

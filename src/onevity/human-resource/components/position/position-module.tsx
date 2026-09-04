@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, initials, avatarColor } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ interface GradeOpt { id: string; code: string; name: string; minSalary: number; 
 // ================= POSITION LIST =================
 function PositionList() {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState("all");
   const [grade, setGrade] = useState("all");
@@ -78,22 +80,22 @@ function PositionList() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Daftar Posisi"
-        description={`${stats.total} posisi · ${stats.filled} terisi · ${stats.open} lowongan`}
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Daftar Posisi")}
+        description={t("{total} posisi · {filled} terisi · {open} lowongan", "{total} positions · {filled} filled · {open} open", { total: stats.total, filled: stats.filled, open: stats.open })}
         actions={
           <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> Posisi Baru
+            <Plus className="h-4 w-4" /> {t("Posisi Baru")}
           </Button>
         }
       />
 
       {/* mini stats */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Total Posisi" value={stats.total} icon={BriefcaseBusiness} />
-        <MiniStat label="Terisi" value={stats.filled} icon={Users} />
-        <MiniStat label="Lowongan" value={stats.open} icon={Layers} />
-        <MiniStat label="Non-aktif" value={stats.inactive} icon={ChevronDown} />
+        <MiniStat label={t("Total Posisi", "Total Positions")} value={stats.total} icon={BriefcaseBusiness} />
+        <MiniStat label={t("Terisi", "Filled")} value={stats.filled} icon={Users} />
+        <MiniStat label={t("Lowongan", "Vacancies")} value={stats.open} icon={Layers} />
+        <MiniStat label={t("Non-aktif", "Inactive")} value={stats.inactive} icon={ChevronDown} />
       </div>
 
       {/* toolbar */}
@@ -101,19 +103,19 @@ function PositionList() {
         <CardContent className="flex flex-wrap items-center gap-2.5 p-3.5">
           <div className="relative min-w-52 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari kode / judul posisi…" className="pl-9" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari kode / judul posisi…", "Search code / position title…")} className="pl-9" />
           </div>
           <Select value={unit} onValueChange={setUnit}>
-            <SelectTrigger className="w-full sm:w-52"><ChevronDown className="mr-1 h-3.5 w-3.5 text-stone-400" /><SelectValue placeholder="Semua unit" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-52"><ChevronDown className="mr-1 h-3.5 w-3.5 text-stone-400" /><SelectValue placeholder={t("Semua unit", "All units")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua unit</SelectItem>
+              <SelectItem value="all">{t("Semua unit", "All units")}</SelectItem>
               {(units.data?.units ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={grade} onValueChange={setGrade}>
-            <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Semua grade" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder={t("Semua grade", "All grades")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua grade</SelectItem>
+              <SelectItem value="all">{t("Semua grade", "All grades")}</SelectItem>
               {(grades.data?.grades ?? []).map((g) => <SelectItem key={g.id} value={g.id}>Grade {g.code}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -130,13 +132,13 @@ function PositionList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="min-w-40 text-[11px] font-bold">Posisi</TableHead>
+                    <TableHead className="min-w-40 text-[11px] font-bold">{t("Posisi")}</TableHead>
                     <TableHead className="text-[11px] font-bold">Job</TableHead>
-                    <TableHead className="text-[11px] font-bold">Unit Organisasi</TableHead>
-                    <TableHead className="text-[11px] font-bold">Grade</TableHead>
-                    <TableHead className="min-w-32 text-[11px] font-bold">Okupasi</TableHead>
-                    <TableHead className="text-[11px] font-bold">Pemegang</TableHead>
-                    <TableHead className="text-[11px] font-bold">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Unit Organisasi")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Grade")}</TableHead>
+                    <TableHead className="min-w-32 text-[11px] font-bold">{t("Okupasi", "Occupancy")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Pemegang", "Holder")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -161,11 +163,11 @@ function PositionList() {
                             <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-extrabold", avatarColor(p.employees[0].fullName))}>{initials(p.employees[0].fullName)}</span>
                             <span className="max-w-28 truncate text-[11px] font-semibold">{p.employees[0].fullName}</span>
                           </div>
-                        ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Lowong</span>}
+                        ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">{t("Lowong", "Vacant")}</span>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn("text-[10px] font-bold", p.active ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500")}>
-                          {p.active ? "Aktif" : "Non-aktif"}
+                          {p.active ? t("Aktif") : t("Non-aktif", "Inactive")}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -174,7 +176,7 @@ function PositionList() {
               </Table>
             </div>
           ) : (
-            <div className="p-4"><EmptyState title="Tidak ada posisi" description="Sesuaikan filter pencarian atau buat posisi baru." icon={<BriefcaseBusiness className="h-6 w-6" />} /></div>
+            <div className="p-4"><EmptyState title={t("Tidak ada posisi", "No positions")} description={t("Sesuaikan filter pencarian atau buat posisi baru.", "Adjust the search filter or create a new position.")} icon={<BriefcaseBusiness className="h-6 w-6" />} /></div>
           )}
         </CardContent>
       </Card>
@@ -196,28 +198,28 @@ function PositionList() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
                     <p className="text-lg font-extrabold text-emerald-600">{selected.filled}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Terisi</p>
+                    <p className="text-[9px] font-bold uppercase text-stone-400">{t("Terisi", "Filled")}</p>
                   </div>
                   <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
                     <p className="text-lg font-extrabold text-amber-600">{Math.max(selected.headcount - selected.filled, 0)}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Lowongan</p>
+                    <p className="text-[9px] font-bold uppercase text-stone-400">{t("Lowongan", "Vacancies")}</p>
                   </div>
                   <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
                     <p className="text-lg font-extrabold text-stone-700 dark:text-stone-300">{selected.directReportCount}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Bawahan</p>
+                    <p className="text-[9px] font-bold uppercase text-stone-400">{t("Bawahan", "Reports")}</p>
                   </div>
                 </div>
                 <InfoGrid items={[
-                  ["Level", selected.level ?? "—"],
-                  ["Unit Organisasi", selected.orgUnit?.name ?? "—"],
+                  [t("Level"), selected.level ?? "—"],
+                  [t("Unit Organisasi"), selected.orgUnit?.name ?? "—"],
                   ["Job", selected.job?.title ?? "—"],
-                  ["Grade", selected.grade ? `${selected.grade.code} — ${selected.grade.name}` : "—"],
-                  ["Melapor ke", selected.reportsTo?.title ?? "—"],
-                  ["Status", selected.active ? "Aktif" : "Non-aktif"],
+                  [t("Grade"), selected.grade ? `${selected.grade.code} — ${selected.grade.name}` : "—"],
+                  [t("Melapor ke", "Reports to"), selected.reportsTo?.title ?? "—"],
+                  [t("Status"), selected.active ? t("Aktif") : t("Non-aktif", "Inactive")],
                 ]} />
                 {selected.employees.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">Pemegang Posisi</p>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Pemegang Posisi", "Position Holder")}</p>
                     <div className="space-y-2">
                       {selected.employees.map((e) => (
                         <button key={e.id} onClick={() => { setSelected(null); navigate("employee", "detail", { id: e.id }); }} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:ov-border-accent hover:ov-soft dark:border-stone-800">
@@ -277,6 +279,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   positions: Position[]; onSaved: () => void;
 }) {
   const jobsApi = useApi<{ jobs: JobOpt[] }>("/api/onevity/jobs");
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [title, setTitle] = useState("");
   const [jobId, setJobId] = useState("");
@@ -287,7 +290,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!code.trim() || !title.trim()) { toast.error("Kode dan judul wajib diisi"); return; }
+    if (!code.trim() || !title.trim()) { toast.error(t("Kode dan judul wajib diisi", "Code and title are required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/positions", "POST", {
@@ -295,7 +298,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
         jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
         headcount: Number(headcount) || 1, reportsToId: reportsToId || null,
       });
-      toast.success(`Posisi ${title} berhasil dibuat`);
+      toast.success(t("Posisi {title} berhasil dibuat", "Position {title} created successfully", { title }));
       setOpen(false); setCode(""); setTitle(""); setJobId(""); setOrgUnitId(""); setGradeId(""); setHeadcount("1"); setReportsToId("");
       onSaved();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -305,42 +308,42 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> Posisi Baru</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> {t("Posisi Baru")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label className="text-xs">Kode *</Label>
+            <Label className="text-xs">{t("Kode *", "Code *")}</Label>
             <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="P-QAS2" className="mt-1 font-mono uppercase" />
           </div>
           <div>
-            <Label className="text-xs">Judul *</Label>
+            <Label className="text-xs">{t("Judul *", "Title *")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="QA Staff II" className="mt-1" />
           </div>
           <div>
             <Label className="text-xs">Job</Label>
             <Select value={jobId || "none"} onValueChange={(v) => setJobId(v === "none" ? "" : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Pilih job" /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih job", "Select a job")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Tidak ada —</SelectItem>
+                <SelectItem value="none">{t("— Tidak ada —", "— None —")}</SelectItem>
                 {(jobsApi.data?.jobs ?? []).filter((j) => j.active).map((j) => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Unit Organisasi</Label>
+            <Label className="text-xs">{t("Unit Organisasi")}</Label>
             <Select value={orgUnitId || "none"} onValueChange={(v) => setOrgUnitId(v === "none" ? "" : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Pilih unit" /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih unit", "Select a unit")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Tidak ada —</SelectItem>
+                <SelectItem value="none">{t("— Tidak ada —", "— None —")}</SelectItem>
                 {units.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Grade</Label>
+            <Label className="text-xs">{t("Grade")}</Label>
             <Select value={gradeId || "none"} onValueChange={(v) => setGradeId(v === "none" ? "" : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Pilih grade" /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih grade", "Select a grade")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Tidak ada —</SelectItem>
+                <SelectItem value="none">{t("— Tidak ada —", "— None —")}</SelectItem>
                 {grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -350,19 +353,19 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
             <Input type="number" min={1} value={headcount} onChange={(e) => setHeadcount(e.target.value)} className="mt-1" />
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs">Melapor ke (posisi atasan)</Label>
+            <Label className="text-xs">{t("Melapor ke (posisi atasan)", "Reports to (supervisor position)")}</Label>
             <Select value={reportsToId || "none"} onValueChange={(v) => setReportsToId(v === "none" ? "" : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Pilih posisi atasan" /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih posisi atasan", "Select a supervisor position")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Tanpa atasan —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa atasan —", "— No supervisor —")}</SelectItem>
                 {positions.filter((p) => p.active).map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.code})</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan Posisi"}</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan Posisi", "Save Position")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -372,6 +375,7 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
 // ================= JOB LIBRARY =================
 function JobLibrary() {
   const { data, loading, refresh } = useApi<{ jobs: JobOpt[] }>("/api/onevity/jobs");
+  const { t } = useI18n();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<JobOpt | null>(null);
 
@@ -386,12 +390,12 @@ function JobLibrary() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Katalog Jabatan"
-        description={`${data?.jobs.length ?? 0} job master di kategori Executive, Managerial, Supervisory, dan Staff`}
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Katalog Jabatan")}
+        description={t("{n} job master di kategori Executive, Managerial, Supervisory, dan Staff", "{n} master jobs in the Executive, Managerial, Supervisory, and Staff categories", { n: data?.jobs.length ?? 0 })}
         actions={
           <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> Job Baru
+            <Plus className="h-4 w-4" /> {t("Job Baru", "New Job")}
           </Button>
         }
       />
@@ -420,8 +424,8 @@ function JobLibrary() {
                     <Badge variant="secondary" className="text-[10px]">{j.category ?? "Staff"}</Badge>
                   </div>
                   <div className="mt-4 flex items-center justify-between border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
-                    <span className="text-[11px] text-stone-400">Dipakai oleh</span>
-                    <span className="text-[11px] font-bold ov-text-accent">{j.positionCount} posisi</span>
+                    <span className="text-[11px] text-stone-400">{t("Dipakai oleh", "Used by")}</span>
+                    <span className="text-[11px] font-bold ov-text-accent">{t("{n} posisi", "{n} positions", { n: j.positionCount })}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -436,6 +440,7 @@ function JobLibrary() {
 }
 
 function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean) => void; job: JobOpt | null }) {
+  const { t } = useI18n();
   const [code, setCode] = useState(job?.code ?? "");
   const [title, setTitle] = useState(job?.title ?? "");
   const [category, setCategory] = useState(job?.category ?? "Staff");
@@ -451,15 +456,15 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
   }
 
   const submit = async () => {
-    if (!code.trim() || !title.trim()) { toast.error("Kode dan judul wajib diisi"); return; }
+    if (!code.trim() || !title.trim()) { toast.error(t("Kode dan judul wajib diisi", "Code and title are required")); return; }
     setBusy(true);
     try {
       if (job) {
         await apiSend("/api/onevity/jobs", "PATCH", { id: job.id, title, category, description });
-        toast.success("Job diperbarui");
+        toast.success(t("Job diperbarui", "Job updated"));
       } else {
         await apiSend("/api/onevity/jobs", "POST", { code: code.trim().toUpperCase(), title, category, description });
-        toast.success("Job dibuat");
+        toast.success(t("Job dibuat", "Job created"));
       }
       setOpen(false);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -468,20 +473,20 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="text-base">{job ? "Edit Job" : "Job Baru"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="text-base">{job ? "Edit Job" : t("Job Baru", "New Job")}</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           {!job && (
             <div>
-              <Label className="text-xs">Kode *</Label>
+              <Label className="text-xs">{t("Kode *", "Code *")}</Label>
               <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="J-QAS2" className="mt-1 font-mono uppercase" />
             </div>
           )}
           <div>
-            <Label className="text-xs">Judul *</Label>
+            <Label className="text-xs">{t("Judul *", "Title *")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label className="text-xs">Kategori</Label>
+            <Label className="text-xs">{t("Kategori", "Category")}</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -490,13 +495,13 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Deskripsi</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tanggung jawab utama…" className="mt-1" />
+            <Label className="text-xs">{t("Deskripsi", "Description")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Tanggung jawab utama…", "Main responsibilities…")} className="mt-1" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -505,15 +510,16 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
 
 // ================= GRADES =================
 function GradeList() {
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<{ grades: GradeOpt[] }>("/api/onevity/grades");
   const maxSalary = Math.max(...(data?.grades ?? []).map((g) => g.maxSalary), 1);
 
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Grade & Level"
-        description="Struktur grade gaji G1–G8 beserta rentang minimum dan maksimum"
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Grade & Level")}
+        description={t("Struktur grade gaji G1–G8 beserta rentang minimum dan maksimum", "Salary grade structure G1–G8 with minimum and maximum ranges")}
       />
       {loading && !data ? (
         <LoadingRows rows={6} />
@@ -550,11 +556,11 @@ function GradeList() {
                   <div className="mt-4 grid grid-cols-2 gap-2 border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
                     <div className="text-center">
                       <p className="text-base font-extrabold text-stone-900 dark:text-stone-50">{g.employeeCount}</p>
-                      <p className="text-[9px] font-bold uppercase text-stone-400">Karyawan</p>
+                      <p className="text-[9px] font-bold uppercase text-stone-400">{t("Karyawan")}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-base font-extrabold text-stone-900 dark:text-stone-50">{g.positionCount}</p>
-                      <p className="text-[9px] font-bold uppercase text-stone-400">Posisi</p>
+                      <p className="text-[9px] font-bold uppercase text-stone-400">{t("Posisi")}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -569,6 +575,7 @@ function GradeList() {
 }
 
 function GradeStats({ grades }: { grades: GradeOpt[] }) {
+  const { t } = useI18n();
   if (grades.length === 0) return null;
   const totalEmp = grades.reduce((a, g) => a + g.employeeCount, 0);
   const top = grades.filter((g) => g.employeeCount > 0).sort((a, b) => b.employeeCount - a.employeeCount)[0];
@@ -580,8 +587,8 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
             <GraduationCap className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Grade Terpadat</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? `${top.code} — ${top.employeeCount} karyawan` : "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Grade Terpadat", "Densest Grade")}</p>
+            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? t("{code} — {n} karyawan", "{code} — {n} employees", { code: top.code, n: top.employeeCount }) : "—"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -589,8 +596,8 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Total Karyawan Ter-graded</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{totalEmp} dari grade G1–G{grades.length}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Total Karyawan Ter-graded", "Total Graded Employees")}</p>
+            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{t("{n} dari grade G1–G{m}", "{n} across grades G1–G{m}", { n: totalEmp, m: grades.length })}</p>
           </div>
         </div>
       </CardContent>

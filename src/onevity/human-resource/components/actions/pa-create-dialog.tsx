@@ -11,7 +11,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { PA_TYPES } from "@/onevity/shared/components/ui-kit";
+import { PA_TYPE_LABEL_EN } from "./pa-types";
 import { useApi, apiSend, initials, avatarColor, fmtIDR } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { toast } from "sonner";
@@ -92,6 +94,26 @@ const TYPE_FIELDS: Record<string, FieldDef[]> = {
   ],
 };
 
+// En paralel untuk label field TYPE_FIELDS di atas (map ID dipertahankan — Task I-3)
+const FIELD_LABEL_EN: Record<string, string> = {
+  "Posisi Baru": "New Position",
+  "Grade Baru": "New Grade",
+  "Gaji Pokok Baru": "New Base Salary",
+  "Unit Organisasi Baru": "New Organizational Unit",
+  "Posisi Baru (opsional)": "New Position (optional)",
+  "Gaji Pokok Baru (opsional)": "New Base Salary (optional)",
+  "Unit Organisasi Tujuan": "Target Organizational Unit",
+  "Hari Kerja Terakhir": "Last Working Day",
+  "Tanggal Berakhir": "End Date",
+  "Tanggal Pensiun": "Retirement Date",
+  "Posisi Direncanakan": "Planned Position",
+  "Gaji Direncanakan": "Planned Salary",
+  "Durasi Kontrak (bulan)": "Contract Duration (months)",
+  "Tanggal Berakhir Baru": "New End Date",
+  "Perpanjangan (bulan)": "Extension (months)",
+  "Status Kepegawaian Baru": "New Employment Status",
+};
+
 // Kunci ID pendamping tiap field select — dialog menyimpan ID (dipakai handler process)
 // DAN kode (dipakai tampilan/detail lama) agar promosi/mutasi benar-benar diterapkan (fix K-01).
 const ID_KEY_BY_KIND: Record<string, string> = {
@@ -104,6 +126,7 @@ const EMP_STATUSES = ["Permanent", "Contract", "Probation", "Outsourcing"];
 
 export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const perms = useMenuPerms();
   const employees = useApi<{ employees: EmpOpt[]; total: number }>(open ? "/api/onevity/employees?limit=200&status=Active" : null);
   const masters = useApi<MasterOpt>(open ? "/api/onevity/employee-options" : null);
@@ -157,12 +180,12 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
         reason: reason.trim() || null,
         detail,
       });
-      toast.success(`Dokumen ${res.action.docNo} dibuat sebagai Draft`, { description: "Lanjutkan dengan Submit untuk Approval." });
+      toast.success(t("Dokumen {doc} dibuat sebagai Draft", "Document {doc} created as Draft", { doc: res.action.docNo }), { description: t("Lanjutkan dengan Submit untuk Approval.", "Continue with Submit for Approval.") });
       onOpenChange(false);
       reset();
       navigate("actions", "all", { id: res.action.id });
     } catch (e) {
-      toast.error("Gagal membuat dokumen", { description: (e as Error).message });
+      toast.error(t("Gagal membuat dokumen", "Failed to create document"), { description: (e as Error).message });
     } finally {
       setBusy(false);
     }
@@ -185,17 +208,17 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <span className="flex h-9 w-9 items-center justify-center rounded-xl ov-fill ov-glow">
               <Workflow className="h-5 w-5" />
             </span>
-            Dokumen Personnel Action Baru
+            {t("Dokumen Personnel Action Baru", "New Personnel Action Document")}
           </DialogTitle>
           <DialogDescription>
-            Dokumen dibuat dengan status <Badge variant="outline" className="mx-1 border-stone-200 bg-stone-50 text-[10px] dark:border-stone-700 dark:bg-stone-800">Draft</Badge> dan approval 3 layer (Dept Head → HR Manager → HR Director).
+            {t("Dokumen dibuat dengan status", "The document is created with status")} <Badge variant="outline" className="mx-1 border-stone-200 bg-stone-50 text-[10px] dark:border-stone-700 dark:bg-stone-800">Draft</Badge> {t("dan approval 3 layer (Dept Head → HR Manager → HR Director).", "and 3-layer approval (Dept Head → HR Manager → HR Director).")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {/* employee combobox */}
           <div className="space-y-2 sm:col-span-2">
-            <Label>Karyawan <span className="text-rose-500">*</span></Label>
+            <Label>{t("Karyawan")} <span className="text-rose-500">*</span></Label>
             <Popover open={empOpen} onOpenChange={setEmpOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={empOpen} className="h-11 w-full justify-between font-normal">
@@ -206,18 +229,18 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                       <span className="shrink-0 text-xs text-stone-400">{selected.employeeNo}</span>
                     </span>
                   ) : (
-                    <span className="text-stone-400">Cari dan pilih karyawan…</span>
+                    <span className="text-stone-400">{t("Cari dan pilih karyawan…", "Search and select an employee…")}</span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter>
-                  <CommandInput placeholder="Ketik nama atau nomor karyawan…" />
+                  <CommandInput placeholder={t("Ketik nama atau nomor karyawan…", "Type an employee name or number…")} />
                   <CommandList className="max-h-64">
-                    <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+                    <CommandEmpty>{t("Tidak ditemukan.", "No results found.")}</CommandEmpty>
                     <CommandGroup>
-                      {employees.loading && <p className="px-3 py-4 text-xs text-stone-400">Memuat daftar karyawan…</p>}
+                      {employees.loading && <p className="px-3 py-4 text-xs text-stone-400">{t("Memuat daftar karyawan…", "Loading employee list…")}</p>}
                       {list.map((e) => (
                         <CommandItem
                           key={e.id}
@@ -240,9 +263,9 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </Popover>
             {selected && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-stone-200/80 bg-stone-50/60 px-3 py-2 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40">
-                <span>Posisi: <b className="text-stone-700 dark:text-stone-300">{selected.position?.title ?? "—"}</b></span>
+                <span>{t("Posisi:", "Position:")} <b className="text-stone-700 dark:text-stone-300">{selected.position?.title ?? "—"}</b></span>
                 <span>Grade: <b className="text-stone-700 dark:text-stone-300">{selected.grade?.code ?? "—"}</b></span>
-                <span>Gaji pokok: <b className="text-stone-700 dark:text-stone-300">{fmtIDR(selected.baseSalary)}</b></span>
+                <span>{t("Gaji pokok:", "Base salary:")} <b className="text-stone-700 dark:text-stone-300">{fmtIDR(selected.baseSalary)}</b></span>
                 <span>Status: <b className="text-stone-700 dark:text-stone-300">{selected.employmentStatus}</b></span>
               </div>
             )}
@@ -250,12 +273,12 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* type */}
           <div className="space-y-2">
-            <Label>Jenis Aksi <span className="text-rose-500">*</span></Label>
+            <Label>{t("Jenis Aksi", "Action Type")} <span className="text-rose-500">*</span></Label>
             <Select value={type} onValueChange={(v) => { setType(v); setDetail({}); }}>
-              <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih jenis aksi" /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih jenis aksi", "Select action type")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                {Object.entries(PA_TYPES).map(([value, t]) => (
-                  <SelectItem key={value} value={value} className="py-2.5">{t.label}</SelectItem>
+                {Object.entries(PA_TYPES).map(([value, tp]) => (
+                  <SelectItem key={value} value={value} className="py-2.5">{t(tp.label, PA_TYPE_LABEL_EN[value])}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -263,7 +286,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* effective date */}
           <div className="space-y-2">
-            <Label>Tanggal Efektif <span className="text-rose-500">*</span></Label>
+            <Label>{t("Tanggal Efektif", "Effective Date")} <span className="text-rose-500">*</span></Label>
             <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="h-11" />
           </div>
 
@@ -271,14 +294,14 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
           {fields.map((f) => (
             <div key={f.key} className="space-y-2">
               <Label>
-                {f.label} {f.required && <span className="text-rose-500">*</span>}
+                {t(f.label, FIELD_LABEL_EN[f.label])} {f.required && <span className="text-rose-500">*</span>}
               </Label>
               {f.kind === "select-position" && (
                 <Select value={detail[ID_KEY_BY_KIND[f.kind]] ?? detail[f.key] ?? ""} onValueChange={(v) => {
                   const p = positions.find((x) => x.id === v);
                   if (p) setMasterField(f, p.id, p.code);
                 }}>
-                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
+                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih posisi", "Select a position")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {positions.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
@@ -293,7 +316,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   const u = units.find((x) => x.id === v);
                   if (u) setMasterField(f, u.id, u.code);
                 }}>
-                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih unit" /></SelectTrigger>
+                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih unit", "Select a unit")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {units.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
@@ -308,7 +331,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   const g = grades.find((x) => x.id === v);
                   if (g) setMasterField(f, g.id, g.code);
                 }}>
-                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih grade" /></SelectTrigger>
+                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih grade", "Select a grade")} /></SelectTrigger>
                   <SelectContent>
                     {grades.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
@@ -320,7 +343,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
               )}
               {f.kind === "select-empstatus" && (
                 <Select value={detail[f.key] ?? ""} onValueChange={(v) => setField(f.key, v)}>
-                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Pilih status" /></SelectTrigger>
+                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("Pilih status", "Select a status")} /></SelectTrigger>
                   <SelectContent>
                     {EMP_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -348,12 +371,12 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
           {/* reason */}
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="pa-reason">Alasan / Justifikasi</Label>
+            <Label htmlFor="pa-reason">{t("Alasan / Justifikasi", "Reason / Justification")}</Label>
             <Textarea
               id="pa-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Contoh: Promosi berdasarkan evaluasi kinerja semester 1/2026…"
+              placeholder={t("Contoh: Promosi berdasarkan evaluasi kinerja semester 1/2026…", "Example: Promotion based on the 1/2026 semester performance review…")}
               rows={2}
               className="resize-none"
             />
@@ -361,11 +384,11 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">Batal</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">{t("Batal")}</Button>
           {perms.can("hr", "all", "create") && (
             <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 px-6 font-bold">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Workflow className="h-4 w-4" />}
-              Buat Dokumen Draft
+              {t("Buat Dokumen Draft", "Create Draft Document")}
             </Button>
           )}
         </DialogFooter>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNav } from "@/onevity/shared/lib/store";
 import { AuthGate } from "@/onevity/shared/components/auth/auth-gate";
 import { AppShell } from "@/onevity/shared/components/shell/app-shell";
+import { I18nProvider } from "@/onevity/shared/lib/i18n";
 // Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
 import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-lab";
 import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
@@ -37,11 +38,12 @@ function PageInner() {
   useEffect(() => { syncFromUrl(); }, [syncFromUrl]);
 
   // Mode mockup desain menu (?mockup=menu) — render lab tanpa AuthGate/shell,
-  // benar-benar terisolasi dari menu live.
+  // benar-benar terisolasi dari menu live (dan dari provider bahasa).
   if (searchParams.get("mockup") === "menu") return <MenuDesignLab />;
 
   return (
-    <AuthGate>
+    <I18nProvider>
+      <AuthGate>
       <AppShell>
         <AnimatePresence mode="wait">
           <motion.div
@@ -65,6 +67,7 @@ function PageInner() {
           </motion.div>
         </AnimatePresence>
       </AppShell>
-    </AuthGate>
+      </AuthGate>
+    </I18nProvider>
   );
 }

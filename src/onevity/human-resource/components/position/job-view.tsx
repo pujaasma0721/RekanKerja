@@ -2,6 +2,7 @@
 // OneVity — POSISI › Job Library: card grid of jobs + CRUD dialog
 import { useEffect, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingCards } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
 }) {
   const [form, setForm] = useState({ code: "", title: "", category: "Staff", description: "" });
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +48,7 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
   }, [open, job]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.title.trim()) { toast.error("Kode dan judul job wajib diisi"); return; }
+    if (!form.code.trim() || !form.title.trim()) { toast.error(t("Kode dan judul job wajib diisi", "Code and job title are required")); return; }
     setSaving(true);
     try {
       const payload = {
@@ -57,15 +59,15 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
       };
       if (job) {
         await apiSend("/api/onevity/jobs", "PATCH", { id: job.id, ...payload });
-        toast.success("Job berhasil diperbarui");
+        toast.success(t("Job berhasil diperbarui", "Job updated successfully"));
       } else {
         await apiSend("/api/onevity/jobs", "POST", payload);
-        toast.success(`Job "${payload.title}" berhasil dibuat`);
+        toast.success(t('Job "{title}" berhasil dibuat', 'Job "{title}" created successfully', { title: payload.title }));
       }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan job");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan job", "Failed to save job"));
     } finally {
       setSaving(false);
     }
@@ -75,19 +77,19 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{job ? "Ubah Job" : "Job Baru"}</DialogTitle>
+          <DialogTitle>{job ? t("Ubah Job", "Edit Job") : t("Job Baru", "New Job")}</DialogTitle>
           <DialogDescription>
-            {job ? `Perbarui definisi job ${job.code}.` : "Definisikan job/keluarga jabatan baru yang dapat dipetakan ke posisi."}
+            {job ? t("Perbarui definisi job {code}.", "Update job {code} definition.", { code: job.code }) : t("Definisikan job/keluarga jabatan baru yang dapat dipetakan ke posisi.", "Define a new job/job family that can be mapped to positions.")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="j-code">Kode Job</Label>
+              <Label htmlFor="j-code">{t("Kode Job", "Job Code")}</Label>
               <Input id="j-code" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="J-HRM" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label>Kategori</Label>
+              <Label>{t("Kategori", "Category")}</Label>
               <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -97,17 +99,17 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="j-title">Judul Job</Label>
+            <Label htmlFor="j-title">{t("Judul Job", "Job Title")}</Label>
             <Input id="j-title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="HR Manager" />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="j-desc">Deskripsi</Label>
-            <Textarea id="j-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Tanggung jawab utama job ini…" className="min-h-24" />
+            <Label htmlFor="j-desc">{t("Deskripsi", "Description")}</Label>
+            <Textarea id="j-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder={t("Tanggung jawab utama job ini…", "Main responsibilities of this job…")} className="min-h-24" />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : job ? "Simpan" : "Buat Job"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : job ? t("Simpan") : t("Buat Job", "Create Job")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -116,6 +118,7 @@ function JobFormDialog({ open, onOpenChange, job, onDone }: {
 
 // ============ Main view ============
 export function JobView() {
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<JobsRes>("/api/onevity/jobs");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<JobRow | null>(null);
@@ -133,12 +136,12 @@ export function JobView() {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/jobs?id=${encodeURIComponent(editing.id)}`, "DELETE");
-      toast.success(`Job "${editing.title}" dihapus`);
+      toast.success(t('Job "{title}" dihapus', 'Job "{title}" deleted', { title: editing.title }));
       setDeleteOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus job");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus job", "Failed to delete job"));
     } finally {
       setDeleting(false);
     }
@@ -147,16 +150,16 @@ export function JobView() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Katalog Jabatan"
-        description={`Pustaka definisi job/keluarga jabatan yang menjadi dasar pembuatan posisi. ${jobs.length} job · ${totalPositions} posisi terpetakan.`}
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Katalog Jabatan")}
+        description={t("Pustaka definisi job/keluarga jabatan yang menjadi dasar pembuatan posisi. {j} job · {p} posisi terpetakan.", "Library of job/job family definitions that form the basis for creating positions. {j} jobs · {p} positions mapped.", { j: jobs.length, p: totalPositions })}
         actions={
           <>
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
             </Button>
             <Button size="sm" className="h-10 px-4 font-bold" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> Job Baru
+              <Plus className="h-4 w-4" /> {t("Job Baru", "New Job")}
             </Button>
           </>
         }
@@ -165,9 +168,9 @@ export function JobView() {
       {loading ? (
         <LoadingCards cards={6} />
       ) : error ? (
-        <EmptyState title="Gagal memuat" description={error} />
+        <EmptyState title={t("Gagal memuat", "Failed to load")} description={error} />
       ) : jobs.length === 0 ? (
-        <EmptyState title="Belum ada job" description="Buat job pertama dengan tombol Job Baru." icon={<FileText className="h-6 w-6" />} />
+        <EmptyState title={t("Belum ada job", "No jobs yet")} description={t("Buat job pertama dengan tombol Job Baru.", "Create the first job with the New Job button.")} icon={<FileText className="h-6 w-6" />} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {jobs.map((j) => {
@@ -195,7 +198,7 @@ export function JobView() {
                           : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400"
                       )}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", j.active ? "bg-emerald-500" : "bg-stone-400")} />
-                        {j.active ? "Aktif" : "Nonaktif"}
+                        {j.active ? t("Aktif") : t("Nonaktif")}
                       </span>
                       {j._count.positions > 0 && (
                         <Badge className="h-6 rounded-full bg-stone-100 px-2 text-[10px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">
@@ -218,20 +221,20 @@ export function JobView() {
                   )}
                   <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
                     <p className="text-[10px] font-medium text-stone-400">
-                      {j._count.positions} posisi menggunakan job ini
+                      {t("{n} posisi menggunakan job ini", "{n} positions use this job", { n: j._count.positions })}
                     </p>
                     <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={(e) => { e.stopPropagation(); openEdit(j); }}
                         className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
-                        aria-label={`Ubah job ${j.title}`}
+                        aria-label={t("Ubah job {title}", "Edit job {title}", { title: j.title })}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(j); setDeleteOpen(true); }}
                         className="rounded-lg p-2.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
-                        aria-label={`Hapus job ${j.title}`}
+                        aria-label={t("Hapus job {title}", "Delete job {title}", { title: j.title })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -249,15 +252,15 @@ export function JobView() {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus job “{editing?.title}”?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus job “{title}”?", "Delete job “{title}”?", { title: editing?.title ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Job yang masih dipakai oleh posisi tidak dapat dihapus.
+              {t("Tindakan ini permanen. Job yang masih dipakai oleh posisi tidak dapat dihapus.", "This action is permanent. Jobs still used by positions cannot be deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-              {deleting ? "Menghapus…" : "Ya, Hapus"}
+              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

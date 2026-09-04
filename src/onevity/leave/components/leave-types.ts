@@ -66,6 +66,18 @@ export const LEAVE_STATUS_LABEL: Record<string, string> = {
   Paid: "Dibayar",
 };
 
+// LABEL EN (peta paralel — render: t(MAP[k], MAP_EN[k]))
+export const LEAVE_STATUS_LABEL_EN: Record<string, string> = {
+  Submitted: "Pending",
+  Approved: "Approved",
+  Rejected: "Rejected",
+  Cancelled: "Cancelled",
+  MassLeave: "Mass Leave",
+  Transferred: "Transferred",
+  Paid: "Paid",
+};
+
 export const SESSION_LABEL: Record<string, string> = { AM: "Pagi", PM: "Siang" };
+export const SESSION_LABEL_EN: Record<string, string> = { AM: "Morning", PM: "Afternoon" };
 
 export const fmtDay = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));

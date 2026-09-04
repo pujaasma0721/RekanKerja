@@ -1,5 +1,7 @@
 "use client";
 // OneVity Medical — shared types (padanan modul Medical Benefit)
+import { getLang } from "@/onevity/shared/lib/i18n-core";
+
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }
@@ -131,10 +133,54 @@ export const FREQ_PERIOD_LABEL: Record<string, string> = {
   YEAR: "tahun",
 };
 
+// ---- peta label EN (paralel — render: t(MAP[k], MAP_EN[k])) ----
+export const CLAIM_STATUS_LABEL_EN: Record<string, string> = {
+  Draft: "Draft",
+  Submitted: "Pending",
+  Returned: "Returned",
+  Approved: "Approved",
+  Rejected: "Rejected",
+  Cancelled: "Cancelled",
+  Settled: "Approved & Paid",
+};
+
+export const LIMIT_RULE_LABEL_EN: Record<string, string> = {
+  UNLIMITED: "Unlimited",
+  NOMINAL: "Nominal",
+  FACTOR: "Salary Factor",
+  WAGE_COMPONENT: "Wage Component",
+};
+
+export const UNUSED_RULE_LABEL_EN: Record<string, string> = {
+  FORFEITED: "Forfeited (reset)",
+  CASH: "Cashed Out (UMC)",
+  CARRY: "Carried to Next Year",
+};
+
+export const DEP_LIMIT_LABEL_EN: Record<string, string> = {
+  SHARED: "Shared package with employee",
+  TOTAL_SEPARATE: "One separate limit (combined dependents)",
+  EACH: "Limit per dependent",
+};
+
+export const FREQ_PERIOD_LABEL_EN: Record<string, string> = {
+  MEDICAL: "medical period",
+  WORK: "length of service",
+  YEAR: "year",
+};
+
+// ---- formatters ikut bahasa aktif (state i18n-core tersinkron dgn useI18n) ----
+const dateLocale = () => (getLang() === "en" ? "en-US" : "id-ID");
+
 export const fmtIDR = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat(dateLocale(), { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
 export const fmtIDRShort = (n: number) => {
+  if (getLang() === "en") {
+    if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}B`;
+    if (Math.abs(n) >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}M`;
+    return `Rp ${n.toLocaleString("en-US")}`;
+  }
   if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
   if (Math.abs(n) >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
   if (Math.abs(n) >= 1_000) return `Rp ${(n / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`;
@@ -142,9 +188,9 @@ export const fmtIDRShort = (n: number) => {
 };
 
 export const fmtDateID = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  s ? new Date(s).toLocaleDateString(dateLocale(), { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export const fmtDateTimeID = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  s ? new Date(s).toLocaleString(dateLocale(), { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);

@@ -17,12 +17,14 @@ import { toast } from "sonner";
 import { BudgetRowUI, fmtIDR, fmtIDRShort } from "./travel-types";
 import { Wallet, Plus, Pencil, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 interface ItemForm {
   costCenter: string; amount: string; note: string;
 }
 
 export function TravelBudgetPage() {
+  const { t } = useI18n();
   const api = useApi<{ budgets: BudgetRowUI[] }>("/api/onevity/travel/budget");
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -45,7 +47,7 @@ export function TravelBudgetPage() {
 
   const submit = async () => {
     const year = parseInt(form.year, 10);
-    if (!Number.isFinite(year)) { toast.error("Tahun wajib valid"); return; }
+    if (!Number.isFinite(year)) { toast.error(t("Tahun wajib valid", "Year must be valid")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/travel/budget", "POST", {
@@ -59,23 +61,23 @@ export function TravelBudgetPage() {
           note: i.note || undefined,
         })),
       });
-      toast.success(`Budget ${year} ${editId ? "diperbarui" : "dibuat"}`);
+      toast.success(t("Budget {y} {v}", "Budget {y} {v}", { y: year, v: editId ? t("diperbarui", "updated") : t("dibuat", "created") }));
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan budget");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan budget", "Failed to save the budget"));
     } finally { setBusy(false); }
   };
 
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL TRAVEL"
-        title="Budget Perjalanan Dinas"
-        description="Budget tahunan + rincian per cost center — pemakaian dihitung dari klaim Transferred/Paid. Over-budget memunculkan warning tanpa memblokir klaim (padanan Travel Budget)"
+        eyebrow={t("MODUL TRAVEL", "TRAVEL MODULE")}
+        title={t("Budget Perjalanan Dinas", "Business Travel Budget")}
+        description={t("Budget tahunan + rincian per cost center — pemakaian dihitung dari klaim Transferred/Paid. Over-budget memunculkan warning tanpa memblokir klaim (padanan Travel Budget)", "Annual budget + breakdown per cost center — usage computed from Transferred/Paid claims. Over-budget raises a warning without blocking claims (Travel Budget equivalent)")}
         actions={
           <Button onClick={() => openDialog()} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> Tahun Baru
+            <Plus className="h-4 w-4" /> {t("Tahun Baru", "New Budget Year")}
           </Button>
         }
       />
@@ -85,7 +87,7 @@ export function TravelBudgetPage() {
       ) : budgets.length === 0 ? (
         <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardContent className="p-0">
-            <EmptyState icon={Wallet} title="Belum ada budget travel" description="Buat budget tahunan untuk memantau pemakaian per cost center." />
+            <EmptyState icon={Wallet} title={t("Belum ada budget travel", "No travel budget yet")} description={t("Buat budget tahunan untuk memantau pemakaian per cost center.", "Create an annual budget to monitor usage per cost center.")} />
           </CardContent>
         </Card>
       ) : (
@@ -102,7 +104,7 @@ export function TravelBudgetPage() {
                       <Wallet className="h-4 w-4 ov-text-accent" /> Budget {b.year}
                     </span>
                     <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => openDialog(b)}>
-                      <Pencil className="h-3 w-3" /> Ubah
+                      <Pencil className="h-3 w-3" /> {t("Ubah")}
                     </Button>
                   </CardTitle>
                 </CardHeader>
@@ -113,11 +115,11 @@ export function TravelBudgetPage() {
                       <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(b.totalBudget)}</p>
                     </div>
                     <div className={cn("rounded-lg py-2", over ? "bg-rose-50 dark:bg-rose-950/30" : "bg-teal-50 dark:bg-teal-950/30")}>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Terpakai</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{t("Terpakai", "Used")}</p>
                       <p className={cn("text-sm font-black", over ? "text-rose-700 dark:text-rose-400" : "text-teal-700 dark:text-teal-400")}>{fmtIDRShort(b.used)}</p>
                     </div>
                     <div className="rounded-lg bg-stone-50 py-2 dark:bg-stone-800/60">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Sisa</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{t("Sisa", "Remaining")}</p>
                       <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(Math.max(0, b.remaining))}</p>
                     </div>
                   </div>
@@ -125,7 +127,7 @@ export function TravelBudgetPage() {
                   <div>
                     <Progress value={pct} className="h-2 [&>div]:ov-bar" />
                     <div className="mt-1 flex items-center justify-between text-[11px] text-stone-500">
-                      <span>{b.claimCount} klaim dalam periode</span>
+                      <span>{t("{n} klaim dalam periode", "{n} claims in the period", { n: b.claimCount })}</span>
                       <span className="font-bold">{Math.round(pct)}%</span>
                     </div>
                   </div>
@@ -133,19 +135,19 @@ export function TravelBudgetPage() {
                   {over && (
                     <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      Terpakai {fmtIDR(b.used - b.totalBudget)} melebihi budget — padanan: klaim tetap diproses, budget alat monitoring
+                      {t("Terpakai {amt} melebihi budget — padanan: klaim tetap diproses, budget alat monitoring", "Usage of {amt} exceeds budget — equivalent: claims are still processed, budget is a monitoring tool", { amt: fmtIDR(b.used - b.totalBudget) })}
                     </p>
                   )}
                   {!over && b.totalBudget > 0 && b.claimCount > 0 && (
                     <p className="flex items-center gap-1.5 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-400">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Pemakaian masih dalam budget
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {t("Pemakaian masih dalam budget", "Usage is still within budget")}
                     </p>
                   )}
 
                   {b.items.length > 0 && (
                     <div>
                       <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-stone-500">
-                        <TrendingUp className="h-3 w-3" /> Rincian per Cost Center {itemTotal !== b.totalBudget && b.totalBudget > 0 ? "(jumlah ≠ total)" : ""}
+                        <TrendingUp className="h-3 w-3" /> {t("Rincian per Cost Center", "Breakdown per Cost Center")} {itemTotal !== b.totalBudget && b.totalBudget > 0 ? t("(jumlah ≠ total)", "(sum ≠ total)") : ""}
                       </p>
                       <div className="space-y-1.5">
                         {b.items.map((i, x) => {
@@ -181,38 +183,38 @@ export function TravelBudgetPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 ov-text-accent" /> {editId ? `Ubah Budget ${form.year}` : "Budget Tahun Baru"}
+              <Wallet className="h-5 w-5 ov-text-accent" /> {editId ? t("Ubah Budget {y}", "Edit Budget {y}", { y: form.year }) : t("Budget Tahun Baru", "New Budget Year")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Tahun *</Label>
+                <Label className="text-xs font-bold">{t("Tahun *", "Year *")}</Label>
                 <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} disabled={Boolean(editId)} className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Total Budget (Rp) *</Label>
+                <Label className="text-xs font-bold">{t("Total Budget (Rp) *")}</Label>
                 <Input type="number" min="0" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} placeholder="250000000" className="text-sm" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Catatan</Label>
+              <Label className="text-xs font-bold">{t("Catatan")}</Label>
               <Textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} className="text-sm" />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold">Rincian per Cost Center</Label>
+                <Label className="text-xs font-bold">{t("Rincian per Cost Center", "Breakdown per Cost Center")}</Label>
                 <Button variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => setItems([...items, { costCenter: "", amount: "", note: "" }])}>
-                  <Plus className="h-3 w-3" /> Tambah
+                  <Plus className="h-3 w-3" /> {t("Tambah")}
                 </Button>
               </div>
               <div className="space-y-2">
                 {items.map((it, i) => (
                   <div key={i} className="grid grid-cols-3 gap-2">
-                    <Input value={it.costCenter} onChange={(e) => setItems(items.map((x, xi) => xi === i ? { ...x, costCenter: e.target.value } : x))} placeholder="CC (mis. OP)" className="h-8 text-sm" />
+                    <Input value={it.costCenter} onChange={(e) => setItems(items.map((x, xi) => xi === i ? { ...x, costCenter: e.target.value } : x))} placeholder={t("CC (mis. OP)", "CC (e.g. OP)")} className="h-8 text-sm" />
                     <Input type="number" min="0" value={it.amount} onChange={(e) => setItems(items.map((x, xi) => xi === i ? { ...x, amount: e.target.value } : x))} placeholder="Rp" className="h-8 text-sm" />
                     <div className="flex gap-1">
-                      <Input value={it.note} onChange={(e) => setItems(items.map((x, xi) => xi === i ? { ...x, note: e.target.value } : x))} placeholder="Catatan" className="h-8 text-sm" />
+                      <Input value={it.note} onChange={(e) => setItems(items.map((x, xi) => xi === i ? { ...x, note: e.target.value } : x))} placeholder={t("Catatan")} className="h-8 text-sm" />
                       {items.length > 1 && (
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-rose-600" onClick={() => setItems(items.filter((_, x) => x !== i))}>×</Button>
                       )}
@@ -221,15 +223,15 @@ export function TravelBudgetPage() {
                 ))}
               </div>
               <div className="flex items-center justify-between rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold dark:bg-stone-800">
-                <span className="text-stone-600 dark:text-stone-300">Jumlah item: {fmtIDR(items.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
-                <Badge variant="secondary" className="text-[10px]">Optional — bisa kosong</Badge>
+                <span className="text-stone-600 dark:text-stone-300">{t("Jumlah item: {amt}", "Item total: {amt}", { amt: fmtIDR(items.reduce((s, i) => s + (Number(i.amount) || 0), 0)) })}</span>
+                <Badge variant="secondary" className="text-[10px]">{t("Optional — bisa kosong", "Optional — can be empty")}</Badge>
               </div>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy} className="font-bold">
-              {busy ? "Menyimpan…" : editId ? "Simpan Perubahan" : "Buat Budget"}
+              {busy ? t("Menyimpan…") : editId ? t("Simpan Perubahan", "Save Changes") : t("Buat Budget", "Create Budget")}
             </Button>
           </DialogFooter>
         </DialogContent>

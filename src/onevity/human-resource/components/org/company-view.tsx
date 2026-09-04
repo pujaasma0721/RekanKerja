@@ -14,6 +14,7 @@ import {
   Pencil, Building2, MapPin, Phone, Mail, Globe, Hash, CalendarDays, Users, Network, BriefcaseBusiness, Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import type { CompanyData, CompanyRes } from "./types";
 
 // ============ Edit dialog ============
@@ -23,6 +24,7 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
   company: CompanyData | null;
   onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     code: "", name: "", shortName: "", taxId: "", address: "", city: "", phone: "", email: "", website: "", currency: "IDR",
   });
@@ -47,17 +49,17 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error("Kode dan nama perusahaan wajib diisi"); return; }
+    if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama perusahaan wajib diisi", "Company code and name are required")); return; }
     setSaving(true);
     try {
       await apiSend("/api/onevity/companies", "PATCH", {
         id: company?.id, ...form, shortName: form.shortName || null,
       });
-      toast.success("Profil perusahaan diperbarui");
+      toast.success(t("Profil perusahaan diperbarui", "Company profile updated"));
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan perubahan");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan perubahan", "Failed to save changes"));
     } finally {
       setSaving(false);
     }
@@ -67,20 +69,20 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Profil Perusahaan</DialogTitle>
-          <DialogDescription>Perbarui data identitas dan kontak perusahaan.</DialogDescription>
+          <DialogTitle>{t("Edit Profil Perusahaan", "Edit Company Profile")}</DialogTitle>
+          <DialogDescription>{t("Perbarui data identitas dan kontak perusahaan.", "Update the company's identity and contact details.")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="c-code">Kode Perusahaan</Label>
+            <Label htmlFor="c-code">{t("Kode Perusahaan", "Company Code")}</Label>
             <Input id="c-code" value={form.code} onChange={set("code")} className="font-mono text-xs uppercase" />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="c-short">Nama Singkat</Label>
+            <Label htmlFor="c-short">{t("Nama Singkat", "Short Name")}</Label>
             <Input id="c-short" value={form.shortName} onChange={set("shortName")} placeholder="MII" />
           </div>
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="c-name">Nama Lengkap (PT)</Label>
+            <Label htmlFor="c-name">{t("Nama Lengkap (PT)", "Full Name (PT)")}</Label>
             <Input id="c-name" value={form.name} onChange={set("name")} />
           </div>
           <div className="grid gap-1.5">
@@ -88,19 +90,19 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
             <Input id="c-tax" value={form.taxId} onChange={set("taxId")} placeholder="01.234.567.8-901.000" />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="c-city">Kota</Label>
+            <Label htmlFor="c-city">{t("Kota", "City")}</Label>
             <Input id="c-city" value={form.city} onChange={set("city")} />
           </div>
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="c-addr">Alamat</Label>
+            <Label htmlFor="c-addr">{t("Alamat")}</Label>
             <Input id="c-addr" value={form.address} onChange={set("address")} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="c-phone">Telepon</Label>
+            <Label htmlFor="c-phone">{t("Telepon")}</Label>
             <Input id="c-phone" value={form.phone} onChange={set("phone")} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="c-email">Email</Label>
+            <Label htmlFor="c-email">{t("Email")}</Label>
             <Input id="c-email" type="email" value={form.email} onChange={set("email")} />
           </div>
           <div className="grid gap-1.5">
@@ -108,13 +110,13 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
             <Input id="c-web" value={form.website} onChange={set("website")} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="c-cur">Mata Uang</Label>
+            <Label htmlFor="c-cur">{t("Mata Uang", "Currency")}</Label>
             <Input id="c-cur" value={form.currency} onChange={set("currency")} placeholder="IDR" className="uppercase" />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : "Simpan Perubahan"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : t("Simpan Perubahan", "Save Changes")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -123,6 +125,7 @@ function CompanyFormDialog({ open, onOpenChange, company, onDone }: {
 
 // ============ Main view ============
 export function CompanyView() {
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<CompanyRes>("/api/onevity/companies");
   const [editOpen, setEditOpen] = useState(false);
   const company = data?.company ?? null;
@@ -130,12 +133,12 @@ export function CompanyView() {
   return (
     <div>
       <PageHeader
-        eyebrow="PERUSAHAAN & ORGANISASI"
-        title="Perusahaan"
-        description="Profil legal dan identitas perusahaan induk yang menjadi induk seluruh unit, posisi, dan karyawan."
+        eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")}
+        title={t("Perusahaan")}
+        description={t("Profil legal dan identitas perusahaan induk yang menjadi induk seluruh unit, posisi, dan karyawan.", "Legal profile and identity of the parent company that anchors all units, positions, and employees.")}
         actions={
           <Button size="sm" className="h-10 px-4 font-bold" onClick={() => setEditOpen(true)} disabled={!company}>
-            <Pencil className="h-4 w-4" /> Edit Profil
+            <Pencil className="h-4 w-4" /> {t("Edit Profil", "Edit Profile")}
           </Button>
         }
       />
@@ -143,7 +146,7 @@ export function CompanyView() {
       {loading ? (
         <LoadingCards cards={2} />
       ) : error || !company ? (
-        <EmptyState title="Data perusahaan tidak tersedia" description={error ?? "Belum ada perusahaan yang terdaftar pada sistem."} />
+        <EmptyState title={t("Data perusahaan tidak tersedia", "Company data unavailable")} description={error ?? t("Belum ada perusahaan yang terdaftar pada sistem.", "No company has been registered in the system yet.")} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {/* ==== profile card ==== */}
@@ -162,7 +165,7 @@ export function CompanyView() {
                     <Badge className="border-white/25 bg-white/15 text-[10px] text-white hover:bg-white/15">{company.currency}</Badge>
                     {company.active && (
                       <Badge className="border-white/25 bg-white/15 text-[10px] text-white hover:bg-white/15">
-                        <span className="mr-1 h-1.5 w-1.5 rounded-full bg-emerald-300" /> Aktif
+                        <span className="mr-1 h-1.5 w-1.5 rounded-full bg-emerald-300" /> {t("Aktif")}
                       </Badge>
                     )}
                   </div>
@@ -173,19 +176,19 @@ export function CompanyView() {
             <CardContent className="space-y-5 p-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <InfoRow icon={Hash} label="NPWP" value={company.taxId} />
-                <InfoRow icon={Landmark} label="Kota" value={company.city} />
-                <InfoRow icon={MapPin} label="Alamat" value={company.address} className="sm:col-span-2" />
-                <InfoRow icon={Phone} label="Telepon" value={company.phone} />
-                <InfoRow icon={Mail} label="Email" value={company.email} />
+                <InfoRow icon={Landmark} label={t("Kota", "City")} value={company.city} />
+                <InfoRow icon={MapPin} label={t("Alamat")} value={company.address} className="sm:col-span-2" />
+                <InfoRow icon={Phone} label={t("Telepon")} value={company.phone} />
+                <InfoRow icon={Mail} label={t("Email")} value={company.email} />
                 <InfoRow icon={Globe} label="Website" value={company.website} />
-                <InfoRow icon={CalendarDays} label="Terdaftar Sejak" value={fmtDate(company.createdAt)} />
+                <InfoRow icon={CalendarDays} label={t("Terdaftar Sejak", "Registered Since")} value={fmtDate(company.createdAt)} />
               </div>
 
               <div className="rounded-xl border ov-border-accent ov-soft p-4 text-xs leading-relaxed">
                 <p className="mb-1 flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
-                  <Building2 className="h-3.5 w-3.5" /> Entitas Induk
+                  <Building2 className="h-3.5 w-3.5" /> {t("Entitas Induk", "Parent Entity")}
                 </p>
-                Seluruh unit organisasi, definisi posisi, dan data karyawan pada modul Human Resource Base terhubung ke perusahaan ini.
+                {t("Seluruh unit organisasi, definisi posisi, dan data karyawan pada modul Human Resource Base terhubung ke perusahaan ini.", "All organizational units, position definitions, and employee data in the Human Resource Base module are linked to this company.")}
               </div>
             </CardContent>
           </Card>
@@ -194,21 +197,21 @@ export function CompanyView() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <StatCard
               icon={Users}
-              label="Karyawan Aktif"
+              label={t("Karyawan Aktif", "Active Employees")}
               value={data?.stats.activeEmployees ?? 0}
-              sub="berdasarkan status kepegawaian"
+              sub={t("berdasarkan status kepegawaian", "by employment status")}
             />
             <StatCard
               icon={Network}
-              label="Unit Organisasi"
+              label={t("Unit Organisasi")}
               value={data?.stats.orgUnits ?? 0}
-              sub="dari level CEO hingga sub-unit"
+              sub={t("dari level CEO hingga sub-unit", "from CEO level down to sub-units")}
             />
             <StatCard
               icon={BriefcaseBusiness}
-              label="Posisi Aktif"
+              label={t("Posisi Aktif", "Active Positions")}
               value={data?.stats.activePositions ?? 0}
-              sub="definisi posisi aktif"
+              sub={t("definisi posisi aktif", "active position definitions")}
             />
           </div>
         </div>

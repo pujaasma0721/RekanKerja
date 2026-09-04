@@ -2,6 +2,7 @@
 // OneVity — POSISI › Daftar Posisi: advanced table + filters + detail sheet + CRUD
 import { useEffect, useMemo, useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useApi, apiSend, initials, avatarColor, fmtIDR, fmtDate } from "@/onevity/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ function PositionFormDialog({
     code: "", title: "", jobId: "none", orgUnitId: "none", gradeId: "none", level: "", headcount: "1", reportsToId: "none",
   });
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -63,8 +65,8 @@ function PositionFormDialog({
   }, [open, mode, position]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.title.trim()) { toast.error("Kode dan nama posisi wajib diisi"); return; }
-    if (Number(form.headcount) < 1) { toast.error("Headcount minimal 1"); return; }
+    if (!form.code.trim() || !form.title.trim()) { toast.error(t("Kode dan nama posisi wajib diisi", "Code and position name are required")); return; }
+    if (Number(form.headcount) < 1) { toast.error(t("Headcount minimal 1", "Headcount must be at least 1")); return; }
     setSaving(true);
     try {
       const payload = {
@@ -79,16 +81,16 @@ function PositionFormDialog({
       };
       if (mode === "create") {
         const res = await apiSend<{ position: PositionRow }>("/api/onevity/positions", "POST", payload);
-        toast.success(`Posisi "${res.position.title}" berhasil dibuat`);
+        toast.success(t('Posisi "{title}" berhasil dibuat', 'Position "{title}" created successfully', { title: res.position.title }));
         onDone(res.position.id);
       } else if (position) {
         await apiSend("/api/onevity/positions", "PATCH", { id: position.id, ...payload });
-        toast.success("Posisi berhasil diperbarui");
+        toast.success(t("Posisi berhasil diperbarui", "Position updated successfully"));
         onDone();
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan posisi");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan posisi", "Failed to save position"));
     } finally {
       setSaving(false);
     }
@@ -100,14 +102,14 @@ function PositionFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Posisi Baru" : "Ubah Posisi"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("Posisi Baru") : t("Ubah Posisi", "Edit Position")}</DialogTitle>
           <DialogDescription>
-            {mode === "create" ? "Definisikan posisi baru beserta job, unit, grade, dan garis pelaporannya." : `Perbarui data posisi ${position?.code ?? ""}.`}
+            {mode === "create" ? t("Definisikan posisi baru beserta job, unit, grade, dan garis pelaporannya.", "Define a new position with its job, unit, grade, and reporting line.") : t("Perbarui data posisi {code}.", "Update data for position {code}.", { code: position?.code ?? "" })}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="p-code">Kode Posisi</Label>
+            <Label htmlFor="p-code">{t("Kode Posisi", "Position Code")}</Label>
             <Input id="p-code" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="P-HRM" className="font-mono text-xs uppercase" />
           </div>
           <div className="grid gap-1.5">
@@ -115,60 +117,60 @@ function PositionFormDialog({
             <Input id="p-headcount" type="number" min={1} value={form.headcount} onChange={(e) => setForm((f) => ({ ...f, headcount: e.target.value }))} />
           </div>
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="p-title">Nama / Judul Posisi</Label>
+            <Label htmlFor="p-title">{t("Nama / Judul Posisi", "Name / Position Title")}</Label>
             <Input id="p-title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="HR Manager" />
           </div>
           <div className="grid gap-1.5">
             <Label>Job</Label>
             <Select value={form.jobId} onValueChange={(v) => setForm((f) => ({ ...f, jobId: v }))}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih job" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder={t("Pilih job", "Select a job")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— Tanpa job —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa job —", "— No job —")}</SelectItem>
                 {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.code} — {j.title}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-1.5">
-            <Label>Unit Organisasi</Label>
+            <Label>{t("Unit Organisasi")}</Label>
             <Select value={form.orgUnitId} onValueChange={(v) => setForm((f) => ({ ...f, orgUnitId: v }))}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih unit" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder={t("Pilih unit", "Select a unit")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— Tanpa unit —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa unit —", "— No unit —")}</SelectItem>
                 {units.map((u) => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-1.5">
-            <Label>Grade</Label>
+            <Label>{t("Grade")}</Label>
             <Select value={form.gradeId} onValueChange={(v) => {
               const g = grades.find((x) => x.id === v);
               setForm((f) => ({ ...f, gradeId: v, level: v === "none" ? f.level : (g?.code ?? f.level) }));
             }}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih grade" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder={t("Pilih grade", "Select a grade")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— Tanpa grade —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa grade —", "— No grade —")}</SelectItem>
                 {grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="p-level">Level</Label>
+            <Label htmlFor="p-level">{t("Level")}</Label>
             <Input id="p-level" value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} placeholder="G5" className="uppercase" />
           </div>
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label>Lapor Kepada (Reports To)</Label>
+            <Label>{t("Lapor Kepada (Reports To)", "Reports To")}</Label>
             <Select value={form.reportsToId} onValueChange={(v) => setForm((f) => ({ ...f, reportsToId: v }))}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih posisi atasan" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder={t("Pilih posisi atasan", "Select a supervisor position")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— Tanpa atasan —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa atasan —", "— No supervisor —")}</SelectItem>
                 {reportOptions.map((p) => <SelectItem key={p.id} value={p.id}>{p.code} — {p.title}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : mode === "create" ? "Buat Posisi" : "Simpan"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : mode === "create" ? t("Buat Posisi", "Create Position") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -189,6 +191,7 @@ function PositionDetailSheet({
   onSelectPosition: (id: string) => void;
 }) {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -203,10 +206,10 @@ function PositionDetailSheet({
     setToggling(true);
     try {
       await apiSend("/api/onevity/positions", "PATCH", { id: position.id, active: !position.active });
-      toast.success(position.active ? `Posisi ${position.code} dinonaktifkan` : `Posisi ${position.code} diaktifkan kembali`);
+      toast.success(position.active ? t("Posisi {code} dinonaktifkan", "Position {code} deactivated", { code: position.code }) : t("Posisi {code} diaktifkan kembali", "Position {code} reactivated", { code: position.code }));
       onRefresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengubah status posisi");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengubah status posisi", "Failed to change position status"));
     } finally {
       setToggling(false);
     }
@@ -216,12 +219,12 @@ function PositionDetailSheet({
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/positions?id=${encodeURIComponent(position.id)}`, "DELETE");
-      toast.success(`Posisi "${position.title}" dihapus`);
+      toast.success(t('Posisi "{title}" dihapus', 'Position "{title}" deleted', { title: position.title }));
       setDeleteOpen(false);
       onOpenChange(false);
       onDeleted();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus posisi");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus posisi", "Failed to delete position"));
     } finally {
       setDeleting(false);
     }
@@ -240,7 +243,7 @@ function PositionDetailSheet({
               </div>
               <SheetTitle className="text-lg font-bold leading-tight">{position.title}</SheetTitle>
               <SheetDescription className="mt-1 text-xs">
-                {position.job ? `${position.job.title} · ` : ""}{position.orgUnit?.name ?? "Tanpa unit"}
+                {position.job ? `${position.job.title} · ` : ""}{position.orgUnit?.name ?? t("Tanpa unit", "No unit")}
               </SheetDescription>
             </div>
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ov-tile">
@@ -254,33 +257,33 @@ function PositionDetailSheet({
           <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
             <div className="mb-3 flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
-                <Users className="h-4 w-4 ov-text-accent" /> Okupansi Posisi
+                <Users className="h-4 w-4 ov-text-accent" /> {t("Okupansi Posisi", "Position Occupancy")}
               </p>
               <p className="text-sm font-bold tabular-nums ov-text-accent">{act} / {position.headcount}</p>
             </div>
             <Progress value={pct} className="h-2.5 [&>div]:ov-chart" />
-            <p className="mt-2 text-[11px] text-stone-500">{position.headcount > 0 ? `Terisi ${pct}% dari kuota headcount.` : "Headcount belum ditetapkan."}</p>
+            <p className="mt-2 text-[11px] text-stone-500">{position.headcount > 0 ? t("Terisi {pct}% dari kuota headcount.", "Filled {pct}% of headcount quota.", { pct }) : t("Headcount belum ditetapkan.", "Headcount not set yet.")}</p>
           </div>
 
           {/* info grid */}
           <div className="grid grid-cols-2 gap-3">
             <SheetTile icon={FileText} label="Job" value={position.job ? `${position.job.code} — ${position.job.title}` : "—"} />
-            <SheetTile icon={Building2} label="Unit Organisasi" value={position.orgUnit?.name ?? "—"} />
-            <SheetTile icon={GraduationCap} label="Grade" value={position.grade ? `${position.grade.code} — ${position.grade.name}` : "—"} />
-            <SheetTile icon={Layers} label="Level" value={position.level ?? "—"} />
-            <SheetTile icon={Wallet} label="Rentang Gaji Grade" value={position.grade ? `${fmtIDR(position.grade.minSalary)} – ${fmtIDR(position.grade.maxSalary)}` : "—"} className="col-span-2" />
-            <SheetTile icon={GitBranch} label="Lapor Kepada" value={position.reportsTo ? `${position.reportsTo.code} — ${position.reportsTo.title}` : "—"} className="col-span-2" />
-            <SheetTile icon={Layers} label="Dibuat" value={fmtDate(position.createdAt)} />
-            <SheetTile icon={Users} label="Total Karyawan" value={`${holders.length} orang`} />
+            <SheetTile icon={Building2} label={t("Unit Organisasi")} value={position.orgUnit?.name ?? "—"} />
+            <SheetTile icon={GraduationCap} label={t("Grade")} value={position.grade ? `${position.grade.code} — ${position.grade.name}` : "—"} />
+            <SheetTile icon={Layers} label={t("Level")} value={position.level ?? "—"} />
+            <SheetTile icon={Wallet} label={t("Rentang Gaji Grade", "Grade Salary Range")} value={position.grade ? `${fmtIDR(position.grade.minSalary)} – ${fmtIDR(position.grade.maxSalary)}` : "—"} className="col-span-2" />
+            <SheetTile icon={GitBranch} label={t("Lapor Kepada", "Reports To")} value={position.reportsTo ? `${position.reportsTo.code} — ${position.reportsTo.title}` : "—"} className="col-span-2" />
+            <SheetTile icon={Layers} label={t("Dibuat", "Created")} value={fmtDate(position.createdAt)} />
+            <SheetTile icon={Users} label={t("Total Karyawan", "Total Employees")} value={t("{n} orang", "{n} people", { n: holders.length })} />
           </div>
 
           {/* direct reports */}
           <div>
             <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-              <GitBranch className="h-3.5 w-3.5" /> Bawahan Langsung ({directReports.length})
+              <GitBranch className="h-3.5 w-3.5" /> {t("Bawahan Langsung ({n})", "Direct Reports ({n})", { n: directReports.length })}
             </p>
             {directReports.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-stone-200 px-4 py-3 text-xs text-stone-400 dark:border-stone-800">Tidak ada posisi yang melapor ke sini.</p>
+              <p className="rounded-xl border border-dashed border-stone-200 px-4 py-3 text-xs text-stone-400 dark:border-stone-800">{t("Tidak ada posisi yang melapor ke sini.", "No positions report to this one.")}</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {directReports.map((r) => (
@@ -300,10 +303,10 @@ function PositionDetailSheet({
           {/* employees holding */}
           <div>
             <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
-              <UserRound className="h-3.5 w-3.5" /> Karyawan Pemegang Posisi ({holders.length})
+              <UserRound className="h-3.5 w-3.5" /> {t("Karyawan Pemegang Posisi ({n})", "Employees Holding the Position ({n})", { n: holders.length })}
             </p>
             {holders.length === 0 ? (
-              <EmptyState title="Belum ada pemegang" description="Posisi ini belum dipegang karyawan mana pun." />
+              <EmptyState title={t("Belum ada pemegang", "No holder yet")} description={t("Posisi ini belum dipegang karyawan mana pun.", "No employee holds this position yet.")} />
             ) : (
               <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
                 {holders.map((e) => (
@@ -332,32 +335,32 @@ function PositionDetailSheet({
         <div className="mt-auto space-y-3 border-t border-stone-200/80 bg-stone-50/70 px-5 py-4 dark:border-stone-800 dark:bg-stone-900/40">
           <div className="flex items-center justify-between rounded-xl border border-stone-200/80 bg-white px-4 py-3 dark:border-stone-800 dark:bg-stone-900">
             <div>
-              <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">Status Posisi</p>
-              <p className="text-[11px] text-stone-500">{position.active ? "Aktif — dapat dipegang karyawan" : "Nonaktif — tidak tersedia untuk karyawan"}</p>
+              <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">{t("Status Posisi", "Position Status")}</p>
+              <p className="text-[11px] text-stone-500">{position.active ? t("Aktif — dapat dipegang karyawan", "Active — can be held by employees") : t("Nonaktif — tidak tersedia untuk karyawan", "Inactive — not available to employees")}</p>
             </div>
-            <Switch checked={position.active} onCheckedChange={toggleActive} disabled={toggling} aria-label="Aktifkan posisi" />
+            <Switch checked={position.active} onCheckedChange={toggleActive} disabled={toggling} aria-label={t("Aktifkan posisi", "Activate position")} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="h-10 flex-1 gap-1.5" onClick={onEdit}>
-              <Pencil className="h-3.5 w-3.5" /> Ubah Posisi
+              <Pencil className="h-3.5 w-3.5" /> {t("Ubah Posisi", "Edit Position")}
             </Button>
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="h-10 gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
-                  <Trash2 className="h-3.5 w-3.5" /> Hapus
+                  <Trash2 className="h-3.5 w-3.5" /> {t("Hapus")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Hapus posisi “{position.title}”?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("Hapus posisi “{title}”?", "Delete position “{title}”?", { title: position.title })}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Tindakan ini permanen. Posisi yang masih dipegang karyawan tidak dapat dihapus. Posisi bawahan yang melapor ke posisi ini akan kehilangan atasan.
+                    {t("Tindakan ini permanen. Posisi yang masih dipegang karyawan tidak dapat dihapus. Posisi bawahan yang melapor ke posisi ini akan kehilangan atasan.", "This action is permanent. Positions still held by employees cannot be deleted. Positions reporting to this one will lose their supervisor.")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-                    {deleting ? "Menghapus…" : "Ya, Hapus"}
+                    {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -385,6 +388,7 @@ function SheetTile({ icon: Icon, label, value, className }: { icon: React.Elemen
 
 // ============ Main view ============
 export function PositionListView() {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [unitFilter, setUnitFilter] = useState("all");
@@ -425,16 +429,16 @@ export function PositionListView() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Daftar Posisi"
-        description="Seluruh definisi posisi beserta job, unit, grade, okupansi headcount, dan garis pelaporan."
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Daftar Posisi")}
+        description={t("Seluruh definisi posisi beserta job, unit, grade, okupansi headcount, dan garis pelaporan.", "All position definitions with job, unit, grade, headcount occupancy, and reporting lines.")}
         actions={
           <>
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refreshAll}>
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
             </Button>
             <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
-              <Plus className="h-4 w-4" /> Posisi Baru
+              <Plus className="h-4 w-4" /> {t("Posisi Baru")}
             </Button>
           </>
         }
@@ -448,41 +452,41 @@ export function PositionListView() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari kode / judul posisi…"
+              placeholder={t("Cari kode / judul posisi…", "Search code / position title…")}
               className="h-10 pl-9"
-              aria-label="Cari posisi"
+              aria-label={t("Cari posisi", "Search positions")}
             />
           </div>
           <Select value={unitFilter} onValueChange={setUnitFilter}>
-            <SelectTrigger className="h-10 w-full sm:w-48" aria-label="Filter unit organisasi">
-              <SelectValue placeholder="Semua unit" />
+            <SelectTrigger className="h-10 w-full sm:w-48" aria-label={t("Filter unit organisasi", "Filter organizational units")}>
+              <SelectValue placeholder={t("Semua unit", "All units")} />
             </SelectTrigger>
             <SelectContent className="max-h-72">
-              <SelectItem value="all">Semua Unit</SelectItem>
+              <SelectItem value="all">{t("Semua Unit", "All Units")}</SelectItem>
               {units.map((u) => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={gradeFilter} onValueChange={setGradeFilter}>
-            <SelectTrigger className="h-10 w-full sm:w-40" aria-label="Filter grade">
-              <SelectValue placeholder="Semua grade" />
+            <SelectTrigger className="h-10 w-full sm:w-40" aria-label={t("Filter grade", "Filter grades")}>
+              <SelectValue placeholder={t("Semua grade", "All grades")} />
             </SelectTrigger>
             <SelectContent className="max-h-72">
-              <SelectItem value="all">Semua Grade</SelectItem>
+              <SelectItem value="all">{t("Semua Grade", "All Grades")}</SelectItem>
               {grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-10 w-full sm:w-36" aria-label="Filter status">
-              <SelectValue placeholder="Semua status" />
+            <SelectTrigger className="h-10 w-full sm:w-36" aria-label={t("Filter status", "Filter status")}>
+              <SelectValue placeholder={t("Semua status", "All statuses")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="true">Aktif</SelectItem>
-              <SelectItem value="false">Nonaktif</SelectItem>
+              <SelectItem value="all">{t("Semua Status", "All Statuses")}</SelectItem>
+              <SelectItem value="true">{t("Aktif")}</SelectItem>
+              <SelectItem value="false">{t("Nonaktif")}</SelectItem>
             </SelectContent>
           </Select>
           <span className="ml-auto shrink-0 text-xs font-semibold text-stone-500 dark:text-stone-400">
-            {positionsApi.loading ? "Memuat…" : `${positionsApi.data?.total ?? 0} posisi`}
+            {positionsApi.loading ? t("Memuat…") : t("{n} posisi", "{n} positions", { n: positionsApi.data?.total ?? 0 })}
           </span>
         </CardContent>
       </Card>
@@ -493,12 +497,12 @@ export function PositionListView() {
           {positionsApi.loading ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
           ) : positionsApi.error ? (
-            <div className="p-4"><EmptyState title="Gagal memuat" description={positionsApi.error} /></div>
+            <div className="p-4"><EmptyState title={t("Gagal memuat", "Failed to load")} description={positionsApi.error} /></div>
           ) : positions.length === 0 ? (
             <div className="p-4">
               <EmptyState
-                title="Tidak ada posisi"
-                description="Coba ubah filter pencarian, atau buat posisi baru dengan tombol Posisi Baru."
+                title={t("Tidak ada posisi", "No positions")}
+                description={t("Coba ubah filter pencarian, atau buat posisi baru dengan tombol Posisi Baru.", "Try changing the search filter, or create a new position with the New Position button.")}
                 icon={<BriefcaseBusiness className="h-6 w-6" />}
               />
             </div>
@@ -507,14 +511,14 @@ export function PositionListView() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/80 backdrop-blur dark:bg-stone-900/60">
                   <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
-                    <TableHead className="pl-5 text-[11px] font-bold uppercase tracking-wider text-stone-500">Kode</TableHead>
-                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Posisi</TableHead>
+                    <TableHead className="pl-5 text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Kode")}</TableHead>
+                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Posisi")}</TableHead>
                     <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 md:table-cell">Job</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 lg:table-cell">Unit Organisasi</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 sm:table-cell">Grade</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 xl:table-cell">Level</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 lg:table-cell">{t("Unit Organisasi")}</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 sm:table-cell">{t("Grade")}</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 xl:table-cell">{t("Level")}</TableHead>
                     <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Headcount</TableHead>
-                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Status")}</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -565,11 +569,11 @@ export function PositionListView() {
                         <TableCell className="py-3">
                           {p.active ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Aktif
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {t("Aktif")}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-[11px] font-semibold text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-stone-400" /> Nonaktif
+                              <span className="h-1.5 w-1.5 rounded-full bg-stone-400" /> {t("Nonaktif")}
                             </span>
                           )}
                         </TableCell>

@@ -2,6 +2,7 @@
 // OneVity — POSISI › Grade & Level: grade cards G1–G8 with salary range + CRUD
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingCards } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ function GradeFormDialog({ open, onOpenChange, grade, onDone }: {
 }) {
   const [form, setForm] = useState({ code: "", name: "", minSalary: "0", maxSalary: "0" });
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -36,25 +38,25 @@ function GradeFormDialog({ open, onOpenChange, grade, onDone }: {
   }, [open, grade]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error("Kode dan nama grade wajib diisi"); return; }
+    if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama grade wajib diisi", "Code and grade name are required")); return; }
     const min = Number(form.minSalary) || 0;
     const max = Number(form.maxSalary) || 0;
-    if (min < 0 || max < 0) { toast.error("Gaji tidak boleh negatif"); return; }
-    if (max < min) { toast.error("Gaji maksimum tidak boleh lebih kecil dari minimum"); return; }
+    if (min < 0 || max < 0) { toast.error(t("Gaji tidak boleh negatif", "Salary cannot be negative")); return; }
+    if (max < min) { toast.error(t("Gaji maksimum tidak boleh lebih kecil dari minimum", "Maximum salary cannot be lower than the minimum")); return; }
     setSaving(true);
     try {
       const payload = { code: form.code.trim(), name: form.name.trim(), minSalary: min, maxSalary: max };
       if (grade) {
         await apiSend("/api/onevity/grades", "PATCH", { id: grade.id, ...payload });
-        toast.success("Grade berhasil diperbarui");
+        toast.success(t("Grade berhasil diperbarui", "Grade updated successfully"));
       } else {
         await apiSend("/api/onevity/grades", "POST", payload);
-        toast.success(`Grade ${payload.code} berhasil dibuat`);
+        toast.success(t("Grade {code} berhasil dibuat", "Grade {code} created successfully", { code: payload.code }));
       }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan grade");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan grade", "Failed to save grade"));
     } finally {
       setSaving(false);
     }
@@ -64,38 +66,38 @@ function GradeFormDialog({ open, onOpenChange, grade, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{grade ? "Ubah Grade" : "Grade Baru"}</DialogTitle>
+          <DialogTitle>{grade ? t("Ubah Grade", "Edit Grade") : t("Grade Baru", "New Grade")}</DialogTitle>
           <DialogDescription>
-            {grade ? `Perbarui grade ${grade.code} beserta rentang gajinya.` : "Tambahkan level grade baru ke struktur kompensasi."}
+            {grade ? t("Perbarui grade {code} beserta rentang gajinya.", "Update grade {code} and its salary range.", { code: grade.code }) : t("Tambahkan level grade baru ke struktur kompensasi.", "Add a new grade level to the compensation structure.")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="g-code">Kode Grade</Label>
+              <Label htmlFor="g-code">{t("Kode Grade", "Grade Code")}</Label>
               <Input id="g-code" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="G9" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="g-name">Nama</Label>
+              <Label htmlFor="g-name">{t("Nama")}</Label>
               <Input id="g-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="General Manager" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="g-min">Gaji Minimum (Rp)</Label>
+              <Label htmlFor="g-min">{t("Gaji Minimum (Rp)", "Minimum Salary (Rp)")}</Label>
               <Input id="g-min" type="number" min={0} step={500000} value={form.minSalary} onChange={(e) => setForm((f) => ({ ...f, minSalary: e.target.value }))} />
               <p className="text-[10px] text-stone-400">{fmtIDR(Number(form.minSalary) || 0)}</p>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="g-max">Gaji Maksimum (Rp)</Label>
+              <Label htmlFor="g-max">{t("Gaji Maksimum (Rp)", "Maximum Salary (Rp)")}</Label>
               <Input id="g-max" type="number" min={0} step={500000} value={form.maxSalary} onChange={(e) => setForm((f) => ({ ...f, maxSalary: e.target.value }))} />
               <p className="text-[10px] text-stone-400">{fmtIDR(Number(form.maxSalary) || 0)}</p>
             </div>
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : grade ? "Simpan" : "Buat Grade"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : grade ? t("Simpan") : t("Buat Grade", "Create Grade")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -104,6 +106,7 @@ function GradeFormDialog({ open, onOpenChange, grade, onDone }: {
 
 // ============ Main view ============
 export function GradeView() {
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<GradesRes>("/api/onevity/grades");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<GradeRow | null>(null);
@@ -119,12 +122,12 @@ export function GradeView() {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/grades?id=${encodeURIComponent(editing.id)}`, "DELETE");
-      toast.success(`Grade ${editing.code} dihapus`);
+      toast.success(t("Grade {code} dihapus", "Grade {code} deleted", { code: editing.code }));
       setDeleteOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus grade");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus grade", "Failed to delete grade"));
     } finally {
       setDeleting(false);
     }
@@ -133,16 +136,16 @@ export function GradeView() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Grade & Level"
-        description={`Struktur grade kompensasi beserta rentang gaji. ${grades.length} grade · ${totalEmployees} karyawan terpetakan.`}
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Grade & Level")}
+        description={t("Struktur grade kompensasi beserta rentang gaji. {g} grade · {e} karyawan terpetakan.", "Compensation grade structure with salary ranges. {g} grades · {e} employees mapped.", { g: grades.length, e: totalEmployees })}
         actions={
           <>
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
             </Button>
             <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="h-4 w-4" /> Grade Baru
+              <Plus className="h-4 w-4" /> {t("Grade Baru", "New Grade")}
             </Button>
           </>
         }
@@ -151,9 +154,9 @@ export function GradeView() {
       {loading ? (
         <LoadingCards cards={6} />
       ) : error ? (
-        <EmptyState title="Gagal memuat" description={error} />
+        <EmptyState title={t("Gagal memuat", "Failed to load")} description={error} />
       ) : grades.length === 0 ? (
-        <EmptyState title="Belum ada grade" description="Buat grade pertama dengan tombol Grade Baru." icon={<GraduationCap className="h-6 w-6" />} />
+        <EmptyState title={t("Belum ada grade", "No grades yet")} description={t("Buat grade pertama dengan tombol Grade Baru.", "Create the first grade with the New Grade button.")} icon={<GraduationCap className="h-6 w-6" />} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {grades.map((g) => {
@@ -182,14 +185,14 @@ export function GradeView() {
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(g); setFormOpen(true); }}
                         className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
-                        aria-label={`Ubah grade ${g.code}`}
+                        aria-label={t("Ubah grade {code}", "Edit grade {code}", { code: g.code })}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(g); setDeleteOpen(true); }}
                         className="rounded-lg p-2.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
-                        aria-label={`Hapus grade ${g.code}`}
+                        aria-label={t("Hapus grade {code}", "Delete grade {code}", { code: g.code })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -216,12 +219,12 @@ export function GradeView() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
-                      <Users className="h-3.5 w-3.5 ov-text-accent" /> {g._count.employees} karyawan
+                      <Users className="h-3.5 w-3.5 ov-text-accent" /> {t("{n} karyawan", "{n} employees", { n: g._count.employees })}
                     </span>
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
-                      <BriefcaseBusiness className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> {g._count.positions} posisi
+                      <BriefcaseBusiness className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> {t("{n} posisi", "{n} positions", { n: g._count.positions })}
                     </span>
-                    <Badge variant="outline" className="text-[9px] text-stone-400">urutan {g.sortOrder}</Badge>
+                    <Badge variant="outline" className="text-[9px] text-stone-400">{t("urutan {n}", "order {n}", { n: g.sortOrder })}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -235,15 +238,15 @@ export function GradeView() {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus grade {editing?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus grade {code}?", "Delete grade {code}?", { code: editing?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Grade yang masih dipakai karyawan atau posisi tidak dapat dihapus.
+              {t("Tindakan ini permanen. Grade yang masih dipakai karyawan atau posisi tidak dapat dihapus.", "This action is permanent. Grades still used by employees or positions cannot be deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-              {deleting ? "Menghapus…" : "Ya, Hapus"}
+              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

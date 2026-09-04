@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { apiSend } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
   CalendarCheck2, Clock, XCircle, CheckCircle2, Users, CalendarClock,
   RefreshCw, Timer, BadgeCheck, TrendingUp,
@@ -31,6 +32,7 @@ interface OverviewData {
 
 export function AttendanceOverview() {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<OverviewData>("/api/onevity/attendance/overview");
   const today = data?.today;
   const month = data?.month;
@@ -39,35 +41,35 @@ export function AttendanceOverview() {
     try {
       const d = new Date().toISOString().slice(0, 10);
       const res = await apiSend<{ regenerated: number }>("/api/onevity/attendance/clocking", "PATCH", { date: d });
-      toast.success(`Rekap hari ini dihitung ulang — ${res.regenerated} karyawan diproses`);
+      toast.success(t("Rekap hari ini dihitung ulang — {n} karyawan diproses", "Today's recap recalculated — {n} employees processed", { n: res.regenerated }));
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghitung ulang");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghitung ulang", "Failed to recalculate"));
     }
   };
 
   const kpi = [
     {
-      label: "Hadir Hari Ini", value: today ? `${today.present} / ${today.total}` : "—",
-      sub: today ? `${today.late} telat · ${today.absent} absen · ${today.workoff} izin` : undefined,
+      label: t("Hadir Hari Ini", "Present Today"), value: today ? `${today.present} / ${today.total}` : "—",
+      sub: today ? t("{a} telat · {b} absen · {c} izin", "{a} late · {b} absent · {c} permit", { a: today.late, b: today.absent, c: today.workoff }) : undefined,
       icon: CalendarCheck2, hero: true,
       onClick: () => navigate("attendance", "clocking"),
     },
     {
-      label: "Keterlambatan Bulan Ini", value: month ? `${month.late} hari` : "—",
-      sub: month ? `${Math.round(month.lateMinutes / 60)} jam total telat` : undefined,
+      label: t("Keterlambatan Bulan Ini", "Lateness This Month"), value: month ? t("{n} hari", "{n} days", { n: month.late }) : "—",
+      sub: month ? t("{n} jam total telat", "{n} h total late", { n: Math.round(month.lateMinutes / 60) }) : undefined,
       icon: Timer,
       onClick: () => navigate("attendance", "absence"),
     },
     {
-      label: "Approval Menunggu", value: data ? String(data.pendingOvertime + data.pendingWorkoff) : "—",
-      sub: data ? `${data.pendingOvertime} lembur · ${data.pendingWorkoff} izin` : undefined,
+      label: t("Approval Menunggu", "Pending Approvals"), value: data ? String(data.pendingOvertime + data.pendingWorkoff) : "—",
+      sub: data ? t("{a} lembur · {b} izin", "{a} overtime · {b} permits", { a: data.pendingOvertime, b: data.pendingWorkoff }) : undefined,
       icon: CheckCircle2,
       onClick: () => navigate("attendance", "overtime"),
     },
     {
-      label: "Lembur Bulan Ini", value: month ? `${Math.round(month.overtimeMinutes / 60)} jam` : "—",
-      sub: "jam terverifikasi siap dibayar",
+      label: t("Lembur Bulan Ini", "Overtime This Month"), value: month ? t("{n} jam", "{n} h", { n: Math.round(month.overtimeMinutes / 60) }) : "—",
+      sub: t("jam terverifikasi siap dibayar", "verified hours ready for payment"),
       icon: Clock,
       onClick: () => navigate("attendance", "overtime"),
     },
@@ -76,16 +78,16 @@ export function AttendanceOverview() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL ATTENDANCE"
-        title="Ringkasan Time & Attendance"
-        description="Jadwal kerja, presensi harian, lembur, dan izin — dari clock in/out sampai transfer ke payroll"
+        eyebrow={t("MODUL ATTENDANCE", "ATTENDANCE MODULE")}
+        title={t("Ringkasan Time & Attendance", "Time & Attendance Overview")}
+        description={t("Jadwal kerja, presensi harian, lembur, dan izin — dari clock in/out sampai transfer ke payroll", "Work schedules, daily presence, overtime and permits — from clock in/out to the payroll transfer")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={regenerateToday} className="gap-2 font-bold">
-              <RefreshCw className="h-4 w-4" /> Hitung Ulang Hari Ini
+              <RefreshCw className="h-4 w-4" /> {t("Hitung Ulang Hari Ini", "Recalculate Today")}
             </Button>
             <Button onClick={() => navigate("attendance", "clocking")} className="gap-2 font-bold">
-              <CalendarCheck2 className="h-4 w-4" /> Buka Data Clocking
+              <CalendarCheck2 className="h-4 w-4" /> {t("Buka Data Clocking", "Open Clocking Data")}
             </Button>
           </div>
         }
@@ -117,21 +119,21 @@ export function AttendanceOverview() {
               <CardContent className="p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Rekap Bulan Berjalan</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Rekap Bulan Berjalan", "Current Month Recap")}</p>
                     <p className="text-sm font-bold text-stone-900 dark:text-stone-50">{month ? `${month.from} – ${month.to}` : "—"}</p>
                   </div>
                   <TrendingUp className="h-5 w-5 ov-text-accent" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <MiniStat label="Hadir" value={month ? `${month.present} hari` : "—"} tone="text-emerald-600 dark:text-emerald-400" />
-                  <MiniStat label="Absen" value={month ? `${month.absent} hari` : "—"} tone="text-rose-600 dark:text-rose-400" />
-                  <MiniStat label="Izin" value={month ? `${month.workoff} hari` : "—"} tone="text-amber-600 dark:text-amber-400" />
-                  <MiniStat label="Telat" value={month ? `${month.late} hari` : "—"} tone="text-amber-600 dark:text-amber-400" />
-                  <MiniStat label="Jam Telat" value={month ? `${Math.round(month.lateMinutes / 60)} jam` : "—"} tone="text-stone-700 dark:text-stone-300" />
-                  <MiniStat label="Lembur" value={month ? `${Math.round(month.overtimeMinutes / 60)} jam` : "—"} tone="text-teal-600 dark:text-teal-400" />
+                  <MiniStat label={t("Hadir", "Present")} value={month ? t("{n} hari", "{n} days", { n: month.present }) : "—"} tone="text-emerald-600 dark:text-emerald-400" />
+                  <MiniStat label={t("Absen", "Absent")} value={month ? t("{n} hari", "{n} days", { n: month.absent }) : "—"} tone="text-rose-600 dark:text-rose-400" />
+                  <MiniStat label={t("Izin", "Permit")} value={month ? t("{n} hari", "{n} days", { n: month.workoff }) : "—"} tone="text-amber-600 dark:text-amber-400" />
+                  <MiniStat label={t("Telat", "Late")} value={month ? t("{n} hari", "{n} days", { n: month.late }) : "—"} tone="text-amber-600 dark:text-amber-400" />
+                  <MiniStat label={t("Jam Telat", "Late Hours")} value={month ? t("{n} jam", "{n} h", { n: Math.round(month.lateMinutes / 60) }) : "—"} tone="text-stone-700 dark:text-stone-300" />
+                  <MiniStat label={t("Lembur", "Overtime")} value={month ? t("{n} jam", "{n} h", { n: Math.round(month.overtimeMinutes / 60) }) : "—"} tone="text-teal-600 dark:text-teal-400" />
                 </div>
                 <Button variant="ghost" size="sm" className="mt-3 w-full gap-1 text-xs font-bold ov-text-accent hover:ov-text-accent" onClick={() => navigate("attendance", "absence")}>
-                  Lihat rekap & transfer ke payroll →
+                  {t("Lihat rekap & transfer ke payroll →", "View recap & transfer to payroll →")}
                 </Button>
               </CardContent>
             </Card>
@@ -141,16 +143,16 @@ export function AttendanceOverview() {
               <CardContent className="p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Kesiapan Modul</p>
-                    <p className="text-sm font-bold text-stone-900 dark:text-stone-50">Jadwal & Konfigurasi</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Kesiapan Modul", "Module Readiness")}</p>
+                    <p className="text-sm font-bold text-stone-900 dark:text-stone-50">{t("Jadwal & Konfigurasi", "Schedules & Configuration")}</p>
                   </div>
                   <BadgeCheck className="h-5 w-5 ov-text-accent" />
                 </div>
                 <div className="space-y-2.5">
-                  <SetupRow icon={CalendarClock} label="Template jadwal aktif" value={data ? `${data.activeSchedules} jadwal` : "—"} ok={(data?.activeSchedules ?? 0) > 0} onClick={() => navigate("attendance", "templates-schedule")} />
-                  <SetupRow icon={Users} label="Karyawan ter-assign jadwal" value={data ? `${data.assignedEmployees} karyawan` : "—"} ok={(data?.assignedEmployees ?? 0) > 0} onClick={() => navigate("attendance", "assignment-schedule")} />
-                  <SetupRow icon={XCircle} label="Karyawan non-clocking" value={data ? `${data.nonClocking} (jam dianggap normal)` : "—"} ok={true} onClick={() => navigate("attendance", "assignment-schedule")} />
-                  <SetupRow icon={Clock} label="Lembur menunggu approval" value={data ? `${data.pendingOvertime} perintah` : "—"} ok={(data?.pendingOvertime ?? 0) === 0} onClick={() => navigate("attendance", "overtime")} />
+                  <SetupRow icon={CalendarClock} label={t("Template jadwal aktif", "Active schedule templates")} value={data ? t("{n} jadwal", "{n} schedules", { n: data.activeSchedules }) : "—"} ok={(data?.activeSchedules ?? 0) > 0} onClick={() => navigate("attendance", "templates-schedule")} />
+                  <SetupRow icon={Users} label={t("Karyawan ter-assign jadwal", "Employees with assigned schedules")} value={data ? t("{n} karyawan", "{n} employees", { n: data.assignedEmployees }) : "—"} ok={(data?.assignedEmployees ?? 0) > 0} onClick={() => navigate("attendance", "assignment-schedule")} />
+                  <SetupRow icon={XCircle} label={t("Karyawan non-clocking", "Non-clocking employees")} value={data ? t("{n} (jam dianggap normal)", "{n} (hours assumed normal)", { n: data.nonClocking }) : "—"} ok={true} onClick={() => navigate("attendance", "assignment-schedule")} />
+                  <SetupRow icon={Clock} label={t("Lembur menunggu approval", "Overtime awaiting approval")} value={data ? t("{n} perintah", "{n} orders", { n: data.pendingOvertime }) : "—"} ok={(data?.pendingOvertime ?? 0) === 0} onClick={() => navigate("attendance", "overtime")} />
                 </div>
               </CardContent>
             </Card>
@@ -159,12 +161,12 @@ export function AttendanceOverview() {
           {/* alur kerja */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardContent className="p-5">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">Alur Kerja (mengikuti Time Attendance)</p>
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Alur Kerja (mengikuti Time Attendance)", "Workflow (following Time Attendance)")}</p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <FlowStep no="1" title="Setup Master" desc="Tipe hari, jadwal cycle, aturan toleransi & pembulatan" onClick={() => navigate("attendance", "templates-schedule")} />
-                <FlowStep no="2" title="Assign Jadwal" desc="Penugasan jadwal per karyawan + anchor Senin" onClick={() => navigate("attendance", "assignment-schedule")} />
-                <FlowStep no="3" title="Presensi Harian" desc="Clock in/out, refresh rekap, koreksi manual" onClick={() => navigate("attendance", "clocking")} />
-                <FlowStep no="4" title="Transfer Payroll" desc={`Rekap period → komponen LEMBUR/TLATE/TABS${data ? ` · estimasi ${fmtIDRShort((month?.overtimeMinutes ?? 0) > 0 ? 0 : 0)}` : ""}`} onClick={() => navigate("attendance", "absence")} />
+                <FlowStep no="1" title={t("Setup Master", "Master Setup")} desc={t("Tipe hari, jadwal cycle, aturan toleransi & pembulatan", "Day types, cycle schedules, tolerance & rounding rules")} onClick={() => navigate("attendance", "templates-schedule")} />
+                <FlowStep no="2" title={t("Assign Jadwal")} desc={t("Penugasan jadwal per karyawan + anchor Senin", "Per-employee schedule assignment + Monday anchor")} onClick={() => navigate("attendance", "assignment-schedule")} />
+                <FlowStep no="3" title={t("Presensi Harian", "Daily Presence")} desc={t("Clock in/out, refresh rekap, koreksi manual", "Clock in/out, refresh recap, manual corrections")} onClick={() => navigate("attendance", "clocking")} />
+                <FlowStep no="4" title={t("Transfer Payroll", "Payroll Transfer")} desc={`${t("Rekap period → komponen LEMBUR/TLATE/TABS", "Period recap → LEMBUR/TLATE/TABS components")}${data ? t(" · estimasi {v}", " · est. {v}", { v: fmtIDRShort((month?.overtimeMinutes ?? 0) > 0 ? 0 : 0) }) : ""}`} onClick={() => navigate("attendance", "absence")} />
               </div>
             </CardContent>
           </Card>

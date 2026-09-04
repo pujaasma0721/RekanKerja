@@ -6,6 +6,8 @@ import { useState, type ChangeEvent, type ElementType, type FormEvent } from "re
 import { motion } from "framer-motion";
 import { AlertCircle, Calculator, Database, Loader2, Users, Waypoints } from "lucide-react";
 import { useSession } from "@/onevity/shared/lib/session-store";
+import { useI18n } from "@/onevity/shared/lib/i18n";
+import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +16,22 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const BRAND_FEATURES_EN: { title: string; desc: string }[] = [
+  { title: "Isolated database per tenant", desc: "Full data isolation between companies" },
+  { title: "Indonesian payroll PPh21/BPJS", desc: "Progressive tax, TER, journals & SPT 1721-A1" },
+  { title: "Complete HR modules", desc: "Organization, employees, requests & benefits" },
+];
+
+// pesan validasi (fungsi modul-level) diterjemahkan di call site
+const VALIDATION_EN: Record<string, string> = {
+  "Email wajib diisi.": "Email is required.",
+  "Format email tidak valid.": "Invalid email format.",
+  "Kata sandi wajib diisi.": "Password is required.",
+  "Nama workspace wajib diisi.": "Workspace name is required.",
+  "Nama lengkap wajib diisi.": "Full name is required.",
+  "Kata sandi minimal 8 karakter.": "Password must be at least 8 characters.",
+};
 
 type AuthTab = "login" | "register";
 type FieldId = "login-email" | "login-password" | "reg-workspace" | "reg-name" | "reg-email" | "reg-password";
@@ -59,6 +77,7 @@ function FormError({ id, message }: { id: string; message: string }) {
 }
 
 export function AuthScreen() {
+  const { t } = useI18n();
   const { busy, error, login, register, clearError } = useSession();
 
   const [tab, setTab] = useState<AuthTab>("login");
@@ -95,7 +114,7 @@ export function AuthScreen() {
     if (busy) return;
     const email = loginEmail.trim();
     const v = validateLogin(email, loginPassword);
-    setFormError(v.message);
+    setFormError(v.message ? t(v.message, VALIDATION_EN[v.message]) : null);
     setInvalidFields(v.fields);
     if (v.message) return;
     await login(email, loginPassword);
@@ -105,7 +124,7 @@ export function AuthScreen() {
     e.preventDefault();
     if (busy) return;
     const v = validateRegister(workspaceName.trim(), fullName.trim(), regEmail.trim(), regPassword);
-    setFormError(v.message);
+    setFormError(v.message ? t(v.message, VALIDATION_EN[v.message]) : null);
     setInvalidFields(v.fields);
     if (v.message) return;
     await register({
@@ -153,21 +172,21 @@ export function AuthScreen() {
                 variant="outline"
                 className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
               >
-                SaaS Multi-Tenant
+                {t("SaaS Multi-Tenant", "Multi-Tenant SaaS")}
               </Badge>
               <h2 className="mt-5 text-3xl font-bold tracking-tight text-stone-50 xl:text-4xl">OneVity HR Suite</h2>
               <p className="mt-3 text-sm leading-relaxed text-stone-400 xl:text-base">
-                HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.
+                {t("HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.", "Multi-tenant HRIS — one platform, every company gets isolated data.")}
               </p>
               <ul className="mt-9 space-y-4">
-                {BRAND_FEATURES.map((f) => (
+                {BRAND_FEATURES.map((f, i) => (
                   <li key={f.title} className="flex items-start gap-3.5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
                       <f.icon className="h-[18px] w-[18px]" />
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold text-stone-200">{f.title}</span>
-                      <span className="mt-0.5 block text-xs text-stone-500">{f.desc}</span>
+                      <span className="block text-sm font-semibold text-stone-200">{t(f.title, BRAND_FEATURES_EN[i]!.title)}</span>
+                      <span className="mt-0.5 block text-xs text-stone-500">{t(f.desc, BRAND_FEATURES_EN[i]!.desc)}</span>
                     </span>
                   </li>
                 ))}
@@ -179,7 +198,11 @@ export function AuthScreen() {
         </div>
 
         {/* Panel kanan — kartu masuk / buat workspace */}
-        <div className="flex items-center justify-center px-4 py-10 sm:px-8">
+        <div className="relative flex items-center justify-center px-4 py-10 sm:px-8">
+          {/* saklar bahasa — tersedia juga sebelum masuk */}
+          <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+            <LanguageSwitcher />
+          </div>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -196,16 +219,16 @@ export function AuthScreen() {
                     One<span className="text-emerald-600 dark:text-emerald-400">Vity</span>
                   </p>
                 </div>
-                <CardTitle className="text-xl">Selamat datang</CardTitle>
+                <CardTitle className="text-xl">{t("Selamat datang", "Welcome")}</CardTitle>
                 <CardDescription>
-                  Masuk untuk melanjutkan ke workspace Anda, atau buat workspace baru untuk perusahaan Anda.
+                  {t("Masuk untuk melanjutkan ke workspace Anda, atau buat workspace baru untuk perusahaan Anda.", "Log in to continue to your workspace, or create a new workspace for your company.")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Tabs value={tab} onValueChange={(v) => switchTab(v as AuthTab)}>
                   <TabsList className="w-full">
-                    <TabsTrigger value="login">Masuk</TabsTrigger>
-                    <TabsTrigger value="register">Buat Workspace</TabsTrigger>
+                    <TabsTrigger value="login">{t("Masuk")}</TabsTrigger>
+                    <TabsTrigger value="register">{t("Buat Workspace", "Create Workspace")}</TabsTrigger>
                   </TabsList>
 
                   {/* ============ Tab Masuk ============ */}
@@ -218,7 +241,7 @@ export function AuthScreen() {
                           type="email"
                           autoComplete="email"
                           autoFocus
-                          placeholder="nama@perusahaan.id"
+                          placeholder={t("nama@perusahaan.id", "name@company.com")}
                           value={loginEmail}
                           onChange={update("login-email", setLoginEmail)}
                           disabled={busy}
@@ -227,7 +250,7 @@ export function AuthScreen() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="login-password">Kata Sandi</Label>
+                        <Label htmlFor="login-password">{t("Kata Sandi")}</Label>
                         <Input
                           id="login-password"
                           type="password"
@@ -251,21 +274,21 @@ export function AuthScreen() {
                         {busy ? (
                           <>
                             <Loader2 className="animate-spin" />
-                            Memeriksa…
+                            {t("Memeriksa…", "Checking…")}
                           </>
                         ) : (
-                          "Masuk"
+                          t("Masuk")
                         )}
                       </Button>
 
                       <p className="text-center text-xs text-stone-500 dark:text-stone-400">
-                        Belum punya akun?{" "}
+                        {t("Belum punya akun?", "No account yet?")}{" "}
                         <button
                           type="button"
                           onClick={() => switchTab("register")}
                           className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                         >
-                          Buat workspace
+                          {t("Buat workspace", "Create a workspace")}
                         </button>
                       </p>
                     </form>
@@ -275,11 +298,11 @@ export function AuthScreen() {
                   <TabsContent value="register" className="mt-4">
                     <form className="space-y-4" noValidate onSubmit={submitRegister}>
                       <div className="space-y-2">
-                        <Label htmlFor="reg-workspace">Nama Workspace</Label>
+                        <Label htmlFor="reg-workspace">{t("Nama Workspace", "Workspace Name")}</Label>
                         <Input
                           id="reg-workspace"
                           autoComplete="organization"
-                          placeholder="PT Nusantara Sejahtera"
+                          placeholder={t("PT Nusantara Sejahtera", "Acme Corporation")}
                           value={workspaceName}
                           onChange={update("reg-workspace", setWorkspaceName)}
                           disabled={busy}
@@ -288,11 +311,11 @@ export function AuthScreen() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="reg-name">Nama Lengkap</Label>
+                        <Label htmlFor="reg-name">{t("Nama Lengkap")}</Label>
                         <Input
                           id="reg-name"
                           autoComplete="name"
-                          placeholder="Budi Santoso"
+                          placeholder={t("Budi Santoso", "John Smith")}
                           value={fullName}
                           onChange={update("reg-name", setFullName)}
                           disabled={busy}
@@ -306,7 +329,7 @@ export function AuthScreen() {
                           id="reg-email"
                           type="email"
                           autoComplete="email"
-                          placeholder="nama@perusahaan.id"
+                          placeholder={t("nama@perusahaan.id", "name@company.com")}
                           value={regEmail}
                           onChange={update("reg-email", setRegEmail)}
                           disabled={busy}
@@ -315,7 +338,7 @@ export function AuthScreen() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="reg-password">Kata Sandi</Label>
+                        <Label htmlFor="reg-password">{t("Kata Sandi")}</Label>
                         <Input
                           id="reg-password"
                           type="password"
@@ -328,7 +351,7 @@ export function AuthScreen() {
                           aria-describedby={describedBy("reg-password", "register-error")}
                         />
                         <p className="text-xs text-stone-500 dark:text-stone-400">
-                          Minimal 8 karakter — kombinasi huruf besar, huruf kecil, angka &amp; karakter khusus.
+                          {t("Minimal 8 karakter — kombinasi huruf besar, huruf kecil, angka & karakter khusus.", "At least 8 characters — mix of uppercase, lowercase, numbers & special characters.")}
                         </p>
                       </div>
 
@@ -342,26 +365,26 @@ export function AuthScreen() {
                         {busy ? (
                           <>
                             <Loader2 className="animate-spin" />
-                            Menyiapkan workspace…
+                            {t("Menyiapkan workspace…", "Preparing workspace…")}
                           </>
                         ) : (
-                          "Buat Workspace"
+                          t("Buat Workspace", "Create Workspace")
                         )}
                       </Button>
                       {busy && (
                         <p className="text-center text-xs text-stone-500 dark:text-stone-400">
-                          Provisioning database tenant ± beberapa detik.
+                          {t("Provisioning database tenant ± beberapa detik.", "Provisioning tenant database takes a few seconds.")}
                         </p>
                       )}
 
                       <p className="text-center text-xs text-stone-500 dark:text-stone-400">
-                        Sudah punya akun?{" "}
+                        {t("Sudah punya akun?", "Already have an account?")}{" "}
                         <button
                           type="button"
                           onClick={() => switchTab("login")}
                           className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                         >
-                          Masuk
+                          {t("Masuk")}
                         </button>
                       </p>
                     </form>

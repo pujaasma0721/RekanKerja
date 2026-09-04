@@ -13,8 +13,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { TAX_STATUS_LABEL, SptReportData, PeriodRow } from "@/onevity/payroll/components/payroll-types";
 import { FileSpreadsheet, FileDown, Landmark, Calculator, ArrowDownUp, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 export function PayrollSptPage() {
+  const { t } = useI18n();
   const periodsApi = useApi<{ periods: PeriodRow[] }>("/api/onevity/payroll-periods");
   const years = [...new Set((periodsApi.data?.periods ?? []).map((p) => p.sptYear))].sort((a, b) => b - a);
   const [year, setYear] = useState<number>(years[0] ?? new Date().getFullYear());
@@ -22,30 +24,30 @@ export function PayrollSptPage() {
 
   const { data, loading } = useApi<SptReportData>(`/api/onevity/payroll-spt?year=${year}`);
   const report = data;
-  const t = report?.totals;
+  const totals = report?.totals;
 
   const confirmedPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Processed" || p.status === "Closed" || p.status === "Locked");
 
   const kpi = [
     {
-      label: "Bruto Kena Pajak Setahun", value: t ? fmtIDRShort(t.brutoTaxable) : "—",
-      sub: report ? `${t?.employees} pegawai · ${report.employees.reduce((s, r) => s + r.runs, 0)} baris run` : "",
+      label: t("Bruto Kena Pajak Setahun", "Annual Taxable Gross"), value: totals ? fmtIDRShort(totals.brutoTaxable) : "—",
+      sub: report ? t("{e} pegawai · {r} baris run", "{e} employees · {r} run rows", { e: totals?.employees, r: report.employees.reduce((s, r) => s + r.runs, 0) }) : "",
       icon: Landmark, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
     },
     {
-      label: "PPh21 Dipotong (Bulanan)", value: t ? fmtIDRShort(t.taxWithheld) : "—",
-      sub: "Akumulasi taxR + taxI dari run final",
+      label: t("PPh21 Dipotong (Bulanan)", "PPh21 Withheld (Monthly)"), value: totals ? fmtIDRShort(totals.taxWithheld) : "—",
+      sub: t("Akumulasi taxR + taxI dari run final", "Accumulated taxR + taxI from final runs"),
       icon: Calculator, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
     },
     {
-      label: "PPh21 Pasal 17 Setahun", value: t ? fmtIDRShort(t.pph21Annual) : "—",
-      sub: report ? `Biaya jabatan ${(report.regulation.biayaJabatanRate * 100).toFixed(0)}% cap ${fmtIDRShort(report.regulation.biayaJabatanCapAnnual)}/thn` : "",
+      label: t("PPh21 Pasal 17 Setahun", "Annual PPh21 Article 17"), value: totals ? fmtIDRShort(totals.pph21Annual) : "—",
+      sub: report ? t("Biaya jabatan {r}% cap {c}/thn", "Employment expense {r}% capped at {c}/yr", { r: (report.regulation.biayaJabatanRate * 100).toFixed(0), c: fmtIDRShort(report.regulation.biayaJabatanCapAnnual) }) : "",
       icon: FileSpreadsheet, tone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
     },
     {
-      label: "Kurang / (Lebih) Bayar", value: t ? fmtIDRShort(t.delta) : "—",
-      sub: "PPh21 setahun − telah dipotong",
-      icon: ArrowDownUp, tone: t && t.delta > 0
+      label: t("Kurang / (Lebih) Bayar", "Under / (Over) Paid"), value: totals ? fmtIDRShort(totals.delta) : "—",
+      sub: t("PPh21 setahun − telah dipotong", "Annual PPh21 − already withheld"),
+      icon: ArrowDownUp, tone: totals && totals.delta > 0
         ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
         : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
     },
@@ -54,15 +56,15 @@ export function PayrollSptPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="SPT & Pajak Tahunan"
-        description="Rekap PPh21 tahunan (1721-A1) dari seluruh run final — bruto, biaya jabatan, iuran JSTK, PKP, progresif setahun vs telah dipotong"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("SPT & Pajak Tahunan", "SPT & Annual Tax")}
+        description={t("Rekap PPh21 tahunan (1721-A1) dari seluruh run final — bruto, biaya jabatan, iuran JSTK, PKP, progresif setahun vs telah dipotong", "Annual PPh21 recap (1721-A1) from all final runs — gross, employment expense, JSTK contributions, PKP, annual progressive vs withheld")}
         actions={
           <a
             href={`/api/onevity/payroll-spt?year=${year}&export=a1`}
             className="ov-fill hover:ov-fill-deep inline-flex h-9 items-center gap-2 rounded-xl px-4 text-[13px] font-bold shadow-sm transition"
           >
-            <FileDown className="h-4 w-4" /> Ekspor 1721-A1 (CSV)
+            <FileDown className="h-4 w-4" /> {t("Ekspor 1721-A1 (CSV)", "Export 1721-A1 (CSV)")}
           </a>
         }
       />
@@ -74,14 +76,14 @@ export function PayrollSptPage() {
             <SelectTrigger className="h-9 w-[150px] text-xs font-bold"><SelectValue /></SelectTrigger>
             <SelectContent>
               {(years.length ? years : [new Date().getFullYear()]).map((y) => (
-                <SelectItem key={y} value={String(y)}>Tahun Pajak {y}</SelectItem>
+                <SelectItem key={y} value={String(y)}>{t("Tahun Pajak {y}", "Tax Year {y}", { y })}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-[11px] font-bold text-stone-400">Bukti potong Coretax bulanan</span>
+            <span className="text-[11px] font-bold text-stone-400">{t("Bukti potong Coretax bulanan", "Monthly Coretax withholding slips")}</span>
             <Select value={coretaxPeriod} onValueChange={setCoretaxPeriod}>
-              <SelectTrigger className="h-9 w-[190px] text-xs font-bold"><SelectValue placeholder="Pilih period" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[190px] text-xs font-bold"><SelectValue placeholder={t("Pilih period", "Select period")} /></SelectTrigger>
               <SelectContent>
                 {confirmedPeriods.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -109,8 +111,8 @@ export function PayrollSptPage() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardContent className="p-5">
             <EmptyState
-              title={`Belum ada run final pada tahun ${year}`}
-              description="SPT tahunan terbentuk otomatis dari run yang dikonfirmasi/dibayar. Proses payroll pada tahun pajak ini terlebih dahulu."
+              title={t("Belum ada run final pada tahun {y}", "No final runs in year {y}", { y: year })}
+              description={t("SPT tahunan terbentuk otomatis dari run yang dikonfirmasi/dibayar. Proses payroll pada tahun pajak ini terlebih dahulu.", "The annual SPT is generated automatically from confirmed/paid runs. Run payroll for this tax year first.")}
               icon={<FileSpreadsheet className="h-6 w-6" />}
             />
           </CardContent>
@@ -139,16 +141,16 @@ export function PayrollSptPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                      <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                      <TableHead className="text-[11px] font-bold">PTKP</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Bruto Reguler</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Bruto Irreguler</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Biaya Jabatan</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Iuran JSTK</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Neto / PKP</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">PPh21 Setahun</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Dipotong</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Kurang/(Lebih)</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("PTKP")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Bruto Reguler", "Regular Gross")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Bruto Irreguler", "Irregular Gross")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Biaya Jabatan", "Employment Expense")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Iuran JSTK", "JSTK Contributions")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Neto / PKP", "Net / PKP")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("PPh21 Setahun", "Annual PPh21")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Dipotong", "Withheld")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Kurang/(Lebih)", "Under/(Over)")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -166,8 +168,8 @@ export function PayrollSptPage() {
                               </TooltipTrigger>
                               <TooltipContent className="text-[11px]">
                                 <p className="font-bold">{TAX_STATUS_LABEL[r.taxStatus] ?? r.taxStatus}</p>
-                                <p>PTKP Rp {fmtIDR(r.ptkpAnnual)}/thn · {r.runs} run · {r.hasNpwp ? "NPWP" : "non-NPWP (+20%)"}</p>
-                                {!r.hasNpwp && <p className="text-rose-500">Dipotong dgn penalti non-NPWP</p>}
+                                <p>{t("PTKP Rp {v}/thn · {n} run · {s}", "PTKP Rp {v}/yr · {n} runs · {s}", { v: fmtIDR(r.ptkpAnnual), n: r.runs, s: r.hasNpwp ? "NPWP" : "non-NPWP (+20%)" })}</p>
+                                {!r.hasNpwp && <p className="text-rose-500">{t("Dipotong dgn penalti non-NPWP", "Withheld with non-NPWP penalty")}</p>}
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -195,16 +197,16 @@ export function PayrollSptPage() {
                       </TableRow>
                     ))}
                     <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Total ({t?.employees} pegawai)</TableCell>
+                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} pegawai)", "Total ({n} employees)", { n: totals?.employees })}</TableCell>
                       <TableCell />
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeRegular, 0))}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeIrregular, 0))}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(t?.biayaJabatan ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(t?.iuranJstk ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(t?.neto ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(t?.pph21Annual ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(t?.taxWithheld ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(t?.delta ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.biayaJabatan ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.iuranJstk ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.neto ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.pph21Annual ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(totals?.taxWithheld ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.delta ?? 0)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -216,9 +218,11 @@ export function PayrollSptPage() {
             <CardContent className="flex items-start gap-3 p-4">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
               <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
-                Metode: bruto kena pajak (reguler + irreguler) − biaya jabatan 5% (cap Rp 6.000.000/thn) − iuran JHT/JP pegawai = neto;
-                neto − PTKP tahunan = PKP → <b>progresif Pasal 17 setahun</b>. Dipotong = akumulasi PPh21 bulanan (TER/progresif annualized) dari run final.
-                Selisih positif = <b>kurang bayar</b> (pelunasan via tahunan/Year End Adjustment). Karyawan non-NPWP dikenai penalti tarif ×1,2 sesuai bracket.
+                {t("Metode: bruto kena pajak (reguler + irreguler) − biaya jabatan 5% (cap Rp 6.000.000/thn) − iuran JHT/JP pegawai = neto; neto − PTKP tahunan = PKP → ", "Method: taxable gross (regular + irregular) − employment expense 5% (capped at Rp 6,000,000/yr) − employee JHT/JP contributions = net; net − annual PTKP = PKP → ")}
+                <b>{t("progresif Pasal 17 setahun", "annual Article 17 progressive")}</b>
+                {t(". Dipotong = akumulasi PPh21 bulanan (TER/progresif annualized) dari run final. Selisih positif = ", ". Withheld = accumulated monthly PPh21 (TER/annualized progressive) from final runs. A positive difference means ")}
+                <b>{t("kurang bayar", "underpaid")}</b>
+                {t(" (pelunasan via tahunan/Year End Adjustment). Karyawan non-NPWP dikenai penalti tarif ×1,2 sesuai bracket.", " (settled via annual/Year End Adjustment). Non-NPWP employees are charged a ×1.2 rate penalty per bracket.")}
               </p>
             </CardContent>
           </Card>

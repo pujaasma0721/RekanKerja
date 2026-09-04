@@ -5,11 +5,14 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, Building2, ChevronRight, Loader2, LogOut, Waypoints } from "lucide-react";
 import { useSession } from "@/onevity/shared/lib/session-store";
+import { useI18n } from "@/onevity/shared/lib/i18n";
+import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function TenantSelect() {
+  const { t } = useI18n();
   const { info, busy, error, selectTenant, logout } = useSession();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -29,16 +32,19 @@ export function TenantSelect() {
 
   return (
     <div className="relative min-h-screen bg-background">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleLogout}
-        disabled={busy}
-        className="absolute right-4 top-4 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 sm:right-6 sm:top-6"
-      >
-        <LogOut className="h-4 w-4" />
-        Keluar
-      </Button>
+      <div className="absolute right-4 top-4 flex items-center gap-1 sm:right-6 sm:top-6">
+        <LanguageSwitcher />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          disabled={busy}
+          className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+        >
+          <LogOut className="h-4 w-4" />
+          {t("Keluar")}
+        </Button>
+      </div>
 
       <div className="grid min-h-screen place-items-center px-4 py-16 sm:px-6">
         <motion.div
@@ -54,17 +60,17 @@ export function TenantSelect() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-stone-500 dark:text-stone-400">
-                Pilih Workspace
+                {t("Pilih Workspace", "Select Workspace")}
               </p>
               <p className="truncate text-sm text-stone-500 dark:text-stone-400">{info.user.email}</p>
             </div>
           </div>
 
           <h1 className="mt-6 text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-            Halo, {info.user.name}
+            {t("Halo, {name}", "Hello, {name}", { name: info.user.name })}
           </h1>
           <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-            Pilih workspace untuk melanjutkan ke OneVity.
+            {t("Pilih workspace untuk melanjutkan ke OneVity.", "Select a workspace to continue to OneVity.")}
           </p>
 
           {error && (
@@ -85,15 +91,15 @@ export function TenantSelect() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
-                    Anda belum menjadi anggota workspace
+                    {t("Anda belum menjadi anggota workspace", "You are not a member of any workspace yet")}
                   </p>
                   <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                    Silakan keluar, lalu buat workspace baru untuk perusahaan Anda.
+                    {t("Silakan keluar, lalu buat workspace baru untuk perusahaan Anda.", "Please log out, then create a new workspace for your company.")}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleLogout} disabled={busy}>
                   <LogOut className="h-4 w-4" />
-                  Keluar
+                  {t("Keluar")}
                 </Button>
               </CardContent>
             </Card>
@@ -107,7 +113,7 @@ export function TenantSelect() {
                       type="button"
                       onClick={() => void handleSelect(ws.id)}
                       disabled={busy}
-                      aria-label={`Pilih workspace ${ws.name}`}
+                      aria-label={t("Pilih workspace {name}", "Select workspace {name}", { name: ws.name })}
                       className="group w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Card className="gap-0 border-stone-200 py-4 transition-all group-hover:border-emerald-400 group-hover:shadow-md group-hover:shadow-emerald-600/10 dark:border-stone-800 dark:group-hover:border-emerald-500/70">
@@ -149,7 +155,7 @@ export function TenantSelect() {
           )}
 
           <p className="mt-6 text-center text-[11px] text-stone-400 dark:text-stone-500">
-            Satu akun dapat menjadi anggota beberapa workspace — data tiap workspace terisolasi.
+            {t("Satu akun dapat menjadi anggota beberapa workspace — data tiap workspace terisolasi.", "One account can belong to multiple workspaces — each workspace's data is isolated.")}
           </p>
         </motion.div>
       </div>

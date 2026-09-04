@@ -16,16 +16,18 @@ import { toast } from "sonner";
 import { LayoutTemplate, Plus, Pencil, Trash2, Users } from "lucide-react";
 import { WageCompFull, TemplateRow } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 export function PayrollTemplatesPage() {
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<{ templates: TemplateRow[] }>("/api/onevity/wage-templates");
   const [dialog, setDialog] = useState<{ open: boolean; tpl: TemplateRow | null }>({ open: false, tpl: null });
 
-  const remove = async (t: TemplateRow) => {
-    if (!window.confirm(`Hapus template ${t.name}?`)) return;
+  const remove = async (tpl: TemplateRow) => {
+    if (!window.confirm(t("Hapus template {name}?", "Delete template {name}?", { name: tpl.name }))) return;
     try {
-      await apiSend(`/api/onevity/wage-templates?id=${t.id}`, "DELETE");
-      toast.success(`Template ${t.name} dihapus`);
+      await apiSend(`/api/onevity/wage-templates?id=${tpl.id}`, "DELETE");
+      toast.success(t("Template {name} dihapus", "Template {name} deleted", { name: tpl.name }));
       refresh();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -33,12 +35,12 @@ export function PayrollTemplatesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="Template Upah"
-        description="Paket komponen upah yang bisa dipilih per karyawan — cth: DEFAULT (tunjangan+BPJS penuh), BS (gaji pokok saja)"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("Template Upah")}
+        description={t("Paket komponen upah yang bisa dipilih per karyawan — cth: DEFAULT (tunjangan+BPJS penuh), BS (gaji pokok saja)", "Packages of wage components selectable per employee — e.g. DEFAULT (full allowance+BPJS), BS (base salary only)")}
         actions={
           <Button onClick={() => setDialog({ open: true, tpl: null })} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" /> Template Baru
+            <Plus className="h-4 w-4" /> {t("Template Baru", "New Template")}
           </Button>
         }
       />
@@ -46,32 +48,32 @@ export function PayrollTemplatesPage() {
       {loading && !data ? (
         <LoadingRows rows={4} />
       ) : (data?.templates.length ?? 0) === 0 ? (
-        <EmptyState title="Belum ada template" description="Buat template upah berisi deretan komponen." icon={<LayoutTemplate className="h-6 w-6" />} />
+        <EmptyState title={t("Belum ada template", "No templates yet")} description={t("Buat template upah berisi deretan komponen.", "Create a wage template containing a set of components.")} icon={<LayoutTemplate className="h-6 w-6" />} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {(data?.templates ?? []).map((t) => (
-            <Card key={t.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          {(data?.templates ?? []).map((tpl) => (
+            <Card key={tpl.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="font-mono text-[10px] font-bold">{t.code}</Badge>
-                      <p className="truncate text-[15px] font-bold">{t.name}</p>
+                      <Badge variant="outline" className="font-mono text-[10px] font-bold">{tpl.code}</Badge>
+                      <p className="truncate text-[15px] font-bold">{tpl.name}</p>
                     </div>
-                    {t.description && <p className="mt-0.5 text-[11px] text-stone-400">{t.description}</p>}
+                    {tpl.description && <p className="mt-0.5 text-[11px] text-stone-400">{tpl.description}</p>}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <button onClick={() => setDialog({ open: true, tpl: t })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                    <button onClick={() => setDialog({ open: true, tpl: tpl })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Ubah")}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => remove(t)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
+                    <button onClick={() => remove(tpl)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {t.items.map((it) => (
+                  {tpl.items.map((it) => (
                     <span key={it.id} className={cn(
                       "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
                       it.wageComponent.type === "Earning" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" :
@@ -85,7 +87,7 @@ export function PayrollTemplatesPage() {
 
                 <div className="mt-3 flex items-center gap-2 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
                   <Users className="h-3.5 w-3.5 text-stone-400" />
-                  <p className="text-[11px] font-bold text-stone-500">{t._count.profiles} karyawan memakai template ini</p>
+                  <p className="text-[11px] font-bold text-stone-500">{t("{n} karyawan memakai template ini", "{n} employees use this template", { n: tpl._count.profiles })}</p>
                 </div>
               </CardContent>
             </Card>
@@ -99,6 +101,7 @@ export function PayrollTemplatesPage() {
 }
 
 function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRow | null; onClose: () => void }) {
+  const { t } = useI18n();
   const compsApi = useApi<{ components: WageCompFull[] }>(open ? "/api/onevity/wage-components" : null);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -121,16 +124,16 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
   };
 
   const submit = async () => {
-    if (!code.trim() || !name.trim()) { toast.error("Kode & nama template wajib diisi"); return; }
-    if (selected.length === 0) { toast.error("Pilih minimal satu komponen"); return; }
+    if (!code.trim() || !name.trim()) { toast.error(t("Kode & nama template wajib diisi", "Template code & name are required")); return; }
+    if (selected.length === 0) { toast.error(t("Pilih minimal satu komponen", "Select at least one component")); return; }
     setBusy(true);
     try {
       if (tpl) {
         await apiSend("/api/onevity/wage-templates", "PATCH", { id: tpl.id, name, description, componentIds: selected });
-        toast.success("Template diperbarui");
+        toast.success(t("Template diperbarui", "Template updated"));
       } else {
         await apiSend("/api/onevity/wage-templates", "POST", { code: code.trim().toUpperCase(), name, description, componentIds: selected });
-        toast.success("Template dibuat");
+        toast.success(t("Template dibuat", "Template created"));
       }
       onClose();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -144,25 +147,25 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><LayoutTemplate className="h-4 w-4 ov-text-accent" /> {tpl ? "Edit Template" : "Template Upah Baru"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><LayoutTemplate className="h-4 w-4 ov-text-accent" /> {tpl ? t("Edit Template", "Edit Template") : t("Template Upah Baru", "New Wage Template")}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           {!tpl && (
             <div>
-              <Label className="text-xs">Kode *</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="cth: STAFF-OPS" className="mt-1.5 font-mono uppercase" />
+              <Label className="text-xs">{t("Kode *", "Code *")}</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("cth: STAFF-OPS", "e.g. STAFF-OPS")} className="mt-1.5 font-mono uppercase" />
             </div>
           )}
           <div>
-            <Label className="text-xs">Nama *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth: Template Operator Shift" className="mt-1.5" />
+            <Label className="text-xs">{t("Nama *", "Name *")}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cth: Template Operator Shift", "e.g. Shift Operator Template")} className="mt-1.5" />
           </div>
           <div>
-            <Label className="text-xs">Deskripsi</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="opsional" className="mt-1.5" />
+            <Label className="text-xs">{t("Deskripsi")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("opsional", "optional")} className="mt-1.5" />
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <Label className="text-xs">Komponen dalam template * ({selected.length})</Label>
+              <Label className="text-xs">{t("Komponen dalam template *", "Components in template *")} ({selected.length})</Label>
               <Select value="all" onValueChange={() => {}}>
                 <SelectTrigger className="hidden h-7 w-24 text-[11px]"><SelectValue /></SelectTrigger>
                 <SelectContent />
@@ -182,16 +185,16 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
                   </div>
                 </div>
               ))}
-              {compsApi.loading && <p className="py-3 text-center text-xs text-stone-400">Memuat komponen…</p>}
+              {compsApi.loading && <p className="py-3 text-center text-xs text-stone-400">{t("Memuat komponen…", "Loading components…")}</p>}
             </div>
           </div>
           <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
-            Komponen <b>PPH21</b> otomatis dihitung engine saat run diproses (tidak perlu dimasukkan). Angsuran pinjaman juga otomatis masuk bila jatuh tempo.
+            {t("Komponen", "The")} <b>PPH21</b> {t("otomatis dihitung engine saat run diproses (tidak perlu dimasukkan). Angsuran pinjaman juga otomatis masuk bila jatuh tempo.", "component is calculated automatically by the engine when the run is processed (no need to add it). Loan installments are also included automatically when due.")}
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

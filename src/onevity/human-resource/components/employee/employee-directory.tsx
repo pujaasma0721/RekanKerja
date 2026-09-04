@@ -18,8 +18,9 @@ import {
   Building2, GraduationCap, Wallet, CalendarClock, Mail, Phone, ArrowUpRight, User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { EmployeeAvatar } from "./employee-avatar";
-import { EMPLOYMENT_STATUS_LABEL, employmentStatusBadge, type DirectoryResp, type OrgUnitsLiteResp, type EmployeeRow } from "./types";
+import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, employmentStatusBadge, type DirectoryResp, type OrgUnitsLiteResp, type EmployeeRow } from "./types";
 
 const PAGE_SIZE = 25;
 
@@ -34,17 +35,19 @@ const EMPLOYMENT_TAG: Record<string, { text: string; dot: string }> = {
 };
 
 function EmploymentTag({ status, className }: { status: string; className?: string }) {
-  const t = EMPLOYMENT_TAG[status] ?? { text: "text-stone-500 dark:text-stone-400", dot: "bg-stone-400" };
+  const { t } = useI18n();
+  const t9 = EMPLOYMENT_TAG[status] ?? { text: "text-stone-500 dark:text-stone-400", dot: "bg-stone-400" };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] font-medium whitespace-nowrap", t.text, className)}>
-      <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", t.dot)} />
-      {EMPLOYMENT_STATUS_LABEL[status] ?? status}
+    <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] font-medium whitespace-nowrap", t9.text, className)}>
+      <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", t9.dot)} />
+      {t(EMPLOYMENT_STATUS_LABEL[status] ?? status, EMPLOYMENT_STATUS_LABEL_EN[status])}
     </span>
   );
 }
 
 export function EmployeeDirectory() {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const perms = useMenuPerms();
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -84,11 +87,11 @@ export function EmployeeDirectory() {
 
   // segmented status tabs (menggantikan filter chip hitam yang berat)
   const tabs = [
-    { key: "all", label: "Semua", value: stats?.total, active: status === "all" && empStatus === "all", onClick: () => { setStatus("all"); setEmpStatus("all"); resetPage(); } },
-    { key: "active", label: "Aktif", value: stats?.active, active: status === "Active", onClick: () => { setStatus(status === "Active" ? "all" : "Active"); setEmpStatus("all"); resetPage(); } },
-    { key: "probation", label: "Probation", value: stats?.probation, active: empStatus === "Probation", onClick: () => { setEmpStatus(empStatus === "Probation" ? "all" : "Probation"); setStatus("all"); resetPage(); } },
-    { key: "contract", label: "Kontrak", value: stats?.contract, active: empStatus === "Contract", onClick: () => { setEmpStatus(empStatus === "Contract" ? "all" : "Contract"); setStatus("all"); resetPage(); } },
-    { key: "inactive", label: "Non-aktif", value: stats?.inactive, active: status === "inactive", onClick: () => { setStatus(status === "inactive" ? "all" : "inactive"); setEmpStatus("all"); resetPage(); } },
+    { key: "all", label: t("Semua"), value: stats?.total, active: status === "all" && empStatus === "all", onClick: () => { setStatus("all"); setEmpStatus("all"); resetPage(); } },
+    { key: "active", label: t("Aktif"), value: stats?.active, active: status === "Active", onClick: () => { setStatus(status === "Active" ? "all" : "Active"); setEmpStatus("all"); resetPage(); } },
+    { key: "probation", label: t("Probation"), value: stats?.probation, active: empStatus === "Probation", onClick: () => { setEmpStatus(empStatus === "Probation" ? "all" : "Probation"); setStatus("all"); resetPage(); } },
+    { key: "contract", label: t("Kontrak", "Contract"), value: stats?.contract, active: empStatus === "Contract", onClick: () => { setEmpStatus(empStatus === "Contract" ? "all" : "Contract"); setStatus("all"); resetPage(); } },
+    { key: "inactive", label: t("Non-aktif", "Inactive"), value: stats?.inactive, active: status === "inactive", onClick: () => { setStatus(status === "inactive" ? "all" : "inactive"); setEmpStatus("all"); resetPage(); } },
   ];
 
   const hasFilter = debouncedQ !== "" || status !== "all" || unit !== "all" || empStatus !== "all";
@@ -96,20 +99,20 @@ export function EmployeeDirectory() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        eyebrow="Karyawan"
-        title="Direktori Karyawan"
-        description={stats ? `${stats.total} karyawan terdaftar · posisi, grade, dan rekap upah` : "Pusat data seluruh karyawan."}
+        eyebrow={t("Karyawan")}
+        title={t("Direktori Karyawan")}
+        description={stats ? t("{n} karyawan terdaftar · posisi, grade, dan rekap upah", "{n} employees registered · positions, grades & payroll recap", { n: stats.total }) : t("Pusat data seluruh karyawan.", "The central directory of all employees.")}
         actions={
           <div className="flex items-center gap-2">
             {/* toggle tampilan — segmented kecil */}
-            <div className="flex h-9 items-center gap-0.5 rounded-lg bg-stone-100/90 p-0.5 dark:bg-stone-800/70" role="group" aria-label="Mode tampilan">
-              <button onClick={() => setView("grid")} aria-pressed={view === "grid"} title="Tampilan kartu"
+            <div className="flex h-9 items-center gap-0.5 rounded-lg bg-stone-100/90 p-0.5 dark:bg-stone-800/70" role="group" aria-label={t("Mode tampilan", "View mode")}>
+              <button onClick={() => setView("grid")} aria-pressed={view === "grid"} title={t("Tampilan kartu", "Card view")}
                 className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-all", view === "grid"
                   ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-900/[0.06] dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-100/10"
                   : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300")}>
                 <LayoutGrid className="h-4 w-4" />
               </button>
-              <button onClick={() => setView("table")} aria-pressed={view === "table"} title="Tampilan tabel"
+              <button onClick={() => setView("table")} aria-pressed={view === "table"} title={t("Tampilan tabel", "Table view")}
                 className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-all", view === "table"
                   ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-900/[0.06] dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-100/10"
                   : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300")}>
@@ -118,7 +121,7 @@ export function EmployeeDirectory() {
             </div>
             {perms.can("hr", "wizard", "create") && (
               <Button onClick={() => navigate("employee", "wizard")} size="sm" className="h-9 gap-1.5 px-4 font-semibold">
-                <UserPlus className="h-4 w-4" /> Onboarding
+                <UserPlus className="h-4 w-4" /> {t("Onboarding", "Onboarding")}
               </Button>
             )}
           </div>
@@ -129,32 +132,32 @@ export function EmployeeDirectory() {
       <div className="flex items-center justify-between gap-3">
         <div
           role="tablist"
-          aria-label="Filter status karyawan"
+          aria-label={t("Filter status karyawan", "Employee status filter")}
           className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-stone-100/90 p-1 [scrollbar-width:none] dark:bg-stone-800/70 [&::-webkit-scrollbar]:hidden"
         >
-          {tabs.map((t) => (
+          {tabs.map((tb) => (
             <button
-              key={t.key}
+              key={tb.key}
               role="tab"
-              aria-selected={t.active}
-              onClick={t.onClick}
+              aria-selected={tb.active}
+              onClick={tb.onClick}
               className={cn(
                 "flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-[13px] font-medium transition-all",
-                t.active
+                tb.active
                   ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-900/[0.06] dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-100/10"
                   : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200",
               )}
             >
-              {t.label}
+              {tb.label}
               <span
                 className={cn(
                   "rounded-full px-1.5 py-px text-[11px] font-bold tabular-nums",
-                  t.active
+                  tb.active
                     ? "ov-tile"
                     : "bg-stone-200/80 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400",
                 )}
               >
-                {loading && !stats ? "…" : (t.value ?? 0)}
+                {loading && !stats ? "…" : (tb.value ?? 0)}
               </span>
             </button>
           ))}
@@ -164,7 +167,7 @@ export function EmployeeDirectory() {
             onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); resetPage(); }}
             className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-[12px] font-medium text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
           >
-            <X className="h-3.5 w-3.5" /> Reset
+            <X className="h-3.5 w-3.5" /> {t("Reset")}
           </button>
         )}
       </div>
@@ -176,33 +179,33 @@ export function EmployeeDirectory() {
           <Input
             value={q}
             onChange={(e) => { setQ(e.target.value); resetPage(); }}
-            placeholder="Cari nama, nomor karyawan, email, atau posisi…"
+            placeholder={t("Cari nama, nomor karyawan, email, atau posisi…", "Search by name, employee number, email, or position…")}
             className="h-10 rounded-xl pl-10 text-[13.5px] shadow-none"
-            aria-label="Cari karyawan"
+            aria-label={t("Cari karyawan", "Search employees")}
           />
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={unit} onValueChange={(v) => { setUnit(v); resetPage(); }}>
-            <SelectTrigger className="h-10 w-full min-w-40 rounded-xl font-medium lg:w-[210px]" aria-label="Filter unit organisasi">
-              <SelectValue placeholder="Semua unit" />
+            <SelectTrigger className="h-10 w-full min-w-40 rounded-xl font-medium lg:w-[210px]" aria-label={t("Filter unit organisasi", "Organizational unit filter")}>
+              <SelectValue placeholder={t("Semua unit", "All units")} />
             </SelectTrigger>
             <SelectContent className="max-h-72">
-              <SelectItem value="all">Semua Unit</SelectItem>
+              <SelectItem value="all">{t("Semua Unit", "All Units")}</SelectItem>
               {(units.data?.units ?? []).map((u) => (
                 <SelectItem key={u.id} value={u.id}><span className="truncate">{u.name}</span></SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={empStatus === "Probation" || empStatus === "Contract" ? "all" : empStatus} onValueChange={(v) => { setEmpStatus(v); resetPage(); }}>
-            <SelectTrigger className="h-10 w-full min-w-36 rounded-xl font-medium lg:w-[178px]" aria-label="Filter status kerja">
-              <SelectValue placeholder="Semua status kerja" />
+            <SelectTrigger className="h-10 w-full min-w-36 rounded-xl font-medium lg:w-[178px]" aria-label={t("Filter status kerja", "Employment status filter")}>
+              <SelectValue placeholder={t("Semua status kerja", "All employment statuses")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Status Kerja</SelectItem>
-              <SelectItem value="Permanent">Tetap</SelectItem>
-              <SelectItem value="Probation">Probation</SelectItem>
-              <SelectItem value="Contract">Kontrak</SelectItem>
-              <SelectItem value="Outsourcing">Outsourcing</SelectItem>
+              <SelectItem value="all">{t("Semua Status Kerja", "All Employment Statuses")}</SelectItem>
+              <SelectItem value="Permanent">{t("Tetap", "Permanent")}</SelectItem>
+              <SelectItem value="Probation">{t("Probation")}</SelectItem>
+              <SelectItem value="Contract">{t("Kontrak", "Contract")}</SelectItem>
+              <SelectItem value="Outsourcing">{t("Outsourcing")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -228,11 +231,11 @@ export function EmployeeDirectory() {
           </div>
         )
       ) : error ? (
-        <EmptyState title="Gagal memuat direktori" description={error} />
+        <EmptyState title={t("Gagal memuat direktori", "Failed to load directory")} description={error} />
       ) : rows.length === 0 ? (
         <EmptyState
-          title="Tidak ada karyawan yang cocok"
-          description={hasFilter ? "Tidak ditemukan hasil untuk filter saat ini. Coba ubah kata kunci atau reset filter." : "Belum ada karyawan terdaftar — mulai dengan onboarding baru."}
+          title={t("Tidak ada karyawan yang cocok", "No matching employees")}
+          description={hasFilter ? t("Tidak ditemukan hasil untuk filter saat ini. Coba ubah kata kunci atau reset filter.", "No results for the current filters. Try changing the keyword or resetting the filters.") : t("Belum ada karyawan terdaftar — mulai dengan onboarding baru.", "No employees registered yet — start with a new onboarding.")}
           icon={<Users className="h-6 w-6" />}
         />
       ) : view === "table" ? (
@@ -242,14 +245,14 @@ export function EmployeeDirectory() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400">Karyawan</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400">Posisi</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell">Unit</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400">Grade</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400">Status Kerja</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell">Gaji Pokok</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell">Masa Kerja</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400">Status</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400">{t("Karyawan")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400">{t("Posisi")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell">{t("Unit", "Unit")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400">{t("Grade")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400">{t("Status Kerja", "Employment Status")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell">{t("Gaji Pokok")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell">{t("Masa Kerja", "Tenure")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400">{t("Status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -298,15 +301,15 @@ export function EmployeeDirectory() {
           {/* paginasi */}
           <div className="flex flex-col items-center justify-between gap-2 border-t border-stone-200/80 px-4 py-3 dark:border-stone-800 sm:flex-row">
             <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
-              {from}–{to} dari {total} karyawan
+              {t("{from}–{to} dari {total} karyawan", "{from}–{to} of {total} employees", { from, to, total })}
             </p>
             <div className="flex items-center gap-1.5">
               <Button variant="outline" size="sm" className="h-8 rounded-lg" disabled={offset === 0 || loading}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} aria-label="Halaman sebelumnya">
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} aria-label={t("Halaman sebelumnya", "Previous page")}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="sm" className="h-8 rounded-lg" disabled={offset + PAGE_SIZE >= total || loading}
-                onClick={() => setOffset(offset + PAGE_SIZE)} aria-label="Halaman berikutnya">
+                onClick={() => setOffset(offset + PAGE_SIZE)} aria-label={t("Halaman berikutnya", "Next page")}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -343,14 +346,14 @@ export function EmployeeDirectory() {
           </div>
           {/* paginasi grid */}
           <div className="flex items-center justify-between">
-            <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">{from}–{to} dari {total} karyawan</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">{t("{from}–{to} dari {total} karyawan", "{from}–{to} of {total} employees", { from, to, total })}</p>
             <div className="flex items-center gap-1.5">
               <Button variant="outline" size="sm" className="h-8 rounded-lg" disabled={offset === 0 || loading}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} aria-label="Halaman sebelumnya">
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} aria-label={t("Halaman sebelumnya", "Previous page")}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="sm" className="h-8 rounded-lg" disabled={offset + PAGE_SIZE >= total || loading}
-                onClick={() => setOffset(offset + PAGE_SIZE)} aria-label="Halaman berikutnya">
+                onClick={() => setOffset(offset + PAGE_SIZE)} aria-label={t("Halaman berikutnya", "Next page")}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -366,6 +369,7 @@ export function EmployeeDirectory() {
 
 /* ============ Quick View — panel profil dengan cover gradient ============ */
 function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | null; onClose: () => void; onOpenFull: (id: string) => void }) {
+  const { t } = useI18n();
   return (
     <Sheet open={!!emp} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
@@ -394,7 +398,7 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 <StatusPill status={emp.status} />
                 <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold", employmentStatusBadge(emp.employmentStatus))}>
-                  {EMPLOYMENT_STATUS_LABEL[emp.employmentStatus] ?? emp.employmentStatus}
+                  {t(EMPLOYMENT_STATUS_LABEL[emp.employmentStatus] ?? emp.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[emp.employmentStatus])}
                 </span>
                 <span className="ml-auto font-mono text-[11px] tracking-tight text-stone-500 dark:text-stone-500">{emp.employeeNo}</span>
               </div>
@@ -402,30 +406,30 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
 
             {/* rincian — grouped rows */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-2">
-              <QuickSection title="Penempatan & Pekerjaan">
-                <InfoRow icon={<Building2 className="h-4 w-4" />} label="Unit Organisasi" value={emp.orgUnit?.name} />
-                <InfoRow icon={<GraduationCap className="h-4 w-4" />} label="Grade" value={emp.grade ? `${emp.grade.code}${emp.grade.name ? ` · ${emp.grade.name}` : ""}` : undefined} />
-                <InfoRow icon={<CalendarClock className="h-4 w-4" />} label="Bergabung" value={`${fmtDate(emp.joinDate)} · ${tenure(emp.joinDate)}`} />
+              <QuickSection title={t("Penempatan & Pekerjaan", "Placement & Employment")}>
+                <InfoRow icon={<Building2 className="h-4 w-4" />} label={t("Unit Organisasi")} value={emp.orgUnit?.name} />
+                <InfoRow icon={<GraduationCap className="h-4 w-4" />} label={t("Grade")} value={emp.grade ? `${emp.grade.code}${emp.grade.name ? ` · ${emp.grade.name}` : ""}` : undefined} />
+                <InfoRow icon={<CalendarClock className="h-4 w-4" />} label={t("Bergabung", "Joined")} value={`${fmtDate(emp.joinDate)} · ${tenure(emp.joinDate)}`} />
               </QuickSection>
-              <QuickSection title="Kontak">
-                <InfoRow icon={<Mail className="h-4 w-4" />} label="Email" value={emp.email ?? undefined} />
-                <InfoRow icon={<Phone className="h-4 w-4" />} label="Telepon" value={emp.phone ?? undefined} />
+              <QuickSection title={t("Kontak", "Contact")}>
+                <InfoRow icon={<Mail className="h-4 w-4" />} label={t("Email")} value={emp.email ?? undefined} />
+                <InfoRow icon={<Phone className="h-4 w-4" />} label={t("Telepon")} value={emp.phone ?? undefined} />
               </QuickSection>
-              <QuickSection title="Personal & Upah">
-                <InfoRow icon={<User className="h-4 w-4" />} label="Jenis Kelamin" value={genderLabel(emp.gender)} />
-                <InfoRow icon={<Wallet className="h-4 w-4" />} label="Gaji Pokok" value={fmtIDR(emp.baseSalary)} />
+              <QuickSection title={t("Personal & Upah", "Personal & Salary")}>
+                <InfoRow icon={<User className="h-4 w-4" />} label={t("Jenis Kelamin", "Gender")} value={genderLabel(emp.gender)} />
+                <InfoRow icon={<Wallet className="h-4 w-4" />} label={t("Gaji Pokok")} value={fmtIDR(emp.baseSalary)} />
               </QuickSection>
             </div>
 
             {/* aksi */}
             <div className="shrink-0 border-t border-stone-200/80 bg-stone-50/60 p-5 dark:border-stone-800 dark:bg-stone-900/60">
               <Button onClick={() => onOpenFull(emp.id)} className="h-10 w-full gap-1.5 font-semibold">
-                Buka Profil Lengkap <ArrowUpRight className="h-4 w-4" />
+                {t("Buka Profil Lengkap", "Open Full Profile")} <ArrowUpRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
-        <SheetDescription className="sr-only">Ringkasan data karyawan</SheetDescription>
+        <SheetDescription className="sr-only">{t("Ringkasan data karyawan", "Employee data summary")}</SheetDescription>
       </SheetContent>
     </Sheet>
   );

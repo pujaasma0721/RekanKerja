@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Building2, MapPin, Users, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 // ============ types (kontrak API Task 25) ============
 interface OfficeRow {
@@ -36,6 +37,7 @@ interface LocationsRes { locations: LocationRow[] }
 
 // ============ shared bits ============
 function ActivePill({ active }: { active: boolean }) {
+  const { t } = useI18n();
   return (
     <span className={cn(
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
@@ -44,7 +46,7 @@ function ActivePill({ active }: { active: boolean }) {
         : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-stone-400")} />
-      {active ? "Aktif" : "Nonaktif"}
+      {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );
 }
@@ -70,6 +72,7 @@ function MiniStat({ label, value, hint, icon: Icon }: {
 
 // ============ Main view ============
 export function OfficeLocationView() {
+  const { t } = useI18n();
   const officesApi = useApi<OfficesRes>("/api/onevity/company-offices");
   const locationsApi = useApi<LocationsRes>("/api/onevity/work-locations");
   const refreshAll = () => { officesApi.refresh(); locationsApi.refresh(); };
@@ -87,9 +90,9 @@ export function OfficeLocationView() {
     return (
       <div>
         <PageHeader
-          eyebrow="PERUSAHAAN & ORGANISASI"
-          title="Kantor & Lokasi Kerja"
-          description="Master kantor perusahaan (company office) dan lokasi kerja — dimensi penempatan karyawan & pencocokan approval berjenjang."
+          eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")}
+          title={t("Kantor & Lokasi Kerja")}
+          description={t("Master kantor perusahaan (company office) dan lokasi kerja — dimensi penempatan karyawan & pencocokan approval berjenjang.", "Company office and work location master — dimensions for employee placement and tiered approval matching.")}
         />
         <LoadingRows rows={6} />
       </div>
@@ -99,30 +102,30 @@ export function OfficeLocationView() {
   return (
     <div>
       <PageHeader
-        eyebrow="PERUSAHAAN & ORGANISASI"
-        title="Kantor & Lokasi Kerja"
-        description="Master kantor perusahaan (company office) dan lokasi kerja — dimensi penempatan karyawan & pencocokan approval berjenjang."
+        eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")}
+        title={t("Kantor & Lokasi Kerja")}
+        description={t("Master kantor perusahaan (company office) dan lokasi kerja — dimensi penempatan karyawan & pencocokan approval berjenjang.", "Company office and work location master — dimensions for employee placement and tiered approval matching.")}
         actions={
           <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refreshAll}>
-            <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+            <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
           </Button>
         }
       />
 
       {/* stat ringkas */}
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MiniStat label="Kantor Perusahaan" value={String(offices.length)} hint={`${activeOffices} aktif`} icon={Building2} />
-        <MiniStat label="Lokasi Kerja" value={String(locations.length)} hint={`${activeLocations} aktif`} icon={MapPin} />
-        <MiniStat label="Karyawan Terpenempatan" value={String(placedEmployees)} hint="karyawan aktif ber-kantor / ber-lokasi" icon={Users} />
+        <MiniStat label={t("Kantor Perusahaan", "Company Offices")} value={String(offices.length)} hint={t("{n} aktif", "{n} active", { n: activeOffices })} icon={Building2} />
+        <MiniStat label={t("Lokasi Kerja", "Work Locations")} value={String(locations.length)} hint={t("{n} aktif", "{n} active", { n: activeLocations })} icon={MapPin} />
+        <MiniStat label={t("Karyawan Terpenempatan", "Placed Employees")} value={String(placedEmployees)} hint={t("karyawan aktif ber-kantor / ber-lokasi", "active employees with an office / location")} icon={Users} />
       </div>
 
       <Tabs defaultValue="offices">
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
           <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-            <Building2 className="h-3.5 w-3.5" /> Kantor Perusahaan
+            <Building2 className="h-3.5 w-3.5" /> {t("Kantor Perusahaan", "Company Offices")}
           </TabsTrigger>
           <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-            <MapPin className="h-3.5 w-3.5" /> Lokasi Kerja
+            <MapPin className="h-3.5 w-3.5" /> {t("Lokasi Kerja", "Work Locations")}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="offices">
@@ -140,6 +143,7 @@ export function OfficeLocationView() {
 function OfficesTab({ offices, loading, error, refresh }: {
   offices: OfficeRow[]; loading: boolean; error: string | null; refresh: () => void;
 }) {
+  const { t } = useI18n();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -148,10 +152,10 @@ function OfficesTab({ offices, loading, error, refresh }: {
   const toggleActive = async (o: OfficeRow) => {
     try {
       await apiSend("/api/onevity/company-offices", "PATCH", { id: o.id, active: !o.active });
-      toast.success(o.active ? `Kantor ${o.code} dinonaktifkan` : `Kantor ${o.code} diaktifkan`);
+      toast.success(o.active ? t("Kantor {c} dinonaktifkan", "Office {c} deactivated", { c: o.code }) : t("Kantor {c} diaktifkan", "Office {c} activated", { c: o.code }));
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengubah status kantor");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengubah status kantor", "Failed to change office status"));
     }
   };
 
@@ -160,12 +164,12 @@ function OfficesTab({ offices, loading, error, refresh }: {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/company-offices?id=${encodeURIComponent(editing.id)}`, "DELETE");
-      toast.success(`Kantor ${editing.code} dihapus`);
+      toast.success(t("Kantor {c} dihapus", "Office {c} deleted", { c: editing.code }));
       setDeleteOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus kantor");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus kantor", "Failed to delete office"));
     } finally {
       setDeleting(false);
     }
@@ -179,31 +183,31 @@ function OfficesTab({ offices, loading, error, refresh }: {
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
             <div>
-              <p className="text-[13px] font-bold">Master Kantor Perusahaan</p>
-              <p className="text-[11px] text-stone-400">{offices.length} kantor · {totalEmployees} karyawan terpenempat</p>
+              <p className="text-[13px] font-bold">{t("Master Kantor Perusahaan", "Company Office Master")}</p>
+              <p className="text-[11px] text-stone-400">{t("{a} kantor · {b} karyawan terpenempat", "{a} offices · {b} placed employees", { a: offices.length, b: totalEmployees })}</p>
             </div>
             <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="h-3.5 w-3.5" /> Tambah Kantor
+              <Plus className="h-3.5 w-3.5" /> {t("Tambah Kantor", "Add Office")}
             </Button>
           </div>
 
           {loading ? (
             <div className="p-5"><LoadingRows rows={5} /></div>
           ) : error && offices.length === 0 ? (
-            <div className="p-5"><EmptyState title="Gagal memuat kantor" description={error} icon={<Building2 className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Gagal memuat kantor", "Failed to load offices")} description={error} icon={<Building2 className="h-6 w-6" />} /></div>
           ) : offices.length === 0 ? (
-            <div className="p-5"><EmptyState title="Belum ada kantor" description="Buat kantor perusahaan pertama dengan tombol Tambah Kantor." icon={<Building2 className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Belum ada kantor", "No offices yet")} description={t("Buat kantor perusahaan pertama dengan tombol Tambah Kantor.", "Create the first company office with the Add Office button.")} icon={<Building2 className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">Kantor</TableHead>
-                    <TableHead className="text-[11px] font-bold">Kota</TableHead>
-                    <TableHead className="text-[11px] font-bold">Alamat</TableHead>
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Lokasi</TableHead>
-                    <TableHead className="text-[11px] font-bold">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Kantor", "Office")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Kota", "City")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Alamat")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Lokasi", "Location")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
@@ -236,16 +240,16 @@ function OfficesTab({ offices, loading, error, refresh }: {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => toggleActive(o)} title={o.active ? "Nonaktifkan kantor" : "Aktifkan kantor"}>
+                        <button onClick={() => toggleActive(o)} title={o.active ? t("Nonaktifkan kantor", "Deactivate office") : t("Aktifkan kantor", "Activate office")}>
                           <ActivePill active={o.active} />
                         </button>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(o); setFormOpen(true); }} aria-label={`Ubah kantor ${o.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(o); setFormOpen(true); }} aria-label={t("Ubah kantor {c}", "Edit office {c}", { c: o.code })}>
                             <Pencil className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(o); setDeleteOpen(true); }} aria-label={`Hapus kantor ${o.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(o); setDeleteOpen(true); }} aria-label={t("Hapus kantor {c}", "Delete office {c}", { c: o.code })}>
                             <Trash2 className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
                         </div>
@@ -264,15 +268,15 @@ function OfficesTab({ offices, loading, error, refresh }: {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus kantor {editing?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus kantor {c}?", "Delete office {c}?", { c: editing?.code })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Kantor yang masih dipakai lokasi kerja atau struktur approval berjenjang tidak dapat dihapus.
+              {t("Tindakan ini permanen. Kantor yang masih dipakai lokasi kerja atau struktur approval berjenjang tidak dapat dihapus.", "This action is permanent. Offices still used by work locations or tiered approval structures cannot be deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-              {deleting ? "Menghapus…" : "Ya, Hapus"}
+              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -285,6 +289,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
 function LocationsTab({ locations, offices, loading, error, refresh }: {
   locations: LocationRow[]; offices: OfficeRow[]; loading: boolean; error: string | null; refresh: () => void;
 }) {
+  const { t } = useI18n();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LocationRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -295,12 +300,12 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/work-locations?id=${encodeURIComponent(editing.id)}`, "DELETE");
-      toast.success(`Lokasi ${editing.code} dihapus`);
+      toast.success(t("Lokasi {c} dihapus", "Location {c} deleted", { c: editing.code }));
       setDeleteOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus lokasi");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus lokasi", "Failed to delete location"));
     } finally {
       setDeleting(false);
     }
@@ -314,29 +319,29 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
             <div>
-              <p className="text-[13px] font-bold">Master Lokasi Kerja</p>
-              <p className="text-[11px] text-stone-400">{locations.length} lokasi · {totalEmployees} karyawan terpenempat</p>
+              <p className="text-[13px] font-bold">{t("Master Lokasi Kerja", "Work Location Master")}</p>
+              <p className="text-[11px] text-stone-400">{t("{a} lokasi · {b} karyawan terpenempat", "{a} locations · {b} placed employees", { a: locations.length, b: totalEmployees })}</p>
             </div>
             <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="h-3.5 w-3.5" /> Tambah Lokasi
+              <Plus className="h-3.5 w-3.5" /> {t("Tambah Lokasi", "Add Location")}
             </Button>
           </div>
 
           {loading ? (
             <div className="p-5"><LoadingRows rows={5} /></div>
           ) : error && locations.length === 0 ? (
-            <div className="p-5"><EmptyState title="Gagal memuat lokasi" description={error} icon={<MapPin className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Gagal memuat lokasi", "Failed to load locations")} description={error} icon={<MapPin className="h-6 w-6" />} /></div>
           ) : locations.length === 0 ? (
-            <div className="p-5"><EmptyState title="Belum ada lokasi kerja" description="Buat lokasi kerja pertama dengan tombol Tambah Lokasi." icon={<MapPin className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Belum ada lokasi kerja", "No work locations yet")} description={t("Buat lokasi kerja pertama dengan tombol Tambah Lokasi.", "Create the first work location with the Add Location button.")} icon={<MapPin className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">Lokasi</TableHead>
-                    <TableHead className="text-[11px] font-bold">Kantor Induk</TableHead>
-                    <TableHead className="text-[11px] font-bold">Kota</TableHead>
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Lokasi", "Location")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Kantor Induk", "Parent Office")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Kota", "City")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
@@ -351,7 +356,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="font-mono text-[12px] font-extrabold text-stone-800 dark:text-stone-200">{l.code}</p>
-                              {!l.active && <Badge variant="outline" className="text-[9px] font-bold text-stone-400">NONAKTIF</Badge>}
+                              {!l.active && <Badge variant="outline" className="text-[9px] font-bold text-stone-400">{t("NONAKTIF", "INACTIVE")}</Badge>}
                             </div>
                             <p className="max-w-[220px] truncate text-[11px] text-stone-400">{l.name}</p>
                           </div>
@@ -364,7 +369,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                             <p className="mt-0.5 max-w-[180px] truncate text-[10px] text-stone-400">{l.office.name}</p>
                           </div>
                         ) : (
-                          <span className="text-xs text-stone-400">— Tanpa kantor —</span>
+                          <span className="text-xs text-stone-400">{t("— Tanpa kantor —", "— No office —")}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-stone-600 dark:text-stone-300">{l.city || "—"}</TableCell>
@@ -375,10 +380,10 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={`Ubah lokasi ${l.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={t("Ubah lokasi {c}", "Edit location {c}", { c: l.code })}>
                             <Pencil className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={`Hapus lokasi ${l.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={t("Hapus lokasi {c}", "Delete location {c}", { c: l.code })}>
                             <Trash2 className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
                         </div>
@@ -397,15 +402,15 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus lokasi {editing?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus lokasi {c}?", "Delete location {c}?", { c: editing?.code })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Lokasi yang masih dipakai penempatan karyawan atau struktur approval berjenjang tidak dapat dihapus.
+              {t("Tindakan ini permanen. Lokasi yang masih dipakai penempatan karyawan atau struktur approval berjenjang tidak dapat dihapus.", "This action is permanent. Locations still used by employee placement or tiered approval structures cannot be deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-              {deleting ? "Menghapus…" : "Ya, Hapus"}
+              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -418,6 +423,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
 function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
   open: boolean; onOpenChange: (v: boolean) => void; office: OfficeRow | null; onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ code: "", name: "", city: "", address: "", phone: "" });
   const [saving, setSaving] = useState(false);
 
@@ -433,7 +439,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
   }, [open, office]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error("Kode dan nama kantor wajib diisi"); return; }
+    if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama kantor wajib diisi", "Office code and name are required")); return; }
     setSaving(true);
     try {
       if (office) {
@@ -444,7 +450,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
           address: form.address.trim(),
           phone: form.phone.trim(),
         });
-        toast.success(`Kantor ${office.code} berhasil diperbarui`);
+        toast.success(t("Kantor {c} berhasil diperbarui", "Office {c} updated successfully", { c: office.code }));
       } else {
         const payload = {
           code: form.code.trim().toUpperCase(),
@@ -454,12 +460,12 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
           phone: form.phone.trim() || null,
         };
         await apiSend("/api/onevity/company-offices", "POST", payload);
-        toast.success(`Kantor ${payload.code} berhasil dibuat`);
+        toast.success(t("Kantor {c} berhasil dibuat", "Office {c} created successfully", { c: payload.code }));
       }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan kantor");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan kantor", "Failed to save office"));
     } finally {
       setSaving(false);
     }
@@ -469,40 +475,40 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{office ? `Ubah Kantor ${office.code}` : "Kantor Baru"}</DialogTitle>
+          <DialogTitle>{office ? t("Ubah Kantor {c}", "Edit Office {c}", { c: office.code }) : t("Kantor Baru", "New Office")}</DialogTitle>
           <DialogDescription>
-            {office ? "Perbarui profil kantor perusahaan beserta kontaknya." : "Tambahkan kantor perusahaan (company office) baru — dimensi penempatan & approval berjenjang."}
+            {office ? t("Perbarui profil kantor perusahaan beserta kontaknya.", "Update the company office profile and its contact details.") : t("Tambahkan kantor perusahaan (company office) baru — dimensi penempatan & approval berjenjang.", "Add a new company office — a dimension for placement and tiered approvals.")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="o-code">Kode Kantor</Label>
+              <Label htmlFor="o-code">{t("Kode Kantor", "Office Code")}</Label>
               <Input id="o-code" value={form.code} disabled={!!office} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="OFF-JKT" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="o-name">Nama Kantor</Label>
-              <Input id="o-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Kantor Pusat Jakarta" />
+              <Label htmlFor="o-name">{t("Nama Kantor", "Office Name")}</Label>
+              <Input id="o-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("Kantor Pusat Jakarta", "Jakarta Head Office")} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="o-city">Kota</Label>
-              <Input id="o-city" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder="Jakarta Timur" />
+              <Label htmlFor="o-city">{t("Kota", "City")}</Label>
+              <Input id="o-city" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder={t("Jakarta Timur", "East Jakarta")} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="o-phone">Telepon</Label>
+              <Label htmlFor="o-phone">{t("Telepon")}</Label>
               <Input id="o-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="021-4600808" />
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="o-address">Alamat</Label>
+            <Label htmlFor="o-address">{t("Alamat")}</Label>
             <Input id="o-address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Jl. Industri Raya Kav. 25" />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : office ? "Simpan" : "Buat Kantor"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : office ? t("Simpan") : t("Buat Kantor", "Create Office")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -513,6 +519,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
 function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
   open: boolean; onOpenChange: (v: boolean) => void; location: LocationRow | null; offices: OfficeRow[]; onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ code: "", name: "", officeId: "", city: "", address: "", active: true });
   const [saving, setSaving] = useState(false);
 
@@ -529,7 +536,7 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
   }, [open, location]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error("Kode dan nama lokasi wajib diisi"); return; }
+    if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama lokasi wajib diisi", "Location code and name are required")); return; }
     setSaving(true);
     try {
       if (location) {
@@ -541,7 +548,7 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
           address: form.address.trim(),
           active: form.active,
         });
-        toast.success(`Lokasi ${location.code} berhasil diperbarui`);
+        toast.success(t("Lokasi {c} berhasil diperbarui", "Location {c} updated successfully", { c: location.code }));
       } else {
         const payload = {
           code: form.code.trim().toUpperCase(),
@@ -551,12 +558,12 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
           address: form.address.trim() || null,
         };
         await apiSend("/api/onevity/work-locations", "POST", payload);
-        toast.success(`Lokasi ${payload.code} berhasil dibuat`);
+        toast.success(t("Lokasi {c} berhasil dibuat", "Location {c} created successfully", { c: payload.code }));
       }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan lokasi");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan lokasi", "Failed to save location"));
     } finally {
       setSaving(false);
     }
@@ -566,60 +573,60 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{location ? `Ubah Lokasi ${location.code}` : "Lokasi Kerja Baru"}</DialogTitle>
+          <DialogTitle>{location ? t("Ubah Lokasi {c}", "Edit Location {c}", { c: location.code }) : t("Lokasi Kerja Baru", "New Work Location")}</DialogTitle>
           <DialogDescription>
-            {location ? "Perbarui profil lokasi kerja dan kantor induknya." : "Tambahkan lokasi kerja (work location) baru — dimensi penempatan & approval berjenjang."}
+            {location ? t("Perbarui profil lokasi kerja dan kantor induknya.", "Update the work location profile and its parent office.") : t("Tambahkan lokasi kerja (work location) baru — dimensi penempatan & approval berjenjang.", "Add a new work location — a dimension for placement and tiered approvals.")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="l-code">Kode Lokasi</Label>
+              <Label htmlFor="l-code">{t("Kode Lokasi", "Location Code")}</Label>
               <Input id="l-code" value={form.code} disabled={!!location} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="LOC-PRD-C" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="l-name">Nama Lokasi</Label>
+              <Label htmlFor="l-name">{t("Nama Lokasi", "Location Name")}</Label>
               <Input id="l-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Production Line C" />
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="l-office">Kantor Induk</Label>
+            <Label htmlFor="l-office">{t("Kantor Induk", "Parent Office")}</Label>
             <Select value={form.officeId || "none"} onValueChange={(v) => setForm((f) => ({ ...f, officeId: v === "none" ? "" : v }))}>
-              <SelectTrigger id="l-office" className="mt-1"><SelectValue placeholder="Pilih kantor induk (opsional)" /></SelectTrigger>
+              <SelectTrigger id="l-office" className="mt-1"><SelectValue placeholder={t("Pilih kantor induk (opsional)", "Select parent office (optional)")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Tanpa kantor —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa kantor —", "— No office —")}</SelectItem>
                 {offices.map((o) => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.code} — {o.name}{!o.active ? " (nonaktif)" : ""}
+                    {o.code} — {o.name}{!o.active ? t(" (nonaktif)", " (inactive)") : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-stone-400">Lokasi tanpa kantor induk tetap valid sebagai penempatan mandiri.</p>
+            <p className="text-[10px] text-stone-400">{t("Lokasi tanpa kantor induk tetap valid sebagai penempatan mandiri.", "A location without a parent office is still valid as a standalone placement.")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="l-city">Kota</Label>
-              <Input id="l-city" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder="Jakarta Timur" />
+              <Label htmlFor="l-city">{t("Kota", "City")}</Label>
+              <Input id="l-city" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} placeholder={t("Jakarta Timur", "East Jakarta")} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="l-address">Alamat</Label>
-              <Input id="l-address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Kawasan Industri Pulogadung" />
+              <Label htmlFor="l-address">{t("Alamat")}</Label>
+              <Input id="l-address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder={t("Kawasan Industri Pulogadung", "Pulogadung Industrial Estate")} />
             </div>
           </div>
           {location && (
             <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
               <div>
-                <Label className="text-xs font-bold">Status Aktif</Label>
-                <p className="text-[11px] text-stone-400">Lokasi nonaktif tidak disarankan untuk penempatan baru</p>
+                <Label className="text-xs font-bold">{t("Status Aktif", "Active Status")}</Label>
+                <p className="text-[11px] text-stone-400">{t("Lokasi nonaktif tidak disarankan untuk penempatan baru", "Inactive locations are not recommended for new placements")}</p>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} />
             </div>
           )}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : location ? "Simpan" : "Buat Lokasi"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : location ? t("Simpan") : t("Buat Lokasi", "Create Location")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

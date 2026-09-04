@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { BenefitTypeRow, BenefitClaimRow, BenefitStats, PeriodRow, WageCompFull } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
+import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -35,6 +36,10 @@ const STATUS_FILTERS = [
   { key: "Rejected", label: "Ditolak" },
 ];
 
+const STATUS_FILTERS_EN: Record<string, string> = {
+  all: "All", Pending: "Pending", Approved: "Approved", Scheduled: "Scheduled", Paid: "Paid", Rejected: "Rejected",
+};
+
 const CATEGORY_ICON: Record<string, React.ElementType> = {
   Medical: Stethoscope, Kesehatan: Glasses, Transport: Landmark,
   Rekreasi: Dumbbell, Perayaan: PartyPopper,
@@ -44,7 +49,12 @@ const RESET_LABEL: Record<string, string> = {
   None: "sekali seumur pakai", Monthly: "per bulan", Quarterly: "per kuartal", Yearly: "per tahun",
 };
 
+const RESET_LABEL_EN: Record<string, string> = {
+  None: "once, lifetime", Monthly: "monthly", Quarterly: "quarterly", Yearly: "yearly",
+};
+
 export function PayrollBenefitsPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState("claims");
   const [claimDialog, setClaimDialog] = useState(false);
   const [typeDialog, setTypeDialog] = useState(false);
@@ -60,16 +70,16 @@ export function PayrollBenefitsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="Benefit Karyawan"
-        description="Klaim dengan limit per siklus, auto-approve dalam limit, dan pembayaran terintegrasi run payroll BENEFIT atau kas langsung"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("Benefit Karyawan")}
+        description={t("Klaim dengan limit per siklus, auto-approve dalam limit, dan pembayaran terintegrasi run payroll BENEFIT atau kas langsung", "Claims with per-cycle limits, auto-approve within limit, and payments integrated with the BENEFIT payroll run or direct cash")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setEditType(null); setTypeDialog(true); }} className="gap-2 font-bold">
-              <Sparkles className="h-4 w-4 text-violet-600" /> Jenis Benefit
+              <Sparkles className="h-4 w-4 text-violet-600" /> {t("Jenis Benefit", "Benefit Types")}
             </Button>
             <Button onClick={() => setClaimDialog(true)} className="gap-2 font-bold">
-              <Plus className="h-4 w-4" /> Ajukan Klaim
+              <Plus className="h-4 w-4" /> {t("Ajukan Klaim", "Submit Claim")}
             </Button>
           </div>
         }
@@ -79,37 +89,37 @@ export function PayrollBenefitsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <KpiCard
           icon={<XCircle className="h-4 w-4" />} tone="amber"
-          label="Menunggu Persetujuan"
+          label={t("Menunggu Persetujuan")}
           value={String(stats?.pending ?? 0)}
-          sub={stats ? `${fmtIDR(stats.pendingAmount)} menunggu keputusan` : undefined}
+          sub={stats ? t("{v} menunggu keputusan", "{v} awaiting decision", { v: fmtIDR(stats.pendingAmount) }) : undefined}
         />
         <KpiCard
           icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald"
-          label="Disetujui (siap jadwal)"
+          label={t("Disetujui (siap jadwal)", "Approved (ready to schedule)")}
           value={String((stats?.approvedCount ?? 0) - (stats?.scheduledCount ?? 0))}
           sub={stats ? fmtIDR(stats.approvedAmount) : undefined}
         />
         <KpiCard
           icon={<CalendarClock className="h-4 w-4" />} tone="violet"
-          label="Terjadwal di Payroll"
+          label={t("Terjadwal di Payroll", "Scheduled in Payroll")}
           value={String(stats?.scheduledCount ?? 0)}
-          sub="dibayar saat run BENEFIT dikonfirmasi"
+          sub={t("dibayar saat run BENEFIT dikonfirmasi", "paid when the BENEFIT run is confirmed")}
         />
         <KpiCard
           icon={<Wallet className="h-4 w-4" />} tone="teal"
-          label="Dibayar Tahun Ini"
+          label={t("Dibayar Tahun Ini", "Paid This Year")}
           value={stats ? fmtIDRShort(stats.ytdAmount) : "—"}
-          sub={stats ? `${stats.paidCount} klaim lunas` : undefined}
+          sub={stats ? t("{n} klaim lunas", "{n} claims settled", { n: stats.paidCount }) : undefined}
         />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
           <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-            <HeartHandshake className="h-3.5 w-3.5" /> Klaim ({claimsApi.data?.claims.length ?? 0})
+            <HeartHandshake className="h-3.5 w-3.5" /> {t("Klaim", "Claims")} ({claimsApi.data?.claims.length ?? 0})
           </TabsTrigger>
           <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-            <Sparkles className="h-3.5 w-3.5" /> Jenis Benefit ({typesApi.data?.types.length ?? 0})
+            <Sparkles className="h-3.5 w-3.5" /> {t("Jenis Benefit", "Benefit Types")} ({typesApi.data?.types.length ?? 0})
           </TabsTrigger>
         </TabsList>
 
@@ -126,7 +136,7 @@ export function PayrollBenefitsPage() {
                     : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
                 )}
               >
-                {f.label}
+                {t(f.label, STATUS_FILTERS_EN[f.key])}
               </button>
             ))}
           </div>
@@ -137,8 +147,8 @@ export function PayrollBenefitsPage() {
               ) : (claimsApi.data?.claims.length ?? 0) === 0 ? (
                 <div className="p-5">
                   <EmptyState
-                    title="Belum ada klaim"
-                    description="Ajukan klaim benefit karyawan — klaim dalam limit bisa otomatis disetujui."
+                    title={t("Belum ada klaim", "No claims yet")}
+                    description={t("Ajukan klaim benefit karyawan — klaim dalam limit bisa otomatis disetujui.", "Submit an employee benefit claim — claims within limit can be auto-approved.")}
                     icon={<HeartHandshake className="h-6 w-6" />}
                   />
                 </div>
@@ -147,14 +157,14 @@ export function PayrollBenefitsPage() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10">
                       <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                        <TableHead className="text-[11px] font-bold">Klaim</TableHead>
-                        <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                        <TableHead className="text-[11px] font-bold">Jenis Benefit</TableHead>
-                        <TableHead className="text-[11px] font-bold">Tanggal</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">Nilai</TableHead>
-                        <TableHead className="text-[11px] font-bold">Limit</TableHead>
-                        <TableHead className="text-[11px] font-bold">Status</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">Aksi</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Klaim", "Claim")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Jenis Benefit", "Benefit Type")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Tanggal")}</TableHead>
+                        <TableHead className="text-right text-[11px] font-bold">{t("Nilai", "Value")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Limit")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                        <TableHead className="text-right text-[11px] font-bold">{t("Aksi")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -180,8 +190,8 @@ export function PayrollBenefitsPage() {
             <Card className="rounded-2xl border-stone-200/80 dark:border-stone-800">
               <CardContent className="p-5">
                 <EmptyState
-                  title="Belum ada jenis benefit"
-                  description="Buat jenis benefit: medical, kacamata, olahraga, pernikahan, dst."
+                  title={t("Belum ada jenis benefit", "No benefit types yet")}
+                  description={t("Buat jenis benefit: medical, kacamata, olahraga, pernikahan, dst.", "Create benefit types: medical, glasses, sports, wedding, etc.")}
                   icon={<Sparkles className="h-6 w-6" />}
                 />
               </CardContent>
@@ -239,13 +249,14 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
   claim: BenefitClaimRow; onReject: () => void; onSchedule: () => void; onChanged: () => void;
 }) {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const [busy, setBusy] = useState("");
 
   const act = async (key: string, action: string, extra?: Record<string, unknown>, okMsg?: string) => {
     setBusy(key);
     try {
       await apiSend("/api/onevity/benefit-claims", "PATCH", { id: claim.id, action, ...extra });
-      toast.success(okMsg ?? "Klaim diperbarui");
+      toast.success(okMsg ?? t("Klaim diperbarui", "Claim updated"));
       onChanged();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(""); }
   };
@@ -270,8 +281,8 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold">{claim.benefitType.name}</p>
             <p className="text-[10px] text-stone-400">
-              {RESET_LABEL[claim.benefitType.resetPeriod] ?? claim.benefitType.resetPeriod}
-              {claim.benefitType.unlimited ? " · tanpa limit" : ` · limit ${fmtIDRShort(claim.benefitType.maxClaimAmount)}`}
+              {t(RESET_LABEL[claim.benefitType.resetPeriod] ?? claim.benefitType.resetPeriod, RESET_LABEL_EN[claim.benefitType.resetPeriod])}
+              {claim.benefitType.unlimited ? t(" · tanpa limit", " · no limit") : t(" · limit {v}", " · limit {v}", { v: fmtIDRShort(claim.benefitType.maxClaimAmount) })}
             </p>
           </div>
         </div>
@@ -280,7 +291,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
       <TableCell className="text-right text-xs font-bold">{fmtIDR(claim.amount)}</TableCell>
       <TableCell>
         {claim.benefitType.unlimited ? (
-          <Badge variant="outline" className="text-[9px] font-bold text-stone-500">Tanpa Limit</Badge>
+          <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{t("Tanpa Limit", "No Limit")}</Badge>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -290,11 +301,11 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
                   ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
                   : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400",
               )}>
-                {claim.inLimit ? "Dalam Limit" : claim.status === "Rejected" ? "Melebihi Limit" : "Over (diizinkan)"}
+                {claim.inLimit ? t("Dalam Limit", "Within Limit") : claim.status === "Rejected" ? t("Melebihi Limit", "Over Limit") : t("Over (diizinkan)", "Over (allowed)")}
               </Badge>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-[11px]">
-              Terpakai {fmtIDR(claim.limitUsed)} · sisa {fmtIDR(claim.limitRemaining)} saat pengajuan
+              {t("Terpakai {u} · sisa {r} saat pengajuan", "Used {u} · remaining {r} at submission", { u: fmtIDR(claim.limitUsed), r: fmtIDR(claim.limitRemaining) })}
             </TooltipContent>
           </Tooltip>
         )}
@@ -305,23 +316,23 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           <p className="mt-1 max-w-44 text-[10px] italic leading-tight text-rose-500">{claim.rejectedReason}</p>
         )}
         {claim.status === "Scheduled" && claim.period && (
-          <p className="mt-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400">{claim.period.name}</p>
+          <p className="mt-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400">{loc(claim.period.name)}</p>
         )}
         {claim.status === "Paid" && (
-          <p className="mt-1 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">{claim.paidRunNo ?? "via kas"}</p>
+          <p className="mt-1 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">{claim.paidRunNo ?? t("via kas", "via cash")}</p>
         )}
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap justify-end gap-1">
           {claim.status === "Pending" && (
             <>
-              <Button size="sm" disabled={busy === "a"} onClick={() => act("a", "approve", {}, `Klaim ${claim.claimNo} disetujui`)}
+              <Button size="sm" disabled={busy === "a"} onClick={() => act("a", "approve", {}, t("Klaim {no} disetujui", "Claim {no} approved", { no: claim.claimNo }))}
                 className="h-7 gap-1 rounded-lg bg-emerald-600 px-2.5 text-[10px] font-bold hover:bg-emerald-700">
-                <CheckCircle2 className="h-3 w-3" /> Setujui
+                <CheckCircle2 className="h-3 w-3" /> {t("Setujui", "Approve")}
               </Button>
               <Button size="sm" variant="outline" disabled={busy === "r"} onClick={onReject}
                 className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10">
-                <XCircle className="h-3 w-3" /> Tolak
+                <XCircle className="h-3 w-3" /> {t("Tolak", "Reject")}
               </Button>
             </>
           )}
@@ -329,12 +340,12 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
             claim.benefitType.payInPayroll ? (
               <Button size="sm" disabled={busy === "s"} onClick={onSchedule}
                 className="h-7 gap-1 rounded-lg bg-violet-600 px-2.5 text-[10px] font-bold hover:bg-violet-700">
-                <CalendarClock className="h-3 w-3" /> Jadwalkan
+                <CalendarClock className="h-3 w-3" /> {t("Jadwalkan", "Schedule")}
               </Button>
             ) : (
-              <Button size="sm" disabled={busy === "p"} onClick={() => act("p", "markPaid", undefined, `Klaim ${claim.claimNo} lunas dari kas`)}
+              <Button size="sm" disabled={busy === "p"} onClick={() => act("p", "markPaid", undefined, t("Klaim {no} lunas dari kas", "Claim {no} settled from cash", { no: claim.claimNo }))}
                 className="h-7 gap-1 rounded-lg bg-teal-600 px-2.5 text-[10px] font-bold hover:bg-teal-700">
-                <Wallet className="h-3 w-3" /> Tandai Lunas
+                <Wallet className="h-3 w-3" /> {t("Tandai Lunas", "Mark Settled")}
               </Button>
             )
           )}
@@ -343,18 +354,18 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
               onClick={() => navigate("payroll", "runs", claim.periodId ? { period: claim.periodId } : undefined)}
               className="flex h-7 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:bg-stone-900 dark:text-violet-400 dark:hover:bg-violet-500/10"
             >
-              Lihat Run <ChevronRight className="h-3 w-3" />
+              {t("Lihat Run", "View Run")} <ChevronRight className="h-3 w-3" />
             </button>
           )}
           {["Pending", "Approved", "Scheduled"].includes(claim.status) && (
             <button
               disabled={busy === "c"}
               onClick={() => {
-                if (!window.confirm(`Batalkan klaim ${claim.claimNo} (${claim.employee.fullName})?`)) return;
-                act("c", "cancel", undefined, `Klaim ${claim.claimNo} dibatalkan`);
+                if (!window.confirm(t("Batalkan klaim {no} ({emp})?", "Cancel claim {no} ({emp})?", { no: claim.claimNo, emp: claim.employee.fullName }))) return;
+                act("c", "cancel", undefined, t("Klaim {no} dibatalkan", "Claim {no} cancelled", { no: claim.claimNo }));
               }}
               className="rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 dark:hover:bg-stone-800"
-              aria-label="Batalkan"
+              aria-label={t("Batalkan", "Cancel")}
             >
               <Ban className="h-3.5 w-3.5" />
             </button>
@@ -370,11 +381,12 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
 function TypeCard({ type, onEdit, onChanged }: {
   type: BenefitTypeRow; onEdit: () => void; onChanged: () => void;
 }) {
+  const { t } = useI18n();
   const Icon = CATEGORY_ICON[type.category] ?? Sparkles;
   const toggleActive = async () => {
     try {
       await apiSend("/api/onevity/benefit-types", "PATCH", { id: type.id, active: !type.active });
-      toast.success(type.active ? `${type.name} dinonaktifkan` : `${type.name} diaktifkan`);
+      toast.success(type.active ? t("{name} dinonaktifkan", "{name} deactivated", { name: type.name }) : t("{name} diaktifkan", "{name} activated", { name: type.name }));
       onChanged();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -390,38 +402,38 @@ function TypeCard({ type, onEdit, onChanged }: {
               <p className="truncate text-[14px] font-bold">{type.name}</p>
               <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-violet-600 dark:text-violet-400">{type.category}</Badge>
             </div>
-            <p className="font-mono text-[10px] text-stone-400">{type.code} · {RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</p>
+            <p className="font-mono text-[10px] text-stone-400">{type.code} · {t(RESET_LABEL[type.resetPeriod] ?? type.resetPeriod, RESET_LABEL_EN[type.resetPeriod])}</p>
             {type.description && <p className="mt-1 text-[11px] leading-snug text-stone-500 dark:text-stone-400">{type.description}</p>}
           </div>
         </div>
         <div className="mt-3 rounded-xl bg-stone-50 px-3.5 py-2.5 dark:bg-stone-900/60">
           <p className="text-[11px] font-bold text-stone-700 dark:text-stone-200">
             {type.unlimited || type.maxClaimAmount <= 0
-              ? "Tanpa limit nominal"
-              : <>Limit {fmtIDR(type.maxClaimAmount)} <span className="font-normal text-stone-400">{RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</span></>}
+              ? t("Tanpa limit nominal", "No amount limit")
+              : <>{t("Limit {v}", "Limit {v}", { v: fmtIDR(type.maxClaimAmount) })} <span className="font-normal text-stone-400">{t(RESET_LABEL[type.resetPeriod] ?? type.resetPeriod, RESET_LABEL_EN[type.resetPeriod])}</span></>}
           </p>
           <p className="mt-0.5 text-[10px] text-stone-400">
-            {type.activeClaimCount} klaim aktif · total {fmtIDR(type.totalApprovedAmount)}
-            {type.wageComponent && <> · komponen <b className="font-semibold">{type.wageComponent.code}</b></>}
+            {t("{n} klaim aktif · total {v}", "{n} active claims · total {v}", { n: type.activeClaimCount, v: fmtIDR(type.totalApprovedAmount) })}
+            {type.wageComponent && <> · {t("komponen", "component")} <b className="font-semibold">{type.wageComponent.code}</b></>}
           </p>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {type.autoApproveInLimit && (
-            <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"><CheckCircle2 className="h-2.5 w-2.5" /> Auto-approve dalam limit</Badge>
+            <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"><CheckCircle2 className="h-2.5 w-2.5" /> {t("Auto-approve dalam limit", "Auto-approve within limit")}</Badge>
           )}
           <Badge variant="outline" className="gap-1 border-violet-300 bg-violet-50 text-[9px] font-bold text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400">
-            {type.payInPayroll ? <><CalendarClock className="h-2.5 w-2.5" /> Pay-in-payroll (BENEFIT)</> : <><Wallet className="h-2.5 w-2.5" /> Kas langsung</>}
+            {type.payInPayroll ? <><CalendarClock className="h-2.5 w-2.5" /> {t("Pay-in-payroll (BENEFIT)", "Pay-in-payroll (BENEFIT)")}</> : <><Wallet className="h-2.5 w-2.5" /> {t("Kas langsung", "Direct cash")}</>}
           </Badge>
-          {type.needDocuments && <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"><FileText className="h-2.5 w-2.5" /> Perlu dokumen</Badge>}
-          {type.allowOverlimit && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">Boleh overlimit</Badge>}
-          {type.entitleFor !== "All" && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{type.entitleFor} saja</Badge>}
+          {type.needDocuments && <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"><FileText className="h-2.5 w-2.5" /> {t("Perlu dokumen", "Documents required")}</Badge>}
+          {type.allowOverlimit && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{t("Boleh overlimit", "Overlimit allowed")}</Badge>}
+          {type.entitleFor !== "All" && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{t("{s} saja", "{s} only", { s: type.entitleFor })}</Badge>}
         </div>
         <div className="mt-3 flex gap-2">
           <Button variant="outline" size="sm" onClick={onEdit} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold">
-            <Pencil className="h-3 w-3" /> Ubah
+            <Pencil className="h-3 w-3" /> {t("Ubah")}
           </Button>
           <Button variant="ghost" size="sm" onClick={toggleActive} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold text-stone-500">
-            {type.active ? "Nonaktifkan" : "Aktifkan"}
+            {type.active ? t("Nonaktifkan", "Deactivate") : t("Aktifkan", "Activate")}
           </Button>
         </div>
       </CardContent>
@@ -432,6 +444,7 @@ function TypeCard({ type, onEdit, onChanged }: {
 // ============ DIALOG AJUKAN KLAIM ============
 
 function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: () => void; onSubmitted: () => void }) {
+  const { t } = useI18n();
   const employeesApi = useApi<{ employees: { employeeId: string; fullName: string; employeeNo: string }[] }>(open ? "/api/onevity/payroll-profiles" : null);
   const [employeeId, setEmployeeId] = useState("");
   const [benefitTypeId, setBenefitTypeId] = useState("");
@@ -445,13 +458,13 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
   const usageApi = useApi<{ types: BenefitTypeRow[] }>(open && employeeId ? `/api/onevity/benefit-types?employeeId=${employeeId}` : null);
   const allTypesApi = useApi<{ types: BenefitTypeRow[] }>(open ? "/api/onevity/benefit-types" : null);
   const typeList = employeeId ? (usageApi.data?.types ?? []) : (allTypesApi.data?.types ?? []);
-  const selected = typeList.find((t) => t.id === benefitTypeId);
+  const selected = typeList.find((o) => o.id === benefitTypeId);
   const amt = Number(amount) || 0;
   const usage = selected?.usage;
 
   const submit = async () => {
-    if (!employeeId || !benefitTypeId || amt <= 0) { toast.error("Lengkapi karyawan, jenis benefit & nilai klaim"); return; }
-    if (selected?.needDocuments && !documentsNote.trim()) { toast.error("Jenis benefit ini mewajibkan keterangan dokumen"); return; }
+    if (!employeeId || !benefitTypeId || amt <= 0) { toast.error(t("Lengkapi karyawan, jenis benefit & nilai klaim", "Complete employee, benefit type & claim amount")); return; }
+    if (selected?.needDocuments && !documentsNote.trim()) { toast.error(t("Jenis benefit ini mewajibkan keterangan dokumen", "This benefit type requires a documents note")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ note: string }>("/api/onevity/benefit-claims", "POST", {
@@ -471,13 +484,13 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><HeartHandshake className="h-4 w-4 text-violet-600" /> Ajukan Klaim Benefit</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><HeartHandshake className="h-4 w-4 text-violet-600" /> {t("Ajukan Klaim Benefit", "Submit Benefit Claim")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label className="text-xs">Karyawan *</Label>
+            <Label className="text-xs">{t("Karyawan *")}</Label>
             <Select value={employeeId} onValueChange={(v) => { setEmployeeId(v); setBenefitTypeId(""); }}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+              <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
               <SelectContent className="max-h-52">
                 {(employeesApi.data?.employees ?? []).map((e) => (
                   <SelectItem key={e.employeeId} value={e.employeeId}>{e.employeeNo} — {e.fullName}</SelectItem>
@@ -486,13 +499,13 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Jenis Benefit *</Label>
+            <Label className="text-xs">{t("Jenis Benefit *", "Benefit Type *")}</Label>
             <Select value={benefitTypeId} onValueChange={setBenefitTypeId} disabled={!employeeId}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder={employeeId ? "Pilih jenis benefit" : "Pilih karyawan dulu"} /></SelectTrigger>
+              <SelectTrigger className="mt-1.5"><SelectValue placeholder={employeeId ? t("Pilih jenis benefit", "Select benefit type") : t("Pilih karyawan dulu", "Select an employee first")} /></SelectTrigger>
               <SelectContent className="max-h-52">
-                {typeList.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}{!t.unlimited && t.maxClaimAmount > 0 ? ` — limit ${fmtIDRShort(t.maxClaimAmount)}` : ""}
+                {typeList.map((bt) => (
+                  <SelectItem key={bt.id} value={bt.id}>
+                    {bt.name}{!bt.unlimited && bt.maxClaimAmount > 0 ? ` — limit ${fmtIDRShort(bt.maxClaimAmount)}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -500,23 +513,23 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Nilai Klaim (Rp) *</Label>
+              <Label className="text-xs">{t("Nilai Klaim (Rp) *", "Claim Amount (Rp) *")}</Label>
               <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="450000" className="mt-1.5 font-mono" />
             </div>
             <div>
-              <Label className="text-xs">Tanggal Klaim</Label>
+              <Label className="text-xs">{t("Tanggal Klaim", "Claim Date")}</Label>
               <Input type="date" value={claimDate} onChange={(e) => setClaimDate(e.target.value)} className="mt-1.5" />
             </div>
           </div>
           <div>
-            <Label className="text-xs">Keterangan</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="cth: Medical check-up klinik" className="mt-1.5" />
+            <Label className="text-xs">{t("Keterangan")}</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("cth: Medical check-up klinik", "e.g. clinic medical check-up")} className="mt-1.5" />
           </div>
           {selected?.needDocuments && (
             <div>
-              <Label className="text-xs">Dokumen Pendukung *</Label>
+              <Label className="text-xs">{t("Dokumen Pendukung *", "Supporting Documents *")}</Label>
               <Textarea value={documentsNote} onChange={(e) => setDocumentsNote(e.target.value)} rows={2}
-                placeholder="cth: kwitansi klinik #RCP-881, resep obat" className="mt-1.5 text-xs" />
+                placeholder={t("cth: kwitansi klinik #RCP-881, resep obat", "e.g. clinic receipt #RCP-881, prescription")} className="mt-1.5 text-xs" />
             </div>
           )}
           {selected && usage && (
@@ -529,17 +542,17 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
                   : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
             )}>
               {usage.limit === null
-                ? "Jenis ini tanpa limit nominal."
-                : <>Siklus {usage.windowLabel}: terpakai {fmtIDR(usage.used)} · sisa {fmtIDR(usage.remaining ?? 0)}
-                  {amt > 0 && <> · klaim ini <b>{usage.inLimit && amt <= (usage.remaining ?? 0) ? "dalam limit" : (selected.allowOverlimit ? "MELEBIHI limit (butuh approval manual)" : "akan DITOLAK — melebihi limit")}</b></>}
+                ? t("Jenis ini tanpa limit nominal.", "This type has no amount limit.")
+                : <>{t("Siklus {w}: terpakai {u} · sisa {r}", "Cycle {w}: used {u} · remaining {r}", { w: usage.windowLabel, u: fmtIDR(usage.used), r: fmtIDR(usage.remaining ?? 0) })}
+                  {amt > 0 && <> · {t("klaim ini ", "this claim ")}<b>{usage.inLimit && amt <= (usage.remaining ?? 0) ? t("dalam limit", "within limit") : (selected.allowOverlimit ? t("MELEBIHI limit (butuh approval manual)", "EXCEEDS the limit (needs manual approval)") : t("akan DITOLAK — melebihi limit", "will be REJECTED — exceeds the limit"))}</b></>}
                 </>}
-              {selected.autoApproveInLimit && <span className="block font-normal">Auto-approve aktif: klaim dalam limit langsung disetujui sistem.</span>}
+              {selected.autoApproveInLimit && <span className="block font-normal">{t("Auto-approve aktif: klaim dalam limit langsung disetujui sistem.", "Auto-approve active: claims within limit are approved by the system immediately.")}</span>}
             </p>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Mengirim…" : "Ajukan Klaim"}</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Mengirim…", "Submitting…") : t("Ajukan Klaim", "Submit Claim")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -551,6 +564,7 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
 function TypeDialog({ open, editing, onClose, onSaved }: {
   open: boolean; editing: BenefitTypeRow | null; onClose: () => void; onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const compsApi = useApi<{ components: WageCompFull[] }>(open ? "/api/onevity/wage-components" : null);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -588,10 +602,10 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
   }
 
   const submit = async () => {
-    if (!editing && !code.trim()) { toast.error("Kode wajib diisi"); return; }
-    if (!name.trim()) { toast.error("Nama wajib diisi"); return; }
-    if (payInPayroll && !wageComponentId) { toast.error("Pay-in-payroll wajib memetakan komponen upah"); return; }
-    if (!unlimited && !(Number(maxClaimAmount) > 0)) { toast.error("Isi limit nominal atau aktifkan tanpa limit"); return; }
+    if (!editing && !code.trim()) { toast.error(t("Kode wajib diisi", "Code is required")); return; }
+    if (!name.trim()) { toast.error(t("Nama wajib diisi", "Name is required")); return; }
+    if (payInPayroll && !wageComponentId) { toast.error(t("Pay-in-payroll wajib memetakan komponen upah", "Pay-in-payroll requires a wage component mapping")); return; }
+    if (!unlimited && !(Number(maxClaimAmount) > 0)) { toast.error(t("Isi limit nominal atau aktifkan tanpa limit", "Fill in the amount limit or enable no limit")); return; }
     setBusy(true);
     try {
       const body = {
@@ -602,10 +616,10 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
       };
       if (editing) {
         await apiSend("/api/onevity/benefit-types", "PATCH", { id: editing.id, ...body });
-        toast.success(`Jenis benefit ${body.name} diperbarui`);
+        toast.success(t("Jenis benefit {n} diperbarui", "Benefit type {n} updated", { n: body.name }));
       } else {
         await apiSend("/api/onevity/benefit-types", "POST", body);
-        toast.success(`Jenis benefit ${body.code} dibuat`);
+        toast.success(t("Jenis benefit {c} dibuat", "Benefit type {c} created", { c: body.code }));
       }
       setInitialized(null);
       onSaved();
@@ -618,24 +632,24 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-violet-600" /> {editing ? `Ubah — ${editing.name}` : "Jenis Benefit Baru"}
+            <Sparkles className="h-4 w-4 text-violet-600" /> {editing ? t("Ubah — {n}", "Edit — {n}", { n: editing.name }) : t("Jenis Benefit Baru", "New Benefit Type")}
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">Kode *</Label>
+              <Label className="text-xs">{t("Kode *", "Code *")}</Label>
               <Input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!editing}
                 placeholder="MEDICAL" className="mt-1.5 font-mono uppercase" />
             </div>
             <div className="col-span-2">
-              <Label className="text-xs">Nama *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Reimburse Medis" className="mt-1.5" />
+              <Label className="text-xs">{t("Nama *", "Name *")}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Reimburse Medis", "Medical Reimbursement")} className="mt-1.5" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Kategori</Label>
+              <Label className="text-xs">{t("Kategori", "Category")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -646,52 +660,52 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Siklus Reset Limit</Label>
+              <Label className="text-xs">{t("Siklus Reset Limit", "Limit Reset Cycle")}</Label>
               <Select value={resetPeriod} onValueChange={setResetPeriod}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Monthly">Bulanan</SelectItem>
-                  <SelectItem value="Quarterly">Kuartalan</SelectItem>
-                  <SelectItem value="Yearly">Tahunan</SelectItem>
-                  <SelectItem value="None">Sekali seumur pakai</SelectItem>
+                  <SelectItem value="Monthly">{t("Bulanan", "Monthly")}</SelectItem>
+                  <SelectItem value="Quarterly">{t("Kuartalan", "Quarterly")}</SelectItem>
+                  <SelectItem value="Yearly">{t("Tahunan", "Yearly")}</SelectItem>
+                  <SelectItem value="None">{t("Sekali seumur pakai", "Once, lifetime")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Limit per Siklus (Rp)</Label>
+              <Label className="text-xs">{t("Limit per Siklus (Rp)", "Limit per Cycle (Rp)")}</Label>
               <Input type="number" value={maxClaimAmount} disabled={unlimited} onChange={(e) => setMaxClaimAmount(e.target.value)}
                 placeholder="2000000" className="mt-1.5 font-mono" />
             </div>
             <div>
-              <Label className="text-xs">Hanya utk Status</Label>
+              <Label className="text-xs">{t("Hanya utk Status", "Only for Status")}</Label>
               <Select value={entitleFor} onValueChange={setEntitleFor}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">Semua karyawan</SelectItem>
-                  <SelectItem value="Permanent">Tetap</SelectItem>
-                  <SelectItem value="Contract">Kontrak</SelectItem>
-                  <SelectItem value="Probation">Percobaan</SelectItem>
+                  <SelectItem value="All">{t("Semua karyawan", "All employees")}</SelectItem>
+                  <SelectItem value="Permanent">{t("Tetap", "Permanent")}</SelectItem>
+                  <SelectItem value="Contract">{t("Kontrak", "Contract")}</SelectItem>
+                  <SelectItem value="Probation">{t("Percobaan", "Probation")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="rounded-xl bg-stone-50 p-3.5 dark:bg-stone-900/60">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">Perilaku</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Perilaku", "Behavior")}</p>
             <div className="grid gap-2.5">
-              <ToggleRow checked={unlimited} onChange={setUnlimited} label="Tanpa limit nominal" hint="Abaikan limit per siklus" />
-              <ToggleRow checked={autoApproveInLimit} onChange={setAutoApproveInLimit} label="Auto-approve dalam limit" hint="Klaim ≤ limit langsung disetujui sistem" />
-              <ToggleRow checked={allowOverlimit} onChange={setAllowOverlimit} label="Izinkan klaim melebihi limit" hint="Overlimit masuk approval manual" />
-              <ToggleRow checked={needDocuments} onChange={setNeedDocuments} label="Wajib dokumen pendukung" hint="Keterangan dokumen saat pengajuan" />
-              <ToggleRow checked={payInPayroll} onChange={setPayInPayroll} label="Bayar via payroll (pay-in-payroll)" hint="Dibayar saat run BENEFIT dikonfirmasi" />
+              <ToggleRow checked={unlimited} onChange={setUnlimited} label={t("Tanpa limit nominal", "No amount limit")} hint={t("Abaikan limit per siklus", "Ignore per-cycle limit")} />
+              <ToggleRow checked={autoApproveInLimit} onChange={setAutoApproveInLimit} label={t("Auto-approve dalam limit", "Auto-approve within limit")} hint={t("Klaim ≤ limit langsung disetujui sistem", "Claims ≤ limit approved by the system immediately")} />
+              <ToggleRow checked={allowOverlimit} onChange={setAllowOverlimit} label={t("Izinkan klaim melebihi limit", "Allow claims over the limit")} hint={t("Overlimit masuk approval manual", "Overlimit goes to manual approval")} />
+              <ToggleRow checked={needDocuments} onChange={setNeedDocuments} label={t("Wajib dokumen pendukung", "Supporting documents required")} hint={t("Keterangan dokumen saat pengajuan", "Documents note on submission")} />
+              <ToggleRow checked={payInPayroll} onChange={setPayInPayroll} label={t("Bayar via payroll (pay-in-payroll)", "Pay via payroll (pay-in-payroll)")} hint={t("Dibayar saat run BENEFIT dikonfirmasi", "Paid when the BENEFIT run is confirmed")} />
             </div>
           </div>
           {payInPayroll && (
             <div>
-              <Label className="text-xs">Komponen Upah (payslip) *</Label>
+              <Label className="text-xs">{t("Komponen Upah (payslip) *", "Wage Component (payslip) *")}</Label>
               <Select value={wageComponentId} onValueChange={setWageComponentId}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="cth: Benefit Medis" /></SelectTrigger>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("cth: Benefit Medis", "e.g. Medical Benefit")} /></SelectTrigger>
                 <SelectContent className="max-h-52">
                   {(compsApi.data?.components ?? []).filter((c) => c.type === "Earning").map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
@@ -699,19 +713,19 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
                 </SelectContent>
               </Select>
               <p className="mt-1.5 text-[10px] leading-relaxed text-stone-400">
-                Komponen muncul di payslip & jurnal saat klaim dijadwalkan; klaim karyawan di period yang sama otomatis dijumlahkan.
+                {t("Komponen muncul di payslip & jurnal saat klaim dijadwalkan; klaim karyawan di period yang sama otomatis dijumlahkan.", "The component appears on the payslip & journal when the claim is scheduled; claims of the same employee in the same period are summed automatically.")}
               </p>
             </div>
           )}
           <div>
-            <Label className="text-xs">Deskripsi</Label>
+            <Label className="text-xs">{t("Deskripsi")}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
-              placeholder="Ketentuan benefit (cth: hanya rawat jalan)" className="mt-1.5 text-xs" />
+              placeholder={t("Ketentuan benefit (cth: hanya rawat jalan)", "Benefit terms (e.g. outpatient only)")} className="mt-1.5 text-xs" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? "Menyimpan…" : editing ? "Simpan" : "Buat Jenis"}</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? t("Menyimpan…") : editing ? t("Simpan") : t("Buat Jenis", "Create Type")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -735,15 +749,16 @@ function ToggleRow({ checked, onChange, label, hint }: {
 // ============ DIALOG TOLAK ============
 
 function RejectDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | null; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (!claim) return;
-    if (!reason.trim()) { toast.error("Alasan penolakan wajib diisi"); return; }
+    if (!reason.trim()) { toast.error(t("Alasan penolakan wajib diisi", "Rejection reason is required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/benefit-claims", "PATCH", { id: claim.id, action: "reject", reason: reason.trim() });
-      toast.success(`Klaim ${claim.claimNo} ditolak`);
+      toast.success(t("Klaim {no} ditolak", "Claim {no} rejected", { no: claim.claimNo }));
       setReason("");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -752,21 +767,21 @@ function RejectDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | nul
     <Dialog open={!!claim} onOpenChange={(v) => { if (!v) { setReason(""); onClose(); } }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><XCircle className="h-4 w-4 text-rose-500" /> Tolak Klaim {claim?.claimNo}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><XCircle className="h-4 w-4 text-rose-500" /> {t("Tolak Klaim {no}", "Reject Claim {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <p className="text-xs text-stone-500">
             {claim?.employee.fullName} · {claim?.benefitType.name} · {claim ? fmtIDR(claim.amount) : ""}
           </p>
           <div>
-            <Label className="text-xs">Alasan Penolakan *</Label>
+            <Label className="text-xs">{t("Alasan Penolakan *", "Rejection Reason *")}</Label>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-              placeholder="cth: melebihi limit bulan ini & bukti tidak lengkap" className="mt-1.5 text-xs" />
+              placeholder={t("cth: melebihi limit bulan ini & bukti tidak lengkap", "e.g. over this month's limit & incomplete evidence")} className="mt-1.5 text-xs" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-rose-600 font-bold hover:bg-rose-700">{busy ? "Menolak…" : "Tolak Klaim"}</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-rose-600 font-bold hover:bg-rose-700">{busy ? t("Menolak…", "Rejecting…") : t("Tolak Klaim", "Reject Claim")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -776,6 +791,7 @@ function RejectDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | nul
 // ============ DIALOG JADWALKAN KE PERIOD ============
 
 function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | null; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
   const periodsApi = useApi<{ periods: PeriodRow[] }>(claim ? "/api/onevity/payroll-periods" : null);
   const [periodId, setPeriodId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -783,11 +799,11 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
 
   const submit = async () => {
     if (!claim) return;
-    if (!periodId) { toast.error("Pilih period payroll"); return; }
+    if (!periodId) { toast.error(t("Pilih period payroll", "Select a payroll period")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/benefit-claims", "PATCH", { id: claim.id, action: "schedule", periodId });
-      toast.success(`Klaim ${claim.claimNo} dijadwalkan — buat run jenis "Benefit" lalu konfirmasi utk membayar`);
+      toast.success(t('Klaim {no} dijadwalkan — buat run jenis "Benefit" lalu konfirmasi utk membayar', 'Claim {no} scheduled — create a "Benefit" run then confirm to pay', { no: claim.claimNo }));
       setPeriodId("");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -797,16 +813,16 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
     <Dialog open={!!claim} onOpenChange={(v) => { if (!v) { setPeriodId(""); onClose(); } }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-violet-600" /> Jadwalkan {claim?.claimNo}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-violet-600" /> {t("Jadwalkan {no}", "Schedule {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <p className="text-xs text-stone-500">
             {claim?.employee.fullName} · {claim?.benefitType.name} · {claim ? fmtIDR(claim.amount) : ""}
           </p>
           <div>
-            <Label className="text-xs">Period Payroll *</Label>
+            <Label className="text-xs">{t("Period Payroll *", "Payroll Period *")}</Label>
             <Select value={periodId} onValueChange={setPeriodId}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder="pilih period" /></SelectTrigger>
+              <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("pilih period", "select period")} /></SelectTrigger>
               <SelectContent className="max-h-52">
                 {periods.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name} · {p.status}</SelectItem>
@@ -815,12 +831,13 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
             </Select>
           </div>
           <p className="rounded-xl bg-violet-50 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">
-            Klaim menjadi komponen upah period ini (run jenis <b>Benefit</b>). Konfirmasi run tersebut agar klaim otomatis berstatus Dibayar + jurnal terposting.
+            {t("Klaim menjadi komponen upah period ini (run jenis ", "The claim becomes a wage component of this period (a ")}
+            <b>{t("Benefit")}</b>{t("). Konfirmasi run tersebut agar klaim otomatis berstatus Dibayar + jurnal terposting.", " run). Confirm that run so the claim automatically becomes Paid + the journal is posted.")}
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? "Menjadwalkan…" : "Jadwalkan"}</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? t("Menjadwalkan…", "Scheduling…") : t("Jadwalkan", "Schedule")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

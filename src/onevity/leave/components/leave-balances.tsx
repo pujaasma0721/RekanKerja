@@ -15,10 +15,12 @@ import { toast } from "sonner";
 import { BalanceRowUI, LeaveTypeRow, EmployeeOption, fmtDay } from "./leave-types";
 import { Palmtree, Sparkles, Search, Plus, Minus, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
 
 export function LeaveBalancesPage() {
+  const { t } = useI18n();
   const [year, setYear] = useState(new Date().getFullYear());
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -45,30 +47,30 @@ export function LeaveBalancesPage() {
         "/api/onevity/leave/balances", "POST",
         { year: Number(genForm.year), leaveTypeId: genForm.leaveTypeId === "all" ? undefined : genForm.leaveTypeId },
       );
-      toast.success(`Generate ${genForm.year}: ${res.rows} saldo baru, ${res.updated} carry-over diperbarui (${res.carryTotal} hari bawa)`);
+      toast.success(t("Generate {y}: {r} saldo baru, {u} carry-over diperbarui ({c} hari bawa)", "Generate {y}: {r} new balances, {u} carry-over updated ({c} days carried)", { y: genForm.year, r: res.rows, u: res.updated, c: res.carryTotal }));
       setGenDialog(false);
       setYear(Number(genForm.year));
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal generate saldo");
+      toast.error(e instanceof Error ? e.message : t("Gagal generate saldo", "Failed to generate balances"));
     } finally { setBusy(false); }
   };
 
   const adjust = async () => {
     if (!adjTarget) return;
     const delta = Number(adjForm.delta);
-    if (!delta || !adjForm.reason.trim()) { toast.error("Nilai penyesuaian & alasan wajib diisi"); return; }
+    if (!delta || !adjForm.reason.trim()) { toast.error(t("Nilai penyesuaian & alasan wajib diisi", "Adjustment value & reason are required")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ adjustment: number }>("/api/onevity/leave/balances", "PATCH", {
         employeeId: adjTarget.employeeId, leaveTypeId: adjTarget.leaveTypeId, year: adjTarget.year, delta, reason: adjForm.reason,
       });
-      toast.success(`Saldo ${adjTarget.fullName} disesuaikan → total adjustment ${res.adjustment} hari`);
+      toast.success(t("Saldo {n} disesuaikan → total adjustment {a} hari", "Balance for {n} adjusted → total adjustment {a} days", { n: adjTarget.fullName, a: res.adjustment }));
       setAdjTarget(null);
       setAdjForm({ delta: "1", reason: "" });
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyesuaikan saldo");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyesuaikan saldo", "Failed to adjust the balance"));
     } finally { setBusy(false); }
   };
 
@@ -77,22 +79,22 @@ export function LeaveBalancesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL LEAVE"
-        title="Informasi Cuti (Saldo Karyawan)"
-        description="Saldo per karyawan × jenis — formula (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai"
+        eyebrow={t("MODUL LEAVE", "LEAVE MODULE")}
+        title={t("Informasi Cuti (Saldo Karyawan)", "Leave Information (Employee Balances)")}
+        description={t("Saldo per karyawan × jenis — formula (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai", "Balance per employee × type — formula (a+b+c) − (d+e+f+g): carry-over, prorated earned, adjustment, forfeited, cashed out, taken")}
         actions={
           <Button onClick={() => { setGenForm({ year: String(year), leaveTypeId: "all" }); setGenDialog(true); }} className="gap-2 font-bold">
-            <Sparkles className="h-4 w-4" /> Generate Leave Information
+            <Sparkles className="h-4 w-4" /> {t("Generate Leave Information")}
           </Button>
         }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Baris Saldo", value: s ? String(s.rows) : "—", sub: s ? `${s.employees} karyawan` : undefined, icon: Palmtree, tone: "text-orange-600" },
-          { label: "Total Saldo Tersisa", value: s ? `${s.totalRemaining} hari` : "—", sub: "akumulasi semua jenis", icon: ArrowUpDown, tone: "text-teal-600" },
-          { label: "Total Terpakai", value: s ? `${s.totalTaken} hari` : "—", sub: "cuti disetujui/massal", icon: Palmtree, tone: "text-amber-600" },
-          { label: "Saldo Minus (Advance)", value: s ? String(s.negative) : "—", sub: "karyawan saldo minus", icon: Minus, tone: "text-rose-600" },
+          { label: t("Baris Saldo", "Balance Rows"), value: s ? String(s.rows) : "—", sub: s ? t("{n} karyawan", "{n} employees", { n: s.employees }) : undefined, icon: Palmtree, tone: "text-orange-600" },
+          { label: t("Total Saldo Tersisa", "Total Remaining Balance"), value: s ? t("{n} hari", "{n} days", { n: s.totalRemaining }) : "—", sub: t("akumulasi semua jenis", "accumulated across all types"), icon: ArrowUpDown, tone: "text-teal-600" },
+          { label: t("Total Terpakai", "Total Taken"), value: s ? t("{n} hari", "{n} days", { n: s.totalTaken }) : "—", sub: t("cuti disetujui/massal", "approved/mass leave"), icon: Palmtree, tone: "text-amber-600" },
+          { label: t("Saldo Minus (Advance)", "Negative Balance (Advance)"), value: s ? String(s.negative) : "—", sub: t("karyawan saldo minus", "employees with negative balance"), icon: Minus, tone: "text-rose-600" },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -114,36 +116,36 @@ export function LeaveBalancesPage() {
                 <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="Semua jenis" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder={t("Semua jenis", "All types")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua jenis</SelectItem>
-                  {(typesApi.data?.types ?? []).map((t) => <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>)}
+                  <SelectItem value="all">{t("Semua jenis", "All types")}</SelectItem>
+                  {(typesApi.data?.types ?? []).map((ty) => <SelectItem key={ty.id} value={ty.code}>{ty.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="h-8 w-52 pl-8 text-xs" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : balances.length === 0 ? (
-            <div className="p-5"><EmptyState title="Belum ada saldo" description="Jalankan Generate Leave Information untuk tahun ini." icon={<Palmtree className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Belum ada saldo", "No balances yet")} description={t("Jalankan Generate Leave Information untuk tahun ini.", "Run Generate Leave Information for this year.")} icon={<Palmtree className="h-6 w-6" />} /></div>
           ) : (
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Jenis Cuti</TableHead>
-                    <TableHead className="text-[11px] font-bold">Periode</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(a) Carry-over">a · Carry</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(b) Earned prorata">b · Earned</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(c) Penyesuaian">c · Adj</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(d) Hangus 31-12">d · Hangus</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(e) Diuangkan">e · Cash</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(f) Terpakai (lampau)">f · Terpakai</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title="(g) Disetujui mendatang">g · Akan</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">Saldo</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Jenis Cuti", "Leave Type")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Periode")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(a) Carry-over")}>{t("a · Carry")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(b) Earned prorata", "(b) Earned prorated")}>{t("b · Earned")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(c) Penyesuaian", "(c) Adjustment")}>{t("c · Adj")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(d) Hangus 31-12", "(d) Forfeited Dec 31")}>{t("d · Hangus", "d · Forfeit")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(e) Diuangkan", "(e) Cashed out")}>{t("e · Cash")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(f) Terpakai (lampau)", "(f) Taken (past)")}>{t("f · Terpakai", "f · Taken")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold" title={t("(g) Disetujui mendatang", "(g) Approved upcoming")}>{t("g · Akan", "g · Upcoming")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold">{t("Saldo", "Balance")}</TableHead>
                     <TableHead className="w-16" />
                   </TableRow>
                 </TableHeader>
@@ -156,9 +158,9 @@ export function LeaveBalancesPage() {
                       </TableCell>
                       <TableCell>
                         <p className="text-xs font-semibold text-stone-700 dark:text-stone-200">{b.leaveTypeName}</p>
-                        <p className="font-mono text-[9px] text-stone-400">{b.leaveTypeCode}{!b.paid && " · tidak dibayar"}</p>
+                        <p className="font-mono text-[9px] text-stone-400">{b.leaveTypeCode}{!b.paid && t(" · tidak dibayar", " · unpaid")}</p>
                       </TableCell>
-                      <TableCell className="font-mono text-[10px] text-stone-400">{b.periodLabel}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-stone-400">{loc(b.periodLabel)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.carriedOver)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.earned)}</TableCell>
                       <TableCell className={cn("text-right text-xs tabular-nums", b.adjustment !== 0 ? "font-bold text-amber-600" : "text-stone-500")}>{fmtDay(b.adjustment)}</TableCell>
@@ -167,10 +169,10 @@ export function LeaveBalancesPage() {
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.taken)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.applied)}</TableCell>
                       <TableCell className={cn("text-right text-xs font-extrabold tabular-nums", b.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>
-                        {fmtDay(b.remaining)} {b.unit === "MONTH" ? "bln" : "hr"}
+                        {fmtDay(b.remaining)} {b.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdjTarget(b); setAdjForm({ delta: "1", reason: "" }); }} title="Penyesuaian saldo">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdjTarget(b); setAdjForm({ delta: "1", reason: "" }); }} title={t("Penyesuaian saldo", "Adjust balance")}>
                           <Plus className="h-3.5 w-3.5 text-stone-500" />
                         </Button>
                       </TableCell>
@@ -187,38 +189,37 @@ export function LeaveBalancesPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 ov-text-accent" /> Generate Leave Information
+              <Sparkles className="h-4 w-4 ov-text-accent" /> {t("Generate Leave Information")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
-              Membuat baris saldo per karyawan × jenis untuk tahun tertentu. Carry-over dihitung dari
-              saldo sisa tahun sebelumnya (maksimum sesuai jenis, hangus 31 Des). Padanan
+              {t("Membuat baris saldo per karyawan × jenis untuk tahun tertentu. Carry-over dihitung dari saldo sisa tahun sebelumnya (maksimum sesuai jenis, hangus 31 Des). Padanan", "Creates balance rows per employee × leave type for a given year. Carry-over is computed from the previous year's remaining balance (max per type, forfeited Dec 31). Equivalent of")}
               <i> GenerateLeaveInfoProcess.jsp</i>.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Tahun *</Label>
+                <Label className="text-xs font-bold">{t("Tahun *", "Year *")}</Label>
                 <Select value={genForm.year} onValueChange={(v) => setGenForm({ ...genForm, year: v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Jenis Cuti</Label>
+                <Label className="text-xs font-bold">{t("Jenis Cuti", "Leave Type")}</Label>
                 <Select value={genForm.leaveTypeId} onValueChange={(v) => setGenForm({ ...genForm, leaveTypeId: v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua jenis aktif</SelectItem>
-                    {(typesApi.data?.types ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    <SelectItem value="all">{t("Semua jenis aktif", "All active types")}</SelectItem>
+                    {(typesApi.data?.types ?? []).map((ty) => <SelectItem key={ty.id} value={ty.id}>{ty.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGenDialog(false)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={generate} disabled={busy} className="text-xs font-bold">Generate</Button>
+            <Button variant="outline" onClick={() => setGenDialog(false)} className="text-xs font-bold">{t("Batal")}</Button>
+            <Button onClick={generate} disabled={busy} className="text-xs font-bold">{t("Generate")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -227,33 +228,33 @@ export function LeaveBalancesPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Plus className="h-4 w-4 text-amber-600" /> Penyesuaian Saldo
+              <Plus className="h-4 w-4 text-amber-600" /> {t("Penyesuaian Saldo", "Balance Adjustment")}
             </DialogTitle>
           </DialogHeader>
           {adjTarget && (
             <div className="space-y-3">
               <div className="rounded-xl bg-stone-50 p-3 text-xs dark:bg-stone-900/60">
                 <p className="font-bold text-stone-800 dark:text-stone-100">{adjTarget.employeeNo} — {adjTarget.fullName}</p>
-                <p className="text-stone-500">{adjTarget.leaveTypeName} · {adjTarget.year} · saldo sekarang {fmtDay(adjTarget.remaining)} hari</p>
+                <p className="text-stone-500">{adjTarget.leaveTypeName} · {adjTarget.year} · {t("saldo sekarang {n} hari", "current balance {n} days", { n: fmtDay(adjTarget.remaining) })}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">Penyesuaian (± hari) *</Label>
-                  <Input type="number" value={adjForm.delta} onChange={(e) => setAdjForm({ ...adjForm, delta: e.target.value })} placeholder="mis. 2 atau -1" className="h-8 text-xs" />
+                  <Label className="text-xs font-bold">{t("Penyesuaian (± hari) *", "Adjustment (± days) *")}</Label>
+                  <Input type="number" value={adjForm.delta} onChange={(e) => setAdjForm({ ...adjForm, delta: e.target.value })} placeholder={t("mis. 2 atau -1", "e.g. 2 or -1")} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">Alasan *</Label>
-                  <Input value={adjForm.reason} onChange={(e) => setAdjForm({ ...adjForm, reason: e.target.value })} placeholder="mis. kompensasi lembur libur" className="h-8 text-xs" />
+                  <Label className="text-xs font-bold">{t("Alasan *", "Reason *")}</Label>
+                  <Input value={adjForm.reason} onChange={(e) => setAdjForm({ ...adjForm, reason: e.target.value })} placeholder={t("mis. kompensasi lembur libur", "e.g. holiday overtime compensation")} className="h-8 text-xs" />
                 </div>
               </div>
               <p className="text-[10px] leading-relaxed text-stone-400">
-                Padanan <i>Leave Adjustment</i> — kolom (c) pada formula saldo.
+                {t("Padanan", "Equivalent of")} <i>Leave Adjustment</i>{t(" — kolom (c) pada formula saldo.", " — column (c) of the balance formula.")}
               </p>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjTarget(null)} className="text-xs font-bold">Batal</Button>
-            <Button onClick={adjust} disabled={busy} className="bg-amber-600 text-xs font-bold hover:bg-amber-700">Terapkan</Button>
+            <Button variant="outline" onClick={() => setAdjTarget(null)} className="text-xs font-bold">{t("Batal")}</Button>
+            <Button onClick={adjust} disabled={busy} className="bg-amber-600 text-xs font-bold hover:bg-amber-700">{t("Terapkan")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

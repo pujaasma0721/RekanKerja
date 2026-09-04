@@ -39,9 +39,20 @@ import {
   Lock, Gauge, Save, RotateCcw, FlaskConical, UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const APP_ROLES = ["Admin", "HR Manager", "HR Staff", "Approver", "Viewer"] as const;
+
+// Peta EN paralel label umur kata sandi dari lib/password-policy (label ID tetap di lib).
+function ageLabelEn(label: string): string {
+  if (label === "Tanpa batas umur") return "No age limit";
+  if (label === "Kedaluwarsa") return "Expired";
+  if (label === "Kedaluwarsa besok") return "Expires tomorrow";
+  const m = /^Berlaku (\d+) hari lagi$/.exec(label);
+  if (m) return `Valid for ${m[1]} more days`;
+  return label;
+}
 
 const ROLE_TONE: Record<string, string> = {
   Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
@@ -89,6 +100,7 @@ type PolicyWithStamp = PasswordPolicyData & { updatedAt?: string };
 // =====================================================================
 
 export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: string) => void }) {
+  const { t, locale } = useI18n();
   const { data, loading, refresh } = useApi<AppUserData>("/api/onevity/app-users");
   const { data: policyData } = useApi<{ policy: PolicyWithStamp }>("/api/onevity/password-policy");
   const { data: empData } = useApi<{ employees: EmployeeOption[] }>("/api/onevity/employees?limit=200", [data]);
@@ -106,7 +118,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
   const removeUser = async (u: AppUserRow) => {
     try {
       await apiSend(`/api/onevity/app-users?id=${u.id}`, "DELETE");
-      toast.success(`Pengguna ${u.fullName} dihapus`);
+      toast.success(t("Pengguna {name} dihapus", "User {name} deleted", { name: u.fullName }));
       setDeleting(null);
       refresh();
     } catch (e) {
@@ -120,35 +132,35 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <div className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5 border-b border-stone-200/80 px-6 pb-3 pt-6 dark:border-stone-800/80">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <UserCog className="h-4 w-4 ov-text-accent" /> Pengguna Aplikasi ({users.length})
+          <UserCog className="h-4 w-4 ov-text-accent" /> {t("Pengguna Aplikasi ({n})", "Application Users ({n})", { n: users.length })}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="gap-1 font-mono text-[10px]">
-            <History className="h-3 w-3" /> riwayat {policy.historyCount} sandi · umur {policy.lifetimeDays} hari
+            <History className="h-3 w-3" /> {t("riwayat {n} sandi · umur {m} hari", "history of {n} passwords · lifetime {m} days", { n: policy.historyCount, m: policy.lifetimeDays })}
           </Badge>
           <Button
             onClick={() => setCreateOpen(true)}
             disabled={!can("create")}
-            title={can("create") ? "Tambah pengguna aplikasi baru" : "Anda tidak memiliki aksi Baru pada menu ini"}
+            title={can("create") ? t("Tambah pengguna aplikasi baru", "Add a new application user") : t("Anda tidak memiliki aksi Baru pada menu ini", "You do not have the Create action on this menu")}
             className="h-8 gap-1.5 rounded-xl px-3 text-xs font-bold"
           >
-            <Plus className="h-3.5 w-3.5" /> Tambah Pengguna
+            <Plus className="h-3.5 w-3.5" /> {t("Tambah Pengguna", "Add User")}
           </Button>
         </div>
       </div>
       <CardContent className="pt-0">
         {users.length === 0 ? (
-          <EmptyState title="Belum ada pengguna aplikasi" description="Tambahkan pengguna pertama untuk workspace ini." icon={UserCog} />
+          <EmptyState title={t("Belum ada pengguna aplikasi", "No application users yet")} description={t("Tambahkan pengguna pertama untuk workspace ini.", "Add the first user for this workspace.")} icon={UserCog} />
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                  <TableHead className="text-[11px] font-bold">Pengguna</TableHead>
+                  <TableHead className="text-[11px] font-bold">{t("Pengguna", "User")}</TableHead>
                   <TableHead className="text-[11px] font-bold">Role</TableHead>
-                  <TableHead className="text-[11px] font-bold">Login Terakhir</TableHead>
-                  <TableHead className="text-[11px] font-bold">Kata Sandi</TableHead>
-                  <TableHead className="text-[11px] font-bold">Status</TableHead>
+                  <TableHead className="text-[11px] font-bold">{t("Login Terakhir", "Last Login")}</TableHead>
+                  <TableHead className="text-[11px] font-bold">{t("Kata Sandi")}</TableHead>
+                  <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                   <TableHead className="w-36" />
                 </TableRow>
               </TableHeader>
@@ -172,7 +184,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                               <span className="font-mono text-[10px] font-normal text-stone-400">{u.username}</span>
                             </p>
                             <p className="truncate text-[10px] text-stone-400">
-                              {u.email ?? "— tanpa email"}
+                              {u.email ?? t("— tanpa email", "— no email")}
                               {linked ? ` · ${linked.employeeNo}` : ""}
                             </p>
                           </div>
@@ -182,12 +194,12 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                         <Badge variant="outline" className={cn("text-[10px] font-bold", ROLE_TONE[u.role] ?? "")}>{u.role}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-stone-500">
-                        {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "Belum pernah"}
+                        {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : t("Belum pernah", "Never")}
                       </TableCell>
                       <TableCell>
                         {u.passwordChangedAt ? (
                           <span
-                            title={`Terakhir disetel: ${new Date(u.passwordChangedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} · kebijakan: umur ${policy.lifetimeDays} hari`}
+                            title={t("Terakhir disetel: {d} · kebijakan: umur {n} hari", "Last set: {d} · policy: lifetime {n} days", { d: new Date(u.passwordChangedAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }), n: policy.lifetimeDays })}
                             className={cn(
                               "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold",
                               age.expired
@@ -197,10 +209,10 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                                   : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
                             )}
                           >
-                            <CalendarClock className="h-3 w-3" /> {age.label}
+                            <CalendarClock className="h-3 w-3" /> {t(age.label, ageLabelEn(age.label))}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-stone-400">— belum disetel</span>
+                          <span className="text-[10px] text-stone-400">{t("— belum disetel", "— never set")}</span>
                         )}
                       </TableCell>
                       <TableCell><StatusPill status={u.active ? "Active" : "Cancelled"} /></TableCell>
@@ -209,15 +221,15 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                           <button
                             onClick={() => onConfigureAccess(u.id)}
                             className="rounded-lg p-1.5 text-stone-400 transition hover:ov-soft"
-                            aria-label={`Atur hak akses ${u.fullName}`}
-                            title="Atur hak akses (menu & data)"
+                            aria-label={t("Atur hak akses {name}", "Configure access rights for {name}", { name: u.fullName })}
+                            title={t("Atur hak akses (menu & data)", "Configure access rights (menus & data)")}
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => setEditing(u)}
                             disabled={!can("update")}
-                            title={can("update") ? "Edit pengguna" : "Tanpa aksi Ubah pada menu ini"}
+                            title={can("update") ? t("Edit pengguna", "Edit user") : t("Tanpa aksi Ubah pada menu ini", "No Update action on this menu")}
                             className="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30 dark:hover:bg-stone-800"
                             aria-label={`Edit ${u.fullName}`}
                           >
@@ -226,16 +238,16 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                           <button
                             onClick={() => setResetTarget(u)}
                             disabled={!can("update") || !u.email}
-                            title={!u.email ? "Pengguna tanpa email tidak punya akun login" : can("update") ? "Reset kata sandi (kebijakan + riwayat)" : "Tanpa aksi Ubah pada menu ini"}
+                            title={!u.email ? t("Pengguna tanpa email tidak punya akun login", "A user without email has no login account") : can("update") ? t("Reset kata sandi (kebijakan + riwayat)", "Reset password (policy + history)") : t("Tanpa aksi Ubah pada menu ini", "No Update action on this menu")}
                             className="rounded-lg p-1.5 text-stone-400 transition hover:bg-amber-50 hover:text-amber-600 disabled:opacity-30 dark:hover:bg-amber-500/10"
-                            aria-label={`Reset kata sandi ${u.fullName}`}
+                            aria-label={t("Reset kata sandi {name}", "Reset password for {name}", { name: u.fullName })}
                           >
                             <KeyRound className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleting(u)}
                             disabled={!can("delete")}
-                            title={can("delete") ? "Hapus pengguna" : "Tanpa aksi Hapus pada menu ini"}
+                            title={can("delete") ? t("Hapus pengguna", "Delete user") : t("Tanpa aksi Hapus pada menu ini", "No Delete action on this menu")}
                             className="rounded-lg p-1.5 text-stone-300 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30 dark:hover:bg-rose-500/10"
                             aria-label={`Hapus ${u.fullName}`}
                           >
@@ -273,16 +285,15 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
-              <Trash2 className="h-4 w-4 text-rose-500" /> Hapus Pengguna
+              <Trash2 className="h-4 w-4 text-rose-500" /> {t("Hapus Pengguna", "Delete User")}
             </DialogTitle>
             <DialogDescription>
-              Pengguna <b>{deleting?.fullName}</b> ({deleting?.username}) akan dihapus dari workspace ini.
-              Akun login platform &amp; membership workspace tetap dipertahankan.
+              {t("Pengguna", "User")} <b>{deleting?.fullName}</b> ({deleting?.username}) {t("akan dihapus dari workspace ini. Akun login platform & membership workspace tetap dipertahankan.", "will be removed from this workspace. The platform login account & workspace membership are kept.")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>Batal</Button>
-            <Button onClick={() => deleting && removeUser(deleting)} className="bg-rose-600 font-bold hover:bg-rose-700">Hapus</Button>
+            <Button variant="outline" onClick={() => setDeleting(null)}>{t("Batal")}</Button>
+            <Button onClick={() => deleting && removeUser(deleting)} className="bg-rose-600 font-bold hover:bg-rose-700">{t("Hapus")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -302,6 +313,7 @@ function UserCreateDialog({
   policy: PasswordPolicyData;
   employees: EmployeeOption[];
 }) {
+  const { t } = useI18n();
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -329,10 +341,10 @@ function UserCreateDialog({
   const effUsername = usernameTouched ? username : autoUsername;
 
   const localIssues: string[] = [];
-  if (!fullName.trim()) localIssues.push("Nama lengkap wajib diisi");
-  if (effUsername.trim().length < 3) localIssues.push("Username minimal 3 karakter");
-  if (!EMAIL_RE.test(email.trim())) localIssues.push("Email login wajib diisi dengan format valid");
-  if (password !== confirm) localIssues.push("Konfirmasi kata sandi tidak sama");
+  if (!fullName.trim()) localIssues.push(t("Nama lengkap wajib diisi", "Full name is required"));
+  if (effUsername.trim().length < 3) localIssues.push(t("Username minimal 3 karakter", "Username must be at least 3 characters"));
+  if (!EMAIL_RE.test(email.trim())) localIssues.push(t("Email login wajib diisi dengan format valid", "A valid login email is required"));
+  if (password !== confirm) localIssues.push(t("Konfirmasi kata sandi tidak sama", "Password confirmation does not match"));
 
   const submit = async () => {
     if (busy) return;
@@ -349,7 +361,7 @@ function UserCreateDialog({
         active,
         password,
       });
-      toast.success(`Pengguna ${fullName.trim()} dibuat — akun login ${email.trim()} siap dipakai`);
+      toast.success(t("Pengguna {name} dibuat — akun login {email} siap dipakai", "User {name} created — the login account {email} is ready to use", { name: fullName.trim(), email: email.trim() }));
       onClose(true);
     } catch (e) {
       const err = e as Error & { details?: string[] };
@@ -365,17 +377,17 @@ function UserCreateDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <UserRound className="h-4 w-4 ov-text-accent" /> Tambah Pengguna
+            <UserRound className="h-4 w-4 ov-text-accent" /> {t("Tambah Pengguna", "Add User")}
           </DialogTitle>
           <DialogDescription>
-            Pengguna aplikasi workspace ini + akun login (email &amp; kata sandi awal divalidasi kebijakan kata sandi).
+            {t("Pengguna aplikasi workspace ini + akun login (email & kata sandi awal divalidasi kebijakan kata sandi).", "An application user of this workspace + a login account (email & initial password validated against the password policy).")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3.5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nama Lengkap *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="cth: Dewi Lestari" />
+            <Label className="text-xs">{t("Nama Lengkap *", "Full Name *")}</Label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t("cth: Dewi Lestari", "e.g. Dewi Lestari")} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Username *</Label>
@@ -390,9 +402,9 @@ function UserCreateDialog({
                 <button
                   type="button"
                   onClick={() => setUsernameTouched(false)}
-                  title="Kembali ke usulan otomatis dari nama"
+                  title={t("Kembali ke usulan otomatis dari nama", "Back to the automatic suggestion from the name")}
                   className="shrink-0 rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
-                  aria-label="Usulkan username otomatis"
+                  aria-label={t("Usulkan username otomatis", "Suggest username automatically")}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                 </button>
@@ -400,12 +412,12 @@ function UserCreateDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Email Login *</Label>
+            <Label className="text-xs">{t("Email Login *", "Login Email *")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dewi@mii.co.id" />
-            <p className="text-[10px] text-stone-400">Dipakai untuk masuk (account SaaS) — harus belum terdaftar.</p>
+            <p className="text-[10px] text-stone-400">{t("Dipakai untuk masuk (account SaaS) — harus belum terdaftar.", "Used to sign in (SaaS account) — must not be registered yet.")}</p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Role Aplikasi</Label>
+            <Label className="text-xs">{t("Role Aplikasi", "Application Role")}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -414,11 +426,11 @@ function UserCreateDialog({
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs">Tautkan ke Karyawan (opsional)</Label>
+            <Label className="text-xs">{t("Tautkan ke Karyawan (opsional)", "Link to Employee (optional)")}</Label>
             <Select value={employeeId} onValueChange={setEmployeeId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none">— tanpa tautan karyawan —</SelectItem>
+                <SelectItem value="none">{t("— tanpa tautan karyawan —", "— no employee link —")}</SelectItem>
                 {employees.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.employeeNo} · {e.fullName}
@@ -426,29 +438,29 @@ function UserCreateDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-stone-400">Pengguna terkait otomatis mengakses data dirinya (tanpa perlu rule).</p>
+            <p className="text-[10px] text-stone-400">{t("Pengguna terkait otomatis mengakses data dirinya (tanpa perlu rule).", "A linked user automatically accesses their own data (no rule needed).")}</p>
           </div>
           <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800 sm:col-span-2">
             <div>
-              <p className="text-xs font-bold">Status Aktif</p>
-              <p className="text-[10px] text-stone-400">Pengguna non-aktif tidak tampil sebagai konfigurasi aktif.</p>
+              <p className="text-xs font-bold">{t("Status Aktif", "Active Status")}</p>
+              <p className="text-[10px] text-stone-400">{t("Pengguna non-aktif tidak tampil sebagai konfigurasi aktif.", "Inactive users are not shown as an active configuration.")}</p>
             </div>
-            <Switch checked={active} onCheckedChange={setActive} aria-label="Status aktif" />
+            <Switch checked={active} onCheckedChange={setActive} aria-label={t("Status aktif", "Active status")} />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">Kata Sandi Awal *</Label>
+            <Label className="text-xs">{t("Kata Sandi Awal *", "Initial Password *")}</Label>
             <PasswordInput value={password} onChange={setPassword} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Konfirmasi Kata Sandi *</Label>
+            <Label className="text-xs">{t("Konfirmasi Kata Sandi *", "Confirm Password *")}</Label>
             <PasswordInput value={confirm} onChange={setConfirm} />
           </div>
         </div>
 
         <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
           <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
-            <ShieldCheck className="h-3.5 w-3.5 ov-text-accent" /> Validasi Kebijakan Kata Sandi
+            <ShieldCheck className="h-3.5 w-3.5 ov-text-accent" /> {t("Validasi Kebijakan Kata Sandi", "Password Policy Validation")}
           </p>
           <PasswordStrengthBar password={password} />
           <PasswordRuleChecklist
@@ -460,13 +472,13 @@ function UserCreateDialog({
             compact
           />
           {password !== confirm && confirm.length > 0 && (
-            <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">Konfirmasi kata sandi tidak sama.</p>
+            <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{t("Konfirmasi kata sandi tidak sama.", "Password confirmation does not match.")}</p>
           )}
         </div>
 
         {(serverError || serverErrors.length > 0) && (
           <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2.5 dark:border-rose-500/30 dark:bg-rose-500/10">
-            <p className="text-xs font-bold text-rose-700 dark:text-rose-400">{serverError ?? "Periksa kembali isian:"}</p>
+            <p className="text-xs font-bold text-rose-700 dark:text-rose-400">{serverError ?? t("Periksa kembali isian:", "Please check the fields again:")}</p>
             {serverErrors.length > 0 && (
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {serverErrors.map((d, i) => <li key={i} className="text-[11px] text-rose-600 dark:text-rose-400">{d}</li>)}
@@ -476,9 +488,9 @@ function UserCreateDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>Batal</Button>
+          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>{t("Batal")}</Button>
           <Button onClick={submit} disabled={busy} className="font-bold">
-            {busy ? "Menyimpan…" : "Buat Pengguna"}
+            {busy ? t("Menyimpan…") : t("Buat Pengguna", "Create User")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -497,6 +509,7 @@ function UserEditDialog({
   employees: EmployeeOption[];
   onClose: (saved: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Viewer");
@@ -519,7 +532,7 @@ function UserEditDialog({
 
   const submit = async () => {
     if (!user || busy) return;
-    if (!fullName.trim()) { setError("Nama wajib diisi"); return; }
+    if (!fullName.trim()) { setError(t("Nama wajib diisi", "Name is required")); return; }
     setBusy(true); setError(null);
     try {
       await apiSend("/api/onevity/app-users", "PATCH", {
@@ -530,7 +543,7 @@ function UserEditDialog({
         employeeId: employeeId === "none" ? null : employeeId,
         active,
       });
-      toast.success("Pengguna diperbarui");
+      toast.success(t("Pengguna diperbarui", "User updated"));
       onClose(true);
     } catch (e) {
       setError((e as Error).message);
@@ -543,16 +556,16 @@ function UserEditDialog({
     <Dialog open={!!user} onOpenChange={(v) => { if (!v && !busy) onClose(false); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Edit Pengguna — {user?.username}</DialogTitle>
-          <DialogDescription>Hak akses menu &amp; data diatur di tab Hak Akses per Pengguna.</DialogDescription>
+          <DialogTitle className="text-base">{t("Edit Pengguna — {username}", "Edit User — {username}", { username: user?.username ?? "" })}</DialogTitle>
+          <DialogDescription>{t("Hak akses menu & data diatur di tab Hak Akses per Pengguna.", "Menu & data access rights are configured in the Access Rights per User tab.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3.5">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nama Lengkap</Label>
+            <Label className="text-xs">{t("Nama Lengkap")}</Label>
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Email Login</Label>
+            <Label className="text-xs">{t("Email Login", "Login Email")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-1.5">
@@ -565,11 +578,11 @@ function UserEditDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Tautan Karyawan</Label>
+            <Label className="text-xs">{t("Tautan Karyawan", "Employee Link")}</Label>
             <Select value={employeeId} onValueChange={setEmployeeId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none">— tanpa tautan —</SelectItem>
+                <SelectItem value="none">{t("— tanpa tautan —", "— no link —")}</SelectItem>
                 {employees.map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.employeeNo} · {e.fullName}</SelectItem>
                 ))}
@@ -578,16 +591,16 @@ function UserEditDialog({
           </div>
           <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
             <div>
-              <p className="text-xs font-bold">Status Aktif</p>
-              <p className="text-[10px] text-stone-400">{user?.active ? "Pengguna aktif" : "Saat ini non-aktif"}</p>
+              <p className="text-xs font-bold">{t("Status Aktif", "Active Status")}</p>
+              <p className="text-[10px] text-stone-400">{user?.active ? t("Pengguna aktif", "Active user") : t("Saat ini non-aktif", "Currently inactive")}</p>
             </div>
-            <Switch checked={active} onCheckedChange={setActive} aria-label="Status aktif" />
+            <Switch checked={active} onCheckedChange={setActive} aria-label={t("Status aktif", "Active status")} />
           </div>
           {error && <p role="alert" className="text-xs font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -605,6 +618,7 @@ function ResetPasswordDialog({
   policy: PasswordPolicyData;
   onClose: (saved: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -618,11 +632,11 @@ function ResetPasswordDialog({
   const submit = async () => {
     if (!user || busy) return;
     setServerError(null); setServerErrors([]);
-    if (password !== confirm) { setServerError("Konfirmasi kata sandi tidak sama"); return; }
+    if (password !== confirm) { setServerError(t("Konfirmasi kata sandi tidak sama", "Password confirmation does not match")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/app-users", "PATCH", { id: user.id, password });
-      toast.success(`Kata sandi ${user.fullName} direset`);
+      toast.success(t("Kata sandi {name} direset", "Password for {name} reset", { name: user.fullName }));
       onClose(true);
     } catch (e) {
       const err = e as Error & { details?: string[] };
@@ -638,27 +652,27 @@ function ResetPasswordDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <KeyRound className="h-4 w-4 text-amber-600" /> Reset Kata Sandi
+            <KeyRound className="h-4 w-4 text-amber-600" /> {t("Reset Kata Sandi", "Reset Password")}
           </DialogTitle>
           <DialogDescription>
-            Pengguna <b>{user?.fullName}</b> ({user?.username}) akan memakai kata sandi baru saat masuk berikutnya.
+            {t("Pengguna", "User")} <b>{user?.fullName}</b> ({user?.username}) {t("akan memakai kata sandi baru saat masuk berikutnya.", "will use the new password on their next sign-in.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3.5">
           <div className="space-y-1.5">
-            <Label className="text-xs">Kata Sandi Baru *</Label>
+            <Label className="text-xs">{t("Kata Sandi Baru *", "New Password *")}</Label>
             <PasswordInput value={password} onChange={setPassword} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Konfirmasi *</Label>
+            <Label className="text-xs">{t("Konfirmasi *", "Confirm *")}</Label>
             <PasswordInput value={confirm} onChange={setConfirm} />
           </div>
 
           <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
             <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
               <History className="h-3.5 w-3.5 ov-text-accent" />
-              Tidak boleh sama dengan {policy.historyCount} kata sandi terakhir pengguna ini
+              {t("Tidak boleh sama dengan {n} kata sandi terakhir pengguna ini", "Must not match the user's last {n} passwords", { n: policy.historyCount })}
             </p>
             <PasswordStrengthBar password={password} />
             <PasswordRuleChecklist
@@ -673,7 +687,7 @@ function ResetPasswordDialog({
 
           {(serverError || serverErrors.length > 0) && (
             <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2.5 dark:border-rose-500/30 dark:bg-rose-500/10">
-              <p className="text-xs font-bold text-rose-700 dark:text-rose-400">{serverError ?? "Periksa kembali:"}</p>
+              <p className="text-xs font-bold text-rose-700 dark:text-rose-400">{serverError ?? t("Periksa kembali:", "Please check again:")}</p>
               {serverErrors.length > 0 && (
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
                   {serverErrors.map((d, i) => <li key={i} className="text-[11px] text-rose-600 dark:text-rose-400">{d}</li>)}
@@ -684,8 +698,8 @@ function ResetPasswordDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-amber-600 font-bold hover:bg-amber-700">{busy ? "Meriset…" : "Reset Kata Sandi"}</Button>
+          <Button variant="outline" onClick={() => onClose(false)} disabled={busy}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-amber-600 font-bold hover:bg-amber-700">{busy ? t("Meriset…", "Resetting…") : t("Reset Kata Sandi", "Reset Password")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -703,6 +717,7 @@ function policyDraftOf(p: PasswordPolicyData): PolicyDraft {
 }
 
 export function PasswordPolicyPanel() {
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<{ policy: PolicyWithStamp }>("/api/onevity/password-policy");
   const { can } = useSecurityActions();
 
@@ -734,7 +749,7 @@ export function PasswordPolicyPanel() {
     setSaving(true);
     try {
       await apiSend("/api/onevity/password-policy", "PUT", draft);
-      toast.success("Kebijakan kata sandi tersimpan");
+      toast.success(t("Kebijakan kata sandi tersimpan", "Password policy saved"));
       setDirty(false);
       refresh();
     } catch (e) {
@@ -753,25 +768,25 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Gauge className="h-4 w-4 ov-text-accent" /> Kompleksitas &amp; Kombinasi
+              <Gauge className="h-4 w-4 ov-text-accent" /> {t("Kompleksitas & Kombinasi", "Complexity & Combination")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <PolicyNumber label="Panjang Minimum" value={draft.minLength} onChange={(v) => set("minLength", v)} min={4} max={draft.maxLength} suffix="karakter" />
-              <PolicyNumber label="Panjang Maksimum" value={draft.maxLength} onChange={(v) => set("maxLength", v)} min={draft.minLength} max={128} suffix="karakter" />
-              <PolicyNumber label="Karakter Unik Minimum" value={draft.minUniqueChars} onChange={(v) => set("minUniqueChars", v)} min={0} max={32} suffix="beda" />
-              <PolicyNumber label="Maks. Karakter Sama Berturut" value={draft.maxRepeated} onChange={(v) => set("maxRepeated", v)} min={0} max={16} suffix="kali (aaa)" />
-              <PolicyNumber label="Maks. Karakter Berurutan" value={draft.maxSequential} onChange={(v) => set("maxSequential", v)} min={0} max={16} suffix="kali (abc)" />
+              <PolicyNumber label={t("Panjang Minimum", "Minimum Length")} value={draft.minLength} onChange={(v) => set("minLength", v)} min={4} max={draft.maxLength} suffix={t("karakter", "characters")} />
+              <PolicyNumber label={t("Panjang Maksimum", "Maximum Length")} value={draft.maxLength} onChange={(v) => set("maxLength", v)} min={draft.minLength} max={128} suffix={t("karakter", "characters")} />
+              <PolicyNumber label={t("Karakter Unik Minimum", "Minimum Unique Characters")} value={draft.minUniqueChars} onChange={(v) => set("minUniqueChars", v)} min={0} max={32} suffix={t("beda", "distinct")} />
+              <PolicyNumber label={t("Maks. Karakter Sama Berturut", "Max. Consecutive Identical Chars")} value={draft.maxRepeated} onChange={(v) => set("maxRepeated", v)} min={0} max={16} suffix={t("kali (aaa)", "times (aaa)")} />
+              <PolicyNumber label={t("Maks. Karakter Berurutan", "Max. Sequential Chars")} value={draft.maxSequential} onChange={(v) => set("maxSequential", v)} min={0} max={16} suffix={t("kali (abc)", "times (abc)")} />
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2">
-              <PolicySwitch label="Wajib huruf besar (A–Z)" checked={draft.requireUppercase} onChange={(v) => set("requireUppercase", v)} />
-              <PolicySwitch label="Wajib huruf kecil (a–z)" checked={draft.requireLowercase} onChange={(v) => set("requireLowercase", v)} />
-              <PolicySwitch label="Wajib angka (0–9)" checked={draft.requireNumber} onChange={(v) => set("requireNumber", v)} />
-              <PolicySwitch label="Wajib karakter khusus (!@#$…)" checked={draft.requireSpecial} onChange={(v) => set("requireSpecial", v)} />
-              <PolicySwitch label="Larang memuat username / email" checked={draft.blockUsername} onChange={(v) => set("blockUsername", v)} />
-              <PolicySwitch label="Larang memuat nama pengguna" checked={draft.blockName} onChange={(v) => set("blockName", v)} />
-              <PolicySwitch label="Larang kata sandi umum (password, qwerty…)" checked={draft.blockCommon} onChange={(v) => set("blockCommon", v)} />
+              <PolicySwitch label={t("Wajib huruf besar (A–Z)", "Require uppercase letters (A–Z)")} checked={draft.requireUppercase} onChange={(v) => set("requireUppercase", v)} />
+              <PolicySwitch label={t("Wajib huruf kecil (a–z)", "Require lowercase letters (a–z)")} checked={draft.requireLowercase} onChange={(v) => set("requireLowercase", v)} />
+              <PolicySwitch label={t("Wajib angka (0–9)", "Require digits (0–9)")} checked={draft.requireNumber} onChange={(v) => set("requireNumber", v)} />
+              <PolicySwitch label={t("Wajib karakter khusus (!@#$…)", "Require special characters (!@#$…)")} checked={draft.requireSpecial} onChange={(v) => set("requireSpecial", v)} />
+              <PolicySwitch label={t("Larang memuat username / email", "Forbid containing the username / email")} checked={draft.blockUsername} onChange={(v) => set("blockUsername", v)} />
+              <PolicySwitch label={t("Larang memuat nama pengguna", "Forbid containing the user's name")} checked={draft.blockName} onChange={(v) => set("blockName", v)} />
+              <PolicySwitch label={t("Larang kata sandi umum (password, qwerty…)", "Forbid common passwords (password, qwerty…)")} checked={draft.blockCommon} onChange={(v) => set("blockCommon", v)} />
             </div>
           </CardContent>
         </Card>
@@ -780,18 +795,17 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <CalendarClock className="h-4 w-4 ov-text-accent" /> Umur &amp; Riwayat
+              <CalendarClock className="h-4 w-4 ov-text-accent" /> {t("Umur & Riwayat", "Age & History")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <PolicyNumber label="Masa Berlaku (Lifetime)" value={draft.lifetimeDays} onChange={(v) => set("lifetimeDays", v)} min={0} max={730} suffix="hari (0 = tanpa batas)" />
-              <PolicyNumber label="Peringatan Sebelum Kedaluwarsa" value={draft.warnDays} onChange={(v) => set("warnDays", v)} min={0} max={draft.lifetimeDays || 90} suffix="hari sebelumnya" />
-              <PolicyNumber label="Larangan Riwayat" value={draft.historyCount} onChange={(v) => set("historyCount", v)} min={0} max={24} suffix="sandi terakhir" />
+              <PolicyNumber label={t("Masa Berlaku (Lifetime)", "Lifetime")} value={draft.lifetimeDays} onChange={(v) => set("lifetimeDays", v)} min={0} max={730} suffix={t("hari (0 = tanpa batas)", "days (0 = no limit)")} />
+              <PolicyNumber label={t("Peringatan Sebelum Kedaluwarsa", "Expiry Warning")} value={draft.warnDays} onChange={(v) => set("warnDays", v)} min={0} max={draft.lifetimeDays || 90} suffix={t("hari sebelumnya", "days in advance")} />
+              <PolicyNumber label={t("Larangan Riwayat", "History Restriction")} value={draft.historyCount} onChange={(v) => set("historyCount", v)} min={0} max={24} suffix={t("sandi terakhir", "recent passwords")} />
             </div>
             <p className="rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
-              Kata sandi baru tidak boleh sama dengan <b>{draft.historyCount}</b> sandi terakhir pengguna tersebut;
-              umur sandi dihitung sejak terakhir disetel/direset — tabel Pengguna menampilkan sisa masa berlaku.
+              {t("Kata sandi baru tidak boleh sama dengan", "A new password must not match")} <b>{draft.historyCount}</b> {t("sandi terakhir pengguna tersebut; umur sandi dihitung sejak terakhir disetel/direset — tabel Pengguna menampilkan sisa masa berlaku.", "of the user's recent passwords; the password age is counted from the last set/reset — the Users table shows the remaining lifetime.")}
             </p>
           </CardContent>
         </Card>
@@ -800,16 +814,16 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Lock className="h-4 w-4 ov-text-accent" /> Percobaan Login Gagal
+              <Lock className="h-4 w-4 ov-text-accent" /> {t("Percobaan Login Gagal", "Failed Login Attempts")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <PolicyNumber label="Batas Percobaan Gagal" value={draft.maxFailedAttempts} onChange={(v) => set("maxFailedAttempts", v)} min={0} max={20} suffix="kali" />
-              <PolicyNumber label="Durasi Kunci Akun" value={draft.lockoutMinutes} onChange={(v) => set("lockoutMinutes", v)} min={0} max={720} suffix="menit" />
+              <PolicyNumber label={t("Batas Percobaan Gagal", "Failed Attempt Limit")} value={draft.maxFailedAttempts} onChange={(v) => set("maxFailedAttempts", v)} min={0} max={20} suffix={t("kali", "times")} />
+              <PolicyNumber label={t("Durasi Kunci Akun", "Account Lock Duration")} value={draft.lockoutMinutes} onChange={(v) => set("lockoutMinutes", v)} min={0} max={720} suffix={t("menit", "minutes")} />
             </div>
             <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
-              Melewati batas → akun terkunci sementara (login ditolak sampai waktu habis atau admin mereset sandi).
+              {t("Melewati batas → akun terkunci sementara (login ditolak sampai waktu habis atau admin mereset sandi).", "Exceeding the limit → the account is temporarily locked (sign-in denied until the time expires or an admin resets the password).")}
             </p>
           </CardContent>
         </Card>
@@ -819,10 +833,10 @@ export function PasswordPolicyPanel() {
           <Button
             onClick={save}
             disabled={!dirty || saving || !crossValid || !can("update")}
-            title={!can("update") ? "Anda tidak memiliki aksi Ubah pada menu ini" : undefined}
+            title={!can("update") ? t("Anda tidak memiliki aksi Ubah pada menu ini", "You do not have the Update action on this menu") : undefined}
             className="gap-2 font-bold"
           >
-            <Save className="h-4 w-4" /> {saving ? "Menyimpan…" : dirty ? "Simpan Kebijakan" : "Tersimpan"}
+            <Save className="h-4 w-4" /> {saving ? t("Menyimpan…") : dirty ? t("Simpan Kebijakan", "Save Policy") : t("Tersimpan", "Saved")}
           </Button>
           <Button
             variant="outline"
@@ -830,9 +844,9 @@ export function PasswordPolicyPanel() {
             disabled={!can("update")}
             className="gap-2 font-semibold"
           >
-            <RotateCcw className="h-4 w-4" /> Kembalikan Default
+            <RotateCcw className="h-4 w-4" /> {t("Kembalikan Default", "Restore Default")}
           </Button>
-          {!crossValid && <p className="text-xs font-semibold text-rose-600">Periksa kembali rentang nilai (min ≤ maks, peringatan ≤ masa berlaku).</p>}
+          {!crossValid && <p className="text-xs font-semibold text-rose-600">{t("Periksa kembali rentang nilai (min ≤ maks, peringatan ≤ masa berlaku).", "Please check the value ranges (min ≤ max, warning ≤ lifetime).")}</p>}
         </div>
       </div>
 
@@ -841,23 +855,23 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <FlaskConical className="h-4 w-4 ov-text-accent" /> Uji Coba Sandi
+              <FlaskConical className="h-4 w-4 ov-text-accent" /> {t("Uji Coba Sandi", "Password Test")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
             <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
-              Coba sebuah kata sandi terhadap <b>draft kebijakan</b> saat ini (belum tersimpan bila ada perubahan).
+              {t("Coba sebuah kata sandi terhadap", "Try a password against")} <b>{t("draft kebijakan", "the policy draft")}</b> {t("saat ini (belum tersimpan bila ada perubahan).", "(unsaved if there are changes).")}
             </p>
             <div className="space-y-1.5">
-              <Label className="text-xs">Nama pengguna (uji aturan nama)</Label>
-              <Input value={testName} onChange={(e) => setTestName(e.target.value)} placeholder="cth: Dewi Lestari" />
+              <Label className="text-xs">{t("Nama pengguna (uji aturan nama)", "User name (tests the name rule)")}</Label>
+              <Input value={testName} onChange={(e) => setTestName(e.target.value)} placeholder={t("cth: Dewi Lestari", "e.g. Dewi Lestari")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Username (uji aturan username)</Label>
-              <Input value={testUsername} onChange={(e) => setTestUsername(e.target.value)} placeholder="cth: dewi.lestari" className="font-mono text-xs" />
+              <Label className="text-xs">{t("Username (uji aturan username)", "Username (tests the username rule)")}</Label>
+              <Input value={testUsername} onChange={(e) => setTestUsername(e.target.value)} placeholder={t("cth: dewi.lestari", "e.g. dewi.lestari")} className="font-mono text-xs" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Kata Sandi</Label>
+              <Label className="text-xs">{t("Kata Sandi")}</Label>
               <PasswordInput value={testPassword} onChange={setTestPassword} />
             </div>
             <PasswordStrengthBar password={testPassword} />
@@ -873,16 +887,16 @@ export function PasswordPolicyPanel() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <Eye className="h-4 w-4 ov-text-accent" /> Penerapan
+              <Eye className="h-4 w-4 ov-text-accent" /> {t("Penerapan", "How It Is Applied")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <ul className="space-y-1.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
-              <li>• <b>Tambah pengguna</b> — kata sandi awal divalidasi seluruh aturan di atas.</li>
-              <li>• <b>Reset kata sandi</b> (admin) &amp; <b>ganti kata sandi</b> (pengguna sendiri) — aturan + riwayat N terakhir.</li>
-              <li>• <b>Umur</b> — sisa masa berlaku tampil di tabel Pengguna &amp; peringatan saat masuk.</li>
-              <li>• <b>Lockout</b> — diterapkan saat login (policy workspace pertama pengguna).</li>
-              <li>• <b>Registrasi workspace baru</b> — memakai kebijakan default.</li>
+              <li>• <b>{t("Tambah pengguna", "Add user")}</b> {t("— kata sandi awal divalidasi seluruh aturan di atas.", "— the initial password is validated against all the rules above.")}</li>
+              <li>• <b>{t("Reset kata sandi", "Reset password")}</b> {t("(admin) &", "(admin) &")} <b>{t("ganti kata sandi", "change password")}</b> {t("(pengguna sendiri) — aturan + riwayat N terakhir.", "(the user themself) — rules + the last N passwords.")}</li>
+              <li>• <b>{t("Umur", "Age")}</b> {t("— sisa masa berlaku tampil di tabel Pengguna & peringatan saat masuk.", "— the remaining lifetime shows in the Users table & a warning at sign-in.")}</li>
+              <li>• <b>{t("Lockout", "Lockout")}</b> {t("— diterapkan saat login (policy workspace pertama pengguna).", "— applied at sign-in (the user's first workspace policy).")}</li>
+              <li>• <b>{t("Registrasi workspace baru", "New workspace registration")}</b> {t("— memakai kebijakan default.", "— uses the default policy.")}</li>
             </ul>
           </CardContent>
         </Card>

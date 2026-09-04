@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SESSION_LABEL, fmtDay } from "./leave-types";
+import { SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
 import { BarChart3, CalendarSearch, CalendarDays, RefreshCw, Palmtree } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -30,6 +31,7 @@ interface TypeUsageRow {
 }
 
 export function LeaveReportsPage() {
+  const { t, locale } = useI18n();
   const now = new Date();
   const [from, setFrom] = useState(iso(new Date(now.getFullYear(), now.getMonth(), 1)));
   const [to, setTo] = useState(iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
@@ -43,17 +45,17 @@ export function LeaveReportsPage() {
   const onLeave = useMemo(() => api.data?.onLeave ?? [], [api.data]);
   const today = new Date();
 
-  const maxTaken = Math.max(1, ...(api.data?.typeUsage ?? []).map((t) => t.taken));
+  const maxTaken = Math.max(1, ...(api.data?.typeUsage ?? []).map((ty) => ty.taken));
 
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL LEAVE"
-        title="Laporan Cuti"
-        description="Siapa yang sedang cuti pada rentang tanggal + ringkasan penggunaan per jenis cuti (padanan Query Employee on Leave & History)"
+        eyebrow={t("MODUL LEAVE", "LEAVE MODULE")}
+        title={t("Laporan Cuti")}
+        description={t("Siapa yang sedang cuti pada rentang tanggal + ringkasan penggunaan per jenis cuti (padanan Query Employee on Leave & History)", "Who is on leave within a date range + usage summary per leave type (Query Employee on Leave & History equivalent)")}
         actions={
           <Button variant="outline" onClick={() => api.refresh()} className="gap-2 font-bold">
-            <RefreshCw className="h-4 w-4" /> Segarkan
+            <RefreshCw className="h-4 w-4" /> {t("Segarkan")}
           </Button>
         }
       />
@@ -61,15 +63,15 @@ export function LeaveReportsPage() {
       <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold">Dari Tanggal</Label>
+            <Label className="text-xs font-bold">{t("Dari Tanggal", "From Date")}</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-40 text-xs" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold">Sampai Tanggal</Label>
+            <Label className="text-xs font-bold">{t("Sampai Tanggal", "To Date")}</Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-40 text-xs" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-bold">Tahun Ringkasan</Label>
+            <Label className="text-xs font-bold">{t("Tahun Ringkasan", "Summary Year")}</Label>
             <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
               <SelectTrigger className="h-8 w-24 text-xs font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
@@ -77,7 +79,7 @@ export function LeaveReportsPage() {
           </div>
           <div className="ml-auto flex items-center gap-2 rounded-xl ov-soft px-3 py-2">
             <CalendarDays className="h-4 w-4" />
-            <p className="text-xs font-bold">{api.data?.onLeaveToday ?? 0} karyawan sedang cuti hari ini</p>
+            <p className="text-xs font-bold">{t("{n} karyawan sedang cuti hari ini", "{n} employees on leave today", { n: api.data?.onLeaveToday ?? 0 })}</p>
           </div>
         </CardContent>
       </Card>
@@ -89,21 +91,21 @@ export function LeaveReportsPage() {
               <div className="flex items-center gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
                 <CalendarSearch className="h-4 w-4 ov-text-accent" />
                 <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                  Karyawan Cuti {new Date(from).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} – {new Date(to).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })} — {onLeave.length} orang
+                  {t("Karyawan Cuti", "Employees on Leave")} {new Date(from).toLocaleDateString(locale, { day: "2-digit", month: "short" })} – {new Date(to).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })} — {onLeave.length} {t("orang", "people")}
                 </p>
               </div>
               {onLeave.length === 0 ? (
-                <div className="p-5"><EmptyState title="Tidak ada karyawan cuti" description="Tidak ada cuti disetujui pada rentang tanggal ini." icon={<Palmtree className="h-6 w-6" />} /></div>
+                <div className="p-5"><EmptyState title={t("Tidak ada karyawan cuti", "No employees on leave")} description={t("Tidak ada cuti disetujui pada rentang tanggal ini.", "No approved leave in this date range.")} icon={<Palmtree className="h-6 w-6" />} /></div>
               ) : (
                 <div className="max-h-96 overflow-auto">
                   <Table>
                     <TableHeader className="sticky top-0 z-10">
                       <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                        <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                        <TableHead className="text-[11px] font-bold">Jenis</TableHead>
-                        <TableHead className="text-[11px] font-bold">Rentang</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">Hari</TableHead>
-                        <TableHead className="text-[11px] font-bold">Alasan</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Rentang", "Range")}</TableHead>
+                        <TableHead className="text-right text-[11px] font-bold">{t("Hari", "Days")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Alasan", "Reason")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -112,15 +114,15 @@ export function LeaveReportsPage() {
                         return (
                           <TableRow key={r.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", isToday && "ov-soft")}>
                             <TableCell>
-                              <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo} {isToday && "· hari ini"}</p>
+                              <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo} {isToday && t("· hari ini", "· today")}</p>
                               <p className="text-[10px] text-stone-400">{r.fullName} · {r.orgUnitName ?? "—"}</p>
                             </TableCell>
                             <TableCell>
                               <p className="text-xs text-stone-700 dark:text-stone-200">{r.leaveTypeName}</p>
-                              {!r.paid && <Badge className="mt-0.5 bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Tidak dibayar</Badge>}
+                              {!r.paid && <Badge className="mt-0.5 bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t("Tidak dibayar", "Unpaid")}</Badge>}
                             </TableCell>
                             <TableCell className="text-[11px] font-semibold text-stone-700 dark:text-stone-200">
-                              {new Date(r.dateFrom).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionFrom]} → {new Date(r.dateTo).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionTo]}
+                              {new Date(r.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionFrom], SESSION_LABEL_EN[r.sessionFrom])} → {new Date(r.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionTo], SESSION_LABEL_EN[r.sessionTo])}
                             </TableCell>
                             <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
                             <TableCell className="max-w-52 text-[10px] text-stone-400">{r.reason ?? "—"}</TableCell>
@@ -138,22 +140,22 @@ export function LeaveReportsPage() {
             <CardContent className="p-0">
               <div className="flex items-center gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
                 <BarChart3 className="h-4 w-4 ov-text-accent" />
-                <p className="text-xs font-bold text-stone-600 dark:text-stone-300">Penggunaan per Jenis {year}</p>
+                <p className="text-xs font-bold text-stone-600 dark:text-stone-300">{t("Penggunaan per Jenis", "Usage by Type")} {year}</p>
               </div>
               {(api.data?.typeUsage ?? []).length === 0 ? (
-                <div className="p-5"><EmptyState title="Belum ada data" description="Generate saldo tahun ini terlebih dahulu." /></div>
+                <div className="p-5"><EmptyState title={t("Belum ada data", "No data yet")} description={t("Generate saldo tahun ini terlebih dahulu.", "Generate this year's balances first.")} /></div>
               ) : (
                 <div className="space-y-2.5 p-4">
-                  {(api.data?.typeUsage ?? []).slice(0, 14).map((t) => (
-                    <div key={t.leaveTypeId}>
+                  {(api.data?.typeUsage ?? []).slice(0, 14).map((ty) => (
+                    <div key={ty.leaveTypeId}>
                       <div className="flex items-baseline justify-between">
-                        <p className="text-[11px] font-bold text-stone-700 dark:text-stone-200">{t.name}</p>
-                        <p className="text-[11px] font-bold tabular-nums text-stone-500">{t.taken} {t.unit === "MONTH" ? "bln" : "hr"} · {t.employees} kry</p>
+                        <p className="text-[11px] font-bold text-stone-700 dark:text-stone-200">{ty.name}</p>
+                        <p className="text-[11px] font-bold tabular-nums text-stone-500">{ty.taken} {ty.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")} · {ty.employees} {t("kry", "emp")}</p>
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                         <div
                           className="h-full rounded-full ov-chart"
-                          style={{ width: `${Math.max(3, (t.taken / maxTaken) * 100)}%` }}
+                          style={{ width: `${Math.max(3, (ty.taken / maxTaken) * 100)}%` }}
                         />
                       </div>
                     </div>

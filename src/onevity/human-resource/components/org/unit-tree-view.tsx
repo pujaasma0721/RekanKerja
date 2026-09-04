@@ -19,8 +19,9 @@ import {
   Users, Layers, Hash, GitBranch, CalendarDays, Building, ChevronsUpDown, ChevronsDownUp, UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import type { EmployeeBrief, EmployeesRes, OrgUnitNode, OrgUnitsRes } from "./types";
-import { levelLabel } from "./types";
+import { levelLabel, levelLabelEn } from "./types";
 
 const LEVEL_ICON: Record<number, { icon: React.ElementType; cls: string }> = {
   1: { icon: Crown, cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" },
@@ -44,6 +45,7 @@ function UnitFormDialog({
   units: OrgUnitNode[];
   onDone: (created?: OrgUnitNode) => void;
 }) {
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("none");
@@ -76,22 +78,22 @@ function UnitFormDialog({
   const nextLevel = parent ? parent.level + 1 : 1;
 
   const submit = async () => {
-    if (!code.trim() || !name.trim()) { toast.error("Kode dan nama unit wajib diisi"); return; }
+    if (!code.trim() || !name.trim()) { toast.error(t("Kode dan nama unit wajib diisi", "Unit code and name are required")); return; }
     setSaving(true);
     try {
       const payload = { code: code.trim(), name: name.trim(), parentId: parentId === "none" ? null : parentId, headcountBudget: Number(budget) || 0 };
       if (mode === "create") {
         const res = await apiSend<{ unit: OrgUnitNode }>("/api/onevity/org-units", "POST", payload);
-        toast.success(`Unit "${res.unit.name}" berhasil dibuat`);
+        toast.success(t("Unit \"{n}\" berhasil dibuat", "Unit \"{n}\" created successfully", { n: res.unit.name }));
         onDone(res.unit);
       } else if (unit) {
         await apiSend("/api/onevity/org-units", "PATCH", { id: unit.id, ...payload });
-        toast.success("Unit berhasil diperbarui");
+        toast.success(t("Unit berhasil diperbarui", "Unit updated successfully"));
         onDone();
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan unit");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan unit", "Failed to save unit"));
     } finally {
       setSaving(false);
     }
@@ -101,34 +103,34 @@ function UnitFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Unit Baru" : "Ubah Unit"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("Unit Baru", "New Unit") : t("Ubah Unit", "Edit Unit")}</DialogTitle>
           <DialogDescription>
-            {mode === "create" ? "Tambahkan unit organisasi baru ke struktur perusahaan." : `Perbarui data unit ${unit?.code ?? ""}.`}
+            {mode === "create" ? t("Tambahkan unit organisasi baru ke struktur perusahaan.", "Add a new organizational unit to the company structure.") : t("Perbarui data unit {c}.", "Update data for unit {c}.", { c: unit?.code ?? "" })}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="unit-code">Kode Unit</Label>
+              <Label htmlFor="unit-code">{t("Kode Unit", "Unit Code")}</Label>
               <Input id="unit-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="MII-HRD" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="unit-budget">Budget Headcount</Label>
+              <Label htmlFor="unit-budget">{t("Budget Headcount", "Headcount Budget")}</Label>
               <Input id="unit-budget" type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="unit-name">Nama Unit</Label>
+            <Label htmlFor="unit-name">{t("Nama Unit", "Unit Name")}</Label>
             <Input id="unit-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Human Resources & General Affairs" />
           </div>
           <div className="grid gap-1.5">
-            <Label>Unit Induk</Label>
+            <Label>{t("Unit Induk", "Parent Unit")}</Label>
             <Select value={parentId} onValueChange={setParentId}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih unit induk" />
+                <SelectValue placeholder={t("Pilih unit induk", "Select parent unit")} />
               </SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— Tanpa induk (level 1) —</SelectItem>
+                <SelectItem value="none">{t("— Tanpa induk (level 1) —", "— No parent (level 1) —")}</SelectItem>
                 {parentOptions.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {"·".repeat(Math.max(0, u.level - 1))} {u.code} — {u.name}
@@ -136,12 +138,12 @@ function UnitFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-stone-500">Unit akan berada pada level {nextLevel} — {levelLabel(nextLevel)}</p>
+            <p className="text-[11px] text-stone-500">{t("Unit akan berada pada level {n} — {lbl}", "The unit will be at level {n} — {lbl}", { n: nextLevel, lbl: t(levelLabel(nextLevel), levelLabelEn(nextLevel)) })}</p>
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : mode === "create" ? "Buat Unit" : "Simpan"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : mode === "create" ? t("Buat Unit", "Create Unit") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -159,6 +161,7 @@ function TreeNode({
   onSelect: (u: OrgUnitNode) => void;
   onToggle: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const hasChildren = (node.children?.length ?? 0) > 0;
   const isOpen = expanded.has(node.id);
   const isSelected = selectedId === node.id;
@@ -172,7 +175,7 @@ function TreeNode({
         {hasChildren ? (
           <button
             onClick={() => onToggle(node.id)}
-            aria-label={isOpen ? `Tutup ${node.name}` : `Buka ${node.name}`}
+            aria-label={isOpen ? t("Tutup {n}", "Collapse {n}", { n: node.name }) : t("Buka {n}", "Expand {n}", { n: node.name })}
             aria-expanded={isOpen}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-200/70 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
           >
@@ -206,7 +209,7 @@ function TreeNode({
                   ? "ov-fill"
                   : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
             )}
-            title={`${node._count.employees} karyawan aktif · budget ${node.headcountBudget}`}
+            title={t("{n} karyawan aktif · budget {b}", "{n} active employees · budget {b}", { n: node._count.employees, b: node.headcountBudget })}
           >
             {node._count.employees}
           </span>
@@ -225,6 +228,7 @@ function TreeNode({
 
 // ============ Main view ============
 export function UnitTreeView() {
+  const { t } = useI18n();
   const { navigate } = useNav();
   const unitsApi = useApi<OrgUnitsRes>("/api/onevity/org-units");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -289,12 +293,12 @@ export function UnitTreeView() {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/org-units?id=${encodeURIComponent(selected.id)}`, "DELETE");
-      toast.success(`Unit "${selected.name}" dihapus`);
+      toast.success(t("Unit \"{n}\" dihapus", "Unit \"{n}\" deleted", { n: selected.name }));
       setDeleteOpen(false);
       setSelectedId(null);
       unitsApi.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus unit");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus unit", "Failed to delete unit"));
     } finally {
       setDeleting(false);
     }
@@ -307,9 +311,9 @@ export function UnitTreeView() {
   return (
     <div>
       <PageHeader
-        eyebrow="PERUSAHAAN & ORGANISASI"
-        title="Unit Organisasi"
-        description="Pohon unit organisasi perusahaan — level, budget headcount, dan karyawan per unit."
+        eyebrow={t("PERUSAHAAN & ORGANISASI", "COMPANY & ORGANIZATION")}
+        title={t("Unit Organisasi")}
+        description={t("Pohon unit organisasi perusahaan — level, budget headcount, dan karyawan per unit.", "Company organizational unit tree — levels, headcount budget, and employees per unit.")}
         actions={
           <>
             <Button
@@ -318,10 +322,10 @@ export function UnitTreeView() {
               onClick={() => { unitsApi.refresh(); employeesApi.refresh(); }}
               className="h-10 gap-1.5 px-3"
             >
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
             </Button>
             <Button size="sm" className="h-10 px-4 font-bold" onClick={() => { setFormMode("create"); setFormOpen(true); }}>
-              <Plus className="h-4 w-4" /> Unit Baru
+              <Plus className="h-4 w-4" /> {t("Unit Baru", "New Unit")}
             </Button>
           </>
         }
@@ -333,15 +337,15 @@ export function UnitTreeView() {
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Network className="h-4 w-4 ov-text-accent" /> Struktur Unit
+                <Network className="h-4 w-4 ov-text-accent" /> {t("Struktur Unit", "Unit Structure")}
               </CardTitle>
-              <CardDescription className="mt-1 text-xs">{units.length} unit terdaftar</CardDescription>
+              <CardDescription className="mt-1 text-xs">{t("{n} unit terdaftar", "{n} units registered", { n: units.length })}</CardDescription>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={expandAll} aria-label="Buka semua" title="Buka semua" className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
+              <button onClick={expandAll} aria-label={t("Buka semua", "Expand all")} title={t("Buka semua", "Expand all")} className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
                 <ChevronsUpDown className="h-4 w-4" />
               </button>
-              <button onClick={collapseAll} aria-label="Tutup semua" title="Tutup semua" className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
+              <button onClick={collapseAll} aria-label={t("Tutup semua", "Collapse all")} title={t("Tutup semua", "Collapse all")} className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
                 <ChevronsDownUp className="h-4 w-4" />
               </button>
             </div>
@@ -350,11 +354,11 @@ export function UnitTreeView() {
             {unitsApi.loading ? (
               <LoadingRows rows={8} />
             ) : unitsApi.error ? (
-              <EmptyState title="Gagal memuat" description={unitsApi.error} />
+              <EmptyState title={t("Gagal memuat", "Failed to load")} description={unitsApi.error} />
             ) : tree.length === 0 ? (
-              <EmptyState title="Belum ada unit" description="Buat unit pertama dengan tombol Unit Baru." />
+              <EmptyState title={t("Belum ada unit", "No units yet")} description={t("Buat unit pertama dengan tombol Unit Baru.", "Create the first unit with the New Unit button.")} />
             ) : (
-              <div className="max-h-[68vh] space-y-0.5 overflow-y-auto pr-1" role="tree" aria-label="Pohon unit organisasi">
+              <div className="max-h-[68vh] space-y-0.5 overflow-y-auto pr-1" role="tree" aria-label={t("Pohon unit organisasi", "Organizational unit tree")}>
                 {tree.map((n) => (
                   <TreeNode key={n.id} node={n} depth={0} selectedId={selectedId} expanded={expanded} onSelect={(u) => setSelectedId(u.id)} onToggle={toggle} />
                 ))}
@@ -369,8 +373,8 @@ export function UnitTreeView() {
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardContent className="pt-6">
                 <EmptyState
-                  title="Pilih unit organisasi"
-                  description="Klik salah satu unit di panel kiri untuk melihat detail, budget headcount, dan daftar karyawan."
+                  title={t("Pilih unit organisasi", "Select an organizational unit")}
+                  description={t("Klik salah satu unit di panel kiri untuk melihat detail, budget headcount, dan daftar karyawan.", "Click a unit in the left panel to see its details, headcount budget, and employee list.")}
                   icon={<Building className="h-6 w-6" />}
                 />
               </CardContent>
@@ -390,32 +394,32 @@ export function UnitTreeView() {
                         <CardTitle className="truncate text-lg leading-tight">{selected.name}</CardTitle>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <Badge variant="outline" className="font-mono text-[10px]">{selected.code}</Badge>
-                          <Badge className="bg-stone-100 text-[10px] text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{levelLabel(selected.level)}</Badge>
+                          <Badge className="bg-stone-100 text-[10px] text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t(levelLabel(selected.level), levelLabelEn(selected.level))}</Badge>
                           <StatusPill status={selected.active ? "Active" : "Cancelled"} />
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={() => { setFormMode("edit"); setFormOpen(true); }}>
-                        <Pencil className="h-3.5 w-3.5" /> Ubah
+                        <Pencil className="h-3.5 w-3.5" /> {t("Ubah")}
                       </Button>
                       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="sm" className="h-10 gap-1.5 border-rose-200 px-3 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10">
-                            <Trash2 className="h-3.5 w-3.5" /> Hapus
+                            <Trash2 className="h-3.5 w-3.5" /> {t("Hapus")}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus unit “{selected.name}”?</AlertDialogTitle>
+                            <AlertDialogTitle>{t("Hapus unit “{n}”?", "Delete unit “{n}”?", { n: selected.name })}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Tindakan ini permanen. Unit yang masih memiliki sub-unit, posisi, atau karyawan tidak dapat dihapus.
+                              {t("Tindakan ini permanen. Unit yang masih memiliki sub-unit, posisi, atau karyawan tidak dapat dihapus.", "This action is permanent. Units that still have sub-units, positions, or employees cannot be deleted.")}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-                              {deleting ? "Menghapus…" : "Ya, Hapus"}
+                              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -425,16 +429,16 @@ export function UnitTreeView() {
                 </CardHeader>
                 <CardContent className="space-y-5 pt-0">
                   <div className="grid gap-4 rounded-xl bg-stone-50/70 p-4 dark:bg-stone-900/40 sm:grid-cols-2 xl:grid-cols-4">
-                    <InfoTile icon={Hash} label="Kode Unit" value={selected.code} mono />
-                    <InfoTile icon={GitBranch} label="Unit Induk" value={selected.parent ? `${selected.parent.code} — ${selected.parent.name}` : "—"} />
-                    <InfoTile icon={Layers} label="Posisi" value={`${selected._count.positions} posisi`} />
-                    <InfoTile icon={CalendarDays} label="Dibuat" value={fmtDate(selected.createdAt)} />
+                    <InfoTile icon={Hash} label={t("Kode Unit", "Unit Code")} value={selected.code} mono />
+                    <InfoTile icon={GitBranch} label={t("Unit Induk", "Parent Unit")} value={selected.parent ? `${selected.parent.code} — ${selected.parent.name}` : "—"} />
+                    <InfoTile icon={Layers} label={t("Posisi")} value={t("{n} posisi", "{n} positions", { n: selected._count.positions })} />
+                    <InfoTile icon={CalendarDays} label={t("Dibuat", "Created")} value={fmtDate(selected.createdAt)} />
                   </div>
 
                   <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
-                        <Users className="h-4 w-4 ov-text-accent" /> Headcount: Budget vs Aktual
+                        <Users className="h-4 w-4 ov-text-accent" /> {t("Headcount: Budget vs Aktual", "Headcount: Budget vs Actual")}
                       </p>
                       <p className={cn(
                         "text-sm font-bold tabular-nums",
@@ -442,16 +446,16 @@ export function UnitTreeView() {
                           : selected._count.employees > selected.headcountBudget ? "text-amber-600 dark:text-amber-400"
                           : "text-emerald-700 dark:text-emerald-400"
                       )}>
-                        {selected._count.employees} / {selected.headcountBudget || "—"} orang
+                        {selected._count.employees} / {selected.headcountBudget || "—"} {t("orang", "people")}
                       </p>
                     </div>
                     <Progress value={budgetPct} className="h-2.5 [&>div]:ov-chart" />
                     <p className="mt-2 text-[11px] text-stone-500">
                       {selected.headcountBudget === 0
-                        ? "Budget headcount belum ditetapkan."
+                        ? t("Budget headcount belum ditetapkan.", "Headcount budget has not been set.")
                         : budgetPct >= 100
-                          ? "Budget headcount sudah tercapai."
-                          : `Terisi ${budgetPct}% dari budget.`}
+                          ? t("Budget headcount sudah tercapai.", "Headcount budget fully reached.")
+                          : t("Terisi {n}% dari budget.", "{n}% of budget filled.", { n: budgetPct })}
                     </p>
                   </div>
                 </CardContent>
@@ -461,16 +465,16 @@ export function UnitTreeView() {
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <UserRound className="h-4 w-4 ov-text-accent" /> Karyawan di Unit Ini
+                      <UserRound className="h-4 w-4 ov-text-accent" /> {t("Karyawan di Unit Ini", "Employees in This Unit")}
                     </CardTitle>
-                    <CardDescription className="mt-1 text-xs">{employees.length} karyawan · klik untuk membuka profil</CardDescription>
+                    <CardDescription className="mt-1 text-xs">{t("{n} karyawan · klik untuk membuka profil", "{n} employees · click to open profile", { n: employees.length })}</CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {employeesApi.loading ? (
                     <LoadingRows rows={5} />
                   ) : employees.length === 0 ? (
-                    <EmptyState title="Belum ada karyawan" description="Belum ada karyawan yang terdaftar pada unit ini." />
+                    <EmptyState title={t("Belum ada karyawan", "No employees yet")} description={t("Belum ada karyawan yang terdaftar pada unit ini.", "No employees are registered in this unit yet.")} />
                   ) : (
                     <div className="max-h-96 space-y-1 overflow-y-auto pr-1">
                       {employees.map((e: EmployeeBrief) => (
@@ -485,7 +489,7 @@ export function UnitTreeView() {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-semibold text-stone-800 dark:text-stone-200">{e.fullName}</span>
                             <span className="block truncate text-[11px] text-stone-500">
-                              <span className="font-mono">{e.employeeNo}</span> · {e.position?.title ?? "Tanpa posisi"}
+                              <span className="font-mono">{e.employeeNo}</span> · {e.position?.title ?? t("Tanpa posisi", "No position")}
                             </span>
                           </span>
                           <StatusPill status={e.status} />

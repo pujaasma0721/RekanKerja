@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Percent, Scale, Landmark, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 interface TaxData {
   brackets: { id: string; lowerLimit: number; upperLimit: number | null; rateNpwp: number; rateNonNpwp: number }[];
@@ -31,6 +32,7 @@ interface TaxData {
 }
 
 export function PayrollParametersPage() {
+  const { t } = useI18n();
   const { data, loading, refresh } = useApi<TaxData>("/api/onevity/tax-parameters");
   const [tab, setTab] = useState("regulation");
   const [reg, setReg] = useState<TaxData["regulation"]>(null);
@@ -49,7 +51,7 @@ export function PayrollParametersPage() {
     setBusy(true);
     try {
       await apiSend("/api/onevity/tax-parameters", "PATCH", reg);
-      toast.success("Parameter regulasi disimpan — run berikutnya memakai nilai baru");
+      toast.success(t("Parameter regulasi disimpan — run berikutnya memakai nilai baru", "Regulation parameters saved — the next run uses the new values"));
       refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
@@ -59,9 +61,9 @@ export function PayrollParametersPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL PAYROLL"
-        title="Parameter Pajak & Regulasi"
-        description="Bracket PPh21 progresif (UU HPP), TER PP 58/2023, biaya jabatan, PTKP, dan tarif/cap BPJS — dipakai engine perhitungan"
+        eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
+        title={t("Parameter Pajak & Regulasi", "Tax Parameters & Regulations")}
+        description={t("Bracket PPh21 progresif (UU HPP), TER PP 58/2023, biaya jabatan, PTKP, dan tarif/cap BPJS — dipakai engine perhitungan", "Progressive PPh21 brackets (HPP Law), TER PP 58/2023, employment expense, PTKP, and BPJS rates/caps — used by the calculation engine")}
       />
 
       {loading && !data ? (
@@ -70,16 +72,16 @@ export function PayrollParametersPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
             <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-              <Landmark className="h-3.5 w-3.5" /> Regulasi & BPJS
+              <Landmark className="h-3.5 w-3.5" /> {t("Regulasi & BPJS", "Regulation & BPJS")}
             </TabsTrigger>
             <TabsTrigger value="brackets" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-              <Scale className="h-3.5 w-3.5" /> Bracket Progresif
+              <Scale className="h-3.5 w-3.5" /> {t("Bracket Progresif", "Progressive Brackets")}
             </TabsTrigger>
             <TabsTrigger value="ter" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-              <Percent className="h-3.5 w-3.5" /> TER (PP 58/2023)
+              <Percent className="h-3.5 w-3.5" /> {t("TER (PP 58/2023)")}
             </TabsTrigger>
             <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
-              PTKP
+              {t("PTKP")}
             </TabsTrigger>
           </TabsList>
 
@@ -90,39 +92,39 @@ export function PayrollParametersPage() {
                   <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
                     <span className="flex items-center gap-2"><Landmark className="h-4 w-4 ov-text-accent" /> {reg.name} <Badge variant="outline" className="font-mono text-[10px]">{reg.code}</Badge></span>
                     <Button onClick={save} disabled={busy} className="gap-2 font-bold">
-                      <Save className="h-4 w-4" /> {busy ? "Menyimpan…" : "Simpan Parameter"}
+                      <Save className="h-4 w-4" /> {busy ? t("Menyimpan…") : t("Simpan Parameter", "Save Parameters")}
                     </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="mb-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 dark:border-amber-500/30 dark:bg-amber-500/10">
                     <div>
-                      <p className="text-xs font-bold">Gunakan Metode TER</p>
-                      <p className="text-[10px] text-stone-500 dark:text-stone-400">Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP</p>
+                      <p className="text-xs font-bold">{t("Gunakan Metode TER", "Use TER Method")}</p>
+                      <p className="text-[10px] text-stone-500 dark:text-stone-400">{t("Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP", "Monthly effective rate (PP 58/2023) replacing annualized progressive — for Indonesian citizens with NPWP")}</p>
                     </div>
                     <Switch checked={reg.useTer} onCheckedChange={(v) => setReg({ ...reg, useTer: v })} />
                   </div>
 
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">PPh21</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("PPh21")}</p>
                   <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                    <NumField label="Biaya Jabatan (%)" value={String(reg.biayaJabatanRate * 100)} onChange={(v) => setReg({ ...reg, biayaJabatanRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="Cap Biaya Jabatan / bulan" value={String(reg.biayaJabatanCapMonthly)} onChange={(v) => setReg({ ...reg, biayaJabatanCapMonthly: num(v) })} money />
-                    <NumField label="Penalti Non-NPWP" value={String(reg.nonNpwpSurcharge * 100)} onChange={(v) => setReg({ ...reg, nonNpwpSurcharge: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Biaya Jabatan (%)", "Employment Expense (%)")} value={String(reg.biayaJabatanRate * 100)} onChange={(v) => setReg({ ...reg, biayaJabatanRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Cap Biaya Jabatan / bulan", "Employment Expense Cap / month")} value={String(reg.biayaJabatanCapMonthly)} onChange={(v) => setReg({ ...reg, biayaJabatanCapMonthly: num(v) })} money />
+                    <NumField label={t("Penalti Non-NPWP", "Non-NPWP Surcharge")} value={String(reg.nonNpwpSurcharge * 100)} onChange={(v) => setReg({ ...reg, nonNpwpSurcharge: num(v) / 100 })} suffix="%" />
                   </div>
 
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">BPJS / JSTK</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("BPJS / JSTK")}</p>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <NumField label="JHT Pegawai" value={String(reg.jhtEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jhtEmployeeRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="JHT Perusahaan" value={String(reg.jhtCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jhtCompanyRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JHT Pegawai", "JHT Employee")} value={String(reg.jhtEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jhtEmployeeRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JHT Perusahaan", "JHT Company")} value={String(reg.jhtCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jhtCompanyRate: num(v) / 100 })} suffix="%" />
                     <div />
-                    <NumField label="JP Pegawai" value={String(reg.jpEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jpEmployeeRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="JP Perusahaan" value={String(reg.jpCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jpCompanyRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="Cap Gaji JP" value={String(reg.jpSalaryCap)} onChange={(v) => setReg({ ...reg, jpSalaryCap: num(v) })} money />
-                    <NumField label="JPK Pegawai" value={String(reg.jpkEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jpkEmployeeRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="JPK Perusahaan" value={String(reg.jpkCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jpkCompanyRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="Cap Gaji JPK" value={String(reg.jpkSalaryCap)} onChange={(v) => setReg({ ...reg, jpkSalaryCap: num(v) })} money />
-                    <NumField label="JKK" value={String(reg.jkkRate * 100)} onChange={(v) => setReg({ ...reg, jkkRate: num(v) / 100 })} suffix="%" />
-                    <NumField label="JKM" value={String(reg.jkmRate * 100)} onChange={(v) => setReg({ ...reg, jkmRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JP Pegawai", "JP Employee")} value={String(reg.jpEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jpEmployeeRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JP Perusahaan", "JP Company")} value={String(reg.jpCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jpCompanyRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Cap Gaji JP", "JP Salary Cap")} value={String(reg.jpSalaryCap)} onChange={(v) => setReg({ ...reg, jpSalaryCap: num(v) })} money />
+                    <NumField label={t("JPK Pegawai", "JPK Employee")} value={String(reg.jpkEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jpkEmployeeRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JPK Perusahaan", "JPK Company")} value={String(reg.jpkCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jpkCompanyRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Cap Gaji JPK", "JPK Salary Cap")} value={String(reg.jpkSalaryCap)} onChange={(v) => setReg({ ...reg, jpkSalaryCap: num(v) })} money />
+                    <NumField label={t("JKK")} value={String(reg.jkkRate * 100)} onChange={(v) => setReg({ ...reg, jkkRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JKM")} value={String(reg.jkmRate * 100)} onChange={(v) => setReg({ ...reg, jkmRate: num(v) / 100 })} suffix="%" />
                     <div />
                   </div>
                 </CardContent>
@@ -133,24 +135,24 @@ export function PayrollParametersPage() {
           <TabsContent value="brackets">
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold">Bracket PPh21 Progresif — UU HPP (Pasal 17)</CardTitle>
-                <p className="text-[11px] text-stone-400">PKP tahunan; non-NPWP dikenai tarif +{((data?.regulation?.nonNpwpSurcharge ?? 0.2) * 100).toFixed(0)}%</p>
+                <CardTitle className="text-sm font-bold">{t("Bracket PPh21 Progresif — UU HPP (Pasal 17)", "Progressive PPh21 Brackets — HPP Law (Article 17)")}</CardTitle>
+                <p className="text-[11px] text-stone-400">{t("PKP tahunan; non-NPWP dikenai tarif +{n}%", "Annual PKP; non-NPWP charged rate +{n}%", { n: ((data?.regulation?.nonNpwpSurcharge ?? 0.2) * 100).toFixed(0) })}</p>
               </CardHeader>
               <CardContent className="pt-0">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                      <TableHead className="text-[11px] font-bold">PKP Dari</TableHead>
-                      <TableHead className="text-[11px] font-bold">PKP Sampai</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Tarif NPWP</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">Tarif Non-NPWP</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("PKP Dari", "PKP From")}</TableHead>
+                      <TableHead className="text-[11px] font-bold">{t("PKP Sampai", "PKP Up To")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Tarif NPWP", "NPWP Rate")}</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold">{t("Tarif Non-NPWP", "Non-NPWP Rate")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {(data?.brackets ?? []).map((b) => (
                       <TableRow key={b.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                         <TableCell className="text-xs font-semibold">{fmtIDR(b.lowerLimit)}</TableCell>
-                        <TableCell className="text-xs">{b.upperLimit ? fmtIDR(b.upperLimit) : <Badge variant="outline" className="text-[10px]">∞ tanpa batas</Badge>}</TableCell>
+                        <TableCell className="text-xs">{b.upperLimit ? fmtIDR(b.upperLimit) : <Badge variant="outline" className="text-[10px]">{t("∞ tanpa batas", "∞ unlimited")}</Badge>}</TableCell>
                         <TableCell className="text-right text-xs font-extrabold ov-text-accent">{(b.rateNpwp * 100).toFixed(0)}%</TableCell>
                         <TableCell className="text-right text-xs font-bold text-rose-600 dark:text-rose-400">{(b.rateNonNpwp * 100).toFixed(0)}%</TableCell>
                       </TableRow>
@@ -164,10 +166,10 @@ export function PayrollParametersPage() {
           <TabsContent value="ter">
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 ov-text-accent" /> Tarif Efektif Rata-rata (TER) — PP 58/2023</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 ov-text-accent" /> {t("Tarif Efektif Rata-rata (TER) — PP 58/2023", "Average Effective Rate (TER) — PP 58/2023")}</CardTitle>
                 <p className="text-[11px] text-stone-400">
-                  Tarif bulanan atas bruto. Kategori A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3.
-                  Aktif jika switch TER dihidupkan ({data?.regulation?.useTer ? <span className="font-bold text-emerald-600">aktif</span> : <span className="font-bold text-stone-500">non-aktif — progresif</span>}).
+                  {t("Tarif bulanan atas bruto. Kategori A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Aktif jika switch TER dihidupkan (", "Monthly rate on gross. Category A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Active when the TER switch is on (")}
+                  {data?.regulation?.useTer ? <span className="font-bold text-emerald-600">{t("aktif", "active")}</span> : <span className="font-bold text-stone-500">{t("non-aktif — progresif", "inactive — progressive")}</span>}{t(").", ").")}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
@@ -175,23 +177,23 @@ export function PayrollParametersPage() {
                   {["A", "B", "C"].map((cat) => (
                     <div key={cat}>
                       <p className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-wider", cat === "A" ? "text-emerald-600 dark:text-emerald-400" : cat === "B" ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400")}>
-                        Kategori {cat} ({(data?.ter ?? []).filter((t) => t.category === cat).length} rentang)
+                        {t("Kategori {c} ({n} rentang)", "Category {c} ({n} ranges)", { c: cat, n: (data?.ter ?? []).filter((ter) => ter.category === cat).length })}
                       </p>
                       <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 dark:border-stone-800">
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                              <TableHead className="text-[10px] font-bold">Bruto/Bulan</TableHead>
-                              <TableHead className="text-right text-[10px] font-bold">Tarif</TableHead>
+                              <TableHead className="text-[10px] font-bold">{t("Bruto/Bulan", "Gross/Month")}</TableHead>
+                              <TableHead className="text-right text-[10px] font-bold">{t("Tarif", "Rate")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(data?.ter ?? []).filter((t) => t.category === cat).map((t) => (
-                              <TableRow key={t.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                            {(data?.ter ?? []).filter((ter) => ter.category === cat).map((ter) => (
+                              <TableRow key={ter.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                                 <TableCell className="text-[10px]">
-                                  {fmtIDR(t.lowerLimit)}{t.upperLimit ? ` – ${fmtIDR(t.upperLimit)}` : "+"}
+                                  {fmtIDR(ter.lowerLimit)}{ter.upperLimit ? ` – ${fmtIDR(ter.upperLimit)}` : "+"}
                                 </TableCell>
-                                <TableCell className="text-right text-[10px] font-bold">{(t.rate * 100).toFixed(2)}%</TableCell>
+                                <TableCell className="text-right text-[10px] font-bold">{(ter.rate * 100).toFixed(2)}%</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -207,8 +209,8 @@ export function PayrollParametersPage() {
           <TabsContent value="ptkp">
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold">Penghasilan Tidak Kena Pajak (PTKP) — Tahunan</CardTitle>
-                <p className="text-[11px] text-stone-400">TK = tidak menikah · K = menikah (pasangan tidak bekerja) · K/I = menikah, pasangan bekerja · angka = tanggungan</p>
+                <CardTitle className="text-sm font-bold">{t("Penghasilan Tidak Kena Pajak (PTKP) — Tahunan", "Non-Taxable Income (PTKP) — Annual")}</CardTitle>
+                <p className="text-[11px] text-stone-400">{t("TK = tidak menikah · K = menikah (pasangan tidak bekerja) · K/I = menikah, pasangan bekerja · angka = tanggungan", "TK = single · K = married (non-working spouse) · K/I = married, working spouse · number = dependents")}</p>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">

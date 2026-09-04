@@ -112,3 +112,17 @@ export const ATT_STATUS_LABEL: Record<string, string> = {
 export const OT_CATEGORY_LABEL: Record<string, string> = {
   Weekday: "Hari Kerja (1,5×/2×)", Weekend: "Hari Libur Mingguan (2×/3×)", Holiday: "Libur Nasional (2×/3×/4×)",
 };
+
+// label EN (peta paralel — render: t(MAP[k], MAP_EN[k]))
+export const DAY_CATEGORY_LABEL_EN: Record<string, string> = {
+  Workday: "Workday", Off: "Day Off", Holiday: "National Holiday",
+};
+
+export const ATT_STATUS_LABEL_EN: Record<string, string> = {
+  Present: "Present", Late: "Late", Absent: "Absent", Off: "Off",
+  WorkOff: "Permit", Holiday: "Holiday", OnLeave: "On Leave",
+};
+
+export const OT_CATEGORY_LABEL_EN: Record<string, string> = {
+  Weekday: "Weekday (1.5×/2×)", Weekend: "Weekly Day Off (2×/3×)", Holiday: "National Holiday (2×/3×/4×)",
+};

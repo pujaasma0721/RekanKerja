@@ -14,14 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { RequestRowUI, LEAVE_STATUS_LABEL, SESSION_LABEL, fmtDay } from "./leave-types";
+import { RequestRowUI, LEAVE_STATUS_LABEL, LEAVE_STATUS_LABEL_EN, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
 import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 type Action = "approve" | "reject" | "cancel";
 
 export function LeaveApprovalPage() {
   const { navigate } = useNav();
+  const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<RequestRowUI | null>(null);
@@ -53,18 +55,18 @@ export function LeaveApprovalPage() {
       );
       if (res.approval) {
         // approval parsial — jenjang menengah disetujui, dokumen tetap menunggu jenjang berikutnya
-        toast.success(`Jenjang ${res.approval.currentLevel - 1}/${res.approval.totalLevels} disetujui — menunggu ${res.approval.currentApprover ?? "jenjang berikutnya"}`);
+        toast.success(t("Jenjang {l}/{n} disetujui — menunggu {a}", "Tier {l}/{n} approved — awaiting {a}", { l: res.approval.currentLevel - 1, n: res.approval.totalLevels, a: res.approval.currentApprover ?? t("jenjang berikutnya", "the next tier") }));
       } else {
         toast.success(
           res.status === "Approved"
-            ? `${res.docNo} disetujui — ${res.regeneratedDays} hari rekap absensi diperbarui (OnLeave)`
-            : `${res.docNo} → ${LEAVE_STATUS_LABEL[res.status] ?? res.status}`,
+            ? t("{doc} disetujui — {d} hari rekap absensi diperbarui (OnLeave)", "{doc} approved — {d} days of the attendance recap updated (OnLeave)", { doc: res.docNo, d: res.regeneratedDays })
+            : t("{doc} → {s}", "{doc} → {s}", { doc: res.docNo, s: t(LEAVE_STATUS_LABEL[res.status] ?? res.status, LEAVE_STATUS_LABEL_EN[res.status]) }),
         );
       }
       setTarget(null);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal memproses keputusan");
+      toast.error(e instanceof Error ? e.message : t("Gagal memproses keputusan", "Failed to process the decision"));
     } finally { setBusy(false); }
   };
 
@@ -76,22 +78,22 @@ export function LeaveApprovalPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL LEAVE"
-        title="Persetujuan Cuti"
-        description="Keputusan permintaan cuti menunggu — Approve / Reject / Cancel (padanan Operation); hari cuti otomatis masuk rekap absensi"
+        eyebrow={t("MODUL LEAVE", "LEAVE MODULE")}
+        title={t("Persetujuan Cuti", "Leave Approval")}
+        description={t("Keputusan permintaan cuti menunggu — Approve / Reject / Cancel (padanan Operation); hari cuti otomatis masuk rekap absensi", "Decisions on pending leave requests — Approve / Reject / Cancel (Operation equivalent); leave days automatically flow into the attendance recap")}
         actions={
           <Button variant="outline" onClick={() => navigate("leave", "leave-request")} className="gap-2 font-bold">
-            <Inbox className="h-4 w-4" /> Lihat Semua Permintaan
+            <Inbox className="h-4 w-4" /> {t("Lihat Semua Permintaan", "View All Requests")}
           </Button>
         }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Menunggu Keputusan", value: stats?.submitted ?? 0, sub: "permintaan cuti", icon: Inbox, hero: true },
-          { label: "Total Hari Diminta", value: stats?.pendingDays ?? 0, sub: "akumulasi hari kerja", icon: CalendarClock },
-          { label: "Efek Approve", value: "OnLeave", sub: "status rekap absensi", icon: ShieldCheck },
-          { label: "Dokumen Wajib", value: String(requests.filter((r) => r.leaveTypeCode.startsWith("CT-MATI") || r.leaveTypeCode === "CT-NIKAH" || r.leaveTypeCode.startsWith("CT-KHITAN")).length), sub: "perlu verifikasi dokumen", icon: CheckCircle2 },
+          { label: t("Menunggu Keputusan", "Awaiting Decision"), value: stats?.submitted ?? 0, sub: t("permintaan cuti", "leave requests"), icon: Inbox, hero: true },
+          { label: t("Total Hari Diminta", "Total Days Requested"), value: stats?.pendingDays ?? 0, sub: t("akumulasi hari kerja", "working days accumulated"), icon: CalendarClock },
+          { label: t("Efek Approve", "Approve Effect"), value: "OnLeave", sub: t("status rekap absensi", "attendance recap status"), icon: ShieldCheck },
+          { label: t("Dokumen Wajib", "Required Documents"), value: String(requests.filter((r) => r.leaveTypeCode.startsWith("CT-MATI") || r.leaveTypeCode === "CT-NIKAH" || r.leaveTypeCode.startsWith("CT-KHITAN")).length), sub: t("perlu verifikasi dokumen", "need document verification"), icon: CheckCircle2 },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -110,31 +112,31 @@ export function LeaveApprovalPage() {
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">Permintaan berstatus Menunggu — urut terbaru</p>
+            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">{t("Permintaan berstatus Menunggu — urut terbaru", "Requests in Pending status — newest first")}</p>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Cari karyawan / no. dokumen…"
+                placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")}
                 className="h-8 w-56 rounded-md border border-stone-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-stone-700 dark:bg-stone-900"
               />
             </div>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : requests.length === 0 ? (
-            <div className="p-5"><EmptyState title="Tidak ada permintaan menunggu" description="Semua permintaan cuti sudah diproses — kerja bagus!" icon={<CheckCircle2 className="h-6 w-6" />} /></div>
+            <div className="p-5"><EmptyState title={t("Tidak ada permintaan menunggu", "No pending requests")} description={t("Semua permintaan cuti sudah diproses — kerja bagus!", "All leave requests have been processed — great job!")} icon={<CheckCircle2 className="h-6 w-6" />} /></div>
           ) : (
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    <TableHead className="text-[11px] font-bold">Dokumen</TableHead>
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Jenis & Alasan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Rentang</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">Hari</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">Sisa Saldo</TableHead>
-                    {hasChain && <TableHead className="text-[11px] font-bold">Approval</TableHead>}
+                    <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Jenis & Alasan", "Type & Reason")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Rentang", "Range")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold">{t("Hari", "Days")}</TableHead>
+                    <TableHead className="text-right text-[11px] font-bold">{t("Sisa Saldo", "Remaining Balance")}</TableHead>
+                    {hasChain && <TableHead className="text-[11px] font-bold">{t("Approval")}</TableHead>}
                     <TableHead className="w-44" />
                   </TableRow>
                 </TableHeader>
@@ -143,7 +145,7 @@ export function LeaveApprovalPage() {
                     <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>
-                        <p className="text-[10px] text-stone-400">diajukan {new Date(r.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                        <p className="text-[10px] text-stone-400">{t("diajukan", "submitted")} {new Date(r.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" })}</p>
                       </TableCell>
                       <TableCell>
                         <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo}</p>
@@ -154,9 +156,9 @@ export function LeaveApprovalPage() {
                         <p className="max-w-52 truncate text-[10px] text-stone-400" title={r.reason ?? ""}>{r.reason}</p>
                       </TableCell>
                       <TableCell className="text-[11px] font-semibold text-stone-700 dark:text-stone-200">
-                        {new Date(r.dateFrom).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionFrom]} → {new Date(r.dateTo).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionTo]}
+                        {new Date(r.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionFrom], SESSION_LABEL_EN[r.sessionFrom])} → {new Date(r.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionTo], SESSION_LABEL_EN[r.sessionTo])}
                         <span className="block text-[10px] font-normal text-stone-400">
-                          kembali {r.backToWorkDate ? new Date(r.backToWorkDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) : "—"}
+                          {t("kembali", "back")} {r.backToWorkDate ? new Date(r.backToWorkDate).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—"}
                         </span>
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
@@ -169,10 +171,10 @@ export function LeaveApprovalPage() {
                                 r.approval.status === "InProgress"
                                   ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
                                   : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
-                                {r.approval.status === "InProgress" ? "Jenjang" : "Ditolak di"} {r.approval.currentLevel}/{r.approval.totalLevels}
+                                {r.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {r.approval.currentLevel}/{r.approval.totalLevels}
                               </span>
                               {r.approval.status === "InProgress" && r.approval.currentApprover && (
-                                <p className="max-w-40 truncate text-[10px] text-stone-400" title={r.approval.currentApprover}>menunggu {r.approval.currentApprover}</p>
+                                <p className="max-w-40 truncate text-[10px] text-stone-400" title={r.approval.currentApprover}>{t("menunggu", "awaiting")} {r.approval.currentApprover}</p>
                               )}
                             </div>
                           ) : null}
@@ -183,15 +185,15 @@ export function LeaveApprovalPage() {
                           {perms.canOp("leave", "leave-approval", "approve") && (
                             <>
                               <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => openDialog(r, "reject")} className="h-7 gap-1 border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
-                                <XCircle className="h-3.5 w-3.5" /> Tolak
+                                <XCircle className="h-3.5 w-3.5" /> {t("Tolak", "Reject")}
                               </Button>
                             </>
                           )}
                           {perms.canOp("leave", "leave-request", "cancel") && (
-                            <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-stone-400" title="Batalkan">
+                            <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-stone-400" title={t("Batalkan", "Cancel")}>
                               <Ban className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -212,7 +214,7 @@ export function LeaveApprovalPage() {
             <DialogTitle className={cn("flex items-center gap-2 text-sm",
               action === "approve" ? "text-emerald-700 dark:text-emerald-400" : action === "reject" ? "text-rose-600" : "text-stone-500")}>
               {action === "approve" ? <CheckCircle2 className="h-4 w-4" /> : action === "reject" ? <XCircle className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-              {action === "approve" ? "Setujui Permintaan Cuti" : action === "reject" ? "Tolak Permintaan Cuti" : "Batalkan Permintaan Cuti"}
+              {action === "approve" ? t("Setujui Permintaan Cuti", "Approve Leave Request") : action === "reject" ? t("Tolak Permintaan Cuti", "Reject Leave Request") : t("Batalkan Permintaan Cuti", "Cancel Leave Request")}
             </DialogTitle>
           </DialogHeader>
           {target && (
@@ -220,37 +222,36 @@ export function LeaveApprovalPage() {
               <div className="rounded-xl bg-stone-50 p-3 text-xs dark:bg-stone-900/60">
                 <p className="font-bold text-stone-800 dark:text-stone-100">{target.docNo} — {target.fullName}</p>
                 <p className="mt-0.5 text-stone-500">
-                  {target.leaveTypeName} · {new Date(target.dateFrom).toLocaleDateString("id-ID")} {SESSION_LABEL[target.sessionFrom]} → {new Date(target.dateTo).toLocaleDateString("id-ID")} {SESSION_LABEL[target.sessionTo]} · {fmtDay(target.workingDays)} hari kerja
+                  {target.leaveTypeName} · {new Date(target.dateFrom).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionFrom], SESSION_LABEL_EN[target.sessionFrom])} → {new Date(target.dateTo).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionTo], SESSION_LABEL_EN[target.sessionTo])} · {fmtDay(target.workingDays)} {t("hari kerja", "working days")}
                 </p>
-                <p className="mt-0.5 text-stone-400">Alasan: {target.reason}</p>
+                <p className="mt-0.5 text-stone-400">{t("Alasan:", "Reason:")} {target.reason}</p>
               </div>
               {action === "approve" && (
                 <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-[11px] leading-relaxed text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <p>Saat disetujui: saldo (g· terpakai mendatang) diperbarui, dan rekap absensi rentang cuti dihitung ulang menjadi <b>OnLeave</b> (dibayar bila jenis cuti dibayar).</p>
+                  <p>{t("Saat disetujui: saldo (g· terpakai mendatang) diperbarui, dan rekap absensi rentang cuti dihitung ulang menjadi ", "When approved: the balance (g· upcoming taken) is updated, and the attendance recap for the leave range is recalculated as ")}<b>OnLeave</b>{t(" (dibayar bila jenis cuti dibayar).", " (paid if the leave type is paid).")}</p>
                 </div>
               )}
               {target.approval?.status === "InProgress" && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
                   <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <p>
-                    Approval berjenjang: jenjang <b>{target.approval.currentLevel}</b> dari <b>{target.approval.totalLevels}</b> —
-                    menunggu keputusan <b>{target.approval.currentApprover ?? "jenjang berikutnya"}</b>.
-                    {action === "approve" && target.approval.currentLevel < target.approval.totalLevels && " Setujui jenjang ini untuk maju ke jenjang berikutnya."}
+                    {t("Approval berjenjang: jenjang", "Tiered approval: tier")} <b>{target.approval.currentLevel}</b> {t("dari", "of")} <b>{target.approval.totalLevels}</b> — {t("menunggu keputusan", "awaiting decision by")} <b>{target.approval.currentApprover ?? t("jenjang berikutnya", "the next tier")}</b>.{" "}
+                    {action === "approve" && target.approval.currentLevel < target.approval.totalLevels && " " + t("Setujui jenjang ini untuk maju ke jenjang berikutnya.", "Approve this tier to advance to the next one.")}
                   </p>
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">{action === "reject" ? "Alasan Penolakan *" : "Catatan Keputusan"}</Label>
-                <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={action === "reject" ? "mis. Bentrok jadwal produksi — usulkan minggu berikutnya" : "Opsional"} className="min-h-16 text-xs" />
+                <Label className="text-xs font-bold">{action === "reject" ? t("Alasan Penolakan *", "Rejection Reason *") : t("Catatan Keputusan", "Decision Note")}</Label>
+                <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={action === "reject" ? t("mis. Bentrok jadwal produksi — usulkan minggu berikutnya", "e.g. Conflicts with the production schedule — propose the following week") : t("Opsional", "Optional")} className="min-h-16 text-xs" />
               </div>
               {action === "reject" && (
-                <Badge variant="outline" className="border-rose-200 text-[10px] text-rose-600">Karyawan dapat mengajukan ulang dengan tanggal lain</Badge>
+                <Badge variant="outline" className="border-rose-200 text-[10px] text-rose-600">{t("Karyawan dapat mengajukan ulang dengan tanggal lain", "The employee can resubmit with different dates")}</Badge>
               )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTarget(null)} className="text-xs font-bold">Batal</Button>
+            <Button variant="outline" onClick={() => setTarget(null)} className="text-xs font-bold">{t("Batal")}</Button>
             {(action === "cancel" ? perms.canOp("leave", "leave-request", "cancel") : perms.canOp("leave", "leave-approval", "approve")) && (
               <Button
                 onClick={decide}
@@ -259,7 +260,7 @@ export function LeaveApprovalPage() {
                   action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
               >
                 {action === "approve" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                {action === "approve" ? "Setujui" : action === "reject" ? "Tolak" : "Batalkan"}
+                {action === "approve" ? t("Setujui", "Approve") : action === "reject" ? t("Tolak", "Reject") : t("Batalkan", "Cancel")}
               </Button>
             )}
           </DialogFooter>

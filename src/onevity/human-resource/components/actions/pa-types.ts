@@ -1,6 +1,7 @@
 "use client";
 // Shared types + helpers for Personnel Action module
 import { fmtIDR, fmtDate } from "@/onevity/shared/lib/api";
+import { translate } from "@/onevity/shared/lib/i18n-core";
 
 export interface LayerApprover {
   id: string;
@@ -132,6 +133,33 @@ export const DETAIL_LABELS: Record<string, string> = {
   percent: "Persentase Kenaikan",
 };
 
+// En paralel untuk DETAIL_LABELS di atas (map ID dipertahankan; render t(MAP[k], MAP_EN[k]) — Task I-3)
+export const DETAIL_LABELS_EN: Record<string, string> = {
+  fromPosition: "Previous Position",
+  toPosition: "New Position",
+  plannedPosition: "Planned Position",
+  newGrade: "New Grade",
+  oldSalary: "Previous Base Salary",
+  newSalary: "New Base Salary",
+  plannedSalary: "Planned Salary",
+  lastDay: "Last Working Day",
+  months: "Duration (months)",
+  newEndDate: "New End Date",
+  fromUnit: "Previous Unit",
+  toUnit: "New Unit",
+  newUnit: "New Unit",
+  newEmploymentStatus: "New Employment Status",
+  percent: "Raise Percentage",
+};
+
+// En paralel untuk label PA_TYPES (ui-kit, di luar scope I-3) — dipakai render t(v.label, PA_TYPE_LABEL_EN[k])
+export const PA_TYPE_LABEL_EN: Record<string, string> = {
+  Hire: "Hire", Promotion: "Promotion", Demotion: "Demotion", Transfer: "Transfer",
+  Mutation: "Mutation", SalaryAdjustment: "Salary Adjustment", ContractRenewal: "Contract Renewal",
+  ChangeStatus: "Status Change", ExtendProbation: "Probation Extension",
+  Resignation: "Resignation", Termination: "Termination", Retirement: "Retirement",
+};
+
 export function parseDetail(detailJson: string | null): Record<string, unknown> {
   if (!detailJson) return {};
   try {
@@ -158,42 +186,42 @@ export function processEffectSummary(pa: PADetail): string[] {
   switch (pa.type) {
     case "Promotion":
     case "Demotion":
-      if (d.toPosition) out.push(`Posisi karyawan dipindahkan ke ${d.toPosition}`);
-      if (d.newGrade) out.push(`Grade diubah menjadi ${d.newGrade}`);
-      if (d.newSalary != null) out.push(`Gaji pokok diubah menjadi ${fmtIDR(Number(d.newSalary))}`);
+      if (d.toPosition) out.push(translate("Posisi karyawan dipindahkan ke {p}", "Employee position moved to {p}", { p: String(d.toPosition) }));
+      if (d.newGrade) out.push(translate("Grade diubah menjadi {g}", "Grade changed to {g}", { g: String(d.newGrade) }));
+      if (d.newSalary != null) out.push(translate("Gaji pokok diubah menjadi {s}", "Base salary changed to {s}", { s: fmtIDR(Number(d.newSalary)) }));
       break;
     case "Transfer":
     case "Mutation":
-      if (d.toUnit) out.push(`Unit organisasi dipindahkan ke ${d.toUnit}`);
-      if (d.toPosition) out.push(`Posisi diubah menjadi ${d.toPosition}`);
-      if (d.newSalary != null) out.push(`Gaji pokok diubah menjadi ${fmtIDR(Number(d.newSalary))}`);
+      if (d.toUnit) out.push(translate("Unit organisasi dipindahkan ke {u}", "Organizational unit moved to {u}", { u: String(d.toUnit) }));
+      if (d.toPosition) out.push(translate("Posisi diubah menjadi {p}", "Position changed to {p}", { p: String(d.toPosition) }));
+      if (d.newSalary != null) out.push(translate("Gaji pokok diubah menjadi {s}", "Base salary changed to {s}", { s: fmtIDR(Number(d.newSalary)) }));
       break;
     case "SalaryAdjustment":
-      out.push(`Gaji pokok diubah menjadi ${d.newSalary != null ? fmtIDR(Number(d.newSalary)) : "—"}`);
+      out.push(translate("Gaji pokok diubah menjadi {s}", "Base salary changed to {s}", { s: d.newSalary != null ? fmtIDR(Number(d.newSalary)) : "—" }));
       break;
     case "Resignation":
-      out.push(`Status karyawan menjadi Resigned, tanggal akhir ${d.lastDay ? fmtDate(String(d.lastDay)) : fmtDate(pa.effectiveDate)}`);
+      out.push(translate("Status karyawan menjadi Resigned, tanggal akhir {d}", "Employee status becomes Resigned, end date {d}", { d: d.lastDay ? fmtDate(String(d.lastDay)) : fmtDate(pa.effectiveDate) }));
       break;
     case "Termination":
-      out.push(`Status karyawan menjadi Terminated, tanggal akhir ${d.lastDay ? fmtDate(String(d.lastDay)) : fmtDate(pa.effectiveDate)}`);
+      out.push(translate("Status karyawan menjadi Terminated, tanggal akhir {d}", "Employee status becomes Terminated, end date {d}", { d: d.lastDay ? fmtDate(String(d.lastDay)) : fmtDate(pa.effectiveDate) }));
       break;
     case "Retirement":
-      out.push("Pensiun — status karyawan menjadi Resigned dengan tanggal akhir kerja");
+      out.push(translate("Pensiun — status karyawan menjadi Resigned dengan tanggal akhir kerja", "Retirement — employee status becomes Resigned with a last working date"));
       break;
     case "Hire":
-      out.push("Data karyawan terhubung dengan dokumen rekrutmen (tanpa perubahan data)");
+      out.push(translate("Data karyawan terhubung dengan dokumen rekrutmen (tanpa perubahan data)", "Employee data linked to the recruitment document (no data changes)"));
       break;
     case "ChangeStatus":
-      out.push(`Status kepegawaian diubah menjadi ${d.newEmploymentStatus ?? "—"}`);
+      out.push(translate("Status kepegawaian diubah menjadi {s}", "Employment status changed to {s}", { s: d.newEmploymentStatus ?? "—" }));
       break;
     case "ContractRenewal":
-      out.push(`Kontrak diperpanjang ${d.months ?? "—"} bulan — tercatat sebagai catatan saja`);
+      out.push(translate("Kontrak diperpanjang {n} bulan — tercatat sebagai catatan saja", "Contract extended by {n} months — recorded as a note only", { n: d.months ?? "—" }));
       break;
     case "ExtendProbation":
-      out.push(`Masa probation diperpanjang ${d.months ?? "—"} bulan — tercatat sebagai catatan saja`);
+      out.push(translate("Masa probation diperpanjang {n} bulan — tercatat sebagai catatan saja", "Probation extended by {n} months — recorded as a note only", { n: d.months ?? "—" }));
       break;
     default:
-      out.push("Perubahan data karyawan sesuai detail dokumen");
+      out.push(translate("Perubahan data karyawan sesuai detail dokumen", "Employee data changes per document details"));
   }
   return out;
 }

@@ -19,6 +19,7 @@ import {
   Loader2, ArrowRight, Building2, Trash2, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { motion } from "framer-motion";
 
 export interface WizardOptions {
@@ -40,6 +41,14 @@ const STEPS = [
   { id: 4, label: "Review", icon: ClipboardCheck },
 ];
 
+// label EN paralel untuk langkah wizard (kunci = id langkah)
+const STEPS_EN: Record<number, string> = {
+  1: "Personal Details",
+  2: "Job Details",
+  3: "Salary & Bank",
+  4: "Review",
+};
+
 const DRAFT_KEY = "onevity:onboarding-draft";
 
 const EMPTY_FORM: Record<string, string> = {
@@ -57,6 +66,14 @@ const TIPS: Record<number, { icon: React.ElementType; text: string }> = {
   4: { icon: ClipboardCheck, text: "Periksa kembali sebelum menyimpan — nomor karyawan akan dibuat otomatis dan tidak bisa diubah setelah tersimpan." },
 };
 
+// teks EN paralel untuk tips per langkah
+const TIPS_EN: Record<number, string> = {
+  1: "Identity data is used for the employment contract & tax reporting. The NIK must be 16 digits per the ID card — everything else can be skipped now and completed later.",
+  2: "New employees default to Probation status unless changed. The direct manager determines the approval route for their leave requests & personnel actions later.",
+  3: "Base salary excludes allowances. Allowance components (transport, meals, overtime) can be configured once the employee is active in the Payroll module.",
+  4: "Double-check before saving — the employee number is generated automatically and cannot be changed afterwards.",
+};
+
 const TRACKED_FIELDS = [
   "fullName", "birthDate", "nationalId", "taxId", "email", "phone", "address", "city",
   "orgUnitId", "positionId", "gradeId", "joinDate", "managerId", "companyOfficeId", "workLocationId",
@@ -65,6 +82,7 @@ const TRACKED_FIELDS = [
 
 export function OnboardingWizard() {
   const { navigate } = useNav();
+  const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const opts = useApi<WizardOptions>("/api/onevity/employee-options");
   // referensi kantor & lokasi kerja (Task 25) — penempatan dimensi approval berjenjang
@@ -122,14 +140,14 @@ export function OnboardingWizard() {
   const validateStep = (s: number): boolean => {
     const errs: Record<string, string> = {};
     if (s === 1) {
-      if (!form.fullName.trim()) errs.fullName = "Nama lengkap wajib diisi";
-      if (form.nationalId && !/^\d{16}$/.test(form.nationalId)) errs.nationalId = "NIK harus 16 digit angka";
-      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Format email tidak valid";
+      if (!form.fullName.trim()) errs.fullName = t("Nama lengkap wajib diisi", "Full name is required");
+      if (form.nationalId && !/^\d{16}$/.test(form.nationalId)) errs.nationalId = t("NIK harus 16 digit angka", "NIK must be 16 digits");
+      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = t("Format email tidak valid", "Invalid email format");
     }
     if (s === 2) {
-      if (!form.orgUnitId) errs.orgUnitId = "Pilih unit organisasi";
-      if (!form.positionId) errs.positionId = "Pilih posisi";
-      if (!form.joinDate) errs.joinDate = "Tanggal masuk wajib diisi";
+      if (!form.orgUnitId) errs.orgUnitId = t("Pilih unit organisasi", "Select an organizational unit");
+      if (!form.positionId) errs.positionId = t("Pilih posisi", "Select a position");
+      if (!form.joinDate) errs.joinDate = t("Tanggal masuk wajib diisi", "Join date is required");
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -137,7 +155,7 @@ export function OnboardingWizard() {
 
   const next = () => {
     if (validateStep(step)) { setStep((s) => Math.min(s + 1, 4)); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    else toast.error("Lengkapi field yang ditandai merah");
+    else toast.error(t("Lengkapi field yang ditandai merah", "Complete the fields marked in red"));
   };
   const back = () => { setStep((s) => Math.max(s - 1, 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
@@ -158,7 +176,7 @@ export function OnboardingWizard() {
       setStep(5);
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
       setDraftAt(null);
-      toast.success(`Karyawan ${res.employee.employeeNo} berhasil di-onboard`);
+      toast.success(t("Karyawan {no} berhasil di-onboard", "Employee {no} successfully onboarded", { no: res.employee.employeeNo }));
     } catch (e) {
       toast.error((e as Error).message);
     } finally { setBusy(false); }
@@ -192,12 +210,15 @@ export function OnboardingWizard() {
   return (
     <div>
       <PageHeader
-        eyebrow="KARYAWAN"
-        title="Onboarding Karyawan"
-        description="Lengkapi data karyawan baru dalam 4 langkah — ringkasan di sisi kanan terisi otomatis saat Anda mengetik"
+        eyebrow={t("Karyawan")}
+        title={t("Onboarding Karyawan")}
+        description={t(
+          "Lengkapi data karyawan baru dalam 4 langkah — ringkasan di sisi kanan terisi otomatis saat Anda mengetik",
+          "Complete new employee data in 4 steps — the summary on the right fills in as you type",
+        )}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate("employee", "directory")} className="h-8 gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">
-            <ArrowRight className="h-3.5 w-3.5" /> Ke direktori
+            <ArrowRight className="h-3.5 w-3.5" /> {t("Ke direktori", "To directory")}
           </Button>
         }
       />
@@ -230,7 +251,7 @@ export function OnboardingWizard() {
                       <span className={cn(
                         "max-w-[88px] truncate text-[11px] font-semibold leading-tight",
                         active ? "text-stone-900 dark:text-stone-100" : done ? "text-stone-500 dark:text-stone-400 group-hover:text-stone-700" : "text-stone-400 dark:text-stone-500",
-                      )}>{s.label}</span>
+                      )}>{t(s.label, STEPS_EN[s.id])}</span>
                     </button>
                     {i < STEPS.length - 1 && (
                       <div className={cn("mx-2 mb-4 h-0.5 flex-1 rounded-full sm:mx-3", step > s.id ? "ov-bar" : "bg-stone-200 dark:bg-stone-800")} />
@@ -242,8 +263,8 @@ export function OnboardingWizard() {
             {/* mobile: mini progress */}
             <div className="sm:hidden">
               <div className="flex items-baseline justify-between">
-                <p className="text-xs font-bold text-stone-800 dark:text-stone-200">Langkah {Math.min(step, 4)} dari 4 · <span className="font-semibold ov-text-accent">{stepMeta?.label}</span></p>
-                <p className="text-[10px] font-semibold text-stone-400">{pct}% terisi</p>
+                <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{t("Langkah {n} dari 4", "Step {n} of 4", { n: Math.min(step, 4) })} · <span className="font-semibold ov-text-accent">{stepMeta && t(stepMeta.label, STEPS_EN[stepMeta.id])}</span></p>
+                <p className="text-[10px] font-semibold text-stone-400">{t("{p}% terisi", "{p}% complete", { p: pct })}</p>
               </div>
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
                 <div className="h-full rounded-full ov-chart transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -265,14 +286,14 @@ export function OnboardingWizard() {
             <motion.div key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
               {opts.data && step === 1 && (
                 <div className="space-y-6">
-                  <SectionLabel icon={IdCard} title="Identitas" />
+                  <SectionLabel icon={IdCard} title={t("Identitas", "Identity")} />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-                    <Field label="Nama Lengkap" required error={errors.fullName}>
+                    <Field label={t("Nama Lengkap")} required error={errors.fullName}>
                       <Input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Andi Pratama" className={cn("h-9", errors.fullName && "border-rose-400 focus-visible:ring-rose-400")} />
                     </Field>
-                    <Field label="Jenis Kelamin">
+                    <Field label={t("Jenis Kelamin", "Gender")}>
                       <div className="grid grid-cols-2 gap-1 rounded-lg border border-stone-200 bg-stone-50 p-1 dark:border-stone-800 dark:bg-stone-900">
-                        {([["M", "Laki-laki"], ["F", "Perempuan"]] as const).map(([v, l]) => (
+                        {([["M", t("Laki-laki", "Male")], ["F", t("Perempuan", "Female")]] as const).map(([v, l]) => (
                           <button key={v} type="button" onClick={() => set("gender", v)}
                             className={cn("flex h-7 items-center justify-center rounded-md text-xs font-semibold transition-all",
                               form.gender === v ? "bg-stone-900 text-white shadow-sm dark:bg-stone-100 dark:text-stone-900" : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200")}>
@@ -281,59 +302,59 @@ export function OnboardingWizard() {
                         ))}
                       </div>
                     </Field>
-                    <Field label="Tempat Lahir">
+                    <Field label={t("Tempat Lahir", "Place of Birth")}>
                       <Input value={form.birthPlace} onChange={(e) => set("birthPlace", e.target.value)} placeholder="Bandung" className="h-9" />
                     </Field>
-                    <Field label="Tanggal Lahir">
+                    <Field label={t("Tanggal Lahir", "Date of Birth")}>
                       <Input type="date" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} className="h-9" />
                     </Field>
-                    <Field label="NIK (KTP)" error={errors.nationalId} hint="16 digit">
+                    <Field label={t("NIK (KTP)", "NIK (ID Card)")} error={errors.nationalId} hint={t("16 digit", "16 digits")}>
                       <Input value={form.nationalId} onChange={(e) => set("nationalId", e.target.value.replace(/\D/g, "").slice(0, 16))} placeholder="327xxxxxxxxxxxxx" inputMode="numeric" className={cn("h-9 font-mono", errors.nationalId && "border-rose-400 focus-visible:ring-rose-400")} />
                     </Field>
-                    <Field label="NPWP" error={errors.taxId} hint="opsional">
+                    <Field label={t("NPWP")} error={errors.taxId} hint={t("opsional", "optional")}>
                       <Input value={form.taxId} onChange={(e) => set("taxId", e.target.value)} className="h-9 font-mono" />
                     </Field>
-                    <Field label="Status Pernikahan">
+                    <Field label={t("Status Pernikahan", "Marital Status")}>
                       <Select value={form.maritalStatus || "none"} onValueChange={(v) => set("maritalStatus", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih", "Select")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {lk("MaritalStatus").map((m) => <SelectItem key={m.code} value={m.label}>{m.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Agama">
+                    <Field label={t("Agama", "Religion")}>
                       <Select value={form.religion || "none"} onValueChange={(v) => set("religion", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih", "Select")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {lk("Religion").map((r) => <SelectItem key={r.code} value={r.label}>{r.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Golongan Darah">
+                    <Field label={t("Golongan Darah", "Blood Type")}>
                       <Select value={form.bloodType || "none"} onValueChange={(v) => set("bloodType", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih", "Select")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {lk("BloodType").map((b) => <SelectItem key={b.code} value={b.label}>{b.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
                   </div>
 
-                  <SectionLabel icon={Mail} title="Kontak & Alamat" className="pt-1" />
+                  <SectionLabel icon={Mail} title={t("Kontak & Alamat", "Contact & Address")} className="pt-1" />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-                    <Field label="Email" error={errors.email}>
+                    <Field label={t("Email")} error={errors.email}>
                       <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="nama@mii.co.id" className={cn("h-9", errors.email && "border-rose-400 focus-visible:ring-rose-400")} />
                     </Field>
-                    <Field label="Telepon">
+                    <Field label={t("Telepon")}>
                       <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0812 3456 7890" inputMode="tel" className="h-9" />
                     </Field>
-                    <Field label="Alamat" className="sm:col-span-2">
+                    <Field label={t("Alamat")} className="sm:col-span-2">
                       <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Jl. Rungkut Industri No. 10, Surabaya" className="h-9" />
                     </Field>
-                    <Field label="Kota">
+                    <Field label={t("Kota", "City")}>
                       <Input value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Surabaya" className="h-9" />
                     </Field>
                   </div>
@@ -342,63 +363,63 @@ export function OnboardingWizard() {
 
               {opts.data && step === 2 && (
                 <div className="space-y-6">
-                  <SectionLabel icon={Building2} title="Penempatan" />
+                  <SectionLabel icon={Building2} title={t("Penempatan", "Placement")} />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-                    <Field label="Unit Organisasi" required error={errors.orgUnitId}>
+                    <Field label={t("Unit Organisasi")} required error={errors.orgUnitId}>
                       <Select value={form.orgUnitId || "none"} onValueChange={(v) => { set("orgUnitId", v === "none" ? "" : v); set("positionId", ""); }}>
-                        <SelectTrigger className={cn("h-9", errors.orgUnitId && "border-rose-400")}><SelectValue placeholder="Pilih unit" /></SelectTrigger>
+                        <SelectTrigger className={cn("h-9", errors.orgUnitId && "border-rose-400")}><SelectValue placeholder={t("Pilih unit", "Select unit")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {(opts.data?.orgUnits ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Posisi" required error={errors.positionId} hint={form.orgUnitId ? `${filteredPositions.length} posisi tersedia` : "pilih unit dulu"}>
+                    <Field label={t("Posisi")} required error={errors.positionId} hint={form.orgUnitId ? t("{n} posisi tersedia", "{n} positions available", { n: filteredPositions.length }) : t("pilih unit dulu", "select a unit first")}>
                       <Select value={form.positionId || "none"} onValueChange={(v) => set("positionId", v === "none" ? "" : v)}>
-                        <SelectTrigger className={cn("h-9", errors.positionId && "border-rose-400")}><SelectValue placeholder={form.orgUnitId ? "Posisi di unit ini" : "Pilih posisi"} /></SelectTrigger>
+                        <SelectTrigger className={cn("h-9", errors.positionId && "border-rose-400")}><SelectValue placeholder={form.orgUnitId ? t("Posisi di unit ini", "Positions in this unit") : t("Pilih posisi", "Select position")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {filteredPositions.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       {selectedPosition?.positionLevel && (
-                        <p className="text-[11px] font-bold ov-text-accent">Level Jabatan: {selectedPosition.positionLevel.code} — {selectedPosition.positionLevel.name}</p>
+                        <p className="text-[11px] font-bold ov-text-accent">{t("Level Jabatan: {code} — {name}", "Job Level: {code} — {name}", { code: selectedPosition.positionLevel.code, name: selectedPosition.positionLevel.name })}</p>
                       )}
                     </Field>
-                    <Field label="Grade" hint={selectedGrade ? `rentang ${fmtIDR(selectedGrade.minSalary)} – ${fmtIDR(selectedGrade.maxSalary)}` : "menentukan rentang gaji"}>
+                    <Field label={t("Grade")} hint={selectedGrade ? t("rentang {min} – {max}", "range {min} – {max}", { min: fmtIDR(selectedGrade.minSalary), max: fmtIDR(selectedGrade.maxSalary) }) : t("menentukan rentang gaji", "determines the salary range")}>
                       <Select value={form.gradeId || "none"} onValueChange={(v) => set("gradeId", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih grade" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih grade", "Select grade")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {(opts.data?.grades ?? []).map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Atasan Langsung" hint="jalur approval">
+                    <Field label={t("Atasan Langsung", "Direct Manager")} hint={t("jalur approval", "approval route")}>
                       <Select value={form.managerId || "none"} onValueChange={(v) => set("managerId", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih atasan" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih atasan", "Select manager")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Tanpa atasan —</SelectItem>
+                          <SelectItem value="none">{t("— Tanpa atasan —", "— No manager —")}</SelectItem>
                           {(opts.data?.managers ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} · {m.position?.title ?? "—"}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Kantor (Company Office)" hint="opsional — dimensi approval">
+                    <Field label={t("Kantor (Company Office)", "Office (Company Office)")} hint={t("opsional — dimensi approval", "optional — approval dimension")}>
                       <Select value={form.companyOfficeId || "none"} onValueChange={(v) => set("companyOfficeId", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih kantor" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih kantor", "Select office")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Tanpa kantor —</SelectItem>
+                          <SelectItem value="none">{t("— Tanpa kantor —", "— No office —")}</SelectItem>
                           {(officesApi.data?.offices ?? []).map((o) => (
                             <SelectItem key={o.id} value={o.id}>{o.code} — {o.name}{o.city ? ` (${o.city})` : ""}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Lokasi Kerja (Work Location)" hint={selectedOffice ? `opsional · ${locationsApi.data?.locations.length ?? 0} lokasi` : "opsional"}>
+                    <Field label={t("Lokasi Kerja (Work Location)", "Work Location")} hint={selectedOffice ? t("opsional · {n} lokasi", "optional · {n} locations", { n: locationsApi.data?.locations.length ?? 0 }) : t("opsional", "optional")}>
                       <Select value={form.workLocationId || "none"} onValueChange={(v) => set("workLocationId", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih lokasi kerja" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih lokasi kerja", "Select work location")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Tanpa lokasi —</SelectItem>
+                          <SelectItem value="none">{t("— Tanpa lokasi —", "— No location —")}</SelectItem>
                           {(locationsApi.data?.locations ?? []).map((l) => (
                             <SelectItem key={l.id} value={l.id}>{l.code} — {l.name}{l.city ? ` (${l.city})` : ""}</SelectItem>
                           ))}
@@ -407,9 +428,9 @@ export function OnboardingWizard() {
                     </Field>
                   </div>
 
-                  <SectionLabel icon={Briefcase} title="Kepegawaian" className="pt-1" />
+                  <SectionLabel icon={Briefcase} title={t("Kepegawaian", "Employment")} className="pt-1" />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
-                    <Field label="Status Kepegawaian">
+                    <Field label={t("Status Kepegawaian", "Employment Status")}>
                       <Select value={form.employmentStatus} onValueChange={(v) => set("employmentStatus", v)}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -417,10 +438,10 @@ export function OnboardingWizard() {
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Tanggal Masuk" required error={errors.joinDate}>
+                    <Field label={t("Tanggal Masuk", "Join Date")} required error={errors.joinDate}>
                       <Input type="date" value={form.joinDate} onChange={(e) => set("joinDate", e.target.value)} className={cn("h-9", errors.joinDate && "border-rose-400")} />
                     </Field>
-                    <Field label="Jadwal Kerja">
+                    <Field label={t("Jadwal Kerja", "Work Schedule")}>
                       <Select value={form.workShift} onValueChange={(v) => set("workShift", v)}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -434,29 +455,29 @@ export function OnboardingWizard() {
 
               {opts.data && step === 3 && (
                 <div className="space-y-6">
-                  <SectionLabel icon={Wallet} title="Gaji Pokok" />
+                  <SectionLabel icon={Wallet} title={t("Gaji Pokok")} />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-                    <Field label="Gaji Pokok" hint="di luar tunjangan">
+                    <Field label={t("Gaji Pokok")} hint={t("di luar tunjangan", "excludes allowances")}>
                       <Input type="number" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="5500000" inputMode="numeric" className="h-9 font-mono" />
-                      {form.baseSalary && <p className="mt-1 text-[11px] font-bold ov-text-accent">{fmtIDR(Number(form.baseSalary))} / bulan</p>}
+                      {form.baseSalary && <p className="mt-1 text-[11px] font-bold ov-text-accent">{t("{v} / bulan", "{v} / month", { v: fmtIDR(Number(form.baseSalary)) })}</p>}
                     </Field>
                   </div>
                   {selectedGrade && Number(form.baseSalary) > 0 && (
                     <SalaryMeter grade={selectedGrade} salary={Number(form.baseSalary)} />
                   )}
 
-                  <SectionLabel icon={Wallet} title="Rekening Bank" className="pt-1" />
+                  <SectionLabel icon={Wallet} title={t("Rekening Bank", "Bank Account")} className="pt-1" />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-                    <Field label="Bank">
+                    <Field label={t("Bank")}>
                       <Select value={form.bankName || "none"} onValueChange={(v) => set("bankName", v === "none" ? "" : v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Pilih bank" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih bank", "Select bank")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">— Pilih —</SelectItem>
+                          <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                           {["BCA", "Mandiri", "BNI", "BRI"].map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="No. Rekening">
+                    <Field label={t("No. Rekening", "Account No.")}>
                       <Input value={form.bankAccount} onChange={(e) => set("bankAccount", e.target.value)} placeholder="1234567890" inputMode="numeric" className="h-9 font-mono" />
                     </Field>
                   </div>
@@ -465,25 +486,25 @@ export function OnboardingWizard() {
 
               {step === 4 && (
                 <div className="divide-y divide-stone-100 dark:divide-stone-800">
-                  <ReviewSection icon={User} title="Data Personal" onEdit={() => setStep(1)} items={[
-                    ["Nama Lengkap", form.fullName || "—"], ["Jenis Kelamin", form.gender === "F" ? "Perempuan" : "Laki-laki"],
-                    ["Tempat/Tgl Lahir", [form.birthPlace, form.birthDate].filter(Boolean).join(", ") || "—"],
-                    ["NIK", form.nationalId || "—"], ["NPWP", form.taxId || "—"],
-                    ["Status", form.maritalStatus || "—"], ["Agama", form.religion || "—"], ["Gol. Darah", form.bloodType || "—"],
-                    ["Email", form.email || "—"], ["Telepon", form.phone || "—"],
-                    ["Alamat", [form.address, form.city].filter(Boolean).join(", ") || "—"],
+                  <ReviewSection icon={User} title={t("Data Personal", "Personal Details")} onEdit={() => setStep(1)} items={[
+                    [t("Nama Lengkap"), form.fullName || "—"], [t("Jenis Kelamin", "Gender"), form.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")],
+                    [t("Tempat/Tgl Lahir", "Place/Date of Birth"), [form.birthPlace, form.birthDate].filter(Boolean).join(", ") || "—"],
+                    [t("NIK", "NIK"), form.nationalId || "—"], [t("NPWP"), form.taxId || "—"],
+                    [t("Status"), form.maritalStatus || "—"], [t("Agama", "Religion"), form.religion || "—"], [t("Gol. Darah", "Blood Type"), form.bloodType || "—"],
+                    [t("Email"), form.email || "—"], [t("Telepon"), form.phone || "—"],
+                    [t("Alamat"), [form.address, form.city].filter(Boolean).join(", ") || "—"],
                   ]} />
-                  <ReviewSection icon={Briefcase} title="Info Pekerjaan" onEdit={() => setStep(2)} items={[
-                    ["Unit Organisasi", selectedUnit?.name ?? "—"], ["Posisi", selectedPosition?.title ?? "—"],
-                    ["Grade", selectedGrade ? `${selectedGrade.code} — ${selectedGrade.name}` : "—"],
-                    ["Kantor", selectedOffice ? `${selectedOffice.code} — ${selectedOffice.name}` : "—"],
-                    ["Lokasi Kerja", selectedLocation ? `${selectedLocation.code} — ${selectedLocation.name}` : "—"],
-                    ["Status Kepegawaian", form.employmentStatus], ["Tanggal Masuk", form.joinDate || "—"],
-                    ["Jadwal Kerja", form.workShift], ["Atasan", selectedManager?.fullName ?? "—"],
+                  <ReviewSection icon={Briefcase} title={t("Info Pekerjaan", "Job Details")} onEdit={() => setStep(2)} items={[
+                    [t("Unit Organisasi"), selectedUnit?.name ?? "—"], [t("Posisi"), selectedPosition?.title ?? "—"],
+                    [t("Grade"), selectedGrade ? `${selectedGrade.code} — ${selectedGrade.name}` : "—"],
+                    [t("Kantor", "Office"), selectedOffice ? `${selectedOffice.code} — ${selectedOffice.name}` : "—"],
+                    [t("Lokasi Kerja", "Work Location"), selectedLocation ? `${selectedLocation.code} — ${selectedLocation.name}` : "—"],
+                    [t("Status Kepegawaian", "Employment Status"), form.employmentStatus], [t("Tanggal Masuk", "Join Date"), form.joinDate || "—"],
+                    [t("Jadwal Kerja", "Work Schedule"), form.workShift], [t("Atasan", "Manager"), selectedManager?.fullName ?? "—"],
                   ]} />
-                  <ReviewSection icon={Wallet} title="Upah & Bank" onEdit={() => setStep(3)} items={[
-                    ["Gaji Pokok", form.baseSalary ? fmtIDR(Number(form.baseSalary)) : "—"],
-                    ["Bank", form.bankName || "—"], ["No. Rekening", form.bankAccount || "—"],
+                  <ReviewSection icon={Wallet} title={t("Upah & Bank", "Salary & Bank")} onEdit={() => setStep(3)} items={[
+                    [t("Gaji Pokok"), form.baseSalary ? fmtIDR(Number(form.baseSalary)) : "—"],
+                    [t("Bank"), form.bankName || "—"], [t("No. Rekening", "Account No."), form.bankAccount || "—"],
                   ]} />
                 </div>
               )}
@@ -495,8 +516,8 @@ export function OnboardingWizard() {
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.08 }} className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/15 ring-4 ring-white/20 backdrop-blur">
                     <CheckCircle2 className="h-7 w-7" />
                   </motion.div>
-                  <h2 className="text-lg font-bold tracking-tight">Onboarding selesai</h2>
-                  <p className="mt-1 text-sm text-white/85">Karyawan baru telah tersimpan di master data</p>
+                  <h2 className="text-lg font-bold tracking-tight">{t("Onboarding selesai", "Onboarding complete")}</h2>
+                  <p className="mt-1 text-sm text-white/85">{t("Karyawan baru telah tersimpan di master data", "The new employee has been saved to master data")}</p>
                   <div className="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-3 rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur">
                     <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-xs font-extrabold", "bg-white/20 text-white")}>{initials(created.fullName)}</span>
                     <span className="text-left">
@@ -507,15 +528,15 @@ export function OnboardingWizard() {
                 </div>
                 <div className="mt-5 flex flex-wrap justify-center gap-2.5">
                   <Button onClick={() => navigate("employee", "detail", { id: created.id })} className="h-9 gap-2 font-bold">
-                    <User className="h-4 w-4" /> Lihat Profil Karyawan
+                    <User className="h-4 w-4" /> {t("Lihat Profil Karyawan", "View Employee Profile")}
                   </Button>
                   {perms.can("hr", "wizard", "create") && (
                     <Button variant="outline" onClick={reset} className="h-9 gap-2 font-semibold">
-                      <UserPlus className="h-4 w-4" /> Onboarding Karyawan Lagi
+                      <UserPlus className="h-4 w-4" /> {t("Onboarding Karyawan Lagi", "Onboard Another Employee")}
                     </Button>
                   )}
                   <Button variant="ghost" onClick={() => navigate("employee", "directory")} className="h-9 gap-2 font-semibold text-stone-500">
-                    <Users2 className="h-4 w-4" /> Ke Direktori
+                    <Users2 className="h-4 w-4" /> {t("Ke Direktori", "To Directory")}
                   </Button>
                 </div>
               </motion.div>
@@ -527,25 +548,25 @@ export function OnboardingWizard() {
             <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-stone-200/80 bg-stone-50/95 px-4 py-3 backdrop-blur-md dark:border-stone-800 dark:bg-stone-900/95 sm:px-6">
               {step > 1 ? (
                 <Button variant="ghost" onClick={back} className="h-9 gap-1.5 text-sm font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-300">
-                  <ChevronLeft className="h-4 w-4" /> Sebelumnya
+                  <ChevronLeft className="h-4 w-4" /> {t("Sebelumnya")}
                 </Button>
               ) : (
-                <p className="hidden text-[11px] font-medium text-stone-400 sm:block">Data tersimpan otomatis sebagai draft</p>
+                <p className="hidden text-[11px] font-medium text-stone-400 sm:block">{t("Data tersimpan otomatis sebagai draft", "Data is saved automatically as a draft")}</p>
               )}
               <div className="flex items-center gap-3">
-                <p className="hidden text-[11px] font-medium text-stone-400 md:block">Langkah {step} dari 4</p>
+                <p className="hidden text-[11px] font-medium text-stone-400 md:block">{t("Langkah {n} dari 4", "Step {n} of 4", { n: step })}</p>
                 {step < 4 ? (
                   <Button onClick={next} className="h-9 gap-1.5 px-5 text-sm font-bold">
-                    Lanjut <ChevronRight className="h-4 w-4" />
+                    {t("Lanjut")} <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : perms.can("hr", "wizard", "create") ? (
                   <Button onClick={submit} disabled={busy} className="h-9 gap-2 px-5 text-sm font-bold">
-                    {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><CheckCircle2 className="h-4 w-4" /> Simpan Karyawan</>}
+                    {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Menyimpan…")}</> : <><CheckCircle2 className="h-4 w-4" /> {t("Simpan Karyawan", "Save Employee")}</>}
                   </Button>
                 ) : (
                   <p className="flex max-w-xs items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                    Anda tidak memiliki hak menambah karyawan (aksi Baru dinonaktifkan untuk menu Onboarding).
+                    {t("Anda tidak memiliki hak menambah karyawan (aksi Baru dinonaktifkan untuk menu Onboarding).", "You don't have permission to add employees (the New action is disabled for the Onboarding menu).")}
                   </p>
                 )}
               </div>
@@ -561,17 +582,17 @@ export function OnboardingWizard() {
                 <div className="flex items-center gap-3">
                   <ProgressRing pct={pct} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">{form.fullName || "Karyawan Baru"}</p>
-                    <p className="text-[11px] text-stone-400">{form.positionId ? selectedPosition?.title : "Data diri belum lengkap"}</p>
+                    <p className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">{form.fullName || t("Karyawan Baru", "New Employee")}</p>
+                    <p className="text-[11px] text-stone-400">{form.positionId ? selectedPosition?.title : t("Data diri belum lengkap", "Personal details incomplete")}</p>
                   </div>
                 </div>
                 <dl className="mt-4 space-y-2 border-t border-stone-100 pt-3.5 dark:border-stone-800">
-                  <RailRow label="Unit" value={form.orgUnitId ? selectedUnit?.name : ""} />
-                  <RailRow label="Posisi" value={form.positionId ? selectedPosition?.title : ""} />
-                  <RailRow label="Grade" value={form.gradeId ? selectedGrade?.code : ""} />
-                  <RailRow label="Status" value={form.orgUnitId ? form.employmentStatus : ""} />
-                  <RailRow label="Gaji Pokok" value={form.baseSalary ? fmtIDR(Number(form.baseSalary)) : ""} />
-                  <RailRow label="Atasan" value={form.managerId ? selectedManager?.fullName : ""} />
+                  <RailRow label={t("Unit", "Unit")} value={form.orgUnitId ? selectedUnit?.name : ""} />
+                  <RailRow label={t("Posisi")} value={form.positionId ? selectedPosition?.title : ""} />
+                  <RailRow label={t("Grade")} value={form.gradeId ? selectedGrade?.code : ""} />
+                  <RailRow label={t("Status")} value={form.orgUnitId ? form.employmentStatus : ""} />
+                  <RailRow label={t("Gaji Pokok")} value={form.baseSalary ? fmtIDR(Number(form.baseSalary)) : ""} />
+                  <RailRow label={t("Atasan", "Manager")} value={form.managerId ? selectedManager?.fullName : ""} />
                 </dl>
               </CardContent>
             </Card>
@@ -580,10 +601,10 @@ export function OnboardingWizard() {
               <div className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/90 bg-stone-50/70 px-3.5 py-2.5 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Sparkles className="h-3.5 w-3.5 ov-text-accent" />
-                  Draft tersimpan · {draftAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                  {t("Draft tersimpan", "Draft saved")} · {draftAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                 </span>
-                <button onClick={reset} className="flex items-center gap-1 font-semibold text-stone-400 transition-colors hover:text-rose-600" title="Buang draft">
-                  <Trash2 className="h-3 w-3" /> Buang
+                <button onClick={reset} className="flex items-center gap-1 font-semibold text-stone-400 transition-colors hover:text-rose-600" title={t("Buang draft", "Discard draft")}>
+                  <Trash2 className="h-3 w-3" /> {t("Buang", "Discard")}
                 </button>
               </div>
             )}
@@ -591,9 +612,9 @@ export function OnboardingWizard() {
             {TIPS[step] && (
               <div className="rounded-xl border ov-border-accent ov-soft p-3.5">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold ov-text-accent">
-                  <Lightbulb className="h-3.5 w-3.5" /> Tips langkah {step}
+                  <Lightbulb className="h-3.5 w-3.5" /> {t("Tips langkah {n}", "Tips for step {n}", { n: step })}
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">{TIPS[step].text}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">{t(TIPS[step].text, TIPS_EN[step])}</p>
               </div>
             )}
           </div>
@@ -660,15 +681,16 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 function SalaryMeter({ grade, salary }: { grade: { code: string; name: string; minSalary: number; maxSalary: number }; salary: number }) {
+  const { t } = useI18n();
   const pct = Math.max(0, Math.min(100, ((salary - grade.minSalary) / Math.max(1, grade.maxSalary - grade.minSalary)) * 100));
   const below = salary < grade.minSalary;
   const above = salary > grade.maxSalary;
   return (
     <div className="rounded-xl border border-stone-200/90 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-bold text-stone-600 dark:text-stone-400">Rentang Grade {grade.code} — {grade.name}</p>
+        <p className="text-[11px] font-bold text-stone-600 dark:text-stone-400">{t("Rentang Grade {code} — {name}", "Grade {code} Range — {name}", { code: grade.code, name: grade.name })}</p>
         {(below || above) && (
-          <p className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> {above ? "di atas maksimum" : "di bawah minimum"}</p>
+          <p className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> {above ? t("di atas maksimum", "above maximum") : t("di bawah minimum", "below minimum")}</p>
         )}
       </div>
       <div className="relative mt-3 h-1.5 rounded-full bg-gradient-to-r from-stone-200 to-stone-200 dark:from-stone-700 dark:to-stone-700">
@@ -676,14 +698,15 @@ function SalaryMeter({ grade, salary }: { grade: { code: string; name: string; m
         <div className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ov-fill shadow-sm dark:border-stone-900" style={{ left: `${pct}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-[10px] font-semibold text-stone-400">
-        <span>min {fmtIDR(grade.minSalary)}</span>
-        <span>max {fmtIDR(grade.maxSalary)}</span>
+        <span>{t("min {v}", "min {v}", { v: fmtIDR(grade.minSalary) })}</span>
+        <span>{t("max {v}", "max {v}", { v: fmtIDR(grade.maxSalary) })}</span>
       </div>
     </div>
   );
 }
 
 function ReviewSection({ icon: Icon, title, items, onEdit }: { icon: React.ElementType; title: string; items: [string, string][]; onEdit: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
@@ -698,7 +721,7 @@ function ReviewSection({ icon: Icon, title, items, onEdit }: { icon: React.Eleme
         </dl>
       </div>
       <Button variant="outline" size="sm" onClick={onEdit} className="h-7 shrink-0 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold">
-        <Pencil className="h-3 w-3" /> Ubah
+        <Pencil className="h-3 w-3" /> {t("Ubah")}
       </Button>
     </div>
   );
@@ -712,6 +735,7 @@ interface DiscRecord {
 }
 
 export function DisciplinaryPage() {
+  const { t, locale } = useI18n();
   const { data, loading, refresh } = useApi<{ disciplinary: DiscRecord[] }>("/api/onevity/disciplinary");
   const [addOpen, setAddOpen] = useState(false);
   const { navigate } = useNav();
@@ -731,12 +755,15 @@ export function DisciplinaryPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="KARYAWAN"
-        title="Catatan Disiplin"
-        description="Catatan pelanggaran disiplin seluruh karyawan — peringatan verbal, tertulis, dan final"
+        eyebrow={t("Karyawan")}
+        title={t("Catatan Disiplin")}
+        description={t(
+          "Catatan pelanggaran disiplin seluruh karyawan — peringatan verbal, tertulis, dan final",
+          "Disciplinary violation records for all employees — verbal, written, and final warnings",
+        )}
         actions={
           <Button onClick={() => setAddOpen(true)} className="gap-2 font-bold">
-            <Scale className="h-4 w-4" /> Catat Pelanggaran
+            <Scale className="h-4 w-4" /> {t("Catat Pelanggaran", "Record Violation")}
           </Button>
         }
       />
@@ -748,7 +775,7 @@ export function DisciplinaryPage() {
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Peringatan {label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t(`Peringatan ${label}`, label === "Tertulis" ? "Written Warning" : label === "Final" ? "Final Warning" : "Verbal Warning")}</p>
                 <p className="text-lg font-extrabold text-stone-900 dark:text-stone-50">{val}</p>
               </div>
             </CardContent>
@@ -765,12 +792,12 @@ export function DisciplinaryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Karyawan</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Level</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Pelanggaran</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Sanksi</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Diterbitkan</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">Kedaluwarsa</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Karyawan")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Level")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Pelanggaran", "Violation")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Sanksi", "Sanction")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Diterbitkan", "Issued")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Kedaluwarsa", "Expiry")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -796,8 +823,8 @@ export function DisciplinaryPage() {
                         </td>
                         <td className="px-4 py-3 text-xs font-semibold">{d.violation}</td>
                         <td className="px-4 py-3 text-xs text-stone-500">{d.sanction ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500">{new Date(d.issuedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500">{new Date(d.issuedAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</td>
+                        <td className="px-4 py-3 text-xs text-stone-500">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
                       </tr>
                     );
                   })}
@@ -807,7 +834,7 @@ export function DisciplinaryPage() {
           </CardContent>
         </Card>
       ) : (
-        <EmptyState title="Tidak ada catatan disiplin" description="Belum ada pelanggaran tercatat. Kerja bagus! 👏" icon={<Scale className="h-6 w-6" />} />
+        <EmptyState title={t("Tidak ada catatan disiplin", "No disciplinary records")} description={t("Belum ada pelanggaran tercatat. Kerja bagus! 👏", "No violations recorded yet. Great job! 👏")} icon={<Scale className="h-6 w-6" />} />
       )}
       <AddDisciplinaryDialog open={addOpen} setOpen={(v) => { setAddOpen(v); if (!v) refresh(); }} />
     </div>
@@ -815,6 +842,7 @@ export function DisciplinaryPage() {
 }
 
 function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+  const { t } = useI18n();
   const opts = useApi<WizardOptions>("/api/onevity/employee-options");
   const [employeeId, setEmployeeId] = useState("");
   const [warningLevel, setWarningLevel] = useState("Verbal");
@@ -823,11 +851,11 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!employeeId || !violation.trim()) { toast.error("Karyawan & pelanggaran wajib diisi"); return; }
+    if (!employeeId || !violation.trim()) { toast.error(t("Karyawan & pelanggaran wajib diisi", "Employee & violation are required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/disciplinary", "POST", { employeeId, warningLevel, violation, sanction: sanction || null });
-      toast.success("Catatan pelanggaran disimpan");
+      toast.success(t("Catatan pelanggaran disimpan", "Violation record saved"));
       setOpen(false); setEmployeeId(""); setViolation(""); setSanction("");
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
@@ -835,41 +863,41 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 ov-text-accent" /> Catat Pelanggaran</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 ov-text-accent" /> {t("Catat Pelanggaran", "Record Violation")}</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           <div>
-            <Label className="text-xs">Karyawan *</Label>
+            <Label className="text-xs">{t("Karyawan")} *</Label>
             <Select value={employeeId || "none"} onValueChange={(v) => setEmployeeId(v === "none" ? "" : v)}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+              <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— Pilih —</SelectItem>
+                <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
                 {(opts.data?.managers ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} · {m.employeeNo}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Level Peringatan *</Label>
+            <Label className="text-xs">{t("Level Peringatan", "Warning Level")} *</Label>
             <Select value={warningLevel} onValueChange={setWarningLevel}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Verbal">Verbal</SelectItem>
-                <SelectItem value="Written">Tertulis</SelectItem>
-                <SelectItem value="Final">Final</SelectItem>
+                <SelectItem value="Verbal">{t("Verbal")}</SelectItem>
+                <SelectItem value="Written">{t("Tertulis", "Written")}</SelectItem>
+                <SelectItem value="Final">{t("Final")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Pelanggaran *</Label>
-            <Input value={violation} onChange={(e) => setViolation(e.target.value)} placeholder="cth: Keterlambatan berulang" className="mt-1.5" />
+            <Label className="text-xs">{t("Pelanggaran", "Violation")} *</Label>
+            <Input value={violation} onChange={(e) => setViolation(e.target.value)} placeholder={t("cth: Keterlambatan berulang", "e.g. Repeated tardiness")} className="mt-1.5" />
           </div>
           <div>
-            <Label className="text-xs">Sanksi</Label>
-            <Textarea value={sanction} onChange={(e) => setSanction(e.target.value)} placeholder="cth: Surat peringatan I" className="mt-1.5 min-h-16" />
+            <Label className="text-xs">{t("Sanksi", "Sanction")}</Label>
+            <Textarea value={sanction} onChange={(e) => setSanction(e.target.value)} placeholder={t("cth: Surat peringatan I", "e.g. First warning letter")} className="mt-1.5 min-h-16" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? "Menyimpan…" : "Simpan"}</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

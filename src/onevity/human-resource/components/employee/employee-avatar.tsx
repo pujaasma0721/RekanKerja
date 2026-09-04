@@ -3,6 +3,7 @@
 // Dipakai di direktori, grid kartu, dan quick-view panel. SSR-safe: img murni + onError state.
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const GRADIENTS = [
   "from-emerald-200 to-teal-100 text-emerald-900",
@@ -66,6 +67,7 @@ export function EmployeeAvatar({
   ringClassName?: string;
 }) {
   const [broken, setBroken] = useState(false);
+  const { t } = useI18n();
   const s = SIZE_CLS[size];
   const grad = GRADIENTS[hashName(name) % GRADIENTS.length];
   const hasPhoto = !!photoUrl && !broken;
@@ -77,7 +79,7 @@ export function EmployeeAvatar({
         // foto avatar dinamis dari DB (bukan aset build) — img murni agar bisa fallback onError
         <img
           src={photoUrl!}
-          alt={`Foto ${name}`}
+          alt={t("Foto {name}", "Photo of {name}", { name })}
           onError={() => setBroken(true)}
           className={cn(s.box, "rounded-full bg-stone-100 object-cover", ringClassName ?? "ring-1 ring-stone-200/80 dark:ring-stone-700")}
           loading="lazy"
@@ -99,7 +101,7 @@ export function EmployeeAvatar({
           className={cn("absolute bottom-0 right-0 rounded-full ring-white dark:ring-stone-900", s.dot, dot, s.dotRing)}
         />
       )}
-      <span className="sr-only">{hasPhoto ? `Foto ${name}` : `Inisial ${name}`}</span>
+      <span className="sr-only">{hasPhoto ? t("Foto {name}", "Photo of {name}", { name }) : t("Inisial {name}", "Initials of {name}", { name })}</span>
     </span>
   );
 }

@@ -215,10 +215,18 @@ export interface OrgUnitsLiteResp {
 }
 
 // ============ shared label maps ============
+// (Task I-1 i18n) map EN paralel — render: t(MAP[k], MAP_EN[k]); nilai k tetap dikirim ke server.
 export const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
   Permanent: "Tetap",
   Probation: "Probation",
   Contract: "Kontrak",
+  Outsourcing: "Outsourcing",
+};
+
+export const EMPLOYMENT_STATUS_LABEL_EN: Record<string, string> = {
+  Permanent: "Permanent",
+  Probation: "Probation",
+  Contract: "Contract",
   Outsourcing: "Outsourcing",
 };
 
@@ -234,6 +242,13 @@ export const RELATION_LABEL: Record<string, string> = {
   Child: "Anak",
   Parent: "Orang Tua",
   Sibling: "Saudara",
+};
+
+export const RELATION_LABEL_EN: Record<string, string> = {
+  Spouse: "Spouse",
+  Child: "Child",
+  Parent: "Parent",
+  Sibling: "Sibling",
 };
 
 export const WARNING_LEVEL_META: Record<string, { label: string; cls: string; bar: string }> = {
@@ -254,6 +269,12 @@ export const WARNING_LEVEL_META: Record<string, { label: string; cls: string; ba
   },
 };
 
+export const WARNING_LEVEL_LABEL_EN: Record<string, string> = {
+  Verbal: "Verbal Warning",
+  Written: "Written Warning",
+  Final: "Final Warning",
+};
+
 export const RELIGIONS = ["Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu"] as const;
 export const MARITAL_STATUSES = ["Belum Menikah", "Menikah", "Cerai", "Janda/Duda"] as const;
 export const BLOOD_TYPES = ["A", "B", "AB", "O"] as const;
@@ -262,6 +283,28 @@ export const WORK_SHIFTS = ["Regular", "Shift Pagi", "Shift Siang", "Shift Malam
 export const EDUCATION_LEVELS = ["SMA", "SMK", "D3", "S1", "S2", "S3"] as const;
 export const RELATIONS = ["Spouse", "Child", "Parent", "Sibling"] as const;
 export const WARNING_LEVELS = ["Verbal", "Written", "Final"] as const;
+
+// label EN paralel untuk array opsi (nilai array = nilai yang disimpan server)
+export const RELIGIONS_EN: Record<string, string> = {
+  Islam: "Islam",
+  "Kristen Protestan": "Protestant",
+  Katolik: "Catholic",
+  Hindu: "Hindu",
+  Buddha: "Buddhist",
+  Konghucu: "Confucian",
+};
+export const MARITAL_STATUSES_EN: Record<string, string> = {
+  "Belum Menikah": "Single",
+  Menikah: "Married",
+  Cerai: "Divorced",
+  "Janda/Duda": "Widowed",
+};
+export const WORK_SHIFTS_EN: Record<string, string> = {
+  Regular: "Regular",
+  "Shift Pagi": "Morning Shift",
+  "Shift Siang": "Day Shift",
+  "Shift Malam": "Night Shift",
+};
 
 export const employmentStatusBadge = (s: string) =>
   EMPLOYMENT_STATUS_CLS[s] ?? "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25";

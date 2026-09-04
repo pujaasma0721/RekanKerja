@@ -27,27 +27,31 @@ import {
   Wand2, Building2, MapPin, Network, BriefcaseBusiness, GraduationCap, TrendingUp, CircleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 // ================= types =================
 
 const DOC_TYPES = [
-  { value: "Leave", label: "Cuti (Leave)" },
-  { value: "Travel", label: "Perjalanan Dinas (Travel)" },
-  { value: "Medical", label: "Klaim Medis (Medical)" },
-  { value: "Loan", label: "Pinjaman Karyawan (Loan)" },
+  { value: "Leave", label: "Cuti (Leave)", en: "Leave" },
+  { value: "Travel", label: "Perjalanan Dinas (Travel)", en: "Travel" },
+  { value: "Medical", label: "Klaim Medis (Medical)", en: "Medical" },
+  { value: "Loan", label: "Pinjaman Karyawan (Loan)", en: "Employee Loan" },
 ] as const;
 const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan"];
 
 const APPROVER_TYPES = [
-  { value: "ATASAN_LANGSUNG", label: "Atasan Langsung" },
-  { value: "ATASAN_BERJENJANG", label: "Atasan Berjenjang (naik N tingkat)" },
-  { value: "POSISI", label: "Pemegang Posisi" },
-  { value: "KARYAWAN", label: "Karyawan Tertentu" },
-  { value: "HR_ADMIN", label: "Admin/HR Workspace" },
+  { value: "ATASAN_LANGSUNG", label: "Atasan Langsung", en: "Direct Superior" },
+  { value: "ATASAN_BERJENJANG", label: "Atasan Berjenjang (naik N tingkat)", en: "Tiered Superior (up N levels)" },
+  { value: "POSISI", label: "Pemegang Posisi", en: "Position Holder" },
+  { value: "KARYAWAN", label: "Karyawan Tertentu", en: "Specific Employee" },
+  { value: "HR_ADMIN", label: "Admin/HR Workspace", en: "Admin/HR Workspace" },
 ] as const;
-const APPROVER_TYPE_LABEL: Record<string, string> = Object.fromEntries(APPROVER_TYPES.map((t) => [t.value, t.label]));
+const APPROVER_TYPE_LABEL: Record<string, string> = Object.fromEntries(APPROVER_TYPES.map((d) => [d.value, d.label]));
+// Peta EN paralel APPROVER_TYPE_LABEL (label ID dipertahankan; render t(MAP[k], MAP_EN[k])).
+const APPROVER_TYPE_LABEL_EN: Record<string, string> = Object.fromEntries(APPROVER_TYPES.map((d) => [d.value, d.en]));
 
 const docTypeLabel = (v: string) => DOC_TYPES.find((d) => d.value === v)?.label ?? v;
+const docTypeLabelEn = (v: string) => DOC_TYPES.find((d) => d.value === v)?.en ?? v;
 const isAmountDoc = (v: string) => AMOUNT_DOC_TYPES.includes(v);
 
 interface StructureLevel {
@@ -139,6 +143,7 @@ const emptyLevel = (): LevelDraft => ({
 
 // =================================================================
 export function ApprovalStructureView() {
+  const { t } = useI18n();
   const [docFilter, setDocFilter] = useState("all");
   const { data, loading, error, refresh } = useApi<StructuresResp>(`/api/onevity/approval-structures${docFilter !== "all" ? `?docType=${docFilter}` : ""}`);
   const { data: optsOffices } = useApi<OfficesResp>("/api/onevity/company-offices");
@@ -159,11 +164,11 @@ export function ApprovalStructureView() {
     if (!deleting) return;
     try {
       await apiSend(`/api/onevity/approval-structures?id=${deleting.id}`, "DELETE");
-      toast.success(`Struktur ${deleting.code} dihapus`);
+      toast.success(t("Struktur {code} dihapus", "Structure {code} deleted", { code: deleting.code }));
       setDeleting(null);
       refresh();
     } catch (e) {
-      toast.error("Gagal menghapus struktur", { description: (e as Error).message });
+      toast.error(t("Gagal menghapus struktur", "Failed to delete the structure"), { description: (e as Error).message });
     }
   };
 
@@ -172,10 +177,10 @@ export function ApprovalStructureView() {
       {/* ringkasan */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Struktur Aktif", value: activeCount, icon: Layers },
-          { label: "Total Jenjang", value: levelCount, icon: GitBranch },
-          { label: "Jenis Dokumen", value: 4, icon: FileIcon },
-          { label: "Kriteria Dimensi", value: 6, icon: SlidersIcon },
+          { label: t("Struktur Aktif", "Active Structures"), value: activeCount, icon: Layers },
+          { label: t("Total Jenjang", "Total Tiers"), value: levelCount, icon: GitBranch },
+          { label: t("Jenis Dokumen", "Document Types"), value: 4, icon: FileIcon },
+          { label: t("Kriteria Dimensi", "Criteria Dimensions"), value: 6, icon: SlidersIcon },
         ].map((c) => (
           <Card key={c.label} className="rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
             <CardContent className="flex items-center gap-3 p-4">
@@ -197,28 +202,28 @@ export function ApprovalStructureView() {
           <Select value={docFilter} onValueChange={setDocFilter}>
             <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Jenis Dokumen</SelectItem>
-              {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+              <SelectItem value="all">{t("Semua Jenis Dokumen", "All Document Types")}</SelectItem>
+              {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => setSimulating(true)} className="h-10 gap-2 rounded-xl">
-            <Wand2 className="h-4 w-4" /> Simulasi Jalur
+            <Wand2 className="h-4 w-4" /> {t("Simulasi Jalur", "Simulate Path")}
           </Button>
           <Button onClick={() => setCreating(true)} className="h-10 gap-2 rounded-xl">
-            <Plus className="h-4 w-4" /> Struktur Baru
+            <Plus className="h-4 w-4" /> {t("Struktur Baru", "New Structure")}
           </Button>
         </div>
       </div>
 
       {/* daftar struktur */}
       {loading ? <LoadingRows /> : error ? (
-        <EmptyState title="Gagal memuat" description={error} icon={CircleAlert} />
+        <EmptyState title={t("Gagal memuat", "Failed to load")} description={error} icon={CircleAlert} />
       ) : structures.length === 0 ? (
         <EmptyState
-          title="Belum ada struktur approval"
-          description="Buat struktur berjenjang — dokumen tanpa struktur cocok memakai fallback atasan langsung."
+          title={t("Belum ada struktur approval", "No approval structures yet")}
+          description={t("Buat struktur berjenjang — dokumen tanpa struktur cocok memakai fallback atasan langsung.", "Create a tiered structure — documents without a matching structure fall back to the direct superior.")}
           icon={Layers}
         />
       ) : (
@@ -257,14 +262,14 @@ export function ApprovalStructureView() {
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus struktur {deleting?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus struktur {code}?", "Delete structure {code}?", { code: deleting?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Struktur &ldquo;{deleting?.name}&rdquo; beserta {deleting?.levels.length ?? 0} jenjang akan dihapus. Pengajuan baru tidak lagi memakai struktur ini.
+              {t("Struktur")} &ldquo;{deleting?.name}&rdquo; {t("beserta {n} jenjang akan dihapus. Pengajuan baru tidak lagi memakai struktur ini.", "along with its {n} tiers will be deleted. New requests will no longer use this structure.", { n: deleting?.levels.length ?? 0 })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={remove} className="bg-rose-600 hover:bg-rose-700">Hapus</AlertDialogAction>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
+            <AlertDialogAction onClick={remove} className="bg-rose-600 hover:bg-rose-700">{t("Hapus")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -278,13 +283,14 @@ const SlidersIcon = TrendingUp;
 // ================= kartu struktur =================
 
 function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => void; onDelete: () => void }) {
+  const { t } = useI18n();
   const criteria: { label: string; icon: React.ElementType }[] = [];
-  if (s.companyOffice) criteria.push({ label: `Kantor: ${s.companyOffice.name}`, icon: Building2 });
-  if (s.workLocation) criteria.push({ label: `Lokasi: ${s.workLocation.name}`, icon: MapPin });
-  if (s.orgUnit) criteria.push({ label: `Unit: ${s.orgUnit.name}`, icon: Network });
-  if (s.position) criteria.push({ label: `Posisi: ${s.position.title}`, icon: BriefcaseBusiness });
-  if (s.grade) criteria.push({ label: `Grade: ${s.grade.code} — ${s.grade.name}`, icon: GraduationCap });
-  if (s.positionLevel) criteria.push({ label: `Level: ${s.positionLevel.code} — ${s.positionLevel.name}`, icon: TrendingUp });
+  if (s.companyOffice) criteria.push({ label: t("Kantor: {v}", "Office: {v}", { v: s.companyOffice.name }), icon: Building2 });
+  if (s.workLocation) criteria.push({ label: t("Lokasi: {v}", "Location: {v}", { v: s.workLocation.name }), icon: MapPin });
+  if (s.orgUnit) criteria.push({ label: t("Unit: {v}", "Unit: {v}", { v: s.orgUnit.name }), icon: Network });
+  if (s.position) criteria.push({ label: t("Posisi: {v}", "Position: {v}", { v: s.position.title }), icon: BriefcaseBusiness });
+  if (s.grade) criteria.push({ label: t("Grade: {c} — {v}", "Grade: {c} — {v}", { c: s.grade.code, v: s.grade.name }), icon: GraduationCap });
+  if (s.positionLevel) criteria.push({ label: t("Level: {c} — {v}", "Level: {c} — {v}", { c: s.positionLevel.code, v: s.positionLevel.name }), icon: TrendingUp });
 
   return (
     <Card className={cn("rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900", !s.active && "opacity-60")}>
@@ -294,13 +300,13 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-lg bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{s.code}</span>
               <span className="font-semibold text-stone-900 dark:text-stone-50">{s.name}</span>
-              <Badge className="rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">{docTypeLabel(s.docType)}</Badge>
-              {!s.active && <Badge variant="secondary" className="rounded-lg">Nonaktif</Badge>}
+              <Badge className="rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">{t(docTypeLabel(s.docType), docTypeLabelEn(s.docType))}</Badge>
+              {!s.active && <Badge variant="secondary" className="rounded-lg">{t("Nonaktif")}</Badge>}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
                 <Badge variant="outline" className="gap-1 rounded-lg border-stone-300 text-[11px] text-stone-600 dark:border-stone-600 dark:text-stone-300">
-                  <SlidersIcon className="h-3 w-3" /> Berlaku untuk semua karyawan
+                  <SlidersIcon className="h-3 w-3" /> {t("Berlaku untuk semua karyawan", "Applies to all employees")}
                 </Badge>
               ) : criteria.map((c, i) => (
                 <Badge key={i} variant="outline" className="gap-1 rounded-lg border-amber-200 bg-amber-50 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -309,16 +315,16 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
               ))}
               {isAmountDoc(s.docType) && s.levels.some((l) => l.minAmount != null || l.maxAmount != null) && (
                 <Badge variant="outline" className="rounded-lg border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                  Ada jenjang bersyarat nominal
+                  {t("Ada jenjang bersyarat nominal", "Has amount-conditional tiers")}
                 </Badge>
               )}
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
-            <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8 rounded-lg" aria-label="Ubah">
+            <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8 rounded-lg" aria-label={t("Ubah")}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8 rounded-lg text-rose-600 hover:text-rose-700" aria-label="Hapus">
+            <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8 rounded-lg text-rose-600 hover:text-rose-700" aria-label={t("Hapus")}>
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -334,9 +340,9 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
                   ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40"
                   : "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60",
               )}>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Jenjang {l.levelNo}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Jenjang {n}", "Tier {n}", { n: l.levelNo })}</span>
                 <span className="truncate text-xs font-semibold text-stone-800 dark:text-stone-100">
-                  {approverTargetLabel(l)}
+                  {approverTargetLabel(l, t)}
                 </span>
                 {(l.minAmount != null || l.maxAmount != null) && (
                   <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
@@ -354,13 +360,13 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
   );
 }
 
-function approverTargetLabel(l: Pick<StructureLevel, "approverType" | "approverPosition" | "approverEmployee" | "superiorLevel">): string {
+function approverTargetLabel(l: Pick<StructureLevel, "approverType" | "approverPosition" | "approverEmployee" | "superiorLevel">, t: (id: string, en?: string, vars?: Record<string, string | number>) => string): string {
   switch (l.approverType) {
-    case "ATASAN_LANGSUNG": return "Atasan Langsung";
-    case "ATASAN_BERJENJANG": return `Atasan naik ${l.superiorLevel ?? 2} tingkat`;
-    case "POSISI": return l.approverPosition ?? "Pemegang Posisi";
-    case "KARYAWAN": return l.approverEmployee ?? "Karyawan";
-    case "HR_ADMIN": return "Admin/HR Workspace";
+    case "ATASAN_LANGSUNG": return t("Atasan Langsung", "Direct Superior");
+    case "ATASAN_BERJENJANG": return t("Atasan naik {n} tingkat", "Superior {n} levels up", { n: l.superiorLevel ?? 2 });
+    case "POSISI": return l.approverPosition ?? t("Pemegang Posisi", "Position Holder");
+    case "KARYAWAN": return l.approverEmployee ?? t("Karyawan");
+    case "HR_ADMIN": return t("Admin/HR Workspace");
     default: return l.approverType;
   }
 }
@@ -388,6 +394,7 @@ interface StructureFormDialogProps {
 }
 
 function StructureFormDialog(p: StructureFormDialogProps) {
+  const { t } = useI18n();
   const s = p.structure;
   const [form, setForm] = useState({
     code: s?.code ?? "",
@@ -431,21 +438,21 @@ function StructureFormDialog(p: StructureFormDialogProps) {
 
   const submit = async () => {
     if (!form.code.trim() || !form.name.trim()) {
-      toast.error("Kode & nama struktur wajib diisi");
+      toast.error(t("Kode & nama struktur wajib diisi", "Structure code & name are required"));
       return;
     }
     for (let i = 0; i < levelDrafts.length; i++) {
       const l = levelDrafts[i];
       if (l.approverType === "POSISI" && !l.approverPositionId) {
-        toast.error(`Jenjang ${i + 1}: pilih posisi approver`);
+        toast.error(t("Jenjang {n}: pilih posisi approver", "Tier {n}: select the approver position", { n: i + 1 }));
         return;
       }
       if (l.approverType === "KARYAWAN" && !l.approverEmployeeId) {
-        toast.error(`Jenjang ${i + 1}: pilih karyawan approver`);
+        toast.error(t("Jenjang {n}: pilih karyawan approver", "Tier {n}: select the approver employee", { n: i + 1 }));
         return;
       }
       if (l.approverType === "ATASAN_BERJENJANG" && Number(l.superiorLevel) < 1) {
-        toast.error(`Jenjang ${i + 1}: tingkat atasan minimal 1`);
+        toast.error(t("Jenjang {n}: tingkat atasan minimal 1", "Tier {n}: superior level must be at least 1", { n: i + 1 }));
         return;
       }
     }
@@ -475,14 +482,14 @@ function StructureFormDialog(p: StructureFormDialogProps) {
     try {
       if (s) {
         await apiSend(`/api/onevity/approval-structures?id=${s.id}`, "PATCH", body);
-        toast.success(`Struktur ${body.code} diperbarui`);
+        toast.success(t("Struktur {code} diperbarui", "Structure {code} updated", { code: body.code }));
       } else {
         await apiSend("/api/onevity/approval-structures", "POST", body);
-        toast.success(`Struktur ${body.code} dibuat — ${levelDrafts.length} jenjang`);
+        toast.success(t("Struktur {code} dibuat — {n} jenjang", "Structure {code} created — {n} tiers", { code: body.code, n: levelDrafts.length }));
       }
       p.onDone();
     } catch (e) {
-      toast.error("Gagal menyimpan struktur", { description: (e as Error).message });
+      toast.error(t("Gagal menyimpan struktur", "Failed to save the structure"), { description: (e as Error).message });
     } finally {
       setSaving(false);
     }
@@ -501,9 +508,9 @@ function StructureFormDialog(p: StructureFormDialogProps) {
           <Icon className="h-3.5 w-3.5" /> {label}
         </Label>
         <Select value={form[field] || "all"} onValueChange={(v) => set(field, v === "all" ? "" : v)}>
-          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder="Semua" /></SelectTrigger>
+          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Semua")} /></SelectTrigger>
           <SelectContent className="max-h-64">
-            <SelectItem value="all"><span className="text-stone-500">Semua (tanpa batasan)</span></SelectItem>
+            <SelectItem value="all"><span className="text-stone-500">{t("Semua (tanpa batasan)", "All (no restriction)")}</span></SelectItem>
             {items.map((it) => <SelectItem key={it.id} value={it.id}>{it.label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -515,9 +522,9 @@ function StructureFormDialog(p: StructureFormDialogProps) {
     <Dialog open onOpenChange={(o) => !o && p.onClose()}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle>{s ? `Ubah Struktur ${s.code}` : "Struktur Approval Berjenjang Baru"}</DialogTitle>
+          <DialogTitle>{s ? t("Ubah Struktur {code}", "Edit Structure {code}", { code: s.code }) : t("Struktur Approval Berjenjang Baru", "New Tiered Approval Structure")}</DialogTitle>
           <DialogDescription>
-            Struktur dicocokkan ke pemohon berdasarkan parameter penempatannya — isi kriteria agar hanya berlaku bagi kelompok tertentu. Bila beberapa struktur cocok, yang paling spesifik (kriteria terbanyak) dipakai.
+            {t("Struktur dicocokkan ke pemohon berdasarkan parameter penempatannya — isi kriteria agar hanya berlaku bagi kelompok tertentu. Bila beberapa struktur cocok, yang paling spesifik (kriteria terbanyak) dipakai.", "Structures are matched to the requester by their placement parameters — fill in criteria so it only applies to a specific group. When several structures match, the most specific one (most criteria) is used.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -525,15 +532,15 @@ function StructureFormDialog(p: StructureFormDialogProps) {
           {/* informasi umum */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Kode Struktur</Label>
+              <Label className="text-xs">{t("Kode Struktur", "Structure Code")}</Label>
               <Input value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="AS-LEAVE-STD" disabled={!!s} className="h-9 rounded-lg font-mono" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Nama Struktur</Label>
-              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Persetujuan Cuti Standar" className="h-9 rounded-lg" />
+              <Label className="text-xs">{t("Nama Struktur", "Structure Name")}</Label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={t("Persetujuan Cuti Standar", "Standard Leave Approval")} className="h-9 rounded-lg" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Jenis Dokumen</Label>
+              <Label className="text-xs">{t("Jenis Dokumen", "Document Type")}</Label>
               <Select
                 value={form.docType}
                 onValueChange={(v) => {
@@ -544,14 +551,14 @@ function StructureFormDialog(p: StructureFormDialogProps) {
               >
                 <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                  {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center justify-between rounded-xl border border-stone-200 px-4 py-2.5 dark:border-stone-700">
               <div>
-                <Label className="text-xs">Struktur Aktif</Label>
-                <p className="text-[11px] text-stone-500">Nonaktif = pengajuan baru memakai struktur lain / fallback</p>
+                <Label className="text-xs">{t("Struktur Aktif", "Structure Active")}</Label>
+                <p className="text-[11px] text-stone-500">{t("Nonaktif = pengajuan baru memakai struktur lain / fallback", "Inactive = new requests use another structure / the fallback")}</p>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
             </div>
@@ -561,16 +568,16 @@ function StructureFormDialog(p: StructureFormDialogProps) {
           <div className="rounded-2xl border border-stone-200 p-4 dark:border-stone-700">
             <div className="mb-3 flex items-center gap-2">
               <SlidersIcon className="h-4 w-4 text-stone-500" />
-              <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">Berlaku Untuk (Kriteria Pemohon)</span>
-              <Badge variant="outline" className="rounded-lg text-[10px] text-stone-500">kosongkan = semua</Badge>
+              <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">{t("Berlaku Untuk (Kriteria Pemohon)", "Applies To (Applicant Criteria)")}</span>
+              <Badge variant="outline" className="rounded-lg text-[10px] text-stone-500">{t("kosongkan = semua", "leave empty = all")}</Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {criteriaSelect("Company Office", Building2, "companyOfficeId", p.offices.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
-              {criteriaSelect("Lokasi Kerja", MapPin, "workLocationId", p.locations.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
-              {criteriaSelect("Unit Organisasi", Network, "orgUnitId", p.orgUnits.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
-              {criteriaSelect("Posisi", BriefcaseBusiness, "positionId", p.positions.map((o) => ({ id: o.id, label: `${o.code} — ${o.title}` })))}
+              {criteriaSelect(t("Lokasi Kerja", "Work Location"), MapPin, "workLocationId", p.locations.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
+              {criteriaSelect(t("Unit Organisasi"), Network, "orgUnitId", p.orgUnits.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
+              {criteriaSelect(t("Posisi"), BriefcaseBusiness, "positionId", p.positions.map((o) => ({ id: o.id, label: `${o.code} — ${o.title}` })))}
               {criteriaSelect("Employee Grade", GraduationCap, "gradeId", p.grades.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
-              {criteriaSelect("Level Jabatan", TrendingUp, "positionLevelId", p.levels.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
+              {criteriaSelect(t("Level Jabatan", "Job Level"), TrendingUp, "positionLevelId", p.levels.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
             </div>
           </div>
 
@@ -579,15 +586,15 @@ function StructureFormDialog(p: StructureFormDialogProps) {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4 text-stone-500" />
-                <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">Jenjang Persetujuan (berurutan)</span>
+                <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">{t("Jenjang Persetujuan (berurutan)", "Approval Tiers (sequential)")}</span>
               </div>
               <Button type="button" size="sm" variant="outline" onClick={() => setLevelDrafts((ls) => [...ls, emptyLevel()])} className="h-8 gap-1.5 rounded-lg">
-                <Plus className="h-3.5 w-3.5" /> Jenjang
+                <Plus className="h-3.5 w-3.5" /> {t("Jenjang", "Tier")}
               </Button>
             </div>
             {amountDoc && (
               <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Jenis dokumen bernilai uang — jenjang dapat dibatasi nominal <b>besaran benefit / jumlah pinjaman</b>. Isi &ldquo;min&rdquo; (mis. 10.000.000) agar jenjang tambahan aktif hanya bila nominal ≥ nilai tsb.
+                {t("Jenis dokumen bernilai uang — jenjang dapat dibatasi nominal", "This document type carries an amount — tiers can be amount-conditional")} <b>{t("besaran benefit / jumlah pinjaman", "benefit value / loan amount")}</b>. {t("Isi &ldquo;min&rdquo; (mis. 10.000.000) agar jenjang tambahan aktif hanya bila nominal ≥ nilai tsb.", "Fill in &ldquo;min&rdquo; (e.g. 10,000,000) so the extra tier only activates when the amount ≥ that value.")}
               </p>
             )}
             <div className="space-y-2.5">
@@ -599,24 +606,24 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                       <Select value={l.approverType} onValueChange={(v) => setLevel(i, { approverType: v })}>
                         <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {APPROVER_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                          {APPROVER_TYPES.map((a) => <SelectItem key={a.value} value={a.value}>{t(a.label, a.en)}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="ml-auto flex gap-0.5">
-                      <Button type="button" size="icon" variant="ghost" disabled={i === 0} onClick={() => moveLevel(i, -1)} className="h-7 w-7 rounded-lg" aria-label="Naik"><ArrowUp className="h-3.5 w-3.5" /></Button>
-                      <Button type="button" size="icon" variant="ghost" disabled={i === levelDrafts.length - 1} onClick={() => moveLevel(i, 1)} className="h-7 w-7 rounded-lg" aria-label="Turun"><ArrowDown className="h-3.5 w-3.5" /></Button>
-                      <Button type="button" size="icon" variant="ghost" disabled={levelDrafts.length === 1} onClick={() => setLevelDrafts((ls) => ls.filter((_, idx) => idx !== i))} className="h-7 w-7 rounded-lg text-rose-600" aria-label="Hapus jenjang"><X className="h-3.5 w-3.5" /></Button>
+                      <Button type="button" size="icon" variant="ghost" disabled={i === 0} onClick={() => moveLevel(i, -1)} className="h-7 w-7 rounded-lg" aria-label={t("Naik", "Move up")}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                      <Button type="button" size="icon" variant="ghost" disabled={i === levelDrafts.length - 1} onClick={() => moveLevel(i, 1)} className="h-7 w-7 rounded-lg" aria-label={t("Turun", "Move down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                      <Button type="button" size="icon" variant="ghost" disabled={levelDrafts.length === 1} onClick={() => setLevelDrafts((ls) => ls.filter((_, idx) => idx !== i))} className="h-7 w-7 rounded-lg text-rose-600" aria-label={t("Hapus jenjang", "Delete tier")}><X className="h-3.5 w-3.5" /></Button>
                     </div>
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {l.approverType === "POSISI" && (
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] text-stone-500">Posisi Approver</Label>
+                        <Label className="text-[11px] text-stone-500">{t("Posisi Approver", "Approver Position")}</Label>
                         <Select value={l.approverPositionId || "none"} onValueChange={(v) => setLevel(i, { approverPositionId: v === "none" ? "" : v })}>
-                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
+                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih posisi", "Select a position")} /></SelectTrigger>
                           <SelectContent className="max-h-64">
-                            <SelectItem value="none">— pilih —</SelectItem>
+                            <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                             {p.positions.map((o) => <SelectItem key={o.id} value={o.id}>{o.code} — {o.title}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -624,11 +631,11 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                     )}
                     {l.approverType === "KARYAWAN" && (
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] text-stone-500">Karyawan Approver</Label>
+                        <Label className="text-[11px] text-stone-500">{t("Karyawan Approver", "Approver Employee")}</Label>
                         <Select value={l.approverEmployeeId || "none"} onValueChange={(v) => setLevel(i, { approverEmployeeId: v === "none" ? "" : v })}>
-                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
                           <SelectContent className="max-h-64">
-                            <SelectItem value="none">— pilih —</SelectItem>
+                            <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                             {p.employees.map((o) => <SelectItem key={o.id} value={o.id}>{o.employeeNo} — {o.fullName}{o.position?.title ? ` (${o.position.title})` : ""}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -636,27 +643,27 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                     )}
                     {l.approverType === "ATASAN_BERJENJANG" && (
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-stone-500">Naik berapa tingkat dari pemohon</Label>
+                        <Label className="text-[11px] text-stone-500">{t("Naik berapa tingkat dari pemohon", "How many levels above the requester")}</Label>
                         <Input type="number" min={1} value={l.superiorLevel} onChange={(e) => setLevel(i, { superiorLevel: e.target.value })} className="h-9 rounded-lg" />
                       </div>
                     )}
                     {amountDoc && (
                       <>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-stone-500">Nominal Minimum (opsional)</Label>
-                          <Input type="number" min={0} placeholder="mis. 10000000" value={l.minAmount} onChange={(e) => setLevel(i, { minAmount: e.target.value })} className="h-9 rounded-lg" />
+                          <Label className="text-[11px] text-stone-500">{t("Nominal Minimum (opsional)", "Minimum Amount (optional)")}</Label>
+                          <Input type="number" min={0} placeholder={t("mis. 10000000", "e.g. 10000000")} value={l.minAmount} onChange={(e) => setLevel(i, { minAmount: e.target.value })} className="h-9 rounded-lg" />
                           {l.minAmount && <p className="text-[10px] text-stone-400">{fmtIDR(Number(l.minAmount))}</p>}
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-stone-500">Nominal Maksimum (opsional)</Label>
-                          <Input type="number" min={0} placeholder="kosong = tanpa batas" value={l.maxAmount} onChange={(e) => setLevel(i, { maxAmount: e.target.value })} className="h-9 rounded-lg" />
+                          <Label className="text-[11px] text-stone-500">{t("Nominal Maksimum (opsional)", "Maximum Amount (optional)")}</Label>
+                          <Input type="number" min={0} placeholder={t("kosong = tanpa batas", "empty = no limit")} value={l.maxAmount} onChange={(e) => setLevel(i, { maxAmount: e.target.value })} className="h-9 rounded-lg" />
                           {l.maxAmount && <p className="text-[10px] text-stone-400">{fmtIDR(Number(l.maxAmount))}</p>}
                         </div>
                       </>
                     )}
                     <div className="space-y-1 sm:col-span-2">
-                      <Label className="text-[11px] text-stone-500">Catatan (opsional)</Label>
-                      <Textarea rows={1} value={l.note} onChange={(e) => setLevel(i, { note: e.target.value })} placeholder="mis. ≥ Rp 10 jt: HR Manager" className="min-h-0 rounded-lg py-1.5 text-xs" />
+                      <Label className="text-[11px] text-stone-500">{t("Catatan (opsional)", "Note (optional)")}</Label>
+                      <Textarea rows={1} value={l.note} onChange={(e) => setLevel(i, { note: e.target.value })} placeholder={t("mis. ≥ Rp 10 jt: HR Manager", "e.g. ≥ Rp 10M: HR Manager")} className="min-h-0 rounded-lg py-1.5 text-xs" />
                     </div>
                   </div>
                 </div>
@@ -666,10 +673,10 @@ function StructureFormDialog(p: StructureFormDialogProps) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={p.onClose} className="rounded-xl">Batal</Button>
+          <Button variant="outline" onClick={p.onClose} className="rounded-xl">{t("Batal")}</Button>
           <Button onClick={submit} disabled={saving} className="gap-2 rounded-xl font-bold">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {s ? "Simpan Perubahan" : "Buat Struktur"}
+            {s ? t("Simpan Perubahan", "Save Changes") : t("Buat Struktur", "Create Structure")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -680,6 +687,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
 // ================= simulasi =================
 
 function SimulateDialog({ employees, onClose }: { employees: { id: string; fullName: string; employeeNo: string; position: { title: string | null } | null }[]; onClose: () => void }) {
+  const { t } = useI18n();
   const [employeeId, setEmployeeId] = useState("");
   const [docType, setDocType] = useState("Loan");
   const [amount, setAmount] = useState("");
@@ -688,7 +696,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
 
   const run = async () => {
     if (!employeeId) {
-      toast.error("Pilih karyawan pemohon dulu");
+      toast.error(t("Pilih karyawan pemohon dulu", "Select the requesting employee first"));
       return;
     }
     setLoading(true);
@@ -699,7 +707,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
       const res = await apiSend(`/api/onevity/approval-structures?${qs.toString()}`, "GET");
       setPreview((res as PreviewResp).preview);
     } catch (e) {
-      toast.error("Simulasi gagal", { description: (e as Error).message });
+      toast.error(t("Simulasi gagal", "Simulation failed"), { description: (e as Error).message });
     } finally {
       setLoading(false);
     }
@@ -711,49 +719,49 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 ov-text-accent" /> Simulasi Jalur Persetujuan</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 ov-text-accent" /> {t("Simulasi Jalur Persetujuan", "Approval Path Simulation")}</DialogTitle>
           <DialogDescription>
-            Lihat struktur mana yang cocok untuk seorang pemohon dan jenjang siapa saja yang akan menunggu keputusan — tanpa mengajukan dokumen.
+            {t("Lihat struktur mana yang cocok untuk seorang pemohon dan jenjang siapa saja yang akan menunggu keputusan — tanpa mengajukan dokumen.", "See which structure matches a requester and which tiers will await a decision — without submitting a document.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs">Karyawan Pemohon</Label>
+            <Label className="text-xs">{t("Karyawan Pemohon", "Requesting Employee")}</Label>
             <Select value={employeeId || "none"} onValueChange={(v) => setEmployeeId(v === "none" ? "" : v)}>
-              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
               <SelectContent className="max-h-64">
-                <SelectItem value="none">— pilih —</SelectItem>
+                <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                 {employees.map((o) => <SelectItem key={o.id} value={o.id}>{o.employeeNo} — {o.fullName}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Jenis Dokumen</Label>
+            <Label className="text-xs">{t("Jenis Dokumen", "Document Type")}</Label>
             <Select value={docType} onValueChange={setDocType}>
               <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Nominal {amountDoc ? "(besaran / jumlah)" : "(tidak dipakai)"}</Label>
-            <Input type="number" min={0} placeholder="mis. 25000000" value={amount} disabled={!amountDoc} onChange={(e) => setAmount(e.target.value)} className="h-9 rounded-lg" />
+            <Label className="text-xs">{t("Nominal {s}", "Amount {s}", { s: amountDoc ? t("(besaran / jumlah)", "(benefit / loan value)") : t("(tidak dipakai)", "(not used)") })}</Label>
+            <Input type="number" min={0} placeholder={t("mis. 25000000", "e.g. 25000000")} value={amount} disabled={!amountDoc} onChange={(e) => setAmount(e.target.value)} className="h-9 rounded-lg" />
             {amount && amountDoc && <p className="text-[10px] text-stone-400">{fmtIDR(Number(amount))}</p>}
           </div>
         </div>
 
         <Button onClick={run} disabled={loading} className="w-full gap-2 rounded-xl font-bold">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Simulasikan
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} {t("Simulasikan", "Simulate")}
         </Button>
 
         {preview && (
           <div className="space-y-2 rounded-2xl border border-stone-200 p-4 dark:border-stone-700">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">Struktur Cocok</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t("Struktur Cocok", "Matching Structure")}</span>
               {preview.fallback ? (
-                <Badge className="rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300">Fallback — atasan langsung / Admin-HR</Badge>
+                <Badge className="rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t("Fallback — atasan langsung / Admin-HR", "Fallback — direct superior / Admin-HR")}</Badge>
               ) : (
                 <Badge className="rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300">{preview.structureCode} — {preview.structureName}</Badge>
               )}
@@ -769,7 +777,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-[11px] font-bold text-white dark:bg-stone-200 dark:text-stone-900">{st.levelNo}</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-semibold text-stone-800 dark:text-stone-100">{st.approverLabel}</div>
-                    <div className="text-[10px] text-stone-400">{APPROVER_TYPE_LABEL[st.approverType] ?? st.approverType}</div>
+                    <div className="text-[10px] text-stone-400">{t(APPROVER_TYPE_LABEL[st.approverType] ?? st.approverType, APPROVER_TYPE_LABEL_EN[st.approverType] ?? st.approverType)}</div>
                   </div>
                   {(st.minAmount != null || st.maxAmount != null) && (
                     <Badge variant="outline" className="shrink-0 rounded-lg border-emerald-200 text-[10px] text-emerald-700 dark:border-emerald-700 dark:text-emerald-300">
@@ -780,7 +788,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
               ))}
             </div>
             <p className="text-[11px] text-stone-500">
-              {preview.steps.length} jenjang akan menunggu keputusan secara berurutan — pengajuan berpindah ke jenjang berikutnya setiap persetujuan.
+              {t("{n} jenjang akan menunggu keputusan secara berurutan — pengajuan berpindah ke jenjang berikutnya setiap persetujuan.", "{n} tiers will await a decision sequentially — the request moves to the next tier after each approval.", { n: preview.steps.length })}
             </p>
           </div>
         )}

@@ -16,8 +16,9 @@ import {
   GraduationCap, Users, Clock3, Scale, BookOpen, History, ChevronRight, TriangleAlert, UserMinus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
-  EMPLOYMENT_STATUS_LABEL, RELATION_LABEL, WARNING_LEVEL_META,
+  EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, RELATION_LABEL, RELATION_LABEL_EN, WARNING_LEVEL_META, WARNING_LEVEL_LABEL_EN,
   type EmployeeDetailResp,
 } from "./types";
 import { EmployeeAvatar } from "./employee-avatar";
@@ -69,6 +70,7 @@ function SectionCard({
 
 export function EmployeeDetail({ id }: { id: string }) {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const perms = useMenuPerms();
   const { data, loading, error, refresh } = useApi<EmployeeDetailResp>(`/api/onevity/employee-detail?id=${encodeURIComponent(id)}`, [id]);
 
@@ -91,7 +93,7 @@ export function EmployeeDetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div>
-        <PageHeader eyebrow="KARYAWAN" title="Profil Karyawan" description="Memuat data profil…" />
+        <PageHeader eyebrow={t("Karyawan")} title={t("Profil Karyawan", "Employee Profile")} description={t("Memuat data profil…", "Loading profile data…")} />
         <LoadingRows rows={8} />
       </div>
     );
@@ -100,11 +102,11 @@ export function EmployeeDetail({ id }: { id: string }) {
   if (error || !data?.employee) {
     return (
       <div>
-        <PageHeader eyebrow="KARYAWAN" title="Profil Karyawan" />
-        <EmptyState title="Karyawan tidak ditemukan" description={error ?? "Data profil tidak tersedia."} icon={<UserRound className="h-6 w-6" />} />
+        <PageHeader eyebrow={t("Karyawan")} title={t("Profil Karyawan", "Employee Profile")} />
+        <EmptyState title={t("Karyawan tidak ditemukan", "Employee not found")} description={error ?? t("Data profil tidak tersedia.", "Profile data is unavailable.")} icon={<UserRound className="h-6 w-6" />} />
         <div className="mt-4 flex justify-center">
           <Button variant="outline" className="h-11 gap-2" onClick={() => navigate("employee", "directory")}>
-            <ArrowLeft className="h-4 w-4" /> Kembali ke Direktori
+            <ArrowLeft className="h-4 w-4" /> {t("Kembali ke Direktori", "Back to Directory")}
           </Button>
         </div>
       </div>
@@ -113,7 +115,7 @@ export function EmployeeDetail({ id }: { id: string }) {
 
   const e = data.employee;
   const ttl = e.birthPlace || e.birthDate ? `${e.birthPlace ?? "?"}, ${fmtDateLong(e.birthDate)}` : "";
-  const period = (s: string | null, en: string | null) => `${fmtDate(s)} — ${en ? fmtDate(en) : "sekarang"}`;
+  const period = (s: string | null, en: string | null) => `${fmtDate(s)} — ${en ? fmtDate(en) : t("sekarang", "present")}`;
   // Kantor/Lokasi Kerja — prioritas object flatten, fallback resolve via snapshot ID
   const office = e.companyOffice ?? (e.companyOfficeId ? officeApi.data?.offices.find((o) => o.id === e.companyOfficeId) ?? null : null);
   const workLoc = e.workLocation ?? (e.workLocationId ? locationApi.data?.locations.find((l) => l.id === e.workLocationId) ?? null : null);
@@ -123,7 +125,7 @@ export function EmployeeDetail({ id }: { id: string }) {
       {/* back + page header */}
       <div className="mb-4">
         <Button variant="ghost" className="h-11 gap-2 px-3 text-stone-500 hover:ov-text-accent dark:text-stone-400" onClick={() => navigate("employee", "directory")}>
-          <ArrowLeft className="h-4 w-4" /> Kembali ke Direktori
+          <ArrowLeft className="h-4 w-4" /> {t("Kembali ke Direktori", "Back to Directory")}
         </Button>
       </div>
 
@@ -166,7 +168,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                         ? "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400"
                         : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-400",
                 )}>
-                  {EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus}
+                  {t(EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[e.employmentStatus])}
                 </Badge>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-stone-500 dark:text-stone-400">
@@ -200,21 +202,21 @@ export function EmployeeDetail({ id }: { id: string }) {
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile"><Clock3 className="h-5 w-5" /></span>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Masa Kerja</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Masa Kerja", "Tenure")}</p>
                 <p className="truncate text-sm font-extrabold text-stone-800 dark:text-stone-100">{tenure(e.joinDate)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile"><Banknote className="h-5 w-5" /></span>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Gaji Pokok</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Gaji Pokok")}</p>
                 <p className="truncate text-sm font-extrabold text-stone-800 dark:text-stone-100">{fmtIDR(e.baseSalary)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile"><UserRound className="h-5 w-5" /></span>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Atasan</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Atasan", "Manager")}</p>
                 <button
                   className="max-w-full truncate text-left text-sm font-extrabold text-stone-800 hover:ov-text-accent hover:underline dark:text-stone-100"
                   onClick={() => e.manager && navigate("employee", "detail", { id: e.manager.id })}
@@ -232,19 +234,19 @@ export function EmployeeDetail({ id }: { id: string }) {
         <div className="mb-5 overflow-x-auto pb-1">
           <TabsList className="h-auto w-max gap-1 bg-stone-100/80 p-1 dark:bg-stone-900/60">
             {[
-              { v: "personal", label: "Personal", icon: UserRound },
-              { v: "pekerjaan", label: "Pekerjaan", icon: BriefcaseBusiness },
-              { v: "keluarga", label: `Keluarga (${e.family.length})`, icon: Heart },
-              { v: "pendidikan", label: `Pendidikan (${e.education.length})`, icon: GraduationCap },
-              { v: "pengalaman", label: `Pengalaman (${e.experiences.length})`, icon: History },
-              { v: "disiplin", label: `Disiplin (${e.disciplinary.length})`, icon: Scale },
-            ].map((t) => (
+              { v: "personal", label: t("Personal"), icon: UserRound },
+              { v: "pekerjaan", label: t("Pekerjaan", "Work"), icon: BriefcaseBusiness },
+              { v: "keluarga", label: t("Keluarga ({n})", "Family ({n})", { n: e.family.length }), icon: Heart },
+              { v: "pendidikan", label: t("Pendidikan ({n})", "Education ({n})", { n: e.education.length }), icon: GraduationCap },
+              { v: "pengalaman", label: t("Pengalaman ({n})", "Experience ({n})", { n: e.experiences.length }), icon: History },
+              { v: "disiplin", label: t("Disiplin ({n})", "Discipline ({n})", { n: e.disciplinary.length }), icon: Scale },
+            ].map((tb) => (
               <TabsTrigger
-                key={t.v}
-                value={t.v}
+                key={tb.v}
+                value={tb.v}
                 className="h-11 gap-2 rounded-xl px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900"
               >
-                <t.icon className="h-4 w-4" aria-hidden /> {t.label}
+                <tb.icon className="h-4 w-4" aria-hidden /> {tb.label}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -253,30 +255,30 @@ export function EmployeeDetail({ id }: { id: string }) {
         {/* ===== TAB: PERSONAL ===== */}
         <TabsContent value="personal" className="mt-0">
           <SectionCard
-            title="Data Personal"
-            description="Identitas kependudukan, kontak, dan data perbankan."
+            title={t("Data Personal", "Personal Data")}
+            description={t("Identitas kependudukan, kontak, dan data perbankan.", "Civil identity, contact, and banking details.")}
             icon={UserRound}
             action={
               perms.can("hr", "directory", "update") && (
                 <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditPersonal(true)}>
-                  <Pencil className="h-4 w-4" /> Edit
+                  <Pencil className="h-4 w-4" /> {t("Edit")}
                 </Button>
               )
             }
           >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailItem icon={IdCard} label="NIK (KTP)" value={e.nationalId ?? ""} />
-              <DetailItem icon={Landmark} label="NPWP" value={e.taxId ?? ""} />
-              <DetailItem icon={Heart} label="BPJS Kesehatan" value={e.bpjsHealth ?? ""} />
-              <DetailItem icon={ShieldAlert} label="BPJS Ketenagakerjaan" value={e.bpjsEmpSkill ?? ""} />
-              <DetailItem icon={CalendarDays} label="Tempat, Tgl Lahir" value={ttl} />
-              <DetailItem icon={UserRound} label="Jenis Kelamin" value={genderLabel(e.gender)} />
-              <DetailItem icon={Sparkles} label="Agama" value={e.religion ?? ""} />
-              <DetailItem icon={Heart} label="Status Pernikahan" value={e.maritalStatus ?? ""} />
-              <DetailItem icon={Droplets} label="Golongan Darah" value={e.bloodType ? `Gol. ${e.bloodType}` : ""} />
-              <DetailItem icon={MapPin} label="Alamat" value={e.address ?? ""} />
-              <DetailItem icon={Building2} label="Kota" value={e.city ?? ""} />
-              <DetailItem icon={Wallet} label="Bank" value={e.bankName ? `${e.bankName}${e.bankAccount ? ` · ${e.bankAccount}` : ""}` : ""} />
+              <DetailItem icon={IdCard} label={t("NIK (KTP)", "NIK (ID Card)")} value={e.nationalId ?? ""} />
+              <DetailItem icon={Landmark} label={t("NPWP")} value={e.taxId ?? ""} />
+              <DetailItem icon={Heart} label={t("BPJS Kesehatan", "BPJS Health")} value={e.bpjsHealth ?? ""} />
+              <DetailItem icon={ShieldAlert} label={t("BPJS Ketenagakerjaan", "BPJS Employment")} value={e.bpjsEmpSkill ?? ""} />
+              <DetailItem icon={CalendarDays} label={t("Tempat, Tgl Lahir", "Place & Date of Birth")} value={ttl} />
+              <DetailItem icon={UserRound} label={t("Jenis Kelamin", "Gender")} value={genderLabel(e.gender)} />
+              <DetailItem icon={Sparkles} label={t("Agama", "Religion")} value={e.religion ?? ""} />
+              <DetailItem icon={Heart} label={t("Status Pernikahan", "Marital Status")} value={e.maritalStatus ?? ""} />
+              <DetailItem icon={Droplets} label={t("Golongan Darah", "Blood Type")} value={e.bloodType ? t("Gol. {b}", "Group {b}", { b: e.bloodType }) : ""} />
+              <DetailItem icon={MapPin} label={t("Alamat")} value={e.address ?? ""} />
+              <DetailItem icon={Building2} label={t("Kota", "City")} value={e.city ?? ""} />
+              <DetailItem icon={Wallet} label={t("Bank")} value={e.bankName ? `${e.bankName}${e.bankAccount ? ` · ${e.bankAccount}` : ""}` : ""} />
             </div>
           </SectionCard>
         </TabsContent>
@@ -285,42 +287,42 @@ export function EmployeeDetail({ id }: { id: string }) {
         <TabsContent value="pekerjaan" className="mt-0">
           <div className="grid gap-5 lg:grid-cols-2">
             <SectionCard
-              title="Info Pekerjaan"
-              description="Penempatan, status, dan upah saat ini."
+              title={t("Info Pekerjaan", "Job Information")}
+              description={t("Penempatan, status, dan upah saat ini.", "Current placement, status, and salary.")}
               icon={BriefcaseBusiness}
               action={
                 perms.can("hr", "directory", "update") && (
                   <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditWork(true)}>
-                    <Pencil className="h-4 w-4" /> Edit
+                    <Pencil className="h-4 w-4" /> {t("Edit")}
                   </Button>
                 )
               }
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem icon={CalendarDays} label="Tanggal Masuk" value={fmtDateLong(e.joinDate)} />
-                <DetailItem icon={Clock3} label="Status Kerja" value={EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus} />
-                <DetailItem icon={Clock3} label="Shift Kerja" value={e.workShift} />
-                <DetailItem icon={UserRound} label="Atasan Langsung" value={e.manager?.fullName ?? "—"} />
-                <DetailItem icon={Building2} label="Unit Organisasi" value={e.orgUnit?.name ?? "—"} />
-                <DetailItem icon={BriefcaseBusiness} label="Posisi" value={e.position?.title ?? "—"} />
-                <DetailItem icon={GraduationCap} label="Grade" value={e.grade ? `${e.grade.code} · ${e.grade.name}` : "—"} />
+                <DetailItem icon={CalendarDays} label={t("Tanggal Masuk", "Join Date")} value={fmtDateLong(e.joinDate)} />
+                <DetailItem icon={Clock3} label={t("Status Kerja", "Employment Status")} value={t(EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[e.employmentStatus])} />
+                <DetailItem icon={Clock3} label={t("Shift Kerja", "Work Shift")} value={e.workShift} />
+                <DetailItem icon={UserRound} label={t("Atasan Langsung", "Direct Manager")} value={e.manager?.fullName ?? "—"} />
+                <DetailItem icon={Building2} label={t("Unit Organisasi")} value={e.orgUnit?.name ?? "—"} />
+                <DetailItem icon={BriefcaseBusiness} label={t("Posisi")} value={e.position?.title ?? "—"} />
+                <DetailItem icon={GraduationCap} label={t("Grade")} value={e.grade ? `${e.grade.code} · ${e.grade.name}` : "—"} />
                 {office && (
-                  <DetailItem icon={Building2} label="Kantor" value={`${office.code} · ${office.name}${office.city ? ` — ${office.city}` : ""}`} />
+                  <DetailItem icon={Building2} label={t("Kantor", "Office")} value={`${office.code} · ${office.name}${office.city ? ` — ${office.city}` : ""}`} />
                 )}
                 {workLoc && (
-                  <DetailItem icon={MapPin} label="Lokasi Kerja" value={`${workLoc.code} · ${workLoc.name}${workLoc.city ? ` — ${workLoc.city}` : ""}`} />
+                  <DetailItem icon={MapPin} label={t("Lokasi Kerja", "Work Location")} value={`${workLoc.code} · ${workLoc.name}${workLoc.city ? ` — ${workLoc.city}` : ""}`} />
                 )}
-                <DetailItem icon={Banknote} label="Gaji Pokok" value={fmtIDR(e.baseSalary)} />
+                <DetailItem icon={Banknote} label={t("Gaji Pokok")} value={fmtIDR(e.baseSalary)} />
                 {e.grade && (
-                  <DetailItem icon={Wallet} label="Range Grade" value={`${fmtIDR(e.grade.minSalary)} – ${fmtIDR(e.grade.maxSalary)}`} />
+                  <DetailItem icon={Wallet} label={t("Range Grade", "Grade Range")} value={`${fmtIDR(e.grade.minSalary)} – ${fmtIDR(e.grade.maxSalary)}`} />
                 )}
-                {e.endDate && <DetailItem icon={TriangleAlert} label="Tanggal Keluar" value={fmtDateLong(e.endDate)} />}
+                {e.endDate && <DetailItem icon={TriangleAlert} label={t("Tanggal Keluar", "End Date")} value={fmtDateLong(e.endDate)} />}
               </div>
             </SectionCard>
 
-            <SectionCard title={`Bawahan Langsung (${e.directReports.length})`} description="Karyawan yang melapor langsung ke sini." icon={Users}>
+            <SectionCard title={t("Bawahan Langsung ({n})", "Direct Reports ({n})", { n: e.directReports.length })} description={t("Karyawan yang melapor langsung ke sini.", "Employees reporting directly here.")} icon={Users}>
               {e.directReports.length === 0 ? (
-                <EmptyState title="Tidak ada bawahan langsung" description="Karyawan ini tidak memiliki direct report." icon={<UserMinus className="h-6 w-6" />} />
+                <EmptyState title={t("Tidak ada bawahan langsung", "No direct reports")} description={t("Karyawan ini tidak memiliki direct report.", "This employee has no direct reports.")} icon={<UserMinus className="h-6 w-6" />} />
               ) : (
                 <ul className="max-h-96 space-y-2 overflow-y-auto pr-1">
                   {e.directReports.map((r) => (
@@ -328,7 +330,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                       <button
                         onClick={() => navigate("employee", "detail", { id: r.id })}
                         className="group flex w-full items-center gap-3 rounded-xl border border-stone-200/80 bg-stone-50/50 p-3 text-left transition hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900/40"
-                        aria-label={`Buka profil ${r.fullName}`}
+                        aria-label={t("Buka profil {name}", "Open {name}'s profile", { name: r.fullName })}
                       >
                         <EmployeeAvatar name={r.fullName} photoUrl={r.photoUrl} size="xs" status={r.status} showStatus />
                         <span className="min-w-0 flex-1">
@@ -350,45 +352,45 @@ export function EmployeeDetail({ id }: { id: string }) {
         {/* ===== TAB: KELUARGA ===== */}
         <TabsContent value="keluarga" className="mt-0">
           <SectionCard
-            title={`Data Keluarga (${e.family.length})`}
-            description="Anggota keluarga untuk BPJS dan tunjangan."
+            title={t("Data Keluarga ({n})", "Family Data ({n})", { n: e.family.length })}
+            description={t("Anggota keluarga untuk BPJS dan tunjangan.", "Family members for BPJS and allowances.")}
             icon={Heart}
             action={
               perms.can("hr", "directory", "create") && (
                 <Button size="sm" className="h-11 gap-2 px-4 font-bold" onClick={() => setFamilyOpen(true)}>
-                  <Plus className="h-4 w-4" /> Tambah
+                  <Plus className="h-4 w-4" /> {t("Tambah")}
                 </Button>
               )
             }
           >
             {e.family.length === 0 ? (
-              <EmptyState title="Belum ada data keluarga" description="Tambahkan pasangan, anak, atau tanggungan lain." icon={<Heart className="h-6 w-6" />} />
+              <EmptyState title={t("Belum ada data keluarga", "No family data yet")} description={t("Tambahkan pasangan, anak, atau tanggungan lain.", "Add a spouse, child, or other dependent.")} icon={<Heart className="h-6 w-6" />} />
             ) : (
               <div className="overflow-hidden rounded-xl border border-stone-200/80 dark:border-stone-800">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-stone-50/80 dark:bg-stone-900/50">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead>Hubungan</TableHead>
-                        <TableHead>Nama</TableHead>
-                        <TableHead>J. Kelamin</TableHead>
-                        <TableHead>Tgl Lahir</TableHead>
-                        <TableHead>Pekerjaan</TableHead>
-                        <TableHead>Dependen</TableHead>
-                        <TableHead className="w-12" aria-label="Aksi" />
+                        <TableHead>{t("Hubungan", "Relation")}</TableHead>
+                        <TableHead>{t("Nama")}</TableHead>
+                        <TableHead>{t("J. Kelamin", "Gender")}</TableHead>
+                        <TableHead>{t("Tgl Lahir", "Birth Date")}</TableHead>
+                        <TableHead>{t("Pekerjaan", "Occupation")}</TableHead>
+                        <TableHead>{t("Dependen", "Dependent")}</TableHead>
+                        <TableHead className="w-12" aria-label={t("Aksi")} />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {e.family.map((f) => (
                         <TableRow key={f.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                          <TableCell className="py-3 text-[13px] font-semibold">{RELATION_LABEL[f.relation] ?? f.relation}</TableCell>
+                          <TableCell className="py-3 text-[13px] font-semibold">{t(RELATION_LABEL[f.relation] ?? f.relation, RELATION_LABEL_EN[f.relation])}</TableCell>
                           <TableCell className="py-3 text-[13px] font-bold text-stone-800 dark:text-stone-100">{f.name}</TableCell>
                           <TableCell className="py-3 text-[13px]">{genderLabel(f.gender)}</TableCell>
                           <TableCell className="py-3 text-[13px]">{fmtDate(f.birthDate)}</TableCell>
                           <TableCell className="py-3 text-[13px]">{f.occupation ?? "—"}</TableCell>
                           <TableCell className="py-3">
                             {f.isDependent ? (
-                              <Badge className="text-[10px] font-bold">Dependen</Badge>
+                              <Badge className="text-[10px] font-bold">{t("Dependen", "Dependent")}</Badge>
                             ) : (
                               <span className="text-xs text-stone-400">—</span>
                             )}
@@ -397,8 +399,8 @@ export function EmployeeDetail({ id }: { id: string }) {
                             {perms.can("hr", "directory", "delete") && (
                               <DeleteRecordButton
                                 url={`/api/onevity/family?id=${f.id}`}
-                                title={`Hapus ${f.name}?`}
-                                description="Anggota keluarga akan dihapus permanen dari profil."
+                                title={t("Hapus {name}?", "Delete {name}?", { name: f.name })}
+                                description={t("Anggota keluarga akan dihapus permanen dari profil.", "This family member will be permanently removed from the profile.")}
                                 onDone={refresh}
                               />
                             )}
@@ -416,19 +418,19 @@ export function EmployeeDetail({ id }: { id: string }) {
         {/* ===== TAB: PENDIDIKAN ===== */}
         <TabsContent value="pendidikan" className="mt-0">
           <SectionCard
-            title={`Riwayat Pendidikan (${e.education.length})`}
-            description="Jenjang pendidikan formal."
+            title={t("Riwayat Pendidikan ({n})", "Education History ({n})", { n: e.education.length })}
+            description={t("Jenjang pendidikan formal.", "Formal education levels.")}
             icon={GraduationCap}
             action={
               perms.can("hr", "directory", "create") && (
                 <Button size="sm" className="h-11 gap-2 px-4 font-bold" onClick={() => setEduOpen(true)}>
-                  <Plus className="h-4 w-4" /> Tambah
+                  <Plus className="h-4 w-4" /> {t("Tambah")}
                 </Button>
               )
             }
           >
             {e.education.length === 0 ? (
-              <EmptyState title="Belum ada riwayat pendidikan" description="Tambahkan pendidikan terakhir (SMA/D3/S1/S2/S3)." icon={<GraduationCap className="h-6 w-6" />} />
+              <EmptyState title={t("Belum ada riwayat pendidikan", "No education records yet")} description={t("Tambahkan pendidikan terakhir (SMA/D3/S1/S2/S3).", "Add the latest education (high school/diploma/bachelor/master/doctorate).")} icon={<GraduationCap className="h-6 w-6" />} />
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {e.education.map((d) => (
@@ -440,8 +442,8 @@ export function EmployeeDetail({ id }: { id: string }) {
                       {perms.can("hr", "directory", "delete") && (
                         <DeleteRecordButton
                           url={`/api/onevity/education?id=${d.id}`}
-                          title={`Hapus pendidikan ${d.level}?`}
-                          description="Riwayat pendidikan ini akan dihapus permanen."
+                          title={t("Hapus pendidikan {lvl}?", "Delete {lvl} education?", { lvl: d.level })}
+                          description={t("Riwayat pendidikan ini akan dihapus permanen.", "This education record will be permanently deleted.")}
                           onDone={refresh}
                           className="h-8 w-8"
                         />
@@ -451,7 +453,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                     <p className="text-xs text-stone-500 dark:text-stone-400">{d.major ?? "—"}</p>
                     <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400">
                       <span>{d.startYear ?? "?"} – {d.endYear ?? "…"}</span>
-                      {d.gpa != null && <span className="rounded-full bg-stone-100 px-2 py-0.5 font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">IPK {d.gpa.toFixed(2)}</span>}
+                      {d.gpa != null && <span className="rounded-full bg-stone-100 px-2 py-0.5 font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{t("IPK {g}", "GPA {g}", { g: d.gpa.toFixed(2) })}</span>}
                     </div>
                   </div>
                 ))}
@@ -463,19 +465,19 @@ export function EmployeeDetail({ id }: { id: string }) {
         {/* ===== TAB: PENGALAMAN ===== */}
         <TabsContent value="pengalaman" className="mt-0">
           <SectionCard
-            title={`Pengalaman Kerja (${e.experiences.length})`}
-            description="Riwayat pekerjaan sebelum bergabung."
+            title={t("Pengalaman Kerja ({n})", "Work Experience ({n})", { n: e.experiences.length })}
+            description={t("Riwayat pekerjaan sebelum bergabung.", "Work history before joining.")}
             icon={History}
             action={
               perms.can("hr", "directory", "create") && (
                 <Button size="sm" className="h-11 gap-2 px-4 font-bold" onClick={() => setExpOpen(true)}>
-                  <Plus className="h-4 w-4" /> Tambah
+                  <Plus className="h-4 w-4" /> {t("Tambah")}
                 </Button>
               )
             }
           >
             {e.experiences.length === 0 ? (
-              <EmptyState title="Belum ada pengalaman" description="Tambahkan riwayat pekerjaan sebelumnya." icon={<BriefcaseBusiness className="h-6 w-6" />} />
+              <EmptyState title={t("Belum ada pengalaman", "No experience yet")} description={t("Tambahkan riwayat pekerjaan sebelumnya.", "Add previous work history.")} icon={<BriefcaseBusiness className="h-6 w-6" />} />
             ) : (
               <div className="space-y-3">
                 {e.experiences.map((x) => (
@@ -496,8 +498,8 @@ export function EmployeeDetail({ id }: { id: string }) {
                       {perms.can("hr", "directory", "delete") && (
                         <DeleteRecordButton
                           url={`/api/onevity/experiences?id=${x.id}`}
-                          title={`Hapus pengalaman di ${x.company}?`}
-                          description="Pengalaman kerja ini akan dihapus permanen."
+                          title={t("Hapus pengalaman di {c}?", "Delete experience at {c}?", { c: x.company })}
+                          description={t("Pengalaman kerja ini akan dihapus permanen.", "This work experience will be permanently deleted.")}
                           onDone={refresh}
                         />
                       )}
@@ -512,19 +514,19 @@ export function EmployeeDetail({ id }: { id: string }) {
         {/* ===== TAB: DISIPLIN ===== */}
         <TabsContent value="disiplin" className="mt-0">
           <SectionCard
-            title={`Catatan Disiplin (${e.disciplinary.length})`}
-            description="Riwayat peringatan, pelanggaran, dan sanksi."
+            title={t("Catatan Disiplin ({n})", "Disciplinary Records ({n})", { n: e.disciplinary.length })}
+            description={t("Riwayat peringatan, pelanggaran, dan sanksi.", "History of warnings, violations, and sanctions.")}
             icon={Scale}
             action={
               perms.can("hr", "directory", "create") && (
                 <Button size="sm" className="h-11 gap-2 px-4 font-bold" onClick={() => setDiscOpen(true)}>
-                  <Plus className="h-4 w-4" /> Catat Pelanggaran
+                  <Plus className="h-4 w-4" /> {t("Catat Pelanggaran", "Record Violation")}
                 </Button>
               )
             }
           >
             {e.disciplinary.length === 0 ? (
-              <EmptyState title="Rekam disiplin bersih" description="Tidak ada catatan pelanggaran untuk karyawan ini." icon={<Badge variant="outline" className="h-6 w-6 rounded-full border-2 ov-border-accent text-[9px] font-bold ov-text-accent">100%</Badge>} />
+              <EmptyState title={t("Rekam disiplin bersih", "Clean disciplinary record")} description={t("Tidak ada catatan pelanggaran untuk karyawan ini.", "No violation records for this employee.")} icon={<Badge variant="outline" className="h-6 w-6 rounded-full border-2 ov-border-accent text-[9px] font-bold ov-text-accent">100%</Badge>} />
             ) : (
               <div className="relative space-y-4 pl-6">
                 <div className="absolute bottom-2 left-[9px] top-2 w-0.5 rounded bg-stone-200 dark:bg-stone-700" aria-hidden />
@@ -538,15 +540,15 @@ export function EmployeeDetail({ id }: { id: string }) {
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold", meta.cls)}>
-                                {meta.label}
+                                {t(meta.label, WARNING_LEVEL_LABEL_EN[d.warningLevel])}
                               </span>
-                              <span className="text-[11px] text-stone-400">Diterbitkan {fmtDate(d.issuedAt)}</span>
-                              {d.expiresAt && <span className="text-[11px] text-stone-400">· Berlaku s/d {fmtDate(d.expiresAt)}</span>}
+                              <span className="text-[11px] text-stone-400">{t("Diterbitkan {d}", "Issued {d}", { d: fmtDate(d.issuedAt) })}</span>
+                              {d.expiresAt && <span className="text-[11px] text-stone-400">{t("· Berlaku s/d {d}", "· Valid until {d}", { d: fmtDate(d.expiresAt) })}</span>}
                             </div>
                             <p className="mt-2 text-sm font-bold text-stone-800 dark:text-stone-100">{d.violation}</p>
                             {d.sanction && (
                               <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                                <span className="font-bold">Sanksi:</span> {d.sanction}
+                                <span className="font-bold">{t("Sanksi:", "Sanction:")}</span> {d.sanction}
                               </p>
                             )}
                             {d.notes && <p className="mt-1.5 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{d.notes}</p>}
@@ -554,8 +556,8 @@ export function EmployeeDetail({ id }: { id: string }) {
                           {perms.can("hr", "directory", "delete") && (
                             <DeleteRecordButton
                               url={`/api/onevity/disciplinary?id=${d.id}`}
-                              title="Hapus catatan disiplin?"
-                              description="Catatan pelanggaran ini akan dihapus permanen."
+                              title={t("Hapus catatan disiplin?", "Delete disciplinary record?")}
+                              description={t("Catatan pelanggaran ini akan dihapus permanen.", "This violation record will be permanently deleted.")}
                               onDone={refresh}
                             />
                           )}

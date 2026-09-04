@@ -2,6 +2,7 @@
 // OneVity — POSISI & JABATAN › Level Jabatan: master position level (PL1..PLn) + CRUD
 import { useEffect, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface LevelRow {
 interface LevelsRes { levels: LevelRow[] }
 
 function ActivePill({ active }: { active: boolean }) {
+  const { t } = useI18n();
   return (
     <span className={cn(
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
@@ -32,7 +34,7 @@ function ActivePill({ active }: { active: boolean }) {
         : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-stone-400")} />
-      {active ? "Aktif" : "Nonaktif"}
+      {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );
 }
@@ -43,6 +45,7 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
 }) {
   const [form, setForm] = useState({ code: "", name: "", sortOrder: "0" });
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -54,23 +57,23 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
   }, [open, level, nextOrder]);
 
   const submit = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error("Kode dan nama level wajib diisi"); return; }
+    if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama level wajib diisi", "Code and level name are required")); return; }
     const order = Number(form.sortOrder) || 0;
-    if (order < 0) { toast.error("Urutan tidak boleh negatif"); return; }
+    if (order < 0) { toast.error(t("Urutan tidak boleh negatif", "Order cannot be negative")); return; }
     setSaving(true);
     try {
       if (level) {
         await apiSend("/api/onevity/position-levels", "PATCH", { id: level.id, name: form.name.trim(), sortOrder: order });
-        toast.success(`Level ${level.code} berhasil diperbarui`);
+        toast.success(t("Level {code} berhasil diperbarui", "Level {code} updated successfully", { code: level.code }));
       } else {
         const payload = { code: form.code.trim().toUpperCase(), name: form.name.trim(), sortOrder: order };
         await apiSend("/api/onevity/position-levels", "POST", payload);
-        toast.success(`Level ${payload.code} berhasil dibuat`);
+        toast.success(t("Level {code} berhasil dibuat", "Level {code} created successfully", { code: payload.code }));
       }
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan level jabatan");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan level jabatan", "Failed to save job level"));
     } finally {
       setSaving(false);
     }
@@ -80,31 +83,31 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{level ? `Ubah Level ${level.code}` : "Level Jabatan Baru"}</DialogTitle>
+          <DialogTitle>{level ? t("Ubah Level {code}", "Edit Level {code}", { code: level.code }) : t("Level Jabatan Baru", "New Job Level")}</DialogTitle>
           <DialogDescription>
-            {level ? "Perbarui nama dan urutan jenjang level jabatan." : "Tambahkan level jabatan (position level) baru — dimensi jenjang karier & pencocokan approval berjenjang."}
+            {level ? t("Perbarui nama dan urutan jenjang level jabatan.", "Update the job level name and order.") : t("Tambahkan level jabatan (position level) baru — dimensi jenjang karier & pencocokan approval berjenjang.", "Add a new job level (position level) — career ladder dimension & tiered approval matching.")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="pl-code">Kode Level</Label>
+              <Label htmlFor="pl-code">{t("Kode Level", "Level Code")}</Label>
               <Input id="pl-code" value={form.code} disabled={!!level} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="PL9" className="font-mono text-xs uppercase" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="pl-order">Urutan</Label>
+              <Label htmlFor="pl-order">{t("Urutan", "Order")}</Label>
               <Input id="pl-order" type="number" min={0} step={1} value={form.sortOrder} onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))} />
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="pl-name">Nama Level</Label>
+            <Label htmlFor="pl-name">{t("Nama Level", "Level Name")}</Label>
             <Input id="pl-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Senior Manager" />
           </div>
-          <p className="text-[10px] text-stone-400">Urutan kecil = jenjang bawah (mis. PL1 operator, PL8 direktur). Dipakai pencocokan struktur approval berjenjang.</p>
+          <p className="text-[10px] text-stone-400">{t("Urutan kecil = jenjang bawah (mis. PL1 operator, PL8 direktur). Dipakai pencocokan struktur approval berjenjang.", "A smaller order means a lower tier (e.g. PL1 operator, PL8 director). Used for tiered approval matching.")}</p>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Menyimpan…" : level ? "Simpan" : "Buat Level"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t("Menyimpan…") : level ? t("Simpan") : t("Buat Level", "Create Level")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -113,6 +116,7 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
 
 // ============ Main view ============
 export function PositionLevelView() {
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<LevelsRes>("/api/onevity/position-levels");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LevelRow | null>(null);
@@ -125,10 +129,10 @@ export function PositionLevelView() {
   const toggleActive = async (l: LevelRow) => {
     try {
       await apiSend("/api/onevity/position-levels", "PATCH", { id: l.id, active: !l.active });
-      toast.success(l.active ? `Level ${l.code} dinonaktifkan` : `Level ${l.code} diaktifkan`);
+      toast.success(l.active ? t("Level {code} dinonaktifkan", "Level {code} deactivated", { code: l.code }) : t("Level {code} diaktifkan", "Level {code} activated", { code: l.code }));
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengubah status level");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengubah status level", "Failed to change level status"));
     }
   };
 
@@ -137,12 +141,12 @@ export function PositionLevelView() {
     setDeleting(true);
     try {
       await apiSend(`/api/onevity/position-levels?id=${encodeURIComponent(editing.id)}`, "DELETE");
-      toast.success(`Level ${editing.code} dihapus`);
+      toast.success(t("Level {code} dihapus", "Level {code} deleted", { code: editing.code }));
       setDeleteOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menghapus level jabatan");
+      toast.error(e instanceof Error ? e.message : t("Gagal menghapus level jabatan", "Failed to delete job level"));
     } finally {
       setDeleting(false);
     }
@@ -151,16 +155,16 @@ export function PositionLevelView() {
   return (
     <div>
       <PageHeader
-        eyebrow="POSISI & JABATAN"
-        title="Level Jabatan"
-        description={`Master level jabatan (position level) — dimensi jenjang karier & pencocokan approval berjenjang. ${levels.length} level · ${totalEmployees} karyawan terpetakan.`}
+        eyebrow={t("Posisi & Jabatan")}
+        title={t("Level Jabatan")}
+        description={t("Master level jabatan (position level) — dimensi jenjang karier & pencocokan approval berjenjang. {l} level · {e} karyawan terpetakan.", "Job level master (position level) — career ladder dimension & tiered approval matching. {l} levels · {e} employees mapped.", { l: levels.length, e: totalEmployees })}
         actions={
           <>
             <Button variant="outline" size="sm" className="h-10 gap-1.5 px-3" onClick={refresh}>
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Muat Ulang</span>
+              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">{t("Muat Ulang")}</span>
             </Button>
             <Button size="sm" className="h-10 gap-1.5 px-4 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="h-4 w-4" /> Level Baru
+              <Plus className="h-4 w-4" /> {t("Level Baru", "New Level")}
             </Button>
           </>
         }
@@ -169,27 +173,27 @@ export function PositionLevelView() {
       {loading && !data ? (
         <LoadingRows rows={6} />
       ) : error && levels.length === 0 ? (
-        <EmptyState title="Gagal memuat" description={error} icon={<TrendingUp className="h-6 w-6" />} />
+        <EmptyState title={t("Gagal memuat", "Failed to load")} description={error} icon={<TrendingUp className="h-6 w-6" />} />
       ) : levels.length === 0 ? (
-        <EmptyState title="Belum ada level jabatan" description="Buat level pertama dengan tombol Level Baru." icon={<TrendingUp className="h-6 w-6" />} />
+        <EmptyState title={t("Belum ada level jabatan", "No job levels yet")} description={t("Buat level pertama dengan tombol Level Baru.", "Create the first level with the New Level button.")} icon={<TrendingUp className="h-6 w-6" />} />
       ) : (
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
               <div>
-                <p className="text-[13px] font-bold">Master Level Jabatan</p>
-                <p className="text-[11px] text-stone-400">Diurutkan dari jenjang terbawah — dimensi pencocokan approval berjenjang</p>
+                <p className="text-[13px] font-bold">{t("Master Level Jabatan", "Job Level Master")}</p>
+                <p className="text-[11px] text-stone-400">{t("Diurutkan dari jenjang terbawah — dimensi pencocokan approval berjenjang", "Sorted from the lowest tier — tiered approval matching dimension")}</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">Level</TableHead>
-                    <TableHead className="text-[11px] font-bold">Urutan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Posisi</TableHead>
-                    <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
-                    <TableHead className="text-[11px] font-bold">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Level")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Urutan", "Order")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Posisi")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
@@ -209,7 +213,7 @@ export function PositionLevelView() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="gap-1 text-[10px] font-bold text-stone-500">
-                          <Layers className="h-3 w-3" /> urutan {l.sortOrder}
+                          <Layers className="h-3 w-3" /> {t("urutan {n}", "order {n}", { n: l.sortOrder })}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -223,16 +227,16 @@ export function PositionLevelView() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => toggleActive(l)} title={l.active ? "Nonaktifkan level" : "Aktifkan level"}>
+                        <button onClick={() => toggleActive(l)} title={l.active ? t("Nonaktifkan level", "Deactivate level") : t("Aktifkan level", "Activate level")}>
                           <ActivePill active={l.active} />
                         </button>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={`Ubah level ${l.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={t("Ubah level {code}", "Edit level {code}", { code: l.code })}>
                             <Pencil className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={`Hapus level ${l.code}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={t("Hapus level {code}", "Delete level {code}", { code: l.code })}>
                             <Trash2 className="h-3.5 w-3.5 text-stone-400" />
                           </Button>
                         </div>
@@ -253,15 +257,15 @@ export function PositionLevelView() {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus level {editing?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus level {code}?", "Delete level {code}?", { code: editing?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini permanen. Level yang masih dipakai posisi, karyawan, atau struktur approval tidak dapat dihapus.
+              {t("Tindakan ini permanen. Level yang masih dipakai posisi, karyawan, atau struktur approval tidak dapat dihapus.", "This action is permanent. Levels still used by positions, employees, or approval structures cannot be deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
-              {deleting ? "Menghapus…" : "Ya, Hapus"}
+              {deleting ? t("Menghapus…", "Deleting…") : t("Ya, Hapus", "Yes, Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -272,6 +276,7 @@ export function PositionLevelView() {
 
 // ============ Ringkasan statistik ============
 function LevelStats({ levels }: { levels: LevelRow[] }) {
+  const { t } = useI18n();
   if (levels.length === 0) return null;
   const totalEmp = levels.reduce((a, l) => a + l.employeeCount, 0);
   const top = levels.filter((l) => l.employeeCount > 0).sort((a, b) => b.employeeCount - a.employeeCount)[0];
@@ -283,8 +288,8 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
             <TrendingUp className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Level Terpadat</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? `${top.code} — ${top.employeeCount} karyawan` : "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Level Terpadat", "Densest Level")}</p>
+            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? t("{code} — {n} karyawan", "{code} — {n} employees", { code: top.code, n: top.employeeCount }) : "—"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -292,8 +297,8 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Total Karyawan Terpetakan</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{totalEmp} karyawan pada {levels.length} level</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Total Karyawan Terpetakan", "Total Employees Mapped")}</p>
+            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{t("{n} karyawan pada {m} level", "{n} employees across {m} levels", { n: totalEmp, m: levels.length })}</p>
           </div>
         </div>
       </CardContent>

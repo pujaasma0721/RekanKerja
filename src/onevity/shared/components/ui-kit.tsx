@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { FileSearch } from "lucide-react";
+import { useI18n, translate } from "@/onevity/shared/lib/i18n";
 
 export function PageHeader({
   title,
@@ -65,12 +66,38 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
   Informational: { label: "Informational", cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" },
 };
 
+// Peta EN paralel STATUS_MAP (label ID dipertahankan; render t(label, EN[label])).
+const STATUS_LABEL_EN: Record<string, string> = {
+  Active: "Active",
+  Resigned: "Resigned",
+  Terminated: "Terminated",
+  Blacklisted: "Blacklisted",
+  Prepared: "Draft",
+  Submitted: "Awaiting Approval",
+  Approved: "Approved",
+  Rejected: "Rejected",
+  Processed: "Processed",
+  Cancelled: "Cancelled",
+  Pending: "Pending",
+  Open: "Open",
+  Scheduled: "Scheduled",
+  Closed: "Closed",
+  Locked: "Locked",
+  Calculated: "Calculated",
+  Confirmed: "Confirmed",
+  Paid: "Paid",
+  Earning: "Earning",
+  Deduction: "Deduction",
+  Informational: "Informational",
+};
+
 export function StatusPill({ status, className }: { status: string; className?: string }) {
+  const { t } = useI18n();
   const s = STATUS_MAP[status] ?? { label: status, cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" };
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap", s.cls, className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
-      {s.label}
+      {t(s.label, STATUS_LABEL_EN[status] ?? s.label)}
     </span>
   );
 }
@@ -91,8 +118,24 @@ export const PA_TYPES: Record<string, { label: string; icon?: string }> = {
   Retirement: { label: "Pensiun" },
 };
 
+// Peta EN paralel PA_TYPES (dipakai render t(PA_TYPES[k], PA_TYPES_EN[k])).
+export const PA_TYPES_EN: Record<string, string> = {
+  Hire: "Hire",
+  Promotion: "Promotion",
+  Demotion: "Demotion",
+  Transfer: "Transfer",
+  Mutation: "Mutation",
+  SalaryAdjustment: "Salary Adjustment",
+  ContractRenewal: "Contract Renewal",
+  ChangeStatus: "Status Change",
+  ExtendProbation: "Probation Extension",
+  Resignation: "Resignation",
+  Termination: "Termination",
+  Retirement: "Retirement",
+};
+
 export function paTypeLabel(t: string) {
-  return PA_TYPES[t]?.label ?? t;
+  return translate(PA_TYPES[t]?.label ?? t, PA_TYPES_EN[t] ?? t);
 }
 
 export function EmptyState({ title, description, icon }: { title: string; description?: string; icon?: ReactNode | React.ElementType }) {

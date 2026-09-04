@@ -9,34 +9,36 @@ import {
   ArrowRight, Landmark, Boxes, Wallet,
 } from "lucide-react";
 import { MedicalStatsUI, fmtIDRShort, fmtIDR } from "./medical-types";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export function MedicalOverview() {
   const { navigate } = useNav();
+  const { t } = useI18n();
   const { data, loading } = useApi<MedicalStatsUI>("/api/onevity/medical/overview");
   const s = data;
 
   const kpi = [
     {
-      label: "Menunggu Persetujuan", value: s ? String(s.pendingClaims) : "—",
-      sub: s ? `${s.totalClaims} klaim tahun ${s.year}` : undefined,
+      label: t("Menunggu Persetujuan"), value: s ? String(s.pendingClaims) : "—",
+      sub: s ? t("{n} klaim tahun {y}", "{n} claims in {y}", { n: s.totalClaims, y: s.year }) : undefined,
       icon: Inbox, hero: true,
       onClick: () => navigate("medical", "medical-approval"),
     },
     {
-      label: "Klaim Disetujui (Settled)", value: s ? String(s.settledClaims) : "—",
-      sub: s ? `${fmtIDRShort(s.settledApproved)} dibayarkan — tagihan ${fmtIDRShort(s.settledBill)}` : undefined,
+      label: t("Klaim Disetujui (Settled)", "Approved Claims (Settled)"), value: s ? String(s.settledClaims) : "—",
+      sub: s ? t("{a} dibayarkan — tagihan {b}", "{a} paid out — billed {b}", { a: fmtIDRShort(s.settledApproved), b: fmtIDRShort(s.settledBill) }) : undefined,
       icon: CheckCircle2,
       onClick: () => navigate("medical", "medical-approval"),
     },
     {
-      label: "Sisa Saldo Medis", value: s ? fmtIDRShort(s.remaining) : "—",
-      sub: s ? `${s.totalBalances} saldo karyawan × ${s.types} jenis` : undefined,
+      label: t("Sisa Saldo Medis", "Remaining Medical Balance"), value: s ? fmtIDRShort(s.remaining) : "—",
+      sub: s ? t("{n} saldo karyawan × {m} jenis", "{n} employee balances × {m} types", { n: s.totalBalances, m: s.types }) : undefined,
       icon: Wallet,
       onClick: () => navigate("medical", "medical-info"),
     },
     {
-      label: "Penyesuaian Saldo", value: s ? String(s.adjustments) : "—",
+      label: t("Penyesuaian Saldo"), value: s ? String(s.adjustments) : "—",
       sub: "Medical Adjustment (± employee/dependent)",
       icon: Activity,
       onClick: () => navigate("medical", "medical-adjustment"),
@@ -44,18 +46,18 @@ export function MedicalOverview() {
   ];
 
   const steps = [
-    { n: 1, title: "Master & Saldo", desc: "Jenis benefit (limit faktor × gaji / nominal, frekuensi, dependent, kebijakan sisa saldo) + generate saldo per tahun", icon: Boxes, view: "medical-benefit-type" },
-    { n: 2, title: "Klaim Medis", desc: "Pengajuan perawatan (rawat inap/jalan, gigi, kacamata…) — baris per perawatan: yang dirawat, diagnosa, kwitansi, dokter, RS, tagihan/reimburse/approved", icon: FileText, view: "medical-claim" },
-    { n: 3, title: "Persetujuan & Settlement", desc: "Operation: Submit → Approve → Settle. Settle = jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) + saldo used bertambah", icon: CheckCircle2, view: "medical-approval" },
-    { n: 4, title: "Sisa Saldo → Payroll", desc: "Jenis dengan kebijakan CASH → Tarik Sisa Saldo akhir tahun → komponen UMC masuk payslip → Dibayar saat run dikonfirmasi", icon: Landmark, view: "medical-approval" },
+    { n: 1, title: t("Master & Saldo", "Master & Balances"), desc: t("Jenis benefit (limit faktor × gaji / nominal, frekuensi, dependent, kebijakan sisa saldo) + generate saldo per tahun", "Benefit types (salary-factor × / nominal limit, frequency, dependents, year-end balance rule) + generate balances per year"), icon: Boxes, view: "medical-benefit-type" },
+    { n: 2, title: t("Klaim Medis"), desc: t("Pengajuan perawatan (rawat inap/jalan, gigi, kacamata…) — baris per perawatan: yang dirawat, diagnosa, kwitansi, dokter, RS, tagihan/reimburse/approved", "Treatment submissions (inpatient/outpatient, dental, glasses…) — one line per treatment: treated person, diagnosis, receipt, physician, hospital, bill/reimburse/approved"), icon: FileText, view: "medical-claim" },
+    { n: 3, title: t("Persetujuan & Settlement"), desc: t("Operation: Submit → Approve → Settle. Settle = jurnal otomatis (Debit 5106 Beban Medis / Credit Kas) + saldo used bertambah", "Operation: Submit → Approve → Settle. Settle = automatic journal (Debit 5106 Medical Expense / Credit Cash) + used balance increases"), icon: CheckCircle2, view: "medical-approval" },
+    { n: 4, title: t("Sisa Saldo → Payroll", "Remaining Balance → Payroll"), desc: t("Jenis dengan kebijakan CASH → Tarik Sisa Saldo akhir tahun → komponen UMC masuk payslip → Dibayar saat run dikonfirmasi", "Types with the CASH rule → draw the year-end remaining balance → UMC component goes into the payslip → paid when the run is confirmed"), icon: Landmark, view: "medical-approval" },
   ];
 
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL MEDICAL"
-        title="Ringkasan Medical Benefit"
-        description="Klaim medis karyawan & dependent — saldo per jenis (limit faktor gaji/nominal), settlement dengan jurnal, penyesuaian, dan sisa saldo ditarik ke payroll (padanan Medical Benefit)"
+        eyebrow={t("Modul Medical", "Medical Module")}
+        title={t("Ringkasan Medical Benefit", "Medical Benefit Overview")}
+        description={t("Klaim medis karyawan & dependent — saldo per jenis (limit faktor gaji/nominal), settlement dengan jurnal, penyesuaian, dan sisa saldo ditarik ke payroll (padanan Medical Benefit)", "Employee & dependent medical claims — balances per type (salary-factor/nominal limit), settlement with journals, adjustments, and remaining balance drawn to payroll (equivalent to Medical Benefit)")}
       />
 
       {loading && !s ? (
@@ -87,7 +89,7 @@ export function MedicalOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 ov-text-accent" /> Alur Klaim Medis
+                  <TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Alur Klaim Medis", "Medical Claim Flow")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -116,23 +118,21 @@ export function MedicalOverview() {
               <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <HeartPulse className="h-4 w-4 ov-text-accent" /> Formula Saldo Medis
+                    <HeartPulse className="h-4 w-4 ov-text-accent" /> {t("Formula Saldo Medis", "Medical Balance Formula")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">Benefit Limit (kebijakan jenis)</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("Benefit Limit (kebijakan jenis)", "Benefit Limit (type policy)")}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">+ Penyesuaian ± + Carry-over − Used</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("+ Penyesuaian ± + Carry-over − Used", "+ Adjustment ± + Carry-over − Used")}</span>
                   </div>
                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
-                    Sisa = Limit + Adj. + Carry − Used
+                    {t("Sisa = Limit + Adj. + Carry − Used", "Remaining = Limit + Adj. + Carry − Used")}
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
-                    Padanan <span className="font-semibold">My Medical Information</span>: snapshot
-                    Max Benefit / Used / Balance tercatat di tiap klaim. Sisa &gt; 0 pada jenis CASH
-                    ditarik tunai via komponen <span className="font-semibold">UMC</span> di payroll.
+                    {t("Padanan ", "Equivalent to ")}<span className="font-semibold">My Medical Information</span>{t(": snapshot Max Benefit / Used / Balance tercatat di tiap klaim. Sisa > 0 pada jenis CASH ditarik tunai via komponen ", ": snapshot Max Benefit / Used / Balance recorded on each claim. Remaining > 0 on CASH types is drawn in cash via the ")}<span className="font-semibold">UMC</span>{t(" di payroll.", " component in payroll.")}
                   </p>
                 </CardContent>
               </Card>
@@ -140,7 +140,7 @@ export function MedicalOverview() {
               {s && s.byType.length > 0 && (
                 <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-bold">Klaim Settled per Jenis</CardTitle>
+                    <CardTitle className="text-base font-bold">{t("Klaim Settled per Jenis", "Settled Claims by Type")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {s.byType.slice(0, 5).map((k) => {
@@ -158,7 +158,7 @@ export function MedicalOverview() {
                       );
                     })}
                     <p className="pt-1 text-xs text-stone-500 dark:text-stone-400">
-                      Total settled {fmtIDR(s.settledApproved)} dari tagihan {fmtIDR(s.settledBill)}
+                      {t("Total settled {a} dari tagihan {b}", "Total settled {a} of {b} billed", { a: fmtIDR(s.settledApproved), b: fmtIDR(s.settledBill) })}
                     </p>
                   </CardContent>
                 </Card>

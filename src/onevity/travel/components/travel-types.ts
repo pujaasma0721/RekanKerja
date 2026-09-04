@@ -1,5 +1,6 @@
 "use client";
 // OneVity Travel — shared types (padanan modul Travel Administration)
+import { currentLocale, getLang } from "@/onevity/shared/lib/i18n-core";
 export interface EmployeeOption {
   id: string; employeeNo: string; fullName: string;
 }
@@ -114,6 +115,16 @@ export const TRAVEL_STATUS_LABEL: Record<string, string> = {
   Paid: "Dibayar",
 };
 
+// Peta EN paralel TRAVEL_STATUS_LABEL (render: t(MAP[k], MAP_EN[k])).
+export const TRAVEL_STATUS_LABEL_EN: Record<string, string> = {
+  Submitted: "Pending",
+  Approved: "Approved",
+  Rejected: "Rejected",
+  Cancelled: "Cancelled",
+  Transferred: "Transferred",
+  Paid: "Paid",
+};
+
 export const EXPENSE_KIND_LABEL: Record<string, string> = {
   GENERAL: "General Expense",
   ALLOWANCE: "Allowance",
@@ -121,15 +132,23 @@ export const EXPENSE_KIND_LABEL: Record<string, string> = {
   ENTERTAINMENT: "Entertainment",
 };
 
+// Formatter angka/tanggal mengikuti bahasa aktif (i18n-core, disinkronkan
+// setLang) — padanan pola fmtIDR/fmtDate di shared/lib/api.ts.
 export const fmtIDR = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat(currentLocale(), { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
 export const fmtIDRShort = (n: number) => {
-  if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
-  if (Math.abs(n) >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
-  if (Math.abs(n) >= 1_000) return `Rp ${(n / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`;
-  return `Rp ${n.toLocaleString("id-ID")}`;
+  const loc = currentLocale();
+  if (getLang() === "en") {
+    if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString(loc, { maximumFractionDigits: 1 })}B`;
+    if (Math.abs(n) >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString(loc, { maximumFractionDigits: 1 })}M`;
+    return `Rp ${n.toLocaleString(loc)}`;
+  }
+  if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString(loc, { maximumFractionDigits: 1 })} M`;
+  if (Math.abs(n) >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString(loc, { maximumFractionDigits: 1 })} jt`;
+  if (Math.abs(n) >= 1_000) return `Rp ${(n / 1_000).toLocaleString(loc, { maximumFractionDigits: 0 })} rb`;
+  return `Rp ${n.toLocaleString(loc)}`;
 };
 
 export const fmtDateID = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  s ? new Date(s).toLocaleDateString(currentLocale(), { day: "2-digit", month: "short", year: "numeric" }) : "—";

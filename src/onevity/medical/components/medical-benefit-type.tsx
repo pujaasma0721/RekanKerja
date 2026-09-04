@@ -15,10 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  BenefitTypeUI, LIMIT_RULE_LABEL, UNUSED_RULE_LABEL, DEP_LIMIT_LABEL, FREQ_PERIOD_LABEL,
+  BenefitTypeUI, LIMIT_RULE_LABEL, LIMIT_RULE_LABEL_EN, UNUSED_RULE_LABEL, UNUSED_RULE_LABEL_EN, DEP_LIMIT_LABEL, DEP_LIMIT_LABEL_EN, FREQ_PERIOD_LABEL, FREQ_PERIOD_LABEL_EN,
   fmtIDR,
 } from "./medical-types";
 import { Boxes, Plus, Pencil, HeartPulse, Infinity as InfinityIcon } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface FormState {
@@ -42,6 +43,7 @@ const emptyForm: FormState = {
 };
 
 export function MedicalBenefitTypePage() {
+  const { t } = useI18n();
   const api = useApi<{ types: BenefitTypeUI[] }>("/api/onevity/medical/types");
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,9 +66,9 @@ export function MedicalBenefitTypePage() {
   };
 
   const save = async () => {
-    if (!form.name.trim() || (!form.id && !form.code.trim())) { toast.error("Kode & nama wajib"); return; }
+    if (!form.name.trim() || (!form.id && !form.code.trim())) { toast.error(t("Kode & nama wajib", "Code & name are required")); return; }
     if (form.limitRule !== "UNLIMITED" && !(Number(form.limitValue) > 0)) {
-      toast.error("Nominal / faktor harus > 0");
+      toast.error(t("Nominal / faktor harus > 0", "Nominal / factor must be > 0"));
       return;
     }
     setBusy(true);
@@ -88,11 +90,11 @@ export function MedicalBenefitTypePage() {
         depLimitRule: form.depLimitRule,
         needReceipt: form.needReceipt, active: form.active,
       });
-      toast.success(form.id ? "Jenis benefit diperbarui" : "Jenis benefit ditambahkan");
+      toast.success(form.id ? t("Jenis benefit diperbarui", "Benefit type updated") : t("Jenis benefit ditambahkan", "Benefit type added"));
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
     } finally {
       setBusy(false);
     }
@@ -101,12 +103,12 @@ export function MedicalBenefitTypePage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MEDICAL · MASTER"
-        title="Jenis Benefit Medis"
-        description="Kebijakan per jenis: limit (unlimited / nominal / faktor × gaji pokok), frekuensi klaim, pembagian company/asuransi, kebijakan sisa saldo akhir tahun, dan dependent (padanan Medical Benefit Type)"
+        eyebrow={t("Medical · Master")}
+        title={t("Jenis Benefit Medis", "Medical Benefit Types")}
+        description={t("Kebijakan per jenis: limit (unlimited / nominal / faktor × gaji pokok), frekuensi klaim, pembagian company/asuransi, kebijakan sisa saldo akhir tahun, dan dependent (padanan Medical Benefit Type)", "Policy per type: limit (unlimited / nominal / salary factor), claim frequency, company/insurance split, year-end remaining balance rule, and dependents (equivalent to Medical Benefit Type)")}
         actions={(
           <Button onClick={openNew}>
-            <Plus className="h-4 w-4" /> Jenis Baru
+            <Plus className="h-4 w-4" /> {t("Jenis Baru", "New Type")}
           </Button>
         )}
       />
@@ -116,58 +118,58 @@ export function MedicalBenefitTypePage() {
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
           ) : types.length === 0 ? (
-            <div className="p-6"><EmptyState title="Belum ada jenis benefit" icon={Boxes} /></div>
+            <div className="p-6"><EmptyState title={t("Belum ada jenis benefit", "No benefit types yet")} icon={Boxes} /></div>
           ) : (
             <div className="max-h-[34rem] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
-                    <TableHead>Jenis</TableHead>
+                    <TableHead>{t("Jenis")}</TableHead>
                     <TableHead>Limit</TableHead>
-                    <TableHead>Frekuensi</TableHead>
-                    <TableHead>Sisa Saldo</TableHead>
+                    <TableHead>{t("Frekuensi", "Frequency")}</TableHead>
+                    <TableHead>{t("Sisa Saldo", "Remaining Balance")}</TableHead>
                     <TableHead>Dependent</TableHead>
-                    <TableHead className="text-right">Saldo / Klaim</TableHead>
+                    <TableHead className="text-right">{t("Saldo / Klaim", "Balances / Claims")}</TableHead>
                     <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {types.map((t) => (
-                    <TableRow key={t.id} className={cn(!t.active && "opacity-50")}>
+                  {types.map((bt) => (
+                    <TableRow key={bt.id} className={cn(!bt.active && "opacity-50")}>
                       <TableCell>
-                        <p className="font-semibold">{t.name}</p>
-                        <p className="text-xs text-stone-500">{t.code}</p>
+                        <p className="font-semibold">{bt.name}</p>
+                        <p className="text-xs text-stone-500">{bt.code}</p>
                       </TableCell>
                       <TableCell>
-                        {t.limitRule === "UNLIMITED" ? (
+                        {bt.limitRule === "UNLIMITED" ? (
                           <span className="flex items-center gap-1 font-semibold"><InfinityIcon className="h-3.5 w-3.5" /> Unlimited</span>
-                        ) : t.limitRule === "FACTOR" ? (
-                          <span className="font-semibold">{t.limitValue}× gaji pokok</span>
+                        ) : bt.limitRule === "FACTOR" ? (
+                          <span className="font-semibold">{bt.limitValue}× {t("gaji pokok", "base salary")}</span>
                         ) : (
-                          <span className="font-semibold">{fmtIDR(t.limitValue)}</span>
+                          <span className="font-semibold">{fmtIDR(bt.limitValue)}</span>
                         )}
                         <p className="text-xs text-stone-500">
-                          {t.pctCompany}% company{t.pctInsurance > 0 ? ` · ${t.pctInsurance}% asuransi` : ""}
+                          {bt.pctCompany}% company{bt.pctInsurance > 0 ? ` · ${bt.pctInsurance}% ${t("asuransi", "insurance")}` : ""}
                         </p>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {t.freqUnlimited ? "Unlimited" : `${t.freqValue}× / ${FREQ_PERIOD_LABEL[t.freqPeriod] ?? t.freqPeriod}`}
-                        {t.needReceipt && <span className="block text-xs text-stone-500">perlu kwitansi</span>}
+                        {bt.freqUnlimited ? "Unlimited" : `${bt.freqValue}× / ${t(FREQ_PERIOD_LABEL[bt.freqPeriod] ?? bt.freqPeriod, FREQ_PERIOD_LABEL_EN[bt.freqPeriod])}`}
+                        {bt.needReceipt && <span className="block text-xs text-stone-500">{t("perlu kwitansi", "receipt required")}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {UNUSED_RULE_LABEL[t.unusedRule] ?? t.unusedRule}
-                        {t.unusedRule === "CASH" && t.cashWageCode && <span className="block text-xs text-stone-500">via {t.cashWageCode}</span>}
-                        {t.unusedRule === "CARRY" && t.maxCarryOver > 0 && <span className="block text-xs text-stone-500">max {fmtIDR(t.maxCarryOver)}</span>}
+                        {t(UNUSED_RULE_LABEL[bt.unusedRule] ?? bt.unusedRule, UNUSED_RULE_LABEL_EN[bt.unusedRule])}
+                        {bt.unusedRule === "CASH" && bt.cashWageCode && <span className="block text-xs text-stone-500">via {bt.cashWageCode}</span>}
+                        {bt.unusedRule === "CARRY" && bt.maxCarryOver > 0 && <span className="block text-xs text-stone-500">max {fmtIDR(bt.maxCarryOver)}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {t.dependentEnabled ? `${t.maxDependents} dep. · max ${t.maxChildAge} th` : "—"}
-                        {t.dependentEnabled && <span className="block text-xs text-stone-500">{DEP_LIMIT_LABEL[t.depLimitRule] ?? t.depLimitRule}</span>}
+                        {bt.dependentEnabled ? t("{n} dep. · max {m} th", "{n} dep. · max {m} yrs", { n: bt.maxDependents, m: bt.maxChildAge }) : "—"}
+                        {bt.dependentEnabled && <span className="block text-xs text-stone-500">{t(DEP_LIMIT_LABEL[bt.depLimitRule] ?? bt.depLimitRule, DEP_LIMIT_LABEL_EN[bt.depLimitRule])}</span>}
                       </TableCell>
                       <TableCell className="text-right text-sm text-stone-500">
-                        {t.balanceCount} saldo · {t.claimCount} klaim
+                        {t("{n} saldo · {m} klaim", "{n} balances · {m} claims", { n: bt.balanceCount, m: bt.claimCount })}
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(t)}>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(bt)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
@@ -184,46 +186,46 @@ export function MedicalBenefitTypePage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <HeartPulse className="h-5 w-5 ov-text-accent" /> {form.id ? "Ubah Jenis Benefit" : "Jenis Benefit Baru"}
+              <HeartPulse className="h-5 w-5 ov-text-accent" /> {form.id ? t("Ubah Jenis Benefit", "Edit Benefit Type") : t("Jenis Benefit Baru", "New Benefit Type")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Kode *</Label>
-              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={Boolean(form.id)} placeholder="mis. RAWAT_INAP" />
+              <Label>{t("Kode *", "Code *")}</Label>
+              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={Boolean(form.id)} placeholder={t("mis. RAWAT_INAP", "e.g. RAWAT_INAP")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Nama *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="mis. Rawat Inap" />
+              <Label>{t("Nama *", "Name *")}</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("mis. Rawat Inap", "e.g. Inpatient")} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Deskripsi</Label>
+              <Label>{t("Deskripsi", "Description")}</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Aturan Limit *</Label>
+              <Label>{t("Aturan Limit *", "Limit Rule *")}</Label>
               <Select value={form.limitRule} onValueChange={(v) => setForm({ ...form, limitRule: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(LIMIT_RULE_LABEL).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                    <SelectItem key={k} value={k}>{t(v, LIMIT_RULE_LABEL_EN[k])}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>{form.limitRule === "FACTOR" ? "Faktor × gaji *" : form.limitRule === "NOMINAL" ? "Nominal (Rp) *" : "—"}</Label>
+              <Label>{form.limitRule === "FACTOR" ? t("Faktor × gaji *", "Factor × salary *") : form.limitRule === "NOMINAL" ? "Nominal (Rp) *" : "—"}</Label>
               <Input
                 type="number" min={0} disabled={form.limitRule === "UNLIMITED"}
                 value={form.limitValue}
                 onChange={(e) => setForm({ ...form, limitValue: e.target.value })}
-                placeholder={form.limitRule === "FACTOR" ? "mis. 1" : "mis. 5000000"}
+                placeholder={form.limitRule === "FACTOR" ? t("mis. 1", "e.g. 1") : t("mis. 5000000", "e.g. 5000000")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Frekuensi</Label>
+              <Label>{t("Frekuensi", "Frequency")}</Label>
               <div className="flex items-center gap-2">
                 <Checkbox checked={form.freqUnlimited} onCheckedChange={(v) => setForm({ ...form, freqUnlimited: Boolean(v) })} />
                 <Input
@@ -233,15 +235,15 @@ export function MedicalBenefitTypePage() {
                 <Select value={form.freqPeriod} onValueChange={(v) => setForm({ ...form, freqPeriod: v })} disabled={form.freqUnlimited}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="YEAR">per tahun</SelectItem>
-                    <SelectItem value="MEDICAL">per period medis</SelectItem>
-                    <SelectItem value="WORK">per masa kerja</SelectItem>
+                    <SelectItem value="YEAR">{t("per tahun", "per year")}</SelectItem>
+                    <SelectItem value="MEDICAL">{t("per period medis", "per medical period")}</SelectItem>
+                    <SelectItem value="WORK">{t("per masa kerja", "per length of service")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Company / Asuransi (%)</Label>
+              <Label>{t("Company / Asuransi (%)", "Company / Insurance (%)")}</Label>
               <div className="flex items-center gap-2">
                 <Input type="number" min={0} max={100} value={form.pctCompany} onChange={(e) => setForm({ ...form, pctCompany: e.target.value })} />
                 <span className="text-stone-400">/</span>
@@ -250,18 +252,18 @@ export function MedicalBenefitTypePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Sisa Saldo Akhir Tahun</Label>
+              <Label>{t("Sisa Saldo Akhir Tahun", "Year-End Remaining Balance")}</Label>
               <Select value={form.unusedRule} onValueChange={(v) => setForm({ ...form, unusedRule: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(UNUSED_RULE_LABEL).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                    <SelectItem key={k} value={k}>{t(v, UNUSED_RULE_LABEL_EN[k])}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>{form.unusedRule === "CASH" ? "Wage Code Tunai" : form.unusedRule === "CARRY" ? "Max Carry-Over (Rp)" : "—"}</Label>
+              <Label>{form.unusedRule === "CASH" ? t("Wage Code Tunai", "Cash Wage Code") : form.unusedRule === "CARRY" ? "Max Carry-Over (Rp)" : "—"}</Label>
               {form.unusedRule === "CASH" ? (
                 <Input value={form.cashWageCode} onChange={(e) => setForm({ ...form, cashWageCode: e.target.value })} placeholder="UMC" />
               ) : form.unusedRule === "CARRY" ? (
@@ -272,22 +274,22 @@ export function MedicalBenefitTypePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Max Dependent</Label>
+              <Label>{t("Max Dependent", "Max Dependents")}</Label>
               <div className="flex items-center gap-2">
                 <Checkbox checked={form.dependentEnabled} onCheckedChange={(v) => setForm({ ...form, dependentEnabled: Boolean(v) })} />
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxDependents} onChange={(e) => setForm({ ...form, maxDependents: e.target.value })} />
-                <span className="text-xs text-stone-500">anak max</span>
+                <span className="text-xs text-stone-500">{t("anak max", "child max")}</span>
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxChildAge} onChange={(e) => setForm({ ...form, maxChildAge: e.target.value })} />
-                <span className="text-xs text-stone-500">th</span>
+                <span className="text-xs text-stone-500">{t("th", "yr")}</span>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Limit Dependent</Label>
+              <Label>{t("Limit Dependent", "Dependent Limit")}</Label>
               <Select value={form.depLimitRule} onValueChange={(v) => setForm({ ...form, depLimitRule: v })} disabled={!form.dependentEnabled}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(DEP_LIMIT_LABEL).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                    <SelectItem key={k} value={k}>{t(v, DEP_LIMIT_LABEL_EN[k])}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -297,18 +299,18 @@ export function MedicalBenefitTypePage() {
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={form.needReceipt} onCheckedChange={(v) => setForm({ ...form, needReceipt: Boolean(v) })} />
-              Wajib kwitansi
+              {t("Wajib kwitansi", "Receipt required")}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: Boolean(v) })} />
-              Aktif
+              {t("Aktif")}
             </label>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
             <Button onClick={save} disabled={busy}>
-              {busy ? "Menyimpan…" : "Simpan"}
+              {busy ? t("Menyimpan…", "Saving…") : t("Simpan")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -9,47 +9,49 @@ import {
   Plane, Inbox, CheckCircle2, Wallet, FileText, TrendingUp,
   ArrowRight, Calculator, Landmark, AlertTriangle,
 } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { TravelStatsUI, BudgetRowUI, fmtIDRShort } from "./travel-types";
 import { cn } from "@/lib/utils";
 
 export function TravelOverview() {
+  const { t } = useI18n();
   const { navigate } = useNav();
   const { data, loading } = useApi<{ stats: TravelStatsUI; budgets: BudgetRowUI[] }>("/api/onevity/travel/overview");
   const s = data?.stats;
 
   const kpi = [
     {
-      label: "Menunggu Persetujuan", value: s ? String(s.pendingRequestApprovals + s.pendingClaimApprovals) : "—",
-      sub: s ? `${s.pendingRequestApprovals} permintaan · ${s.pendingClaimApprovals} klaim` : undefined,
+      label: t("Menunggu Persetujuan"), value: s ? String(s.pendingRequestApprovals + s.pendingClaimApprovals) : "—",
+      sub: s ? t("{n} permintaan · {m} klaim", "{n} requests · {m} claims", { n: s.pendingRequestApprovals, m: s.pendingClaimApprovals }) : undefined,
       icon: Inbox, hero: true,
       onClick: () => navigate("travel", "travel-approval"),
     },
     {
-      label: "Permintaan Bulan Ini", value: s ? String(s.requestsThisMonth) : "—",
-      sub: s ? `${s.requestsApprovedYtd} disetujui tahun ini` : undefined,
+      label: t("Permintaan Bulan Ini", "Requests This Month"), value: s ? String(s.requestsThisMonth) : "—",
+      sub: s ? t("{n} disetujui tahun ini", "{n} approved year to date", { n: s.requestsApprovedYtd }) : undefined,
       icon: Plane,
       onClick: () => navigate("travel", "travel-request"),
     },
     {
-      label: "Klaim Tahun Ini", value: s ? fmtIDRShort(s.claimsYtdAmount) : "—",
-      sub: s ? `${s.claimsYtd} klaim · ${s.paidCount} dibayar via payroll` : undefined,
+      label: t("Klaim Tahun Ini", "Claims This Year"), value: s ? fmtIDRShort(s.claimsYtdAmount) : "—",
+      sub: s ? t("{n} klaim · {m} dibayar via payroll", "{n} claims · {m} paid via payroll", { n: s.claimsYtd, m: s.paidCount }) : undefined,
       icon: FileText,
       onClick: () => navigate("travel", "travel-claim"),
     },
     {
-      label: s?.budgetYear ? `Budget ${s.budgetYear} Terpakai` : "Budget Terpakai",
+      label: s?.budgetYear ? t("Budget {y} Terpakai", "Budget {y} Used", { y: s.budgetYear }) : t("Budget Terpakai", "Budget Used"),
       value: s ? (s.budgetTotal > 0 ? `${Math.round((s.budgetUsed / s.budgetTotal) * 100)}%` : "—") : "—",
-      sub: s ? `${fmtIDRShort(s.budgetUsed)} dari ${fmtIDRShort(s.budgetTotal)}` : undefined,
+      sub: s ? t("{used} dari {total}", "{used} of {total}", { used: fmtIDRShort(s.budgetUsed), total: fmtIDRShort(s.budgetTotal) }) : undefined,
       icon: Wallet,
       onClick: () => navigate("travel", "travel-budget"),
     },
   ];
 
   const steps = [
-    { n: 1, title: "Permintaan Travel", desc: "Pengajuan perjalanan dinas — destinasi multi-kaki (kota, zona, luar negeri) + uang muka (cash advance)", icon: Plane, view: "travel-request" },
-    { n: 2, title: "Persetujuan", desc: "Approve / Reject / Cancel permintaan & klaim — jatuh tempo settlement otomatis dari template (14 hari)", icon: CheckCircle2, view: "travel-approval" },
-    { n: 3, title: "Klaim & Settlement", desc: "Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula (a)+(b)−(c)", icon: FileText, view: "travel-claim" },
-    { n: 4, title: "Jurnal & Payroll", desc: "Approve → jurnal otomatis (akun per jenis biaya) → Transfer → komponen UTRP/TRVSTLIN masuk payslip → Dibayar", icon: Landmark, view: "travel-claim-approval" },
+    { n: 1, title: t("Permintaan Travel"), desc: t("Pengajuan perjalanan dinas — destinasi multi-kaki (kota, zona, luar negeri) + uang muka (cash advance)", "Business trip requests — multi-leg destinations (city, zone, overseas) + cash advance"), icon: Plane, view: "travel-request" },
+    { n: 2, title: t("Persetujuan"), desc: t("Approve / Reject / Cancel permintaan & klaim — jatuh tempo settlement otomatis dari template (14 hari)", "Approve / Reject / Cancel requests & claims — settlement due date automatic from template (14 days)"), icon: CheckCircle2, view: "travel-approval" },
+    { n: 3, title: t("Klaim & Settlement"), desc: t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula (a)+(b)−(c)", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) — formula (a)+(b)−(c)"), icon: FileText, view: "travel-claim" },
+    { n: 4, title: t("Jurnal & Payroll", "Journal & Payroll"), desc: t("Approve → jurnal otomatis (akun per jenis biaya) → Transfer → komponen UTRP/TRVSTLIN masuk payslip → Dibayar", "Approve → automatic journal (accounts per expense type) → Transfer → UTRP/TRVSTLIN components on the payslip → Paid"), icon: Landmark, view: "travel-claim-approval" },
   ];
 
   const budget = data?.budgets?.[0];
@@ -59,9 +61,9 @@ export function TravelOverview() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL TRAVEL"
-        title="Ringkasan Perjalanan Dinas"
-        description="Permintaan, uang muka, klaim & settlement perjalanan dinas — budget per cost center, jurnal akuntansi, dan pembayaran via payroll (padanan Travel Administration)"
+        eyebrow={t("MODUL TRAVEL", "TRAVEL MODULE")}
+        title={t("Ringkasan Perjalanan Dinas", "Business Travel Overview")}
+        description={t("Permintaan, uang muka, klaim & settlement perjalanan dinas — budget per cost center, jurnal akuntansi, dan pembayaran via payroll (padanan Travel Administration)", "Travel requests, advances, claims & settlement — budget per cost center, accounting journal, and payment via payroll (Travel Administration equivalent)")}
       />
 
       {loading && !data ? (
@@ -93,7 +95,7 @@ export function TravelOverview() {
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <TrendingUp className="h-4 w-4 ov-text-accent" /> Alur Perjalanan Dinas
+                  <TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Alur Perjalanan Dinas", "Business Travel Flow")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -122,26 +124,26 @@ export function TravelOverview() {
               <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <Calculator className="h-4 w-4 ov-text-accent" /> Formula Settlement
+                    <Calculator className="h-4 w-4 ov-text-accent" /> {t("Formula Settlement")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">(a) Biaya pihak lain + rugi kurs</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("(a) Biaya pihak lain + rugi kurs", "(a) Third-party costs + exchange loss")}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">(b) Dibayar ke karyawan</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">(c) Kembali ke perusahaan</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("(c) Kembali ke perusahaan", "(c) Returned to company")}</span>
                   </div>
                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
                     Total = (a) + (b) − (c)
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
-                    Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat — padanan
+                    {t("Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat — padanan", "The advance reduces (b) or adds to (c) when the claim is created — equivalent to")}
                     <span className="font-semibold"> Travel &amp; Entertainment Settlement </span>
-                    dengan status akhir Transferred → Paid via payroll.
+                    {t("dengan status akhir Transferred → Paid via payroll.", "with final status Transferred → Paid via payroll.")}
                   </p>
                 </CardContent>
               </Card>
@@ -156,16 +158,16 @@ export function TravelOverview() {
                   <CardContent className="space-y-3">
                     <div className="flex items-baseline justify-between">
                       <span className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(budget.used)}</span>
-                      <span className="text-xs text-stone-500 dark:text-stone-400">dari {fmtIDRShort(budget.totalBudget)}</span>
+                      <span className="text-xs text-stone-500 dark:text-stone-400">{t("dari {total}", "of {total}", { total: fmtIDRShort(budget.totalBudget) })}</span>
                     </div>
                     <Progress value={budgetPct} className="h-2 [&>div]:ov-bar" />
                     {overBudget && (
                       <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
-                        <AlertTriangle className="h-3.5 w-3.5" /> Terpakai melebihi budget — perilaku standar: warning, klaim tetap diproses
+                        <AlertTriangle className="h-3.5 w-3.5" /> {t("Terpakai melebihi budget — perilaku standar: warning, klaim tetap diproses", "Usage exceeds budget — standard behavior: warning, claims still processed")}
                       </p>
                     )}
                     <p className="text-xs text-stone-500 dark:text-stone-400">
-                      {budget.claimCount} klaim dalam periode · sisa {fmtIDRShort(Math.max(0, budget.remaining))} · {budget.items.length} cost center
+                      {t("{n} klaim dalam periode · sisa {sisa} · {m} cost center", "{n} claims in period · {sisa} remaining · {m} cost centers", { n: budget.claimCount, sisa: fmtIDRShort(Math.max(0, budget.remaining)), m: budget.items.length })}
                     </p>
                   </CardContent>
                 </Card>
@@ -174,7 +176,7 @@ export function TravelOverview() {
               {s && s.topExpenseKinds.length > 0 && (
                 <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-bold">Komposisi Biaya Tahun Ini</CardTitle>
+                    <CardTitle className="text-base font-bold">{t("Komposisi Biaya Tahun Ini", "Expense Composition This Year")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {s.topExpenseKinds.slice(0, 4).map((k) => {

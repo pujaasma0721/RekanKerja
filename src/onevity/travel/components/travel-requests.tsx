@@ -17,13 +17,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   TravelRequestRowUI, TemplateRowUI, ZoneRowUI, EmployeeOption,
-  TRAVEL_STATUS_LABEL, fmtIDR, fmtDateID, fmtIDRShort,
+  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID, fmtIDRShort,
 } from "./travel-types";
 import {
   Plane, Plus, Search, MapPin, Wallet, Send, Ban, ChevronDown, ChevronRight, Globe2,
   FileText, Clock, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Semua" },
@@ -42,6 +43,7 @@ interface DestForm {
 const emptyDest = (from: string, to: string): DestForm => ({ dateFrom: from, dateTo: to, city: "", country: "Indonesia", zoneCode: "LOCAL", note: "" });
 
 export function TravelRequestsPage() {
+  const { t } = useI18n();
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -67,10 +69,10 @@ export function TravelRequestsPage() {
   const templates = (master.data?.templates ?? []).filter((t) => t.active);
 
   const submit = async () => {
-    if (!form.employeeId) { toast.error("Karyawan wajib dipilih"); return; }
-    if (!form.purpose.trim()) { toast.error("Tujuan perjalanan wajib diisi"); return; }
+    if (!form.employeeId) { toast.error(t("Karyawan wajib dipilih", "Employee is required")); return; }
+    if (!form.purpose.trim()) { toast.error(t("Tujuan perjalanan wajib diisi", "Travel purpose is required")); return; }
     const validDests = dests.filter((d) => d.city.trim());
-    if (validDests.length === 0) { toast.error("Minimal 1 destinasi dengan kota terisi"); return; }
+    if (validDests.length === 0) { toast.error(t("Minimal 1 destinasi dengan kota terisi", "At least 1 destination with a city filled in")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; destinations: number; days: number; advanceAmount: number; settlementDue: string | null }>(
@@ -88,21 +90,25 @@ export function TravelRequestsPage() {
           }),
         },
       );
-      toast.success(`${res.docNo} diajukan — ${res.destinations} destinasi, ${res.days} hari${res.advanceAmount > 0 ? `, uang muka ${fmtIDRShort(res.advanceAmount)}` : ""}`);
+      toast.success(t(
+        "{no} diajukan — {n} destinasi, {d} hari{adv}",
+        "{no} submitted — {n} destinations, {d} days{adv}",
+        { no: res.docNo, n: res.destinations, d: res.days, adv: res.advanceAmount > 0 ? t(", uang muka {amt}", ", advance {amt}", { amt: fmtIDRShort(res.advanceAmount) }) : "" },
+      ));
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengajukan permintaan travel");
+      toast.error(e instanceof Error ? e.message : t("Gagal mengajukan permintaan travel", "Failed to submit travel request"));
     } finally { setBusy(false); }
   };
 
   const cancelRequest = async (r: TravelRequestRowUI) => {
     try {
       const res = await apiSend<{ docNo: string; status: string }>("/api/onevity/travel/requests", "PATCH", { id: r.id, action: "cancel", note: "Dibatalkan pemberi kuasa" });
-      toast.success(`${res.docNo} dibatalkan`);
+      toast.success(t("{no} dibatalkan", "{no} cancelled", { no: res.docNo }));
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal membatalkan");
+      toast.error(e instanceof Error ? e.message : t("Gagal membatalkan", "Failed to cancel"));
     }
   };
 
@@ -112,9 +118,9 @@ export function TravelRequestsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MODUL TRAVEL"
-        title="Permintaan Perjalanan Dinas"
-        description="Pengajuan dinas dengan destinasi multi-kaki (kota, zona, luar negeri) dan uang muka — padanan Travel Request (format nomor TR-tahun-urut)"
+        eyebrow={t("MODUL TRAVEL", "TRAVEL MODULE")}
+        title={t("Permintaan Perjalanan Dinas", "Business Travel Requests")}
+        description={t("Pengajuan dinas dengan destinasi multi-kaki (kota, zona, luar negeri) dan uang muka — padanan Travel Request (format nomor TR-tahun-urut)", "Trip requests with multi-leg destinations (city, zone, overseas) and advances — Travel Request equivalent (TR-year-sequence number format)")}
         actions={
           perms.can("travel", "travel-request", "create") && (
             <Button
@@ -128,7 +134,7 @@ export function TravelRequestsPage() {
               }}
               className="gap-2 font-bold"
             >
-              <Plus className="h-4 w-4" /> Ajukan Perjalanan
+              <Plus className="h-4 w-4" /> {t("Ajukan Perjalanan", "Submit Travel")}
             </Button>
           )
         }
@@ -146,14 +152,14 @@ export function TravelRequestsPage() {
                 : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
             )}
           >
-            {f.label}
+            {t(f.label)}
             {f.key === "all" && stats ? ` (${stats.total})` : ""}
             {f.key === "Submitted" && stats ? ` (${stats.submitted})` : ""}
           </button>
         ))}
         <div className="relative ml-auto">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / nomor / tujuan…" className="w-56 pl-9 text-sm" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor / tujuan…", "Search name / number / purpose…")} className="w-56 pl-9 text-sm" />
         </div>
       </div>
 
@@ -162,21 +168,21 @@ export function TravelRequestsPage() {
           {api.loading && !api.data ? (
             <LoadingRows rows={6} />
           ) : requests.length === 0 ? (
-            <EmptyState icon={Plane} title="Belum ada permintaan travel" description="Ajukan perjalanan dinas pertama dengan tombol Ajukan Perjalanan." />
+            <EmptyState icon={Plane} title={t("Belum ada permintaan travel", "No travel requests yet")} description={t("Ajukan perjalanan dinas pertama dengan tombol Ajukan Perjalanan.", "Submit the first business trip using the Submit Travel button.")} />
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    <TableHead>Nomor</TableHead>
-                    <TableHead>Karyawan</TableHead>
-                    <TableHead>Rencana</TableHead>
+                    <TableHead>{t("Nomor", "No.")}</TableHead>
+                    <TableHead>{t("Karyawan")}</TableHead>
+                    <TableHead>{t("Rencana", "Plan")}</TableHead>
                     <TableHead>Template</TableHead>
-                    <TableHead className="hidden md:table-cell">Destinasi</TableHead>
-                    <TableHead className="text-right">Uang Muka</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead className="hidden md:table-cell">{t("Destinasi", "Destinations")}</TableHead>
+                    <TableHead className="text-right">{t("Uang Muka", "Advance")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
+                    <TableHead className="text-right">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -193,7 +199,7 @@ export function TravelRequestsPage() {
                         </TableCell>
                         <TableCell>
                           <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">{fmtDateID(r.dateFrom)} → {fmtDateID(r.dateTo)}</p>
-                          <p className="text-[11px] text-stone-500">{r.days} hari · diajukan {fmtDateID(r.requestDate)}</p>
+                          <p className="text-[11px] text-stone-500">{t("{n} hari · diajukan {d}", "{n} days · submitted {d}", { n: r.days, d: fmtDateID(r.requestDate) })}</p>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-[10px] font-bold">{r.templateName}</Badge>
@@ -202,7 +208,7 @@ export function TravelRequestsPage() {
                           <p className="text-xs text-stone-600 dark:text-stone-300">
                             {r.destinations.map((d) => d.city).join(" → ")}
                           </p>
-                          <p className="text-[11px] text-stone-500">{r.destinations.length} kaki perjalanan</p>
+                          <p className="text-[11px] text-stone-500">{t("{n} kaki perjalanan", "{n} trip legs", { n: r.destinations.length })}</p>
                         </TableCell>
                         <TableCell className="text-right">
                           {r.advanceAmount > 0 ? (
@@ -212,19 +218,19 @@ export function TravelRequestsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <StatusPill status={TRAVEL_STATUS_LABEL[r.status] ?? r.status} />
+                          <StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} />
                           {r.claimCount > 0 && (
-                            <Badge className="ml-1 bg-teal-100 text-[9px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">KLAIM ✓</Badge>
+                            <Badge className="ml-1 bg-teal-100 text-[9px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">{t("KLAIM ✓", "CLAIM ✓")}</Badge>
                           )}
                           {r.overdue && (
-                            <Badge className="ml-1 bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">TELAT SETTLE</Badge>
+                            <Badge className="ml-1 bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("TELAT SETTLE", "OVERDUE")}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
                           {r.status === "Submitted" ? (
                             perms.canOp("travel", "travel-request", "cancel") ? (
                               <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); cancelRequest(r); }}>
-                                <Ban className="h-3 w-3" /> Batal
+                                <Ban className="h-3 w-3" /> {t("Batal")}
                               </Button>
                             ) : (
                               <span className="text-[11px] text-stone-400">{r.decisionNote ?? "—"}</span>
@@ -240,7 +246,7 @@ export function TravelRequestsPage() {
                             <div className="grid gap-3 md:grid-cols-2">
                               <div>
                                 <p className="mb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-stone-500">
-                                  <MapPin className="h-3.5 w-3.5" /> Rincian Destinasi
+                                  <MapPin className="h-3.5 w-3.5" /> {t("Rincian Destinasi", "Destination Details")}
                                 </p>
                                 <div className="space-y-1.5">
                                   {r.destinations.map((d, i) => (
@@ -256,23 +262,23 @@ export function TravelRequestsPage() {
                                 </div>
                               </div>
                               <div>
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Tujuan &amp; Status</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">{t("Tujuan & Status", "Purpose & Status")}</p>
                                 <p className="rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-stone-700 dark:bg-stone-900 dark:text-stone-300">{r.purpose}</p>
                                 {r.remark && <p className="mt-1 rounded-lg bg-white px-3 py-2 text-[11px] text-stone-500 dark:bg-stone-900">{r.remark}</p>}
                                 <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-stone-500">
                                   {r.settlementDue && (
                                     <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
-                                      <Clock className="h-3 w-3" /> Jatuh tempo klaim: {fmtDateID(r.settlementDue)}
+                                      <Clock className="h-3 w-3" /> {t("Jatuh tempo klaim: {d}", "Claim due date: {d}", { d: fmtDateID(r.settlementDue) })}
                                     </span>
                                   )}
                                   {r.claimCount > 0 && (
                                     <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
-                                      <FileText className="h-3 w-3" /> {r.claimCount} klaim dibuat
+                                      <FileText className="h-3 w-3" /> {t("{n} klaim dibuat", "{n} claims created", { n: r.claimCount })}
                                     </span>
                                   )}
                                   {r.advanceAmount > 0 && (
                                     <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
-                                      <Wallet className="h-3 w-3" /> Uang muka {fmtIDR(r.advanceAmount)}
+                                      <Wallet className="h-3 w-3" /> {t("Uang muka {amt}", "Advance {amt}", { amt: fmtIDR(r.advanceAmount) })}
                                     </span>
                                   )}
                                 </div>
@@ -294,15 +300,15 @@ export function TravelRequestsPage() {
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5 ov-text-accent" /> Ajukan Perjalanan Dinas
+              <Plane className="h-5 w-5 ov-text-accent" /> {t("Ajukan Perjalanan Dinas", "Submit Business Travel")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Karyawan *</Label>
+                <Label className="text-xs font-bold">{t("Karyawan *", "Employee *")}</Label>
                 <Select value={form.employeeId} onValueChange={(v) => setForm({ ...form, employeeId: v })}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Pilih karyawan" /></SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {(master.data?.employees ?? []).map((e) => (
                       <SelectItem key={e.id} value={e.id} className="text-sm">
@@ -313,13 +319,13 @@ export function TravelRequestsPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Template *</Label>
+                <Label className="text-xs font-bold">{t("Template *")}</Label>
                 <Select value={form.templateCode} onValueChange={(v) => setForm({ ...form, templateCode: v })}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {templates.map((t) => (
-                      <SelectItem key={t.id} value={t.code} className="text-sm">
-                        {t.name} {t.isDefault ? "(default)" : ""} — settle {t.settlementDay} hr
+                    {templates.map((tpl) => (
+                      <SelectItem key={tpl.id} value={tpl.code} className="text-sm">
+                        {tpl.name} {tpl.isDefault ? "(default)" : ""} — {t("settle {n} hr", "settle in {n} days", { n: tpl.settlementDay })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -328,20 +334,20 @@ export function TravelRequestsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Tanggal Berangkat</Label>
+                <Label className="text-xs font-bold">{t("Tanggal Berangkat", "Departure Date")}</Label>
                 <Input type="date" value={form.dateFrom} onChange={(e) => setForm({ ...form, dateFrom: e.target.value })} className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Tanggal Kembali</Label>
+                <Label className="text-xs font-bold">{t("Tanggal Kembali", "Return Date")}</Label>
                 <Input type="date" value={form.dateTo} onChange={(e) => setForm({ ...form, dateTo: e.target.value })} className="text-sm" />
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold">Destinasi (kaki perjalanan) *</Label>
+                <Label className="text-xs font-bold">{t("Destinasi (kaki perjalanan) *", "Destinations (trip legs) *")}</Label>
                 <Button variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => setDests([...dests, emptyDest(form.dateFrom, form.dateTo)])}>
-                  <Plus className="h-3 w-3" /> Tambah Destinasi
+                  <Plus className="h-3 w-3" /> {t("Tambah Destinasi", "Add Destination")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -351,17 +357,17 @@ export function TravelRequestsPage() {
                       <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{i + 1}</span>
                       {dests.length > 1 && (
                         <button className="text-[11px] font-bold text-rose-600 hover:text-rose-700" onClick={() => setDests(dests.filter((_, x) => x !== i))}>
-                          Hapus
+                          {t("Hapus")}
                         </button>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">Kota *</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Kota *", "City *")}</Label>
                         <Input value={d.city} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, city: e.target.value } : x))} placeholder="Bandung" className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">Zona</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Zona", "Zone")}</Label>
                         <Select value={d.zoneCode} onValueChange={(v) => setDests(dests.map((x, xi) => xi === i ? { ...x, zoneCode: v } : x))}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -374,16 +380,16 @@ export function TravelRequestsPage() {
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">Tgl Datang</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Datang", "Arrival Date")}</Label>
                         <Input type="date" value={d.dateFrom} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateFrom: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">Tgl Berangkat</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Berangkat", "Departure Date")}</Label>
                         <Input type="date" value={d.dateTo} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateTo: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       {zones.find((z) => z.code === d.zoneCode)?.overseas && (
                         <div className="col-span-2 space-y-1 sm:col-span-4">
-                          <Label className="text-[10px] font-bold text-stone-500">Negara (luar negeri)</Label>
+                          <Label className="text-[10px] font-bold text-stone-500">{t("Negara (luar negeri)", "Country (overseas)")}</Label>
                           <Input value={d.country} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, country: e.target.value } : x))} placeholder="Singapura" className="h-8 text-sm" />
                         </div>
                       )}
@@ -395,7 +401,7 @@ export function TravelRequestsPage() {
 
             <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/20">
               <Label className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-400">
-                <Wallet className="h-3.5 w-3.5" /> Uang Muka (Cash Advance) — opsional
+                <Wallet className="h-3.5 w-3.5" /> {t("Uang Muka (Cash Advance) — opsional", "Cash Advance — optional")}
               </Label>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Input
@@ -403,28 +409,28 @@ export function TravelRequestsPage() {
                   onChange={(e) => setForm({ ...form, advanceAmount: e.target.value })}
                   placeholder="0" className="h-8 text-sm"
                 />
-                <Input value={form.advanceNote} onChange={(e) => setForm({ ...form, advanceNote: e.target.value })} placeholder="Catatan uang muka (mis. transport & hotel)" className="h-8 text-sm" />
+                <Input value={form.advanceNote} onChange={(e) => setForm({ ...form, advanceNote: e.target.value })} placeholder={t("Catatan uang muka (mis. transport & hotel)", "Advance note (e.g. transport & hotel)")} className="h-8 text-sm" />
               </div>
               {totalAdvance > 0 && (
                 <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400">
-                  Uang muka {fmtIDR(totalAdvance)} tercatat sebagai pinjaman (TRVLOAN) — diselesaikan saat klaim settlement.
+                  {t("Uang muka {amt} tercatat sebagai pinjaman (TRVLOAN) — diselesaikan saat klaim settlement.", "Advance of {amt} is recorded as a loan (TRVLOAN) — settled at claim settlement.", { amt: fmtIDR(totalAdvance) })}
                 </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Tujuan Perjalanan *</Label>
-              <Textarea value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="Mis. Audit mutu pabrik mitra Bandung" rows={2} className="text-sm" />
+              <Label className="text-xs font-bold">{t("Tujuan Perjalanan *", "Travel Purpose *")}</Label>
+              <Textarea value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder={t("Mis. Audit mutu pabrik mitra Bandung", "e.g. Quality audit of partner factory in Bandung")} rows={2} className="text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Catatan</Label>
+              <Label className="text-xs font-bold">{t("Catatan")}</Label>
               <Textarea value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} rows={2} className="text-sm" />
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">{t("Batal")}</Button>
             <Button onClick={submit} disabled={busy} className="gap-2 font-bold">
-              <Send className="h-4 w-4" /> {busy ? "Mengirim…" : "Ajukan Permintaan"}
+              <Send className="h-4 w-4" /> {busy ? t("Mengirim…", "Submitting…") : t("Ajukan Permintaan", "Submit Request")}
             </Button>
           </DialogFooter>
         </DialogContent>

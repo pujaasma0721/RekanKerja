@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { ProviderUI } from "./medical-types";
 import { Hospital, ShieldCheck, Plus, Pencil, MapPin, Phone } from "lucide-react";
+import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface FormState {
@@ -23,7 +24,14 @@ interface FormState {
 
 const emptyForm: FormState = { code: "", name: "", kind: "HOSPITAL", city: "", address: "", phone: "" };
 
+// peta label EN paralel untuk tab — render: t(tb.label, TAB_LABEL_EN[tb.key])
+const TAB_LABEL_EN: Record<string, string> = {
+  HOSPITAL: "Hospitals & Clinics",
+  INSURANCE: "Insurance",
+};
+
 export function MedicalProvidersPage() {
+  const { t } = useI18n();
   const api = useApi<{ providers: ProviderUI[] }>("/api/onevity/medical/providers");
   const [tab, setTab] = useState<"HOSPITAL" | "INSURANCE">("HOSPITAL");
   const [dialog, setDialog] = useState(false);
@@ -43,18 +51,18 @@ export function MedicalProvidersPage() {
   };
 
   const save = async () => {
-    if (!form.name.trim() || (!form.id && !form.code.trim())) { toast.error("Kode & nama wajib"); return; }
+    if (!form.name.trim() || (!form.id && !form.code.trim())) { toast.error(t("Kode & nama wajib", "Code & name are required")); return; }
     setBusy(true);
     try {
       await apiSend("/api/onevity/medical/providers", "POST", {
         id: form.id, code: form.code, name: form.name, kind: form.kind,
         city: form.city || undefined, address: form.address || undefined, phone: form.phone || undefined,
       });
-      toast.success(form.id ? "Provider diperbarui" : "Provider ditambahkan");
+      toast.success(form.id ? t("Provider diperbarui", "Provider updated") : t("Provider ditambahkan", "Provider added"));
       setDialog(false);
       api.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
     } finally {
       setBusy(false);
     }
@@ -63,12 +71,12 @@ export function MedicalProvidersPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="MEDICAL · MASTER"
-        title="Rumah Sakit & Asuransi"
-        description="Direktori rumah sakit / klinik / apotek rekanan dan perusahaan asuransi — dipakai saat pengajuan klaim (padanan Hospital + Insurance Company)"
+        eyebrow={t("Medical · Master")}
+        title={t("Rumah Sakit & Asuransi")}
+        description={t("Direktori rumah sakit / klinik / apotek rekanan dan perusahaan asuransi — dipakai saat pengajuan klaim (padanan Hospital + Insurance Company)", "Directory of partner hospitals / clinics / pharmacies and insurance companies — used when submitting claims (equivalent to Hospital + Insurance Company)")}
         actions={(
           <Button onClick={openNew}>
-            <Plus className="h-4 w-4" /> Provider Baru
+            <Plus className="h-4 w-4" /> {t("Provider Baru", "New Provider")}
           </Button>
         )}
       />
@@ -77,18 +85,18 @@ export function MedicalProvidersPage() {
         {([
           { key: "HOSPITAL", label: "Rumah Sakit & Klinik", icon: Hospital, count: all.filter((p) => p.kind === "HOSPITAL").length },
           { key: "INSURANCE", label: "Asuransi", icon: ShieldCheck, count: all.filter((p) => p.kind === "INSURANCE").length },
-        ] as const).map((t) => (
+        ] as const).map((tb) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={tb.key}
+            onClick={() => setTab(tb.key)}
             className={cn(
               "flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-all",
-              tab === t.key
+              tab === tb.key
                 ? "ov-soft ov-border-accent"
                 : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
-            <t.icon className="h-3.5 w-3.5" /> {t.label} ({t.count})
+            <tb.icon className="h-3.5 w-3.5" /> {t(tb.label, TAB_LABEL_EN[tb.key])} ({tb.count})
           </button>
         ))}
       </div>
@@ -98,16 +106,16 @@ export function MedicalProvidersPage() {
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
           ) : rows.length === 0 ? (
-            <div className="p-6"><EmptyState title="Belum ada provider" description="Tambahkan rumah sakit rekanan atau perusahaan asuransi." icon={tab === "HOSPITAL" ? Hospital : ShieldCheck} /></div>
+            <div className="p-6"><EmptyState title={t("Belum ada provider", "No providers yet")} description={t("Tambahkan rumah sakit rekanan atau perusahaan asuransi.", "Add a partner hospital or an insurance company.")} icon={tab === "HOSPITAL" ? Hospital : ShieldCheck} /></div>
           ) : (
             <div className="max-h-[30rem] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Kota</TableHead>
-                    <TableHead>Alamat</TableHead>
-                    <TableHead>Telepon</TableHead>
+                    <TableHead>{t("Nama")}</TableHead>
+                    <TableHead>{t("Kota", "City")}</TableHead>
+                    <TableHead>{t("Alamat")}</TableHead>
+                    <TableHead>{t("Telepon")}</TableHead>
                     <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
@@ -144,47 +152,47 @@ export function MedicalProvidersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {form.kind === "HOSPITAL" ? <Hospital className="h-5 w-5 ov-text-accent" /> : <ShieldCheck className="h-5 w-5 ov-text-accent" />}
-              {form.id ? "Ubah Provider" : "Provider Baru"}
+              {form.id ? t("Ubah Provider", "Edit Provider") : t("Provider Baru", "New Provider")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Jenis *</Label>
+              <Label>{t("Jenis *", "Type *")}</Label>
               <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="HOSPITAL">Rumah Sakit / Klinik / Apotek</SelectItem>
-                  <SelectItem value="INSURANCE">Perusahaan Asuransi</SelectItem>
+                  <SelectItem value="HOSPITAL">{t("Rumah Sakit / Klinik / Apotek", "Hospital / Clinic / Pharmacy")}</SelectItem>
+                  <SelectItem value="INSURANCE">{t("Perusahaan Asuransi", "Insurance Company")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Kode *</Label>
-                <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={Boolean(form.id)} placeholder="mis. RS-SIL" />
+                <Label>{t("Kode *", "Code *")}</Label>
+                <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} disabled={Boolean(form.id)} placeholder={t("mis. RS-SIL", "e.g. RS-SIL")} />
               </div>
               <div className="space-y-1.5">
-                <Label>Nama *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="mis. RS Siloam Surabaya" />
+                <Label>{t("Nama *", "Name *")}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("mis. RS Siloam Surabaya", "e.g. Siloam Hospital Surabaya")} />
               </div>
               <div className="space-y-1.5">
-                <Label>Kota</Label>
+                <Label>{t("Kota", "City")}</Label>
                 <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Telepon</Label>
+                <Label>{t("Telepon")}</Label>
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Alamat</Label>
+              <Label>{t("Alamat")}</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
+            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
             <Button onClick={save} disabled={busy}>
-              {busy ? "Menyimpan…" : "Simpan"}
+              {busy ? t("Menyimpan…", "Saving…") : t("Simpan")}
             </Button>
           </DialogFooter>
         </DialogContent>

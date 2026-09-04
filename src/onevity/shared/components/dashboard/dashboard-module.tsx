@@ -16,6 +16,7 @@ import {
   CheckCircle2, Clock, FileText, Sparkles, Award,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
 interface DashData {
   totalEmployees: number; activeEmployees: number; pendingActions: number;
@@ -34,6 +35,7 @@ const CHART_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--col
 
 export function DashboardModule() {
   const { navigate } = useNav();
+  const { t, locale } = useI18n();
   const session = useSession();
   const sessionUser = session.info?.user;
   const { data, loading } = useApi<DashData>("/api/onevity/dashboard");
@@ -52,13 +54,13 @@ export function DashboardModule() {
   const growth = data.newHiresThisYear - data.exitsYTD;
 
   const kpis = [
-    { label: "Total Karyawan Aktif", value: data.activeEmployees.toLocaleString("id-ID"), sub: `${data.totalEmployees - data.activeEmployees} tidak aktif`, icon: Users, hero: true, trend: `+${data.newHiresThisYear} hiring YTD` },
-    { label: "Approval Menunggu", value: data.pendingActions.toLocaleString("id-ID"), sub: "Pengajuan karyawan", icon: Clock, trend: "Butuh keputusan" },
-    { label: "Unit Organisasi", value: String(data.orgUnits), sub: `${data.positions} posisi terdefinisi`, icon: Network, trend: "Struktur hidup" },
-    { label: "Rata-rata Gaji Pokok", value: fmtIDRShort(data.avgSalary), sub: "Karyawan aktif", icon: Wallet, trend: "Grade G1–G8" },
+    { label: t("Total Karyawan Aktif", "Total Active Employees"), value: data.activeEmployees.toLocaleString(locale), sub: t("{n} tidak aktif", "{n} inactive", { n: data.totalEmployees - data.activeEmployees }), icon: Users, hero: true, trend: t("+{n} hiring YTD", "+{n} hires YTD", { n: data.newHiresThisYear }) },
+    { label: t("Approval Menunggu", "Pending Approvals"), value: data.pendingActions.toLocaleString(locale), sub: t("Pengajuan karyawan", "Employee requests"), icon: Clock, trend: t("Butuh keputusan", "Needs a decision") },
+    { label: t("Unit Organisasi"), value: String(data.orgUnits), sub: t("{n} posisi terdefinisi", "{n} positions defined", { n: data.positions }), icon: Network, trend: t("Struktur hidup", "Active structure") },
+    { label: t("Rata-rata Gaji Pokok", "Average Base Salary"), value: fmtIDRShort(data.avgSalary), sub: t("Karyawan aktif", "Active employees"), icon: Wallet, trend: "Grade G1–G8" },
   ];
 
-  const genderData = data.genderSplit.map((g) => ({ name: g.gender === "F" ? "Perempuan" : "Laki-laki", value: g.count }));
+  const genderData = data.genderSplit.map((g) => ({ name: g.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male"), value: g.count }));
 
   return (
     <div className="space-y-6">
@@ -72,20 +74,23 @@ export function DashboardModule() {
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white ring-1 ring-white/15 backdrop-blur">
                 <Sparkles className="h-3 w-3" /> Human Resource Base
               </div>
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Selamat pagi, {sessionUser ? sessionUser.name.split(" ")[0] : "Anda"} 👋</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t("Selamat pagi, {nama} 👋", "Good morning, {nama} 👋", { nama: sessionUser ? sessionUser.name.split(" ")[0] : t("Anda", "there") })}</h1>
               <p className="mt-1.5 max-w-xl text-sm text-white/80">
                 {data.pendingActions > 0
-                  ? `Ada ${data.pendingActions} pengajuan karyawan menunggu persetujuan Anda. ${growth >= 0 ? `Headcount tumbuh ${growth >= 0 ? "+" : ""}${growth} YTD.` : ""}`
-                  : "Semua pengajuan sudah selesai. Workspace Anda bersih hari ini."}
+                  ? t("Ada {n} pengajuan karyawan menunggu persetujuan Anda. {growth}", "You have {n} employee requests awaiting your approval. {growth}", {
+                      n: data.pendingActions,
+                      growth: growth >= 0 ? t("Headcount tumbuh {g} YTD.", "Headcount {g} YTD.", { g: `${growth >= 0 ? "+" : ""}${growth}` }) : "",
+                    })
+                  : t("Semua pengajuan sudah selesai. Workspace Anda bersih hari ini.", "All requests are settled. Your workspace is clear today.")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2.5">
               <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-stone-900 hover:bg-stone-100 shadow-lg">
-                <CheckCircle2 className="h-4 w-4" /> Lihat Pengajuan
+                <CheckCircle2 className="h-4 w-4" /> {t("Lihat Pengajuan", "View Requests")}
                 {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-stone-900">{data.pendingActions}</span>}
               </Button>
               <Button onClick={() => navigate("employee", "wizard")} variant="outline" className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
-                <UserCheck className="h-4 w-4" /> Onboarding
+                <UserCheck className="h-4 w-4" /> {t("Onboarding")}
               </Button>
             </div>
           </div>
@@ -126,15 +131,15 @@ export function DashboardModule() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm lg:col-span-2 dark:border-stone-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <div>
-              <CardTitle className="text-sm font-bold">Tren Rekrutmen — 12 Bulan</CardTitle>
-              <p className="mt-0.5 text-[11px] text-stone-400">Jumlah karyawan baru per bulan</p>
+              <CardTitle className="text-sm font-bold">{t("Tren Rekrutmen — 12 Bulan", "Hiring Trend — 12 Months")}</CardTitle>
+              <p className="mt-0.5 text-[11px] text-stone-400">{t("Jumlah karyawan baru per bulan", "New employees per month")}</p>
             </div>
             <Badge2 label="Live" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.hireTrend} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                <AreaChart data={data.hireTrend.map((p) => ({ ...p, month: loc(p.month) }))} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                   <defs>
                     <linearGradient id="hireGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
@@ -155,8 +160,8 @@ export function DashboardModule() {
         {/* gender + status donuts */}
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Komposisi Karyawan</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">Gender & status kepegawaian</p>
+            <CardTitle className="text-sm font-bold">{t("Komposisi Karyawan", "Employee Composition")}</CardTitle>
+            <p className="mt-0.5 text-[11px] text-stone-400">{t("Gender & status kepegawaian", "Gender & employment status")}</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2">
@@ -196,7 +201,7 @@ export function DashboardModule() {
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Headcount per Divisi</CardTitle>
+            <CardTitle className="text-sm font-bold">{t("Headcount per Divisi", "Headcount per Division")}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="h-56">
@@ -206,7 +211,7 @@ export function DashboardModule() {
                   <XAxis type="number" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 9.5, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} cursor={{ fill: "var(--color-muted)" }} />
-                  <Bar dataKey="count" name="Karyawan" fill="var(--color-chart-1)" radius={[0, 6, 6, 0]} barSize={13} />
+                  <Bar dataKey="count" name={t("Karyawan")} fill="var(--color-chart-1)" radius={[0, 6, 6, 0]} barSize={13} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -215,8 +220,8 @@ export function DashboardModule() {
 
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Distribusi Grade</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">Struktur level G1–G8</p>
+            <CardTitle className="text-sm font-bold">{t("Distribusi Grade", "Grade Distribution")}</CardTitle>
+            <p className="mt-0.5 text-[11px] text-stone-400">{t("Struktur level G1–G8", "Level structure G1–G8")}</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2 pt-1">
@@ -246,9 +251,9 @@ export function DashboardModule() {
         {/* recent PA */}
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold">Pengajuan Terbaru</CardTitle>
+            <CardTitle className="text-sm font-bold">{t("Pengajuan Terbaru", "Recent Requests")}</CardTitle>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-bold ov-text-accent hover:ov-text-accent" onClick={() => navigate("actions", "all")}>
-              Lihat semua <ArrowRight className="h-3 w-3" />
+              {t("Lihat semua", "View all")} <ArrowRight className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-1.5 pt-0">
@@ -271,7 +276,7 @@ export function DashboardModule() {
       {/* activity feed */}
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 ov-text-accent" /> Aktivitas Terakhir</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Aktivitas Terakhir", "Recent Activity")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
