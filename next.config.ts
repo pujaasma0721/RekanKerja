@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // → bila paket belum terpasang, app tetap jalan; kirim email didegradasi jadi
   // pesan jelas di log/tes kirim, BUKAN build error mematikan seluruh aplikasi.
   serverExternalPackages: ["nodemailer"],
+  // indikator dev-tools Next.js (portal mengambang kiri-bawah) menutupi tombol
+  // Pengaturan di rail — dimatikan agar preview bersih; error tetap terlihat di dev.log
+  devIndicators: false,
 };
 
 export default nextConfig;

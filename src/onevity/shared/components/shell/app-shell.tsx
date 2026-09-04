@@ -1,14 +1,19 @@
 "use client";
-// OneVity App Shell — obsidian sidebar (module dropdown + nav per modul) + topbar + command palette
+// OneVity App Shell — ★ Rekomendasi Design Lab (A + C + widget hidup):
+//   · Rail ikon 72px (6 modul) + panel menu modul 264px — indikator aktif meluncur (spring)
+//   · Identitas warna per modul (logo, indikator, CTA ikut berganti aksen)
+//   · Widget hidup dengan data nyata: avatar pengaju, ring hari menuju akhir periode, status email
+//   · Mobile: bottom tab bar + bottom sheet (pola navigasi native)
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
-import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
+import { useApi, initials } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
 import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -19,15 +24,24 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
-  LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
+  LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
   Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
-  UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
-  Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent, KeyRound,
-  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
-  Hospital, TrendingUp, Mail,
+  KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
+  Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
+  CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
+  Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ============ UTIL WARNA (aksen dinamis — hex inline, bukan kelas tailwind) ============
+function hexA(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+function grad(hex: string): string {
+  return `linear-gradient(135deg, ${hex}, ${hexA(hex, 0.7)})`;
+}
 
 interface NavItem {
   id: string; // view id
@@ -43,15 +57,34 @@ interface NavGroup {
   matchViews?: string[]; // view tambahan yang tetap men-highlight grup ini (mis. detail run)
 }
 
-// ============ MODULE REGISTRY ============
-export const MODULES: { id: ModuleId; label: string; short: string; icon: React.ElementType; ready: boolean }[] = [
-  { id: "hr", label: "Human Resource Base", short: "HR Base", icon: Users, ready: true },
-  { id: "payroll", label: "Payroll", short: "Payroll", icon: Coins, ready: true },
-  { id: "attendance", label: "Attendance", short: "Attendance", icon: CalendarClock, ready: true },
-  { id: "leave", label: "Leave", short: "Leave", icon: Palmtree, ready: true },
-  { id: "travel", label: "Travel", short: "Travel", icon: Plane, ready: true },
-  { id: "medical", label: "Medical", short: "Medical", icon: HeartPulse, ready: true },
+// ============ MODULE REGISTRY (identitas warna — opsi C) ============
+export interface ModuleMeta {
+  id: ModuleId;
+  label: string;
+  short: string;
+  desc: string;
+  icon: React.ElementType;
+  ready: boolean;
+  hex: string; // aksen modul
+}
+
+export const MODULES: ModuleMeta[] = [
+  { id: "hr", label: "Human Resource Base", short: "HR", desc: "Inti administrasi karyawan", icon: Users, ready: true, hex: "#10b981" },
+  { id: "payroll", label: "Payroll", short: "Payroll", desc: "Periode, proses & kepatuhan pajak", icon: Coins, ready: true, hex: "#f59e0b" },
+  { id: "attendance", label: "Attendance", short: "Absensi", desc: "Jadwal, clocking & lembur", icon: CalendarClock, ready: true, hex: "#14b8a6" },
+  { id: "leave", label: "Leave", short: "Cuti", desc: "Saldo, permintaan & persetujuan", icon: Palmtree, ready: true, hex: "#06b6d4" },
+  { id: "travel", label: "Travel", short: "Travel", desc: "Perjalanan dinas & settlement", icon: Plane, ready: true, hex: "#8b5cf6" },
+  { id: "medical", label: "Medical", short: "Medis", desc: "Benefit & klaim kesehatan", icon: HeartPulse, ready: true, hex: "#f43f5e" },
 ];
+
+export const SETTINGS_META = {
+  id: "settings",
+  label: "Pengaturan Sistem",
+  short: "Pengaturan",
+  desc: "Konfigurasi sistem OneVity",
+  icon: Settings2,
+  hex: "#a8a29e",
+} as const;
 
 // ============ NAV PER MODULE ============
 // Struktur menu stabil: semua grup & item selalu tampil dalam modul aktif.
@@ -171,7 +204,7 @@ const MEDICAL_NAV: NavGroup[] = [
   ] },
 ];
 
-// Pengaturan sistem — cross-module, selalu tampil di bagian bawah sidebar semua modul.
+// Pengaturan sistem — cross-module, tampil di panel semua modul + rail bawah.
 export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
     { id: "lookups", label: "Data Master", icon: Layers },
@@ -192,15 +225,176 @@ export function navOfModule(m: ModuleId): NavGroup[] {
   }
 }
 
+// ============ META SHELL (badge + widget hidup — sinyal nyata dari /api/onevity/meta) ============
+interface ShellMeta {
+  pendingActions: number;
+  activeEmployees: number;
+  payrollDraftRuns: number;
+  benefitPendingClaims: number;
+  company: { name: string; shortName: string } | null;
+  pendingApprovers?: string[];
+  payrollDays?: number | null;
+  payrollPeriodEnd?: string | null;
+  emailActive?: boolean;
+}
+
+const AVA_COLORS = ["#f59e0b", "#06b6d4", "#f43f5e"];
+const PANEL_BG = "#232228"; // warna latar panel — dipakai ring avatar agar menyatu
+
+function CountBadge({ hex, n }: { hex: string; n: number }) {
+  return (
+    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold tabular-nums" style={{ background: hexA(hex, 0.18), color: hex }}>
+      {n}
+    </span>
+  );
+}
+
+function AvatarStack({ names }: { names: string[] }) {
+  const show = names.slice(0, 3);
+  if (show.length === 0) return null;
+  return (
+    <span className="flex shrink-0 -space-x-1.5" aria-hidden>
+      {show.map((n, i) => (
+        <span
+          key={n + i}
+          className="flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-extrabold text-white"
+          style={{ background: AVA_COLORS[i % AVA_COLORS.length], boxShadow: `0 0 0 2px ${PANEL_BG}` }}
+        >
+          {initials(n)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function PayrollRing({ hex, days }: { hex: string; days: number }) {
+  const C = 2 * Math.PI * 13;
+  const frac = Math.max(0, Math.min(1, days / 30));
+  return (
+    <span
+      className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center"
+      role="img"
+      aria-label={`Periode payroll aktif berakhir ${days} hari lagi`}
+      title={`Periode payroll aktif berakhir ${days} hari lagi`}
+    >
+      <svg viewBox="0 0 36 36" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+        <circle cx="18" cy="18" r="13" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" />
+        <motion.circle
+          cx="18" cy="18" r="13" fill="none" stroke={hex} strokeWidth="3.5" strokeLinecap="round"
+          strokeDasharray={C}
+          initial={{ strokeDashoffset: C }}
+          animate={{ strokeDashoffset: C * (1 - frac) }}
+          transition={{ duration: 1.1, ease: "easeOut", delay: 0.3 }}
+        />
+      </svg>
+      <span className="text-[8px] font-extrabold tabular-nums" style={{ color: hex }}>D-{days}</span>
+    </span>
+  );
+}
+
+function LiveDot({ hex, label }: { hex: string; label: string }) {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <motion.span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: hex }}
+        animate={{ scale: [1, 1.6, 1] }}
+        transition={{ duration: 0.6, repeat: 0 }}
+      />
+      <span className="text-[9px] font-semibold" style={{ color: hex }}>{label}</span>
+    </span>
+  );
+}
+
+/** Widget hidup item menu — HANYA sinyal data nyata (opsi B, versi produksi yang tenang). */
+function ItemWidget({ mod, item, meta, accent }: { mod: string; item: NavItem; meta: ShellMeta | null | undefined; accent: string }) {
+  if (item.badge === "pending") {
+    const n = meta?.pendingActions ?? 0;
+    if (n <= 0) return null;
+    const names = meta?.pendingApprovers ?? [];
+    return (
+      <span className="flex items-center gap-2">
+        {names.length > 0 && <AvatarStack names={names} />}
+        <CountBadge hex={accent} n={n} />
+      </span>
+    );
+  }
+  if (item.badge === "runsDraft") {
+    const days = meta?.payrollDays;
+    if (days != null && days >= 0) return <PayrollRing hex={accent} days={days} />;
+    const n = meta?.payrollDraftRuns ?? 0;
+    return n > 0 ? <CountBadge hex={accent} n={n} /> : null;
+  }
+  if (item.badge === "benefitPending") {
+    const n = meta?.benefitPendingClaims ?? 0;
+    return n > 0 ? <LiveDot hex="#f59e0b" label={`${n} menunggu`} /> : null;
+  }
+  if (mod === "settings" && item.id === "email") {
+    return meta?.emailActive ? <LiveDot hex="#10b981" label="aktif" /> : null;
+  }
+  return null;
+}
+
+// ============ LOGO MARK ============
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="5" r="2.6" />
+      <circle cx="5" cy="17" r="2.6" />
+      <circle cx="19" cy="17" r="2.6" />
+      <path d="M12 7.6 6.6 14.6M12 7.6l5.4 7M7.6 17h8.8" />
+    </svg>
+  );
+}
+
+// ============ RAIL BUTTON ============
+function RailButton({ label, icon: Icon, hex, active, badge, onClick }: {
+  label: string; icon: React.ElementType; hex: string; active: boolean; badge?: number; onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={onClick}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className="group relative flex h-11 w-11 items-center justify-center rounded-xl"
+        >
+          {active && (
+            <motion.span
+              layoutId="ov-rail-active"
+              className="absolute inset-0 rounded-xl"
+              style={{ background: `linear-gradient(135deg, ${hex}, ${hexA(hex, 0.6)})`, boxShadow: `0 10px 22px -6px ${hexA(hex, 0.55)}` }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+          )}
+          <Icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-stone-500 group-hover:text-stone-200")} aria-hidden />
+          {badge != null && badge > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: hex }}>
+              {badge > 9 ? "9+" : badge}
+            </span>
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="text-[11px] font-semibold">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ============ JENIS SHEET MOBILE ============
+type MobileSheet = null | "all" | ModuleId;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { section, view, params, module, navigate, setModule, syncFromUrl } = useNav();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false); // dialog Ganti Kata Sandi (Task 33)
+  const [sheet, setSheet] = useState<MobileSheet>(null); // bottom sheet mobile
   const session = useSession();
   const sessionUser = session.info?.user;
   const sessionTenant = session.info?.tenant;
-  const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; benefitPendingClaims: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
+  const meta = useApi<ShellMeta>("/api/onevity/meta");
+
+  const inSettings = section === "settings";
 
   // Task 33: peringatan umur kata sandi (kedaluwarsa / segera) — sekali per user
   const pwWarnedFor = useRef<string | null>(null);
@@ -210,21 +404,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!pw || !uid || pwWarnedFor.current === uid) return;
     pwWarnedFor.current = uid;
     if (pw.expired) {
-      toast.error("Kata sandi Anda kedaluwarsa. Silakan ganti lewat tombol kunci di bagian bawah sidebar.", { duration: 9000 });
+      toast.error("Kata sandi Anda kedaluwarsa. Silakan ganti lewat tombol kunci di bagian bawah panel menu.", { duration: 9000 });
     } else if (pw.warn) {
-      toast.warning(`Kata sandi Anda ${pw.label.toLowerCase()} — pertimbangkan menggantinya (tombol kunci di sidebar).`, { duration: 7000 });
+      toast.warning(`Kata sandi Anda ${pw.label.toLowerCase()} — pertimbangkan menggantinya (tombol kunci di panel menu).`, { duration: 7000 });
     }
   }, [session.info]);
 
   // ===== hak aksi MENU per pengguna (Task 31 + 32) =====
-  // ALL (default/super admin) → semua menu & seluruh aksi; CUSTOM → hanya
-  // key "module:view" terdaftar, tiap menu membawa aksi (view/baru/ubah/
-  // hapus + operasi khusus). Belum termuat → sementara semua (anti-flicker).
   const meMenu = useApi<{ all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean }>("/api/onevity/user-menu-access?action=me");
   const menuAll = meMenu.data ? meMenu.data.all : true;
   const allowedKeys = useMemo(() => (menuAll ? null : new Set(meMenu.data?.menus ?? [])), [menuAll, meMenu.data]);
-  // context utk view di bawah shell — tombol aksi (Baru/Ubah/Hapus/operasi)
-  // memakai useMenuPerms()
   const permsApi = useMemo(
     () => ({ all: menuAll, isSuperAdmin: meMenu.data?.isSuperAdmin ?? false, ready: !!meMenu.data, perms: meMenu.data?.perms }),
     [menuAll, meMenu.data],
@@ -260,27 +449,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [syncFromUrl]);
 
-  // lock scroll when mobile drawer open
+  // lock scroll + Escape saat bottom sheet mobile terbuka
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [mobileOpen]);
+    document.body.style.overflow = sheet ? "hidden" : "";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
+    if (sheet) window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      if (sheet) window.removeEventListener("keydown", onKey);
+    };
+  }, [sheet]);
 
-  const go = (s: SectionId, v: string) => { navigate(s, v); setMobileOpen(false); };
+  const go = (s: SectionId, v: string) => { navigate(s, v); setSheet(null); };
 
   // ===== nav per modul, DISARING sesuai hak akses menu pengguna =====
   const nav = navOfModule(module);
+  const settingsGroups = useMemo(() => {
+    if (allowedKeys == null) return SETTINGS_NAV;
+    return SETTINGS_NAV
+      .map((g) => ({ ...g, children: g.children.filter((c) => itemAllowed("settings", c.id)) }))
+      .filter((g) => g.children.length > 0);
+  }, [allowedKeys, itemAllowed]);
+
+  // panel: saat di Pengaturan → hanya menu settings; di modul → menu modul + settings
   const groups = useMemo(() => {
-    const base = [...nav, ...SETTINGS_NAV];
+    if (inSettings) return settingsGroups;
+    const base = [...nav, ...settingsGroups];
     if (allowedKeys == null) return base;
     return base
       .map((g) => ({ ...g, children: g.children.filter((c) => menuAllowed(g.section, c.id)) }))
       .filter((g) => g.children.length > 0);
-    // catatan: bila modul aktif tidak punya menu terizinkan (URL langsung),
-    // nav kosong + panel konten terblokir akan mengarahkan pengguna kembali.
-  }, [nav, allowedKeys, menuAllowed]);
+  }, [inSettings, nav, settingsGroups, allowedKeys, menuAllowed]);
 
-  // modul yang punya ≥1 menu diizinkan (dropdown switcher)
+  // modul yang punya ≥1 menu diizinkan (rail + tab mobile + sheet)
   const allowedModules = useMemo(() => {
     if (allowedKeys == null) return MODULES;
     const vis = MODULES.filter((m) => navOfModule(m.id).some((g) => g.children.some((c) => itemAllowed(m.id, c.id))));
@@ -300,9 +501,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [allowedKeys, itemAllowed],
   );
 
+  const firstSettingsView = settingsGroups[0]?.children[0]?.id ?? "lookups";
+
+  const navigateToModule = useCallback(
+    (m: ModuleId) => {
+      const target = firstAllowedOfModule(m);
+      if (target) navigate(target.section, target.view);
+      else setModule(m);
+      setSheet(null);
+    },
+    [firstAllowedOfModule, navigate, setModule],
+  );
+
+  const goHome = () => {
+    if (inSettings) return;
+    const t = firstAllowedOfModule(module);
+    if (t) navigate(t.section, t.view);
+    else navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module));
+  };
+
   // ===== guard view saat ini: view di luar cakupan menu → panel terblokir =====
-  // (menangani URL langsung / stale state; sub-view internal tanpa menu sendiri
-  // mengikuti menu induknya — view "detail" → directory, "run" → runs)
   const viewAllowed = useMemo(() => {
     if (allowedKeys == null) return true;
     if (section === "settings") return itemAllowed("settings", view);
@@ -310,17 +528,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let known = false;
     for (const g of [...navOfModule(module), ...SETTINGS_NAV]) {
       const ownerMod = g.section === "settings" ? "settings" : moduleOfSection(g.section);
-      // view persis item nav → cek kunci item
       if (g.children.some((c) => c.id === view)) {
         known = true;
         if (itemAllowed(ownerMod, view)) return true;
       }
-      // sub-view dipetakan ke menu induk (detail→directory, run→runs)
       if (mapped !== view && g.children.some((c) => c.id === mapped)) {
         known = true;
         if (itemAllowed(ownerMod, mapped)) return true;
       }
-      // grup matchViews (mis. "run" milik grup runs) → boleh bila ≥1 item grup diizinkan
       if (g.matchViews?.includes(view)) {
         known = true;
         if (g.children.some((c) => itemAllowed(ownerMod, c.id))) return true;
@@ -332,124 +547,123 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const crumbs = useMemo(() => {
     const group = groups.find((g) => g.section === section && (!g.matchViews || g.matchViews.includes(view) || g.children.some((c) => c.id === view)));
     const item = group?.children.find((c) => c.id === view);
-    const out: string[] = [MODULE_LABEL[module]];
-    if (group?.label) out.push(group.label);
+    const out: string[] = [inSettings ? "Pengaturan" : MODULE_LABEL[module]];
+    if (group?.label && !(inSettings && group.section === "settings")) out.push(group.label);
     if (item && item.id !== "overview" && item.id !== view) out.push(item.label);
     if (item && item.id === view && item.id !== "overview") out.push(item.label);
     if (view === "run" && section === "payroll") out.push("Detail Proses");
     if (params.id) out.push(params.id);
     return out.filter(Boolean);
-  }, [section, view, params, module, groups]);
+  }, [section, view, params, module, groups, inSettings]);
 
   const activeModule = MODULES.find((m) => m.id === module) ?? MODULES[0];
-  const ActiveModuleIcon = activeModule.icon;
+  const accent = inSettings ? SETTINGS_META.hex : activeModule.hex;
+  const panelLabel = inSettings ? SETTINGS_META.label : activeModule.label;
+  const panelDesc = inSettings ? SETTINGS_META.desc : activeModule.desc;
+  const PanelIcon = inSettings ? Settings2 : activeModule.icon;
+
+  /** Badge modul di rail/tab — sinyal nyata dari meta. */
+  const railBadge = (m: ModuleId): number => {
+    if (m === "hr") return meta.data?.pendingActions ?? 0;
+    if (m === "payroll") return meta.data?.payrollDraftRuns ?? 0;
+    return 0;
+  };
+
+  // tab mobile: 4 modul pertama yang diizinkan + tombol Lainnya
+  const tabs = useMemo(() => allowedModules.slice(0, 4), [allowedModules]);
+  const moreActive = inSettings || !tabs.some((t) => t.id === module);
+  const onTabTap = (m: ModuleId) => {
+    if (module === m && !inSettings) setSheet(m); // tap modul aktif → buka sheet menu modul
+    else navigateToModule(m);
+  };
+
+  // grup menu untuk sheet modul (disaring hak akses)
+  const sheetGroups = useMemo(() => {
+    if (sheet == null || sheet === "all") return [];
+    const base = [...navOfModule(sheet), ...settingsGroups];
+    if (allowedKeys == null) return base;
+    return base
+      .map((g) => ({ ...g, children: g.children.filter((c) => menuAllowed(g.section, c.id)) }))
+      .filter((g) => g.children.length > 0);
+  }, [sheet, allowedKeys, menuAllowed, settingsGroups]);
+
+  const sheetModule = sheet && sheet !== "all" ? MODULES.find((m) => m.id === sheet) : null;
 
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex min-h-screen bg-background">
-        {/* ============ SIDEBAR (obsidian, always dark) ============ */}
+        {/* ============ RAIL MODUL (desktop) — ★ opsi A ============ */}
         <aside
-          className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col bg-[oklch(0.185_0.008_240)] text-stone-300 transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
-            mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-          )}
-          style={{ ["--sidebar" as string]: "oklch(0.185 0.008 240)" }}
+          className="hidden w-[72px] shrink-0 flex-col items-center gap-1.5 bg-[oklch(0.16_0.007_240)] py-4 lg:sticky lg:top-0 lg:flex lg:h-screen"
+          aria-label="Rail modul OneVity"
         >
-          {/* brand */}
-          <div className="flex items-center gap-3 px-5 pb-4 pt-5">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-900/40">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="5" r="2.6" />
-                <circle cx="5" cy="17" r="2.6" />
-                <circle cx="19" cy="17" r="2.6" />
-                <path d="M12 7.6 6.6 14.6M12 7.6l5.4 7M7.6 17h8.8" />
-              </svg>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={goHome}
+                aria-label="OneVity — kembali ke beranda modul"
+                className="group flex h-9 w-9 items-center justify-center rounded-xl transition-transform hover:scale-105"
+                style={{ background: grad(accent), boxShadow: `0 8px 20px -6px ${hexA(accent, 0.5)}` }}
+              >
+                <LogoMark className="h-4 w-4 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">OneVity HR Suite</TooltipContent>
+          </Tooltip>
+          <div className="my-2 h-px w-8 bg-white/10" aria-hidden />
+          <nav className="flex flex-col items-center gap-1.5" aria-label="Pilih modul">
+            {allowedModules.map((m) => (
+              <RailButton
+                key={m.id}
+                label={m.label}
+                icon={m.icon}
+                hex={m.hex}
+                active={!inSettings && m.id === module}
+                badge={railBadge(m.id)}
+                onClick={() => navigateToModule(m.id)}
+              />
+            ))}
+          </nav>
+          {settingsGroups.length > 0 && (
+            <div className="mt-auto">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate("settings", firstSettingsView)}
+                    aria-label="Pengaturan Sistem"
+                    aria-current={inSettings ? "page" : undefined}
+                    className={cn(
+                      "group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
+                      inSettings ? "bg-white/[0.08]" : "hover:bg-white/[0.06]",
+                    )}
+                  >
+                    <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-stone-200" : "text-stone-500 group-hover:text-stone-200")} aria-hidden />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Pengaturan Sistem</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </aside>
+
+        {/* ============ PANEL MENU MODUL (desktop) ============ */}
+        <aside
+          className="hidden w-[264px] shrink-0 flex-col border-l border-white/[0.06] bg-[oklch(0.185_0.008_240)] text-stone-300 lg:sticky lg:top-0 lg:flex lg:h-screen"
+          aria-label="Menu modul aktif"
+        >
+          {/* header modul — identitas warna (opsi C) */}
+          <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow" style={{ background: grad(accent) }}>
+              <PanelIcon className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[17px] font-extrabold leading-tight tracking-tight text-white">
-                One<span className="text-emerald-400">Vity</span>
-              </p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">HR Suite</p>
-            </div>
-            <button className="rounded-lg p-1.5 text-stone-500 hover:bg-white/5 hover:text-stone-200 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* kartu perusahaan aktif (tampilan info, bukan tombol) */}
-          <div className="px-4 pb-2.5">
-            <div
-              className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5"
-              aria-label="Perusahaan aktif"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-[11px] font-extrabold text-white shadow">
-                {(meta.data?.company?.shortName ?? sessionTenant?.name ?? "OneVity").slice(0, 3).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-stone-100">{meta.data?.company?.shortName ?? "—"}</p>
-                <p className="truncate text-[10px] text-stone-500">{meta.data?.company?.name ?? (meta.loading ? "Memuat…" : "Belum ada data perusahaan")}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">Aktif</span>
+              <p className="truncate text-[13px] font-extrabold text-stone-50">{panelLabel}</p>
+              <p className="truncate text-[10px] text-stone-500">{panelDesc}</p>
             </div>
           </div>
 
-          {/* ============ MODULE SWITCHER (dropdown modul besar) ============ */}
-          <div className="px-4 pb-2.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.08] px-3 py-2.5 text-left transition hover:border-emerald-500/40 hover:bg-emerald-500/[0.14]"
-                  aria-label="Pilih modul"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow">
-                    <ActiveModuleIcon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">Modul Aktif</p>
-                    <p className="truncate text-[13px] font-bold text-stone-50">{activeModule.label}</p>
-                  </div>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="right" className="w-60">
-                <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Modul OneVity</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {allowedModules.map((m) => {
-                  const Icon = m.icon;
-                  const isActive = m.id === module;
-                  return (
-                    <DropdownMenuItem
-                      key={m.id}
-                      onClick={() => {
-                        // navigasikan ke menu pertama yang diizinkan di modul tsb
-                        const target = firstAllowedOfModule(m.id);
-                        if (target) navigate(target.section, target.view);
-                        else setModule(m.id);
-                        setMobileOpen(false);
-                      }}
-                      className={cn("gap-3 py-2.5", isActive && "bg-emerald-50 dark:bg-emerald-500/10")}
-                    >
-                      <div className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                        isActive ? "bg-emerald-600 text-white" : m.ready ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300" : "bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500"
-                      )}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <span className={cn("flex-1 text-[13px] font-semibold", isActive ? "text-emerald-700 dark:text-emerald-400" : "text-stone-700 dark:text-stone-200")}>{m.label}</span>
-                      {isActive ? (
-                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      ) : m.ready ? null : (
-                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[9px] font-bold uppercase text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">Segera</Badge>
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* nav — menu mengikuti modul aktif */}
-          <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-0.5" aria-label="Navigasi utama">
+          {/* nav — menu mengikuti modul aktif, stagger saat ganti modul */}
+          <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1" aria-label="Navigasi utama">
             {groups.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-4 text-center">
                 <ShieldOff className="mx-auto h-5 w-5 text-stone-500" />
@@ -457,74 +671,91 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Tidak ada menu yang tersedia untuk Anda di modul ini.
                 </p>
               </div>
-            ) : groups.map((group) => {
-              const active =
-                section === group.section &&
-                (group.children.some((c) => c.id === view) || (group.matchViews?.includes(view) ?? false));
-              return (
-                <div key={`${group.section}-${group.label ?? "root"}`} className="pb-1">
-                  {group.label ? (
-                    <button
-                      onClick={() => go(group.section, group.children[0].id)}
-                      className={cn(
-                        "flex w-full items-center px-3 pb-1 pt-2.5 text-[11px] font-semibold text-stone-500 transition-colors hover:text-stone-300",
-                        active && "text-emerald-400 hover:text-emerald-400"
-                      )}
+            ) : (
+              <motion.div
+                key={inSettings ? "settings" : module}
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.022 } } }}
+              >
+                {groups.map((group) => {
+                  const active =
+                    section === group.section &&
+                    (group.children.some((c) => c.id === view) || (group.matchViews?.includes(view) ?? false));
+                  const isSettingsGroup = group.section === "settings";
+                  return (
+                    <motion.div
+                      key={`${group.section}-${group.label ?? "root"}`}
+                      className="pb-1"
+                      variants={{ hidden: { opacity: 0, x: -6 }, show: { opacity: 1, x: 0, transition: { duration: 0.18 } } }}
                     >
-                      {group.label}
-                    </button>
-                  ) : (
-                    <div className="h-1" />
-                  )}
-                  {group.children.map((item) => {
-                    const isActive =
-                      section === group.section &&
-                      (view === item.id ||
-                        (item.id === "directory" && view === "detail") ||
-                        (item.id === "runs" && view === "run"));
-                    const pending =
-                      item.badge === "pending" ? meta.data?.pendingActions ?? 0 :
-                      item.badge === "runsDraft" ? meta.data?.payrollDraftRuns ?? 0 :
-                      item.badge === "benefitPending" ? meta.data?.benefitPendingClaims ?? 0 : 0;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={`${group.section}-${item.id}`}
-                        onClick={() => go(group.section, item.id)}
-                        aria-current={isActive ? "page" : undefined}
-                        className={cn(
-                          "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all",
-                          isActive
-                            ? "bg-emerald-500/[0.14] text-white shadow-inner"
-                            : "text-stone-400 hover:bg-white/[0.05] hover:text-stone-100"
-                        )}
-                      >
-                        {isActive && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-400" />}
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors", isActive ? "text-emerald-400" : "text-stone-500 group-hover:text-stone-300")} />
-                        <span className="flex-1 truncate text-left">{item.label}</span>
-                        {pending > 0 && (
-                          <Badge className="h-5 min-w-5 rounded-full bg-amber-400/90 px-1.5 text-[10px] font-extrabold text-stone-900 hover:bg-amber-400">
-                            {pending}
-                          </Badge>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                      {isSettingsGroup && !inSettings && <div className="mx-2 mb-1 mt-3 h-px bg-white/[0.07]" aria-hidden />}
+                      {group.label ? (
+                        <button
+                          onClick={() => go(group.section, group.children[0].id)}
+                          className={cn(
+                            "flex w-full items-center px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500 transition-colors hover:text-stone-300",
+                            active && "hover:text-stone-300",
+                          )}
+                          style={active ? { color: accent } : undefined}
+                        >
+                          {group.label}
+                        </button>
+                      ) : (
+                        <div className="h-1" />
+                      )}
+                      {group.children.map((item) => {
+                        const isActive =
+                          section === group.section &&
+                          (view === item.id ||
+                            (item.id === "directory" && view === "detail") ||
+                            (item.id === "runs" && view === "run"));
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={`${group.section}-${item.id}`}
+                            onClick={() => go(group.section, item.id)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={cn(
+                              "group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-colors",
+                              isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.04]",
+                            )}
+                          >
+                            {isActive && (
+                              <motion.span
+                                layoutId="ov-panel-bar"
+                                className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full"
+                                style={{ background: accent, boxShadow: `0 0 12px ${hexA(accent, 0.8)}` }}
+                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                              />
+                            )}
+                            <Icon
+                              className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !isActive && "text-stone-500 group-hover:translate-x-0.5 group-hover:text-stone-300")}
+                              style={isActive ? { color: accent } : undefined}
+                              aria-hidden
+                            />
+                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{item.label}</span>
+                            <ItemWidget mod={isSettingsGroup ? "settings" : module} item={item} meta={meta.data} accent={accent} />
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            )}
           </nav>
 
-          {/* sidebar footer: user (session SaaS multi-tenant) */}
-          <div className="border-t border-white/10 px-4 py-3">
+          {/* footer panel: user (session SaaS multi-tenant) */}
+          <div className="border-t border-white/10 px-3.5 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-600 text-xs font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
+              <div className="relative shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
-                <p className="truncate text-[10px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
+                <p className="truncate text-[11px] font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
+                <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
               </div>
               <button
                 onClick={() => setPwOpen(true)}
@@ -543,30 +774,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {activeModule.label}</p>
+            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {inSettings ? "Pengaturan" : activeModule.short}</p>
           </div>
         </aside>
-
-        {/* mobile backdrop */}
-        {mobileOpen && <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />}
 
         {/* ============ MAIN COLUMN ============ */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* topbar */}
           <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-stone-200/80 bg-background/85 px-4 backdrop-blur-xl dark:border-stone-800/80 sm:px-6">
-            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Buka menu">
-              <Menu className="h-5 w-5" />
-            </button>
+            {/* brand mobile — di desktop identitas sudah dibawa rail+panel */}
+            <div className="flex items-center gap-2.5 lg:hidden">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow" style={{ background: grad(accent) }}>
+                <LogoMark className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-extrabold leading-none tracking-tight text-stone-900 dark:text-stone-50">
+                  One<span style={{ color: accent }}>Vity</span>
+                </p>
+                <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-wider text-stone-400">{inSettings ? "Pengaturan" : activeModule.short}</p>
+              </div>
+            </div>
 
             {/* breadcrumbs */}
             <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex" aria-label="Breadcrumb">
               <button
                 onClick={() => {
-                  const target = firstAllowedOfModule(module);
-                  if (target) navigate(target.section, target.view);
-                  else navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module));
+                  if (inSettings) navigate("settings", firstSettingsView);
+                  else {
+                    const target = firstAllowedOfModule(module);
+                    if (target) navigate(target.section, target.view);
+                    else navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module));
+                  }
                 }}
-                className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                className="font-semibold hover:underline"
+                style={{ color: accent }}
               >OneVity</button>
               {crumbs.map((c, i) => (
                 <span key={i} className="flex items-center gap-1.5">
@@ -583,7 +824,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {/* search trigger */}
             <button
               onClick={() => setCmdOpen(true)}
-              className="hidden items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-[13px] text-stone-400 transition hover:border-emerald-300 hover:text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:hover:border-emerald-600/50 md:flex"
+              className="hidden items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-[13px] text-stone-400 transition hover:border-stone-300 hover:text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:hover:border-stone-500 md:flex"
             >
               <Search className="h-4 w-4" />
               <span>Cari karyawan, dokumen…</span>
@@ -591,14 +832,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <CommandIcon className="h-2.5 w-2.5" />K
               </kbd>
             </button>
-            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label="Cari">
+            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label="Cari">
               <Search className="h-5 w-5" />
             </button>
 
-            {/* quick create */}
+            {/* quick create — aksen mengikuti modul aktif */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" className="hidden gap-1.5 bg-emerald-600 px-3.5 font-bold hover:bg-emerald-700 sm:flex">
+                <Button
+                  size="sm"
+                  className="hidden gap-1.5 px-3.5 font-bold text-white hover:brightness-110 active:brightness-95 sm:flex"
+                  style={{ background: accent }}
+                >
                   <Plus className="h-4 w-4" /> Buat Baru
                 </Button>
               </DropdownMenuTrigger>
@@ -641,7 +886,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       if (target) navigate(target.section, target.view);
                       else navigate("dashboard", "overview");
                     }}
-                    className="mt-5 gap-2 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700"
+                    className="mt-5 gap-2 rounded-xl font-bold text-white hover:brightness-110"
+                    style={{ background: accent }}
                   >
                     <LayoutDashboard className="h-4 w-4" /> Ke Menu yang Tersedia
                   </Button>
@@ -654,16 +900,258 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* footer */}
           <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
             <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
-              © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Modul {activeModule.label}
+              © 2026 <span className="font-bold" style={{ color: accent }}>OneVity</span> HR Suite · {panelLabel}
             </p>
           </footer>
+
+          {/* spacer — jaga konten & footer tidak tertutup tab bar mobile */}
+          <div className="h-[84px] shrink-0 lg:hidden" aria-hidden="true" />
         </div>
+
+        {/* ============ NAVIGASI MOBILE: bottom tab + bottom sheet ============ */}
+        <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label="Navigasi modul">
+          <div
+            className="flex items-stretch justify-around border-t border-stone-200 bg-white/95 pt-1 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-900/95"
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.375rem)" }}
+          >
+            {tabs.map((m) => {
+              const active = !inSettings && m.id === module;
+              const b = railBadge(m.id);
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => onTabTap(m.id)}
+                  aria-label={active ? `${m.label} — buka menu modul` : m.label}
+                  aria-current={active ? "page" : undefined}
+                  className="relative flex min-w-[56px] flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 transition-transform active:scale-95"
+                >
+                  <span className="relative flex h-7 w-11 items-center justify-center rounded-md">
+                    {active && (
+                      <motion.span
+                        layoutId="ov-mtab"
+                        className="absolute inset-0 rounded-md"
+                        style={{ background: hexA(m.hex, 0.14) }}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <m.icon className={cn("relative h-[18px] w-[18px]", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: m.hex } : undefined} aria-hidden />
+                    {b > 0 && (
+                      <span className="absolute -right-0 -top-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: m.hex }}>
+                        {b > 9 ? "9+" : b}
+                      </span>
+                    )}
+                  </span>
+                  <span className={cn("text-[9px] font-bold", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: m.hex } : undefined}>
+                    {m.short}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setSheet("all")}
+              aria-label="Modul lainnya, pengaturan, dan akun"
+              aria-current={moreActive ? "page" : undefined}
+              className="relative flex min-w-[56px] flex-col items-center gap-0.5 rounded-lg px-1.5 py-1.5 transition-transform active:scale-95"
+            >
+              <span className="relative flex h-7 w-11 items-center justify-center rounded-md">
+                {moreActive && (
+                  <motion.span
+                    layoutId="ov-mtab"
+                    className="absolute inset-0 rounded-md"
+                    style={{ background: hexA(accent, 0.14) }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <MoreHorizontal className={cn("relative h-[18px] w-[18px]", !moreActive && "text-stone-400 dark:text-stone-500")} style={moreActive ? { color: accent } : undefined} aria-hidden />
+              </span>
+              <span className={cn("text-[9px] font-bold", !moreActive && "text-stone-400 dark:text-stone-500")} style={moreActive ? { color: accent } : undefined}>
+                Lainnya
+              </span>
+            </button>
+          </div>
+        </nav>
+
+        {/* bottom sheet mobile */}
+        <AnimatePresence>
+          {sheet && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSheet(null)}
+                aria-hidden
+              />
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-label={sheet === "all" ? "Modul lainnya, pengaturan, dan akun" : `Menu ${sheetModule?.label ?? ""}`}
+                className="fixed inset-x-0 bottom-0 z-[70] max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl lg:hidden dark:bg-stone-900 dark:text-stone-100"
+                style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.25rem)" }}
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 380, damping: 36 }}
+              >
+                <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300 dark:bg-stone-700" aria-hidden />
+                {sheet === "all" ? (
+                  <AllModulesSheet
+                    allowedModules={allowedModules}
+                    settingsGroups={settingsGroups}
+                    module={module}
+                    inSettings={inSettings}
+                    onNavigateModule={navigateToModule}
+                    onGoSettings={() => go("settings", firstSettingsView)}
+                    sessionUser={sessionUser}
+                    sessionTenant={sessionTenant}
+                    onPw={() => { setSheet(null); setPwOpen(true); }}
+                    onLogout={() => { setSheet(null); void session.logout(); }}
+                  />
+                ) : sheetModule ? (
+                  <ModuleMenuSheet m={sheetModule} groups={sheetGroups} onGo={go} onClose={() => setSheet(null)} />
+                ) : null}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* command palette */}
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} module={module} menuAllowed={menuAllowed} />
         <ChangePasswordDialog open={pwOpen} setOpen={setPwOpen} />
       </div>
     </TooltipProvider>
+  );
+}
+
+// ============ SHEET MOBILE: daftar semua modul + akun ============
+interface SessionUser { name: string }
+interface SessionTenant { name: string; role: string }
+
+function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, onNavigateModule, onGoSettings, sessionUser, sessionTenant, onPw, onLogout }: {
+  allowedModules: ModuleMeta[];
+  settingsGroups: NavGroup[];
+  module: ModuleId;
+  inSettings: boolean;
+  onNavigateModule: (m: ModuleId) => void;
+  onGoSettings: () => void;
+  sessionUser: SessionUser | null | undefined;
+  sessionTenant: SessionTenant | null | undefined;
+  onPw: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-stone-400">Semua Modul</p>
+      <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.035 } } }}>
+        {allowedModules.map((m) => {
+          const current = !inSettings && m.id === module;
+          return (
+            <motion.button
+              key={m.id}
+              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+              className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-stone-100 dark:hover:bg-stone-800"
+              onClick={() => onNavigateModule(m.id)}
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: m.hex }}>
+                <m.icon className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">{m.label}</span>
+              {current ? <Check className="h-4 w-4 shrink-0" style={{ color: m.hex }} /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />}
+            </motion.button>
+          );
+        })}
+        {settingsGroups.length > 0 && (
+          <motion.button
+            variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+            className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-stone-100 dark:hover:bg-stone-800"
+            onClick={onGoSettings}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-stone-400 text-white">
+              <Settings2 className="h-4 w-4" />
+            </span>
+            <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">Pengaturan Sistem</span>
+            {inSettings ? <Check className="h-4 w-4 shrink-0 text-stone-400" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />}
+          </motion.button>
+        )}
+      </motion.div>
+
+      {/* akun pengguna */}
+      <div className="mt-4 rounded-2xl border border-stone-200 p-3 dark:border-stone-800">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">
+            {sessionUser ? initials(sessionUser.name) : "?"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12px] font-bold text-stone-800 dark:text-stone-100">{sessionUser?.name ?? "—"}</p>
+            <p className="truncate text-[10px] text-stone-400">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={onPw}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 py-2 text-[11px] font-bold text-stone-600 transition hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <KeyRound className="h-3.5 w-3.5" /> Ganti Sandi
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-200 py-2 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ SHEET MOBILE: menu satu modul ============
+function ModuleMenuSheet({ m, groups, onGo, onClose }: {
+  m: ModuleMeta;
+  groups: NavGroup[];
+  onGo: (s: SectionId, v: string) => void;
+  onClose: () => void;
+}) {
+  const MIcon = m.icon;
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: m.hex }}>
+          <MIcon className="h-4 w-4" />
+        </span>
+        <p className="flex-1 text-[14px] font-extrabold text-stone-800 dark:text-stone-100">{m.label}</p>
+        <button className="rounded-full p-1.5 transition hover:bg-stone-100 dark:hover:bg-stone-800" onClick={onClose} aria-label="Tutup">
+          <X className="h-4 w-4 text-stone-400" />
+        </button>
+      </div>
+      <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}>
+        {groups.map((g, gi) => (
+          <motion.div key={`${gi}-${g.label ?? "root"}`} variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
+            {g.label ? (
+              <p className="px-2 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">{g.label}</p>
+            ) : (
+              <div className="h-1" />
+            )}
+            {g.children.map((item) => {
+              const IIcon = item.icon;
+              const c = g.section === "settings" ? SETTINGS_META.hex : m.hex;
+              return (
+                <motion.button
+                  key={item.id}
+                  variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-stone-100 dark:hover:bg-stone-800"
+                  onClick={() => onGo(g.section, item.id)}
+                >
+                  <IIcon className="h-4 w-4 shrink-0" style={{ color: c }} aria-hidden />
+                  <span className="flex-1 text-[13px] font-semibold text-stone-700 dark:text-stone-200">{item.label}</span>
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        ))}
+      </motion.div>
+    </div>
   );
 }
 
@@ -779,7 +1267,7 @@ function CommandPalette({ open, setOpen, onNavigate, module, menuAllowed }: {
                 {results.loading && <p className="px-3 py-4 text-xs text-stone-400">Mencari…</p>}
                 {results.data?.employees?.map((e) => (
                   <CommandItem key={e.id} value={e.employeeNo + e.fullName} onSelect={() => { setOpen(false); setQ(""); useNav.getState().navigate("employee", "detail", { id: e.id }); }} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{initials(e.fullName)}</div>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-[10px] font-bold text-stone-500">{initials(e.fullName)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{e.fullName}</p>
                       <p className="truncate text-[11px] text-stone-400">{e.employeeNo} · {e.position?.title ?? "—"}</p>
@@ -818,11 +1306,11 @@ function WorkspaceMenu() {
           disabled={switching}
           aria-label={`Ganti workspace — ${tenant.name}`}
           title={tenant.name}
-          className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-stone-700 transition hover:border-emerald-300 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-emerald-600/50"
+          className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-stone-700 transition hover:border-stone-300 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-stone-500"
         >
-          <Building2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <Building2 className="h-4 w-4 shrink-0 text-stone-400" />
           <span className="hidden max-w-[160px] truncate sm:inline">{tenant.name}</span>
-          <Badge className="hidden rounded-full bg-emerald-100 px-1.5 text-[9px] font-extrabold uppercase text-emerald-700 sm:inline-flex dark:bg-emerald-500/15 dark:text-emerald-300">{tenant.plan}</Badge>
+          <Badge className="hidden rounded-full bg-stone-100 px-1.5 text-[9px] font-extrabold uppercase text-stone-500 sm:inline-flex dark:bg-stone-800 dark:text-stone-400">{tenant.plan}</Badge>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-stone-400" />
         </button>
       </DropdownMenuTrigger>
