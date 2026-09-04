@@ -771,6 +771,31 @@ CREATE TABLE "AccessGroup" (
 );
 
 -- CreateTable
+CREATE TABLE "DataAccessRule" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "subjectType" TEXT NOT NULL,
+    "appUserId" TEXT,
+    "accessGroupId" TEXT,
+    "role" TEXT,
+    "companyOfficeId" TEXT,
+    "workLocationId" TEXT,
+    "orgUnitId" TEXT,
+    "positionId" TEXT,
+    "gradeId" TEXT,
+    "positionLevelId" TEXT,
+    "employmentStatus" TEXT,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DataAccessRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "AccessGroupMember" (
     "id" TEXT NOT NULL,
     "appUserId" TEXT NOT NULL,
@@ -1547,6 +1572,12 @@ CREATE UNIQUE INDEX "AppUser_username_key" ON "AppUser"("username");
 CREATE UNIQUE INDEX "AccessGroup_code_key" ON "AccessGroup"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "DataAccessRule_code_key" ON "DataAccessRule"("code");
+
+-- CreateIndex
+CREATE INDEX "DataAccessRule_subjectType_active_idx" ON "DataAccessRule"("subjectType", "active");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ApprovalTemplate_code_key" ON "ApprovalTemplate"("code");
 
 -- CreateIndex
@@ -1860,6 +1891,30 @@ ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_employeeId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "PayrollPeriod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_accessGroupId_fkey" FOREIGN KEY ("accessGroupId") REFERENCES "AccessGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_workLocationId_fkey" FOREIGN KEY ("workLocationId") REFERENCES "WorkLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_orgUnitId_fkey" FOREIGN KEY ("orgUnitId") REFERENCES "OrgUnit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_gradeId_fkey" FOREIGN KEY ("gradeId") REFERENCES "Grade"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataAccessRule" ADD CONSTRAINT "DataAccessRule_positionLevelId_fkey" FOREIGN KEY ("positionLevelId") REFERENCES "PositionLevel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccessGroupMember" ADD CONSTRAINT "AccessGroupMember_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;

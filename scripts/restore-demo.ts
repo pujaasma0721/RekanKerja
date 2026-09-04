@@ -71,6 +71,22 @@ async function main() {
     if (r.status !== 0) console.warn("[!] relink foto gagal — jalankan manual: bun run scripts/gen-employee-photos.ts");
   }
 
+  // ---------- 1d. skema akses data karyawan (Task 30) — idempoten ----------
+  // Tabel DataAccessRule + rule default (HR full access, contoh parameter
+  // Approver → unit Production). Super admin/atasan langsung otomatis mesin.
+  try {
+    const accCount = await getTenantClient(MII_SCHEMA).dataAccessRule.count();
+    if (accCount === 0) {
+      console.log("[MII] migrasi skema akses data (rule parametrik)…");
+      const r = spawnSync("bun", ["scripts/migrate-access-scope.ts"], { stdio: "inherit" });
+      if (r.status !== 0) console.warn("[!] migrasi akses gagal — jalankan manual: bun run scripts/migrate-access-scope.ts");
+    }
+  } catch {
+    // tabel belum ada — jalankan migrasi DDL
+    const r = spawnSync("bun", ["scripts/migrate-access-scope.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] migrasi akses gagal — jalankan manual: bun run scripts/migrate-access-scope.ts");
+  }
+
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");
   await ensureMembership(hrdId, mii.id, "OWNER");
 

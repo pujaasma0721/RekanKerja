@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
 // Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
+// Skema akses data (Task 30): hasil query dibatasi cakupan akses efektif
+// pengguna (super admin semua, atasan langsung bawahan, rule parametrik).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const s = await requireScoped(req);
+    if (!s.ok) return NextResponse.json({ error: s.error }, { status: s.status });
+    const db = s.db;
+    const scopeCond = scopeWhere(s.scope);
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const status = sp.get("status") ?? undefined;
@@ -36,17 +41,20 @@ export async function GET(req: NextRequest) {
     if (unit && unit !== "all") assignSome.orgUnitId = unit;
     if (Object.keys(assignSome).length > 1) where.assignments = { some: assignSome };
 
+    // gabungkan dengan cakupan skema akses (AND)
+    const scoped: Record<string, unknown> = Object.keys(scopeCond).length > 0 ? { AND: [where, scopeCond] } : where;
+
     const [employeesRaw, total, statusAgg, empStatusAgg] = await Promise.all([
       db.employee.findMany({
-        where,
+        where: scoped,
         include: CURRENT_ASSIGNMENT_INCLUDE,
         orderBy: [{ status: "asc" }, { employeeNo: "asc" }],
         take: limit,
         skip: offset,
       }),
-      db.employee.count({ where }),
-      db.employee.groupBy({ by: ["status"], _count: true }),
-      db.employeeAssignment.groupBy({ by: ["employmentStatus"], where: { validTo: null }, _count: true }),
+      db.employee.count({ where: scoped }),
+      db.employee.groupBy({ by: ["status"], where: scoped, _count: true }),
+      db.employeeAssignment.groupBy({ by: ["employmentStatus"], where: { validTo: null, employee: scoped }, _count: true }),
     ]);
 
     const employees = employeesRaw.map((e) => {

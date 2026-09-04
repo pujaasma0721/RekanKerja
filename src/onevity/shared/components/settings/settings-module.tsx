@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApi, apiSend, fmtDate, initials } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { ApprovalEngineView } from "@/onevity/shared/components/settings/approval-views";
+import { DataAccessView } from "@/onevity/shared/components/settings/data-access-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -207,7 +208,7 @@ function SecurityPage() {
       <PageHeader
         eyebrow="PENGATURAN"
         title="Keamanan & Akses"
-        description="Pengguna aplikasi, kelompok akses modul, dan matriks permission"
+        description="Pengguna aplikasi, kelompok akses modul, dan skema akses data karyawan berbasis parameter (seperti approval berjenjang)."
       />
       {loading && !data ? (
         <LoadingRows rows={5} />
@@ -221,7 +222,7 @@ function SecurityPage() {
               <Users className="h-3.5 w-3.5" /> Access Group ({data?.groups.length ?? 0})
             </TabsTrigger>
             <TabsTrigger value="scheme" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
-              <Lock className="h-3.5 w-3.5" /> Data Scheme
+              <Lock className="h-3.5 w-3.5" /> Skema Akses Data
             </TabsTrigger>
           </TabsList>
 
@@ -338,32 +339,7 @@ function SecurityPage() {
           </TabsContent>
 
           <TabsContent value="scheme">
-            <Card className="rounded-2xl border-dashed border-stone-300 bg-stone-50/50 dark:border-stone-700 dark:bg-stone-900/30">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800">
-                    <KeyRound className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Data Access Scheme (Ilustrasi)</p>
-                    <p className="text-[11px] text-stone-400">Aturan akses data berbasis struktur organisasi — seperti Scheme Setup OranHR</p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2.5">
-                  {[
-                    "HR Administrator → akses SEMUA data karyawan semua perusahaan",
-                    "Dept Head → akses karyawan di unit & sub-unit-nya saja",
-                    "Approver → akses dokumen PA yang dia approve + data karyawan terkait",
-                    "Viewer → read-only direktori tanpa data sensitif (gaji, NIK, rekening)",
-                  ].map((rule, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3.5 dark:border-stone-700 dark:bg-stone-900">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">{i + 1}</span>
-                      <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">{rule}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <DataAccessView />
           </TabsContent>
         </Tabs>
       )}

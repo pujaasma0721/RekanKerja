@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireScoped, isEmployeeInScope } from "@/onevity/shared/services/access-scope";
 import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/onevity/human-resource/services/assignment";
 
 // GET /api/onevity/employee-detail?id=
 // Response: employee (data personal + pekerjaan saat ini hasil flatten assignment aktif)
 //           + assignments[] = riwayat penempatan lengkap (terbaru → terlama)
+// Skema akses data (Task 30): detail hanya dapat diakses bila karyawan
+// masuk cakupan akses efektif pengguna (super admin / atasan / rule).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const s = await requireScoped(req);
+    if (!s.ok) return NextResponse.json({ error: s.error }, { status: s.status });
+    const db = s.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -42,6 +46,15 @@ export async function GET(req: NextRequest) {
       },
     });
     if (!employee) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+
+    // cek cakupan skema akses data — 403 bila di luar jangkauan pengguna
+    const inScope = await isEmployeeInScope(db, s.scope, employee.id);
+    if (!inScope) {
+      return NextResponse.json(
+        { error: "Akses ditolak: karyawan ini di luar skema akses data Anda. Hubungi admin workspace bila seharusnya dapat diakses." },
+        { status: 403 },
+      );
+    }
 
     // riwayat lengkap (semua periode, terbaru dulu)
     const assignments = await db.employeeAssignment.findMany({

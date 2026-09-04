@@ -53,6 +53,7 @@ model CompanyOffice {
   employees     Employee[]       @relation("EmployeeOffice")
   assignments   EmployeeAssignment[]
   approvalStructures ApprovalStructure[] @relation("StructureOffice")
+  accessRules        DataAccessRule[]    @relation("AccessRuleOffice")
 }
 
 // Lokasi kerja (site/plant) — dimensi penempatan & kriteria approval.
@@ -72,6 +73,7 @@ model WorkLocation {
   employees     Employee[]       @relation("EmployeeLocation")
   assignments   EmployeeAssignment[]
   approvalStructures ApprovalStructure[] @relation("StructureLocation")
+  accessRules        DataAccessRule[]    @relation("AccessRuleLocation")
 }
 
 // Level jabatan (Staff/Supervisor/Manager/Director…) — master terpisah dari Grade.
@@ -85,6 +87,7 @@ model PositionLevel {
   positions        Position[]
   employees        Employee[] @relation("EmployeePositionLevel")
   approvalStructures ApprovalStructure[] @relation("StructurePositionLevel")
+  accessRules        DataAccessRule[]    @relation("AccessRulePositionLevel")
 }
 
 model OrgUnit {
@@ -105,6 +108,7 @@ model OrgUnit {
   assignments EmployeeAssignment[]
   employees          Employee[]           @relation("EmployeeOrgUnit")
   approvalStructures ApprovalStructure[] @relation("StructureOrgUnit")
+  accessRules        DataAccessRule[]    @relation("AccessRuleOrgUnit")
 }
 
 // ============ POSITION DEFINITION ============
@@ -134,6 +138,7 @@ model Grade {
   assignments EmployeeAssignment[]
   employees          Employee[]           @relation("EmployeeGrade")
   approvalStructures ApprovalStructure[] @relation("StructureGrade")
+  accessRules        DataAccessRule[]    @relation("AccessRuleGrade")
 }
 
 model Position {
@@ -161,6 +166,7 @@ model Position {
   positionLevel         PositionLevel? @relation(fields: [positionLevelId], references: [id])
   employees             Employee[]     @relation("EmployeePosition")
   approvalStructures    ApprovalStructure[] @relation("StructurePosition")
+  accessRules           DataAccessRule[]    @relation("AccessRulePosition")
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverPosition")
 }
 
@@ -917,6 +923,7 @@ model AppUser {
   lastLogin  DateTime?
 
   accessGroups    AccessGroupMember[]
+  accessRules     DataAccessRule[] @relation("AccessRuleUser")
   tempApprovals   TemporaryApprover[] @relation("DelegationFrom")
   tempDelegations TemporaryApprover[] @relation("DelegationTo")
   approvalLayers  ApprovalLayer[]
@@ -931,7 +938,52 @@ model AccessGroup {
   modulesJson String // JSON array of module permissions {module, view, create, edit, delete, approve}
   createdAt   DateTime @default(now())
 
-  members AccessGroupMember[]
+  members    AccessGroupMember[]
+  accessRules DataAccessRule[] @relation("AccessRuleGroup")
+}
+
+// Skema akses data karyawan berbasis parameter (Task 30) — selaras pola
+// ApprovalStructure berjenjang. Rule mendefinisikan SIAPA (subjek) boleh
+// mengakses karyawan DENGAN penempatan tertentu (kriteria AND; semua kosong
+// = akses penuh). Akses efektif = union semua rule cocok + otomatis:
+// super admin (role Admin / platform OWNER|ADMIN) akses semua, atasan
+// langsung akses bawahan aktif, dan setiap user akses data dirinya.
+model DataAccessRule {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+
+  // subjek pemegang hak akses
+  subjectType   String // ROLE | USER | ACCESS_GROUP
+  appUserId     String?
+  accessGroupId String?
+  role          String? // utk subjectType ROLE: Admin|HR Manager|HR Staff|Approver|Viewer
+
+  // kriteria penempatan karyawan sasaran (semua terisi = AND)
+  companyOfficeId String?
+  workLocationId  String?
+  orgUnitId       String?
+  positionId      String?
+  gradeId         String?
+  positionLevelId String?
+  employmentStatus String? // Permanent|Contract|Probation|Outsourcing
+
+  priority  Int      @default(100)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appUser       AppUser?       @relation("AccessRuleUser", fields: [appUserId], references: [id])
+  accessGroup   AccessGroup?  @relation("AccessRuleGroup", fields: [accessGroupId], references: [id])
+  companyOffice CompanyOffice? @relation("AccessRuleOffice", fields: [companyOfficeId], references: [id])
+  workLocation  WorkLocation?  @relation("AccessRuleLocation", fields: [workLocationId], references: [id])
+  orgUnit       OrgUnit?       @relation("AccessRuleOrgUnit", fields: [orgUnitId], references: [id])
+  position      Position?      @relation("AccessRulePosition", fields: [positionId], references: [id])
+  grade         Grade?         @relation("AccessRuleGrade", fields: [gradeId], references: [id])
+  positionLevel PositionLevel? @relation("AccessRulePositionLevel", fields: [positionLevelId], references: [id])
+
+  @@index([subjectType, active])
 }
 
 model AccessGroupMember {
