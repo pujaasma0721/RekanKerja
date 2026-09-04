@@ -61,6 +61,16 @@ async function main() {
     if (r.status !== 0) console.warn("[!] migrasi approval gagal — jalankan manual: bun run scripts/migrate-approval-structure.ts");
   }
 
+  // ---------- 1c. relink foto karyawan (Task 26) — file ada di public/avatars
+  // (git-tracked, selamat dari reset), tapi photoUrl DB hilang saat re-seed.
+  // Skrip idempoten: file existing di-skip, hanya update kolom photoUrl.
+  const miiNoPhoto = await getTenantClient(MII_SCHEMA).employee.count({ where: { photoUrl: null } });
+  if (miiNoPhoto > 0) {
+    console.log(`[MII] relink foto karyawan (${miiNoPhoto} tanpa photoUrl)…`);
+    const r = spawnSync("bun", ["scripts/gen-employee-photos.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] relink foto gagal — jalankan manual: bun run scripts/gen-employee-photos.ts");
+  }
+
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");
   await ensureMembership(hrdId, mii.id, "OWNER");
 
