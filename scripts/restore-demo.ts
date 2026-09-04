@@ -98,6 +98,15 @@ async function main() {
     if (r.status !== 0) console.warn("[!] migrasi menu akses gagal — jalankan manual: bun run scripts/migrate-user-menu-access.ts");
   }
 
+  // ---------- 1f. kebijakan kata sandi + lockout (Task 33) — idempoten ----------
+  // Tabel PasswordPolicy + PasswordHistory + kolom AppUser.passwordChangedAt +
+  // kolom lockout platform User + seed policy default + riwayat awal akun demo.
+  {
+    console.log("[all] migrasi kebijakan kata sandi…");
+    const r = spawnSync("bun", ["scripts/migrate-password-security.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] migrasi sandi gagal — jalankan manual: bun run scripts/migrate-password-security.ts");
+  }
+
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");
   await ensureMembership(hrdId, mii.id, "OWNER");
 

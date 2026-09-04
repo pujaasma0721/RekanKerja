@@ -1,10 +1,12 @@
 "use client";
-// OneVity — Modul Pengaturan: master data lookup, security & akses (per pengguna), approval engine
+// OneVity — Modul Pengaturan: master data lookup, security & akses (per
+// pengguna: pengguna + kebijakan kata sandi + hak akses), approval engine
 import { useState } from "react";
 import { useApi, apiSend, fmtDate, initials } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { ApprovalEngineView } from "@/onevity/shared/components/settings/approval-views";
 import { UserAccessView } from "@/onevity/shared/components/settings/user-access-view";
+import { PasswordPolicyPanel, UsersPanel } from "@/onevity/shared/components/settings/user-security-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Layers, ShieldCheck, CheckCircle2, Plus, Pencil, Trash2, UserCog, KeyRound,
+  Layers, ShieldCheck, CheckCircle2, Plus, Pencil, Trash2, UserCog, KeyRound, FileKey,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -185,165 +187,47 @@ function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpe
 }
 
 // ================= SECURITY =================
-interface AppUserData {
-  users: { id: string; username: string; fullName: string; email: string | null; role: string; active: boolean; lastLogin: string | null }[];
-}
 
 function SecurityPage() {
-  const { data, loading, refresh } = useApi<AppUserData>("/api/onevity/app-users");
   const [tab, setTab] = useState("users");
   const [focusUser, setFocusUser] = useState<string | null>(null);
-  const [userDialog, setUserDialog] = useState<{ open: boolean; user: AppUserData["users"][number] | null }>({ open: false, user: null });
 
-  const roleTone: Record<string, string> = {
-    Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
-    "HR Manager": "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400",
-    Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
-    Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
-  };
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400";
 
   return (
     <div>
       <PageHeader
         eyebrow="PENGATURAN"
         title="Keamanan & Akses"
-        description="Pengguna aplikasi dan hak aksesnya — akses menu & data karyawan diatur per pengguna (bukan per grup); super admin dan atasan langsung otomatis tanpa setting."
+        description="Pengguna aplikasi & kebijakan kata sandi (tambah pengguna, validasi sandi, umur, riwayat, lockout) + hak akses menu & data per pengguna — super admin dan atasan langsung otomatis tanpa setting."
       />
-      {loading && !data ? (
-        <LoadingRows rows={5} />
-      ) : (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="users" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
-              <UserCog className="h-3.5 w-3.5" /> Pengguna ({data?.users.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger value="access" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
-              <KeyRound className="h-3.5 w-3.5" /> Hak Akses per Pengguna
-            </TabsTrigger>
-          </TabsList>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+          <TabsTrigger value="users" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
+            <UserCog className="h-3.5 w-3.5" /> Pengguna
+          </TabsTrigger>
+          <TabsTrigger value="policy" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
+            <FileKey className="h-3.5 w-3.5" /> Kebijakan Kata Sandi
+          </TabsTrigger>
+          <TabsTrigger value="access" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
+            <KeyRound className="h-3.5 w-3.5" /> Hak Akses per Pengguna
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="users">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                        <TableHead className="text-[11px] font-bold">Pengguna</TableHead>
-                        <TableHead className="text-[11px] font-bold">Username</TableHead>
-                        <TableHead className="text-[11px] font-bold">Role</TableHead>
-                        <TableHead className="text-[11px] font-bold">Login Terakhir</TableHead>
-                        <TableHead className="text-[11px] font-bold">Status</TableHead>
-                        <TableHead className="w-24" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(data?.users ?? []).map((u) => (
-                        <TableRow key={u.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                          <TableCell>
-                            <div className="flex items-center gap-2.5">
-                              <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400")}>{initials(u.fullName)}</span>
-                              <div>
-                                <p className="text-[13px] font-bold">{u.fullName}</p>
-                                <p className="text-[10px] text-stone-400">{u.email ?? "—"}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-[11px] font-bold text-stone-500">{u.username}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={cn("text-[10px] font-bold", roleTone[u.role] ?? "")}>{u.role}</Badge>
-                          </TableCell>
-                          <TableCell className="text-xs text-stone-500">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "Belum pernah"}</TableCell>
-                          <TableCell><StatusPill status={u.active ? "Active" : "Cancelled"} /></TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => { setFocusUser(u.id); setTab("access"); }}
-                                className="rounded-lg p-1.5 text-stone-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
-                                aria-label={`Atur hak akses ${u.fullName}`}
-                                title="Atur hak akses (menu & data)"
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                              </button>
-                              <button onClick={() => setUserDialog({ open: true, user: u })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit user">
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        <TabsContent value="users">
+          <UsersPanel
+            onConfigureAccess={(userId) => { setFocusUser(userId); setTab("access"); }}
+          />
+        </TabsContent>
 
-          <TabsContent value="access">
-            <UserAccessView focusUserId={focusUser} onFocusConsumed={() => setFocusUser(null)} />
-          </TabsContent>
-        </Tabs>
-      )}
+        <TabsContent value="policy">
+          <PasswordPolicyPanel />
+        </TabsContent>
 
-      <UserDialog open={userDialog.open} user={userDialog.user} onClose={() => { setUserDialog({ open: false, user: null }); refresh(); }} />
+        <TabsContent value="access">
+          <UserAccessView focusUserId={focusUser} onFocusConsumed={() => setFocusUser(null)} />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function UserDialog({ open, user, onClose }: { open: boolean; user: AppUserData["users"][number] | null; onClose: () => void }) {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Viewer");
-  const [busy, setBusy] = useState(false);
-  const [key, setKey] = useState("");
-
-  const uKey = user?.id ?? "none";
-  if (key !== uKey) {
-    setKey(uKey);
-    setFullName(user?.fullName ?? ""); setEmail(user?.email ?? "");
-    setRole(user?.role ?? "Viewer");
-  }
-
-  const submit = async () => {
-    if (!fullName.trim()) { toast.error("Nama wajib diisi"); return; }
-    setBusy(true);
-    try {
-      await apiSend("/api/onevity/app-users", "PATCH", { id: user!.id, fullName, email, role });
-      toast.success("User diperbarui");
-      onClose();
-    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
-  };
-
-  if (!user) return null;
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="text-base">Edit User — {user.username}</DialogTitle></DialogHeader>
-        <div className="space-y-3.5">
-          <div>
-            <Label className="text-xs">Nama Lengkap</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1.5" />
-          </div>
-          <div>
-            <Label className="text-xs">Email</Label>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" />
-          </div>
-          <div>
-            <Label className="text-xs">Role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["Admin", "HR Manager", "HR Staff", "Approver", "Viewer"].map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-[11px] leading-relaxed text-stone-400">Hak akses menu &amp; data karyawan diatur per pengguna di tab <b>Hak Akses per Pengguna</b>.</p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} disabled={busy} className="bg-emerald-600 font-bold hover:bg-emerald-700">{busy ? "Menyimpan…" : "Simpan"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

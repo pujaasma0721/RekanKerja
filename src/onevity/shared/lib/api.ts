@@ -43,7 +43,13 @@ export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" |
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+  if (!res.ok) {
+    // Task 33: error boleh membawa details[] (daftar aturan kebijakan sandi yang gagal)
+    const err = new Error((json as { error?: string }).error ?? `HTTP ${res.status}`) as Error & { details?: string[] };
+    const details = (json as { details?: unknown }).details;
+    if (Array.isArray(details)) err.details = details.map(String);
+    throw err;
+  }
   return json as T;
 }
 

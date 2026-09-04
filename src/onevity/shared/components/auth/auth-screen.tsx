@@ -327,7 +327,9 @@ export function AuthScreen() {
                           aria-invalid={isInvalid("reg-password")}
                           aria-describedby={describedBy("reg-password", "register-error")}
                         />
-                        <p className="text-xs text-stone-500 dark:text-stone-400">Minimal 8 karakter.</p>
+                        <p className="text-xs text-stone-500 dark:text-stone-400">
+                          Minimal 8 karakter — kombinasi huruf besar, huruf kecil, angka &amp; karakter khusus.
+                        </p>
                       </div>
 
                       {shownError && <FormError id="register-error" message={shownError} />}

@@ -1,12 +1,14 @@
 "use client";
 // OneVity App Shell — obsidian sidebar (module dropdown + nav per modul) + topbar + command palette
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
 import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
+import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -21,7 +23,7 @@ import {
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
   Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
-  Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
+  Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent, KeyRound,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp,
 } from "lucide-react";
@@ -193,10 +195,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { section, view, params, module, navigate, setModule, syncFromUrl } = useNav();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false); // dialog Ganti Kata Sandi (Task 33)
   const session = useSession();
   const sessionUser = session.info?.user;
   const sessionTenant = session.info?.tenant;
   const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; benefitPendingClaims: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
+
+  // Task 33: peringatan umur kata sandi (kedaluwarsa / segera) — sekali per user
+  const pwWarnedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const pw = session.info?.password;
+    const uid = session.info?.user?.id;
+    if (!pw || !uid || pwWarnedFor.current === uid) return;
+    pwWarnedFor.current = uid;
+    if (pw.expired) {
+      toast.error("Kata sandi Anda kedaluwarsa. Silakan ganti lewat tombol kunci di bagian bawah sidebar.", { duration: 9000 });
+    } else if (pw.warn) {
+      toast.warning(`Kata sandi Anda ${pw.label.toLowerCase()} — pertimbangkan menggantinya (tombol kunci di sidebar).`, { duration: 7000 });
+    }
+  }, [session.info]);
 
   // ===== hak aksi MENU per pengguna (Task 31 + 32) =====
   // ALL (default/super admin) → semua menu & seluruh aksi; CUSTOM → hanya
@@ -509,6 +526,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-[10px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
               </div>
               <button
+                onClick={() => setPwOpen(true)}
+                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-emerald-300"
+                aria-label="Ganti kata sandi"
+                title="Ganti kata sandi"
+              >
+                <KeyRound className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => void session.logout()}
                 className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-rose-300"
                 aria-label="Keluar dari sesi"
@@ -635,6 +660,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* command palette */}
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} onNavigate={go} module={module} menuAllowed={menuAllowed} />
+        <ChangePasswordDialog open={pwOpen} setOpen={setPwOpen} />
       </div>
     </TooltipProvider>
   );

@@ -37,6 +37,10 @@ model User {
   name         String
   passwordHash String // scrypt: salt+hash (node:crypto)
   isSuperadmin Boolean  @default(false)
+  // Lockout login (Task 33): hitungan percobaan gagal + kunci sementara.
+  // Batas & durasi dikonfigurasi per tenant (PasswordPolicy) — default 5x/15m.
+  failedAttempts Int     @default(0)
+  lockedUntil    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -5,10 +5,13 @@ import {
 } from "@/onevity/shared/lib/auth";
 import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/onevity/shared/lib/provisioning";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { validatePassword } from "@/onevity/shared/lib/password-policy";
 
 // POST /api/auth/register — daftar + BUAT WORKSPACE BARU (self-service SaaS):
 // validasi → slug unik → provision schema PostgreSQL tenant_<slug> (DDL + seed referensi)
 // → Tenant + User(owner) + UserTenant → session cookie.
+// Task 33: kata sandi owner baru divalidasi KEBIJAKAN DEFAULT (kompleksitas
+// lengkap — sama aturan dengan menu Keamanan & Akses).
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
@@ -20,7 +23,10 @@ export async function POST(req: NextRequest) {
     if (workspaceName.length < 3) return NextResponse.json({ error: "Nama workspace minimal 3 karakter" }, { status: 400 });
     if (fullName.length < 2) return NextResponse.json({ error: "Nama lengkap wajib diisi" }, { status: 400 });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
-    if (password.length < 8) return NextResponse.json({ error: "Kata sandi minimal 8 karakter" }, { status: 400 });
+    const pv = validatePassword({}, password, { username: email.split("@")[0], fullName, email });
+    if (!pv.ok) {
+      return NextResponse.json({ error: `Kata sandi belum memenuhi syarat: ${pv.errors.join("; ")}` }, { status: 400 });
+    }
 
     const clash = await db.user.findUnique({ where: { email }, select: { id: true } });
     if (clash) return NextResponse.json({ error: "Email sudah terdaftar — silakan masuk" }, { status: 400 });

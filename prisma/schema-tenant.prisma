@@ -921,6 +921,9 @@ model AppUser {
   employeeId String? // linked employee
   active     Boolean   @default(true)
   lastLogin  DateTime?
+  // Umur kata sandi (Task 33): kapan terakhir disetel/reset — dasar hitungan
+  // kedaluwarsa (PasswordPolicy.lifetimeDays). Hash sandi tetap di platform User.
+  passwordChangedAt DateTime?
 
   accessGroups    AccessGroupMember[]
   accessRules     DataAccessRule[] @relation("AccessRuleUser")
@@ -929,6 +932,59 @@ model AppUser {
   approvalLayers  ApprovalLayer[]
   activities      ActivityLog[]
   menuAccess      UserMenuAccess? @relation("UserMenuAccess")
+  passwordHistory PasswordHistory[] @relation("PasswordHistory")
+}
+
+// Kebijakan kata sandi per tenant (Task 33) — aturan validasi SANDI BARU saat
+// admin menambah pengguna / reset / pengguna mengganti sendiri + umur &
+// riwayat + lockout login. Singleton: satu baris aktif (active=true).
+model PasswordPolicy {
+  id     String  @id @default(cuid())
+  active Boolean @default(true)
+
+  // ---- kompleksitas ----
+  minLength        Int     @default(8)
+  maxLength        Int     @default(64)
+  requireUppercase Boolean @default(true)
+  requireLowercase Boolean @default(true)
+  requireNumber    Boolean @default(true)
+  requireSpecial   Boolean @default(true)
+  minUniqueChars   Int     @default(4)  // jumlah karakter unik minimum
+  maxRepeated      Int     @default(3)  // maksimum karakter sama berturut-turut (aaa)
+  maxSequential    Int     @default(3)  // maksimum urutan naik/turun (abc / 321)
+  blockUsername    Boolean @default(true) // sandi tidak boleh mengandung username
+  blockName        Boolean @default(true) // ... nama depan/belakang (>=3 huruf)
+  blockCommon      Boolean @default(true) // daftar kata sandi umum + brand
+
+  // ---- umur (lifetime) ----
+  lifetimeDays Int @default(90) // 0 = tidak pernah kedaluwarsa
+  warnDays     Int @default(7)  // mulai peringatan N hari sebelum kedaluwarsa
+
+  // ---- riwayat ----
+  historyCount Int @default(6) // sandi baru tidak boleh sama dengan N terakhir
+
+  // ---- percobaan login gagal ----
+  maxFailedAttempts Int @default(5)
+  lockoutMinutes    Int @default(15)
+
+  updatedById String? // AppUser admin terakhir menyimpan
+  updatedAt   DateTime @updatedAt
+}
+
+// Riwayat kata sandi per pengguna aplikasi (Task 33) — hash N terakhir untuk
+// larangan pakai ulang ("tidak boleh sama dengan 6 password terakhir").
+// Baris = setiap kali sandi disetel (create/reset/change); dipangkas ke
+// policy.historyCount terbaru.
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  appUserId String
+  hash      String // scrypt salt+hash — sama format platform User.passwordHash
+  setAt     DateTime @default(now())
+  setById   String? // AppUser admin yang mereset (null = ganti sendiri)
+
+  appUser AppUser @relation("PasswordHistory", fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@index([appUserId, setAt])
 }
 
 model AccessGroup {

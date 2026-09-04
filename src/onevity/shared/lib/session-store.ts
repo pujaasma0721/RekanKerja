@@ -17,10 +17,18 @@ export interface SessionTenant {
   plan: string;
   role: string;
 }
+export interface SessionPasswordStatus {
+  expired: boolean;
+  remainingDays: number | null;
+  warn: boolean;
+  label: string;
+}
 export interface SessionInfo {
   user: SessionUser;
   tenant: SessionTenant | null;
   workspaces: SessionTenant[];
+  /** status umur kata sandi (Task 33) — opsional, best-effort dari /api/auth/me */
+  password?: SessionPasswordStatus;
 }
 export type SessionStatus = "loading" | "anonymous" | "select-tenant" | "ready";
 
