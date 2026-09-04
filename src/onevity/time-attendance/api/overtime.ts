@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
 import { overtimePayFor } from "@/onevity/time-attendance/services/attendance-service";
 
@@ -56,10 +57,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — ajukan perintah lembur (Plan). Guard VIEWER + aktor sesi (requireMutator).
+// POST — ajukan perintah lembur (Plan). Guard VIEWER + aktor sesi.
+// Task 32-d: guard hak AKSI menu — create pada attendance:overtime (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "attendance:overtime", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const res = await submitOvertimeOrder(m.db, {
@@ -77,11 +79,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — approve | reject | verify | cancel. Guard VIEWER + aktor sesi (requireMutator);
+// PATCH — approve | reject | verify | cancel. Guard VIEWER + aktor sesi;
 // approve tanggal masa depan ditolak 400 (fix M-7).
+// Task 32-d: guard hak AKSI menu — op:approve pada attendance:overtime (per pengguna).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "attendance:overtime", "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });

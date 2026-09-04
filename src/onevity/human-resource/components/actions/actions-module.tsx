@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate, fmtDateTime, fmtIDR, initials, avatarColor, paTypeLabelSafe } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows, PA_TYPES } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ interface PA {
 // ================= INBOX =================
 function ApprovalInbox() {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const { data, loading, refresh } = useApi<{ actions: PA[] }>("/api/onevity/personnel-actions?mine=1");
   const [decision, setDecision] = useState<{ pa: PA; act: "approve" | "reject" } | null>(null);
 
@@ -92,12 +94,16 @@ function ApprovalInbox() {
                       <p className="text-[10px] font-bold text-stone-400">Layer {a.currentLayer}/{a.layers.length} — {pendingLayer?.approverRole}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => setDecision({ pa: a, act: "approve" })} className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setDecision({ pa: a, act: "reject" })} className="gap-1.5 border-rose-200 font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400">
-                        <XCircle className="h-3.5 w-3.5" /> Tolak
-                      </Button>
+                      {perms.canOp("hr", "inbox", "approve") && (
+                        <>
+                          <Button size="sm" onClick={() => setDecision({ pa: a, act: "approve" })} className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setDecision({ pa: a, act: "reject" })} className="gap-1.5 border-rose-200 font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400">
+                            <XCircle className="h-3.5 w-3.5" /> Tolak
+                          </Button>
+                        </>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => navigate("actions", "inbox", { id: a.id })} className="px-2" aria-label="Detail">
                         <ChevronRight className="h-4 w-4" />
                       </Button>
@@ -129,6 +135,7 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
   onClose: () => void;
   onConfirm: (note: string) => Promise<void>;
 }) {
+  const perms = useMenuPerms();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   if (!decision) return null;
@@ -153,13 +160,15 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { setNote(""); onClose(); }}>Batal</Button>
-          <Button
-            onClick={async () => { setBusy(true); await onConfirm(note); setBusy(false); setNote(""); }}
-            disabled={busy}
-            className={cn("font-bold", isApprove ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
-          >
-            {busy ? "Memproses…" : isApprove ? "Ya, Setujui" : "Ya, Tolak"}
-          </Button>
+          {perms.canOp("hr", "inbox", "approve") && (
+            <Button
+              onClick={async () => { setBusy(true); await onConfirm(note); setBusy(false); setNote(""); }}
+              disabled={busy}
+              className={cn("font-bold", isApprove ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
+            >
+              {busy ? "Memproses…" : isApprove ? "Ya, Setujui" : "Ya, Tolak"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -169,6 +178,7 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
 // ================= ALL DOCUMENTS =================
 function AllDocuments() {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [type, setType] = useState("all");
@@ -201,9 +211,11 @@ function AllDocuments() {
         title="Semua Pengajuan"
         description="Riwayat lengkap pengajuan karyawan (Personnel Action) — 12 jenis aksi"
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
-            <Plus className="h-4 w-4" /> Pengajuan Baru
-          </Button>
+          perms.can("hr", "all", "create") && (
+            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+              <Plus className="h-4 w-4" /> Pengajuan Baru
+            </Button>
+          )
         }
       />
 
@@ -493,6 +505,7 @@ interface PADetail {
 
 function ActionDetail() {
   const { params, navigate, setParams } = useNav();
+  const perms = useMenuPerms();
   const { data, loading, refresh } = useApi<PADetail>(params.id ? `/api/onevity/personnel-actions/${params.id}` : null);
   const [decision, setDecision] = useState<{ act: "approve" | "reject" } | null>(null);
   const [confirmAct, setConfirmAct] = useState<string | null>(null);
@@ -675,7 +688,7 @@ function ActionDetail() {
                   <ActionButton icon={Ban} label="Batalkan Dokumen" tone="stone" onClick={() => setConfirmAct("cancel")} desc="Dokumen dibatalkan & tidak diproses" />
                 </>
               )}
-              {canApprove && (
+              {canApprove && perms.canOp("hr", "inbox", "approve") && (
                 <>
                   <ActionButton icon={CheckCircle2} label="Setujui Layer Ini" tone="emerald" onClick={() => setDecision({ act: "approve" })} desc={`Menyetujui sebagai layer ${a.currentLayer}`} />
                   <ActionButton icon={XCircle} label="Tolak Dokumen" tone="rose" onClick={() => setDecision({ act: "reject" })} desc="Dokumen ditolak pada layer ini" />

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 export function PayrollRunsPage() {
   const { navigate, params } = useNav();
+  const perms = useMenuPerms();
   const [periodFilter, setPeriodFilter] = useState(params.period ?? "all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
@@ -62,9 +64,11 @@ export function PayrollRunsPage() {
         title="Proses & Hasil Payroll"
         description="Satu period dapat diproses berkali-kali (gaji, THR, bonus) — tiap run menyimpan snapshot hasil per karyawan"
         actions={
-          <Button onClick={() => setOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
-            <Plus className="h-4 w-4" /> Proses Payroll Baru
-          </Button>
+          perms.can("payroll", "runs", "create") && (
+            <Button onClick={() => setOpen(true)} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+              <Plus className="h-4 w-4" /> Proses Payroll Baru
+            </Button>
+          )
         }
       />
 
@@ -137,19 +141,23 @@ export function PayrollRunsPage() {
                       <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
-                          {(r.status === "Draft" || r.status === "Calculated") && (
+                          {(r.status === "Draft" || r.status === "Calculated") && perms.canOp("payroll", "runs", "calculate") && (
                             <RunActionButton icon={Calculator} label={busyId === r.id ? "…" : "Hitung"} tone="sky" disabled={busyId === r.id} onClick={() => act(r, "calculate")} />
                           )}
-                          {r.status === "Calculated" && (
+                          {r.status === "Calculated" && perms.canOp("payroll", "runs", "confirm") && (
                             <RunActionButton icon={CheckCircle2} label="Konfirmasi" tone="emerald" disabled={busyId === r.id} onClick={() => act(r, "confirm")} />
                           )}
                           {r.status === "Confirmed" && (
                             <>
-                              <RunActionButton icon={Wallet} label="Dibayar" tone="teal" disabled={busyId === r.id} onClick={() => act(r, "markPaid")} />
-                              <BankExportMenu runId={r.id} runNo={r.runNo} compact />
+                              {perms.canOp("payroll", "runs", "markPaid") && (
+                                <RunActionButton icon={Wallet} label="Dibayar" tone="teal" disabled={busyId === r.id} onClick={() => act(r, "markPaid")} />
+                              )}
+                              {perms.canOp("payroll", "runs", "export") && (
+                                <BankExportMenu runId={r.id} runNo={r.runNo} compact />
+                              )}
                             </>
                           )}
-                          {(r.status === "Draft" || r.status === "Calculated") && (
+                          {(r.status === "Draft" || r.status === "Calculated") && perms.canOp("payroll", "runs", "cancel") && (
                             <RunActionButton icon={Trash2} label="" tone="rose" disabled={busyId === r.id} onClick={() => act(r, "cancel")} />
                           )}
                           <RunActionButton icon={ChevronRight} label="" tone="stone" disabled={false} onClick={() => navigate("payroll", "run", { id: r.id })} />

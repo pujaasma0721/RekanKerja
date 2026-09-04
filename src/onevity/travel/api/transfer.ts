@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMutator } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { transferClaimsToPayroll } from "@/onevity/travel/services/travel-service";
 
 // POST /api/onevity/travel/transfer — klaim Approved → komponen UTRP/TRVSTLIN
@@ -8,7 +8,8 @@ import { transferClaimsToPayroll } from "@/onevity/travel/services/travel-servic
 // aktor sesi nyata tercatat di ActivityLog transfer.
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 32-d: guard hak AKSI menu — op:transfer pada travel:travel-claim-approval (per pengguna).
+    const m = await requireMenuAction(req, "travel:travel-claim-approval", "op:transfer");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.periodId) return NextResponse.json({ error: "periodId wajib" }, { status: 400 });

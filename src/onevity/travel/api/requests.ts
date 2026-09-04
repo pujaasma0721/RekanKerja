@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelRequests, submitTravelRequest, decideTravelRequest } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/requests?status=&employeeId= — daftar permintaan
@@ -30,10 +31,11 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ajukan permintaan travel (destinasi multi-kaki + uang muka).
-// Task 25: requireMutator — identitas pengaju tercatat pada jalur approval berjenjang.
+// Task 25: guard mutasi — identitas pengaju tercatat pada jalur approval berjenjang.
+// Task 32-d: guard hak AKSI menu — create pada menu travel:travel-request (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "travel:travel-request", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const b = await req.json();
@@ -68,17 +70,22 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — keputusan approval (padanan Operation: Approve | Reject | Cancel).
-// 24-FIX-TRAVEL #7: guard mutasi requireMutator — role VIEWER ditolak (403) dan
+// 24-FIX-TRAVEL #7: guard mutasi — role VIEWER ditolak (403) dan
 // identitas approver NYATA dari sesi (AppUser tenant → fallback platform userId)
 // dicatat ke decidedById (sebelumnya selalu NULL).
+// Task 32-d: guard hak AKSI menu per pengguna — approve/reject → op:approve pada
+// travel:travel-approval; cancel → op:cancel pada travel:travel-request.
+// Body dibaca SEKALI sebelum guard (aksi menentukan menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
+    const m = b.action === "cancel"
+      ? await requireMenuAction(req, "travel:travel-request", "op:cancel")
+      : await requireMenuAction(req, "travel:travel-approval", "op:approve");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const res = await decideTravelRequest(m.db, {
       id: String(b.id),
       action: b.action,

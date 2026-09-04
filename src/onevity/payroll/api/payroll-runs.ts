@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
@@ -29,10 +30,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/payroll-runs — buat run baru (Draft)
+// Task 32-d: guard hak AKSI menu — create pada payroll:runs (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:runs", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.periodId || !b.processTypeId) {
@@ -77,15 +80,25 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid | cancel
+// Task 32-d: guard hak AKSI menu per pengguna — op:calculate / op:confirm /
+// op:markPaid / op:cancel pada payroll:runs. Body dibaca SEKALI sebelum guard
+// (aksi menentukan op menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
-    // Guard mutasi (audit C-02): VIEWER ditolak 403; aktor sesi nyata untuk jejak.
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const { db, actor } = m;
-
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
+    if (!["calculate", "confirm", "markPaid", "cancel"].includes(b.action)) {
+      return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
+    }
+    const m = b.action === "calculate"
+      ? await requireMenuAction(req, "payroll:runs", "op:calculate")
+      : b.action === "confirm"
+        ? await requireMenuAction(req, "payroll:runs", "op:confirm")
+        : b.action === "markPaid"
+          ? await requireMenuAction(req, "payroll:runs", "op:markPaid")
+          : await requireMenuAction(req, "payroll:runs", "op:cancel");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
     const run = await db.payrollRun.findUnique({ where: { id: b.id } });
     if (!run) return NextResponse.json({ error: "Run tidak ditemukan" }, { status: 404 });
 
@@ -142,10 +155,12 @@ export async function PATCH(req: NextRequest) {
 }
 
 // DELETE /api/onevity/payroll-runs?id= — hanya Draft/Calculated
+// Task 32-d: guard hak AKSI menu — delete pada payroll:runs (per pengguna).
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:runs", "delete");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

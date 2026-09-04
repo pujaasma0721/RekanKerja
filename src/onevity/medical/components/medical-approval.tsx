@@ -4,6 +4,7 @@
 // saldo used bertambah) + Transfer Sisa Saldo CASH → payroll UMC.
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const ACTION_META: Record<Action, { title: string; label: string; tone: string; 
 };
 
 export function MedicalApprovalPage() {
+  const perms = useMenuPerms();
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<Action>("approve");
@@ -208,25 +210,33 @@ export function MedicalApprovalPage() {
               <div className="flex flex-wrap items-center gap-1.5">
                 {(c.state === "Submitted" || c.state === "Returned") && (
                   <>
-                    <Button size="sm" onClick={() => openDialog("approve", c)} className="h-8 bg-emerald-600 hover:bg-emerald-700">
-                      <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Setujui
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openDialog("return", c)} className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400">
-                      <History className="mr-1 h-3.5 w-3.5" /> Kembalikan
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400">
-                      <XCircle className="mr-1 h-3.5 w-3.5" /> Tolak
-                    </Button>
+                    {perms.canOp("medical", "medical-approval", "approve") && (
+                      <>
+                        <Button size="sm" onClick={() => openDialog("approve", c)} className="h-8 bg-emerald-600 hover:bg-emerald-700">
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Setujui
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openDialog("return", c)} className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400">
+                          <History className="mr-1 h-3.5 w-3.5" /> Kembalikan
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400">
+                          <XCircle className="mr-1 h-3.5 w-3.5" /> Tolak
+                        </Button>
+                      </>
+                    )}
                   </>
                 )}
                 {c.state === "Approved" && (
                   <>
-                    <Button size="sm" onClick={() => openDialog("settle", c)} className="h-8 bg-teal-600 hover:bg-teal-700">
-                      <Landmark className="mr-1 h-3.5 w-3.5" /> Settle & Jurnal
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openDialog("cancel", c)} className="h-8">
-                      <Ban className="mr-1 h-3.5 w-3.5" /> Batalkan
-                    </Button>
+                    {perms.canOp("medical", "medical-approval", "settle") && (
+                      <Button size="sm" onClick={() => openDialog("settle", c)} className="h-8 bg-teal-600 hover:bg-teal-700">
+                        <Landmark className="mr-1 h-3.5 w-3.5" /> Settle & Jurnal
+                      </Button>
+                    )}
+                    {perms.canOp("medical", "medical-claim", "cancel") && (
+                      <Button size="sm" variant="outline" onClick={() => openDialog("cancel", c)} className="h-8">
+                        <Ban className="mr-1 h-3.5 w-3.5" /> Batalkan
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -292,9 +302,15 @@ export function MedicalApprovalPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Batal</Button>
-            <Button onClick={run} disabled={busy} className={actionMeta.tone}>
-              {busy ? "Memproses…" : actionMeta.label}
-            </Button>
+            {(action === "settle"
+              ? perms.canOp("medical", "medical-approval", "settle")
+              : action === "cancel"
+                ? perms.canOp("medical", "medical-claim", "cancel")
+                : perms.canOp("medical", "medical-approval", "approve")) && (
+              <Button onClick={run} disabled={busy} className={actionMeta.tone}>
+                {busy ? "Memproses…" : actionMeta.label}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

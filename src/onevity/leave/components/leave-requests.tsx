@@ -3,6 +3,7 @@
 // hari kerja dihitung dari jadwal absensi, saldo & HP kembali kerja otomatis.
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ interface PreviewResult {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function LeaveRequestsPage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState(false);
@@ -113,16 +115,18 @@ export function LeaveRequestsPage() {
         title="Permintaan Cuti"
         description="Pengajuan cuti dengan hitungan otomatis — hari kerja dari jadwal absensi, saldo saat ini, sisa saldo & tanggal kembali kerja"
         actions={
-          <Button onClick={() => {
-            setForm({
-              employeeId: typesApi.data?.employees[0]?.id ?? "", leaveTypeId: (typesApi.data?.types ?? []).find((t) => t.code === "CT-THN")?.id ?? typesApi.data?.types[0]?.id ?? "",
-              dateFrom: todayISO(), sessionFrom: "AM", dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
-            });
-            setPreview(null);
-            setDialog(true);
-          }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
-            <Plus className="h-4 w-4" /> Ajukan Cuti
-          </Button>
+          perms.can("leave", "leave-request", "create") && (
+            <Button onClick={() => {
+              setForm({
+                employeeId: typesApi.data?.employees[0]?.id ?? "", leaveTypeId: (typesApi.data?.types ?? []).find((t) => t.code === "CT-THN")?.id ?? typesApi.data?.types[0]?.id ?? "",
+                dateFrom: todayISO(), sessionFrom: "AM", dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
+              });
+              setPreview(null);
+              setDialog(true);
+            }} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+              <Plus className="h-4 w-4" /> Ajukan Cuti
+            </Button>
+          )
         }
       />
 
@@ -208,7 +212,7 @@ export function LeaveRequestsPage() {
                       </TableCell>
                       <TableCell><StatusPill status={r.status === "Submitted" ? "Submitted" : r.status === "Approved" || r.status === "MassLeave" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Cancelled"} /></TableCell>
                       <TableCell>
-                        {r.status === "Submitted" && (
+                        {r.status === "Submitted" && perms.canOp("leave", "leave-request", "cancel") && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => cancelRequest(r)} title="Batalkan">
                             <Ban className="h-3.5 w-3.5 text-stone-400" />
                           </Button>

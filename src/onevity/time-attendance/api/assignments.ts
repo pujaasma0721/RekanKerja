@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 const ASSIGNMENT_INCLUDE = {
   employee: { select: { employeeNo: true, fullName: true, status: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
@@ -35,10 +36,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — assign jadwal ke karyawan (menutup assignment lama bila tumpang tindih)
+// Task 32-d: guard hak AKSI menu — create pada attendance:assignment-schedule (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "attendance:assignment-schedule", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const employeeId = String(b.employeeId ?? "");
     const scheduleId = String(b.scheduleId ?? "");
@@ -89,12 +92,18 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — akhiri assignment (validTo) / ubah clockingRequired
+// Task 32-d: guard hak AKSI menu per pengguna — aksi "end" → op:end pada
+// attendance:assignment-schedule; ubah field lain → update. Body dibaca SEKALI
+// sebelum guard (aksi menentukan op yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    const m = b.action === "end"
+      ? await requireMenuAction(req, "attendance:assignment-schedule", "op:end")
+      : await requireMenuAction(req, "attendance:assignment-schedule", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const existing = await db.scheduleAssignment.findUnique({ where: { id: b.id } });
     if (!existing) return NextResponse.json({ error: "Penugasan tidak ditemukan" }, { status: 404 });
 

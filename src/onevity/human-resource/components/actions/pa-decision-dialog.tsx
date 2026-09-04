@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { toast } from "sonner";
 
 export function DecisionDialog({
@@ -28,6 +29,7 @@ export function DecisionDialog({
   currentLayer?: number;
   onDone: () => void;
 }) {
+  const perms = useMenuPerms();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const approve = variant === "approve";
@@ -98,14 +100,16 @@ export function DecisionDialog({
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">Batal</Button>
-          <Button
-            disabled={busy}
-            onClick={() => void submit()}
-            className={`h-11 px-5 font-bold ${approve ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
-          >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {approve ? "Setujui Sekarang" : "Tolak Dokumen"}
-          </Button>
+          {perms.canOp("hr", "inbox", "approve") && (
+            <Button
+              disabled={busy}
+              onClick={() => void submit()}
+              className={`h-11 px-5 font-bold ${approve ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {approve ? "Setujui Sekarang" : "Tolak Dokumen"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

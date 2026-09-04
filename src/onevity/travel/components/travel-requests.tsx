@@ -3,6 +3,7 @@
 // (padanan TravelRequest.jsp + Destination detail + Cash Advance)
 import { Fragment, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ interface DestForm {
 const emptyDest = (from: string, to: string): DestForm => ({ dateFrom: from, dateTo: to, city: "", country: "Indonesia", zoneCode: "LOCAL", note: "" });
 
 export function TravelRequestsPage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState(false);
@@ -114,19 +116,21 @@ export function TravelRequestsPage() {
         title="Permintaan Perjalanan Dinas"
         description="Pengajuan dinas dengan destinasi multi-kaki (kota, zona, luar negeri) dan uang muka — padanan Travel Request oranHR (format nomor TR-tahun-urut)"
         actions={
-          <Button
-            onClick={() => {
-              setForm({
-                employeeId: master.data?.employees[0]?.id ?? "", templateCode: (templates.find((t) => t.isDefault) ?? templates[0])?.code ?? "TRAVEL",
-                dateFrom: todayISO(), dateTo: todayISO(), purpose: "", remark: "", advanceAmount: "", advanceNote: "",
-              });
-              setDests([emptyDest(todayISO(), todayISO())]);
-              setDialog(true);
-            }}
-            className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
-          >
-            <Plus className="h-4 w-4" /> Ajukan Perjalanan
-          </Button>
+          perms.can("travel", "travel-request", "create") && (
+            <Button
+              onClick={() => {
+                setForm({
+                  employeeId: master.data?.employees[0]?.id ?? "", templateCode: (templates.find((t) => t.isDefault) ?? templates[0])?.code ?? "TRAVEL",
+                  dateFrom: todayISO(), dateTo: todayISO(), purpose: "", remark: "", advanceAmount: "", advanceNote: "",
+                });
+                setDests([emptyDest(todayISO(), todayISO())]);
+                setDialog(true);
+              }}
+              className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
+            >
+              <Plus className="h-4 w-4" /> Ajukan Perjalanan
+            </Button>
+          )
         }
       />
 
@@ -218,9 +222,13 @@ export function TravelRequestsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           {r.status === "Submitted" ? (
-                            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); cancelRequest(r); }}>
-                              <Ban className="h-3 w-3" /> Batal
-                            </Button>
+                            perms.canOp("travel", "travel-request", "cancel") ? (
+                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); cancelRequest(r); }}>
+                                <Ban className="h-3 w-3" /> Batal
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-stone-400">{r.decisionNote ?? "—"}</span>
+                            )
                           ) : (
                             <span className="text-[11px] text-stone-400">{r.decisionNote ?? "—"}</span>
                           )}

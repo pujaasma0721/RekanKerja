@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { submitWorkoff, decideWorkoff } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/workoffs?status= — izin tidak masuk + statistik
@@ -49,9 +50,10 @@ function dayStartOf(d: Date): number {
 }
 
 // POST — ajukan izin (padanan Employee Work Off Permission). Guard VIEWER + aktor sesi.
+// Task 32-d: guard hak AKSI menu — create pada attendance:workoff (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "attendance:workoff", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const res = await submitWorkoff(m.db, {
@@ -73,9 +75,10 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — approve | reject | cancel. Guard VIEWER + aktor sesi (approver = nama aktor sesi).
+// Task 32-d: guard hak AKSI menu — op:approve pada attendance:workoff (per pengguna).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "attendance:workoff", "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });

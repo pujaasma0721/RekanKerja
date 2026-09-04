@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate, fmtDateLong, tenure, genderLabel } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
@@ -75,6 +76,7 @@ interface DetailEmp {
 
 function EmployeeDetail() {
   const { params, navigate } = useNav();
+  const perms = useMenuPerms();
   const { data, loading, refresh } = useApi<{ employee: DetailEmp }>(params.id ? `/api/onevity/employee-detail?id=${params.id}` : null);
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState("personal");
@@ -124,9 +126,11 @@ function EmployeeDetail() {
               </div>
             </div>
             <div className="flex gap-2 pb-1">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2">
-                <Pencil className="h-3.5 w-3.5" /> Edit Data
-              </Button>
+              {perms.can("hr", "directory", "update") && (
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2">
+                  <Pencil className="h-3.5 w-3.5" /> Edit Data
+                </Button>
+              )}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -475,15 +479,18 @@ function ListSection({ title, addLabel, items, renderAdd }: {
   items: { id: string; title: string; subtitle: string; right: string; onDelete: () => Promise<void> }[];
   renderAdd: (close: () => void) => React.ReactNode;
 }) {
+  const perms = useMenuPerms();
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-bold">{title}</CardTitle>
-        <Button variant="outline" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5 text-xs font-bold">
-          <Plus className="h-3.5 w-3.5" /> {addLabel}
-        </Button>
+        {perms.can("hr", "directory", "create") && (
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5 text-xs font-bold">
+            <Plus className="h-3.5 w-3.5" /> {addLabel}
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-2.5 pt-0">
         {items.length > 0 ? items.map((it) => (
@@ -493,14 +500,16 @@ function ListSection({ title, addLabel, items, renderAdd }: {
               <p className="truncate text-[11px] text-stone-400">{it.subtitle}</p>
               {it.right && <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{it.right}</p>}
             </div>
-            <button
-              onClick={async () => { setBusyId(it.id); try { await it.onDelete(); } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); } }}
-              disabled={busyId === it.id}
-              className="rounded-lg p-2 text-stone-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
-              aria-label="Hapus"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {perms.can("hr", "directory", "delete") && (
+              <button
+                onClick={async () => { setBusyId(it.id); try { await it.onDelete(); } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); } }}
+                disabled={busyId === it.id}
+                className="rounded-lg p-2 text-stone-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
+                aria-label="Hapus"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )) : (
           <EmptyState title="Belum ada data" description="Tambahkan data baru dengan tombol di atas." />

@@ -4,6 +4,7 @@
 // Foto karyawan: photoUrl dari DB (fallback inisial gradient) via <EmployeeAvatar/>.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useApi, fmtIDR, fmtDate, tenure, genderLabel } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ function EmploymentTag({ status, className }: { status: string; className?: stri
 
 export function EmployeeDirectory() {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [status, setStatus] = useState("all");
@@ -114,9 +116,11 @@ export function EmployeeDirectory() {
                 <TableIcon className="h-4 w-4" />
               </button>
             </div>
-            <Button onClick={() => navigate("employee", "wizard")} size="sm" className="h-9 gap-1.5 px-4 font-semibold">
-              <UserPlus className="h-4 w-4" /> Onboarding
-            </Button>
+            {perms.can("hr", "wizard", "create") && (
+              <Button onClick={() => navigate("employee", "wizard")} size="sm" className="h-9 gap-1.5 px-4 font-semibold">
+                <UserPlus className="h-4 w-4" /> Onboarding
+              </Button>
+            )}
           </div>
         }
       />

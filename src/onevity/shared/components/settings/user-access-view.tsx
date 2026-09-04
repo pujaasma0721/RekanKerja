@@ -1,11 +1,14 @@
 "use client";
-// OneVity — Settings: HAK AKSES PER PENGGUNA (Task 31)
+// OneVity — Settings: HAK AKSES PER PENGGUNA (Task 31 + 32-b)
 // =====================================================================
 // Hak akses MENU dan DATA KARYAWAN diatur PER PENGGUNA (bukan per grup/
 // role — tiap pengguna bisa haknya berbeda meski levelnya sama):
 //   • Akses Menu: mode "Semua menu" (default) ↔ "pilih manual" —
 //     checklist per modul (HR/Payroll/Attendance/Leave/Travel/Medical
 //     + Pengaturan Sistem), tersimpan sebagai kunci "module:view".
+//   • Level AKSI (Task 32-b): menu tercentang = seluruh aksi; tombol
+//     "Atur Aksi" per item membuka dialog pembatasan Baru/Ubah/Hapus
+//     + operasi khusus menu (katalog opsOf menu-perms.ts).
 //   • Akses Data Karyawan: rule parametrik subjek pengguna (7 kriteria
 //     penempatan AND; kosong semua = akses penuh) — pola approval
 //     berjenjang.
@@ -19,6 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, initials } from "@/onevity/shared/lib/api";
 import { EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { MODULES, navOfModule, SETTINGS_NAV } from "@/onevity/shared/components/shell/app-shell";
+import { MENU_ACTION_DEFS, fullPerm, opsOf, type MenuAction, type MenuPerm, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +65,24 @@ const MENU_CATALOG: CatalogModule[] = [
   },
 ];
 
+/** Izin penuh sebuah menu: seluruh aksi CRUD + seluruh ops katalognya eksplisit aktif. */
+function fullPermOf(menuKey: string): MenuPerm {
+  const ops: Record<string, boolean> = {};
+  for (const o of opsOf(menuKey)) ops[o.key] = true;
+  return fullPerm(ops);
+}
+
+/** Apakah perm membawa seluruh aksi (Baru/Ubah/Hapus + semua ops katalog)? */
+function isFullPerm(p: MenuPerm, menuKey: string): boolean {
+  return p.create && p.update && p.delete && opsOf(menuKey).every((o) => p.ops[o.key] !== false);
+}
+
+/** Label tampilan sebuah kunci menu (dari katalog nav). */
+function menuLabelOf(key: string): string {
+  for (const mod of MENU_CATALOG) for (const g of mod.groups) for (const it of g.items) if (it.key === key) return it.label;
+  return key;
+}
+
 // ================= types =================
 
 interface AccessUser {
@@ -75,6 +97,8 @@ interface AccessUser {
   subordinateCount: number;
   menuMode: "ALL" | "CUSTOM";
   menus: string[];
+  /** Peta aksi eksplisit per menu (mode CUSTOM; kosong saat mode ALL). */
+  perms: MenusMap;
   ruleCount: number;
 }
 
@@ -167,47 +191,71 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // ===== draft hak akses menu (per pengguna terpilih) =====
+  // ===== draft hak akses menu (per pengguna terpilih) — level AKSI =====
   const [draftMode, setDraftMode] = useState<"ALL" | "CUSTOM">("ALL");
-  const [draftMenus, setDraftMenus] = useState<Set<string>>(new Set());
+  const [draftPerms, setDraftPerms] = useState<MenusMap>({});
   const [dirty, setDirty] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
+  const [actionKey, setActionKey] = useState<string | null>(null); // dialog "Atur Aksi"
 
   const selKey = selected?.id ?? "none";
   const [initKey, setInitKey] = useState("");
   if (initKey !== selKey) {
     setInitKey(selKey);
     setDraftMode(selected?.menuMode ?? "ALL");
-    setDraftMenus(new Set(selected?.menus ?? []));
+    // CUSTOM → salin peta aksi eksplisit; ALL → kosong (semua aksi aktif)
+    setDraftPerms(selected?.menuMode === "CUSTOM" ? { ...(selected?.perms ?? {}) } : {});
     setDirty(false);
+    setActionKey(null);
     setPreview(null);
   }
 
   const toggleMenu = (key: string) => {
-    setDraftMenus((prev) => {
-      const n = new Set(prev);
-      if (n.has(key)) n.delete(key); else n.add(key);
+    setDraftPerms((prev) => {
+      const n = { ...prev };
+      if (key in n) delete n[key];
+      else n[key] = fullPermOf(key); // centang = seluruh aksi + ops eksplisit aktif
       return n;
     });
     setDirty(true);
   };
   const setModuleAll = (modId: string, on: boolean) => {
     const keys = MENU_CATALOG.find((m) => m.id === modId)?.groups.flatMap((g) => g.items.map((i) => i.key)) ?? [];
-    setDraftMenus((prev) => {
-      const n = new Set(prev);
-      for (const k of keys) { if (on) n.add(k); else n.delete(k); }
+    setDraftPerms((prev) => {
+      const n = { ...prev };
+      for (const k of keys) {
+        if (on) n[k] = fullPermOf(k); // pilih semua = aksi penuh tiap menu
+        else delete n[k];
+      }
       return n;
     });
+    setDirty(true);
+  };
+  /** Tulis balik hasil dialog "Atur Aksi" ke draft (belum tersimpan ke server). */
+  const applyPerm = (key: string, p: MenuPerm) => {
+    setDraftPerms((prev) => ({ ...prev, [key]: p }));
     setDirty(true);
   };
 
   const saveMenu = async () => {
     if (!selected) return;
-    if (draftMode === "CUSTOM" && draftMenus.size === 0) { toast.error("Pilih minimal satu menu, atau gunakan mode Semua Menu"); return; }
+    const nMenu = Object.keys(draftPerms).length;
+    if (draftMode === "CUSTOM" && nMenu === 0) { toast.error("Pilih minimal satu menu, atau gunakan mode Semua Menu"); return; }
     setSavingMenu(true);
     try {
-      await apiSend("/api/onevity/user-menu-access", "POST", { appUserId: selected.id, mode: draftMode, menus: [...draftMenus] });
-      toast.success(`Hak akses menu ${selected.fullName} disimpan`, { description: draftMode === "CUSTOM" ? `${draftMenus.size} menu diizinkan` : "Semua menu diizinkan" });
+      await apiSend("/api/onevity/user-menu-access", "POST", {
+        appUserId: selected.id,
+        mode: draftMode,
+        menus: draftMode === "CUSTOM" ? draftPerms : [], // objek = peta aksi (mode ALL → kosong)
+      });
+      const nPartial = draftMode === "CUSTOM"
+        ? Object.entries(draftPerms).filter(([k, p]) => !isFullPerm(p, k)).length
+        : 0;
+      toast.success(`Hak akses menu ${selected.fullName} disimpan`, {
+        description: draftMode === "CUSTOM"
+          ? (nPartial > 0 ? `${nMenu} menu · ${nPartial} menu tanpa aksi penuh` : `${nMenu} menu · seluruh aksi penuh`)
+          : "Semua menu & seluruh aksi diizinkan",
+      });
       setDirty(false);
       refresh();
     } catch (e) {
@@ -221,9 +269,9 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
     if (!selected) return;
     try {
       await apiSend(`/api/onevity/user-menu-access?userId=${selected.id}`, "DELETE");
-      toast.success(`Batasan menu ${selected.fullName} dihapus — kembali ke default semua menu`);
+      toast.success(`Batasan menu ${selected.fullName} dihapus — kembali ke default semua menu & seluruh aksi`);
       setDraftMode("ALL");
-      setDraftMenus(new Set());
+      setDraftPerms({});
       setDirty(false);
       refresh();
     } catch (e) {
@@ -312,7 +360,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
         <p className="flex items-center gap-2 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
           <ShieldCheck className="h-4 w-4" /> Hak akses diatur <b>per pengguna</b> — bukan per grup; pengguna dengan role sama bisa haknya berbeda
         </p>
-        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300 sm:grid-cols-3">
+        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300 sm:grid-cols-2 xl:grid-cols-4">
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
             <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <span><b>Super Admin</b> otomatis akses semua menu &amp; data — tanpa diatur.</span>
@@ -324,6 +372,10 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
             <span><b>Setiap pengguna</b> selalu dapat mengakses data dirinya.</span>
+          </span>
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+            <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+            <span>Hak menu turun ke <b>level aksi</b> — Lihat/Baru/Ubah/Hapus + operasi khusus tiap menu.</span>
           </span>
         </div>
       </div>
@@ -475,15 +527,22 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           ))}
                         </div>
                         {draftMode === "CUSTOM" && (
-                          <span className="text-[11px] text-stone-400">{draftMenus.size} menu dipilih</span>
+                          <span className="text-[11px] text-stone-400">{Object.keys(draftPerms).length} menu dipilih</span>
                         )}
                       </div>
 
                       {draftMode === "CUSTOM" ? (
+                        <>
+                        <p className="flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                          <span>
+                            Menu tercentang mendapat <b>seluruh aksi</b> (Baru/Ubah/Hapus + operasi khusus). Klik ikon <SlidersHorizontal className="inline h-3 w-3 -translate-y-px" /> di samping menu untuk membatasi — ikon amber menandai menu dengan aksi terbatas.
+                          </span>
+                        </p>
                         <div className="max-h-[420px] space-y-2.5 overflow-y-auto pr-1">
                           {MENU_CATALOG.map((mod) => {
                             const modKeys = mod.groups.flatMap((g) => g.items.map((i) => i.key));
-                            const onCount = modKeys.filter((k) => draftMenus.has(k)).length;
+                            const onCount = modKeys.filter((k) => k in draftPerms).length;
                             const allOn = onCount === modKeys.length && modKeys.length > 0;
                             return (
                               <div key={mod.id} className="rounded-xl border border-stone-200 dark:border-stone-800">
@@ -491,13 +550,17 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                   onClick={() => setModuleAll(mod.id, !allOn)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left"
                                   aria-label={`Pilih semua menu ${mod.label}`}
+                                  title="Pilih semua = seluruh menu modul ini dengan seluruh aksi"
                                 >
                                   <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
                                     allOn ? "border-emerald-600 bg-emerald-600" : "border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")}>
                                     {allOn && <Check className="h-3 w-3 text-white" />}
                                   </span>
                                   <span className="flex-1 text-[12px] font-bold text-stone-700 dark:text-stone-200">{mod.label}</span>
-                                  <span className="text-[10px] font-bold text-stone-400">{onCount}/{modKeys.length}</span>
+                                  <span className="text-[10px] font-bold text-stone-400">
+                                    {onCount}/{modKeys.length}
+                                    <span className="ml-1 font-medium text-stone-300 dark:text-stone-600">· aksi penuh</span>
+                                  </span>
                                 </button>
                                 <div className="grid gap-1 border-t border-stone-100 px-3 py-2 dark:border-stone-800/60 sm:grid-cols-2">
                                   {mod.groups.map((g) => (
@@ -505,25 +568,48 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                       {g.label && <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">{g.label}</p>}
                                       <div className="grid gap-1 sm:grid-cols-2">
                                         {g.items.map((it) => {
-                                          const on = draftMenus.has(it.key);
+                                          const perm = draftPerms[it.key];
+                                          const on = !!perm;
+                                          const full = !!perm && isFullPerm(perm, it.key);
                                           return (
-                                            <button
-                                              key={it.key}
-                                              onClick={() => toggleMenu(it.key)}
-                                              aria-pressed={on}
-                                              className={cn(
-                                                "flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition",
-                                                on
-                                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300"
-                                                  : "border-stone-200 text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:text-stone-400",
+                                            <div key={it.key} className="flex items-center gap-1">
+                                              <button
+                                                onClick={() => toggleMenu(it.key)}
+                                                aria-pressed={on}
+                                                className={cn(
+                                                  "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition",
+                                                  on
+                                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                                    : "border-stone-200 text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:text-stone-400",
+                                                )}
+                                              >
+                                                <span className={cn("flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border transition",
+                                                  on ? "border-emerald-600 bg-emerald-600" : "border-stone-300 dark:border-stone-600")}>
+                                                  {on && <Check className="h-2.5 w-2.5 text-white" />}
+                                                </span>
+                                                <span className="min-w-0 flex-1 truncate">{it.label}</span>
+                                                {perm && <PermSummaryBadge perm={perm} menuKey={it.key} />}
+                                              </button>
+                                              {on ? (
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  onClick={() => setActionKey(it.key)}
+                                                  className={cn(
+                                                    "h-7 w-7 shrink-0 rounded-lg",
+                                                    full
+                                                      ? "text-stone-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+                                                      : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400",
+                                                  )}
+                                                  aria-label={`Atur aksi menu ${it.label}`}
+                                                  title="Atur aksi — Baru/Ubah/Hapus/operasi khusus"
+                                                >
+                                                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                                                </Button>
+                                              ) : (
+                                                <span className="h-7 w-7 shrink-0" aria-hidden="true" />
                                               )}
-                                            >
-                                              <span className={cn("flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border transition",
-                                                on ? "border-emerald-600 bg-emerald-600" : "border-stone-300 dark:border-stone-600")}>
-                                                {on && <Check className="h-2.5 w-2.5 text-white" />}
-                                              </span>
-                                              <span className="truncate">{it.label}</span>
-                                            </button>
+                                            </div>
                                           );
                                         })}
                                       </div>
@@ -534,9 +620,10 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                             );
                           })}
                         </div>
+                        </>
                       ) : (
                         <p className="rounded-xl bg-stone-50 px-3 py-3 text-[13px] text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
-                          Semua menu di seluruh modul terbuka untuk pengguna ini (default). Pilih <b>&ldquo;Batasi — pilih menu&rdquo;</b> untuk mengatur menu yang tersedia secara individual.
+                          Semua menu di seluruh modul terbuka dengan <b>seluruh aksi</b> (Baru/Ubah/Hapus/operasi khusus) untuk pengguna ini (default). Pilih <b>&ldquo;Batasi — pilih menu&rdquo;</b> untuk mengatur menu &amp; aksinya secara individual.
                         </p>
                       )}
 
@@ -698,6 +785,17 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* dialog "Atur Aksi" per menu — draft tidak berubah sampai Simpan */}
+      {actionKey && draftPerms[actionKey] && (
+        <MenuActionDialog
+          menuKey={actionKey}
+          menuLabel={menuLabelOf(actionKey)}
+          perm={draftPerms[actionKey]}
+          onClose={() => setActionKey(null)}
+          onSave={(p) => { applyPerm(actionKey, p); setActionKey(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -915,6 +1013,142 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
           <Button onClick={save} disabled={saving} className="h-10 gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Simpan Rule
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ================= badge ringkasan aksi (chip menu tercentang) =================
+
+function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }) {
+  const ops = opsOf(menuKey);
+  const opsOn = ops.filter((o) => perm.ops[o.key] !== false).length;
+  const crudOn = (perm.create ? 1 : 0) + (perm.update ? 1 : 0) + (perm.delete ? 1 : 0);
+  if (isFullPerm(perm, menuKey)) {
+    return (
+      <span className="shrink-0 rounded-md border border-stone-300/70 bg-stone-100 px-1 py-px text-[9px] font-bold leading-4 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+        semua aksi
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1 py-px text-[9px] font-bold leading-4 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+      Lihat · {crudOn} aksi{ops.length > 0 ? ` · ${opsOn}/${ops.length} ops` : ""}
+    </span>
+  );
+}
+
+// ================= dialog "Atur Aksi" (per menu — level aksi) =================
+// State LOKAL: draft di komponen induk tidak disentuh sampai tombol
+// "Simpan" ditekan (onSave → applyPerm → dirty).
+
+function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
+  menuKey: string; menuLabel: string; perm: MenuPerm;
+  onClose: () => void; onSave: (p: MenuPerm) => void;
+}) {
+  const ops = opsOf(menuKey);
+  const [crud, setCrud] = useState<Record<MenuAction, boolean>>({
+    view: true, create: perm.create, update: perm.update, delete: perm.delete,
+  });
+  const [opOn, setOpOn] = useState<Record<string, boolean>>(() => {
+    const s: Record<string, boolean> = {};
+    for (const o of ops) s[o.key] = perm.ops[o.key] !== false; // tak disebut = boleh
+    return s;
+  });
+
+  const setAction = (k: MenuAction, v: boolean) => setCrud((c) => {
+    const n: Record<MenuAction, boolean> = { ...c };
+    n[k] = v;
+    return n;
+  });
+  const setOp = (k: string, v: boolean) => setOpOn((s) => ({ ...s, [k]: v }));
+
+  /** Reset ke seluruh aksi dasar + seluruh operasi khusus aktif. */
+  const setFull = () => {
+    setCrud({ view: true, create: true, update: true, delete: true });
+    const s: Record<string, boolean> = {};
+    for (const o of ops) s[o.key] = true;
+    setOpOn(s);
+  };
+
+  const save = () => {
+    onSave({
+      view: true, // menu diizinkan → Lihat terkunci aktif
+      create: crud.create,
+      update: crud.update,
+      delete: crud.delete,
+      ops: { ...perm.ops, ...opOn }, // ops non-katalog (data lama) dipertahankan
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Atur Aksi — {menuLabel}</DialogTitle>
+          <DialogDescription>
+            Hak aksi pada menu <b>{menuLabel}</b> <span className="font-mono text-[11px] text-stone-400">({menuKey})</span> untuk pengguna terpilih. Matikan aksi yang tidak diizinkan — <b>Lihat</b> selalu aktif selama menu diizinkan.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          {/* aksi dasar CRUD */}
+          <div className="space-y-1.5">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Aksi Dasar
+            </p>
+            {MENU_ACTION_DEFS.map((d) => {
+              const locked = d.key === "view";
+              return (
+                <div key={d.key} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                  <div className="min-w-0">
+                    <Label htmlFor={`ma-${menuKey}-${d.key}`} className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                      {d.label}
+                      {locked && <span className="ml-1.5 rounded-md bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">terkunci</span>}
+                    </Label>
+                    <p className="text-[11px] leading-snug text-stone-400">{locked ? "Aktif karena menu diizinkan" : d.hint}</p>
+                  </div>
+                  <Switch
+                    id={`ma-${menuKey}-${d.key}`}
+                    checked={locked ? true : crud[d.key]}
+                    disabled={locked}
+                    onCheckedChange={(v) => setAction(d.key, v)}
+                    aria-label={d.label}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* operasi khusus menu */}
+          {ops.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Operasi Khusus Menu
+              </p>
+              <p className="text-[11px] leading-snug text-stone-400">Operasi spesifik pada menu ini — masing-masing dapat diizinkan atau dibatasi.</p>
+              {ops.map((o) => (
+                <div key={o.key} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                  <div className="min-w-0">
+                    <Label htmlFor={`mo-${menuKey}-${o.key}`} className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{o.label}</Label>
+                    {o.hint && <p className="text-[11px] leading-snug text-stone-400">{o.hint}</p>}
+                  </div>
+                  <Switch id={`mo-${menuKey}-${o.key}`} checked={opOn[o.key]} onCheckedChange={(v) => setOp(o.key, v)} aria-label={o.label} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={setFull} className="h-10 gap-2 rounded-xl" title="Aktifkan seluruh aksi dasar & operasi khusus">
+            <RotateCcw className="h-3.5 w-3.5" /> Semua Aksi
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">Batal</Button>
+            <Button onClick={save} className="h-10 gap-2 rounded-xl bg-emerald-700 font-bold hover:bg-emerald-800">Simpan</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

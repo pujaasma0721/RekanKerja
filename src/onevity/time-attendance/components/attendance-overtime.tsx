@@ -3,6 +3,7 @@
 // (padanan EmpOvertimeWrit.jsp + approval) dengan multiplier PP 35/2021.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const STATUS_FILTERS = [
 ];
 
 export function AttendanceOvertimePage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [orderDialog, setOrderDialog] = useState(false);
@@ -182,12 +184,16 @@ export function AttendanceOvertimePage() {
                         <div className="flex items-center gap-1">
                           {o.status === "Pending" && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Setujui" onClick={() => decide(o, "approve")} aria-label="Setujui lembur">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Tolak" onClick={() => { setRejectTarget(o); setRejectNote(""); }} aria-label="Tolak lembur">
-                                <XCircle className="h-4 w-4 text-rose-500" />
-                              </Button>
+                              {perms.canOp("attendance", "overtime", "approve") && (
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Setujui" onClick={() => decide(o, "approve")} aria-label="Setujui lembur">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Tolak" onClick={() => { setRejectTarget(o); setRejectNote(""); }} aria-label="Tolak lembur">
+                                    <XCircle className="h-4 w-4 text-rose-500" />
+                                  </Button>
+                                </>
+                              )}
                             </>
                           )}
                           {o.status === "Approved" && (
@@ -276,9 +282,11 @@ export function AttendanceOvertimePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectTarget(null)}>Batal</Button>
-            <Button onClick={async () => { if (rejectTarget) { await decide(rejectTarget, "reject", { note: rejectNote }); setRejectTarget(null); } }} disabled={!rejectNote.trim()} className="bg-rose-600 font-bold hover:bg-rose-700">
-              Tolak Perintah
-            </Button>
+            {perms.canOp("attendance", "overtime", "approve") && (
+              <Button onClick={async () => { if (rejectTarget) { await decide(rejectTarget, "reject", { note: rejectNote }); setRejectTarget(null); } }} disabled={!rejectNote.trim()} className="bg-rose-600 font-bold hover:bg-rose-700">
+                Tolak Perintah
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

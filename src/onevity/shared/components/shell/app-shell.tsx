@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
+import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
+import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -196,12 +198,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sessionTenant = session.info?.tenant;
   const meta = useApi<{ pendingActions: number; activeEmployees: number; payrollDraftRuns: number; benefitPendingClaims: number; company: { name: string; shortName: string } | null }>("/api/onevity/meta");
 
-  // ===== hak akses MENU per pengguna (Task 31) =====
-  // ALL (default/super admin) → semua menu; CUSTOM → hanya key "module:view"
-  // pada daftar. Belum termuat → sementara semua (hindari flicker/lockout).
-  const meMenu = useApi<{ all: boolean; menus: string[]; isSuperAdmin: boolean }>("/api/onevity/user-menu-access?action=me");
+  // ===== hak aksi MENU per pengguna (Task 31 + 32) =====
+  // ALL (default/super admin) → semua menu & seluruh aksi; CUSTOM → hanya
+  // key "module:view" terdaftar, tiap menu membawa aksi (view/baru/ubah/
+  // hapus + operasi khusus). Belum termuat → sementara semua (anti-flicker).
+  const meMenu = useApi<{ all: boolean; menus: string[]; perms?: MenusMap; isSuperAdmin: boolean }>("/api/onevity/user-menu-access?action=me");
   const menuAll = meMenu.data ? meMenu.data.all : true;
   const allowedKeys = useMemo(() => (menuAll ? null : new Set(meMenu.data?.menus ?? [])), [menuAll, meMenu.data]);
+  // context utk view di bawah shell — tombol aksi (Baru/Ubah/Hapus/operasi)
+  // memakai useMenuPerms()
+  const permsApi = useMemo(
+    () => ({ all: menuAll, isSuperAdmin: meMenu.data?.isSuperAdmin ?? false, ready: !!meMenu.data, perms: meMenu.data?.perms }),
+    [menuAll, meMenu.data],
+  );
+
+  /** Cek hak AKSI (Baru/Ubah/Hapus) sebuah menu — dipakai quick-create shell. */
+  const permsCan = useCallback(
+    (mod: string, itemId: string, action: "view" | "create" | "update" | "delete") => {
+      if (menuAll || !meMenu.data) return true; // belum termuat / mode semua → boleh
+      const p = meMenu.data.perms?.[`${mod}:${itemId}`];
+      return !!p && p.view && actionAllowed(p, action);
+    },
+    [menuAll, meMenu.data],
+  );
 
   /** Apakah item menu boleh diakses pengguna sesi? (mod: "hr"…"medical" | "settings") */
   const itemAllowed = useCallback(
@@ -564,7 +583,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   { s: "actions" as SectionId, v: "all", icon: Workflow, cls: "text-amber-600", label: "Pengajuan Karyawan" },
                   { s: "org" as SectionId, v: "tree", icon: Network, cls: "text-teal-600", label: "Unit Organisasi" },
                   { s: "position" as SectionId, v: "list", icon: BriefcaseBusiness, cls: "text-orange-600", label: "Posisi Baru" },
-                ] as const).filter((q) => menuAllowed(q.s, q.v)).map((q) => (
+                ] as const).filter((q) => menuAllowed(q.s, q.v) && permsCan(moduleOfSection(q.s), q.v, "create")).map((q) => (
                   <DropdownMenuItem key={q.label} onClick={() => navigate(q.s, q.v)}><q.icon className={cn("h-4 w-4", q.cls)} /> {q.label}</DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -579,6 +598,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* content — view di luar cakupan menu pengguna → panel terblokir (Task 31) */}
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8" id="onevity-main">
+            <MenuPermsProvider {...permsApi}>
             {!viewAllowed ? (
               <div className="flex min-h-[50vh] items-center justify-center">
                 <div className="max-w-md rounded-2xl border border-stone-200/80 bg-white p-8 text-center shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -602,6 +622,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             ) : children}
+            </MenuPermsProvider>
           </main>
 
           {/* footer */}

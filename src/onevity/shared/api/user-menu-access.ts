@@ -4,20 +4,22 @@ import { getTenantClient, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { readSessionCookie } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/onevity/shared/services/access-scope";
+import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 
-// ============ HAK AKSES MENU PER PENGGUNA (Task 31) ============
+// ============ HAK AKSI MENU PER PENGGUNA (Task 31 + 32) =================
 // =====================================================================
-// Konfigurasi hak akses MENU secara INDIVIDUAL (bukan per grup/role —
-// tiap pengguna bisa haknya berbeda meski level sama):
-//   • mode ALL    → semua menu (default bila baris konfigurasi tidak ada)
-//   • mode CUSTOM → hanya menu dengan key "module:view" pada menusJson
+// Hak akses MENU secara INDIVIDUAL, turun ke level AKSI (Task 32):
+//   • mode ALL    → semua menu & seluruh aksi (default bila tanpa baris)
+//   • mode CUSTOM → hanya menu pada menusJson, tiap menu membawa
+//     { view, create, update, delete, ops: { approve, calculate, … } }
 //   • Super Admin (AppUser.role Admin / platform OWNER|ADMIN) otomatis
-//     semua menu & seluruh data — TANPA perlu diatur di sini.
+//     semua menu, data, & aksi — TANPA perlu diatur di sini.
 // Endpoints:
-//   GET  ?action=me            → konfigurasi pengguna sesi (dipakai AppShell)
-//   GET  (default)             → daftar pengguna + konfigurasi menu (admin)
-//   POST { appUserId, mode, menus } → upsert konfigurasi
-//   DELETE ?userId=            → hapus konfigurasi (kembali default semua)
+//   GET  ?action=me            → konfigurasi pengguna sesi (AppShell)
+//   GET  (default)             → daftar pengguna + konfigurasi (admin)
+//   POST { appUserId, mode, menus } → upsert; menus bisa string[] lama
+//        (izin penuh) ATAU object { key: {create,update,delete,ops} }
+//   DELETE ?userId=            → hapus konfigurasi (kembali default)
 // =====================================================================
 
 interface MeResolution {
@@ -56,14 +58,9 @@ async function resolveMe(req: Request): Promise<MeResolution | null> {
   return { db, appUserId: appUser?.id ?? null, appUserRole: appUser?.role ?? null, isSuperAdmin };
 }
 
-/** Baca menusJson aman (fallback array kosong). */
-function parseMenus(json: string): string[] {
-  try {
-    const v = JSON.parse(json);
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
+/** Baca menusJson aman → MenusMap (legacy string[] → izin penuh). */
+function parseMenusMap(json: string): MenusMap {
+  return normalizeMenusJson(json);
 }
 
 // GET /api/onevity/user-menu-access            → daftar pengguna + konfigurasi (admin)
@@ -77,7 +74,7 @@ export async function GET(req: NextRequest) {
 
       if (me.isSuperAdmin || me.appUserId == null) {
         // super admin otomatis semua; tanpa AppUser → default semua
-        return NextResponse.json({ all: true, menus: [], isSuperAdmin: me.isSuperAdmin });
+        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: me.isSuperAdmin });
       }
       let row: { mode: string; menusJson: string } | null = null;
       try {
@@ -85,8 +82,11 @@ export async function GET(req: NextRequest) {
       } catch {
         row = null; // tabel belum termigrasi → default semua
       }
-      if (!row || row.mode === "ALL") return NextResponse.json({ all: true, menus: [], isSuperAdmin: false });
-      return NextResponse.json({ all: false, menus: parseMenus(row.menusJson), isSuperAdmin: false });
+      if (!row || row.mode === "ALL") {
+        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: false });
+      }
+      const perms = parseMenusMap(row.menusJson);
+      return NextResponse.json({ all: false, menus: viewListOf(perms), perms, isSuperAdmin: false });
     }
 
     // ---- daftar pengguna + konfigurasi (untuk editor Hak Akses) ----
@@ -152,7 +152,8 @@ export async function GET(req: NextRequest) {
         isSuperAdmin,
         subordinateCount: u.employeeId ? subCount.get(u.employeeId) ?? 0 : 0,
         menuMode: cfg?.mode === "CUSTOM" ? "CUSTOM" : "ALL",
-        menus: cfg?.mode === "CUSTOM" ? parseMenus(cfg.menusJson) : [],
+        menus: cfg?.mode === "CUSTOM" ? viewListOf(parseMenusMap(cfg.menusJson)) : [],
+        perms: cfg?.mode === "CUSTOM" ? parseMenusMap(cfg.menusJson) : {},
         ruleCount: ruleCount.get(u.id) ?? 0,
       };
     });
@@ -171,7 +172,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/onevity/user-menu-access { appUserId, mode: "ALL"|"CUSTOM", menus: string[] }
+// POST /api/onevity/user-menu-access { appUserId, mode, menus }
+// menus: string[] (izin penuh) | Record<key, {create,update,delete,ops}>
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMutator(req);
@@ -188,31 +190,39 @@ export async function POST(req: NextRequest) {
     }
 
     const mode = b.mode === "CUSTOM" ? "CUSTOM" : "ALL";
-    let menus: string[] = [];
+    let perms: MenusMap = {};
     if (mode === "CUSTOM") {
-      if (!Array.isArray(b.menus)) return NextResponse.json({ error: "menus harus array key menu" }, { status: 400 });
-      const raw = b.menus as unknown[];
-      menus = [...new Set(raw.map((x) => String(x).trim()).filter((s) => s.length > 0))];
-      if (menus.length === 0) {
+      // string[] lama (izin penuh) atau object aksi eksplisit (Task 32)
+      perms = sanitizeMenusInput(b.menus);
+      const keys = Object.keys(perms);
+      if (keys.length === 0) {
         return NextResponse.json({ error: "Pilih minimal satu menu, atau gunakan mode Semua Menu." }, { status: 400 });
       }
+      // menu aktif harus bisa dilihat — kehadiran key sudah berarti view
+      for (const k of keys) perms[k] = { ...perms[k], view: true };
     }
 
     const row = await db.userMenuAccess.upsert({
       where: { appUserId },
-      create: { appUserId, mode, menusJson: JSON.stringify(mode === "CUSTOM" ? menus : []) },
-      update: { mode, menusJson: JSON.stringify(mode === "CUSTOM" ? menus : []) },
+      create: { appUserId, mode, menusJson: JSON.stringify(mode === "CUSTOM" ? perms : {}) },
+      update: { mode, menusJson: JSON.stringify(mode === "CUSTOM" ? perms : {}) },
     });
 
+    // ringkasan aksi utk activity log (CRUD aktif + operasi nonaktif)
+    let detail: string;
+    if (mode !== "CUSTOM") {
+      detail = `Hak akses menu ${user.fullName} (${user.username}) → semua menu & seluruh aksi`;
+    } else {
+      const restricted = Object.values(perms).filter((p) => !p.create || !p.update || !p.delete).length;
+      const opOff = Object.values(perms).reduce((n, p) => n + Object.values(p.ops).filter((v) => !v).length, 0);
+      detail = `Hak akses menu ${user.fullName} (${user.username}) → ${Object.keys(perms).length} menu` +
+        (restricted > 0 ? `, ${restricted} menu tanpa aksi penuh` : "") +
+        (opOff > 0 ? `, ${opOff} operasi dinonaktifkan` : " (semua aksi aktif)");
+    }
     await db.activityLog.create({
-      data: {
-        action: "Updated",
-        entity: "UserMenuAccess",
-        entityId: appUserId,
-        detail: `Hak akses menu ${user.fullName} (${user.username}) → ${mode === "CUSTOM" ? `${menus.length} menu terpilih` : "semua menu"}`,
-      },
+      data: { action: "Updated", entity: "UserMenuAccess", entityId: appUserId, detail },
     });
-    return NextResponse.json({ config: { appUserId: row.appUserId, mode: row.mode, menus: mode === "CUSTOM" ? menus : [] } }, { status: 201 });
+    return NextResponse.json({ config: { appUserId: row.appUserId, mode: row.mode, menus: viewListOf(perms), perms } }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

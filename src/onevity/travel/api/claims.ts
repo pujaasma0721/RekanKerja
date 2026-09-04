@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/claims?status=&employeeId= — daftar klaim
@@ -52,8 +53,11 @@ export async function GET(req: NextRequest) {
 // POST — buat klaim / settlement (rincian biaya per jenis + formula (a)+(b)-(c)).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 32-d: guard hak AKSI menu — create pada travel:travel-claim (per pengguna).
+    const m = await requireMenuAction(req, "travel:travel-claim", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
     const b = await req.json();
     if (!Array.isArray(b.expenses) || b.expenses.length === 0) {
       return NextResponse.json({ error: "Klaim wajib memuat minimal 1 baris biaya" }, { status: 400 });
@@ -94,12 +98,16 @@ export async function POST(req: NextRequest) {
 // dicatat ke decidedById (sebelumnya selalu NULL).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    // Task 32-d: body dibaca SEKALI sebelum guard (aksi menentukan menu yang dicek):
+    // approve/reject → op:approve travel:travel-claim-approval; cancel → op:cancel travel:travel-claim.
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
+    const m = b.action === "cancel"
+      ? await requireMenuAction(req, "travel:travel-claim", "op:cancel")
+      : await requireMenuAction(req, "travel:travel-claim-approval", "op:approve");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const res = await decideClaim(m.db, {
       id: String(b.id),
       action: b.action,

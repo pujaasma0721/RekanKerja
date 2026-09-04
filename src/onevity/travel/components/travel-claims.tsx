@@ -4,6 +4,7 @@
 // Entertainment+Guest) + formula (a)+(b)-(c) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ const newLine = (defaultCode: string): ExpenseLine => ({
 });
 
 export function TravelClaimsPage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -171,12 +173,16 @@ export function TravelClaimsPage() {
         description="Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula oranHR Total = (a)+(b)−(c) — uang muka otomatis dikurangkan"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => openDialog("request")} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
-              <Plus className="h-4 w-4" /> Klaim dari Permintaan
-            </Button>
-            <Button variant="outline" onClick={() => openDialog("standalone")} className="gap-2 font-bold">
-              <FileText className="h-4 w-4" /> Klaim Mandiri
-            </Button>
+            {perms.can("travel", "travel-claim", "create") && (
+              <Button onClick={() => openDialog("request")} className="gap-2 bg-orange-600 font-bold hover:bg-orange-700">
+                <Plus className="h-4 w-4" /> Klaim dari Permintaan
+              </Button>
+            )}
+            {perms.can("travel", "travel-claim", "create") && (
+              <Button variant="outline" onClick={() => openDialog("standalone")} className="gap-2 font-bold">
+                <FileText className="h-4 w-4" /> Klaim Mandiri
+              </Button>
+            )}
           </div>
         }
       />

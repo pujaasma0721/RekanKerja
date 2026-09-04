@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listEncashments, submitEncashment, decideEncashment } from "@/onevity/leave/services/leave-service";
 
 // GET /api/onevity/leave/encashment?status= — uang pengganti cuti
@@ -49,16 +50,21 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — keputusan approval (approve | reject | cancel).
-// L-05: guard mutasi requireMutator — role VIEWER ditolak (403) dan identitas
+// L-05: guard mutasi — role VIEWER ditolak (403) dan identitas
 // approver NYATA dari sesi dicatat ke decidedById (sebelumnya selalu NULL).
+// Task 32-d: guard hak AKSI menu per pengguna — approve/reject → op:approve pada
+// leave:leave-encashment; cancel → update pada leave:leave-encashment.
+// Body dibaca SEKALI sebelum guard (aksi menentukan aksi menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
+    const m = b.action === "cancel"
+      ? await requireMenuAction(req, "leave:leave-encashment", "update")
+      : await requireMenuAction(req, "leave:leave-encashment", "op:approve");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const res = await decideEncashment(m.db, {
       id: String(b.id),
       action: b.action,

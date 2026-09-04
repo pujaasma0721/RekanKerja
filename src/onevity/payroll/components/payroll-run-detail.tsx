@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 export function PayrollRunDetailPage() {
   const { params, navigate, setParams } = useNav();
+  const perms = useMenuPerms();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [slipLine, setSlipLine] = useState<RunLine | null>(null);
@@ -74,22 +76,26 @@ export function PayrollRunDetailPage() {
         description={`${run.processType.name} · dibuat ${fmtDateTime(run.createdAt)}${run.calculatedAt ? ` · dihitung ${fmtDateTime(run.calculatedAt)}` : ""}${run.status === "Confirmed" || run.status === "Paid" ? " · jurnal terposting otomatis" : ""}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {(run.status === "Draft" || run.status === "Calculated") && (
+            {(run.status === "Draft" || run.status === "Calculated") && perms.canOp("payroll", "runs", "calculate") && (
               <Button onClick={() => act("calculate")} disabled={busy} className="gap-2 bg-sky-600 font-bold hover:bg-sky-700">
                 <Calculator className="h-4 w-4" /> {run.status === "Draft" ? "Hitung Payroll" : "Hitung Ulang"}
               </Button>
             )}
-            {run.status === "Calculated" && (
+            {run.status === "Calculated" && perms.canOp("payroll", "runs", "confirm") && (
               <Button onClick={() => act("confirm")} disabled={busy} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
                 <CheckCircle2 className="h-4 w-4" /> Konfirmasi
               </Button>
             )}
             {run.status === "Confirmed" && (
               <>
-                <Button onClick={() => act("markPaid")} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
-                  <Wallet className="h-4 w-4" /> Tandai Dibayar
-                </Button>
-                <BankExportMenu runId={run.id} runNo={run.runNo} />
+                {perms.canOp("payroll", "runs", "markPaid") && (
+                  <Button onClick={() => act("markPaid")} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                    <Wallet className="h-4 w-4" /> Tandai Dibayar
+                  </Button>
+                )}
+                {perms.canOp("payroll", "runs", "export") && (
+                  <BankExportMenu runId={run.id} runNo={run.runNo} />
+                )}
               </>
             )}
             {(run.status === "Confirmed" || run.status === "Paid") && (

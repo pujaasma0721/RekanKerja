@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
 } from "@/onevity/payroll/services/benefit-service";
@@ -53,10 +54,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/benefit-claims — ajukan klaim (limit check + auto-approve).
+// Task 32-d: guard hak AKSI menu — create pada payroll:benefits (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:benefits", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     const res = await submitClaim(db, {
@@ -78,12 +81,23 @@ export async function PATCH(req: NextRequest) {
   try {
     // Guard mutasi (audit C-02): VIEWER ditolak 403; approve tercatat dari
     // aktor SESI nyata (bukan payload klien) → kolom BenefitClaim.approvedBy.
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const { db, actor } = m;
-
+    // Task 32-d: guard hak AKSI menu per pengguna — approve/reject → op:approve,
+    // schedule → op:schedule, markPaid → op:markPaid, cancel → update pada
+    // payroll:benefits. Body dibaca SEKALI sebelum guard (aksi menentukan op yang dicek).
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
+    if (!["approve", "reject", "schedule", "markPaid", "cancel"].includes(b.action)) {
+      return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
+    }
+    const m = b.action === "approve" || b.action === "reject"
+      ? await requireMenuAction(req, "payroll:benefits", "op:approve")
+      : b.action === "schedule"
+        ? await requireMenuAction(req, "payroll:benefits", "op:schedule")
+        : b.action === "markPaid"
+          ? await requireMenuAction(req, "payroll:benefits", "op:markPaid")
+          : await requireMenuAction(req, "payroll:benefits", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
     let claim: unknown;
     switch (b.action) {
       case "approve":

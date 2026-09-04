@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { PA_TYPES } from "@/onevity/shared/components/ui-kit";
 import { useApi, apiSend, initials, avatarColor, fmtIDR } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, Loader2, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,7 @@ const EMP_STATUSES = ["Permanent", "Contract", "Probation", "Outsourcing"];
 
 export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const employees = useApi<{ employees: EmpOpt[]; total: number }>(open ? "/api/onevity/employees?limit=200&status=Active" : null);
   const masters = useApi<MasterOpt>(open ? "/api/onevity/employee-options" : null);
 
@@ -360,10 +362,12 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">Batal</Button>
-          <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Workflow className="h-4 w-4" />}
-            Buat Dokumen Draft
-          </Button>
+          {perms.can("hr", "all", "create") && (
+            <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 bg-emerald-600 px-6 font-bold hover:bg-emerald-700">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Workflow className="h-4 w-4" />}
+              Buat Dokumen Draft
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

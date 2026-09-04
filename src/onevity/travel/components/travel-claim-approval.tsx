@@ -4,6 +4,7 @@
 // Operation Transfer + Travel Wage Definition oranHR)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface DecideState {
 }
 
 export function TravelClaimApprovalPage() {
+  const perms = useMenuPerms();
   const [decide, setDecide] = useState<DecideState>({ claim: null, action: null });
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -98,13 +100,15 @@ export function TravelClaimApprovalPage() {
         title="Persetujuan Klaim & Transfer Payroll"
         description="Approve klaim → jurnal akuntansi otomatis per baris biaya → Transfer ke payroll (UTRP bayar karyawan / TRVSTLIN potong kelebihan uang muka) — padanan Settlement Approval + Wage Definition oranHR"
         actions={
-          <Button
-            onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }}
-            disabled={!approvedClaims.length}
-            className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
-          >
-            <Landmark className="h-4 w-4" /> Transfer ke Payroll {approvedClaims.length ? `(${approvedClaims.length})` : ""}
-          </Button>
+          perms.canOp("travel", "travel-claim-approval", "transfer") && (
+            <Button
+              onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }}
+              disabled={!approvedClaims.length}
+              className="gap-2 bg-orange-600 font-bold hover:bg-orange-700"
+            >
+              <Landmark className="h-4 w-4" /> Transfer ke Payroll {approvedClaims.length ? `(${approvedClaims.length})` : ""}
+            </Button>
+          )
         }
       />
 
@@ -195,15 +199,21 @@ export function TravelClaimApprovalPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" className="h-8 gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700" onClick={() => { setDecide({ claim: c, action: "approve" }); setNote(""); }}>
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Setujui + Jurnal
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={() => { setDecide({ claim: c, action: "reject" }); setNote(""); }}>
-                    <XCircle className="h-3.5 w-3.5" /> Tolak
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500" onClick={() => { setDecide({ claim: c, action: "cancel" }); setNote(""); }}>
-                    <Ban className="h-3.5 w-3.5" /> Batalkan
-                  </Button>
+                  {perms.canOp("travel", "travel-claim-approval", "approve") && (
+                    <>
+                      <Button size="sm" className="h-8 gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700" onClick={() => { setDecide({ claim: c, action: "approve" }); setNote(""); }}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Setujui + Jurnal
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={() => { setDecide({ claim: c, action: "reject" }); setNote(""); }}>
+                        <XCircle className="h-3.5 w-3.5" /> Tolak
+                      </Button>
+                    </>
+                  )}
+                  {perms.canOp("travel", "travel-claim", "cancel") && (
+                    <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500" onClick={() => { setDecide({ claim: c, action: "cancel" }); setNote(""); }}>
+                      <Ban className="h-3.5 w-3.5" /> Batalkan
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -225,9 +235,11 @@ export function TravelClaimApprovalPage() {
                   </p>
                   <p className="text-xs text-stone-500">Komponen payroll: UTRP (earning) untuk (b) &amp; TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition oranHR</p>
                 </div>
-                <Button onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
-                  <Landmark className="h-4 w-4" /> Transfer
-                </Button>
+                {perms.canOp("travel", "travel-claim-approval", "transfer") && (
+                  <Button onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                    <Landmark className="h-4 w-4" /> Transfer
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -298,12 +310,14 @@ export function TravelClaimApprovalPage() {
           )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDecide({ claim: null, action: null })} className="font-bold">Batal</Button>
-            <Button
-              onClick={submitDecision} disabled={busy}
-              className={decide.action === "approve" ? "gap-2 bg-teal-600 font-bold hover:bg-teal-700" : "gap-2 bg-rose-600 font-bold hover:bg-rose-700"}
-            >
-              {busy ? "Memproses…" : decide.action === "approve" ? "Setujui + Buat Jurnal" : decide.action === "reject" ? "Tolak" : "Batalkan"}
-            </Button>
+            {(decide.action === "cancel" ? perms.canOp("travel", "travel-claim", "cancel") : perms.canOp("travel", "travel-claim-approval", "approve")) && (
+              <Button
+                onClick={submitDecision} disabled={busy}
+                className={decide.action === "approve" ? "gap-2 bg-teal-600 font-bold hover:bg-teal-700" : "gap-2 bg-rose-600 font-bold hover:bg-rose-700"}
+              >
+                {busy ? "Memproses…" : decide.action === "approve" ? "Setujui + Buat Jurnal" : decide.action === "reject" ? "Tolak" : "Batalkan"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -347,9 +361,11 @@ export function TravelClaimApprovalPage() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setTransferOpen(false)} className="font-bold">Batal</Button>
-            <Button onClick={doTransfer} disabled={transferBusy || !periodId} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
-              <Landmark className="h-4 w-4" /> {transferBusy ? "Mentransfer…" : "Transfer Sekarang"}
-            </Button>
+            {perms.canOp("travel", "travel-claim-approval", "transfer") && (
+              <Button onClick={doTransfer} disabled={transferBusy || !periodId} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                <Landmark className="h-4 w-4" /> {transferBusy ? "Mentransfer…" : "Transfer Sekarang"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { validateSalaryAgainstGrade } from "@/onevity/human-resource/services/pa-targets";
 
 // GET /api/onevity/personnel-actions?status=&type=&q=&mine=
@@ -93,9 +94,10 @@ export async function GET(req: NextRequest) {
 // createdBy/ActivityLog); approver layer di-resolve dari struktur/role, bukan = pembuat.
 // Fix M-05/M-06: validasi server (eff date ≥ joinDate, gaji dalam rentang grade,
 // karyawan Active kecuali Hire, FK ramah 400).
+// Task 32-d: guard hak AKSI menu — create pada menu hr:all (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "hr:all", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
 

@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ type Action = "approve" | "reject" | "cancel";
 
 export function LeaveApprovalPage() {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<RequestRowUI | null>(null);
   const [action, setAction] = useState<Action>("approve");
@@ -178,15 +180,21 @@ export function LeaveApprovalPage() {
                       )}
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => openDialog(r, "reject")} className="h-7 gap-1 border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
-                            <XCircle className="h-3.5 w-3.5" /> Tolak
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-stone-400" title="Batalkan">
-                            <Ban className="h-3.5 w-3.5" />
-                          </Button>
+                          {perms.canOp("leave", "leave-approval", "approve") && (
+                            <>
+                              <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => openDialog(r, "reject")} className="h-7 gap-1 border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
+                                <XCircle className="h-3.5 w-3.5" /> Tolak
+                              </Button>
+                            </>
+                          )}
+                          {perms.canOp("leave", "leave-request", "cancel") && (
+                            <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-stone-400" title="Batalkan">
+                              <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -243,15 +251,17 @@ export function LeaveApprovalPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setTarget(null)} className="text-xs font-bold">Batal</Button>
-            <Button
-              onClick={decide}
-              disabled={busy}
-              className={cn("gap-1.5 text-xs font-bold",
-                action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
-            >
-              {action === "approve" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-              {action === "approve" ? "Setujui" : action === "reject" ? "Tolak" : "Batalkan"}
-            </Button>
+            {(action === "cancel" ? perms.canOp("leave", "leave-request", "cancel") : perms.canOp("leave", "leave-approval", "approve")) && (
+              <Button
+                onClick={decide}
+                disabled={busy}
+                className={cn("gap-1.5 text-xs font-bold",
+                  action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
+              >
+                {action === "approve" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                {action === "approve" ? "Setujui" : action === "reject" ? "Tolak" : "Batalkan"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

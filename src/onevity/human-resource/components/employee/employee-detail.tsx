@@ -3,6 +3,7 @@
 // (personal, pekerjaan, keluarga, pendidikan, pengalaman, disiplin)
 import { useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useApi, fmtDate, fmtDateLong, fmtIDR, tenure, genderLabel } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ function SectionCard({
 
 export function EmployeeDetail({ id }: { id: string }) {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const { data, loading, error, refresh } = useApi<EmployeeDetailResp>(`/api/onevity/employee-detail?id=${encodeURIComponent(id)}`, [id]);
 
   // referensi kantor & lokasi kerja (Task 25) — resolve nama dari snapshot ID
@@ -255,9 +257,11 @@ export function EmployeeDetail({ id }: { id: string }) {
             description="Identitas kependudukan, kontak, dan data perbankan."
             icon={UserRound}
             action={
-              <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditPersonal(true)}>
-                <Pencil className="h-4 w-4" /> Edit
-              </Button>
+              perms.can("hr", "directory", "update") && (
+                <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditPersonal(true)}>
+                  <Pencil className="h-4 w-4" /> Edit
+                </Button>
+              )
             }
           >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -285,9 +289,11 @@ export function EmployeeDetail({ id }: { id: string }) {
               description="Penempatan, status, dan upah saat ini."
               icon={BriefcaseBusiness}
               action={
-                <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditWork(true)}>
-                  <Pencil className="h-4 w-4" /> Edit
-                </Button>
+                perms.can("hr", "directory", "update") && (
+                  <Button variant="outline" size="sm" className="h-11 gap-2" onClick={() => setEditWork(true)}>
+                    <Pencil className="h-4 w-4" /> Edit
+                  </Button>
+                )
               }
             >
               <div className="grid gap-3 sm:grid-cols-2">
@@ -348,9 +354,11 @@ export function EmployeeDetail({ id }: { id: string }) {
             description="Anggota keluarga untuk BPJS dan tunjangan."
             icon={Heart}
             action={
-              <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setFamilyOpen(true)}>
-                <Plus className="h-4 w-4" /> Tambah
-              </Button>
+              perms.can("hr", "directory", "create") && (
+                <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setFamilyOpen(true)}>
+                  <Plus className="h-4 w-4" /> Tambah
+                </Button>
+              )
             }
           >
             {e.family.length === 0 ? (
@@ -386,12 +394,14 @@ export function EmployeeDetail({ id }: { id: string }) {
                             )}
                           </TableCell>
                           <TableCell className="py-3">
-                            <DeleteRecordButton
-                              url={`/api/onevity/family?id=${f.id}`}
-                              title={`Hapus ${f.name}?`}
-                              description="Anggota keluarga akan dihapus permanen dari profil."
-                              onDone={refresh}
-                            />
+                            {perms.can("hr", "directory", "delete") && (
+                              <DeleteRecordButton
+                                url={`/api/onevity/family?id=${f.id}`}
+                                title={`Hapus ${f.name}?`}
+                                description="Anggota keluarga akan dihapus permanen dari profil."
+                                onDone={refresh}
+                              />
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -410,9 +420,11 @@ export function EmployeeDetail({ id }: { id: string }) {
             description="Jenjang pendidikan formal."
             icon={GraduationCap}
             action={
-              <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setEduOpen(true)}>
-                <Plus className="h-4 w-4" /> Tambah
-              </Button>
+              perms.can("hr", "directory", "create") && (
+                <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setEduOpen(true)}>
+                  <Plus className="h-4 w-4" /> Tambah
+                </Button>
+              )
             }
           >
             {e.education.length === 0 ? (
@@ -425,13 +437,15 @@ export function EmployeeDetail({ id }: { id: string }) {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[11px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
                         {d.level}
                       </div>
-                      <DeleteRecordButton
-                        url={`/api/onevity/education?id=${d.id}`}
-                        title={`Hapus pendidikan ${d.level}?`}
-                        description="Riwayat pendidikan ini akan dihapus permanen."
-                        onDone={refresh}
-                        className="h-8 w-8"
-                      />
+                      {perms.can("hr", "directory", "delete") && (
+                        <DeleteRecordButton
+                          url={`/api/onevity/education?id=${d.id}`}
+                          title={`Hapus pendidikan ${d.level}?`}
+                          description="Riwayat pendidikan ini akan dihapus permanen."
+                          onDone={refresh}
+                          className="h-8 w-8"
+                        />
+                      )}
                     </div>
                     <p className="mt-3 text-sm font-bold text-stone-800 dark:text-stone-100">{d.institution}</p>
                     <p className="text-xs text-stone-500 dark:text-stone-400">{d.major ?? "—"}</p>
@@ -453,9 +467,11 @@ export function EmployeeDetail({ id }: { id: string }) {
             description="Riwayat pekerjaan sebelum bergabung."
             icon={History}
             action={
-              <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setExpOpen(true)}>
-                <Plus className="h-4 w-4" /> Tambah
-              </Button>
+              perms.can("hr", "directory", "create") && (
+                <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setExpOpen(true)}>
+                  <Plus className="h-4 w-4" /> Tambah
+                </Button>
+              )
             }
           >
             {e.experiences.length === 0 ? (
@@ -477,12 +493,14 @@ export function EmployeeDetail({ id }: { id: string }) {
                           {x.notes && <p className="mt-2 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{x.notes}</p>}
                         </div>
                       </div>
-                      <DeleteRecordButton
-                        url={`/api/onevity/experiences?id=${x.id}`}
-                        title={`Hapus pengalaman di ${x.company}?`}
-                        description="Pengalaman kerja ini akan dihapus permanen."
-                        onDone={refresh}
-                      />
+                      {perms.can("hr", "directory", "delete") && (
+                        <DeleteRecordButton
+                          url={`/api/onevity/experiences?id=${x.id}`}
+                          title={`Hapus pengalaman di ${x.company}?`}
+                          description="Pengalaman kerja ini akan dihapus permanen."
+                          onDone={refresh}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -498,9 +516,11 @@ export function EmployeeDetail({ id }: { id: string }) {
             description="Riwayat peringatan, pelanggaran, dan sanksi."
             icon={Scale}
             action={
-              <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setDiscOpen(true)}>
-                <Plus className="h-4 w-4" /> Catat Pelanggaran
-              </Button>
+              perms.can("hr", "directory", "create") && (
+                <Button size="sm" className="h-11 gap-2 bg-emerald-600 px-4 font-bold hover:bg-emerald-700" onClick={() => setDiscOpen(true)}>
+                  <Plus className="h-4 w-4" /> Catat Pelanggaran
+                </Button>
+              )
             }
           >
             {e.disciplinary.length === 0 ? (
@@ -531,12 +551,14 @@ export function EmployeeDetail({ id }: { id: string }) {
                             )}
                             {d.notes && <p className="mt-1.5 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{d.notes}</p>}
                           </div>
-                          <DeleteRecordButton
-                            url={`/api/onevity/disciplinary?id=${d.id}`}
-                            title="Hapus catatan disiplin?"
-                            description="Catatan pelanggaran ini akan dihapus permanen."
-                            onDone={refresh}
-                          />
+                          {perms.can("hr", "directory", "delete") && (
+                            <DeleteRecordButton
+                              url={`/api/onevity/disciplinary?id=${d.id}`}
+                              title="Hapus catatan disiplin?"
+                              description="Catatan pelanggaran ini akan dihapus permanen."
+                              onDone={refresh}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>

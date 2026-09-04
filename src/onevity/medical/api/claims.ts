@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/claims?state=&year=&employeeId=&typeId=&preview=
@@ -59,10 +60,11 @@ export async function GET(req: NextRequest) {
 // POST — ajukan klaim medis (baris perawatan multi: treated/diagnosa/kwitansi/
 // dokter/RS + bill/reimburse/approved) — padanan Medical Claim form + ESS wizard.
 // Guard (fix audit): validasi tanggal (M-2), dedupe kwitansi (M-8), enforce sisa
-// plafon pool yang benar (K-1/K-2/K-3). requireMutator: VIEWER 403 + aktor sesi.
+// plafon pool yang benar (K-1/K-2/K-3). Guard: VIEWER 403 + aktor sesi.
+// Task 32-d: guard hak AKSI menu — create pada medical:medical-claim (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "medical:medical-claim", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     // aktor sesi nyata (AppUser bila ada — mis. hrd@mii.co.id → MII000001)
     const actorId = m.actor.appUserId ?? m.actor.userId;
@@ -100,17 +102,23 @@ export async function POST(req: NextRequest) {
 
 // PATCH — Operation oranHR: submit | return | approve | reject | cancel | settle.
 // Settle = jurnal otomatis + saldo used bertambah. Guard re-check sisa plafon
-// (K-1/K-2) + requireMutator (VIEWER 403; decidedBy/settledBy = aktor sesi).
+// (K-1/K-2) + guard VIEWER 403 (decidedBy/settledBy = aktor sesi).
+// Task 32-d: guard hak AKSI menu per pengguna — submit → op:submit & cancel →
+// op:cancel pada medical:medical-claim; approve/reject/return → op:approve &
+// settle → op:settle pada medical:medical-approval. Body dibaca SEKALI sebelum
+// guard (aksi menentukan menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     const actions = ["submit", "return", "approve", "reject", "cancel", "settle"];
     if (!b.id || !actions.includes(b.action)) {
       return NextResponse.json({ error: `id & action (${actions.join("|")}) wajib` }, { status: 400 });
     }
+    const m = b.action === "submit" || b.action === "cancel"
+      ? await requireMenuAction(req, "medical:medical-claim", b.action === "submit" ? "op:submit" : "op:cancel")
+      : await requireMenuAction(req, "medical:medical-approval", b.action === "settle" ? "op:settle" : "op:approve");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const res = await decideClaim(m.db, {
       claimId: String(b.id),
       action: b.action,

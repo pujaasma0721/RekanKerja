@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listAdjustments, submitAdjustment, decideAdjustment } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/adjustments?state=&year= — penyesuaian saldo
@@ -34,10 +35,11 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ajukan penyesuaian (± employee/dependent amount).
-// requireMutator (fix audit aktor/role): VIEWER 403 + aktor sesi nyata.
+// Guard (fix audit aktor/role): VIEWER 403 + aktor sesi nyata.
+// Task 32-d: guard hak AKSI menu — create pada medical:medical-adjustment (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "medical:medical-adjustment", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
@@ -60,16 +62,20 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — keputusan adjustment (Approve → saldo bertambah/kurang | Reject | Cancel).
-// requireMutator (fix audit aktor/role): decidedBy = aktor sesi nyata, VIEWER 403.
+// Guard (fix audit aktor/role): decidedBy = aktor sesi nyata, VIEWER 403.
+// Task 32-d: guard hak AKSI menu per pengguna — approve/reject → op:approve pada
+// medical:medical-adjustment; cancel → update. Body dibaca SEKALI sebelum guard.
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const actorId = m.actor.appUserId ?? m.actor.userId;
     const b = await req.json();
     if (!b.id || !["approve", "reject", "cancel"].includes(b.action)) {
       return NextResponse.json({ error: "id & action (approve|reject|cancel) wajib" }, { status: 400 });
     }
+    const m = b.action === "cancel"
+      ? await requireMenuAction(req, "medical:medical-adjustment", "update")
+      : await requireMenuAction(req, "medical:medical-adjustment", "op:approve");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const actorId = m.actor.appUserId ?? m.actor.userId;
     const res = await decideAdjustment(m.db, {
       adjustmentId: String(b.id),
       action: b.action,

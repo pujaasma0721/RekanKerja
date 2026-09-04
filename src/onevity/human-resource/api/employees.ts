@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
@@ -88,10 +89,11 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/employees — create employee (wizard final step)
 // Membuat employee (data personal + lifecycle) + assignment awal (data pekerjaan).
 // Fix M-05/M-06: validasi server — gaji dalam rentang grade, FK valid (400 ramah, bukan 500).
-// Fix C-02: guard mutasi (requireMutator — VIEWER ditolak; aktor dicatat di ActivityLog).
+// Fix C-02: guard mutasi (VIEWER ditolak; aktor dicatat di ActivityLog).
+// Task 32-d: guard hak AKSI menu — create pada menu hr:directory (per pengguna).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "hr:directory", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
 

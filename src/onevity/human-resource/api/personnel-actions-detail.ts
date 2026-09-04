@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
 
@@ -96,15 +97,20 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 // Fix M-04: transisi memakai update kondisional (updateMany + cek count) → race double-click 409.
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const { db, actor } = m;
-    const actorLabel = actor.appUsername ?? actor.name;
-
+    // Task 32-d: body dibaca SEKALI sebelum guard (aksi menentukan menu yang dicek):
+    // keputusan approve/reject → op:approve menu hr:inbox (per pengguna); aksi
+    // lain (submit/process/cancel/return/update) tetap guard sesi+VIEWER.
     const { id } = await ctx.params;
     const b = await req.json();
     const act = b.action as string;
     const note = (b.note as string | undefined)?.trim() || null;
+
+    const m = act === "approve" || act === "reject"
+      ? await requireMenuAction(req, "hr:inbox", "op:approve")
+      : await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
+    const actorLabel = actor.appUsername ?? actor.name;
 
     const action = await db.personnelAction.findUnique({
       where: { id },

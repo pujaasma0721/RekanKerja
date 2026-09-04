@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope } from "@/onevity/shared/services/access-scope";
 import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/onevity/human-resource/services/assignment";
 
@@ -138,10 +138,12 @@ const JOB_FIELDS = ["orgUnitId", "positionId", "gradeId", "managerId", "employme
 // PATCH /api/onevity/employee-detail?id=
 // Perubahan data personal → update Employee.
 // Perubahan data pekerjaan → assignment aktif ditutup + assignment baru dibuat (tercatat di riwayat).
+// Task 32-d: guard hak AKSI menu — update pada menu hr:directory (per pengguna).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:directory", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

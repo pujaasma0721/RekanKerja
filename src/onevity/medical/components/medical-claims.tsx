@@ -3,6 +3,7 @@
 // (padanan MedicalBenefitClaim.jsp + wizard ESS MyMedicalExpenseClaim.jsp).
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ const newLine = (treatedName = ""): LineForm => ({
 });
 
 export function MedicalClaimsPage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -152,9 +154,11 @@ export function MedicalClaimsPage() {
         title="Klaim Medis"
         description="Pengajuan reimbursement perawatan karyawan & dependent — snapshot saldo, baris perawatan dengan kwitansi/dokter/rumah sakit, validasi frekuensi per jenis (padanan Medical Claim oranHR)"
         actions={(
-          <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
-            <Plus className="h-4 w-4" /> Ajukan Klaim
-          </Button>
+          perms.can("medical", "medical-claim", "create") && (
+            <Button onClick={openDialog} className="bg-rose-600 hover:bg-rose-700">
+              <Plus className="h-4 w-4" /> Ajukan Klaim
+            </Button>
+          )
         )}
       />
 

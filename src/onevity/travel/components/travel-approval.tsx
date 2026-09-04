@@ -3,6 +3,7 @@
 // (padanan TravelRequestToApprove.jsp + Operation menu)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ interface DecideDialogState {
 }
 
 export function TravelApprovalPage() {
+  const perms = useMenuPerms();
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<DecideDialogState>({ request: null, action: null });
   const [note, setNote] = useState("");
@@ -165,24 +167,30 @@ export function TravelApprovalPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm" className="h-8 gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700"
-                    onClick={() => { setDialog({ request: r, action: "approve" }); setNote(""); }}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
-                  </Button>
-                  <Button
-                    size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700"
-                    onClick={() => { setDialog({ request: r, action: "reject" }); setNote(""); }}
-                  >
-                    <XCircle className="h-3.5 w-3.5" /> Tolak
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500"
-                    onClick={() => { setDialog({ request: r, action: "cancel" }); setNote(""); }}
-                  >
-                    <Ban className="h-3.5 w-3.5" /> Batalkan
-                  </Button>
+                  {perms.canOp("travel", "travel-approval", "approve") && (
+                    <>
+                      <Button
+                        size="sm" className="h-8 gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700"
+                        onClick={() => { setDialog({ request: r, action: "approve" }); setNote(""); }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Setujui
+                      </Button>
+                      <Button
+                        size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700"
+                        onClick={() => { setDialog({ request: r, action: "reject" }); setNote(""); }}
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Tolak
+                      </Button>
+                    </>
+                  )}
+                  {perms.canOp("travel", "travel-request", "cancel") && (
+                    <Button
+                      size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500"
+                      onClick={() => { setDialog({ request: r, action: "cancel" }); setNote(""); }}
+                    >
+                      <Ban className="h-3.5 w-3.5" /> Batalkan
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -253,16 +261,18 @@ export function TravelApprovalPage() {
           )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialog({ request: null, action: null })} className="font-bold">Batal</Button>
-            <Button
-              onClick={submitDecision} disabled={busy}
-              className={
-                dialog.action === "approve"
-                  ? "gap-2 bg-teal-600 font-bold hover:bg-teal-700"
-                  : "gap-2 bg-rose-600 font-bold hover:bg-rose-700"
-              }
-            >
-              {busy ? "Memproses…" : dialog.action === "approve" ? "Setujui" : dialog.action === "reject" ? "Tolak" : "Batalkan"}
-            </Button>
+            {(dialog.action === "cancel" ? perms.canOp("travel", "travel-request", "cancel") : perms.canOp("travel", "travel-approval", "approve")) && (
+              <Button
+                onClick={submitDecision} disabled={busy}
+                className={
+                  dialog.action === "approve"
+                    ? "gap-2 bg-teal-600 font-bold hover:bg-teal-700"
+                    : "gap-2 bg-rose-600 font-bold hover:bg-rose-700"
+                }
+              >
+                {busy ? "Memproses…" : dialog.action === "approve" ? "Setujui" : dialog.action === "reject" ? "Tolak" : "Batalkan"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

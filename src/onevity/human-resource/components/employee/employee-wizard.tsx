@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, fmtIDR, initials } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ const TRACKED_FIELDS = [
 
 export function OnboardingWizard() {
   const { navigate } = useNav();
+  const perms = useMenuPerms();
   const opts = useApi<WizardOptions>("/api/onevity/employee-options");
   // referensi kantor & lokasi kerja (Task 25) — penempatan dimensi approval berjenjang
   const officesApi = useApi<{ offices: CompanyOfficeOption[] }>("/api/onevity/company-offices");
@@ -507,9 +509,11 @@ export function OnboardingWizard() {
                   <Button onClick={() => navigate("employee", "detail", { id: created.id })} className="h-9 gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
                     <User className="h-4 w-4" /> Lihat Profil Karyawan
                   </Button>
-                  <Button variant="outline" onClick={reset} className="h-9 gap-2 font-semibold">
-                    <UserPlus className="h-4 w-4" /> Onboarding Karyawan Lagi
-                  </Button>
+                  {perms.can("hr", "wizard", "create") && (
+                    <Button variant="outline" onClick={reset} className="h-9 gap-2 font-semibold">
+                      <UserPlus className="h-4 w-4" /> Onboarding Karyawan Lagi
+                    </Button>
+                  )}
                   <Button variant="ghost" onClick={() => navigate("employee", "directory")} className="h-9 gap-2 font-semibold text-stone-500">
                     <Users2 className="h-4 w-4" /> Ke Direktori
                   </Button>
@@ -534,10 +538,15 @@ export function OnboardingWizard() {
                   <Button onClick={next} className="h-9 gap-1.5 bg-emerald-600 px-5 text-sm font-bold hover:bg-emerald-700">
                     Lanjut <ChevronRight className="h-4 w-4" />
                   </Button>
-                ) : (
+                ) : perms.can("hr", "wizard", "create") ? (
                   <Button onClick={submit} disabled={busy} className="h-9 gap-2 bg-emerald-600 px-5 text-sm font-bold hover:bg-emerald-700">
                     {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Menyimpan…</> : <><CheckCircle2 className="h-4 w-4" /> Simpan Karyawan</>}
                   </Button>
+                ) : (
+                  <p className="flex max-w-xs items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Anda tidak memiliki hak menambah karyawan (aksi Baru dinonaktifkan untuk menu Onboarding).
+                  </p>
                 )}
               </div>
             </div>

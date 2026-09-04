@@ -3,6 +3,7 @@
 // EmployeeWorkOff.jsp) — paid/unpaid, potong cuti, approval.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
+import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const daysBetween = (a: string, b: string) =>
   Math.round((new Date(b).setHours(0, 0, 0, 0) - new Date(a).setHours(0, 0, 0, 0)) / 86_400_000) + 1;
 
 export function AttendanceWorkoffPage() {
+  const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState(false);
@@ -188,12 +190,16 @@ export function AttendanceWorkoffPage() {
                         <div className="flex items-center gap-1">
                           {p.status === "Pending" && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Setujui" onClick={() => decide(p, "approve")} aria-label="Setujui izin">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Tolak" onClick={() => { setRejectTarget(p); setRejectNote(""); }} aria-label="Tolak izin">
-                                <XCircle className="h-4 w-4 text-rose-500" />
-                              </Button>
+                              {perms.canOp("attendance", "workoff", "approve") && (
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Setujui" onClick={() => decide(p, "approve")} aria-label="Setujui izin">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Tolak" onClick={() => { setRejectTarget(p); setRejectNote(""); }} aria-label="Tolak izin">
+                                    <XCircle className="h-4 w-4 text-rose-500" />
+                                  </Button>
+                                </>
+                              )}
                             </>
                           )}
                           {["Pending", "Approved"].includes(p.status) && (
@@ -300,9 +306,11 @@ export function AttendanceWorkoffPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectTarget(null)}>Batal</Button>
-            <Button onClick={async () => { if (rejectTarget) { await decide(rejectTarget, "reject", rejectNote); setRejectTarget(null); } }} disabled={!rejectNote.trim()} className="bg-rose-600 font-bold hover:bg-rose-700">
-              Tolak Izin
-            </Button>
+            {perms.canOp("attendance", "workoff", "approve") && (
+              <Button onClick={async () => { if (rejectTarget) { await decide(rejectTarget, "reject", rejectNote); setRejectTarget(null); } }} disabled={!rejectNote.trim()} className="bg-rose-600 font-bold hover:bg-rose-700">
+                Tolak Izin
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
