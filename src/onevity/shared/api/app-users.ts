@@ -5,6 +5,7 @@ import { readSessionCookie } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
 import { getTenantPolicy, checkPasswordHistory, recordPasswordSet } from "@/onevity/shared/services/password-security";
+import { notifyEmailEvent } from "@/onevity/shared/services/email-service";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -111,6 +112,17 @@ export async function POST(req: NextRequest | Request) {
         detail: `Pengguna ${user.username} (${fullName}) dibuat — akun login ${email} dengan kata sandi tervalidasi kebijakan`,
       },
     });
+    // ===== Notifikasi email otomatis (Task 34) — kirim kredensial ke user baru =====
+    void (async () => {
+      try {
+        notifyEmailEvent(db, {
+          event: "user.created",
+          to: [{ email, name: fullName }],
+          data: { nama: fullName, email, password },
+        });
+      } catch { /* never */ }
+    })();
+
     return NextResponse.json(
       { user: { ...user, passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null } },
       { status: 201 },

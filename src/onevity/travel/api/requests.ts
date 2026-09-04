@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelRequests, submitTravelRequest, decideTravelRequest } from "@/onevity/travel/services/travel-service";
+import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/travel/requests?status=&employeeId= — daftar permintaan
 // (padanan TravelRequest.jsp / TravelRequestToApprove.jsp).
@@ -63,6 +64,29 @@ export async function POST(req: NextRequest) {
       advanceNote: b.advanceNote ? String(b.advanceNote) : undefined,
       actorName: m.actor.name,
     });
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    void (async () => {
+      try {
+        const emp = await db.employee.findUnique({
+          where: { id: String(b.employeeId ?? "") },
+          select: { fullName: true, email: true },
+        });
+        const cities = Array.isArray(b.destinations)
+          ? (b.destinations as { city?: string }[]).map((d) => d.city ?? "-").filter(Boolean).join(", ")
+          : "-";
+        notifyEmailEvent(db, {
+          event: "travel.submitted",
+          to: await approverEmailsOf(db, String(b.employeeId ?? "")),
+          data: {
+            nama: emp?.fullName ?? "-", docNo: res.docNo, tujuan: cities || "-",
+            periode: `${String(b.dateFrom ?? "-")} → ${String(b.dateTo ?? "-")}`,
+            biaya: b.advanceAmount ? `Rp ${Number(b.advanceAmount).toLocaleString("id-ID")}` : "-",
+          },
+        });
+      } catch { /* never */ }
+    })();
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -93,6 +117,31 @@ export async function PATCH(req: NextRequest) {
       actorId: m.actor.appUserId ?? m.actor.userId,
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     });
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    if (b.action !== "cancel" && !res.approval) {
+      void (async () => {
+        try {
+          const tr = await m.db.travelRequest.findUnique({
+            where: { id: String(b.id) },
+            select: { docNo: true, dateFrom: true, dateTo: true, employee: { select: { fullName: true, email: true } }, destinations: { select: { city: true } } },
+          });
+          if (tr?.employee?.email) {
+            notifyEmailEvent(m.db, {
+              event: b.action === "approve" ? "travel.approved" : "travel.rejected",
+              to: [{ email: tr.employee.email, name: tr.employee.fullName }],
+              data: {
+                nama: tr.employee.fullName, docNo: tr.docNo,
+                tujuan: tr.destinations.map((d) => d.city).join(", ") || "-",
+                periode: `${new Date(tr.dateFrom).toISOString().slice(0, 10)} → ${new Date(tr.dateTo).toISOString().slice(0, 10)}`,
+                catatan: b.note ? String(b.note) : "-",
+              },
+            });
+          }
+        } catch { /* never */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

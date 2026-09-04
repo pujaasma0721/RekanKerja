@@ -7,6 +7,7 @@ import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/share
 import { ApprovalEngineView } from "@/onevity/shared/components/settings/approval-views";
 import { UserAccessView } from "@/onevity/shared/components/settings/user-access-view";
 import { PasswordPolicyPanel, UsersPanel } from "@/onevity/shared/components/settings/user-security-view";
+import { EmailConfigView } from "@/onevity/shared/components/settings/email-config-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 export function SettingsModule({ view }: { view: string }) {
   if (view === "security") return <SecurityPage />;
   if (view === "approval") return <ApprovalEngineView />;
+  if (view === "email") return <EmailConfigView />;
   return <LookupPage />;
 }
 

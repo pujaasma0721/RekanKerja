@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
+import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
 export async function GET(req: NextRequest) {
@@ -118,6 +119,23 @@ export async function PATCH(req: NextRequest) {
       }
       case "confirm": {
         await confirmRun(db, b.id);
+        // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+        void (async () => {
+          try {
+            const fresh = await db.payrollRun.findUnique({
+              where: { id: b.id },
+              select: { runNo: true, period: { select: { name: true } }, _count: { select: { lines: true } } },
+            });
+            notifyEmailEvent(db, {
+              event: "payroll.run.confirmed",
+              to: await approverEmailsOf(db),
+              data: {
+                runNo: fresh?.runNo ?? "-", periode: fresh?.period?.name ?? "-",
+                jumlah: String(fresh?._count?.lines ?? 0), total: "-",
+              },
+            });
+          } catch { /* never */ }
+        })();
         return NextResponse.json({ ok: true });
       }
       case "markPaid": {
@@ -126,6 +144,16 @@ export async function PATCH(req: NextRequest) {
         }
         await db.payrollRun.update({ where: { id: b.id }, data: { status: "Paid", paidAt: new Date() } });
         await db.activityLog.create({ data: { action: "Updated", entity: "PayrollRun", entityId: b.id, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} ditandai DIBAYAR` } });
+        // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+        void (async () => {
+          try {
+            notifyEmailEvent(db, {
+              event: "payroll.run.paid",
+              to: await approverEmailsOf(db),
+              data: { runNo: run.runNo, periode: "-", total: "-" },
+            });
+          } catch { /* never */ }
+        })();
         return NextResponse.json({ ok: true });
       }
       case "cancel": {

@@ -61,9 +61,12 @@ server.log
 /examples/
 /mini-services/*
 !/mini-services/postgres/
+!/mini-services/smtp-catcher/
 /mini-services/postgres/node_modules/
 /mini-services/postgres/data/
 /mini-services/postgres/pg.log
+/mini-services/smtp-catcher/catch.jsonl
+/mini-services/smtp-catcher/node_modules/
 /.zscripts/
 /Caddyfile
 /find-city-tmp.ts

@@ -121,6 +121,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "settle", label: "Settlement klaim", hint: "Menyelesaikan klaim (dibayarkan ke provider)" },
   ],
   "medical:medical-adjustment": [{ key: "approve", label: "Menyetujui / menolak penyesuaian saldo", hint: "Memutuskan penyesuaian saldo medis" }],
+
+  // Settings — konfigurasi email (Task 34)
+  "settings:email": [
+    { key: "test", label: "Mengirim email uji", hint: "Tombol Tes Kirim pada konfigurasi SMTP" },
+  ],
 };
 
 /** Operasi khusus yang terdaftar untuk sebuah key menu. */

@@ -107,6 +107,15 @@ async function main() {
     if (r.status !== 0) console.warn("[!] migrasi sandi gagal — jalankan manual: bun run scripts/migrate-password-security.ts");
   }
 
+  // ---------- 1g. konfigurasi email + template (Task 34) — idempoten ----------
+  // Tabel EmailConfig + EmailTemplate + EmailLog + seed template default
+  // Bahasa Indonesia per tenant (16 event: cuti/travel/medical/payroll/user).
+  {
+    console.log("[all] migrasi konfigurasi email…");
+    const r = spawnSync("bun", ["scripts/migrate-email-config.ts"], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("[!] migrasi email gagal — jalankan manual: bun run scripts/migrate-email-config.ts");
+  }
+
   const hrdId = await ensureUser("hrd@mii.co.id", "Tri Handayani", "onevity123");
   await ensureMembership(hrdId, mii.id, "OWNER");
 

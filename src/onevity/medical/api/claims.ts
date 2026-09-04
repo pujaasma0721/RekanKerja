@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
+import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/medical/claims?state=&year=&employeeId=&typeId=&preview=
 // &employeeId&typeId — daftar klaim (padanan MedicalBenefitClaim.jsp /
@@ -94,6 +95,30 @@ export async function POST(req: NextRequest) {
         approvedAmount: Number(l.approvedAmount ?? 0),
       })),
     }, actorId);
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    if (b.submit !== false) {
+      void (async () => {
+        try {
+          const [emp, typ] = await Promise.all([
+            m.db.employee.findUnique({ where: { id: String(b.employeeId) }, select: { fullName: true } }),
+            m.db.medicalBenefitType.findUnique({ where: { id: String(b.typeId) }, select: { name: true } }),
+          ]);
+          const total = Array.isArray(b.lines)
+            ? (b.lines as { billAmount?: number }[]).reduce((s, l) => s + (Number(l.billAmount) || 0), 0)
+            : 0;
+          notifyEmailEvent(m.db, {
+            event: "medical.claim.submitted",
+            to: await approverEmailsOf(m.db, String(b.employeeId)),
+            data: {
+              nama: emp?.fullName ?? "-", docNo: res.docNo,
+              jenis: typ?.name ?? "-", jumlah: `Rp ${total.toLocaleString("id-ID")}`,
+            },
+          });
+        } catch { /* never */ }
+      })();
+    }
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -125,6 +150,35 @@ export async function PATCH(req: NextRequest) {
       note: b.note ? String(b.note) : undefined,
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     }, actorId);
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    if (["approve", "reject", "settle"].includes(b.action) && !res.approval) {
+      void (async () => {
+        try {
+          const cl = await m.db.medicalClaim.findUnique({
+            where: { id: String(b.id) },
+            select: { docNo: true, totalApproved: true, totalBill: true, employeeId: true, type: { select: { name: true } } },
+          });
+          const emp = cl ? await employeeEmailOf(m.db, cl.employeeId) : null;
+          if (cl && emp) {
+            const event = b.action === "settle" ? "medical.claim.settled"
+              : b.action === "approve" ? "medical.claim.approved"
+              : "medical.claim.rejected";
+            notifyEmailEvent(m.db, {
+              event,
+              to: [emp],
+              data: {
+                nama: emp.name ?? "-", docNo: cl.docNo,
+                jenis: cl.type?.name ?? "-",
+                jumlah: `Rp ${(cl.totalApproved ?? cl.totalBill ?? 0).toLocaleString("id-ID")}`,
+                catatan: b.note ? String(b.note) : "-",
+              },
+            });
+          }
+        } catch { /* never */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

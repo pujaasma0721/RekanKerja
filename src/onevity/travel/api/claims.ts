@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
+import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/travel/claims?status=&employeeId= — daftar klaim
 // (padanan TravelClaim.jsp / TravelClaimToApprove.jsp).
@@ -85,6 +86,29 @@ export async function POST(req: NextRequest) {
       payableEmployee: Math.max(0, Number(b.payableEmployee ?? 0)),
       payableCompany: Math.max(0, Number(b.payableCompany ?? 0)),
     });
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    void (async () => {
+      try {
+        const emp = await db.employee.findUnique({
+          where: { id: String(b.employeeId ?? "") },
+          select: { fullName: true },
+        });
+        const total = Array.isArray(b.expenses)
+          ? (b.expenses as { amount?: number }[]).reduce((s, e) => s + (Number(e.amount) || 0), 0)
+          : 0;
+        notifyEmailEvent(db, {
+          event: "travel.claim.submitted",
+          to: await approverEmailsOf(db, String(b.employeeId ?? "")),
+          data: {
+            nama: emp?.fullName ?? "-", docNo: res.docNo,
+            jumlah: `Rp ${total.toLocaleString("id-ID")}`,
+            periode: b.claimDate ? String(b.claimDate) : "-",
+          },
+        });
+      } catch { /* never */ }
+    })();
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -114,6 +138,31 @@ export async function PATCH(req: NextRequest) {
       note: b.note ? String(b.note) : undefined,
       actorId: m.actor.appUserId ?? m.actor.userId,
     });
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    if (b.action !== "cancel") {
+      void (async () => {
+        try {
+          const cl = await m.db.travelClaim.findUnique({
+            where: { id: String(b.id) },
+            select: { docNo: true, claimDate: true, totalSettlement: true, employee: { select: { fullName: true, email: true } } },
+          });
+          if (cl?.employee?.email) {
+            notifyEmailEvent(m.db, {
+              event: b.action === "approve" ? "travel.claim.approved" : "travel.claim.rejected",
+              to: [{ email: cl.employee.email, name: cl.employee.fullName }],
+              data: {
+                nama: cl.employee.fullName, docNo: cl.docNo,
+                jumlah: `Rp ${(cl.totalSettlement ?? 0).toLocaleString("id-ID")}`,
+                periode: cl.claimDate ? new Date(cl.claimDate).toISOString().slice(0, 10) : "-",
+                catatan: b.note ? String(b.note) : "-",
+              },
+            });
+          }
+        } catch { /* never */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

@@ -25,7 +25,7 @@ import {
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent, KeyRound,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, Sparkles, FileSpreadsheet, BookOpen, BarChart3,
-  Hospital, TrendingUp,
+  Hospital, TrendingUp, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -177,6 +177,7 @@ export const SETTINGS_NAV: NavGroup[] = [
     { id: "lookups", label: "Data Master", icon: Layers },
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
     { id: "approval", label: "Approval Berjenjang", icon: CheckCircle2 },
+    { id: "email", label: "Konfigurasi Email", icon: Mail },
   ] },
 ];
 

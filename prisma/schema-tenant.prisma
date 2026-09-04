@@ -987,6 +987,66 @@ model PasswordHistory {
   @@index([appUserId, setAt])
 }
 
+// ================= EMAIL CONFIG (Task 34) =================
+// Konfigurasi SMTP per tenant — sistem mengirim email otomatis saat ada
+// pengajuan / persetujuan. Singleton: satu baris aktif.
+
+model EmailConfig {
+  id     String  @id @default(cuid())
+  active Boolean @default(true) // master switch pengiriman otomatis
+
+  // ---- SMTP ----
+  smtpHost     String  @default("")
+  smtpPort     Int     @default(587)
+  smtpSecure   Boolean @default(false) // true = TLS implicit (port 465)
+  smtpUser     String  @default("")
+  smtpPassword String  @default("") // TIDAK pernah dikirim ke klien (masked)
+  fromEmail    String  @default("")
+  fromName     String  @default("OneVity HRIS")
+
+  // status tes terakhir (tombol "Tes Kirim")
+  lastTestOk      Boolean?
+  lastTestAt      DateTime?
+  lastTestMessage String?
+
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Template email per EVENT pengajuan/approval — subject & body berisi
+// placeholder {{nama}} {{docNo}} dst. Self-heal seed default bila belum ada.
+model EmailTemplate {
+  id     String  @id @default(cuid())
+  event  String  @unique // leave.submitted | leave.approved | travel.claim.approved | ...
+  label  String // "Cuti — Pengajuan Baru"
+  active Boolean @default(true)
+
+  // penerima default (bisa dimatikan per template)
+  notifyEmployee Boolean @default(true) // pengaju / karyawan terkait
+  notifyApprover Boolean @default(true) // atasan / approver jenjang
+  notifyHrd      Boolean @default(false) // CC HRD (role HR Manager/Admin)
+
+  subject String // "Persetujuan Cuti {{docNo}} — {{nama}}"
+  body    String // teks multi-baris dengan placeholder
+
+  updatedAt DateTime @updatedAt
+}
+
+// Audit trail pengiriman — muncul di tab "Riwayat Kirim".
+model EmailLog {
+  id        String   @id @default(cuid())
+  event     String
+  toEmail   String
+  subject   String
+  status    String // Sent | Failed | Skipped
+  error     String?
+  body      String? // preview hasil render
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event])
+}
+
 model AccessGroup {
   id          String   @id @default(cuid())
   code        String   @unique

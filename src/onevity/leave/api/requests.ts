@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/onevity/leave/services/leave-service";
+import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/leave/requests?status=&employeeId=&year= — daftar permintaan
 // (padanan LeaveRequest.jsp / LeaveRequestToApprove.jsp).
@@ -58,6 +59,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(res);
     }
     const res = await submitRequest(db, input);
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    void (async () => {
+      try {
+        const [emp, type] = await Promise.all([
+          db.employee.findUnique({ where: { id: input.employeeId }, select: { fullName: true } }),
+          db.leaveType.findUnique({ where: { id: input.leaveTypeId }, select: { name: true } }),
+        ]);
+        notifyEmailEvent(db, {
+          event: "leave.submitted",
+          to: await approverEmailsOf(db, input.employeeId),
+          data: {
+            nama: emp?.fullName ?? "-", docNo: res.docNo, jenisCuti: type?.name ?? "-",
+            periode: `${input.dateFrom} → ${input.dateTo}`, jumlahHari: String(res.workingDays),
+            alasan: input.reason || "-",
+          },
+        });
+      } catch { /* notifikasi tidak pernah mengganggu proses utama */ }
+    })();
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -88,6 +109,34 @@ export async function PATCH(req: NextRequest) {
       actorId: m.actor.appUserId ?? m.actor.userId,
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     });
+
+    // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    // Hanya keputusan FINAL (status Approved/Rejected) yang memicu email ke
+    // pengaju; approve jenjang menengah tetap menunggu (ada field approval).
+    if (b.action !== "cancel" && !res.approval) {
+      void (async () => {
+        try {
+          const lr = await m.db.leaveRequest.findUnique({
+            where: { id: String(b.id) },
+            select: { employeeId: true, docNo: true, dateFrom: true, dateTo: true, leaveType: { select: { name: true } }, employee: { select: { fullName: true } } },
+          });
+          const emp = lr ? await employeeEmailOf(m.db, lr.employeeId) : null;
+          if (lr && emp) {
+            notifyEmailEvent(m.db, {
+              event: b.action === "approve" ? "leave.approved" : "leave.rejected",
+              to: [emp],
+              data: {
+                nama: lr.employee?.fullName ?? "-", docNo: lr.docNo,
+                jenisCuti: lr.leaveType?.name ?? "-",
+                periode: `${new Date(lr.dateFrom).toISOString().slice(0, 10)} → ${new Date(lr.dateTo).toISOString().slice(0, 10)}`,
+                catatan: b.note ? String(b.note) : "-",
+              },
+            });
+          }
+        } catch { /* never */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
