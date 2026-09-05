@@ -8,6 +8,8 @@ import { AppShell } from "@/onevity/shared/components/shell/app-shell";
 import { I18nProvider } from "@/onevity/shared/lib/i18n";
 // Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
 import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-lab";
+// Design Lab — mockup desain halaman masuk (terisolasi, akses ?mockup=auth)
+import { AuthDesignLab } from "@/onevity/shared/components/design/auth-design-lab";
 import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
 import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
 import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
@@ -40,6 +42,10 @@ function PageInner() {
   // Mode mockup desain menu (?mockup=menu) — render lab tanpa AuthGate/shell,
   // benar-benar terisolasi dari menu live (dan dari provider bahasa).
   if (searchParams.get("mockup") === "menu") return <MenuDesignLab />;
+
+  // Mode mockup desain halaman masuk (?mockup=auth) — lab login terisolasi;
+  // halaman login live tidak tersentuh sampai pilihan desain diambil.
+  if (searchParams.get("mockup") === "auth") return <AuthDesignLab />;
 
   return (
     <I18nProvider>
