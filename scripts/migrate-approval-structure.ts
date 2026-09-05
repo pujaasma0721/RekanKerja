@@ -232,6 +232,13 @@ async function backfillStructures(db: TenantDb): Promise<number> {
       ],
     },
     {
+      code: "AS-WORKOFF-STD", name: "Persetujuan Izin Tidak Masuk", docType: "WorkOff",
+      levels: [
+        { approverType: "ATASAN_LANGSUNG" },
+        { approverType: "POSISI", approverPositionId: P("P-HRM"), note: "HR Manager" },
+      ],
+    },
+    {
       code: "AS-LEAVE-PRD", name: "Persetujuan Cuti — Divisi Produksi", docType: "Leave",
       orgUnitId: orgByCode.get("MII-PRD") ?? null,
       levels: [
@@ -288,6 +295,7 @@ async function backfillGenericStructures(db: TenantDb): Promise<number> {
   if ((await db.approvalStructure.count()) > 0) return 0;
   const defs = [
     { code: "AS-LEAVE-STD", name: "Persetujuan Cuti (default)", docType: "Leave" },
+    { code: "AS-WORKOFF-STD", name: "Persetujuan Izin Tidak Masuk (default)", docType: "WorkOff" },
     { code: "AS-TRAVEL-STD", name: "Persetujuan Perjalanan Dinas (default)", docType: "Travel" },
     { code: "AS-MED-STD", name: "Persetujuan Klaim Medis (default)", docType: "Medical" },
     { code: "AS-LOAN-STD", name: "Persetujuan Pinjaman (default)", docType: "Loan" },
@@ -298,6 +306,26 @@ async function backfillGenericStructures(db: TenantDb): Promise<number> {
     });
   }
   return defs.length;
+}
+
+/** Pastikan struktur WorkOff tersedia pada tenant yang struktur lama sudah ter-seed (idempoten). */
+async function ensureWorkoffStructure(db: TenantDb): Promise<boolean> {
+  if (await db.approvalStructure.findFirst({ where: { docType: "WorkOff" } })) return false;
+  const hrm = await db.position.findFirst({ where: { code: "P-HRM" }, select: { id: true } });
+  await db.approvalStructure.create({
+    data: {
+      code: "AS-WORKOFF-STD", name: "Persetujuan Izin Tidak Masuk", docType: "WorkOff",
+      levels: {
+        create: [
+          { levelNo: 1, approverType: "ATASAN_LANGSUNG" },
+          hrm
+            ? { levelNo: 2, approverType: "POSISI", approverPositionId: hrm.id, note: "HR Manager" }
+            : { levelNo: 2, approverType: "HR_ADMIN" },
+        ],
+      },
+    },
+  });
+  return true;
 }
 
 /** Backfill chain untuk dokumen existing. */
@@ -356,6 +384,14 @@ async function backfillChains(db: TenantDb): Promise<{ created: number; finalize
     if (r.status !== "Submitted") await finalize("Loan", r.id, r.status === "Active" || r.status === "PaidOff" ? "Approved" : r.status);
   }
 
+  // WorkOff (tanpa nominal; Pending → chain baru, final historis → difinalkan)
+  const workoffs = await db.workOffPermission.findMany({ select: { id: true, employeeId: true, status: true } });
+  for (const r of workoffs) {
+    const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "WorkOff", docId: r.id } } });
+    if (!before && r.status === "Pending") { await startApprovalChain(db, { docType: "WorkOff", docId: r.id, employeeId: r.employeeId, createdBy: "backfill" }); created++; }
+    if (before && r.status !== "Pending") await finalize("WorkOff", r.id, r.status);
+  }
+
   return { created, finalized };
 }
 
@@ -375,6 +411,8 @@ for (const schema of SCHEMAS) {
   const empCount = await db.employee.count();
   const structures = empCount > 0 ? await backfillStructures(db) : await backfillGenericStructures(db);
   console.log(`  Struktur approval: ${structures} dibuat`);
+  const wo = await ensureWorkoffStructure(db);
+  if (wo) console.log("  Struktur WorkOff: AS-WORKOFF-STD dibuat (approval berjenjang izin tidak masuk)");
   const chains = await backfillChains(db);
   console.log(`  Chain backfill: ${chains.created} dibuat, ${chains.finalized} difinalkan`);
   await db.$disconnect();

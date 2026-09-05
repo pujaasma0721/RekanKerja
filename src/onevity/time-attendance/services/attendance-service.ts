@@ -4,6 +4,10 @@
 // (Plan → Actual → Verified, multiplier PP 35/2021) → Transfer to Payroll
 // (rekap period → komponen Specific LEMBUR/TLATE/TABS/TKEHADIRAN, idempoten).
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import {
+  startApprovalChain, decideApprovalChain, getApprovalChain, cancelApprovalChain,
+  type DecideActor,
+} from "@/onevity/shared/services/approval-engine";
 
 // ============ utilitas waktu (semua Date = waktu lokal) ============
 
@@ -981,14 +985,24 @@ const WO_INCLUDE = {
   dayType: { select: { code: true, name: true } },
 } as const;
 
+export interface WorkoffSubmitResult {
+  permit: unknown;
+  note: string;
+  /** jumlah jenjang persetujuan untuk pengajuan ini */
+  approvalLevels: number;
+  /** nama approver jenjang pertama */
+  firstApprover: string | null;
+}
+
 export async function submitWorkoff(
   db: TenantDb,
   input: {
     employeeId: string; dateFrom: string; dateTo?: string; allDay?: boolean;
     timeFrom?: string | null; timeTo?: string | null; paid?: boolean; deductLeave?: boolean;
     reason?: string | null; documentNote?: string | null;
+    actorName?: string | null;
   },
-): Promise<{ permit: unknown; note: string }> {
+): Promise<WorkoffSubmitResult> {
   if (!input.employeeId) throw new Error("Karyawan wajib dipilih");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateFrom)) throw new Error("Tanggal mulai tidak valid (YYYY-MM-DD)");
   const from = new Date(`${input.dateFrom}T00:00:00`);
@@ -1014,20 +1028,108 @@ export async function submitWorkoff(
     },
     include: WO_INCLUDE,
   });
-  return { permit, note: `Izin ${docNo} diajukan (${allDay ? "sehari penuh" : "setengah hari"}) — menunggu persetujuan` };
+
+  // Approval berjenjang (padanan Leave Task 25): bangun jalur persetujuan
+  // sesuai struktur yang cocok dengan penempatan pemohon — fallback atasan
+  // langsung → Admin/HR. Tanpa ini, izin hanya disetujui satu langkah datar.
+  const chain = await startApprovalChain(db, {
+    docType: "WorkOff", docId: permit.id, employeeId: input.employeeId,
+    createdBy: input.actorName ?? null,
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Submitted", entity: "WorkOffPermission", entityId: docNo,
+      detail: `${docNo}: ${permit.employee.fullName} — izin tidak masuk ${fmtIso(from)} → ${fmtIso(to)} (${allDay ? "sehari penuh" : "setengah hari"}) — approval berjenjang ${chain.totalLevels} level`,
+    },
+  });
+  return {
+    permit,
+    note: `Izin ${docNo} diajukan (${allDay ? "sehari penuh" : "setengah hari"}) — menunggu persetujuan ${chain.totalLevels} jenjang`,
+    approvalLevels: chain.totalLevels,
+    firstApprover: chain.steps[0]?.approverLabel ?? null,
+  };
+}
+
+/** ISO pendek untuk activity log. */
+function fmtIso(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export interface WorkoffDecisionResult {
+  permit: unknown;
+  note: string;
+  affected: number;
+  /** ada bila approve jenjang menengah — dokumen masih menunggu jenjang berikutnya */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
 export async function decideWorkoff(
   db: TenantDb,
   id: string,
   action: "approve" | "reject" | "cancel",
-  opts: { approver?: string; note?: string },
-): Promise<{ permit: unknown; note: string; affected: number }> {
+  opts: { approver?: string; note?: string; actor?: DecideActor },
+): Promise<WorkoffDecisionResult> {
   const permit = await db.workOffPermission.findUnique({ where: { id }, include: WO_INCLUDE });
   if (!permit) throw new Error("Izin tidak ditemukan");
 
+  // ==== approval berjenjang — chain dibuat saat submit; dokumen legacy
+  // tanpa chain (Pending) dibuat saat putusan ini (backfill). ====
+  let chain = await getApprovalChain(db, "WorkOff", id);
+  if (!chain && permit.status === "Pending") {
+    chain = await startApprovalChain(db, { docType: "WorkOff", docId: id, employeeId: permit.employeeId, createdBy: "legacy-backfill" });
+  }
+  const actor: DecideActor =
+    opts.actor ?? { role: "ADMIN", employeeId: null, name: opts.approver?.trim() || "Admin HR" };
+
   if (action === "approve") {
     if (permit.status !== "Pending") throw new Error("Hanya izin berstatus Pending yang dapat disetujui");
+    if (chain && chain.status === "InProgress") {
+      // approve pada jenjang < total → status tetap Pending (menunggu jenjang
+      // berikutnya); hanya jenjang TERAKHIR yang mengubah izin menjadi Approved
+      // dan memicu hitung ulang rekap absensi.
+      const res = await decideApprovalChain(db, {
+        docType: "WorkOff", docId: id, action: "approve", note: opts.note, actor,
+      });
+      if (!res.final) {
+        const currentStep = res.chain.steps.find((s) => s.status === "Current");
+        const waiting = currentStep?.approverLabel ?? "jenjang berikutnya";
+        await db.activityLog.create({
+          data: {
+            action: "Approved", entity: "WorkOffPermission", entityId: permit.docNo,
+            detail: `${permit.docNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${waiting}`,
+          },
+        });
+        const refreshed = await db.workOffPermission.findUnique({ where: { id }, include: WO_INCLUDE });
+        return {
+          permit: refreshed,
+          note: `Jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${waiting}`,
+          affected: 0,
+          approval: {
+            currentLevel: res.chain.currentLevel,
+            totalLevels: res.chain.totalLevels,
+            currentApprover: currentStep?.approverLabel ?? null,
+          },
+        };
+      }
+      const updated = await db.workOffPermission.update({
+        where: { id },
+        data: { status: "Approved", approverId: actor.name, decidedAt: new Date(), decisionNote: opts.note?.trim() || null },
+        include: WO_INCLUDE,
+      });
+      const affected = await regenerateRange(db, permit.dateFrom, permit.dateTo);
+      await db.activityLog.create({
+        data: {
+          action: "Approved", entity: "WorkOffPermission", entityId: permit.docNo,
+          detail: `${permit.docNo}: disetujui penuh (${res.chain.totalLevels} jenjang) oleh ${actor.name} — rekap ${affected} baris dihitung ulang`,
+        },
+      });
+      return {
+        permit: updated,
+        note: `Izin ${permit.docNo} disetujui penuh (${res.chain.totalLevels} jenjang) — rekap ${affected} baris dihitung ulang`,
+        affected,
+      };
+    }
+    // tanpa chain aktif (mis. chain sudah final) — pertahankan perilaku lama
     const updated = await db.workOffPermission.update({
       where: { id },
       data: { status: "Approved", approverId: opts.approver?.trim() || "Admin HR", decidedAt: new Date(), decisionNote: opts.note?.trim() || null },
@@ -1040,21 +1142,40 @@ export async function decideWorkoff(
   if (action === "reject") {
     if (permit.status !== "Pending") throw new Error("Hanya izin berstatus Pending yang dapat ditolak");
     if (!opts.note?.trim()) throw new Error("Alasan penolakan wajib diisi");
+    const rejectedAtLevel = chain && chain.status === "InProgress" ? ` di jenjang ${chain.currentLevel}/${chain.totalLevels}` : "";
+    if (chain && chain.status === "InProgress") {
+      await decideApprovalChain(db, { docType: "WorkOff", docId: id, action: "reject", note: opts.note, actor });
+    }
     const updated = await db.workOffPermission.update({
       where: { id },
-      data: { status: "Rejected", approverId: opts.approver?.trim() || "Admin HR", decidedAt: new Date(), decisionNote: opts.note.trim() },
+      data: { status: "Rejected", approverId: actor.name, decidedAt: new Date(), decisionNote: opts.note.trim() },
       include: WO_INCLUDE,
     });
-    return { permit: updated, note: `Izin ${permit.docNo} ditolak`, affected: 0 };
+    await db.activityLog.create({
+      data: {
+        action: "Rejected", entity: "WorkOffPermission", entityId: permit.docNo,
+        detail: `${permit.docNo}: ditolak${rejectedAtLevel} oleh ${actor.name} — ${opts.note.trim()}`,
+      },
+    });
+    return { permit: updated, note: `Izin ${permit.docNo} ditolak${rejectedAtLevel}`, affected: 0 };
   }
 
   if (!["Pending", "Approved"].includes(permit.status)) throw new Error("Izin yang sudah ditolak/selesai tidak dapat dibatalkan");
+  if (chain && chain.status === "InProgress") {
+    await cancelApprovalChain(db, "WorkOff", id, actor.name);
+  }
   const updated = await db.workOffPermission.update({
     where: { id },
     data: { status: "Cancelled", decisionNote: opts.note?.trim() || "Dibatalkan" },
     include: WO_INCLUDE,
   });
   const affected = await regenerateRange(db, permit.dateFrom, permit.dateTo);
+  await db.activityLog.create({
+    data: {
+      action: "Cancelled", entity: "WorkOffPermission", entityId: permit.docNo,
+      detail: `${permit.docNo}: dibatalkan oleh ${actor.name} — rekap dihitung ulang`,
+    },
+  });
   return { permit: updated, note: `Izin ${permit.docNo} dibatalkan — rekap dihitung ulang`, affected };
 }
 

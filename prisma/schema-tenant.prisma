@@ -388,7 +388,7 @@ model ApprovalStructure {
   id        String   @id @default(cuid())
   code      String   @unique
   name      String
-  docType   String // Leave|Travel|Medical|Loan|Overtime
+  docType   String // Leave|Travel|Medical|Loan|WorkOff
   companyOfficeId  String?
   workLocationId   String?
   orgUnitId        String?

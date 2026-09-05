@@ -82,6 +82,8 @@ export interface WorkoffRow {
   employee: { employeeNo: string; fullName: string; assignments: { orgUnit: { name: string } | null }[] };
   dayType: { code: string; name: string } | null;
   orgUnitName: string | null;
+  /** ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu) */
+  approval?: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
 }
 
 export interface AttendanceRule {

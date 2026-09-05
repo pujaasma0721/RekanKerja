@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { attachChainSummaries } from "@/onevity/shared/services/approval-engine";
 import { submitWorkoff, decideWorkoff } from "@/onevity/time-attendance/services/attendance-service";
+import { notifyEmailEvent, employeeEmailOf } from "@/onevity/shared/services/email-service";
 
 // GET /api/onevity/attendance/workoffs?status= — izin tidak masuk + statistik
-// (padanan EmployeeWorkOff.jsp + approval).
+// (padanan EmployeeWorkOff.jsp + approval berjenjang).
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -23,9 +25,12 @@ export async function GET(req: NextRequest) {
       db.workDayType.findMany({ where: { active: true }, select: { id: true, code: true, name: true }, orderBy: { code: "asc" } }),
     ]);
 
+    // ringkasan approval berjenjang per izin (jenjang aktif + approver menunggu)
+    const chainMap = await attachChainSummaries(db, "WorkOff", permits.map((p) => ({ id: p.id })));
     const flat = permits.map((p) => ({
       ...p,
       orgUnitName: p.employee.assignments[0]?.orgUnit?.name ?? null,
+      approval: chainMap.get(p.id) ?? null,
     }));
     const days = (from: Date, to: Date) => Math.round((dayStartOf(to) - dayStartOf(from)) / 86_400_000) + 1;
     const stats = {
@@ -51,6 +56,7 @@ function dayStartOf(d: Date): number {
 
 // POST — ajukan izin (padanan Employee Work Off Permission). Guard VIEWER + aktor sesi.
 // Task 32-d: guard hak AKSI menu — create pada attendance:workoff (per pengguna).
+// Approval berjenjang: chain dibangun service sesuai struktur WorkOff pemohon.
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "attendance:workoff", "create");
@@ -67,6 +73,7 @@ export async function POST(req: NextRequest) {
       deductLeave: b.deductLeave === undefined ? true : Boolean(b.deductLeave),
       reason: b.reason ?? null,
       documentNote: b.documentNote ?? null,
+      actorName: m.actor.name,
     });
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
@@ -74,15 +81,51 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — approve | reject | cancel. Guard VIEWER + aktor sesi (approver = nama aktor sesi).
+// PATCH — approve | reject | cancel. Guard VIEWER + aktor sesi.
 // Task 32-d: guard hak AKSI menu — op:approve pada attendance:workoff (per pengguna).
+// Approval berjenjang: approve jenjang menengah → status tetap Pending (res
+// membawa field `approval`); hanya keputusan FINAL yang mengubah status izin.
 export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "attendance:workoff", "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    const res = await decideWorkoff(m.db, b.id, b.action, { approver: b.approver ?? m.actor.name, note: b.note });
+    const res = await decideWorkoff(m.db, b.id, b.action, {
+      approver: b.approver ?? m.actor.name,
+      note: b.note,
+      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
+    });
+
+    // ===== Notifikasi email otomatis — fire-and-forget (padanan Leave) =====
+    // Hanya keputusan FINAL (approve/reject) yang memicu email ke pengaju;
+    // approve jenjang menengah tetap menunggu (res membawa field approval).
+    if (b.action !== "cancel" && !res.approval) {
+      void (async () => {
+        try {
+          const wo = await m.db.workOffPermission.findUnique({
+            where: { id: String(b.id) },
+            select: { employeeId: true, docNo: true, dateFrom: true, dateTo: true, paid: true, employee: { select: { fullName: true } } },
+          });
+          const emp = wo ? await employeeEmailOf(m.db, wo.employeeId) : null;
+          if (wo && emp) {
+            notifyEmailEvent(m.db, {
+              event: b.action === "approve" ? "workoff.approved" : "workoff.rejected",
+              to: [emp],
+              data: {
+                nama: wo.employee?.fullName ?? "-", docNo: wo.docNo,
+                tanggal: `${new Date(wo.dateFrom).toISOString().slice(0, 10)} → ${new Date(wo.dateTo).toISOString().slice(0, 10)}`,
+                kebijakan: wo.paid ? "Dibayar (gaji tetap)" : "Tanpa upah",
+                status: b.action === "approve" ? "Disetujui" : "Ditolak",
+                keterangan: b.note ?? "-",
+              },
+            });
+          }
+        } catch {
+          // notifikasi tidak boleh menggagalkan keputusan
+        }
+      })();
+    }
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

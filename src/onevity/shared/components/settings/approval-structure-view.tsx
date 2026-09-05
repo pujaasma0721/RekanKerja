@@ -1,6 +1,6 @@
 "use client";
 // OneVity — Settings: Approval STRUKTUR BERJENJANG (Task 25)
-// Setup alur persetujuan multi-level per dokumen (Leave/Travel/Medical/Loan):
+// Setup alur persetujuan multi-level per dokumen (Leave/WorkOff/Travel/Medical/Loan):
 // - 6 kriteria pencocokan pemohon: kantor, lokasi kerja, unit organisasi, posisi,
 //   grade, level jabatan (kosong = semua; struktur paling spesifik menang)
 // - editor jenjang berurutan (Atasan Langsung / Atasan Berjenjang / Pemegang
@@ -33,6 +33,7 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const DOC_TYPES = [
   { value: "Leave", label: "Cuti (Leave)", en: "Leave" },
+  { value: "WorkOff", label: "Izin Tidak Masuk (Work Off)", en: "Work Off Permit" },
   { value: "Travel", label: "Perjalanan Dinas (Travel)", en: "Travel" },
   { value: "Medical", label: "Klaim Medis (Medical)", en: "Medical" },
   { value: "Loan", label: "Pinjaman Karyawan (Loan)", en: "Employee Loan" },

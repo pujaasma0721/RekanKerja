@@ -78,8 +78,17 @@ export function AttendanceWorkoffPage() {
 
   const decide = async (p: WorkoffRow, action: "approve" | "reject" | "cancel", note?: string) => {
     try {
-      const res = await apiSend<{ note: string }>("/api/onevity/attendance/workoffs", "PATCH", { id: p.id, action, note });
-      toast.success(res.note);
+      const res = await apiSend<{ note: string; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>("/api/onevity/attendance/workoffs", "PATCH", { id: p.id, action, note });
+      if (res.approval) {
+        // approval parsial — jenjang menengah disetujui, izin tetap menunggu jenjang berikutnya
+        toast.success(t("Jenjang {l}/{n} disetujui — menunggu {a}", "Tier {l}/{n} approved — awaiting {a}", {
+          l: res.approval.currentLevel - 1,
+          n: res.approval.totalLevels,
+          a: res.approval.currentApprover ?? t("jenjang berikutnya", "the next tier"),
+        }));
+      } else {
+        toast.success(res.note);
+      }
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal"));
@@ -191,6 +200,19 @@ export function AttendanceWorkoffPage() {
                       </TableCell>
                       <TableCell>
                         <StatusPill status={p.status} />
+                        {p.approval && (p.approval.status === "InProgress" || p.approval.status === "Rejected") && (
+                          <div className="mt-1 space-y-0.5">
+                            <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                              p.approval.status === "InProgress"
+                                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                                : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
+                              {p.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {p.approval.currentLevel}/{p.approval.totalLevels}
+                            </span>
+                            {p.approval.status === "InProgress" && p.approval.currentApprover && (
+                              <p className="max-w-36 truncate text-[10px] text-stone-400" title={p.approval.currentApprover}>{t("menunggu", "awaiting")} {p.approval.currentApprover}</p>
+                            )}
+                          </div>
+                        )}
                         {p.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-stone-400" title={p.decisionNote}>{p.decisionNote}</p>}
                       </TableCell>
                       <TableCell>
@@ -307,9 +329,16 @@ export function AttendanceWorkoffPage() {
           <DialogHeader>
             <DialogTitle>{t("Tolak Izin {no}", "Reject Permit {no}", { no: rejectTarget?.docNo ?? "" })}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-1.5 py-1">
-            <Label className="text-xs font-bold">{t("Alasan penolakan *", "Rejection reason *")}</Label>
-            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={t("mis. dokumen pendukung tidak lengkap", "e.g. incomplete supporting documents")} className="min-h-20 text-sm" />
+          <div className="space-y-2.5 py-1">
+            {rejectTarget?.approval?.status === "InProgress" && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+                {t("Approval berjenjang: jenjang", "Tiered approval: tier")} <b>{rejectTarget.approval.currentLevel}</b> {t("dari", "of")} <b>{rejectTarget.approval.totalLevels}</b> — {t("menunggu keputusan", "awaiting decision by")} <b>{rejectTarget.approval.currentApprover ?? t("jenjang berikutnya", "the next tier")}</b>. {t("Menolak jenjang ini menghentikan seluruh proses persetujuan.", "Rejecting this tier stops the whole approval process.")}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Alasan penolakan *", "Rejection reason *")}</Label>
+              <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={t("mis. dokumen pendukung tidak lengkap", "e.g. incomplete supporting documents")} className="min-h-20 text-sm" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectTarget(null)}>{t("Batal")}</Button>

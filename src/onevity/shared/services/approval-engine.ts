@@ -1,13 +1,14 @@
 // OneVity — Mesin APPROVAL STRUKTUR BERJENJANG (Task 25)
 // =====================================================================
 // Alur persetujuan multi-level yang dapat di-setup per modul dokumen
-// (Leave/Travel/Medical/Loan) dengan pencocokan 6 dimensi penempatan
+// (Leave/Travel/Medical/Loan/WorkOff) dengan pencocokan 6 dimensi penempatan
 // pemohon: company office, work location, unit organisasi, posisi,
 // grade, dan level jabatan (semua parameter tersimpan pada Employee —
 // snapshot penempatan aktif). Khusus Travel/Medical/Loan, tiap jenjang
 // dapat membawa syarat nominal (minAmount/maxAmount) sehingga jenjang
 // tambahan aktif hanya bila besaran benefit / jumlah pinjaman masuk
-// rentang.
+// rentang; WorkOff (izin tidak masuk) tidak berbasis nominal — semua
+// jenjang aktif untuk tiap pengajuan.
 //
 // Fallback tanpa struktur: atasan langsung (bila ada) → Admin/HR —
 // mencegah deadlock (temuan audit BPA: layer tanpa approver).
@@ -19,7 +20,7 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
@@ -30,6 +31,7 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Travel: "Perjalanan Dinas (Travel)",
   Medical: "Klaim Medis (Medical)",
   Loan: "Pinjaman Karyawan (Loan)",
+  WorkOff: "Izin Tidak Masuk (Work Off)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {
@@ -537,6 +539,15 @@ export async function decideApprovalChain(
   const now = new Date();
   const decidedBy = input.actor.name;
   const steps = chain.steps;
+  // salinan diperbarui sebelum toView — array `steps` hasil query adalah
+  // snapshot sebelum mutasi DB; tanpa ini view balikan menampilkan approver
+  // jenjang LAMA sebagai "Current" (toast/note modul menyesatkan).
+  const markDecided = (ss: typeof steps, status: string) =>
+    ss.map((s) =>
+      s.id === currentStep.id
+        ? { ...s, status, note: input.note ?? null, decidedBy, decidedAt: now }
+        : s,
+    );
 
   if (input.action === "approve") {
     await db.approvalStep.update({
@@ -550,13 +561,16 @@ export async function decideApprovalChain(
         where: { id: chain.id },
         data: { currentLevel: next.levelNo },
       });
-      return { final: false, chain: toView(updated, steps) };
+      const refreshed = markDecided(steps, "Approved").map((s) =>
+        s.id === next.id ? { ...s, status: "Current" } : s,
+      );
+      return { final: false, chain: toView(updated, refreshed) };
     }
     const updated = await db.approvalChain.update({
       where: { id: chain.id },
       data: { status: "Approved", completedAt: now },
     });
-    return { final: true, chain: toView(updated, steps) };
+    return { final: true, chain: toView(updated, markDecided(steps, "Approved")) };
   }
 
   // reject / cancel
@@ -569,7 +583,7 @@ export async function decideApprovalChain(
     where: { id: chain.id },
     data: { status: target, completedAt: now },
   });
-  return { final: true, chain: toView(updated, steps) };
+  return { final: true, chain: toView(updated, markDecided(steps, target)) };
 }
 
 /** Hentikan chain tanpa keputusan (dokumen dibatalkan di modul). */
