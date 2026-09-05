@@ -20,14 +20,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [load]);
 
   if (status === "loading") {
+    // splash senada Ivory Editorial — latar ivory + logo tinta + spinner amber
     return (
-      <div className="grid min-h-screen place-items-center bg-background">
+      <div className="grid min-h-screen place-items-center bg-[#faf8f3] dark:bg-stone-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-900/40">
-            <Waypoints className="h-7 w-7" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-900 text-white shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">
+            <Waypoints className="h-7 w-7" aria-hidden />
           </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-stone-500 dark:text-stone-400">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500 dark:text-stone-400">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
             {t("Memuat sesi…", "Loading session…")}
           </div>
         </div>
