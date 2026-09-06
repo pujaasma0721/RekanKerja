@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // GET /api/onevity/positions?q=&orgUnitId=&gradeId=&active=
 export async function GET(req: NextRequest) {
@@ -54,11 +55,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST create
+// POST create — T1-SECURITY: guard hak AKSI menu hr:list (Baru) per pengguna.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:list", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.code || !b.title) return NextResponse.json({ error: "Kode dan judul posisi wajib diisi" }, { status: 400 });
@@ -83,11 +85,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH update
+// PATCH update — T1-SECURITY: guard hak AKSI menu hr:list (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:list", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -106,11 +109,12 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// DELETE ?id=
+// DELETE ?id= — T1-SECURITY: guard hak AKSI menu hr:list (Hapus).
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:list", "delete");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

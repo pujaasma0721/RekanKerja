@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
+import type { Prisma } from "@/generated/tenant";
 
+// GET /api/onevity/dashboard — KPI ringkasan HR.
+// T1-SECURITY:
+//  • Skema akses data (Task 30) kini diterapkan — KPI karyawan dihitung HANYA
+//    dari karyawan dalam cakupan akses efektif pengguna (super admin/atasan/
+//    rule parametrik; pola sama dgn employees.ts). Sebelumnya semua user
+//    melihat angka seluruh perusahaan.
+//  • hireTrend.exits tidak lagi hard-coded 0 — keluar dihitung per bulan dari
+//    Employee status Resigned/Terminated dengan endDate pada bulan tsb.
+//  • hires menghitung SEMUA yang join di bulan itu (dulu hanya yang masih
+//    Active → joiner yang kemudian resign hilang dari histori).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const s = await requireScoped(req);
+    if (!s.ok) return NextResponse.json({ error: s.error }, { status: s.status });
+    const db = s.db;
+
+    // kondisi scope akses data — dikombinasikan (AND) ke tiap query karyawan
+    const scopeCond = scopeWhere(s.scope);
+    const scoped = (extra: Prisma.EmployeeWhereInput): Prisma.EmployeeWhereInput =>
+      Object.keys(scopeCond).length > 0 ? { AND: [scopeCond, extra] } : extra;
+    const activeScoped = scoped({ status: "Active" });
 
     // data pekerjaan karyawan aktif diambil dari assignment aktif (validTo null)
-    const [employees, activeEmps, pendingActions, actions, orgUnits, positions, newHiresThisYear, exitsYTD, activities, genderAgg, activeWithAssignments] = await Promise.all([
-      db.employee.count(),
-      db.employee.count({ where: { status: "Active" } }),
+    const [employees, activeEmps, pendingActions, actions, orgUnits, positions, newHiresThisYear, exitsYTD, activities, genderAgg, activeWithAssignments, lifecycleRows] = await Promise.all([
+      db.employee.count({ where: scopeCond }),
+      db.employee.count({ where: activeScoped }),
       db.personnelAction.count({ where: { status: "Submitted" } }),
       db.personnelAction.findMany({
         include: { employee: { select: { fullName: true, employeeNo: true } } },
@@ -18,17 +36,28 @@ export async function GET(req: NextRequest) {
       }),
       db.orgUnit.count({ where: { active: true } }),
       db.position.count({ where: { active: true } }),
-      db.employee.count({ where: { joinDate: { gte: new Date(new Date().getFullYear(), 0, 1) } } }),
-      db.employee.count({ where: { status: { in: ["Resigned", "Terminated"] }, endDate: { gte: new Date(new Date().getFullYear(), 0, 1) } } }),
+      db.employee.count({ where: scoped({ joinDate: { gte: new Date(new Date().getFullYear(), 0, 1) } }) }),
+      db.employee.count({
+        where: scoped({
+          status: { in: ["Resigned", "Terminated"] },
+          endDate: { gte: new Date(new Date().getFullYear(), 0, 1) },
+        }),
+      }),
       db.activityLog.findMany({
         include: { appUser: { select: { fullName: true, role: true } }, employee: { select: { fullName: true } } },
         orderBy: { createdAt: "desc" },
         take: 8,
       }),
-      db.employee.groupBy({ by: ["gender"], where: { status: "Active" }, _count: true }),
+      db.employee.groupBy({ by: ["gender"], where: activeScoped, _count: true }),
       db.employee.findMany({
-        where: { status: "Active" },
+        where: activeScoped,
         select: { joinDate: true, assignments: { where: { validTo: null }, take: 1, select: { employmentStatus: true, orgUnitId: true, gradeId: true, baseSalary: true } } },
+      }),
+      // lifecycle untuk tren hires/exits 12 bulan: SEMUA karyawan dalam scope
+      // (aktif maupun keluar) — joinDate + status + endDate.
+      db.employee.findMany({
+        where: scopeCond,
+        select: { joinDate: true, endDate: true, status: true },
       }),
     ]);
 
@@ -62,7 +91,8 @@ export async function GET(req: NextRequest) {
       headcountByDivision[name] = (headcountByDivision[name] ?? 0) + count;
     }
 
-    // monthly hires last 12 months
+    // monthly hires & exits last 12 months (dari lifecycle rows — semua status)
+    const EXIT_STATUSES = new Set(["Resigned", "Terminated"]);
     const now = new Date();
     const months: { month: string; hires: number; exits: number }[] = [];
     for (let i = 11; i >= 0; i--) {
@@ -70,11 +100,15 @@ export async function GET(req: NextRequest) {
       const label = new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
       months.push({
         month: label,
-        hires: activeWithAssignments.filter((e) => {
+        hires: lifecycleRows.filter((e) => {
           const j = new Date(e.joinDate);
           return j.getFullYear() === d.getFullYear() && j.getMonth() === d.getMonth();
         }).length,
-        exits: 0,
+        exits: lifecycleRows.filter((e) => {
+          if (!EXIT_STATUSES.has(e.status) || !e.endDate) return false;
+          const x = new Date(e.endDate);
+          return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth();
+        }).length,
       });
     }
 

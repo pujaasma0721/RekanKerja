@@ -3,18 +3,21 @@
 // URL = TENANT_DB_BASE_URL + ?schema=tenant_x (Prisma PostgreSQL default-schema).
 import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { db as platformDb } from "@/lib/db";
-import { readSessionCookie } from "./auth";
+import { readVerifiedSession } from "./auth";
 
 export type TenantDb = TenantPrismaClient;
 export type { TenantPrismaClient };
 
+// T3-TRAVEL: key diberi versi — regenerasi Prisma client (kolom baru
+// TravelAdvance.status/givenAt nullable) mewajibkan instance client baru;
+// instance lama (DMMF lama) di cache global tidak dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClients: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsV2: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClients ?? new Map();
-globalForTenants.onevityTenantClients = tenantClients;
+  globalForTenants.onevityTenantClientsV2 ?? new Map();
+globalForTenants.onevityTenantClientsV2 = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;
@@ -51,7 +54,9 @@ export function disconnectTenantClient(schemaName: string): void {
  *   if (!db) return NextResponse.json({ error: "..." }, { status: 401 });
  */
 export async function requireTenant(req: Request): Promise<TenantDb | null> {
-  const payload = readSessionCookie(req);
+  // T1-SECURITY: readVerifiedSession — token divalidasi terhadap User.sessionVersion
+  // (logout/ganti sandi menaikkan versi → token lama 401).
+  const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
   const membership = await platformDb.userTenant.findFirst({
@@ -99,7 +104,8 @@ export type MutatorResult =
  *   // m.db, m.actor
  */
 export async function requireMutator(req: Request): Promise<MutatorResult> {
-  const payload = readSessionCookie(req);
+  // T1-SECURITY: readVerifiedSession — revokasi sesi server-side diperhitungkan.
+  const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
 
   const membership = await platformDb.userTenant.findFirst({

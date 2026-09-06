@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
 
 // GET /api/onevity/payroll-profiles?q= — daftar karyawan aktif + profil payroll + assignment aktif
@@ -60,10 +61,12 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/onevity/payroll-profiles — upsert profil karyawan
+// T1-SECURITY: guard hak AKSI menu payroll:profiles (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:profiles", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });

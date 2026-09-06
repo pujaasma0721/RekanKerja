@@ -142,12 +142,23 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
             overseas: d.overseas ?? false,
           })),
         },
-        ...(r.advance ? { advances: { create: { amount: r.advance, note: r.advanceNote ?? null, givenAt: new Date(2026, 8, 1) } } } : {}),
+        ...(r.advance ? {
+          advances: {
+            create: {
+              amount: r.advance, note: r.advanceNote ?? null,
+              // M-3/B5 (T3-TRAVEL): lifecycle — hanya request Approved yang uang
+              // mukanya "Given" (givenAt terisi); Submitted = Requested (belum cair).
+              status: r.status === "Approved" ? "Given" : "Requested",
+              givenAt: r.status === "Approved" ? new Date(2026, 8, 1) : null,
+            },
+          },
+        } : {}),
       },
     });
   }
 
-  // ---- klaim / settlement (padanan TravelClaim.jsp — formula (a)+(b)-(c))
+  // ---- klaim / settlement (padanan TravelClaim.jsp — formula T3-TRAVEL:
+  //   totalSettlement = Σ rincian + rugi kurs − (a); b/c = max(0, R − advance)/max(0, advance − R))
   interface ExpDef { code: string; date?: string; desc?: string; amount: number; qty?: number; guest?: string }
   interface ClaimDef {
     empIdx: number; requestIdEmpIdx?: number; template: string; claimDate: string;
@@ -229,7 +240,9 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
     const docNo = `CL-2026-${String(clNo++).padStart(3, "0")}`;
     const a = c.otherCompanyExp ?? 0;
     const loss = c.exchangeLoss ?? 0;
-    const total = Math.round((a + loss + c.payableEmployee - c.payableCompany) * 100) / 100;
+    // T3-TRAVEL: totalSettlement = gross settlement (R) — konsisten dgn jurnal & migrasi.
+    const expSum = c.expenses.reduce((s, e) => s + e.amount, 0);
+    const total = Math.round((expSum + loss - a) * 100) / 100;
     const reqDocNo = c.requestIdEmpIdx ? createdRequests[c.requestIdEmpIdx] : null;
     const reqRow = reqDocNo ? await db.travelRequest.findUnique({ where: { docNo: reqDocNo } }) : null;
 

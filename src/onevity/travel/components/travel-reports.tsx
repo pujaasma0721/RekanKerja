@@ -103,7 +103,7 @@ export function TravelReportsPage() {
             <CardContent className="p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Total Rincian Biaya", "Total Expenses")}</p>
               <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.totalExpenses)}</p>
-              <p className="text-[11px] text-stone-500">{t("sebelum (a)/(b)/(c)", "before (a)/(b)/(c)")}</p>
+              <p className="text-[11px] text-stone-500">{t("rincian bruto — settlement = rincian + rugi kurs − (a)", "gross expenses — settlement = expenses + exchange loss − (a)")}</p>
             </CardContent>
           </Card>
           <Card className="border-teal-200 bg-teal-50/50 shadow-sm dark:border-teal-800 dark:bg-teal-950/20">

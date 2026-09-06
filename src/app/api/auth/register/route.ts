@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo,
+  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo, currentSessionVersion,
 } from "@/onevity/shared/lib/auth";
 import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/onevity/shared/lib/provisioning";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
@@ -57,7 +57,9 @@ export async function POST(req: NextRequest) {
 
     const info = (await buildSessionInfo(user.id, tenant.id))!;
     const res = NextResponse.json(info, { status: 201 });
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tenant.id), sessionCookieOptions());
+    // T1-SECURITY: token membawa sessionVersion (user baru = 0, dibaca utk aman).
+    const sv = await currentSessionVersion(user.id);
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tenant.id, sv), sessionCookieOptions());
     return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

@@ -125,6 +125,9 @@ export interface EngineLineResult {
   net: number; // THP
   actualNetTax?: number | null; // pajak efektif untuk N2G
   notes?: string | null;
+  // D-4: peringatan mesin (bukan catatan slip) — mis. fallback TER →
+  // dipersist oleh payroll-service sebagai ActivityLog agar ter-audit.
+  warnings?: string[];
 }
 
 export interface EngineRunResult {
@@ -275,6 +278,9 @@ interface TaxComputation {
   taxIrregular: number;
   biayaJabatan: number;
   terUsed: boolean;
+  // D-4: tabel TER tidak punai rate utk bruto/status ini → pajak dihitung
+  // dengan Pasal 17 progresif (bukan 0 senyap).
+  terFallback: boolean;
 }
 
 export function runPayroll(
@@ -374,8 +380,19 @@ export function runPayroll(
       .filter((i) => i.wageType === "Jamsostek" && i.type === "Deduction" && DEDUCTIBLE_IURAN.has(i.jamsostekBasis ?? ""))
       .reduce((s, i) => s + i.amount, 0);
 
+    // D-2 (PP 58/2023 Pasal 15 ayat (4) & Penjelasan Pasal 15 huruf c):
+    // tabel TER HANYA boleh dipakai pada bulan TANPA penghasilan ireguler.
+    // Bulan yang membayar komponen incomeTaxMethod Irregular (THR/bonus/rapel
+    // yang dibayar dalam run gaji bulanan) WAJIB memotong PPh21 penghasilan
+    // regularnya dengan Pasal 17 progresif full (annualized) bulan itu juga.
+    const irregularMonth = reg.useTer && emp.hasNpwp && irregularIncome > 0;
+    const terWarnings: string[] = [];
+
     const computeTaxOn = (bruto: number): TaxComputation => {
-      if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false };
+      if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false, terFallback: false };
+      // Peringatan mencerminkan pemanggilan TERAKHIR (loop gross-up NetToGross
+      // memanggil ini berulang — jangan menumpuk duplikat).
+      terWarnings.length = 0;
       const biayaJabatan = Math.min(bruto * reg.biayaJabatanRate, reg.biayaJabatanCapMonthly);
       const netoMonthly = bruto - taxDeductibleIuran - biayaJabatan;
       const netoAnnual = netoMonthly * 12;
@@ -385,15 +402,21 @@ export function runPayroll(
 
       let taxRegular: number;
       let terUsed = false;
-      if (reg.useTer && emp.hasNpwp) {
+      let terFallback = false;
+      if (reg.useTer && emp.hasNpwp && !irregularMonth) {
         const rate = terRateFor(bruto, emp.taxStatus, ter);
         if (rate != null) {
           taxRegular = Math.max(0, bruto * rate);
           terUsed = true;
         } else {
-          taxRegular = 0;
+          // D-4: rate TER tidak ditemukan utk (bruto, kategori status pajak)
+          // ini — SEBELUMnya pajak diam-diam jadi 0 (pajak lenyap).
+          // Fallback: Pasal 17 progresif + peringatan utk jejak audit.
+          taxRegular = Math.max(0, annualRegularTax / 12);
+          terFallback = true;
         }
       } else {
+        // Non-TER, non-NPWP, ATAU bulan ireguler (D-2) → Pasal 17 progresif.
         taxRegular = Math.max(0, annualRegularTax / 12);
       }
 
@@ -404,7 +427,12 @@ export function runPayroll(
         const annualWithIrr = progressiveTax(pkpWithIrr, brackets, emp.hasNpwp);
         taxIrregular = Math.max(0, annualWithIrr - annualRegularTax);
       }
-      return { taxRegular: Math.round(taxRegular), taxIrregular: Math.round(taxIrregular), biayaJabatan, terUsed };
+      if (terFallback) {
+        terWarnings.push(
+          `TER tidak ditemukan untuk ${emp.employeeNo} ${emp.fullName} (bruto ${bruto}, kategori ${terCategoryOf(emp.taxStatus)}) — fallback kalkulasi progresif Pasal 17`
+        );
+      }
+      return { taxRegular: Math.round(taxRegular), taxIrregular: Math.round(taxIrregular), biayaJabatan, terUsed, terFallback };
     };
 
     const grossBeforeTax = regularIncome; // bruto regular run ini sebelum gross-up
@@ -426,7 +454,7 @@ export function runPayroll(
     // pajak atas neto regular saja. Pajak REGULER sengaja 0 pada jalur ini —
     // sudah dipotong di run gaji bulanan; memotong ulang = double-withholding.
     const computeSupplementalTaxOn = (irregular: number): TaxComputation => {
-      if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false };
+      if (!opts.calculateTax) return { taxRegular: 0, taxIrregular: 0, biayaJabatan: 0, terUsed: false, terFallback: false };
       const bruto = supplementalCtx!.bruto;
       const iuran = Math.min(supplementalCtx!.iuran, bruto);
       const biayaJabatan = Math.min(bruto * reg.biayaJabatanRate, reg.biayaJabatanCapMonthly);
@@ -438,7 +466,7 @@ export function runPayroll(
       return {
         taxRegular: 0,
         taxIrregular: Math.round(Math.max(0, annualWithIrr - annualRegularTax)),
-        biayaJabatan, terUsed: false,
+        biayaJabatan, terUsed: false, terFallback: false,
       };
     };
 
@@ -501,7 +529,13 @@ export function runPayroll(
       items.push({
         code: "PPH21", name: "PPh21 (PPh Pasal 21)", wageType: "IncomeTax",
         type: "Deduction", incomeTaxMethod: "NonTaxable", amount: empTaxTotal,
-        note: taxInfo.terUsed ? "Metode TER (PP 58/2023)" : "Progresif annualized",
+        note: taxInfo.terUsed
+          ? "Metode TER (PP 58/2023)"
+          : taxInfo.terFallback
+            ? "Progresif Pasal 17 (fallback — TER tidak ditemukan)"
+            : irregularMonth
+              ? "Progresif Pasal 17 (bulan ireguler — PP 58/2023)"
+              : "Progresif annualized",
         sortOrder: sortOrder++,
       });
     }
@@ -533,6 +567,7 @@ export function runPayroll(
       net,
       actualNetTax,
       notes: row.prorateFactor < 1 ? `Prorata masa kerja ${(row.prorateFactor * 100).toFixed(0)}%` : null,
+      ...(terWarnings.length ? { warnings: terWarnings } : {}),
     };
     lines.push(line);
     totalBruto += line.bruto;

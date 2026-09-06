@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, verifyPassword, buildSessionInfo,
+  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, verifyPassword, buildSessionInfo, currentSessionVersion,
 } from "@/onevity/shared/lib/auth";
 import { resolveLoginLockout, passwordStatusOfSession, touchLastLogin } from "@/onevity/shared/services/password-security";
 
@@ -75,9 +75,13 @@ export async function POST(req: NextRequest) {
       ...finalInfo,
       ...(pwStatus ? { password: pwStatus } : {}),
     });
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tid), sessionCookieOptions());
+    // T1-SECURITY: token membawa sessionVersion user (dicek server-side saat verify;
+    // dibaca raw agar juga benar pada proses dev dengan Prisma client cache lama).
+    const sv = await currentSessionVersion(user.id);
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tid, sv), sessionCookieOptions());
     return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }
+

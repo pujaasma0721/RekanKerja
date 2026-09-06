@@ -1,7 +1,7 @@
 "use client";
 // OneVity Travel — Klaim & Settlement: buat klaim dari request Approved dengan
 // rincian biaya per jenis (padanan 4 tab: General/Allowance/Mileage/
-// Entertainment+Guest) + formula (a)+(b)-(c) live.
+// Entertainment+Guest) + formula Total = rincian + rugi kurs − (a) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
@@ -115,14 +115,14 @@ export function TravelClaimsPage() {
   }, [dialog, mode, requestId]);
 
   // hitung (b)/(c) dari total rincian + uang muka (padanan Expense Summary) —
-  // M-1 (24-FIX-TRAVEL): server menghitung ulang & memakai hasilnya (input klien diabaikan).
+  // T3-TRAVEL: server menghitung ulang & memakai hasilnya (input klien diabaikan).
+  // R = rincian + rugi kurs − (a); b = max(0, R − advance); c = max(0, advance − R).
   const totalExpenses = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const advance = previewData?.advanceAmount ?? 0;
-  const grossRealisasi = totalExpenses + (Number(amounts.otherCompanyExp) || 0) + (Number(amounts.exchangeLoss) || 0);
-  const suggestedB = Math.max(0, grossRealisasi - advance);
-  const suggestedC = Math.max(0, advance - grossRealisasi);
-  const totalFormula =
-    (Number(amounts.otherCompanyExp) || 0) + (Number(amounts.exchangeLoss) || 0) + suggestedB - suggestedC;
+  const totalReimbursement = Math.max(0, totalExpenses + (Number(amounts.exchangeLoss) || 0) - (Number(amounts.otherCompanyExp) || 0));
+  const suggestedB = Math.max(0, totalReimbursement - advance);
+  const suggestedC = Math.max(0, advance - totalReimbursement);
+  const totalFormula = totalReimbursement;
 
   const openDialog = (m: "request" | "standalone") => {
     setMode(m);
@@ -158,8 +158,8 @@ export function TravelClaimsPage() {
           })),
           otherCompanyExp: Number(amounts.otherCompanyExp) || 0,
           exchangeLoss: Number(amounts.exchangeLoss) || 0,
-          // M-1: b/c dihitung server dari rincian vs uang muka — kirim nilai terhitung
-          // (server tetap otoritatif dan mengabaikan manipulasi klien).
+          // T3-TRAVEL: b/c dihitung server dari (rincian + rugi kurs − a) vs uang muka —
+          // kirim nilai terhitung (server tetap otoritatif dan mengabaikan manipulasi klien).
           payableEmployee: suggestedB,
           payableCompany: suggestedC,
         },
@@ -186,7 +186,7 @@ export function TravelClaimsPage() {
       <PageHeader
         eyebrow={t("MODUL TRAVEL", "TRAVEL MODULE")}
         title={t("Klaim & Settlement Perjalanan", "Travel Claims & Settlement")}
-        description={t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula Total = (a)+(b)−(c) — uang muka otomatis dikurangkan", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) with the formula Total = (a)+(b)−(c) — advance automatically deducted")}
+        description={t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) dengan formula Total = rincian + rugi kurs − (a) — biaya pihak lain tidak dibayar ke karyawan; uang muka otomatis mengurangi (b) / menambah (c)", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) with the formula Total = expenses + exchange loss − (a) — third-party costs are not paid to the employee; the advance automatically reduces (b) / adds to (c)")}
         actions={
           <div className="flex flex-wrap gap-2">
             {perms.can("travel", "travel-claim", "create") && (
@@ -242,7 +242,7 @@ export function TravelClaimsPage() {
                     <TableHead>{t("Nomor", "No.")}</TableHead>
                     <TableHead>{t("Karyawan")}</TableHead>
                     <TableHead className="hidden md:table-cell">{t("Basis", "Basis")}</TableHead>
-                    <TableHead className="text-right">(a)+(b)−(c)</TableHead>
+                    <TableHead className="text-right">{t("Total Settlement", "Total Settlement")}</TableHead>
                     <TableHead className="hidden lg:table-cell">{t("Jurnal", "Journal")}</TableHead>
                     <TableHead>{t("Status")}</TableHead>
                   </TableRow>
@@ -301,7 +301,7 @@ export function TravelClaimsPage() {
                                 <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">{t("Formula Settlement")}</p>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">{t("(a) Pihak lain", "(a) Third party")}</p>
+                                    <p className="text-[10px] font-bold text-stone-500">{t("(a) Pihak lain (kontra)", "(a) Third party (contra)")}</p>
                                     <p className="text-sm font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.otherCompanyExp)}</p>
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
@@ -317,19 +317,19 @@ export function TravelClaimsPage() {
                                     <p className="text-sm font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                                   </div>
                                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2">
-                                    <p className="text-[10px] font-bold">TOTAL</p>
+                                    <p className="text-[10px] font-bold">{t("TOTAL · rincian + kurs − (a)", "TOTAL · expenses + fx − (a)")}</p>
                                     <p className="text-sm font-black">{fmtIDR(c.totalSettlement)}</p>
                                   </div>
                                 </div>
                                 {c.remark && <p className="mt-2 text-[11px] text-stone-500">{c.remark}</p>}
                                 {c.status === "Paid" && c.paidRunNo && (
                                   <p className="mt-2 flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
-                                    <Landmark className="h-3 w-3" /> {t("Dibayar via payroll run {no} (period {p})", "Paid via payroll run {no} (period {p})", { no: c.paidRunNo, p: c.periodCode })}
+                                    <Landmark className="h-3 w-3" /> {t("Dibayar via payroll run {no} (period {p})", "Paid via payroll run {no} (period {p})", { no: c.paidRunNo, p: c.periodCode ?? "-" })}
                                   </p>
                                 )}
                                 {c.status === "Transferred" && (
                                   <p className="mt-2 flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-                                    <Landmark className="h-3 w-3" /> {t("Menunggu run payroll period {p} dikonfirmasi → Dibayar", "Waiting for the payroll run of period {p} to be confirmed → Paid", { p: c.periodCode })}
+                                    <Landmark className="h-3 w-3" /> {t("Menunggu run payroll period {p} dikonfirmasi → Dibayar", "Waiting for the payroll run of period {p} to be confirmed → Paid", { p: c.periodCode ?? "-" })}
                                   </p>
                                 )}
                               </div>
@@ -494,11 +494,11 @@ export function TravelClaimsPage() {
 
             <div className="rounded-xl border-2 ov-border-accent ov-soft p-3">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-black">
-                <Calculator className="h-3.5 w-3.5" /> Formula Settlement — Total = (a) + (b) − (c)
+                <Calculator className="h-3.5 w-3.5" /> {t("Formula Settlement — Total = Rincian + Rugi kurs − (a)", "Settlement Formula — Total = Expenses + Exchange loss − (a)")}
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-stone-500">{t("(a) Biaya pihak lain", "(a) Third-party costs")}</Label>
+                  <Label className="text-[10px] font-bold text-stone-500">{t("(a) Biaya pihak lain (kontra — tidak dibayar ke karyawan)", "(a) Third-party costs (contra — not paid to employee)")}</Label>
                   <Input type="number" min="0" value={amounts.otherCompanyExp} onChange={(e) => setAmounts({ ...amounts, otherCompanyExp: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
@@ -523,8 +523,8 @@ export function TravelClaimsPage() {
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
                   {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />{t("Uang muka {amt}", "Advance {amt}", { amt: fmtIDR(advance) })}</span>}
-                  <span>{t("Total rincian + (a) = {amt}", "Total expenses + (a) = {amt}", { amt: fmtIDR(grossRealisasi) })}</span>
-                  <span>{t("(b)/(c) dihitung otomatis server dari rincian vs uang muka", "(b)/(c) computed automatically by the server from expenses vs advance")}</span>
+                  <span>{t("Total rincian + rugi kurs − (a) = {amt}", "Total expenses + exchange loss − (a) = {amt}", { amt: fmtIDR(totalReimbursement) })}</span>
+                  <span>{t("(b)/(c) dihitung otomatis server dari (rincian + rugi kurs − a) vs uang muka", "(b)/(c) computed automatically by the server from (expenses + loss − a) vs advance")}</span>
                 </div>
                 <span className="rounded-lg border-2 ov-border-accent bg-white px-3 py-1 font-black ov-text-accent dark:bg-stone-900">
                   Total = {fmtIDR(totalFormula)}

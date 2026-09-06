@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db as platformDb } from "@/lib/db";
-import { readSessionCookie, verifyPassword, hashPassword } from "@/onevity/shared/lib/auth";
+import { SESSION_COOKIE, readVerifiedSession, verifyPassword, hashPassword, freshSessionToken, sessionCookieOptions, bumpSessionVersion } from "@/onevity/shared/lib/auth";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
 import { getTenantPolicy, checkPasswordHistory, recordPasswordSet } from "@/onevity/shared/services/password-security";
@@ -12,7 +12,8 @@ import { getTenantPolicy, checkPasswordHistory, recordPasswordSet } from "@/onev
 // aktif (fallback workspace pertama).
 export async function POST(req: NextRequest) {
   try {
-    const payload = readSessionCookie(req);
+    // T1-SECURITY: readVerifiedSession — sesi tervalidasi vs User.sessionVersion.
+    const payload = await readVerifiedSession(req);
     if (!payload?.uid) {
       return NextResponse.json({ error: "Sesi tidak valid — silakan masuk kembali." }, { status: 401 });
     }
@@ -96,7 +97,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, message: "Kata sandi berhasil diganti" });
+    // T1-SECURITY: ganti sandi mencabut SEMUA sesi user (sessionVersion naik).
+    // Sesi AKTIF ini tetap hidup — token baru ditandatangani dengan versi baru.
+    const newVersion = await bumpSessionVersion(user.id);
+    const res = NextResponse.json({ ok: true, message: "Kata sandi berhasil diganti" });
+    res.cookies.set(
+      SESSION_COOKIE,
+      freshSessionToken(user.id, payload.tid, newVersion),
+      sessionCookieOptions(),
+    );
+    return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -283,6 +283,12 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
 }
 
 // Menjalankan kalkulasi dan menyimpan hasil (lines + items) ke run.
+// D-3 (integritas transaksi): komputasi MURNI dulu (tanpa mutasi), lalu seluruh
+// persist — delete lines lama + create lines/items + update header run + jejak
+// ActivityLog — dijalankan dalam SATU db.$transaction interaktif. Sebelumnya
+// deleteMany + loop create tanpa transaksi → crash/race di tengah bisa
+// meninggalkan snapshot setengah-tulis (lines lama terhapus, sebagian baru
+// tercatat, header run & total tidak konsisten).
 export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<EngineRunResult> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
@@ -293,6 +299,7 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
     throw new Error("Run yang sudah dikonfirmasi/dibayar tidak dapat dihitung ulang");
   }
 
+  // --- Fase 1: komputasi murni (baca input + runPayroll; nol mutasi DB) ---
   const [reg, brackets, ter, rows] = await Promise.all([
     getActiveRegulation(db),
     getBrackets(db),
@@ -302,51 +309,79 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
 
   const result = runPayroll(rows, reg, brackets, ter, { calculateTax: run.calculateTax });
 
-  // Simpan: hapus lines lama → tulis hasil baru (transaksional per line).
-  await db.payrollRunLine.deleteMany({ where: { runId } });
-  for (const line of result.lines) {
-    const created = await db.payrollRunLine.create({
+  // --- Fase 2: persist atomik dalam satu $transaction ---
+  // updateMany bersyarat di awal = kunci baris run (serialisasi terhadap
+  // calculate/confirm/concurrent lain); bila status berubah sejak Fase 1
+  // (mis. run dikonfirmasi di celah), transaksi digugurkan.
+  await db.$transaction(async (tx) => {
+    const updated = await tx.payrollRun.updateMany({
+      where: { id: runId, status: { in: ["Draft", "Calculated"] } },
       data: {
-        runId,
-        employeeId: line.employeeId,
-        employeeNo: line.employeeNo,
-        employeeName: line.employeeName,
-        orgUnitName: line.orgUnitName,
-        positionName: line.positionName,
-        ptkpStatus: line.ptkpStatus,
-        ptkpValue: line.ptkpValue,
-        bruto: line.bruto,
-        deduction: line.deduction,
-        taxRegular: line.taxRegular,
-        taxIrregular: line.taxIrregular,
-        net: line.net,
-        actualNetTax: line.actualNetTax,
-        notes: line.notes,
+        status: "Calculated",
+        employeeCount: result.lines.length,
+        totalBruto: result.totalBruto,
+        totalDeduction: result.totalDeduction,
+        totalTax: result.totalTax,
+        totalNet: result.totalNet,
+        calculatedAt: new Date(),
       },
     });
-    if (line.items.length) {
-      await db.payrollRunItem.createMany({
-        data: line.items.map((it) => ({
-          lineId: created.id,
-          code: it.code, name: it.name, wageType: it.wageType, type: it.type,
-          incomeTaxMethod: it.incomeTaxMethod, amount: it.amount, note: it.note, sortOrder: it.sortOrder,
-        })),
-      });
+    if (updated.count !== 1) {
+      throw new Error("Run yang sudah dikonfirmasi/dibayar tidak dapat dihitung ulang");
     }
-  }
 
-  await db.payrollRun.update({
-    where: { id: runId },
-    data: {
-      status: "Calculated",
-      employeeCount: result.lines.length,
-      totalBruto: result.totalBruto,
-      totalDeduction: result.totalDeduction,
-      totalTax: result.totalTax,
-      totalNet: result.totalNet,
-      calculatedAt: new Date(),
-    },
+    await tx.payrollRunLine.deleteMany({ where: { runId } });
+    for (const line of result.lines) {
+      const created = await tx.payrollRunLine.create({
+        data: {
+          runId,
+          employeeId: line.employeeId,
+          employeeNo: line.employeeNo,
+          employeeName: line.employeeName,
+          orgUnitName: line.orgUnitName,
+          positionName: line.positionName,
+          ptkpStatus: line.ptkpStatus,
+          ptkpValue: line.ptkpValue,
+          bruto: line.bruto,
+          deduction: line.deduction,
+          taxRegular: line.taxRegular,
+          taxIrregular: line.taxIrregular,
+          net: line.net,
+          actualNetTax: line.actualNetTax,
+          notes: line.notes,
+        },
+      });
+      if (line.items.length) {
+        await tx.payrollRunItem.createMany({
+          data: line.items.map((it) => ({
+            lineId: created.id,
+            code: it.code, name: it.name, wageType: it.wageType, type: it.type,
+            incomeTaxMethod: it.incomeTaxMethod, amount: it.amount, note: it.note, sortOrder: it.sortOrder,
+          })),
+        });
+      }
+    }
+
+    await tx.activityLog.create({
+      data: {
+        action: "Calculated", entity: "PayrollRun", entityId: runId,
+        detail: `Run ${run.runNo} dihitung (${result.lines.length} karyawan, total pajak ${result.totalTax.toLocaleString("id-ID")})`,
+      },
+    });
+
+    // D-4: peringatan fallback TER dari engine → ActivityLog (ter-audit).
+    for (const line of result.lines) {
+      for (const w of line.warnings ?? []) {
+        await tx.activityLog.create({
+          data: {
+            actorType: "system", action: "Warning", entity: "PayrollRun",
+            entityId: runId, employeeId: line.employeeId, detail: w,
+          },
+        });
+      }
+    }
   });
+
   return result;
 }
 

@@ -2,8 +2,12 @@
 // Alur: Travel Request (destinasi + advance) → approval → Travel Claim / Settlement
 // (rincian biaya per jenis: General/Allowance/Mileage/Entertainment) → approval →
 // jurnal otomatis → TRANSFER ke payroll (UTRP bayar / TRVSTLIN potong) → Paid.
-// Formula settlement dipertahankan:
-//   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
+// Formula settlement (T3-TRAVEL — fix B1/B2 double-count, konsisten dgn jurnal):
+//   totalReimbursement (R) = Σ baris biaya + exchangeLoss − otherCompanyExp (a)
+//   b (payableEmployee, UTRP) = max(0, R − advance)
+//   c (payableCompany, TRVSTLIN) = max(0, advance − R)
+//   totalSettlement = R (gross settlement, sebanding total beban)
+// (a) biaya dibayar pihak lain TIDAK dibayar ke karyawan — jurnal: baris KONTRA.
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
@@ -20,6 +24,14 @@ const dayStart = (d: Date | string) => {
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Format rupiah ringkas utk ActivityLog (tanpa dependensi locale UI). */
+const fmtIDRLog = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+
+/** Jumlahkan uang muka AKTIF (status ≠ Void) — baris Void (request ditolak/
+ * dibatalkan) tidak lagi dihitung sbg uang muka beredar (M-3/B5 T3-TRAVEL). */
+const sumActiveAdvances = (advances: { amount: number; status?: string | null }[]) =>
+  round2(advances.filter((x) => (x.status ?? "Given") !== "Void").reduce((s, x) => s + x.amount, 0));
 
 /** Parse tanggal (string|Date) → awal hari; tolak bila bukan tanggal valid (M-5). */
 const parseDay = (v: string | Date, label: string): Date => {
@@ -246,8 +258,11 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
 
   const advanceAmount = Math.max(0, input.advanceAmount ?? 0);
   if (advanceAmount > 0) {
+    // M-3/B5 (T3-TRAVEL): advance baru "Requested" (belum dicairkan) — givenAt
+    // baru diisi saat request disetujui final; bukan pinjaman karyawan (TRVLOAN
+    // tidak pernah diimplementasikan — jurnal/jumlah mengikuti klaim settlement).
     await db.travelAdvance.create({
-      data: { requestId: req.id, amount: advanceAmount, note: input.advanceNote?.trim() || null },
+      data: { requestId: req.id, amount: advanceAmount, status: "Requested", givenAt: null, note: input.advanceNote?.trim() || null },
     });
   }
 
@@ -312,7 +327,7 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
   });
   const chainMap = await attachChainSummaries(db, "Travel", rows.map((r) => ({ id: r.id })));
   return rows.map((r) => {
-    const advanceAmount = r.advances.reduce((s, a) => s + a.amount, 0);
+    const advanceAmount = sumActiveAdvances(r.advances);
     const activeClaim = r.claims.find((c) => c.status !== "Rejected" && c.status !== "Cancelled") ?? null;
     const due = new Date(r.dateTo);
     due.setDate(due.getDate() + r.template.settlementDay);
@@ -367,7 +382,7 @@ export async function decideTravelRequest(
   // ==== Approval berjenjang (Task 25) — nominal = uang muka ====
   let chain = await getApprovalChain(db, "Travel", input.id);
   if (!chain) {
-    const advanceAmount = req.advances.reduce((s, a) => s + a.amount, 0);
+    const advanceAmount = sumActiveAdvances(req.advances);
     chain = await startApprovalChain(db, {
       docType: "Travel", docId: input.id, employeeId: req.employeeId,
       amount: advanceAmount > 0 ? advanceAmount : null, createdBy: "legacy-backfill",
@@ -417,6 +432,21 @@ export async function decideTravelRequest(
       where: { requestId: req.id, status: { in: ["Submitted"] } },
       data: { status: "Cancelled" },
     });
+    // M-3/B5 (T3-TRAVEL): request ditolak/dibatalkan → uang muka di-VOID (tidak lagi
+    // beredar / dihitung outstanding). Bila advance sudah dicairkan (Given), pengembalian
+    // kas fisik ditangani manual — dicatat di ActivityLog.
+    const voidedAdvances = await db.travelAdvance.updateMany({
+      where: { requestId: req.id, status: { not: "Void" } },
+      data: { status: "Void" },
+    });
+    if (voidedAdvances.count > 0) {
+      await db.activityLog.create({
+        data: {
+          action: m.log, entity: "TravelAdvance", entityId: req.docNo,
+          detail: `${req.docNo}: ${voidedAdvances.count} baris uang muka dibatalkan (Void) — request ${m.log.toLowerCase()}`,
+        },
+      });
+    }
   }
 
   await db.travelRequest.update({
@@ -428,6 +458,23 @@ export async function decideTravelRequest(
       decisionNote: input.note?.trim() || null,
     },
   });
+  // M-3/B5 (T3-TRAVEL): request disetujui FINAL → uang muka "dicairkan":
+  // status Requested → Given + givenAt terisi (bukan lagi saat submit).
+  if (input.action === "approve") {
+    const given = await db.travelAdvance.updateMany({
+      where: { requestId: req.id, status: "Requested" },
+      data: { status: "Given", givenAt: new Date() },
+    });
+    if (given.count > 0) {
+      const advanceAmount = sumActiveAdvances(req.advances);
+      await db.activityLog.create({
+        data: {
+          action: "Processed", entity: "TravelAdvance", entityId: req.docNo,
+          detail: `${req.docNo}: uang muka ${fmtIDRLog(advanceAmount)} dicairkan (Given) — request disetujui final`,
+        },
+      });
+    }
+  }
   await db.activityLog.create({
     data: {
       action: m.log, entity: "TravelRequest", entityId: req.docNo,
@@ -471,7 +518,7 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
     throw new Error(`Permintaan ${req.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — satu permintaan hanya boleh satu klaim aktif`);
   }
   const expenseTypes = await listExpenseTypes(db);
-  const advanceAmount = req.advances.reduce((s, a) => s + a.amount, 0);
+  const advanceAmount = sumActiveAdvances(req.advances);
   return {
     requestId: req.id,
     docNo: req.docNo,
@@ -484,7 +531,9 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
     destinations: req.destinations.map((d) => ({ city: d.city, country: d.country, dateFrom: d.dateFrom, dateTo: d.dateTo, overseas: d.overseas })),
     advanceAmount,
     expenseTypes,
-    suggested: { totalExpenses: 0, payableEmployee: Math.max(0, -advanceAmount), payableCompany: advanceAmount },
+    // T3-TRAVEL: saran (b)/(c) mengikuti formula baru — belum ada baris biaya →
+    // R = 0 → b = 0, c = seluruh uang muka (kasbon penuh kembali ke perusahaan).
+    suggested: { totalExpenses: 0, payableEmployee: 0, payableCompany: advanceAmount },
   };
 }
 
@@ -570,7 +619,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     if (activeClaim) {
       throw new Error(`Permintaan ${reqRow.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — batalkan/tolak klaim lama sebelum mengajukan klaim baru`);
     }
-    advanceAmount = round2(reqRow.advances.reduce((s, adv) => s + adv.amount, 0));
+    advanceAmount = sumActiveAdvances(reqRow.advances);
 
     // M-5 (24-FIX-TRAVEL): tanggal baris biaya harus dalam rentang trip;
     // claimDate tidak boleh sebelum tanggal kembali.
@@ -598,16 +647,24 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     req = reqRow;
   }
 
-  // M-1 (24-FIX-TRAVEL): (b)/(c) DIHITUNG SERVER dari rincian vs uang muka (formula
-  // — padanan saran UI): gross = Σ baris + (a) + rugi kurs;
-  // b = max(0, gross − advance); c = max(0, advance − gross). Nilai b/c dari klien
-  // DIABAIKAN — input bebas menghasilkan kasbon tak tertagih / overpay (bukti CL-2026-006 b=c=0).
+  // B1/B2 (T3-TRAVEL): settlement dihitung SERVER dari realisasi vs uang muka:
+  //   totalReimbursement (R) = Σ baris biaya + rugi kurs − (a) biaya pihak lain
+  //   b (UTRP) = max(0, R − advance); c (TRVSTLIN) = max(0, advance − R)
+  //   totalSettlement = R (gross, sebanding total beban & total jurnal).
+  // Fix bug lama: (a)+loss pernah dihitung 2× (gross memuat (a), lalu totalSettlement
+  // menambah (a) lagi) → totalSettlement bisa NEGATIF saat kasbon > realisasi; dan
+  // (a) "dibayar pihak lain" ikut dibayar ke karyawan via b. Input b/c dari klien
+  // tetap diabaikan (otoritatif server).
   const a = Math.max(0, input.otherCompanyExp);
   const loss = Math.max(0, input.exchangeLoss);
-  const gross = round2(totalExpenses + a + loss);
-  const b = Math.max(0, round2(gross - advanceAmount));
-  const c = Math.max(0, round2(advanceAmount - gross));
-  const totalSettlement = round2(a + loss + b - c);
+  const expensesTotal = round2(totalExpenses);
+  if (a > round2(expensesTotal + loss)) {
+    throw new Error("Biaya dibayar pihak lain (a) tidak boleh melebihi total rincian + rugi kurs");
+  }
+  const totalReimbursement = round2(expensesTotal + loss - a);
+  const b = Math.max(0, round2(totalReimbursement - advanceAmount));
+  const c = Math.max(0, round2(advanceAmount - totalReimbursement));
+  const totalSettlement = totalReimbursement;
 
   const docNo = await nextDocNo(db, "CL");
   const claim = await db.travelClaim.create({
@@ -652,7 +709,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
       detail: `${docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""}`,
     },
   });
-  return { docNo, totalSettlement, totalExpenses: round2(totalExpenses), overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount };
+  return { docNo, totalSettlement, totalExpenses: expensesTotal, overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount };
 }
 
 export interface TravelClaimRow {
@@ -698,7 +755,7 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
     voucherNo: c.voucherNo, journalNo: c.journalNo, journalDate: c.journalDate,
     periodCode: c.periodCode, transferredRunNo: c.transferredRunNo, paidRunNo: c.paidRunNo,
     decidedAt: c.decidedAt, decisionNote: c.decisionNote,
-    advanceAmount: c.request?.advances.reduce((s, a) => s + a.amount, 0) ?? 0,
+    advanceAmount: c.request ? sumActiveAdvances(c.request.advances) : 0,
     totalExpenses: round2(c.expenses.reduce((s, e) => s + e.amount, 0)),
     expenseLines: c.expenses.length,
     overLimitLines: c.expenses.filter((e) => e.overLimit).length,
@@ -737,14 +794,21 @@ const CASH_ACC = { code: "1101", name: "Kas & Bank" };
 // di payroll/services/payroll-journal.ts (2101 Hutang Gaji).
 const SALARY_PAYABLE_ACC = { code: "2101", name: "Hutang Gaji" };
 
-/** Approve klaim → generate jurnal: Debit akun beban per baris + (a)/rugi kurs (5105).
+/** Approve klaim → generate jurnal: Debit akun beban per baris + rugi kurs (5105).
+ *  (a) biaya dibayar pihak lain TIDAK di-Debit sbg beban & TIDAK masuk arus kas /
+ *  karyawan (fix B2 + g-2 audit) — dicatat sbg baris KONTRA Kredit 5105, sehingga
+ *  beban bersih perusahaan = totalSettlement (gross settlement).
  *  C-04 (24-FIX-TRAVEL): sisi kredit dipecah per arus uang — porsi settlement yang
  *  mengalir lewat payroll ((b) payableEmployee via UTRP + (c) potongan TRVSTLIN)
  *  dikredit ke 2101 Hutang Gaji, HANYA porsi tunai ke 1101 Kas. Mencatat seluruhnya
  *  ke Kas membuat beban+kas tercatat 2× karena jurnal run payroll juga memposting
  *  beban/kas saat komponen UTRP dibayar di gaji (bukti CL-2026-001 + UTRP 900rb).
+ *  T3-TRAVEL: konsistensi dgn formula baru — b/c = max(0, R − advance)/max(0,
+ *  advance − R) dgn R = expenses + loss − (a); porsi payroll dibatasi maksimal R:
+ *  bila kasbon > realisasi ((c) melebihi R), kelebihan pengembalian uang muka
+ *  menunggu siklus hidup advance (baris tetap non-negatif & D=C).
  *  Idempoten: jurnal lama klaim (runNo = docNo klaim) dibuang lalu dibuat ulang. */
-async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
+export async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
   const claim = await db.travelClaim.findUnique({
     where: { id: claimId },
     include: { expenses: true, employee: { select: { fullName: true } } },
@@ -770,22 +834,29 @@ async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ jo
       wageCode: t?.compWageCode ?? e.expenseCode,
     });
   }
-  if (claim.otherCompanyExp > 0) {
-    drafts.push({ accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name, position: "Debit", amount: claim.otherCompanyExp, memo: `${claim.docNo} — biaya dibayar pihak lain`, wageCode: null });
-  }
   if (claim.exchangeLoss > 0) {
     drafts.push({ accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name, position: "Debit", amount: claim.exchangeLoss, memo: `${claim.docNo} — rugi selisih kurs`, wageCode: null });
   }
+  // total Debit = Σ rincian + rugi kurs (beban bruto realisasi perusahaan)
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
   if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
 
-  // C-04 (24-FIX-TRAVEL): pecah kredit — payroll portion (b+c) → 2101 Hutang Gaji,
-  // sisa porsi tunai → 1101 Kas. Porsi payroll dibatasi maksimal sebesar total beban:
-  // bila kasbon > realisasi ((c) melebihi beban), kelebihan pengembalian uang muka
-  // menunggu siklus hidup advance (M-3 backlog) agar baris tetap non-negatif & D=C.
-  const bPayroll = Math.min(round2(claim.payableEmployee), total);
-  const cPayroll = Math.min(round2(claim.payableCompany), round2(total - bPayroll));
-  const cashPortion = round2(total - bPayroll - cPayroll);
+  // T3-TRAVEL: (a) biaya dibayar pihak lain = baris KONTRA kredit 5105 (dibatasi
+  // total beban) — bukan beban/arus kas/karyawan. Beban bersih = total − contra = R.
+  const contraA = Math.min(Math.max(0, round2(claim.otherCompanyExp)), total);
+  const avail = round2(total - contraA); // = totalReimbursement (R)
+  // C-04: pecah kredit — payroll portion (b+c) → 2101 Hutang Gaji, sisa porsi
+  // tunai → 1101 Kas (dibatasi R agar semua baris non-negatif & D=C).
+  const bPayroll = Math.min(Math.max(0, round2(claim.payableEmployee)), avail);
+  const cPayroll = Math.min(Math.max(0, round2(claim.payableCompany)), round2(avail - bPayroll));
+  const cashPortion = round2(avail - bPayroll - cPayroll);
+  if (contraA > 0) {
+    drafts.push({
+      accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name,
+      position: "Credit", amount: contraA,
+      memo: `${claim.docNo} — kontra biaya dibayar pihak lain (bukan beban/arus kas perusahaan)`, wageCode: null,
+    });
+  }
   if (bPayroll > 0) {
     drafts.push({
       accountCode: SALARY_PAYABLE_ACC.code, accountName: SALARY_PAYABLE_ACC.name,
@@ -1003,26 +1074,65 @@ export async function transferClaimsToPayroll(
   };
 }
 
-/** Dipanggil confirmRun(): klaim Transferred period run SALARY → Paid. */
+/** Dipanggil confirmRun(): klaim Transferred period run SALARY → Paid.
+ *  B4 (T3-TRAVEL): mirror markMedicalPaidForRun — tandai Paid HANYA klaim yang
+ *  komponen UTRP/TRVSTLIN-nya BENAR-BENAR muncul di PayrollRunItem karyawan run
+ *  terkait (klaim karyawan non-aktif / tak masuk run tidak lagi ditandai Paid
+ *  diam-diam — status Transferred tetap, terlihat di antrean transfer).
+ *  Klaim b=c=0 (tak punya komponen payroll) sah ditandai Paid — tak ada yang
+ *  perlu diverifikasi di payslip. */
 export async function markTravelPaidForRun(db: TenantDb, runId: string): Promise<number> {
   const run = await db.payrollRun.findUnique({
     where: { id: runId },
-    include: { period: true, processType: true },
+    include: {
+      period: true, processType: true,
+      lines: { select: { employeeId: true, items: { select: { code: true } } } },
+    },
   });
   if (!run || run.processType.code !== "SALARY") return 0;
-  const res = await db.travelClaim.updateMany({
+
+  // karyawan yang benar-benar menerima UTRP / TRVSTLIN di run ini (assignment → run item)
+  const paidEmployees = new Set(
+    run.lines
+      .filter((l) => l.items.some((i) => i.code === "UTRP" || i.code === "TRVSTLIN"))
+      .map((l) => l.employeeId),
+  );
+
+  const transferred = await db.travelClaim.findMany({
     where: { status: "Transferred", periodCode: run.period.code },
-    data: { status: "Paid", paidRunNo: run.runNo, transferredRunNo: run.runNo },
+    select: { id: true, docNo: true, employeeId: true, payableEmployee: true, payableCompany: true },
+    orderBy: { docNo: "asc" },
   });
-  if (res.count > 0) {
+  const toPaid = transferred.filter(
+    (c) => paidEmployees.has(c.employeeId) || (c.payableEmployee <= 0 && c.payableCompany <= 0),
+  );
+  const skipped = transferred.filter((c) => !toPaid.includes(c));
+
+  let marked = 0;
+  if (toPaid.length > 0) {
+    const res = await db.travelClaim.updateMany({
+      where: { id: { in: toPaid.map((c) => c.id) } },
+      data: { status: "Paid", paidRunNo: run.runNo, transferredRunNo: run.runNo },
+    });
+    marked = res.count;
+  }
+  if (marked > 0) {
     await db.activityLog.create({
       data: {
         action: "Processed", entity: "TravelClaim", entityId: runId,
-        detail: `${res.count} klaim travel ditandai Dibayar via run ${run.runNo} (${run.period.name})`,
+        detail: `${marked} klaim travel ditandai Dibayar via run ${run.runNo} (${run.period.name}) — terverifikasi item UTRP/TRVSTLIN di payslip`,
       },
     });
   }
-  return res.count;
+  if (skipped.length > 0) {
+    await db.activityLog.create({
+      data: {
+        action: "Processed", entity: "TravelClaim", entityId: runId,
+        detail: `${skipped.length} klaim Transferred TIDAK ditandai Paid (komponen UTRP/TRVSTLIN tidak muncul di run ${run.runNo}): ${skipped.map((c) => c.docNo).join(", ")}`,
+      },
+    });
+  }
+  return marked;
 }
 
 // ============ budget (padanan TravelPeriod.jsp + Budget Per Cost Center) ============
@@ -1116,7 +1226,7 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const [requests, claims, budgets, claimsYtdRaw, expenseAgg, advancesApproved, requestsApprovedYtd] = await Promise.all([
+  const [requests, claims, budgets, claimsYtdRaw, expenseAgg, advanceRows, requestsApprovedYtd] = await Promise.all([
     db.travelRequest.findMany({ where: { requestDate: { gte: monthStart } }, select: { status: true } }),
     db.travelClaim.findMany({ where: { status: "Submitted" }, select: { id: true } }),
     db.travelBudget.findFirst({ where: { year: now.getFullYear() } }),
@@ -1129,9 +1239,12 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
       where: { claim: { claimDate: { gte: yearStart }, status: { in: ["Approved", "Transferred", "Paid"] } } },
       _sum: { amount: true },
     }),
-    db.travelRequest.findMany({
-      where: { status: "Approved", claimRequestedAt: null },
-      include: { advances: true },
+    // M-3/B5 (T3-TRAVEL): SEMUA advance belum lunas — status Given (sudah dicairkan)
+    // DAN request belum punya klaim Paid (klaim Submitted/Approved/Transferred =
+    // uang muka masih beredar; klaim Paid = lunas; Void/Requested tidak dihitung).
+    db.travelAdvance.findMany({
+      where: { status: "Given" },
+      include: { request: { select: { claims: { where: { status: "Paid" }, select: { id: true } } } } },
     }),
     db.travelRequest.count({ where: { status: "Approved", requestDate: { gte: yearStart } } }),
   ]);
@@ -1160,7 +1273,7 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
     budgetYear: budgets?.year ?? null,
     budgetTotal: budgets?.totalBudget ?? 0,
     budgetUsed: round2(used),
-    advanceOutstanding: round2(advancesApproved.reduce((s, r) => s + r.advances.reduce((a, x) => a + x.amount, 0), 0)),
+    advanceOutstanding: round2(advanceRows.filter((x) => x.request.claims.length === 0).reduce((s, x) => s + x.amount, 0)),
     topExpenseKinds,
   };
 }

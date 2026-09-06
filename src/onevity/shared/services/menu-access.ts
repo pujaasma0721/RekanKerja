@@ -13,7 +13,7 @@
 // =====================================================================
 import { NextRequest } from "next/server";
 import { getTenantClient, UNAUTHORIZED_MSG, VIEWER_FORBIDDEN_MSG, type TenantDb } from "../lib/tenant-db";
-import { readSessionCookie } from "../lib/auth";
+import { readVerifiedSession } from "../lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "./access-scope";
 import { normalizeMenusJson, ACTION_LABEL, actionAllowed, opsOf, type MenuAction, type MenusMap } from "../lib/menu-perms";
@@ -26,6 +26,8 @@ export interface MenuActor {
   role: string;
   appUserId: string | null;
   appUsername: string | null;
+  /** role AppUser tenant (Admin/HR Manager/Viewer/…) — utk resolusi scope data. */
+  appUserRole: string | null;
   employeeId: string | null;
 }
 
@@ -62,7 +64,7 @@ export async function resolveMenuPerms(
     }
   | null
 > {
-  const payload = readSessionCookie(req);
+  const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
   const membership = await platformDb.userTenant.findFirst({
@@ -97,6 +99,7 @@ export async function resolveMenuPerms(
     role: membership.role,
     appUserId: appUser?.id ?? null,
     appUsername: appUser?.username ?? null,
+    appUserRole: appUser?.role ?? null,
     employeeId: appUser?.employeeId ?? null,
   };
 
@@ -104,9 +107,16 @@ export async function resolveMenuPerms(
     (appUser != null && SUPER_ADMIN_APP_ROLES.includes(appUser.role)) ||
     SUPER_ADMIN_PLATFORM_ROLES.includes(membership.role);
 
-  if (isSuperAdmin || appUser == null) {
-    // super admin / tanpa AppUser → default semua menu & aksi
+  if (isSuperAdmin) {
+    // Super admin (AppUser.role Admin / platform OWNER|ADMIN) → semua menu & aksi.
     return { db, actor, isSuperAdmin, all: true, perms: {} };
+  }
+  if (appUser == null) {
+    // T1-SECURITY — fail-closed (dulu fail-open all:true): pengguna TANPA AppUser
+    // tidak lagi otomatis dapat semua menu. Hanya platform OWNER/ADMIN (sudah
+    // tercakup isSuperAdmin di atas) yang bypass. Pengguna lain → tanpa menu
+    // (UI mode ESS nanti) & seluruh mutasi API ditolak guard CUSTOM di bawah.
+    return { db, actor, isSuperAdmin: false, all: false, perms: {} };
   }
 
   let row: { mode: string; menusJson: string } | null = null;

@@ -174,8 +174,8 @@ export function TravelClaimApprovalPage() {
 
                 <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                   <div className="rounded-lg bg-stone-50 py-1.5 dark:bg-stone-800/60">
-                    <p className="text-[9px] font-bold text-stone-500">{t("(a) lain+kurs", "(a) other+fx")}</p>
-                    <p className="text-xs font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.otherCompanyExp + c.exchangeLoss)}</p>
+                    <p className="text-[9px] font-bold text-stone-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p>
+                    <p className="text-xs font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.exchangeLoss - c.otherCompanyExp)}</p>
                   </div>
                   <div className="rounded-lg bg-teal-50 py-1.5 dark:bg-teal-950/30">
                     <p className="text-[9px] font-bold text-teal-700 dark:text-teal-400">{t("(b) karyawan", "(b) employee")}</p>
@@ -293,7 +293,7 @@ export function TravelClaimApprovalPage() {
                 <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{decide.claim.fullName}</p>
                 <p className="text-xs text-stone-500">{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: decide.claim.expenseLines, amt: fmtIDR(decide.claim.totalExpenses) })}</p>
                 <div className="mt-2 grid grid-cols-4 gap-1.5 text-center text-[10px]">
-                  <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-stone-500">(a)</p><p className="font-black">{fmtIDR(decide.claim.otherCompanyExp + decide.claim.exchangeLoss)}</p></div>
+                  <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-stone-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(decide.claim.exchangeLoss - decide.claim.otherCompanyExp)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-teal-600">(b)</p><p className="font-black text-teal-700">{fmtIDR(decide.claim.payableEmployee)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
                   <div className="rounded border ov-border-accent ov-soft py-1"><p>TOTAL</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>
@@ -305,7 +305,7 @@ export function TravelClaimApprovalPage() {
               </div>
               {decide.action === "approve" && (
                 <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs leading-relaxed text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
-                  {t("Jurnal otomatis dibuat: tiap baris biaya → Debit akun beban (Expense Chart of Account), Credit Kas & Bank. Klaim bisa langsung ditransfer ke payroll setelah ini.", "A journal is created automatically: each expense line → Debit expense account (Expense Chart of Account), Credit Cash & Bank. The claim can be transferred to payroll right after this.")}
+                  {t("Jurnal otomatis dibuat: tiap baris biaya + rugi kurs → Debit akun beban; (a) biaya pihak lain → baris kontra (bukan kas/karyawan); porsi payroll (b)/(c) → Kredit 2101 Hutang Gaji, sisa tunai → Kas & Bank. Klaim bisa langsung ditransfer ke payroll setelah ini.", "A journal is created automatically: each expense line + exchange loss → Debit expense account; (a) third-party costs → a contra line (not cash/employee); the payroll portion (b)/(c) → Credit 2101 Salary Payable, the cash remainder → Cash & Bank. The claim can be transferred to payroll right after this.")}
                 </p>
               )}
             </div>

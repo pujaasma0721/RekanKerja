@@ -118,6 +118,9 @@ export interface DecideActor {
   /** employeeId tenant aktor (bila AppUser tertaut karyawan). */
   employeeId: string | null;
   name: string;
+  /** AppUser id aktor bila diketahui — pencocokan delegasi TemporaryApprover
+   *  (opsional; bila kosong, delegasi dicocokkan via employeeId). */
+  appUserId?: string | null;
 }
 
 // ============ parameter employee ============
@@ -466,6 +469,16 @@ export async function startApprovalChain(
   };
 }
 
+/** Jalankan fn dalam transaksi — bila db sudah merupakan tx pemanggil
+ *  (Prisma.TransactionClient tidak punya $transaction), jalankan langsung di
+ *  dalamnya; guard kondisional di dalam fn tetap race-safe. */
+async function runInTx<T>(db: DbOrTx, fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  if (typeof (db as { $transaction?: unknown }).$transaction === "function") {
+    return (db as TenantDb).$transaction(fn);
+  }
+  return fn(db as Prisma.TransactionClient);
+}
+
 /** Ambil chain lengkap (steps urut) untuk satu dokumen. */
 export async function getApprovalChain(db: DbOrTx, docType: string, docId: string): Promise<ChainView | null> {
   const chain = await db.approvalChain.findUnique({
@@ -490,12 +503,100 @@ export async function getApprovalChain(db: DbOrTx, docType: string, docId: strin
   };
 }
 
-/** Otorisasi: siapa boleh memutus jenjang saat ini. */
-export function canActorDecideCurrentStep(actor: DecideActor, step: { approverType: string; approverEmployeeId: string | null }): boolean {
-  if (["OWNER", "ADMIN", "HR"].includes(actor.role)) return true;
-  if (actor.role === "VIEWER") return false;
-  if (step.approverType === "HR_ADMIN") return false; // non-admin tidak bisa mewakili Admin/HR
-  return !!step.approverEmployeeId && step.approverEmployeeId === actor.employeeId;
+// ============ delegasi approval (TemporaryApprover) ============
+
+/** docType TemporaryApprover yang dianggap cocok untuk dokumen — memuat
+ *  nama legacy yang dipakai UI Settings (LeaveRequest/TravelRequest/
+ *  MedicalClaim) supaya baris lama tetap berlaku tanpa migrasi data. */
+const DELEGATION_DOC_ALIASES: Record<string, string[]> = {
+  Leave: ["Leave", "LeaveRequest"],
+  Travel: ["Travel", "TravelRequest"],
+  Medical: ["Medical", "MedicalClaim"],
+  Loan: ["Loan", "EmployeeLoan"],
+  WorkOff: ["WorkOff", "WorkOffPermission"],
+  PersonnelAction: ["PersonnelAction", "PA"],
+};
+
+/** nilai docType delegasi yang berlaku untuk semua jenis dokumen. */
+const DELEGATION_DOC_WILDCARDS = new Set(["all", "*", "any", "semua"]);
+
+function delegationDocTypeMatches(rowDocType: string, docType: string): boolean {
+  const dt = rowDocType.trim();
+  if (DELEGATION_DOC_WILDCARDS.has(dt.toLowerCase())) return true;
+  if (dt === docType) return true;
+  return (DELEGATION_DOC_ALIASES[docType] ?? [docType]).includes(dt);
+}
+
+/** Referensi pihak pencocokan delegasi (AppUser/employee — keduanya opsional). */
+export interface DelegationPartyRef {
+  appUserId?: string | null;
+  employeeId?: string | null;
+}
+
+/**
+ * Cari delegasi APPROVAL AKTIF (TemporaryApprover) yang mengizinkan `actor`
+ * memutus mewakili `approver` untuk `docType`:
+ *  - baris aktif (active) dengan validFrom ≤ hari ini ≤ validTo;
+ *  - docType baris cocok dengan docType dokumen (atau wildcard "All");
+ *  - approver terdaftar = approver jenjang yang dimaksud (AppUser tertaut
+ *    karyawan yang sama / AppUser id sama);
+ *  - delegate terdaftar = aktor (AppUser id sama / tertaut karyawan sama).
+ * Return nama approver asal (untuk jejak "(delegasi dari X)") atau null.
+ */
+export async function findActiveDelegation(
+  db: DbOrTx,
+  docType: string,
+  actor: DelegationPartyRef,
+  approver: DelegationPartyRef,
+): Promise<string | null> {
+  const today = new Date();
+  const rows = await db.temporaryApprover.findMany({
+    where: { active: true, validFrom: { lte: today }, validTo: { gte: today } },
+    include: {
+      approver: { select: { id: true, fullName: true, employeeId: true } },
+      delegate: { select: { id: true, employeeId: true } },
+    },
+  });
+  for (const ta of rows) {
+    if (!delegationDocTypeMatches(ta.docType, docType)) continue;
+    const approverOk =
+      (approver.appUserId != null && ta.approverId === approver.appUserId) ||
+      (approver.employeeId != null && ta.approver.employeeId === approver.employeeId);
+    if (!approverOk) continue;
+    const delegateOk =
+      (actor.appUserId != null && ta.delegateId === actor.appUserId) ||
+      (actor.employeeId != null && ta.delegate.employeeId === actor.employeeId);
+    if (delegateOk) return ta.approver.fullName;
+  }
+  return null;
+}
+
+/** Hasil otorisasi keputusan jenjang. */
+export interface StepAuthorization {
+  allowed: boolean;
+  /** nama approver asal bila diizinkan via delegasi TemporaryApprover aktif. */
+  delegatedFrom: string | null;
+}
+
+/** Otorisasi: siapa boleh memutus jenjang saat ini — approver jenjang langsung
+ *  (employeeId sama), ATAU delegate aktif (TemporaryApprover) dari approver
+ *  jenjang tersebut. OWNER/ADMIN/HR tetap boleh; VIEWER tidak. */
+export async function canActorDecideCurrentStep(
+  db: DbOrTx,
+  docType: string,
+  actor: DecideActor,
+  step: { approverType: string; approverEmployeeId: string | null },
+): Promise<StepAuthorization> {
+  if (["OWNER", "ADMIN", "HR"].includes(actor.role)) return { allowed: true, delegatedFrom: null };
+  if (actor.role === "VIEWER") return { allowed: false, delegatedFrom: null };
+  if (step.approverType === "HR_ADMIN") return { allowed: false, delegatedFrom: null }; // non-admin tidak bisa mewakili Admin/HR
+  if (step.approverEmployeeId && step.approverEmployeeId === actor.employeeId) {
+    return { allowed: true, delegatedFrom: null };
+  }
+  // bukan approver jenjang langsung → cek delegasi aktif (Settings → Temporary Approver)
+  const delegatedFrom = await findActiveDelegation(db, docType, actor, { employeeId: step.approverEmployeeId });
+  if (delegatedFrom) return { allowed: true, delegatedFrom };
+  return { allowed: false, delegatedFrom: null };
 }
 
 export interface ChainDecisionResult {
@@ -504,14 +605,45 @@ export interface ChainDecisionResult {
   chain: ChainView;
 }
 
+/** Konflik keputusan (race double-decide / double-click) — jenjang sudah
+ *  diproses approver lain saat transaksi berjalan. Pemanggil (route) memetakan
+ *  ke response 409 yang ramah. */
+export class DecisionConflictError extends Error {
+  readonly status = 409;
+  constructor(message = "Keputusan sudah diproses oleh approver lain — muat ulang daftar") {
+    super(message);
+    this.name = "DecisionConflictError";
+  }
+}
+
+/** Akses ditolak — aktor bukan approver jenjang (dan bukan delegate aktif).
+ *  Pemanggil memetakan ke response 403. */
+export class DecisionForbiddenError extends Error {
+  readonly status = 403;
+  constructor(message: string) {
+    super(message);
+    this.name = "DecisionForbiddenError";
+  }
+}
+
 /**
  * Putuskan jenjang saat ini:
  *  - approve: jenjang aktif → Approved; bila masih ada jenjang berikutnya,
  *    currentLevel maju dan chain tetap InProgress (final=false); jenjang
  *    terakhir → chain Approved (final=true).
- *  - reject / cancel: jenjang aktif → Rejected, chain berhenti.
+ *  - reject / cancel: jenjang aktif → Rejected/Cancelled, chain berhenti.
  * Aksi ditolak bila aktor bukan approver jenjang berjalan (kecuali
- * OWNER/ADMIN/HR).
+ * OWNER/ADMIN/HR) — termasuk cek delegasi TemporaryApprover aktif.
+ *
+ * RACE-SAFE (mirror pola personnel-actions-detail): seluruh mutasi berjalan
+ * dalam SATU $transaction dengan updateMany KONDISIONAL —
+ *  - step hanya berubah bila masih status "Current" dan decidedAt null
+ *    (dua approver klik bersamaan: pemenang pertama mengunci baris step;
+ *    yang kalah mendapat 0 baris → DecisionConflictError 409);
+ *  - chain hanya berubah bila masih InProgress pada currentLevel yang dibaca
+ *    (transisi ganda/paralel → 0 baris → 409);
+ *  - jenjang berikutnya hanya diaktifkan bila masih "Waiting".
+ * Tanpa ini, dua keputusan paralel bisa double-decide dan jenjang maju 2×.
  */
 export async function decideApprovalChain(
   db: DbOrTx,
@@ -529,8 +661,9 @@ export async function decideApprovalChain(
   const currentStep = chain.steps.find((s) => s.levelNo === chain.currentLevel);
   if (!currentStep) throw new Error("Jenjang aktif tidak ditemukan");
 
-  if (!canActorDecideCurrentStep(input.actor, currentStep)) {
-    throw new Error(
+  const authz = await canActorDecideCurrentStep(db, input.docType, input.actor, currentStep);
+  if (!authz.allowed) {
+    throw new DecisionForbiddenError(
       `Akses ditolak: keputusan jenjang ${chain.currentLevel} menunggu ${currentStep.approverLabel}` +
       (input.actor.employeeId ? "" : " — akun Anda tidak tertaut ke karyawan approver"),
     );
@@ -538,60 +671,74 @@ export async function decideApprovalChain(
 
   const now = new Date();
   const decidedBy = input.actor.name;
-  const steps = chain.steps;
-  // salinan diperbarui sebelum toView — array `steps` hasil query adalah
-  // snapshot sebelum mutasi DB; tanpa ini view balikan menampilkan approver
-  // jenjang LAMA sebagai "Current" (toast/note modul menyesatkan).
-  const markDecided = (ss: typeof steps, status: string) =>
-    ss.map((s) =>
-      s.id === currentStep.id
-        ? { ...s, status, note: input.note ?? null, decidedBy, decidedAt: now }
-        : s,
-    );
+  const rawNote = input.note?.trim() || null;
+  // jejak delegasi pada note jenjang (free-text — aman utk konsumen lama)
+  const effectiveNote = authz.delegatedFrom
+    ? [rawNote, `(delegasi dari ${authz.delegatedFrom})`].filter(Boolean).join(" ")
+    : rawNote;
 
-  if (input.action === "approve") {
-    await db.approvalStep.update({
-      where: { id: currentStep.id },
-      data: { status: "Approved", note: input.note ?? null, decidedBy, decidedAt: now },
+  const stepStatus = input.action === "approve" ? "Approved" : input.action === "reject" ? "Rejected" : "Cancelled";
+  const next = input.action === "approve" ? chain.steps.find((s) => s.levelNo === chain.currentLevel + 1) ?? null : null;
+  const chainStatus = next ? "InProgress" : stepStatus;
+
+  await runInTx(db, async (tx) => {
+    // (1) putuskan jenjang aktif — KONDISIONAL (race double-decide → 0 baris → 409)
+    const stepUpd = await tx.approvalStep.updateMany({
+      where: { id: currentStep.id, status: "Current", decidedAt: null },
+      data: { status: stepStatus, note: effectiveNote, decidedBy, decidedAt: now },
     });
-    const next = steps.find((s) => s.levelNo === chain.currentLevel + 1);
-    if (next) {
-      await db.approvalStep.update({ where: { id: next.id }, data: { status: "Current" } });
-      const updated = await db.approvalChain.update({
-        where: { id: chain.id },
-        data: { currentLevel: next.levelNo },
-      });
-      const refreshed = markDecided(steps, "Approved").map((s) =>
-        s.id === next.id ? { ...s, status: "Current" } : s,
+    if (stepUpd.count === 0) {
+      throw new DecisionConflictError(
+        `Keputusan jenjang ${chain.currentLevel} sudah diproses approver lain — muat ulang daftar`,
       );
-      return { final: false, chain: toView(updated, refreshed) };
     }
-    const updated = await db.approvalChain.update({
-      where: { id: chain.id },
-      data: { status: "Approved", completedAt: now },
+    // (2) chain maju / berhenti — KONDISIONAL status+jenjang yang dibaca
+    const chainUpd = await tx.approvalChain.updateMany({
+      where: { id: chain.id, status: "InProgress", currentLevel: chain.currentLevel },
+      data: next ? { currentLevel: next.levelNo } : { status: chainStatus, completedAt: now },
     });
-    return { final: true, chain: toView(updated, markDecided(steps, "Approved")) };
-  }
+    if (chainUpd.count === 0) {
+      throw new DecisionConflictError(
+        `Keputusan jenjang ${chain.currentLevel} sudah diproses approver lain — muat ulang daftar`,
+      );
+    }
+    // (3) aktifkan jenjang berikutnya (hanya bila masih Waiting)
+    if (next) {
+      await tx.approvalStep.updateMany({
+        where: { id: next.id, status: "Waiting" },
+        data: { status: "Current" },
+      });
+    }
+  });
 
-  // reject / cancel
-  const target = input.action === "reject" ? "Rejected" : "Cancelled";
-  await db.approvalStep.update({
-    where: { id: currentStep.id },
-    data: { status: target, note: input.note ?? null, decidedBy, decidedAt: now },
+  // view dari nilai yang DIKETAHUI (updateMany tidak mengembalikan baris) —
+  // salinan lokal diperbarui sebelum toView supaya approver jenjang BERIKUTNYA
+  // tampil sebagai "Current" (fix stale-steps), bukan snapshot pra-mutasi.
+  const viewSteps = chain.steps.map((s) => {
+    if (s.id === currentStep.id) return { ...s, status: stepStatus, note: effectiveNote, decidedBy, decidedAt: now };
+    if (next && s.id === next.id) return { ...s, status: "Current" };
+    return s;
   });
-  const updated = await db.approvalChain.update({
-    where: { id: chain.id },
-    data: { status: target, completedAt: now },
-  });
-  return { final: true, chain: toView(updated, markDecided(steps, target)) };
+  return {
+    final: !next,
+    chain: toView(
+      {
+        id: chain.id, docType: chain.docType, docId: chain.docId, structureId: chain.structureId,
+        status: chainStatus, currentLevel: next ? next.levelNo : chain.currentLevel,
+        totalLevels: chain.totalLevels, amount: chain.amount,
+      },
+      viewSteps,
+    ),
+  };
 }
 
-/** Hentikan chain tanpa keputusan (dokumen dibatalkan di modul). */
+/** Hentikan chain tanpa keputusan (dokumen dibatalkan di modul) —
+ *  KONDISIONAL InProgress: chain yang masih berjalan → Cancelled; chain yang
+ *  sudah diputus → 0 baris → dibiarkan (idempoten & race-safe terhadap
+ *  keputusan yang mendarat bersamaan). */
 export async function cancelApprovalChain(db: DbOrTx, docType: string, docId: string, by?: string): Promise<void> {
-  const chain = await db.approvalChain.findUnique({ where: { docType_docId: { docType, docId } } });
-  if (!chain || chain.status !== "InProgress") return;
-  await db.approvalChain.update({
-    where: { id: chain.id },
+  await db.approvalChain.updateMany({
+    where: { docType, docId, status: "InProgress" },
     data: { status: "Cancelled", completedAt: new Date() },
   });
 }

@@ -1363,7 +1363,8 @@ CREATE TABLE "TravelAdvance" (
     "requestId" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "note" TEXT,
-    "givenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'Given',
+    "givenAt" TIMESTAMP(3),
 
     CONSTRAINT "TravelAdvance_pkey" PRIMARY KEY ("id")
 );

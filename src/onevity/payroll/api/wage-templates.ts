@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // GET /api/onevity/wage-templates
 export async function GET(req: NextRequest) {
@@ -34,10 +35,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/wage-templates — buat template + daftar komponen
+// T1-SECURITY: guard hak AKSI menu payroll:templates (Baru).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:templates", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode & nama template wajib" }, { status: 400 });
@@ -62,10 +65,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH /api/onevity/wage-templates — update nama/deskripsi/daftar komponen
+// T1-SECURITY: guard hak AKSI menu payroll:templates (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:templates", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -91,11 +96,12 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// DELETE /api/onevity/wage-templates?id=
+// DELETE /api/onevity/wage-templates?id= — T1-SECURITY: guard hak AKSI payroll:templates (Hapus).
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:templates", "delete");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

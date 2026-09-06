@@ -50,7 +50,7 @@ export function TravelOverview() {
   const steps = [
     { n: 1, title: t("Permintaan Travel"), desc: t("Pengajuan perjalanan dinas — destinasi multi-kaki (kota, zona, luar negeri) + uang muka (cash advance)", "Business trip requests — multi-leg destinations (city, zone, overseas) + cash advance"), icon: Plane, view: "travel-request" },
     { n: 2, title: t("Persetujuan"), desc: t("Approve / Reject / Cancel permintaan & klaim — jatuh tempo settlement otomatis dari template (14 hari)", "Approve / Reject / Cancel requests & claims — settlement due date automatic from template (14 days)"), icon: CheckCircle2, view: "travel-approval" },
-    { n: 3, title: t("Klaim & Settlement"), desc: t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula (a)+(b)−(c)", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) — formula (a)+(b)−(c)"), icon: FileText, view: "travel-claim" },
+    { n: 3, title: t("Klaim & Settlement"), desc: t("Rincian biaya per jenis (General / Allowance / Mileage / Entertainment + tamu) — formula Total = rincian + rugi kurs − (a)", "Expense details per type (General / Allowance / Mileage / Entertainment + guests) — formula Total = expenses + exchange loss − (a)"), icon: FileText, view: "travel-claim" },
     { n: 4, title: t("Jurnal & Payroll", "Journal & Payroll"), desc: t("Approve → jurnal otomatis (akun per jenis biaya) → Transfer → komponen UTRP/TRVSTLIN masuk payslip → Dibayar", "Approve → automatic journal (accounts per expense type) → Transfer → UTRP/TRVSTLIN components on the payslip → Paid"), icon: Landmark, view: "travel-claim-approval" },
   ];
 
@@ -91,6 +91,18 @@ export function TravelOverview() {
             ))}
           </div>
 
+          {s && s.advanceOutstanding > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/20">
+              <p className="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-400">
+                <Wallet className="h-4 w-4" /> {t("Uang muka beredar (belum lunas)", "Outstanding advances (unsettled)")}
+              </p>
+              <p className="text-sm font-black text-amber-800 dark:text-amber-400">
+                {fmtIDRShort(s.advanceOutstanding)}
+                <span className="ml-2 font-normal text-amber-700/80 dark:text-amber-400/80">{t("— klaim Paid = lunas; dikurangi (b)/dipotong (c) di settlement", "— Paid claim = settled; netted via (b)/(c) at settlement")}</span>
+              </p>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-4 lg:grid-cols-5">
             <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
@@ -129,7 +141,7 @@ export function TravelOverview() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("(a) Biaya pihak lain + rugi kurs", "(a) Third-party costs + exchange loss")}</span>
+                    <span className="text-stone-600 dark:text-stone-300">{t("(a) Biaya pihak lain (kontra) + rugi kurs", "(a) Third-party costs (contra) + exchange loss")}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
                     <span className="text-stone-600 dark:text-stone-300">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</span>
@@ -138,10 +150,10 @@ export function TravelOverview() {
                     <span className="text-stone-600 dark:text-stone-300">{t("(c) Kembali ke perusahaan", "(c) Returned to company")}</span>
                   </div>
                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
-                    Total = (a) + (b) − (c)
+                    {t("Total = Rincian + Rugi kurs − (a)", "Total = Expenses + Exchange loss − (a)")}
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
-                    {t("Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat — padanan", "The advance reduces (b) or adds to (c) when the claim is created — equivalent to")}
+                    {t("Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat; biaya pihak lain tidak dibayar ke karyawan — padanan", "The advance reduces (b) or adds to (c) when the claim is created; third-party costs are not paid to the employee — equivalent to")}
                     <span className="font-semibold"> Travel &amp; Entertainment Settlement </span>
                     {t("dengan status akhir Transferred → Paid via payroll.", "with final status Transferred → Paid via payroll.")}
                   </p>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { limitSnapshot } from "@/onevity/payroll/services/benefit-service";
 
 const RESET = ["None", "Monthly", "Quarterly", "Yearly"];
@@ -42,10 +43,13 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/benefit-types — jenis benefit baru.
+// T1-SECURITY: guard hak AKSI menu payroll:benefits (Baru) — master benefit
+// diedit dari view Benefit Karyawan, jadi ikut izin menu itu.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:benefits", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.code?.trim() || !b.name?.trim()) return NextResponse.json({ error: "Kode & nama wajib diisi" }, { status: 400 });
@@ -89,10 +93,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH /api/onevity/benefit-types — ubah master.
+// T1-SECURITY: guard hak AKSI menu payroll:benefits (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:benefits", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -132,10 +138,12 @@ export async function PATCH(req: NextRequest) {
 }
 
 // DELETE /api/onevity/benefit-types?id= — guard: dipakai klaim.
+// T1-SECURITY: guard hak AKSI menu payroll:benefits (Hapus).
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:benefits", "delete");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

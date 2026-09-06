@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { requireScoped, isEmployeeInScope } from "@/onevity/shared/services/access-scope";
+import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/onevity/human-resource/services/assignment";
 
 // GET /api/onevity/employee-detail?id=
@@ -139,6 +139,8 @@ const JOB_FIELDS = ["orgUnitId", "positionId", "gradeId", "managerId", "employme
 // Perubahan data personal → update Employee.
 // Perubahan data pekerjaan → assignment aktif ditutup + assignment baru dibuat (tercatat di riwayat).
 // Task 32-d: guard hak AKSI menu — update pada menu hr:directory (per pengguna).
+// T1-SECURITY: PATCH kini juga CEK SCOPE DATA (dulu hanya GET) — karyawan di
+// luar cakupan akses efektif pengguna → 403 (pola sama dgn GET di atas).
 export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:directory", "update");
@@ -147,6 +149,24 @@ export async function PATCH(req: NextRequest) {
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+
+    // cek keberadaan + cakupan skema akses data SEBELUM menulis apa pun
+    const exists = await db.employee.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+    const scope = await resolveAccessScope(db, {
+      appUserId: m.actor.appUserId,
+      employeeId: m.actor.employeeId,
+      appUserRole: m.actor.appUserRole,
+      platformRole: m.actor.role,
+    });
+    const inScope = await isEmployeeInScope(db, scope, id);
+    if (!inScope) {
+      return NextResponse.json(
+        { error: "Akses ditolak: karyawan ini di luar skema akses data Anda. Hubungi admin workspace bila seharusnya dapat diakses." },
+        { status: 403 },
+      );
+    }
+
     const b = await req.json();
 
     const data: Record<string, unknown> = {};

@@ -413,7 +413,11 @@ export function TravelRequestsPage() {
               </div>
               {totalAdvance > 0 && (
                 <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400">
-                  {t("Uang muka {amt} tercatat sebagai pinjaman (TRVLOAN) — diselesaikan saat klaim settlement.", "Advance of {amt} is recorded as a loan (TRVLOAN) — settled at claim settlement.", { amt: fmtIDR(totalAdvance) })}
+                  {t(
+                    "Uang muka {amt} baru dicairkan setelah permintaan disetujui final — bukan pinjaman karyawan; diselesaikan otomatis saat klaim settlement (mengurangi (b) / menambah (c)).",
+                    "The advance of {amt} is only disbursed after the request is fully approved — it is not an employee loan; it is settled automatically at claim settlement (reducing (b) / adding to (c)).",
+                    { amt: fmtIDR(totalAdvance) },
+                  )}
                 </p>
               )}
             </div>

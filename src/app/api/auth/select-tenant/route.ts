@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, buildSessionInfo, readSessionCookie,
+  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, buildSessionInfo, readVerifiedSession,
 } from "@/onevity/shared/lib/auth";
 
 // POST /api/auth/select-tenant { tenantId } — pilih workspace aktif untuk sesi ini
 export async function POST(req: NextRequest) {
   try {
-    const payload = readSessionCookie(req);
+    // T1-SECURITY: sesi diverifikasi terhadap User.sessionVersion — token lama
+    // (pasca-logout / ganti sandi) ditolak di sini juga.
+    const payload = await readVerifiedSession(req);
     if (!payload) return NextResponse.json({ error: "Belum masuk" }, { status: 401 });
 
     const b = await req.json().catch(() => ({}));
@@ -26,7 +28,8 @@ export async function POST(req: NextRequest) {
     if (!info) return NextResponse.json({ error: "Sesi tidak valid" }, { status: 401 });
 
     const res = NextResponse.json(info);
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, tenantId), sessionCookieOptions());
+    // Token baru mempertahankan sessionVersion yang sudah terverifikasi.
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, tenantId, payload.sv), sessionCookieOptions());
     return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

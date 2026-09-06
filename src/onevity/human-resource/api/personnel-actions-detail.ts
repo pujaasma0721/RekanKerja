@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
+import { findActiveDelegation } from "@/onevity/shared/services/approval-engine";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
 // rollback + dipetakan ke respons yang tepat (409 race / 400 validasi).
@@ -26,11 +27,29 @@ const paTypeLabel = (t: string): string => PA_TYPE_LABEL[t] ?? t;
 const paDate = (d: Date): string => d.toISOString().slice(0, 10);
 
 /** Guard keputusan (fix K-03): aktor boleh memutus bila berperan OWNER/ADMIN/HR,
- *  ATAU layer menunjuk aktor tersebut, ATAU layer tanpa approver tertentu. */
-function canDecideLayer(actor: TenantActor, pending: { approverId: string | null }): boolean {
-  if (PRIVILEGED_ROLES.includes(actor.role)) return true;
-  if (pending.approverId === null) return true;
-  return actor.appUserId != null && pending.approverId === actor.appUserId;
+ *  ATAU layer menunjuk aktor tersebut, ATAU layer tanpa approver tertentu,
+ *  ATAU aktor adalah delegate aktif (TemporaryApprover, docType
+ *  PersonnelAction) dari approver layer — delegasi kini DIEKSEKUSI engine.
+ *  Return delegatedFrom (nama approver asal) untuk jejak "(delegasi dari X)". */
+async function canDecideLayer(
+  db: TenantDb,
+  actor: TenantActor,
+  pending: { approverId: string | null },
+): Promise<{ allowed: boolean; delegatedFrom: string | null }> {
+  if (PRIVILEGED_ROLES.includes(actor.role)) return { allowed: true, delegatedFrom: null };
+  if (pending.approverId === null) return { allowed: true, delegatedFrom: null };
+  if (actor.appUserId != null && pending.approverId === actor.appUserId) {
+    return { allowed: true, delegatedFrom: null };
+  }
+  const delegatedFrom = actor.appUserId != null
+    ? await findActiveDelegation(
+        db,
+        "PersonnelAction",
+        { appUserId: actor.appUserId, employeeId: actor.employeeId },
+        { appUserId: pending.approverId },
+      )
+    : null;
+  return { allowed: delegatedFrom != null, delegatedFrom };
 }
 
 // GET detail
@@ -69,8 +88,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!m.ok && m.status === 401) return NextResponse.json({ error: m.error }, { status: 401 });
     const actor = m.ok ? m.actor : null;
     const pending = action.layers.find((l) => l.status === "Pending") ?? null;
-    const canAct =
-      !!actor && action.status === "Submitted" && !!pending && canDecideLayer(actor, pending);
+    const layerAuthz = actor && pending ? await canDecideLayer(db, actor, pending) : { allowed: false, delegatedFrom: null };
+    const canAct = !!actor && action.status === "Submitted" && !!pending && layerAuthz.allowed;
 
     // flatten assignment aktif → bentuk lama (employmentStatus/baseSalary/workShift/position/…)
     const emp = action.employee as typeof action.employee & { assignments?: unknown[] };
@@ -184,9 +203,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (!pending) return NextResponse.json({ error: "Tidak ada layer approval pending" }, { status: 400 });
 
       // Guard keputusan berbasis AKTOR SESI (fix K-03 — mengganti cek hard-coded MII000001)
-      if (!canDecideLayer(actor, pending)) {
+      // + delegasi aktif TemporaryApprover (Settings → Temporary Approver).
+      const layerAuthz = await canDecideLayer(db, actor, pending);
+      if (!layerAuthz.allowed) {
         return NextResponse.json({ error: `Layer ini menunggu persetujuan ${pending.approverRole}` }, { status: 403 });
       }
+      // jejak delegasi pada note layer + activity log (free-text, aman konsumen lama)
+      const delegatedSuffix = layerAuthz.delegatedFrom ? ` (delegasi dari ${layerAuthz.delegatedFrom})` : "";
+      const layerNote = layerAuthz.delegatedFrom && note ? `${note}${delegatedSuffix}` : note;
       // larang self-approve: aktor non-OWNER/ADMIN/HR yang adalah pembuat dokumen
       // tidak boleh memutuskan dokumennya sendiri (maker ≠ checker)
       if (
@@ -208,7 +232,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       await db.$transaction(async (tx) => {
         const layerUpd = await tx.approvalLayer.updateMany({
           where: { id: pending.id, status: "Pending" },
-          data: { status: decision, note, decidedAt: new Date(), approverId: actor.appUserId ?? pending.approverId },
+          data: { status: decision, note: layerNote, decidedAt: new Date(), approverId: actor.appUserId ?? pending.approverId },
         });
         if (layerUpd.count === 0) throw new WorkflowError(409, "Layer ini sudah diputuskan sebelumnya (dokumen mungkin baru saja diproses)");
 
@@ -231,7 +255,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
 
       if (act === "reject") {
-        await log(`${action.docNo} DITOLAK di layer ${pending.layerNo} (${pending.approverRole}) oleh ${actorLabel}${note ? ` — alasan: ${note}` : ""}`);
+        await log(`${action.docNo} DITOLAK di layer ${pending.layerNo} (${pending.approverRole}) oleh ${actorLabel}${delegatedSuffix}${note ? ` — alasan: ${note}` : ""}`);
 
         // ===== Notifikasi email — keputusan final DITOLAK ke karyawan =====
         void (async () => {
@@ -251,7 +275,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         return NextResponse.json({ ok: true, status: "Rejected" });
       }
       if (isLast) {
-        await log(`${action.docNo} disetujui di layer terakhir oleh ${actorLabel} (${pending.approverRole}) — siap diproses`);
+        await log(`${action.docNo} disetujui di layer terakhir oleh ${actorLabel}${delegatedSuffix} (${pending.approverRole}) — siap diproses`);
 
         // ===== Notifikasi email — DISETUJUI (layer terakhir) ke karyawan =====
         void (async () => {
@@ -270,7 +294,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         })();
         return NextResponse.json({ ok: true, status: "Approved" });
       }
-      await log(`Layer ${pending.layerNo} (${pending.approverRole}) disetujui ${actorLabel} — ${action.docNo} lanjut layer ${pending.layerNo + 1}`);
+      await log(`Layer ${pending.layerNo} (${pending.approverRole}) disetujui ${actorLabel}${delegatedSuffix} — ${action.docNo} lanjut layer ${pending.layerNo + 1}`);
       return NextResponse.json({ ok: true, status: "Submitted" });
     }
 

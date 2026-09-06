@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { getTenantClient, type TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { readSessionCookie } from "@/onevity/shared/lib/auth";
+import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/onevity/shared/services/access-scope";
 import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } from "@/onevity/shared/lib/menu-perms";
@@ -31,7 +31,8 @@ interface MeResolution {
 
 /** Resolusi konfigurasi menu pengguna sesi (cookie → tenant → AppUser). */
 async function resolveMe(req: Request): Promise<MeResolution | null> {
-  const payload = readSessionCookie(req);
+  // T1-SECURITY: readVerifiedSession — token divalidasi vs User.sessionVersion.
+  const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
   const membership = await platformDb.userTenant.findFirst({
@@ -72,9 +73,16 @@ export async function GET(req: NextRequest) {
       const me = await resolveMe(req);
       if (!me) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
-      if (me.isSuperAdmin || me.appUserId == null) {
-        // super admin otomatis semua; tanpa AppUser → default semua
-        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: me.isSuperAdmin });
+      if (me.isSuperAdmin) {
+        // Super admin otomatis semua menu & aksi.
+        return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: true });
+      }
+      if (me.appUserId == null) {
+        // T1-SECURITY — fail-closed (dulu fail-open all:true): tanpa AppUser,
+        // hanya platform OWNER/ADMIN (isSuperAdmin di atas) yang dapat semua menu.
+        // Pengguna lain → tanpa menu (mode ESS menyusul) — mutasi API ikut ditolak
+        // oleh resolveMenuPerms yang memakai aturan yang sama.
+        return NextResponse.json({ all: false, menus: [], perms: {}, isSuperAdmin: false });
       }
       let row: { mode: string; menusJson: string } | null = null;
       try {

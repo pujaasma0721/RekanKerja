@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
 
 // GET /api/onevity/tax-parameters — bracket + TER + regulasi aktif + PTKP referensi
@@ -20,10 +21,13 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/onevity/tax-parameters — update parameter regulasi (BPJS, biaya jabatan, TER)
+// T1-SECURITY: guard hak AKSI menu payroll:parameters (Ubah) — VIEWER/di luar
+// izin tidak bisa mengubah parameter pajak lagi (temuan audit pay-2).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:parameters", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     const regulation = await db.payrollRegulation.findFirst({ where: { active: true }, orderBy: { validFrom: "desc" } });

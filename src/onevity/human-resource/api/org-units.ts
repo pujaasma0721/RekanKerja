@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // GET /api/onevity/org-units[?withTree=1]
 export async function GET(req: NextRequest) {
@@ -33,11 +34,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST create unit
+// POST create unit — T1-SECURITY: guard hak AKSI menu hr:tree (Unit Organisasi).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:tree", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.code || !b.name) return NextResponse.json({ error: "Kode dan nama unit wajib diisi" }, { status: 400 });
@@ -64,11 +66,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH update
+// PATCH update — T1-SECURITY: guard hak AKSI menu hr:tree (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:tree", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
@@ -86,11 +89,12 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// DELETE ?id=
+// DELETE ?id= — T1-SECURITY: guard hak AKSI menu hr:tree (Hapus).
 export async function DELETE(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "hr:tree", "delete");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });

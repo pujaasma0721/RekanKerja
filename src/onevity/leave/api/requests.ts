@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/onevity/leave/services/leave-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 
@@ -140,6 +141,14 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(res);
   } catch (e) {
+    // race double-decide (dua approver klik bersamaan) → 409 ramah; akses
+    // ditolak engine (aktor bukan approver/delegate) → 403 — bukan 400 generik
+    if (e instanceof DecisionConflictError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
+    if (e instanceof DecisionForbiddenError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

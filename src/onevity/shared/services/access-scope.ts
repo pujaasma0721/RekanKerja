@@ -16,7 +16,7 @@
 // =====================================================================
 import type { Prisma } from "@/generated/tenant";
 import { getTenantClient, type TenantDb, type TenantActor } from "@/onevity/shared/lib/tenant-db";
-import { readSessionCookie } from "@/onevity/shared/lib/auth";
+import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 
 // ============ konstanta domain ============
@@ -269,7 +269,8 @@ export type ScopedResult =
  *   // s.db, s.scope
  */
 export async function requireScoped(req: Request): Promise<ScopedResult> {
-  const payload = readSessionCookie(req);
+  // T1-SECURITY: readVerifiedSession — revokasi sesi server-side diperhitungkan.
+  const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: "Sesi tidak valid atau berakhir — silakan masuk kembali." };
 
   const membership = await platformDb.userTenant.findFirst({

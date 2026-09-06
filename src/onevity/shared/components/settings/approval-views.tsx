@@ -50,6 +50,10 @@ interface DelegationsResp { delegations: Delegation[]; users: { id: string; user
 
 const DOC_TYPES = ["PersonnelAction", "PayrollRun", "Overtime", "LeaveRequest", "TravelRequest", "MedicalClaim"];
 
+/** docType pilihan delegasi — nama engine (Leave/Travel/Medical/Loan/WorkOff)
+ *  + wildcard All; mesin approval juga menerima nama legacy di atas. */
+const DELEGATION_DOC_TYPES = [...DOC_TYPES, "Leave", "Travel", "Medical", "Loan", "WorkOff", "All"];
+
 // =================================================================
 export function ApprovalEngineView() {
   const { t } = useI18n();
@@ -359,7 +363,10 @@ function TempApproversTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-500 dark:text-stone-400">{t("{n} delegasi approver aktif/tercatat.", "{n} approver delegations active/recorded.", { n: delegations.length })}</p>
+        <div>
+          <p className="text-sm text-stone-500 dark:text-stone-400">{t("{n} delegasi approver aktif/tercatat.", "{n} approver delegations active/recorded.", { n: delegations.length })}</p>
+          <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">{t("Delegasi AKTIF — mesin approval membacanya saat keputusan jenjang (Leave/Travel/Medical/Loan/WorkOff/PA).", "Delegations are LIVE — the approval engine enforces them on tier decisions (Leave/Travel/Medical/Loan/WorkOff/PA).")}</p>
+        </div>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
           <Plus className="h-4 w-4" /> {t("Delegasi Baru", "New Delegation")}
         </Button>
@@ -524,7 +531,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
             </span>
             {initial ? t("Edit Delegasi Approver", "Edit Approver Delegation") : t("Delegasi Approver Baru", "New Approver Delegation")}
           </DialogTitle>
-          <DialogDescription>{t("Approver asal mendelegasikan keputusan sementara ke pengguna lain.", "The source approver temporarily delegates decisions to another user.")}</DialogDescription>
+          <DialogDescription>{t("Approver asal mendelegasikan keputusan sementara ke pengguna lain — aktif dipakai mesin approval pada jenjang yang menunggu approver tersebut.", "The source approver temporarily delegates decisions to another user — enforced live by the approval engine on the tier awaiting that approver.")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -553,9 +560,10 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
               <Select value={docType} onValueChange={setDocType}>
                 <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DOC_TYPES.map((d) => <SelectItem key={d} value={d} className="py-2.5">{d}</SelectItem>)}
+                  {DELEGATION_DOC_TYPES.map((d) => <SelectItem key={d} value={d} className="py-2.5">{d}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-stone-400">{t("All = semua jenis dokumen. Rentang tanggal mengatur kapan delegate boleh memutus.", "All = every document type. The date range controls when the delegate may decide.")}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ta-from">{t("Valid Dari", "Valid From")} <span className="text-rose-500">*</span></Label>

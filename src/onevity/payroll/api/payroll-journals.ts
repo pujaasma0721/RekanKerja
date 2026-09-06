@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
 
 // GET /api/onevity/payroll-journals            → daftar jurnal + run yang belum diposting
@@ -61,10 +62,13 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/payroll-journals — generate jurnal untuk run (backfill/idempotent)
+// T1-SECURITY: guard hak AKSI menu payroll:journals (Baru) — membuat jurnal
+// adalah mutasi data keuangan; VIEWER / tanpa izin ditolak.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:journals", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const b = await req.json();
     if (!b.runId) return NextResponse.json({ error: "runId wajib" }, { status: 400 });

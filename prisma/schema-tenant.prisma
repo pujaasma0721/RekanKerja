@@ -1652,21 +1652,29 @@ model TravelDestination {
   zone    TravelZone?   @relation(fields: [zoneId], references: [id])
 }
 
-// Uang muka perjalanan — padanan "Cash Advance" (request): tercatat sebagai pinjaman
-// (wage code TRVLOAN); diselesaikan saat klaim transfer.
+// Uang muka perjalanan — padanan "Cash Advance" (request); dicairkan saat
+// request disetujui final (status Given/givenAt), dibatalkan saat request
+// ditolak/dibatalkan (Void); diselesaikan saat klaim settlement.
 model TravelAdvance {
   id        String    @id @default(cuid())
   requestId String
   amount    Float     @default(0)
   note      String?
-  givenAt   DateTime  @default(now())
+  // M-3/B5 (T3-TRAVEL) lifecycle advance: Requested (request diajukan, belum
+  // dicairkan) → Given (request disetujui final, givenAt terisi) → Void
+  // (request ditolak/dibatalkan). Legacy rows default "Given".
+  status    String    @default("Given")
+  givenAt   DateTime?
 
   request TravelRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 // Klaim / settlement — padanan "Travel & Entertainment Settlement" (TravelClaim.jsp).
-// Formula dipertahankan:
-//   totalSettlement = (a otherCompanyExp + a exchangeLoss) + (b payableEmployee) − (c payableCompany)
+// Formula (T3-TRAVEL, fix B1/B2 double-count):
+//   totalReimbursement = Σ baris biaya + exchangeLoss − otherCompanyExp
+//   payableEmployee (b, UTRP) = max(0, totalReimbursement − advance)
+//   payableCompany (c, TRVSTLIN) = max(0, advance − totalReimbursement)
+//   totalSettlement = totalReimbursement (gross, sebanding total beban & jurnal)
 // Status final "Transferred"/"Paid" setelah masuk payroll run (wage UTRP/TRVSTLIN).
 model TravelClaim {
   id               String    @id @default(cuid())
@@ -1679,11 +1687,11 @@ model TravelClaim {
   purpose          String?
   remark           String?
   status           String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled|Transferred|Paid
-  otherCompanyExp  Float     @default(0) // (a) biaya dibayar pihak lain
+  otherCompanyExp  Float     @default(0) // (a) biaya dibayar pihak lain (kontra — tidak dibayar ke karyawan)
   exchangeLoss     Float     @default(0) // (a) rugi selisih kurs
   payableEmployee  Float     @default(0) // (b) dibayar ke karyawan
   payableCompany   Float     @default(0) // (c) dikembalikan ke perusahaan
-  totalSettlement  Float     @default(0) // (a)+(b)-(c) — negative = karyawan bon
+  totalSettlement  Float     @default(0) // gross settlement = rincian + rugi kurs − (a)
   settlementMethod String    @default("Kas")
   voucherNo        String?
   journalNo        String?   // terisi saat approve → posting jurnal
