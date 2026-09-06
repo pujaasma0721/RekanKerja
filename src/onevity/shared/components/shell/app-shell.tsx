@@ -12,6 +12,7 @@ import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
 import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
+import { NotificationBell } from "@/onevity/shared/components/shell/notification-bell";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -28,11 +29,11 @@ import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Com
 import {
   LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown, UserRound,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
-  Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
+  Scale, ShieldCheck, ShieldOff, Layers, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
-  Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle,
+  Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +116,9 @@ const HR_NAV: NavGroup[] = [
   { section: "actions", label: "Pengajuan & Persetujuan", children: [
     { id: "inbox", label: "Menunggu Persetujuan", icon: Inbox, badge: "pending" },
     { id: "all", label: "Semua Pengajuan", icon: Workflow },
+  ] },
+  { section: "reports", label: "Laporan", children: [
+    { id: "reports", label: "Laporan HR", icon: ChartNoAxesColumn },
   ] },
 ];
 
@@ -891,8 +895,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* notifications */}
-            <NotificationBell pendingActions={meta.data?.pendingActions ?? 0} />
+            {/* notifications — feed nyata per AppUser (T11-NOTIF) */}
+            <NotificationBell />
 
             {/* language switcher (ID/EN) */}
             <LanguageSwitcher />
@@ -1227,42 +1231,6 @@ function ThemeToggle() {
     >
       {mounted && dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
     </button>
-  );
-}
-
-function NotificationBell({ pendingActions }: { pendingActions: number }) {
-  const { navigate } = useNav();
-  const { t } = useI18n();
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="relative rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200" aria-label={t("Notifikasi", "Notifications")}>
-          <Bell className="h-[18px] w-[18px]" />
-          {pendingActions > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold text-stone-900">{pendingActions}</span>}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="border-b border-stone-100 px-4 py-3 dark:border-stone-800">
-          <p className="text-sm font-bold">{t("Notifikasi", "Notifications")}</p>
-          <p className="text-[11px] text-stone-400">{t("{n} approval menunggu keputusan Anda", "{n} approvals awaiting your decision", { n: pendingActions })}</p>
-        </div>
-        <div className="max-h-72 overflow-y-auto p-2">
-          {pendingActions > 0 ? (
-            <button onClick={() => navigate("actions", "inbox")} className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition hover:bg-amber-50 dark:hover:bg-amber-500/10">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20">
-                <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold">{t("Approval Personnel Action", "Personnel Action Approvals")}</p>
-                <p className="text-[11px] leading-relaxed text-stone-500">{t("{n} dokumen menunggu persetujuan Anda", "{n} documents awaiting your approval", { n: pendingActions })}</p>
-              </div>
-            </button>
-          ) : (
-            <p className="px-3 py-6 text-center text-xs text-stone-400">{t("Tidak ada notifikasi baru", "No new notifications")}</p>
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

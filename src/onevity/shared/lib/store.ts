@@ -17,6 +17,7 @@ export type SectionId =
   | "position"
   | "employee"
   | "actions"
+  | "reports"
   | "payroll"
   | "settings"
   | "attendance"
@@ -36,7 +37,7 @@ export interface NavState {
 }
 
 const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical"];
-const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "payroll", "settings", "attendance", "leave", "travel", "medical"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical"];
 
 export const MODULE_LABEL: Record<ModuleId, string> = {
   hr: "Human Resource Base",
@@ -87,6 +88,7 @@ export function defaultView(section: SectionId): string {
     case "position": return "list";
     case "employee": return "directory";
     case "actions": return "inbox";
+    case "reports": return "reports";
     case "payroll": return "overview";
     case "settings": return "lookups";
     case "attendance": return "schedules";

@@ -70,20 +70,33 @@ export async function POST(req: NextRequest) {
 
     const validFrom = b.validFrom && /^\d{4}-\d{2}-\d{2}$/.test(b.validFrom) ? new Date(`${b.validFrom}T00:00:00`) : new Date();
 
-    // tutup assignment aktif lama (history tetap tersimpan)
-    await db.scheduleAssignment.updateMany({
-      where: { employeeId, validTo: null },
-      data: { validTo: new Date(validFrom.getTime() - 86_400_000) },
-    });
-
-    const assignment = await db.scheduleAssignment.create({
-      data: {
-        employeeId, scheduleId, anchorMonday, anchorSequence,
-        clockingRequired: b.clockingRequired === undefined ? true : Boolean(b.clockingRequired),
-        validFrom,
-        notes: b.notes?.trim() || null,
-      },
-      include: ASSIGNMENT_INCLUDE,
+    // T5-TA-FIX (D-5, misi 3b): tutup SEMUA assignment lama yang masih tumpang
+    // tindih dengan assignment baru — bukan hanya yang validTo-nya null:
+    // assignment lama ber-validTo panjang (mis. s.d. akhir tahun) dulu dibiarkan
+    // terbuka → dua assignment overlap senyap (resolveDayType memilih validFrom
+    // terbaru; hari di antara tanggalnya tidak konsisten). Penutupan + create
+    // SATU transaksi (atomik — tidak ada celah tanpa assignment aktif).
+    // Hanya assignment LAMA (validFrom < validFrom baru) yang ditutup; assignment
+    // yang mulai SETELAH tanggal efektif baru dibiarkan (saatnya tiba ia yang berlaku).
+    const dayBefore = new Date(validFrom.getTime() - 86_400_000);
+    const assignment = await db.$transaction(async (tx) => {
+      await tx.scheduleAssignment.updateMany({
+        where: {
+          employeeId,
+          validFrom: { lt: validFrom },
+          OR: [{ validTo: null }, { validTo: { gte: validFrom } }],
+        },
+        data: { validTo: dayBefore },
+      });
+      return tx.scheduleAssignment.create({
+        data: {
+          employeeId, scheduleId, anchorMonday, anchorSequence,
+          clockingRequired: b.clockingRequired === undefined ? true : Boolean(b.clockingRequired),
+          validFrom,
+          notes: b.notes?.trim() || null,
+        },
+        include: ASSIGNMENT_INCLUDE,
+      });
     });
     return NextResponse.json({ assignment }, { status: 201 });
   } catch (e) {

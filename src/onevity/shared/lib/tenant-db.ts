@@ -14,13 +14,15 @@ export type { TenantPrismaClient };
 // T7-ESS: versi dinaikkan lagi (V3) — model Notification + kolom
 // AttendanceClockLog.latitude/longitude masuk client hasil generate;
 // route lama maupun baru sama-sama mendapat instance DMMF baru.
+// T5-TA-FIX: versi dinaikkan lagi (V4) — kolom AttendanceDaily.paidFlag
+// masuk client hasil generate (recapPeriod/regenerateDaily menulis kolom ini).
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsV3: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsV4: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsV3 ?? new Map();
-globalForTenants.onevityTenantClientsV3 = tenantClients;
+  globalForTenants.onevityTenantClientsV4 ?? new Map();
+globalForTenants.onevityTenantClientsV4 = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

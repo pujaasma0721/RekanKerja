@@ -1060,6 +1060,7 @@ CREATE TABLE "AttendanceDaily" (
     "normalMinutes" INTEGER NOT NULL DEFAULT 0,
     "absenceMinutes" INTEGER NOT NULL DEFAULT 0,
     "overtimeMinutes" INTEGER NOT NULL DEFAULT 0,
+    "paidFlag" BOOLEAN,
     "revised" BOOLEAN NOT NULL DEFAULT false,
     "revisedBy" TEXT,
     "notes" TEXT,

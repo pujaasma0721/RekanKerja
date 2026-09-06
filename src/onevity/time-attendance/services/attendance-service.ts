@@ -63,7 +63,10 @@ async function assignmentFor(db: TenantDb, employeeId: string, date: Date) {
   const list = await db.scheduleAssignment.findMany({
     where: {
       employeeId,
-      validFrom: { lte: dayStart(addDays(date, 1)) },
+      // T5-TA-FIX (D-5, off-by-one): assignment sah utk rekap tanggal D adalah
+      // validFrom ≤ D (dulu: ≤ D+1 — assignment yang baru efektif BESOK ikut
+      // menaungi rekap hari ini). validTo tetap null/≥ D.
+      validFrom: { lte: dayStart(date) },
       OR: [{ validTo: null }, { validTo: { gte: dayStart(date) } }],
     },
     orderBy: { validFrom: "desc" },
@@ -109,7 +112,13 @@ export async function resolveDayType(db: TenantDb, employeeId: string, date: Dat
 // ============ aturan singleton (padanan Overtime Specified + Rounding) ============
 
 export async function getRule(db: TenantDb) {
-  const rule = await db.attendanceRule.findFirst();
+  // T5-TA-FIX: findFirst dgn orderBy deterministik — sandbox MII ternyata
+  // memuat 2 baris AttendanceRule (race seed lama) dan findFirst tanpa orderBy
+  // bisa mengembalikan baris BERBEDA per koneksi → "rule tersimpan tapi engine
+  // memakai row lain" (gejala plasebo D-6). OrderBy stabil → settings PATCH
+  // dan engine selalu sepakat baris yang sama. (Baris duplikat sandbox dibersihkan
+  // saat uji T5; provisioning baru membuat 1 baris.)
+  const rule = await db.attendanceRule.findFirst({ orderBy: { id: "asc" } });
   if (rule) return rule;
   return db.attendanceRule.create({ data: {} });
 }
@@ -154,6 +163,11 @@ async function leaveFor(db: TenantDb, employeeId: string, date: Date): Promise<L
     where: {
       employeeId,
       status: { in: ["Approved", "MassLeave"] },
+      // T5-TA-FIX (WorkOff.deductLeave): request potongan OTOMATIS dari izin
+      // tidak masuk (source "WorkOff") tidak dihitung sebagai cuti di rekap
+      // harian — hari tsb tetap ditutup oleh WorkOffPermission (status WorkOff)
+      // supaya regen konsisten (audit 1c).
+      source: { not: "WorkOff" },
       dateFrom: { lt: end },
       dateTo: { gte: start },
     },
@@ -321,6 +335,10 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     let normalMinutes = 0;
     let absenceMinutes = 0;
     let notes: string | null = null;
+    // T5-TA-FIX (D-7): klasifikasi berbayar eksplisit — diisi saat regen dari
+    // WorkOffPermission.paid (status WorkOff) / LeaveType.paid (status OnLeave);
+    // null utk status lain (baris lama belum ter-regen → recapPeriod fallback notes).
+    let paidFlag: boolean | null = null;
 
     if (isOffDay) {
       if (checkIn && checkOutRaw) {
@@ -336,6 +354,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     } else if (lv) {
       // Cuti (Approved/MassLeave) menutup hari kerja — padanan Absence Code.
       status = "OnLeave";
+      paidFlag = lv.paid;
       if (lv.paid) {
         normalMinutes = lv.half ? Math.floor(target / 2) : target;
         absenceMinutes = lv.half ? Math.ceil(target / 2) : 0;
@@ -348,6 +367,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     } else if (wo.paid !== null) {
       // Izin tidak masuk (work off permission) menutup hari — padanan.
       status = "WorkOff";
+      paidFlag = wo.paid;
       if (wo.paid) {
         normalMinutes = wo.half ? Math.floor(target / 2) : target;
         absenceMinutes = wo.half ? Math.ceil(target / 2) : 0;
@@ -369,9 +389,28 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
         status = "Off";
       }
     } else if (!clockingRequired) {
-      // non-clocking: "Assume as Normal Hour" (padanan clocking_all=false)
-      status = "Present";
-      notes = "Non-clocking — jam dianggap normal";
+      // T5-TA-FIX (D-6c): AttendanceRule.nonClockingPolicy dieksekusi —
+      // - AssumeNormal (default, perilaku lama): hadir tanpa menit kerja
+      //   ("jam dianggap normal" — status Present, workMinutes/normalMinutes 0);
+      // - ByDays: karyawan non-clocking dihitung HADIR PENUH per hari assignment
+      //   (presence=1, normalMinutes = durasi shift penuh);
+      // - ByHours: workMinutes dihitung dari jam day type tanpa clock
+      //   (workMinutes = normalMinutes = jam shift).
+      if (rule.nonClockingPolicy === "ByDays") {
+        status = "Present";
+        presence = 1;
+        normalMinutes = target;
+        notes = "Non-clocking (ByDays) — hadir penuh per hari assignment";
+      } else if (rule.nonClockingPolicy === "ByHours") {
+        status = "Present";
+        presence = 1;
+        workMinutes = target;
+        normalMinutes = Math.min(workMinutes, target);
+        notes = `Non-clocking (ByHours) — dihitung ${(Math.round((target / 60) * 10) / 10)} jam dari jadwal`;
+      } else {
+        status = "Present";
+        notes = "Non-clocking — jam dianggap normal";
+      }
     } else if (!checkIn || !checkOutRaw) {
       status = "Absent";
       absenceMinutes = target;
@@ -384,7 +423,13 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
       if (schedIn) {
         lateMinutes = floorToMultiple(minutesBetween(schedIn, checkIn) - dayType!.toleranceLateMinutes, rule.roundingMinutes);
       }
-      if (schedOut) {
+      if (dayType!.flexible) {
+        // T5-TA-FIX (D-6b): day type FLEKSIBEL — telat tetap clockIn > jam masuk
+        // jadwal + toleransi (window fleksibel); namun jam pulang jadwal TIDAK
+        // mengikat — "pulang cepat" dihitung dari durasi shift wajib (target)
+        // yang tidak tuntas: early = target − workMinutes.
+        earlyMinutes = floorToMultiple(Math.max(0, target - workMinutes), rule.roundingMinutes);
+      } else if (schedOut) {
         earlyMinutes = floorToMultiple(minutesBetween(checkOutRaw, schedOut) - dayType!.toleranceEarlyMinutes, rule.roundingMinutes);
       }
       normalMinutes = Math.min(workMinutes, target);
@@ -403,13 +448,13 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
         state: "Calculated", status, presence,
         checkIn, checkOut: checkOutRaw,
         lateMinutes, earlyMinutes, workMinutes, normalMinutes, absenceMinutes,
-        overtimeMinutes, notes,
+        overtimeMinutes, paidFlag, notes,
       },
       update: {
         dayTypeId: dayType?.id ?? null, state: "Calculated", status, presence,
         checkIn, checkOut: checkOutRaw,
         lateMinutes, earlyMinutes, workMinutes, normalMinutes, absenceMinutes,
-        overtimeMinutes, notes, revised: false, revisedBy: null,
+        overtimeMinutes, paidFlag, notes, revised: false, revisedBy: null,
       },
     });
     count++;
@@ -434,19 +479,38 @@ export async function regenerateRange(db: TenantDb, from: Date, to: Date): Promi
  * - Holiday (libur nasional, PP 35/2021 Pasal 28): 7 jam pertama = 2×,
  *   jam ke-8 = 3×, jam ke-9 dst = 4× (fix M-1 — dulu 2×/3×/4× pada jam 1-5/6-7/8+)
  * upah sejam = 1/173 × upah bulanan; perhitungan per interval 30 menit.
+ *
+ * T5-TA-FIX (D-6a — rule plasebo): parameter aturan AttendanceRule dieksekusi —
+ * - minMinutes (rule.minOvertimeMinutes, default 30): menit di bawah ambang
+ *   tidak dibayar (lembur 25 menit tidak menghasilkan upah);
+ * - rounding (rule.overtimeRoundingMinutes, default 30): menit dibulatkan KE
+ *   ATAS ke kelipatan interval, upah dihitung per blok interval (default blok
+ *   30 menit = perilaku lama; interval 15/30/60 = pembagi 60 → multiplier jam
+ *   eksak pada batas jam).
+ * Pemanggil lama tanpa opts → perilaku default 30/30 (kompatibel).
  */
-export function overtimePayFor(baseSalary: number, minutes: number, dayCategory: string): number {
+export interface OvertimePayOptions {
+  /** interval pembulatan menit lembur — rule.overtimeRoundingMinutes (default 30) */
+  roundingMinutes?: number;
+  /** ambang minimum menit agar lembur dibayar — rule.minOvertimeMinutes (default 30) */
+  minMinutes?: number;
+}
+
+export function overtimePayFor(baseSalary: number, minutes: number, dayCategory: string, opts: OvertimePayOptions = {}): number {
+  const rounding = Math.max(1, Math.round(opts.roundingMinutes ?? 30));
+  const minMinutes = Math.max(0, Math.round(opts.minMinutes ?? 30));
   if (minutes <= 0 || baseSalary <= 0) return 0;
+  if (minutes < minMinutes) return 0; // ambang minimum — di bawah ini tidak dibayar
+  const paidMinutes = Math.ceil(minutes / rounding) * rounding; // pembulatan ke atas ke interval
   const hourly = baseSalary / 173;
-  const halfHours = Math.ceil(minutes / 30) / 2; // jumlah jam (kelipatan 0,5)
   let pay = 0;
-  for (let h = 0; h < halfHours; h += 0.5) {
-    const hourIndex = Math.floor(h) + 1; // jam ke-berapa (1-based)
+  for (let m = 0; m < paidMinutes; m += rounding) {
+    const hourIndex = Math.floor(m / 60) + 1; // jam ke-berapa (1-based) pembuka blok
     let multiplier: number;
     if (dayCategory === "Weekend") multiplier = hourIndex <= 8 ? 2 : 3;
     else if (dayCategory === "Holiday") multiplier = hourIndex <= 7 ? 2 : hourIndex === 8 ? 3 : 4;
     else multiplier = hourIndex === 1 ? 1.5 : 2;
-    pay += hourly * multiplier * 0.5;
+    pay += hourly * multiplier * (rounding / 60);
   }
   return Math.round(pay);
 }
@@ -529,11 +593,18 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
         case "Late": presentDays++; lateCount++; scheduledDays++; break;
         case "Absent": absentDays++; scheduledDays++; break;
         case "OnLeave":
-          if (r.notes?.includes("tidak dibayar")) leaveUnpaid++; else leavePaid++;
+          // T5-TA-FIX (D-7): klasifikasi berbayar dari kolom paidFlag (regen
+          // mengisi dari LeaveType.paid); baris lama belum ter-regen (paidFlag
+          // null) → fallback notes "tidak dibayar" (perilaku lama).
+          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) leaveUnpaid++;
+          else leavePaid++;
           scheduledDays++;
           break;
         case "WorkOff":
-          if (r.notes?.includes("tidak dibayar")) workoffUnpaid++; else workoffPaid++;
+          // T5-TA-FIX (D-7): sama — paidFlag dari WorkOffPermission.paid,
+          // fallback notes utk baris lama.
+          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) workoffUnpaid++;
+          else workoffPaid++;
           scheduledDays++;
           break;
         case "Off": offDays++; break;
@@ -550,7 +621,12 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
     const perDay = rule.absenceDeductionPerDay > 0 ? rule.absenceDeductionPerDay : baseSalary / 25;
     const absenceDeduction = Math.round((absentDays + workoffUnpaid + leaveUnpaid) * perDay);
     const otPay = (otByEmp.get(emp.id) ?? []).reduce(
-      (s, o) => s + overtimePayFor(baseSalary, o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes, o.dayCategory),
+      (s, o) => s + overtimePayFor(
+        baseSalary, o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes, o.dayCategory,
+        // T5-TA-FIX (D-6a): rekap uang memakai rule (minimum + rounding), bukan
+        // hardcode 30 menit — konsisten dgn tampilan estimasi API overtime.
+        { roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes },
+      ),
       0,
     );
     const perfect = scheduledDays > 0 && lateCount === 0 && absentDays === 0 && workoffUnpaid === 0 && leaveUnpaid === 0 &&
@@ -973,6 +1049,339 @@ export async function decideOvertimeOrder(
 
 // ============ work off permission (padanan EmployeeWorkOff.jsp) ============
 
+// ---- T5-TA-FIX: potong saldo cuti tahunan dari izin tidak masuk (deductLeave) ----
+// Audit AUDIT-3: flag deductLeave ditampilkan UI ("memotong saldo cuti: Ya")
+// tapi tidak pernah dieksekusi. Mekanisme yang dipilih: approval FINAL izin
+// menulis LeaveRequest OTOMATIS — docNo = nomor WO (unique index → relasi 1:1
+// & idempoten), source "WorkOff", status Approved. Baris ini PERSIS jenis data
+// yang dihitung kolom (f) taken / (g) applied oleh formula saldo leave-service
+// (computeParts) — saldo & UI "Informasi Cuti" langsung konsisten TANPA
+// menyentuh leave-service (leave-service meng-import attendance-service —
+// import balik = dependensi melingkar). Validasi saldo di sini memakai MIRROR
+// formula a–g + reservasi pending (permintaan cuti Submitted lain + izin
+// Pending deductLeave lain — padanan reservasi L-01 leave-service).
+// REJECT/CANCEL izin yang sudah terpotong → request otomatis dibatalkan
+// (status Cancelled) → saldo kembali; idempoten.
+
+/** Kode jenis cuti tahunan yang dipotong izin tidak masuk (deductLeave). */
+const ANNUAL_LEAVE_CODE = "CT-THN";
+
+interface AnnualLeaveTypeLite {
+  id: string; code: string; name: string; unit: string; entitlement: number;
+  prorateMonthly: boolean; carryOverMax: number; periodMode: string;
+}
+
+async function annualLeaveType(db: TenantDb): Promise<AnnualLeaveTypeLite | null> {
+  return db.leaveType.findFirst({
+    where: { code: ANNUAL_LEAVE_CODE, active: true },
+    select: {
+      id: true, code: true, name: true, unit: true, entitlement: true,
+      prorateMonthly: true, carryOverMax: true, periodMode: true,
+    },
+  });
+}
+
+/** Mirror earnedMonths leave-service (bulan penuh berlaku, bulan berjalan penuh). */
+function mirrorEarnedMonths(from: Date, joinDate: Date, asOf: Date): number {
+  const start = joinDate > from ? joinDate : from;
+  const m = (asOf.getFullYear() - start.getFullYear()) * 12 + (asOf.getMonth() - start.getMonth()) + 1;
+  return Math.max(0, Math.min(12, m));
+}
+
+/** Mirror yearForDate leave-service (CALENDAR → tahun kalender; ANNIVERSARY → per tanggal join). */
+function mirrorYearForDate(periodMode: string, joinDate: Date, date: Date): number {
+  if (periodMode !== "ANNIVERSARY") return date.getFullYear();
+  const annivThisYear = new Date(date.getFullYear(), joinDate.getMonth(), joinDate.getDate());
+  return date >= annivThisYear ? date.getFullYear() + 1 : date.getFullYear();
+}
+
+/** Mirror isWorkday leave-service — hari kerja efektif dari jadwal TA
+ *  (category Off/Holiday bukan hari kerja); tanpa assignment → fallback Senin–Jumat. */
+async function isWorkdayMirror(db: TenantDb, employeeId: string, date: Date): Promise<boolean> {
+  const { dayType } = await resolveDayType(db, employeeId, date);
+  if (dayType) return dayType.category !== "Off" && dayType.category !== "Holiday";
+  const dow = date.getDay();
+  return dow >= 1 && dow <= 5;
+}
+
+/** Sesi AM/PM padanan izin setengah hari — mirror calculateRequestDays:
+ *  sehari penuh = AM→PM; setengah hari pagi (timeFrom < 12) = AM→AM;
+ *  setengah hari siang = PM→PM (masing-masing −0,5 hari). */
+function workoffSessions(allDay: boolean, timeFrom: string | null): { sessionFrom: "AM" | "PM"; sessionTo: "AM" | "PM" } {
+  if (allDay) return { sessionFrom: "AM", sessionTo: "PM" };
+  const h = timeFrom ? parseInt(timeFrom.split(":")[0] ?? "8", 10) : 8;
+  return h < 12 ? { sessionFrom: "AM", sessionTo: "AM" } : { sessionFrom: "PM", sessionTo: "PM" };
+}
+
+/** Hari kerja terpakai oleh izin — mirror calculateRequestDays leave-service
+ *  (hari off/libur dilewati; setengah hari −0,5). */
+async function workoffDays(
+  db: TenantDb,
+  employeeId: string,
+  from: Date,
+  to: Date,
+  allDay: boolean,
+): Promise<number> {
+  const start = dayStart(from);
+  const end = dayStart(to);
+  if (end < start) return 0;
+  let days = 0;
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+    if (await isWorkdayMirror(db, employeeId, d)) days += 1;
+  }
+  if (!allDay && days > 0) days -= 0.5;
+  return Math.max(0, Math.round(days * 100) / 100);
+}
+
+interface WorkoffLeaveAvailability {
+  /** sisa saldo resmi a+b+c−d−e−f−g (mirror computeParts) */
+  remaining: number;
+  /** reservasi: hari permintaan cuti Submitted lain (belum memotong saldo) */
+  pendingLeave: number;
+  /** reservasi: hari izin tidak masuk Pending (deductLeave) lain */
+  pendingWorkoff: number;
+  /** remaining − pendingLeave − pendingWorkoff */
+  available: number;
+}
+
+/** Sisa saldo cuti tahunan TERSEDIA + reservasi pending (mirror formula saldo
+ *  leave-service + padanan reservasi L-01). excludeWorkoffId dipakai saat
+ *  re-validasi approve (izin itu sendiri dikecualikan dari reservasi). */
+async function annualAvailability(
+  db: TenantDb,
+  employeeId: string,
+  type: AnnualLeaveTypeLite,
+  year: number,
+  opts: { excludeWorkoffId?: string } = {},
+): Promise<WorkoffLeaveAvailability> {
+  const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { joinDate: true } });
+  if (!emp) throw new Error("Karyawan tidak ditemukan");
+  // baris saldo (auto-buat bila belum — mirror ensureBalance leave-service)
+  const balance = await db.leaveBalance.upsert({
+    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: type.id, year } },
+    create: { employeeId, leaveTypeId: type.id, year, note: "auto-generated dari izin tidak masuk (potong saldo cuti)" },
+    update: {},
+  });
+  const asOf = new Date();
+  // (b) earned — prorate bulanan opsional (mirror computeParts)
+  const winFrom = new Date(year, 0, 1);
+  const from = emp.joinDate > winFrom ? emp.joinDate : winFrom;
+  const earned = type.prorateMonthly ? (type.entitlement * mirrorEarnedMonths(from, emp.joinDate, asOf)) / 12 : type.entitlement;
+  // (d) carry-over hangus setelah 31-12 periode
+  const forfeitDate = new Date(year, 11, 31, 23, 59, 59);
+  const forfeited = balance.carriedOver > 0 && asOf > forfeitDate ? balance.carriedOver : 0;
+  // (f)/(g) taken/applied dari request Approved/MassLeave (termasuk potongan
+  // otomatis WorkOff yang sudah disetujui — konsisten dgn leave-service)
+  const used = await db.leaveRequest.findMany({
+    where: { employeeId, leaveTypeId: type.id, year, status: { in: ["Approved", "MassLeave"] } },
+    select: { workingDays: true, dateTo: true },
+  });
+  let taken = 0;
+  let applied = 0;
+  for (const r of used) {
+    if (dayStart(r.dateTo) < dayStart(asOf)) taken += r.workingDays;
+    else applied += r.workingDays;
+  }
+  const remaining = balance.carriedOver + earned + balance.adjustment - forfeited - balance.cashed - taken - applied;
+  // reservasi: permintaan cuti Submitted lain (belum memotong saldo resmi)
+  const pending = await db.leaveRequest.findMany({
+    where: { employeeId, leaveTypeId: type.id, year, status: "Submitted" },
+    select: { workingDays: true },
+  });
+  const pendingLeave = pending.reduce((s, r) => s + r.workingDays, 0);
+  // reservasi: izin tidak masuk Pending (deductLeave) lain
+  const pendingWo = await db.workOffPermission.findMany({
+    where: {
+      employeeId, status: "Pending", deductLeave: true,
+      ...(opts.excludeWorkoffId ? { id: { not: opts.excludeWorkoffId } } : {}),
+    },
+    select: { dateFrom: true, dateTo: true, allDay: true },
+  });
+  let pendingWorkoff = 0;
+  for (const w of pendingWo) {
+    pendingWorkoff += await workoffDays(db, employeeId, w.dateFrom, w.dateTo, w.allDay);
+  }
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  return {
+    remaining: round2(remaining),
+    pendingLeave: round2(pendingLeave),
+    pendingWorkoff: round2(pendingWorkoff),
+    available: round2(remaining - pendingLeave - pendingWorkoff),
+  };
+}
+
+interface WorkoffBalanceCheck {
+  type: AnnualLeaveTypeLite;
+  days: number;
+  avail: WorkoffLeaveAvailability;
+}
+
+/** Validasi saldo cuti tahunan utk izin deductLeave — melempar Error ramah (400
+ *  di route) bila saldo kurang. Dipanggil saat SUBMIT dan di-revalidasi saat
+ *  APPROVE FINAL (saldo bisa berubah di antara keduanya). */
+async function assertWorkoffLeaveBalance(
+  db: TenantDb,
+  employeeId: string,
+  from: Date,
+  to: Date,
+  allDay: boolean,
+  opts: { excludeWorkoffId?: string } = {},
+): Promise<WorkoffBalanceCheck> {
+  const type = await annualLeaveType(db);
+  if (!type) {
+    throw new Error(
+      `Jenis cuti tahunan (${ANNUAL_LEAVE_CODE}) tidak ditemukan — saldo tidak bisa dipotong. Matikan opsi "potong saldo cuti" atau hubungi admin`,
+    );
+  }
+  const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { joinDate: true } });
+  if (!emp) throw new Error("Karyawan tidak ditemukan");
+  // potongan dibukukan ke saldo periode tahun tanggal mulai izin
+  const year = mirrorYearForDate(type.periodMode, emp.joinDate, dayStart(from));
+  const days = await workoffDays(db, employeeId, from, to, allDay);
+  const avail = await annualAvailability(db, employeeId, type, year, opts);
+  if (days > avail.available) {
+    const reserved = avail.pendingLeave + avail.pendingWorkoff;
+    throw new Error(
+      `Saldo cuti tahunan tidak cukup: tersedia ${avail.available} hari` +
+        (reserved > 0 ? ` (saldo ${avail.remaining}, terpotong ${reserved} hari pengajuan lain yang menunggu persetujuan)` : ` (saldo ${avail.remaining})`) +
+        `, diminta ${days} hari — matikan opsi "potong saldo cuti", kurangi rentang, atau ajukan cuti resmi melalui modul Leave`,
+    );
+  }
+  return { type, days, avail };
+}
+
+interface WorkoffDeductionResult {
+  applied: boolean;
+  days: number;
+  note: string;
+}
+
+/** Eksekusi potongan saldo saat izin disetujui penuh — idempoten (docNo 1:1).
+ *  Tidak melempar: kegagalan non-saldo (jenis hilang/bentrok) dicatat ke
+ *  ActivityLog supaya persetujuan tidak macet di tengah jalan. */
+async function applyWorkoffLeaveDeduction(
+  db: TenantDb,
+  permit: { id: string; docNo: string; employeeId: string; dateFrom: Date; dateTo: Date; allDay: boolean; timeFrom: string | null; reason: string | null },
+  approverName: string,
+  appUserId: string | null,
+): Promise<WorkoffDeductionResult> {
+  const type = await annualLeaveType(db);
+  if (!type) {
+    await db.activityLog.create({
+      data: {
+        action: "Warning", entity: "WorkOffPermission", entityId: permit.docNo, appUserId,
+        detail: `${permit.docNo}: saldo cuti TIDAK dipotong — jenis ${ANNUAL_LEAVE_CODE} tidak ditemukan`,
+      },
+    });
+    return { applied: false, days: 0, note: "saldo tidak dipotong — jenis cuti tahunan tidak ditemukan" };
+  }
+
+  // idempoten: request otomatis sudah pernah dibuat (approve ulang / legacy)
+  const existing = await db.leaveRequest.findUnique({ where: { docNo: permit.docNo } });
+  if (existing) {
+    if (existing.status === "Approved") {
+      return { applied: true, days: existing.workingDays, note: `sudah dipotong sebelumnya (${existing.workingDays} hari)` };
+    }
+    return { applied: false, days: 0, note: `tidak dipotong (request otomatis berstatus ${existing.status})` };
+  }
+
+  // bentrok rentang dengan permintaan cuti lain → jangan potong dua kali
+  const overlap = await db.leaveRequest.findFirst({
+    where: {
+      employeeId: permit.employeeId,
+      status: { in: ["Submitted", "Approved", "MassLeave"] },
+      dateFrom: { lte: dayStart(permit.dateTo) },
+      dateTo: { gte: dayStart(permit.dateFrom) },
+    },
+  });
+  if (overlap) {
+    await db.activityLog.create({
+      data: {
+        action: "Warning", entity: "WorkOffPermission", entityId: permit.docNo, appUserId,
+        detail: `${permit.docNo}: saldo cuti TIDAK dipotong — rentang bertabrakan dengan permintaan cuti ${overlap.docNo} (hari tsb sudah tercakup cuti)`,
+      },
+    });
+    return { applied: false, days: 0, note: `saldo tidak dipotong — rentang bertabrakan dengan permintaan cuti ${overlap.docNo}` };
+  }
+
+  const emp = await db.employee.findUnique({ where: { id: permit.employeeId }, select: { joinDate: true } });
+  if (!emp) return { applied: false, days: 0, note: "karyawan tidak ditemukan" };
+  const year = mirrorYearForDate(type.periodMode, emp.joinDate, dayStart(permit.dateFrom));
+  const days = await workoffDays(db, permit.employeeId, permit.dateFrom, permit.dateTo, permit.allDay);
+  if (days <= 0) {
+    await db.activityLog.create({
+      data: {
+        action: "Warning", entity: "WorkOffPermission", entityId: permit.docNo, appUserId,
+        detail: `${permit.docNo}: saldo cuti TIDAK dipotong — rentang tidak memuat hari kerja`,
+      },
+    });
+    return { applied: false, days: 0, note: "saldo tidak dipotong — rentang tidak memuat hari kerja" };
+  }
+
+  const avail = await annualAvailability(db, permit.employeeId, type, year, { excludeWorkoffId: permit.id });
+  const sessions = workoffSessions(permit.allDay, permit.timeFrom);
+  // hari kerja pertama setelah izin (padanan backToWorkDate)
+  let backToWork: Date | null = null;
+  for (let d = addDays(dayStart(permit.dateTo), 1); d <= addDays(dayStart(permit.dateTo), 30); d = addDays(d, 1)) {
+    if (await isWorkdayMirror(db, permit.employeeId, d)) { backToWork = d; break; }
+  }
+
+  await db.leaveRequest.create({
+    data: {
+      // docNo = nomor izin (unique) → relasi 1:1, kunci idempotensi; muncul di
+      // UI Informasi Cuti sebagai baris potongan dari izin tidak masuk.
+      docNo: permit.docNo,
+      employeeId: permit.employeeId, leaveTypeId: type.id, year,
+      requestDate: new Date(),
+      dateFrom: dayStart(permit.dateFrom), sessionFrom: sessions.sessionFrom,
+      dateTo: dayStart(permit.dateTo), sessionTo: sessions.sessionTo,
+      workingDays: days,
+      balanceAtRequest: avail.remaining, remainingAtRequest: Math.round((avail.remaining - days) * 100) / 100,
+      backToWorkDate: backToWork,
+      status: "Approved", source: "WorkOff",
+      reason: `Izin tidak masuk ${permit.docNo}${permit.reason ? `: ${permit.reason}` : ""}`,
+      note: "Otomatis dari izin tidak masuk (potong saldo cuti)",
+      decidedAt: new Date(),
+      decisionNote: `Disetujui otomatis mengikuti persetujuan izin ${permit.docNo} (${approverName})`,
+    },
+  });
+  const remainingAfter = Math.round((avail.remaining - days) * 100) / 100;
+  await db.activityLog.create({
+    data: {
+      action: "Processed", entity: "LeaveRequest", entityId: permit.docNo, appUserId,
+      detail: `${permit.docNo}: saldo ${type.name} dipotong ${days} hari (${fmtIso(dayStart(permit.dateFrom))} → ${fmtIso(dayStart(permit.dateTo))}) oleh persetujuan izin tidak masuk — sisa ${remainingAfter} hari`,
+    },
+  });
+  return { applied: true, days, note: `saldo cuti ${type.name} dipotong ${days} hari (sisa ${remainingAfter})` };
+}
+
+/** Kembalikan potongan saldo saat izin ditolak/dibatalkan — idempoten:
+ *  request otomatis berstatus Approved → dibatalkan; sudah Cancelled / tidak
+ *  ada → no-op (null). */
+async function refundWorkoffLeave(
+  db: TenantDb,
+  permit: { docNo: string },
+  cause: string,
+): Promise<string | null> {
+  const req = await db.leaveRequest.findUnique({ where: { docNo: permit.docNo } });
+  if (!req || req.status !== "Approved") return null;
+  await db.leaveRequest.update({
+    where: { id: req.id },
+    data: {
+      status: "Cancelled",
+      decisionNote: `Dibatalkan mengikuti izin ${permit.docNo} — potongan ${req.workingDays} hari dikembalikan`,
+      decidedAt: new Date(),
+    },
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Cancelled", entity: "LeaveRequest", entityId: permit.docNo,
+      detail: `${permit.docNo}: potongan saldo cuti ${req.workingDays} hari DIKEMBALIKAN — izin ${cause}`,
+    },
+  });
+  return `potongan saldo cuti ${req.workingDays} hari dikembalikan`;
+}
+
 export async function nextWorkoffNo(db: TenantDb): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `WO-${year}-`;
@@ -1015,13 +1424,23 @@ export async function submitWorkoff(
   if (input.paid === false && input.deductLeave === false) {
     throw new Error("Izin tidak dibayar namun tidak memotong cuti — konfigurasi tidak sah");
   }
+  const deductLeave = input.deductLeave ?? true;
+
+  // T5-TA-FIX (misi 1a): deductLeave dieksekusi — saat SUBMIT, saldo cuti
+  // tahunan divalidasi cukup (mirror formula a–g + reservasi pending); kurang →
+  // ditolak ramah (400 di route) sebelum izin/chain dibuat.
+  let deductDays = 0;
+  if (deductLeave) {
+    const check = await assertWorkoffLeaveBalance(db, input.employeeId, from, to, allDay);
+    deductDays = check.days;
+  }
 
   const docNo = await nextWorkoffNo(db);
   const permit = await db.workOffPermission.create({
     data: {
       docNo, employeeId: input.employeeId, dateFrom: from, dateTo: to,
       allDay, timeFrom: allDay ? null : input.timeFrom ?? null, timeTo: allDay ? null : input.timeTo ?? null,
-      paid: input.paid ?? true, deductLeave: input.deductLeave ?? true,
+      paid: input.paid ?? true, deductLeave,
       reason: input.reason?.trim() || null,
       documentNote: input.documentNote?.trim() || null,
       status: "Pending",
@@ -1039,12 +1458,12 @@ export async function submitWorkoff(
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "WorkOffPermission", entityId: docNo,
-      detail: `${docNo}: ${permit.employee.fullName} — izin tidak masuk ${fmtIso(from)} → ${fmtIso(to)} (${allDay ? "sehari penuh" : "setengah hari"}) — approval berjenjang ${chain.totalLevels} level`,
+      detail: `${docNo}: ${permit.employee.fullName} — izin tidak masuk ${fmtIso(from)} → ${fmtIso(to)} (${allDay ? "sehari penuh" : "setengah hari"})${deductLeave ? `, memotong saldo cuti tahunan ${deductDays} hari` : ""} — approval berjenjang ${chain.totalLevels} level`,
     },
   });
   return {
     permit,
-    note: `Izin ${docNo} diajukan (${allDay ? "sehari penuh" : "setengah hari"}) — menunggu persetujuan ${chain.totalLevels} jenjang`,
+    note: `Izin ${docNo} diajukan (${allDay ? "sehari penuh" : "setengah hari"})${deductLeave ? ` — memotong saldo cuti tahunan ${deductDays} hari saat disetujui` : ""} — menunggu persetujuan ${chain.totalLevels} jenjang`,
     approvalLevels: chain.totalLevels,
     firstApprover: chain.steps[0]?.approverLabel ?? null,
   };
@@ -1087,6 +1506,19 @@ export async function decideWorkoff(
       // approve pada jenjang < total → status tetap Pending (menunggu jenjang
       // berikutnya); hanya jenjang TERAKHIR yang mengubah izin menjadi Approved
       // dan memicu hitung ulang rekap absensi.
+      //
+      // T5-TA-FIX (misi 1b): keputusan jenjang TERAKHIR akan memotong saldo cuti
+      // (deductLeave) — saldo di-REVALIDASI SEBELUM chain diputuskan supaya
+      // kegagalan (saldo berubah sejak submit) meninggalkan izin tetap Pending
+      // + chain utuh (approver melihat pesan ramah dan bisa menolak dengan alasan);
+      // melempar SETELAH chain final akan meninggalkan chain Approved + izin Pending
+      // yang tidak bisa diputus ulang.
+      if (permit.deductLeave && chain.currentLevel >= chain.totalLevels) {
+        await assertWorkoffLeaveBalance(
+          db, permit.employeeId, permit.dateFrom, permit.dateTo, permit.allDay,
+          { excludeWorkoffId: permit.id },
+        );
+      }
       const res = await decideApprovalChain(db, {
         docType: "WorkOff", docId: id, action: "approve", note: opts.note, actor,
       });
@@ -1117,26 +1549,36 @@ export async function decideWorkoff(
         include: WO_INCLUDE,
       });
       const affected = await regenerateRange(db, permit.dateFrom, permit.dateTo);
+      // T5-TA-FIX (misi 1b): jenjang terakhir + deductLeave → potong saldo cuti
+      // tahunan (LeaveRequest otomatis, idempoten — lihat applyWorkoffLeaveDeduction).
+      const deduction = permit.deductLeave
+        ? await applyWorkoffLeaveDeduction(db, permit, actor.name, actor.appUserId ?? null)
+        : null;
       await db.activityLog.create({
         data: {
           action: "Approved", entity: "WorkOffPermission", entityId: permit.docNo,
-          detail: `${permit.docNo}: disetujui penuh (${res.chain.totalLevels} jenjang) oleh ${actor.name} — rekap ${affected} baris dihitung ulang`,
+          detail: `${permit.docNo}: disetujui penuh (${res.chain.totalLevels} jenjang) oleh ${actor.name} — rekap ${affected} baris dihitung ulang${deduction ? `; ${deduction.note}` : ""}`,
         },
       });
       return {
         permit: updated,
-        note: `Izin ${permit.docNo} disetujui penuh (${res.chain.totalLevels} jenjang) — rekap ${affected} baris dihitung ulang`,
+        note: `Izin ${permit.docNo} disetujui penuh (${res.chain.totalLevels} jenjang) — rekap ${affected} baris dihitung ulang${deduction ? `; ${deduction.note}` : ""}`,
         affected,
       };
     }
     // tanpa chain aktif (mis. chain sudah final) — pertahankan perilaku lama
+    // T5-TA-FIX: jalur pemulihan legacy ini ikut memotong saldo supaya izin
+    // tidak bisa "lolos tanpa potongan" lewat jalur chain-final-tapi-izinya-Pending.
     const updated = await db.workOffPermission.update({
       where: { id },
       data: { status: "Approved", approverId: opts.approver?.trim() || "Admin HR", decidedAt: new Date(), decisionNote: opts.note?.trim() || null },
       include: WO_INCLUDE,
     });
     const affected = await regenerateRange(db, permit.dateFrom, permit.dateTo);
-    return { permit: updated, note: `Izin ${permit.docNo} disetujui — rekap ${affected} baris dihitung ulang`, affected };
+    const deduction = permit.deductLeave
+      ? await applyWorkoffLeaveDeduction(db, permit, opts.approver?.trim() || "Admin HR", actor.appUserId ?? null)
+      : null;
+    return { permit: updated, note: `Izin ${permit.docNo} disetujui — rekap ${affected} baris dihitung ulang${deduction ? `; ${deduction.note}` : ""}`, affected };
   }
 
   if (action === "reject") {
@@ -1151,13 +1593,16 @@ export async function decideWorkoff(
       data: { status: "Rejected", approverId: actor.name, decidedAt: new Date(), decisionNote: opts.note.trim() },
       include: WO_INCLUDE,
     });
+    // T5-TA-FIX (misi 1b): penolakan mengembalikan potongan saldo bila izin
+    // pernah disetujui (idempoten — izin biasanya belum terpotong saat ditolak).
+    const refundNote = await refundWorkoffLeave(db, permit, `ditolak oleh ${actor.name}`);
     await db.activityLog.create({
       data: {
         action: "Rejected", entity: "WorkOffPermission", entityId: permit.docNo,
-        detail: `${permit.docNo}: ditolak${rejectedAtLevel} oleh ${actor.name} — ${opts.note.trim()}`,
+        detail: `${permit.docNo}: ditolak${rejectedAtLevel} oleh ${actor.name} — ${opts.note.trim()}${refundNote ? `; ${refundNote}` : ""}`,
       },
     });
-    return { permit: updated, note: `Izin ${permit.docNo} ditolak${rejectedAtLevel}`, affected: 0 };
+    return { permit: updated, note: `Izin ${permit.docNo} ditolak${rejectedAtLevel}${refundNote ? ` — ${refundNote}` : ""}`, affected: 0 };
   }
 
   if (!["Pending", "Approved"].includes(permit.status)) throw new Error("Izin yang sudah ditolak/selesai tidak dapat dibatalkan");
@@ -1169,14 +1614,18 @@ export async function decideWorkoff(
     data: { status: "Cancelled", decisionNote: opts.note?.trim() || "Dibatalkan" },
     include: WO_INCLUDE,
   });
+  // T5-TA-FIX (misi 1b): pembatalan izin yang sudah terpotong → saldo kembali
+  // (request otomatis dibatalkan — idempoten), SEBELUM regen supaya rekap hari
+  // workoff berhenti ditutup WorkOffPermission & potongannya tidak lagi dihitung.
+  const refundNote = await refundWorkoffLeave(db, permit, `dibatalkan oleh ${actor.name}`);
   const affected = await regenerateRange(db, permit.dateFrom, permit.dateTo);
   await db.activityLog.create({
     data: {
       action: "Cancelled", entity: "WorkOffPermission", entityId: permit.docNo,
-      detail: `${permit.docNo}: dibatalkan oleh ${actor.name} — rekap dihitung ulang`,
+      detail: `${permit.docNo}: dibatalkan oleh ${actor.name} — rekap dihitung ulang${refundNote ? `; ${refundNote}` : ""}`,
     },
   });
-  return { permit: updated, note: `Izin ${permit.docNo} dibatalkan — rekap dihitung ulang`, affected };
+  return { permit: updated, note: `Izin ${permit.docNo} dibatalkan — rekap dihitung ulang${refundNote ? ` — ${refundNote}` : ""}`, affected };
 }
 
 // ============ ringkasan hari ini (dashboard modul) ============

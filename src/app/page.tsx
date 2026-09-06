@@ -17,6 +17,7 @@ import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard
 import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
 import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
 import { EmployeeModule } from "@/onevity/human-resource/components/employee/employee-module";
+import { HrReportsView } from "@/onevity/human-resource/components/hr-reports-view";
 import { ActionsModule } from "@/onevity/human-resource/components/actions/actions-module";
 import { PayrollModule } from "@/onevity/payroll/components/payroll-module";
 import { AttendanceModule } from "@/onevity/time-attendance/components/attendance-module";
@@ -117,6 +118,7 @@ function PageInner() {
             {section === "position" && <PositionModule view={view} />}
             {section === "employee" && <EmployeeModule view={view} />}
             {section === "actions" && <ActionsModule view={view} />}
+            {section === "reports" && <HrReportsView />}
             {section === "payroll" && <PayrollModule view={view} />}
             {section === "attendance" && <AttendanceModule view={view} />}
             {section === "leave" && <LeaveModule view={view} />}

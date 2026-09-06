@@ -1310,6 +1310,10 @@ model AttendanceDaily {
   normalMinutes   Int       @default(0) // jam kerja normal diakui
   absenceMinutes  Int       @default(0) // jam absen tak dibayar (lewat toleransi)
   overtimeMinutes Int       @default(0) // lembur terverifikasi (dari work order)
+  // T5-TA-FIX (D-7): klasifikasi izin/cuti berbayar eksplisit — diisi regen dari
+  // WorkOffPermission.paid (status WorkOff) / LeaveType.paid (status OnLeave);
+  // recapPeriod membaca kolom ini (fallback notes utk baris lama belum ter-regen).
+  paidFlag        Boolean?
   revised         Boolean   @default(false)
   revisedBy       String?
   notes           String?

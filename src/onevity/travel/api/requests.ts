@@ -3,6 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelRequests, submitTravelRequest, decideTravelRequest } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 // GET /api/onevity/travel/requests?status=&employeeId= — daftar permintaan
 // (padanan TravelRequest.jsp / TravelRequestToApprove.jsp).
@@ -84,6 +85,13 @@ export async function POST(req: NextRequest) {
             biaya: b.advanceAmount ? `Rp ${Number(b.advanceAmount).toLocaleString("id-ID")}` : "-",
           },
         });
+        // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
+        await notifyEvent(db, {
+          to: "nextApprover", docType: "Travel", docNo: res.docNo,
+          title: `Pengajuan travel ${res.docNo} menunggu persetujuan Anda`,
+          body: `${emp?.fullName ?? "Karyawan"} — ${cities || "-"}, ${String(b.dateFrom ?? "-")} → ${String(b.dateTo ?? "-")}`,
+          kind: "travel", link: "actions:inbox",
+        });
       } catch { /* never */ }
     })();
 
@@ -118,13 +126,24 @@ export async function PATCH(req: NextRequest) {
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     });
 
+    // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
+    // approve parsial (masih ada jenjang berikutnya) → approver jenjang berikut
+    if (b.action === "approve" && res.approval) {
+      void notifyEvent(m.db, {
+        to: "nextApprover", docType: "Travel", docNo: res.docNo, docId: String(b.id),
+        title: `Pengajuan travel ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
+        body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
+        kind: "travel", link: "actions:inbox",
+      });
+    }
+
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     if (b.action !== "cancel" && !res.approval) {
       void (async () => {
         try {
           const tr = await m.db.travelRequest.findUnique({
             where: { id: String(b.id) },
-            select: { docNo: true, dateFrom: true, dateTo: true, employee: { select: { fullName: true, email: true } }, destinations: { select: { city: true } } },
+            select: { docNo: true, dateFrom: true, dateTo: true, employeeId: true, employee: { select: { fullName: true, email: true } }, destinations: { select: { city: true } } },
           });
           if (tr?.employee?.email) {
             notifyEmailEvent(m.db, {
@@ -136,6 +155,15 @@ export async function PATCH(req: NextRequest) {
                 periode: `${new Date(tr.dateFrom).toISOString().slice(0, 10)} → ${new Date(tr.dateTo).toISOString().slice(0, 10)}`,
                 catatan: b.note ? String(b.note) : "-",
               },
+            });
+          }
+          // ===== Notifikasi in-app (T11-NOTIF) — keputusan final → pengaju =====
+          if (tr) {
+            await notifyEvent(m.db, {
+              to: "employee", docType: "Travel", docNo: res.docNo, docId: String(b.id), employeeId: tr.employeeId,
+              title: b.action === "approve" ? `Pengajuan travel ${res.docNo} disetujui` : `Pengajuan travel ${res.docNo} ditolak`,
+              body: `${tr.destinations.map((d) => d.city).join(", ") || "-"}, ${new Date(tr.dateFrom).toISOString().slice(0, 10)} → ${new Date(tr.dateTo).toISOString().slice(0, 10)}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
+              kind: "travel", link: "travel:requests",
             });
           }
         } catch { /* never */ }

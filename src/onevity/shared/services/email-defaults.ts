@@ -90,6 +90,11 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     body: "Run payroll {{runNo}} periode {{periode}} telah ditandai dibayarkan (total {{total}}).\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
   {
+    event: "payroll.payslip", label: "Payroll — Slip Gaji (Lampiran PDF)", notifyEmployee: true, notifyApprover: false, notifyHrd: false,
+    subject: "Slip Gaji {{periode}} — {{nama}}",
+    body: "Halo {{nama}},\n\nSlip gaji Anda untuk periode {{periode}} telah diterbitkan (run {{runNo}}).\n- Take Home Pay: {{net}}\n- Rincian lengkap terlampir dalam email ini (PDF).\n\nSlip gaji bersifat RAHASIA — mohon tidak diteruskan.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
     event: "pa.submitted", label: "Personnel Action — Pengajuan Baru", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
     subject: "[Perlu Persetujuan] Personnel Action {{docNo}} — {{nama}} ({{jenisAksi}})",
     body: "Halo {{approver}},\n\n{{nama}} mengajukan Personnel Action {{jenisAksi}} ({{docNo}}):\n- Tanggal efektif: {{tanggalEfektif}}\n- Alasan: {{alasan}}\n- Menunggu persetujuan: {{layer}}\n\nSilakan buka OneVity HRIS untuk menyetujui atau menolak pengajuan ini.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
@@ -146,6 +151,7 @@ const PH_TGEFF: PlaceholderDef = { key: "tanggalEfektif", label: "Tanggal efekti
 const PH_LAYER: PlaceholderDef = { key: "layer", label: "Jenjang/layer persetujuan", contoh: "HR Manager" };
 const PH_APPROVER: PlaceholderDef = { key: "approver", label: "Nama approver yang dituju", contoh: "Tri Handayani" };
 const PH_TOTAL: PlaceholderDef = { key: "total", label: "Total bruto (Rp)", contoh: "Rp 412.500.000" };
+const PH_NET: PlaceholderDef = { key: "net", label: "Take Home Pay (Rp)", contoh: "Rp 23.678.526" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -163,6 +169,7 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "medical.claim.settled": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],
   "payroll.run.confirmed": [PH_RUNNO, PH_PERIODE, { ...PH_JUMLAH, label: "Jumlah karyawan dalam run", contoh: "44" }, PH_TOTAL],
   "payroll.run.paid": [PH_RUNNO, PH_PERIODE, PH_TOTAL],
+  "payroll.payslip": [PH_NAMA, { ...PH_PERIODE, label: "Nama periode slip gaji", contoh: "AGUSTUS 2026" }, PH_NET, PH_RUNNO],
   "pa.submitted": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_ALASAN, PH_LAYER, PH_APPROVER],
   "pa.approved": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_CATATAN],
   "pa.rejected": [PH_NAMA, PH_DOC, PH_JENISAKSI, PH_TGEFF, PH_CATATAN],

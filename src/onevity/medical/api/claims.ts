@@ -3,6 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 // GET /api/onevity/medical/claims?state=&year=&employeeId=&typeId=&preview=
 // &employeeId&typeId — daftar klaim (padanan MedicalBenefitClaim.jsp /
@@ -115,6 +116,13 @@ export async function POST(req: NextRequest) {
               jenis: typ?.name ?? "-", jumlah: `Rp ${total.toLocaleString("id-ID")}`,
             },
           });
+          // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
+          await notifyEvent(m.db, {
+            to: "nextApprover", docType: "Medical", docNo: res.docNo,
+            title: `Klaim medis ${res.docNo} menunggu persetujuan Anda`,
+            body: `${emp?.fullName ?? "Karyawan"} — ${typ?.name ?? "klaim medis"}, total tagihan Rp ${total.toLocaleString("id-ID")}`,
+            kind: "medical", link: "actions:inbox",
+          });
         } catch { /* never */ }
       })();
     }
@@ -151,6 +159,22 @@ export async function PATCH(req: NextRequest) {
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     }, actorId);
 
+    // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
+    // submit (Draft/Returned → Submitted) & approve parsial → approver jenjang
+    // aktif chain klaim (fallback Admin/HR).
+    if (b.action === "submit" || (b.action === "approve" && res.approval)) {
+      void notifyEvent(m.db, {
+        to: "nextApprover", docType: "Medical", docNo: res.docNo, docId: String(b.id),
+        title: res.approval
+          ? `Klaim medis ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`
+          : `Klaim medis ${res.docNo} menunggu persetujuan Anda`,
+        body: res.approval
+          ? `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`
+          : "Klaim baru masuk antrean persetujuan.",
+        kind: "medical", link: "actions:inbox",
+      });
+    }
+
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     if (["approve", "reject", "settle"].includes(b.action) && !res.approval) {
       void (async () => {
@@ -173,6 +197,17 @@ export async function PATCH(req: NextRequest) {
                 jumlah: `Rp ${(cl.totalApproved ?? cl.totalBill ?? 0).toLocaleString("id-ID")}`,
                 catatan: b.note ? String(b.note) : "-",
               },
+            });
+          }
+          // ===== Notifikasi in-app (T11-NOTIF) — keputusan final → pengaju =====
+          if (cl) {
+            await notifyEvent(m.db, {
+              to: "employee", docType: "Medical", docNo: res.docNo, docId: String(b.id), employeeId: cl.employeeId,
+              title: b.action === "settle" ? `Klaim medis ${res.docNo} di-settle`
+                : b.action === "approve" ? `Klaim medis ${res.docNo} disetujui`
+                : `Klaim medis ${res.docNo} ditolak`,
+              body: `${cl.type?.name ?? "Klaim medis"} — Rp ${(cl.totalApproved ?? cl.totalBill ?? 0).toLocaleString("id-ID")}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
+              kind: "medical", link: "medical:claims",
             });
           }
         } catch { /* never */ }

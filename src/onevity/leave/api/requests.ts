@@ -4,6 +4,7 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/onevity/leave/services/leave-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 // GET /api/onevity/leave/requests?status=&employeeId=&year= — daftar permintaan
 // (padanan LeaveRequest.jsp / LeaveRequestToApprove.jsp).
@@ -77,6 +78,13 @@ export async function POST(req: NextRequest) {
             alasan: input.reason || "-",
           },
         });
+        // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
+        await notifyEvent(db, {
+          to: "nextApprover", docType: "Leave", docNo: res.docNo,
+          title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda`,
+          body: `${emp?.fullName ?? "Karyawan"} — ${type?.name ?? "cuti"} ${input.dateFrom} → ${input.dateTo} (${res.workingDays} hari kerja)`,
+          kind: "leave", link: "actions:inbox",
+        });
       } catch { /* notifikasi tidak pernah mengganggu proses utama */ }
     })();
 
@@ -111,6 +119,17 @@ export async function PATCH(req: NextRequest) {
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     });
 
+    // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
+    // approve parsial (masih ada jenjang berikutnya) → approver jenjang berikut
+    if (b.action === "approve" && res.approval) {
+      void notifyEvent(m.db, {
+        to: "nextApprover", docType: "Leave", docNo: res.docNo, docId: String(b.id),
+        title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
+        body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
+        kind: "leave", link: "actions:inbox",
+      });
+    }
+
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     // Hanya keputusan FINAL (status Approved/Rejected) yang memicu email ke
     // pengaju; approve jenjang menengah tetap menunggu (ada field approval).
@@ -133,6 +152,15 @@ export async function PATCH(req: NextRequest) {
                 jumlahHari: String(res.regeneratedDays ?? "-"),
                 catatan: b.note ? String(b.note) : "-",
               },
+            });
+          }
+          // ===== Notifikasi in-app (T11-NOTIF) — keputusan final → pengaju =====
+          if (lr) {
+            await notifyEvent(m.db, {
+              to: "employee", docType: "Leave", docNo: res.docNo, docId: String(b.id), employeeId: lr.employeeId,
+              title: b.action === "approve" ? `Pengajuan cuti ${res.docNo} disetujui` : `Pengajuan cuti ${res.docNo} ditolak`,
+              body: `${lr.leaveType?.name ?? "Cuti"} ${new Date(lr.dateFrom).toISOString().slice(0, 10)} → ${new Date(lr.dateTo).toISOString().slice(0, 10)}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
+              kind: "leave", link: "leave:leave-request",
             });
           }
         } catch { /* never */ }

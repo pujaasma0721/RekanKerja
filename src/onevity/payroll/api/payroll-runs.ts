@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
-import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
+import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { buildPayslipPdfByLineId, fmtRupiah } from "@/onevity/payroll/services/payslip-pdf";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
 export async function GET(req: NextRequest) {
@@ -31,14 +33,21 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/onevity/payroll-runs — buat run baru (Draft)
-// Task 32-d: guard hak AKSI menu — create pada payroll:runs (per pengguna).
+//       ATAU aksi `send-slips` { runId | id } — kirim slip gaji PDF massal (T10).
+// Task 32-d: guard hak AKSI menu — create pada payroll:runs (per pengguna);
+// send-slips memakai op:export (Mengekspor slip & hasil) — sebangun unduh slip.
 export async function POST(req: NextRequest) {
   try {
+    const b = await req.json().catch(() => ({}));
+    if (b.action === "send-slips") {
+      const m = await requireMenuAction(req, "payroll:runs", "op:export");
+      if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      return handleSendSlips(m.db, m.actor, b.runId ?? b.id);
+    }
     const m = await requireMenuAction(req, "payroll:runs", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
-    const b = await req.json();
     if (!b.periodId || !b.processTypeId) {
       return NextResponse.json({ error: "Period & jenis proses wajib dipilih" }, { status: 400 });
     }
@@ -80,15 +89,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid | cancel
+// PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid |
+//       cancel | send-slips  { id | runId }
 // Task 32-d: guard hak AKSI menu per pengguna — op:calculate / op:confirm /
-// op:markPaid / op:cancel pada payroll:runs. Body dibaca SEKALI sebelum guard
-// (aksi menentukan op menu yang dicek).
+// op:markPaid / op:cancel pada payroll:runs; send-slips → op:export (T10).
+// Body dibaca SEKALI sebelum guard (aksi menentukan op menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json();
-    if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    if (!["calculate", "confirm", "markPaid", "cancel"].includes(b.action)) {
+    if (!(b.id || b.runId) || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
+    if (!["calculate", "confirm", "markPaid", "cancel", "send-slips"].includes(b.action)) {
       return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
     }
     const m = b.action === "calculate"
@@ -97,15 +107,18 @@ export async function PATCH(req: NextRequest) {
         ? await requireMenuAction(req, "payroll:runs", "op:confirm")
         : b.action === "markPaid"
           ? await requireMenuAction(req, "payroll:runs", "op:markPaid")
-          : await requireMenuAction(req, "payroll:runs", "op:cancel");
+          : b.action === "send-slips"
+            ? await requireMenuAction(req, "payroll:runs", "op:export")
+            : await requireMenuAction(req, "payroll:runs", "op:cancel");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
-    const run = await db.payrollRun.findUnique({ where: { id: b.id } });
+    const runId = b.id ?? b.runId;
+    const run = await db.payrollRun.findUnique({ where: { id: runId } });
     if (!run) return NextResponse.json({ error: "Run tidak ditemukan" }, { status: 404 });
 
     switch (b.action) {
       case "calculate": {
-        const result = await calculateAndSaveRun(db, b.id);
+        const result = await calculateAndSaveRun(db, runId);
         return NextResponse.json({
           ok: true,
           summary: {
@@ -134,6 +147,16 @@ export async function PATCH(req: NextRequest) {
                 jumlah: String(fresh?._count?.lines ?? 0), total: "-",
               },
             });
+            // ===== Notifikasi in-app (T11-NOTIF) — "Run {no} Confirmed" ke
+            // semua AppUser Admin/HR aktif (maks 5) =====
+            if (fresh) {
+              await notifyEvent(db, {
+                to: "admins", docType: "PayrollRun", docNo: fresh.runNo,
+                title: `Run ${fresh.runNo} Confirmed`,
+                body: `Run payroll periode ${fresh.period?.name ?? "-"} (${fresh._count?.lines ?? 0} karyawan) dikonfirmasi — jurnal terpasang, siap ditandai dibayar.`,
+                kind: "payroll", link: "payroll:runs",
+              });
+            }
           } catch { /* never */ }
         })();
         return NextResponse.json({ ok: true });
@@ -154,6 +177,22 @@ export async function PATCH(req: NextRequest) {
             });
           } catch { /* never */ }
         })();
+        // ===== Notifikasi in-app (T11-NOTIF) — "Run {no} Paid" ke semua
+        // AppUser Admin/HR aktif (maks 5) =====
+        void (async () => {
+          const fresh = await db.payrollRun
+            .findUnique({
+              where: { id: b.id },
+              select: { period: { select: { name: true } }, _count: { select: { lines: true } } },
+            })
+            .catch(() => null);
+          await notifyEvent(db, {
+            to: "admins", docType: "PayrollRun", docNo: run.runNo,
+            title: `Run ${run.runNo} Paid`,
+            body: `Run payroll periode ${fresh?.period?.name ?? "-"} (${fresh?._count?.lines ?? 0} karyawan) ditandai DIBAYAR.`,
+            kind: "payroll", link: "payroll:runs",
+          });
+        })();
         return NextResponse.json({ ok: true });
       }
       case "cancel": {
@@ -169,10 +208,13 @@ export async function PATCH(req: NextRequest) {
             { status: 409 }
           );
         }
-        await db.payrollRun.update({ where: { id: b.id }, data: { status: "Cancelled" } });
-        await db.payrollRunLine.deleteMany({ where: { runId: b.id } });
-        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: b.id, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} dibatalkan` } });
+        await db.payrollRun.update({ where: { id: runId }, data: { status: "Cancelled" } });
+        await db.payrollRunLine.deleteMany({ where: { runId } });
+        await db.activityLog.create({ data: { action: "Cancelled", entity: "PayrollRun", entityId: runId, appUserId: actor.appUserId ?? undefined, detail: `Run ${run.runNo} dibatalkan` } });
         return NextResponse.json({ ok: true });
+      }
+      case "send-slips": {
+        return handleSendSlips(db, actor, run.id);
       }
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
@@ -180,6 +222,74 @@ export async function PATCH(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
+}
+
+// ---- aksi send-slips (T10-PAYSLIP-PDF) --------------------------------
+// Kirim email slip gaji (lampiran PDF) ke TIAP karyawan line run berstatus
+// Confirmed/Paid. Email karyawan kosong → skip + log EmailLog (Skipped).
+// Ringkasan hasil + ActivityLog "Slip terkirim {n} karyawan".
+async function handleSendSlips(
+  db: TenantDb,
+  actor: { appUserId: string | null; name: string },
+  runId: unknown,
+): Promise<NextResponse> {
+  const id = typeof runId === "string" ? runId : "";
+  if (!id) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
+  const run = await db.payrollRun.findUnique({
+    where: { id },
+    include: { period: { select: { name: true } }, processType: { select: { name: true } } },
+  });
+  if (!run) return NextResponse.json({ error: "Run tidak ditemukan" }, { status: 404 });
+  if (run.status !== "Confirmed" && run.status !== "Paid") {
+    return NextResponse.json(
+      { error: "Slip hanya bisa dikirim untuk run Confirmed/Paid" },
+      { status: 400 }
+    );
+  }
+
+  const lines = await db.payrollRunLine.findMany({
+    where: { runId: id },
+    orderBy: { employeeNo: "asc" },
+    select: { id: true, employeeId: true, employeeNo: true, employeeName: true, net: true, employee: { select: { email: true } } },
+  });
+  if (lines.length === 0) {
+    return NextResponse.json({ error: "Run tidak memiliki baris hasil" }, { status: 400 });
+  }
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  let disabled = 0;
+  for (const line of lines) {
+    const built = await buildPayslipPdfByLineId(db, line.id);
+    if (!built) { skipped += 1; continue; }
+    const status = await sendPayslipEmail(db, {
+      to: { email: line.employee?.email ?? "", name: line.employeeName },
+      data: {
+        nama: line.employeeName,
+        periode: run.period.name,
+        net: fmtRupiah(line.net),
+        runNo: run.runNo,
+      },
+      attachment: { filename: built.filename, content: Buffer.from(built.bytes), contentType: "application/pdf" },
+    });
+    if (status === "Sent") sent += 1;
+    else if (status === "Failed") failed += 1;
+    else if (status === "Disabled") disabled += 1;
+    else skipped += 1;
+  }
+
+  await db.activityLog.create({
+    data: {
+      action: "Updated",
+      entity: "PayrollRun",
+      entityId: run.id,
+      appUserId: actor.appUserId ?? undefined,
+      detail: `Slip terkirim ${sent} karyawan (run ${run.runNo} · ${run.period.name}) oleh ${actor.name}; ${skipped} dilewati, ${failed} gagal`,
+    },
+  });
+
+  return NextResponse.json({ ok: true, total: lines.length, sent, skipped, failed, disabled });
 }
 
 // DELETE /api/onevity/payroll-runs?id= — hanya Draft/Calculated

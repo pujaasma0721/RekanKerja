@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail } from "lucide-react";
 import { RunDetail, RunLine, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
+import { BpjsExportButton, PayrollRegisterExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
@@ -24,6 +25,7 @@ export function PayrollRunDetailPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
   const [slipLine, setSlipLine] = useState<RunLine | null>(null);
 
   const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/onevity/payroll-run?id=${params.id}` : null);
@@ -41,6 +43,31 @@ export function PayrollRunDetailPage() {
       toast.success(action === "calculate" ? t("Perhitungan selesai", "Calculation completed") : action === "confirm" ? t("Run dikonfirmasi", "Run confirmed") : t("Run ditandai dibayar", "Run marked as paid"));
       refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+
+  // T10 — kirim slip gaji PDF massal via email ke seluruh karyawan run.
+  const sendSlips = async () => {
+    if (!data) return;
+    const msg = t(
+      "Kirim slip gaji PDF via email ke {n} karyawan run {no}?",
+      "Email PDF payslips to {n} employees of run {no}?",
+      { n: String(data.run.lines.length), no: data.run.runNo }
+    );
+    if (!window.confirm(msg)) return;
+    setSending(true);
+    try {
+      const res = await apiSend<{ ok: boolean; total: number; sent: number; skipped: number; failed: number; disabled: number }>(
+        "/api/onevity/payroll-runs", "PATCH", { id: data.run.id, action: "send-slips" }
+      );
+      const parts = [
+        t("{n} terkirim", "{n} sent", { n: String(res.sent) }),
+        res.skipped > 0 ? t("{n} dilewati", "{n} skipped", { n: String(res.skipped) }) : "",
+        res.failed > 0 ? t("{n} gagal", "{n} failed", { n: String(res.failed) }) : "",
+      ].filter(Boolean).join(" · ");
+      if (res.sent > 0) toast.success(t("Slip terkirim — {parts}", "Slips sent — {parts}", { parts }));
+      else if (res.disabled > 0) toast.info(t("Template email slip gaji dinonaktifkan — tidak ada yang dikirim", "Payslip email template is disabled — nothing sent"));
+      else toast.warning(t("Tidak ada slip terkirim — {parts}", "No slips sent — {parts}", { parts }));
+    } catch (e) { toast.error((e as Error).message); } finally { setSending(false); }
   };
 
   if (!params.id) {
@@ -98,15 +125,32 @@ export function PayrollRunDetailPage() {
                 {perms.canOp("payroll", "runs", "export") && (
                   <BankExportMenu runId={run.id} runNo={run.runNo} />
                 )}
+                {perms.canOp("payroll", "runs", "export") && (
+                  <BpjsExportButton runId={run.id} />
+                )}
+                {perms.canOp("payroll", "runs", "export") && (
+                  <PayrollRegisterExportButton runId={run.id} />
+                )}
               </>
             )}
             {(run.status === "Confirmed" || run.status === "Paid") && (
-              <button
-                onClick={() => navigate("payroll", "journals")}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300"
-              >
-                <BookOpen className="h-4 w-4" /> {t("Jurnal", "Journal")}
-              </button>
+              <>
+                {perms.canOp("payroll", "runs", "export") && (
+                  <button
+                    onClick={sendSlips}
+                    disabled={sending || busy}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:text-stone-300"
+                  >
+                    <Mail className={cn("h-4 w-4", sending && "animate-pulse")} /> {sending ? t("Mengirim slip…", "Sending slips…") : t("Kirim Semua Slip", "Email All Slips")}
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate("payroll", "journals")}
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300"
+                >
+                  <BookOpen className="h-4 w-4" /> {t("Jurnal", "Journal")}
+                </button>
+              </>
             )}
             <StatusPill status={run.status} />
           </div>
@@ -268,7 +312,13 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Receipt className="h-4 w-4 ov-text-accent" /> {t("Slip Gaji — {name}", "Payslip — {name}", { name: line.employeeName })}
+            <Receipt className="h-4 w-4 ov-text-accent" />
+            <span className="flex-1">{t("Slip Gaji — {name}", "Payslip — {name}", { name: line.employeeName })}</span>
+            <Button asChild variant="outline" size="sm" className="h-7 gap-1.5 text-[11px] font-bold">
+              <a href={`/api/onevity/payslip/${line.id}?download=1`} download>
+                <Download className="h-3 w-3" /> {t("Unduh PDF", "Download PDF")}
+              </a>
+            </Button>
           </DialogTitle>
         </DialogHeader>
 

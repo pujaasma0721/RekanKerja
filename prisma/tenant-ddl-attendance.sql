@@ -92,6 +92,9 @@ CREATE TABLE "AttendanceDaily" (
     "normalMinutes" INTEGER NOT NULL DEFAULT 0,
     "absenceMinutes" INTEGER NOT NULL DEFAULT 0,
     "overtimeMinutes" INTEGER NOT NULL DEFAULT 0,
+    -- T5-TA-FIX (D-7): klasifikasi berbayar eksplisit (WorkOffPermission.paid /
+    -- LeaveType.paid) — recapPeriod membaca kolom ini, fallback notes utk baris lama.
+    "paidFlag" BOOLEAN,
     "revised" BOOLEAN NOT NULL DEFAULT false,
     "revisedBy" TEXT,
     "notes" TEXT,

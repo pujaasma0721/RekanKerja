@@ -11,10 +11,11 @@
 // Skipped) untuk audit di tab "Riwayat Kirim".
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/onevity/shared/services/email-defaults";
 
 // ---- lazy import nodemailer (server-only; bundling edge-safe) ----
 type Transporter = { sendMail(opts: MailOptions): Promise<{ messageId: string; response?: string }>; verify(): Promise<boolean>; close(): void };
-interface MailOptions { from: string; to: string; subject: string; text?: string; html?: string; cc?: string }
+interface MailOptions { from: string; to: string; subject: string; text?: string; html?: string; cc?: string; attachments?: EmailAttachment[] }
 type NodemailerModule = typeof import("nodemailer");
 async function createTransport(cfg: SmtpConfig): Promise<Transporter> {
   let mod: NodemailerModule;
@@ -47,6 +48,13 @@ export interface SmtpConfig {
 }
 
 export interface EmailRecipient { email: string; name?: string }
+
+/** Lampiran email (nodemailer attachments) — konten biner + nama file. */
+export interface EmailAttachment {
+  filename: string;
+  content: Uint8Array | Buffer;
+  contentType?: string;
+}
 
 export interface NotifyInput {
   event: string;                 // "leave.approved" dst — kunci EmailTemplate
@@ -140,7 +148,7 @@ async function writeLog(db: TenantDb, entry: { event: string; toEmail: string; s
 }
 
 /** Kirim via SMTP (throw → ditangani pemanggil). */
-async function smtpSend(cfg: SmtpConfig, to: EmailRecipient, subject: string, body: string) {
+async function smtpSend(cfg: SmtpConfig, to: EmailRecipient, subject: string, body: string, attachments?: EmailAttachment[]) {
   const transporter = await createTransport(cfg);
   try {
     await transporter.sendMail({
@@ -148,6 +156,7 @@ async function smtpSend(cfg: SmtpConfig, to: EmailRecipient, subject: string, bo
       to: to.name ? `"${to.name}" <${to.email}>` : to.email,
       subject,
       text: body,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
   } finally {
     transporter.close();
@@ -231,6 +240,81 @@ async function dispatch(db: TenantDb, input: NotifyInput): Promise<void> {
     }
   } catch {
     // safety net — notifikasi tidak pernah merusak proses utama
+  }
+}
+
+// ---------- slip gaji (T10-PAYSLIP-PDF) ----------
+
+/** Event template slip gaji (payroll.payslip — email-defaults.ts). */
+export const PAYSLIP_TEMPLATE_EVENT = "payroll.payslip";
+
+export type PayslipSendStatus = "Sent" | "Failed" | "Skipped" | "Disabled";
+
+export interface PayslipEmailInput {
+  to: EmailRecipient;
+  /** placeholder template: {{nama}} {{periode}} {{net}} {{runNo}} … */
+  data: Record<string, string>;
+  attachment: EmailAttachment;
+}
+
+/**
+ * Kirim email slip gaji (dgn LAMPIRAN PDF) ke SATU karyawan — dipakai aksi
+ * `send-slips` run payroll (kirim massal per line). Tidak pernah throw.
+ *
+ * - email tujuan kosong/invalid → log "Skipped" (Email karyawan kosong)
+ * - config kosong / nonaktif / SMTP belum siap → log "Skipped"
+ * - template payroll.payslip nonaktif → "Disabled" tanpa jejak (pilihan admin)
+ * - template belum ada di DB → self-heal upsert dari email-defaults.ts
+ * - sukses/gagal SMTP → log "Sent"/"Failed" (audit tab Riwayat Kirim)
+ */
+export async function sendPayslipEmail(db: TenantDb, input: PayslipEmailInput): Promise<PayslipSendStatus> {
+  const event = PAYSLIP_TEMPLATE_EVENT;
+  try {
+    if (!input.to.email || !input.to.email.includes("@")) {
+      await writeLog(db, { event, toEmail: input.to.email || "(kosong)", subject: `Slip gaji ${input.data.periode ?? ""}`.trim(), status: "Skipped", error: "Email karyawan kosong" });
+      return "Skipped";
+    }
+
+    const cfgRow = await getActiveConfig(db);
+    if (!cfgRow || !cfgRow.active) {
+      await writeLog(db, { event, toEmail: input.to.email, subject: `Slip gaji ${input.data.periode ?? ""}`.trim(), status: "Skipped", error: "Konfigurasi email belum aktif" });
+      return "Skipped";
+    }
+    const cfg = smtpOf(cfgRow);
+    if (!smtpReady(cfg)) {
+      await writeLog(db, { event, toEmail: input.to.email, subject: `Slip gaji ${input.data.periode ?? ""}`.trim(), status: "Skipped", error: "SMTP belum dikonfigurasi" });
+      return "Skipped";
+    }
+
+    // template: baris DB → fallback default (email-defaults.ts) + self-heal upsert
+    let tpl = await db.emailTemplate.findUnique({ where: { event } });
+    if (!tpl) {
+      const def = DEFAULT_TEMPLATES_PLACEHOLDER.find((t) => t.event === event);
+      if (def) {
+        tpl = await db.emailTemplate.upsert({
+          where: { event },
+          update: {},
+          create: def,
+        }).catch(() => null);
+      }
+    }
+    if (tpl && !tpl.active) return "Disabled"; // dimatikan sengaja → tanpa jejak
+
+    const fallback = DEFAULT_TEMPLATES_PLACEHOLDER.find((t) => t.event === event);
+    const subject = renderTemplate(tpl?.subject ?? fallback?.subject ?? `Slip Gaji {{periode}} — OneVity HRIS`, input.data);
+    const body = renderTemplate(tpl?.body ?? fallback?.body ?? "Halo {{nama}},\n\nSlip gaji periode {{periode}} terlampir. Take Home Pay {{net}}.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.", input.data);
+
+    try {
+      await smtpSend(cfg, input.to, subject, body, [{ ...input.attachment, contentType: input.attachment.contentType ?? "application/pdf" }]);
+      await writeLog(db, { event, toEmail: input.to.email, subject, status: "Sent", body });
+      return "Sent";
+    } catch (e) {
+      await writeLog(db, { event, toEmail: input.to.email, subject, status: "Failed", error: (e instanceof Error ? e.message : "unknown").slice(0, 500), body });
+      return "Failed";
+    }
+  } catch {
+    // safety net — pengiriman slip tidak boleh merusak proses run
+    return "Failed";
   }
 }
 

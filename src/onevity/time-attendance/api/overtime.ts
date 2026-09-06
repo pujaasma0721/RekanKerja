@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
-import { overtimePayFor } from "@/onevity/time-attendance/services/attendance-service";
+import { overtimePayFor, getRule } from "@/onevity/time-attendance/services/attendance-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 // GET /api/onevity/attendance/overtime?status= — daftar perintah lembur + statistik
 // (padanan EmpOvertimeWrit.jsp + approval).
@@ -12,6 +13,9 @@ export async function GET(req: NextRequest) {
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
     const status = req.nextUrl.searchParams.get("status");
+    // T5-TA-FIX (D-6a): estimasi upah memakai rule (minimum + rounding interval),
+    // konsisten dgn rekap uang recapPeriod/transfer — bukan hardcode 30 menit.
+    const rule = await getRule(db);
     const orders = await db.overtimeOrder.findMany({
       where: status && status !== "all" ? { status } : {},
       include: {
@@ -32,7 +36,11 @@ export async function GET(req: NextRequest) {
       const minutes = o.status === "Pending"
         ? o.planMinutes
         : o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
-      const estPay = ["Approved", "Paid"].includes(o.status) ? overtimePayFor(baseSalary, minutes, o.dayCategory) : 0;
+      const estPay = ["Approved", "Paid"].includes(o.status)
+        ? overtimePayFor(baseSalary, minutes, o.dayCategory, {
+            roundingMinutes: rule.overtimeRoundingMinutes, minMinutes: rule.minOvertimeMinutes,
+          })
+        : 0;
       return {
         ...o,
         baseSalary,
@@ -73,6 +81,21 @@ export async function POST(req: NextRequest) {
       letterNo: b.letterNo ?? null,
       reason: b.reason ?? null,
     });
+
+    // ===== Notifikasi in-app (T11-NOTIF) — submit → approver (lembur tanpa
+    // approval berjenjang → fallback Admin/HR, maks 3) =====
+    const order = res.order as
+      | { orderNo: string; overtimeDate: Date; planMinutes: number; employee: { fullName: string } | null }
+      | null;
+    if (order) {
+      void notifyEvent(m.db, {
+        to: "nextApprover", docType: "Overtime", docNo: order.orderNo,
+        title: `Perintah lembur ${order.orderNo} menunggu persetujuan`,
+        body: `${order.employee?.fullName ?? "Karyawan"} — lembur ${new Date(order.overtimeDate).toISOString().slice(0, 10)} (rencana ${order.planMinutes} menit)`,
+        kind: "attendance", link: "attendance:overtime",
+      });
+    }
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -93,6 +116,23 @@ export async function PATCH(req: NextRequest) {
       note: b.note,
       verifiedMinutes: b.verifiedMinutes ? Number(b.verifiedMinutes) : undefined,
     });
+
+    // ===== Notifikasi in-app (T11-NOTIF) — keputusan final (approve/reject) →
+    // pengaju (lembur diputuskan satu langkah, tanpa jenjang) =====
+    if (b.action === "approve" || b.action === "reject") {
+      const order = res.order as
+        | { orderNo: string; employeeId: string; status: string; overtimeDate: Date }
+        | null;
+      if (order && (order.status === "Approved" || order.status === "Rejected")) {
+        void notifyEvent(m.db, {
+          to: "employee", docType: "Overtime", docNo: order.orderNo, employeeId: order.employeeId,
+          title: b.action === "approve" ? `Perintah lembur ${order.orderNo} disetujui` : `Perintah lembur ${order.orderNo} ditolak`,
+          body: res.note,
+          kind: "attendance", link: "attendance:overtime",
+        });
+      }
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
