@@ -2,9 +2,12 @@
 // OneVity Medical — Klaim Medis: daftar + dialog pengajuan multi-baris perawatan
 // (padanan MedicalBenefitClaim.jsp + wizard ESS MyMedicalExpenseClaim.jsp).
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
+import {
+  AttachmentUploadArea, AttachmentChips, AttachmentCountBadge,
+} from "@/onevity/shared/components/attachment-upload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +23,7 @@ import {
   CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN, fmtIDR, fmtDateID, fmtDateTimeID, todayISO,
 } from "./medical-types";
 import {
-  FileText, Plus, Search, ChevronDown, ChevronRight, Trash2, Activity, Calculator,
+  FileText, Plus, Search, ChevronDown, ChevronRight, Trash2, Activity, Calculator, Paperclip,
 } from "lucide-react";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -64,6 +67,9 @@ export function MedicalClaimsPage() {
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<LineForm[]>([newLine()]);
   const [preview, setPreview] = useState<ClaimPreviewUI | null>(null);
+  // T16-ATTACH — file kwitansi pra-submit (diunggah dgn entityId "draft:" saat
+  // klaim diajukan → di-rebind server ke klaim baru).
+  const [files, setFiles] = useState<File[]>([]);
 
   const api = useApi<{ claims: ClaimUI[]; stats: { total: number; submitted: number; approved: number; settled: number; settledAmount: number } }>(
     `/api/onevity/medical/claims?state=${statusFilter}`,
@@ -110,8 +116,27 @@ export function MedicalClaimsPage() {
     setLetterNo(""); setForDependent(false); setNote("");
     setLines([newLine()]);
     setPreview(null);
+    setFiles([]);
     setDialog(true);
   };
+
+  // T16-ATTACH — jenis benefit terpilih butuh kwitansi? (enforcement server).
+  const selectedType = useMemo(() => types.find((t) => t.id === typeId), [types, typeId]);
+
+  // T16-ATTACH — unggah file sebagai draf (entityId draft:{uuid}); server
+  // me-rebind ke klaim saat POST klaim sukses; gagal submit → draf disapu.
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const form = new FormData();
+      form.append("file", f);
+      form.append("entityType", "MedicalClaim");
+      form.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/onevity/attachments", form);
+      ids.push(res.id);
+    }
+    return ids;
+  }
 
   const setLine = (i: number, patch: Partial<LineForm>) => {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -121,11 +146,19 @@ export function MedicalClaimsPage() {
     const valid = lines.filter((l) => l.treatedName.trim() && Number(l.billAmount) > 0 && Number(l.approvedAmount) >= 0);
     if (!employeeId || !typeId) { toast.error(t("Pilih karyawan & jenis benefit", "Select employee & benefit type")); return; }
     if (valid.length === 0) { toast.error(t("Minimal 1 baris perawatan lengkap (nama yang dirawat + tagihan)", "At least 1 complete treatment line (treated name + bill)")); return; }
+    // T16-ATTACH — mirror enforcement server: jenis benefit needReceipt wajib kwitansi.
+    if (selectedType?.needReceipt && files.length === 0) {
+      toast.error(t("Jenis benefit {x} mewajibkan lampiran kwitansi", "Benefit type {x} requires receipt attachments", { x: selectedType.name }));
+      return;
+    }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; totalApproved: number; remainingAfter: number }>("/api/onevity/medical/claims", "POST", {
+      // 1) unggah file dulu (draf) → 2) submit klaim dgn attachmentIds
+      const attachmentIds = await uploadDraftFiles();
+      const res = await apiSend<{ docNo: string; totalApproved: number; remainingAfter: number; attachmentCount?: number }>("/api/onevity/medical/claims", "POST", {
         employeeId, typeId, claimDate, letterNo: letterNo || undefined,
         forDependent, note: note || undefined, submit: true,
+        attachmentIds,
         lines: valid.map((l) => ({
           treatedName: l.treatedName, treatment: l.treatment || undefined,
           treatmentDate: l.treatmentDate || undefined, receiptNo: l.receiptNo || undefined,
@@ -136,7 +169,7 @@ export function MedicalClaimsPage() {
           approvedAmount: Number(l.approvedAmount) || 0,
         })),
       });
-      toast.success(t("Klaim {d} diajukan — approved {a} · sisa saldo {r}", "Claim {d} submitted — approved {a} · remaining balance {r}", { d: res.docNo, a: fmtIDR(res.totalApproved), r: fmtIDR(res.remainingAfter) }));
+      toast.success(t("Klaim {d} diajukan — approved {a} · sisa saldo {r}{att}", "Claim {d} submitted — approved {a} · remaining balance {r}{att}", { d: res.docNo, a: fmtIDR(res.totalApproved), r: fmtIDR(res.remainingAfter), att: (res.attachmentCount ?? 0) > 0 ? t(" · {n} lampiran", " · {n} attachments", { n: res.attachmentCount ?? 0 }) : "" }));
       setDialog(false);
       api.refresh();
       detailApi.refresh();
@@ -236,7 +269,10 @@ export function MedicalClaimsPage() {
                           <TableCell className="text-sm">{fmtDateID(c.claimDate)}</TableCell>
                           <TableCell className="text-right">{fmtIDR(c.totalBill)}</TableCell>
                           <TableCell className="text-right font-semibold">{fmtIDR(c.totalApproved)}</TableCell>
-                          <TableCell><StatusPill status={c.state} /></TableCell>
+                          <TableCell>
+                            <StatusPill status={c.state} />
+                            {(c.attachmentCount ?? 0) > 0 && <AttachmentCountBadge count={c.attachmentCount ?? 0} />}
+                          </TableCell>
                         </TableRow>
                         {open && (
                           <TableRow className="bg-stone-50/70 dark:bg-stone-900/60 hover:bg-stone-50/70">
@@ -264,6 +300,15 @@ export function MedicalClaimsPage() {
                                       <p className="text-sm font-black">{c.settleDate ? fmtDateID(c.settleDate) : "—"}</p>
                                       {c.journalNo && <p className="text-xs text-stone-500">{t("jurnal {n}", "journal {n}", { n: c.journalNo })}</p>}
                                     </div>
+                                  </div>
+
+                                  <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
+                                    <p className="mb-1.5 text-[11px] font-bold uppercase text-stone-400">{t("Lampiran Kwitansi", "Receipt Attachments")}</p>
+                                    <AttachmentChips
+                                      attachments={c.attachments ?? []}
+                                      showDelete={c.state === "Submitted" || c.state === "Returned" || c.state === "Rejected"}
+                                      onDeleted={() => { api.refresh(); detailApi.refresh(); }}
+                                    />
                                   </div>
 
                                   <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
@@ -479,6 +524,20 @@ export function MedicalClaimsPage() {
           </div>
 
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Catatan pengajuan (opsional)…", "Submission note (optional)…")} rows={2} />
+
+          {/* T16-ATTACH — upload kwitansi (multiple, preview, hapus pra-submit) */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-sm font-bold">
+              <Paperclip className="h-3.5 w-3.5" />
+              {t("Lampiran Kwitansi", "Receipt Attachments")}
+              {selectedType?.needReceipt && <span className="text-amber-600 dark:text-amber-400">*</span>}
+            </Label>
+            <AttachmentUploadArea
+              files={files}
+              onChange={setFiles}
+              hint={selectedType?.needReceipt ? t("Jenis benefit {x} mewajibkan lampiran kwitansi — unggah minimal 1 file", "Benefit type {x} requires receipts — upload at least 1 file", { x: selectedType.name }) : undefined}
+            />
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>

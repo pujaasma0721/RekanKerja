@@ -1143,6 +1143,22 @@ CREATE TABLE "AttendanceRule" (
     CONSTRAINT "AttendanceRule_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable (T9-HOLIDAY)
+CREATE TABLE "HolidayDate" (
+    "id" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "name" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'National',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "HolidayDate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (T9-HOLIDAY)
+CREATE UNIQUE INDEX "HolidayDate_date_name_key" ON "HolidayDate"("date", "name");
+CREATE INDEX "HolidayDate_date_idx" ON "HolidayDate"("date");
+CREATE INDEX "HolidayDate_kind_idx" ON "HolidayDate"("kind");
+
 -- CreateTable
 CREATE TABLE "LeaveType" (
     "id" TEXT NOT NULL,
@@ -2188,3 +2204,49 @@ ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_employeeId_fke
 -- AddForeignKey
 ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+
+-- CreateTable (T16-ATTACH)
+CREATE TABLE "Attachment" (
+    "id" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "storagePath" TEXT NOT NULL,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (T16-ATTACH)
+CREATE TABLE "EmployeeDocument" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "docNumber" TEXT,
+    "issuedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "notes" TEXT,
+    "attachmentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (T16-ATTACH)
+CREATE INDEX "Attachment_entityType_entityId_idx" ON "Attachment"("entityType", "entityId");
+
+-- CreateIndex (T16-ATTACH)
+CREATE INDEX "EmployeeDocument_employeeId_idx" ON "EmployeeDocument"("employeeId");
+
+-- CreateIndex (T16-ATTACH)
+CREATE INDEX "EmployeeDocument_expiresAt_idx" ON "EmployeeDocument"("expiresAt");
+
+-- AddForeignKey (T16-ATTACH)
+ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (T16-ATTACH)
+ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_attachmentId_fkey" FOREIGN KEY ("attachmentId") REFERENCES "Attachment"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -54,6 +54,17 @@ export async function apiSend<T>(url: string, method: "GET" | "POST" | "PATCH" |
   return json as T;
 }
 
+/** T16-ATTACH — upload multipart/form-data (tanpa header Content-Type manual;
+ * browser menyetel boundary). Dipakai area upload lampiran. */
+export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
+  const res = await fetch(url, { method: "POST", body: form });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return json as T;
+}
+
 // ============ formatters ============
 // Formatter tanggal/mata uang/tenure mengikuti bahasa aktif (i18n-core) —
 // dipilih via useI18n().setLang sehingga seluruh modul ikut berganti.

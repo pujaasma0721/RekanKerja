@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { type Employee, Prisma } from "@/generated/tenant";
+import * as ExcelJS from "exceljs";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
+import { requireScoped, scopeWhere, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
-import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot } from "@/onevity/human-resource/services/assignment";
+import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, type DbOrTx } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
+import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/onevity/shared/lib/export";
 
 /** Sanitasi kode perusahaan/slug → prefix nomor karyawan (A-Z0-9). */
 function codePrefix(code: string | null | undefined): string {
@@ -46,7 +48,7 @@ async function employeeNoPrefix(req: NextRequest, companyCode: string | null | u
  * nomor dihitung ulang; kalah lagi → dilempar (catch route → 400 ramah).
  */
 async function createEmployeeWithNoRetry(
-  db: TenantDb,
+  db: DbOrTx,
   prefix: string,
   data: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo">,
 ): Promise<Employee> {
@@ -65,6 +67,59 @@ async function createEmployeeWithNoRetry(
       throw e;
     }
   }
+}
+
+/** Data penempatan awal untuk createEmployeeWithAssignment(). */
+export interface AssignmentSeed {
+  orgUnitId: string | null;
+  positionId: string | null;
+  gradeId: string | null;
+  managerId: string | null;
+  companyOfficeId: string | null;
+  workLocationId: string | null;
+  employmentStatus: string;
+  workShift: string;
+  baseSalary: number;
+  validFrom: Date;
+  changeReason: string;
+  notes: string | null;
+}
+
+/**
+ * T13-IMPORT: inti create karyawan yang DIPAKAI ULANG wizard (POST /employees)
+ * dan bulk import Excel — Employee + EmployeeAssignment awal (riwayat baris
+ * pertama) + snapshot dimensi approval (syncEmployeePlacementSnapshot).
+ * Bekerja pada client tenant ATAU transaksi interaktif ($transaction).
+ * ActivityLog tetap ditulis PEMANGGIL (teks berbeda per konteks).
+ */
+export async function createEmployeeWithAssignment(
+  db: DbOrTx,
+  prefix: string,
+  employeeData: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo">,
+  assignment: AssignmentSeed,
+): Promise<Employee> {
+  const employee = await createEmployeeWithNoRetry(db, prefix, employeeData);
+  await db.employeeAssignment.create({
+    data: {
+      employeeId: employee.id,
+      orgUnitId: assignment.orgUnitId,
+      positionId: assignment.positionId,
+      gradeId: assignment.gradeId,
+      managerId: assignment.managerId,
+      companyOfficeId: assignment.companyOfficeId,
+      workLocationId: assignment.workLocationId,
+      employmentStatus: assignment.employmentStatus,
+      workShift: assignment.workShift,
+      baseSalary: assignment.baseSalary,
+      validFrom: assignment.validFrom,
+      validTo: null,
+      changeReason: assignment.changeReason,
+      notes: assignment.notes,
+    },
+  });
+  // dorong snapshot parameter penempatan (dimensi approval berjenjang — Task 25)
+  await syncEmployeePlacementSnapshot(db, employee.id);
+  return employee;
 }
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
@@ -219,7 +274,7 @@ export async function POST(req: NextRequest) {
 
     const joinDate = b.joinDate ? new Date(b.joinDate) : new Date();
 
-    const employee = await createEmployeeWithNoRetry(db, prefix, {
+    const employee = await createEmployeeWithAssignment(db, prefix, {
       fullName: b.fullName,
       gender: b.gender ?? "M",
       birthPlace: b.birthPlace ?? null,
@@ -238,29 +293,20 @@ export async function POST(req: NextRequest) {
       companyId,
       joinDate,
       status: "Active",
+    }, {
+      orgUnitId: b.orgUnitId ?? null,
+      positionId: b.positionId ?? null,
+      gradeId: b.gradeId ?? null,
+      managerId: b.managerId ?? null,
+      companyOfficeId: b.companyOfficeId ?? null,
+      workLocationId: b.workLocationId ?? null,
+      employmentStatus: b.employmentStatus ?? "Probation",
+      workShift: b.workShift ?? "Regular",
+      baseSalary,
+      validFrom: joinDate,
+      changeReason: "Initial",
+      notes: "Penempatan awal saat onboarding",
     });
-
-    // penempatan awal → riwayat pekerjaan baris pertama
-    await db.employeeAssignment.create({
-      data: {
-        employeeId: employee.id,
-        orgUnitId: b.orgUnitId ?? null,
-        positionId: b.positionId ?? null,
-        gradeId: b.gradeId ?? null,
-        managerId: b.managerId ?? null,
-        companyOfficeId: b.companyOfficeId ?? null,
-        workLocationId: b.workLocationId ?? null,
-        employmentStatus: b.employmentStatus ?? "Probation",
-        workShift: b.workShift ?? "Regular",
-        baseSalary,
-        validFrom: joinDate,
-        validTo: null,
-        changeReason: "Initial",
-        notes: "Penempatan awal saat onboarding",
-      },
-    });
-    // dorong snapshot parameter penempatan (dimensi approval berjenjang — Task 25)
-    await syncEmployeePlacementSnapshot(db, employee.id);
 
     await db.activityLog.create({
       data: {
@@ -286,6 +332,780 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+// =========================================================================
+// T13-IMPORT — Bulk Import/Export Karyawan via Excel ======================
+// =========================================================================
+// Route tipis (src/app/api/onevity/employees/import + /export) memanggil:
+//   • employeesImportGet  — GET  ?template=1 → XLSX template + sheet Referensi
+//   • employeesImportPost — POST multipart (file + dryRun) → laporan / commit
+//   • employeesExportGet  — GET  → XLSX direktori sesuai scope akses (pola T1)
+// Komit memakai createEmployeeWithAssignment (inti yang sama dengan wizard)
+// dalam transaksi per batch — employeeNo prefix Company.code (pola T6, P2002
+// retry di dalam createEmployeeWithNoRetry).
+// =========================================================================
+
+const IMPORT_MAX_ROWS = 500;
+const IMPORT_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const IMPORT_BATCH = 25;
+
+/** Definisi kolom template import (header persis dipakai unduhan template). */
+const IMPORT_COLUMNS: { key: ImportField; header: string; width: number; required?: boolean }[] = [
+  { key: "nik", header: "NIK*", width: 22, required: true },
+  { key: "fullName", header: "Nama Lengkap*", width: 30, required: true },
+  { key: "email", header: "Email", width: 28 },
+  { key: "phone", header: "Telepon", width: 16 },
+  { key: "joinDate", header: "Tanggal Masuk* (YYYY-MM-DD)", width: 24, required: true },
+  { key: "gender", header: "Jenis Kelamin (L/P)", width: 20 },
+  { key: "marital", header: "Status Pernikahan (Single/Married/Divorced/Widowed)", width: 44 },
+  { key: "religion", header: "Agama", width: 18 },
+  { key: "bloodType", header: "Golongan Darah", width: 16 },
+  { key: "taxId", header: "NPWP", width: 20 },
+  { key: "address", header: "Alamat", width: 34 },
+  { key: "bankName", header: "Kode Bank", width: 14 },
+  { key: "bankAccount", header: "No Rekening", width: 18 },
+  { key: "orgUnitCode", header: "Kode Unit Organisasi*", width: 24, required: true },
+  { key: "positionCode", header: "Kode Posisi*", width: 16, required: true },
+  { key: "gradeCode", header: "Kode Grade", width: 14 },
+  { key: "level", header: "Level", width: 10 },
+  { key: "employmentStatus", header: "Status Kepegawaian (Permanent/Probation/Contract/Outsourcing)", width: 48 },
+  { key: "baseSalary", header: "Gaji Pokok", width: 16 },
+  { key: "status", header: "Status Kerja (Active/Inactive)", width: 26 },
+  { key: "note", header: "Keterangan", width: 40 },
+];
+
+type ImportField =
+  | "nik" | "fullName" | "email" | "phone" | "joinDate" | "gender" | "marital"
+  | "religion" | "bloodType" | "taxId" | "address" | "bankName" | "bankAccount"
+  | "orgUnitCode" | "positionCode" | "gradeCode" | "level" | "employmentStatus"
+  | "baseSalary" | "status" | "note";
+
+/** Alias normalisasi header → field (toleran varian penamaan pengguna). */
+const HEADER_ALIASES: Record<string, ImportField> = {
+  nik: "nik", "nomor induk kependudukan": "nik",
+  "nama lengkap": "fullName", nama: "fullName", "nama karyawan": "fullName",
+  email: "email", "email pribadi": "email",
+  telepon: "phone", phone: "phone", "no telepon": "phone", "nomor telepon": "phone",
+  "tanggal masuk": "joinDate", "join date": "joinDate",
+  "jenis kelamin": "gender", gender: "gender",
+  "status pernikahan": "marital", marital: "marital",
+  agama: "religion", religion: "religion",
+  "golongan darah": "bloodType", "blood type": "bloodType",
+  npwp: "taxId", "npwp (16 digit)": "taxId",
+  alamat: "address", address: "address",
+  "kode bank": "bankName", bank: "bankName", "bank code": "bankName",
+  "no rekening": "bankAccount", "nomor rekening": "bankAccount", "account number": "bankAccount",
+  "kode unit organisasi": "orgUnitCode", "unit organisasi": "orgUnitCode", "kode unit": "orgUnitCode", unit: "orgUnitCode",
+  "kode posisi": "positionCode", posisi: "positionCode", "kode jabatan": "positionCode",
+  "kode grade": "gradeCode", grade: "gradeCode",
+  level: "level", "level jabatan": "level", "kode level": "level",
+  "status kepegawaian": "employmentStatus", "employment status": "employmentStatus",
+  "gaji pokok": "baseSalary", "base salary": "baseSalary", gaji: "baseSalary",
+  "status kerja": "status", "work status": "status",
+  keterangan: "note", catatan: "note", remark: "note",
+};
+
+/** Nilai enum domain. */
+const EMPLOYMENT_STATUSES = ["Permanent", "Probation", "Contract", "Outsourcing"] as const;
+
+/** Jenis kelamin input (L/P, toleran M/F) → nilai DB (M/F — pola data demo). */
+const GENDER_MAP: Record<string, string> = { L: "M", M: "M", P: "F", F: "F" };
+
+/** Status pernikahan input (EN template / ID langsung) → nilai DB. */
+const MARITAL_TO_DB: Record<string, string> = {
+  single: "Belum Menikah", married: "Menikah", divorced: "Cerai", widowed: "Janda/Duda",
+  "belum menikah": "Belum Menikah", menikah: "Menikah", cerai: "Cerai", "janda/duda": "Janda/Duda",
+};
+/** Nilai DB → label EN template (utk export, round-trip import). */
+const MARITAL_FROM_DB: Record<string, string> = {
+  "Belum Menikah": "Single", Menikah: "Married", Cerai: "Divorced", "Janda/Duda": "Widowed",
+};
+
+// ============ helper sel Excel ============
+
+/** Teks sel apa pun (string/number/Date/formula/richText/hyperlink) → string trim. */
+function cellText(v: ExcelJS.CellValue): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "object") {
+    const obj = v as unknown as Record<string, unknown>;
+    if (typeof obj.text === "string") return obj.text.trim();
+    if ("result" in obj) return cellText(obj.result as ExcelJS.CellValue);
+    if (Array.isArray(obj.richText)) {
+      return (obj.richText as { text: string }[]).map((t) => t.text).join("").trim();
+    }
+    if ("error" in obj) return "";
+  }
+  return String(v);
+}
+
+/** Parse sel tanggal: Date (sel format tanggal), atau string YYYY-MM-DD. */
+function parseDateCell(v: ExcelJS.CellValue): Date | null {
+  if (v instanceof Date) {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof v === "string") {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v.trim());
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) {
+      return null; // 2026-02-31 → tanggal palsu
+    }
+    return d;
+  }
+  return null; // angka polos tanpa format tanggal → ambigu, ditolak
+}
+
+/** Parse sel angka uang: number, atau string "Rp 5.000.000" → 5000000. */
+function parseMoneyCell(v: ExcelJS.CellValue): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const digits = v.replace(/[^0-9-]/g, "");
+    if (!digits || digits === "-") return null;
+    const n = Number(digits);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+const normHeader = (s: string): string =>
+  s.toLowerCase().replace(/\*/g, "").replace(/\(.*?\)/g, " ").replace(/\s+/g, " ").trim();
+
+/** Cari posisi kolom per field pada baris header (exact alias → tanpa kurung → contains). */
+function resolveHeaderColumns(
+  headerRow: ExcelJS.Row,
+): { cols: Partial<Record<ImportField, number>>; missing: string[] } {
+  const cells: { col: number; text: string }[] = [];
+  headerRow.eachCell({ includeEmpty: false }, (cell, col) => {
+    const text = cellText(cell.value);
+    if (text) cells.push({ col, text });
+  });
+  const cols: Partial<Record<ImportField, number>> = {};
+  for (const def of IMPORT_COLUMNS) {
+    const expected = normHeader(def.header);
+    // 1) exact alias / exact header-tanpa-kurung
+    let hit = cells.find((c) => normHeader(c.text) === expected || HEADER_ALIASES[normHeader(c.text)] === def.key);
+    // 2) contains dua arah (header user lebih panjang/pendek)
+    if (!hit) {
+      hit = cells.find((c) => {
+        const n = normHeader(c.text);
+        return n !== "" && (n.includes(expected) || expected.includes(n)) && expected.length >= 4;
+      });
+    }
+    if (hit) cols[def.key] = hit.col;
+  }
+  const missing = IMPORT_COLUMNS.filter((d) => d.required && !cols[d.key]).map((d) => d.header);
+  return { cols, missing };
+}
+
+/** Baris data hasil parse + validasi. */
+interface ParsedRow {
+  row: number; // nomor baris Excel (1-based, termasuk baris header di atasnya)
+  nik: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  joinDate: Date | null;
+  gender: string; // M/F
+  marital: string | null;
+  religion: string | null;
+  bloodType: string | null;
+  taxId: string | null;
+  address: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  orgUnitCode: string;
+  positionCode: string;
+  gradeCode: string;
+  levelCode: string;
+  orgUnitId: string | null;
+  positionId: string | null;
+  gradeId: string | null;
+  levelId: string | null;
+  employmentStatus: string;
+  baseSalary: number;
+  errors: string[];
+  warnings: string[];
+}
+
+/** Template XLSX: sheet "Karyawan" (header + 2 baris contoh EXAMPLE) + sheet "Referensi". */
+async function buildImportTemplate(
+  db: TenantDb,
+  company: { code: string; name: string },
+): Promise<Buffer> {
+  const [units, positions, grades, levels] = await Promise.all([
+    db.orgUnit.findMany({ where: { active: true }, select: { code: true, name: true }, orderBy: { code: "asc" } }),
+    db.position.findMany({ where: { active: true }, select: { code: true, title: true }, orderBy: { code: "asc" } }),
+    db.grade.findMany({ where: { active: true }, select: { code: true, name: true, minSalary: true, maxSalary: true }, orderBy: { code: "asc" } }),
+    db.positionLevel.findMany({ where: { active: true }, select: { code: true, name: true }, orderBy: { code: "asc" } }),
+  ]);
+
+  const columns: ExportColumn[] = IMPORT_COLUMNS.map((c) => ({ header: c.header, width: c.width }));
+  const exampleMark = "EXAMPLE — baris contoh, diabaikan saat import";
+  const rows: (string | number | null)[][] = [
+    [
+      "3201234567890001", "Budi Santoso (CONTOH)", "budi.contoh@miico.id", "0812-0000-0001", "2026-01-05",
+      "L", "Single", "Islam", "O", "09.876.543.2-091.000", "Jl. Contoh No. 1, Jakarta", "BCA", "1234567890",
+      "MII-HRD", "P-HRS", "G1", "PL1", "Permanent", 5000000, "Active", exampleMark,
+    ],
+    [
+      "3201234567890002", "Siti Aminah (CONTOH)", "siti.contoh@miico.id", "0813-0000-0002", "2026-02-01",
+      "P", "Married", "Kristen Protestan", "A", "09.123.456.7-891.000", "Jl. Contoh No. 2, Bandung", "BNI", "9876543210",
+      "MII-ITD", "P-DEV", "G2", "PL2", "Contract", 7000000, "Active", exampleMark,
+    ],
+  ];
+
+  const refRows: (string | number | null)[][] = [
+    ...units.map((u) => ["Unit Organisasi", u.code, u.name] as (string | number | null)[]),
+    ...positions.map((p) => ["Posisi", p.code, p.title] as (string | number | null)[]),
+    ...grades.map((g) => ["Grade", g.code, `Rp ${g.minSalary.toLocaleString("id-ID")} – Rp ${g.maxSalary.toLocaleString("id-ID")}`] as (string | number | null)[]),
+    ...levels.map((l) => ["Level Jabatan", l.code, l.name] as (string | number | null)[]),
+  ];
+
+  const buf = await toXlsxMulti([
+    { name: "Karyawan", columns, rows },
+    {
+      name: "Referensi",
+      title: `Referensi kode valid — ${company.name}${company.code ? ` (${company.code})` : ""} · hanya kode AKTIF yang diterima import`,
+      columns: [
+        { header: "Jenis", width: 18 },
+        { header: "Kode", width: 22 },
+        { header: "Nama / Keterangan", width: 52 },
+      ],
+      rows: refRows,
+    },
+  ]);
+  return buf;
+}
+
+/**
+ * GET /api/onevity/employees/import?template=1 — unduh template XLSX.
+ * Guard: hr:directory view (unduh template = baca referensi, bukan mutasi).
+ */
+export async function employeesImportGet(req: NextRequest): Promise<NextResponse> {
+  try {
+    const m = await requireMenuAction(req, "hr:directory", "view");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
+    const sp = req.nextUrl.searchParams;
+    if (sp.get("template") !== "1") {
+      return NextResponse.json(
+        { error: "Endpoint ini untuk template — tambahkan ?template=1 (unduh) atau POST file untuk import" },
+        { status: 400 },
+      );
+    }
+
+    const company = await db.company.findFirst({ select: { id: true, code: true, name: true } });
+    if (!company) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });
+
+    const buf = await buildImportTemplate(db, { code: company.code, name: company.name });
+    return xlsxResponse(buf, exportFilename(`onevity-import-karyawan-${company.code || "template"}`, "xlsx"));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+/** Error Prisma → pesan ramah utk laporan import per baris. */
+function friendlyImportError(e: unknown): string {
+  const code = (e as { code?: string })?.code;
+  if (code === "P2002") {
+    return "Nomor karyawan bentrok dengan permintaan paralel — ulangi import untuk baris ini";
+  }
+  if (code === "P2003") {
+    return "Data referensi tidak valid — periksa kode unit/posisi/grade (lihat sheet Referensi template)";
+  }
+  return e instanceof Error ? e.message : "unknown";
+}
+
+/**
+ * POST /api/onevity/employees/import — multipart/form-data:
+ *   file: XLSX (maks 500 baris data, 2 MB) · dryRun: "true"|"false"
+ * dryRun=true  → hanya laporan validasi + preview (tanpa menulis DB).
+ * dryRun=false → COMMIT baris valid (Employee + assignment awal + snapshot
+ * approval + ActivityLog Created per karyawan) dalam transaksi per batch.
+ * Guard: hr:directory create (pola T6).
+ */
+export async function employeesImportPost(req: NextRequest): Promise<NextResponse> {
+  try {
+    const m = await requireMenuAction(req, "hr:directory", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, actor } = m;
+
+    const form = await req.formData().catch(() => null);
+    if (!form) {
+      return NextResponse.json({ error: "Body harus multipart/form-data dengan field file + dryRun" }, { status: 400 });
+    }
+    const file = form.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return NextResponse.json({ error: "File XLSX wajib dilampirkan (field \"file\")" }, { status: 400 });
+    }
+    if (file.size > IMPORT_MAX_BYTES) {
+      return NextResponse.json(
+        { error: `File terlalu besar (${(file.size / 1024 / 1024).toFixed(2)} MB) — maksimum 2 MB. Pecah file atau hapus baris tidak perlu.` },
+        { status: 413 },
+      );
+    }
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      return NextResponse.json({ error: "Hanya file .xlsx yang didukung — simpan ulang sebagai Excel Workbook" }, { status: 400 });
+    }
+    const dryRun = ["true", "1", "yes"].includes(String(form.get("dryRun") ?? "").toLowerCase());
+
+    // ---- parse workbook ----
+    let wb: ExcelJS.Workbook;
+    try {
+      wb = await new ExcelJS.Workbook().xlsx.load(await file.arrayBuffer());
+    } catch {
+      return NextResponse.json({ error: "File XLSX tidak terbaca (rusak / bukan Excel) — unduh template dan isi ulang" }, { status: 400 });
+    }
+    const ws = wb.getWorksheet("Karyawan") ?? wb.worksheets[0];
+    if (!ws || ws.rowCount < 1) {
+      return NextResponse.json({ error: "Sheet data tidak ditemukan — gunakan template resmi" }, { status: 400 });
+    }
+
+    // cari baris header (baris 1–5 yang memuat kolom wajib)
+    let header: { rowNo: number; cols: Partial<Record<ImportField, number>> } | null = null;
+    let missing: string[] = [];
+    for (let r = 1; r <= Math.min(5, ws.rowCount); r++) {
+      const res = resolveHeaderColumns(ws.getRow(r));
+      if (res.missing.length === 0) {
+        header = { rowNo: r, cols: res.cols };
+        break;
+      }
+      if (Object.keys(res.cols).length > (header ? Object.keys(header.cols).length : 0)) {
+        header = { rowNo: r, cols: res.cols };
+        missing = res.missing;
+      }
+    }
+    if (!header || missing.length > 0) {
+      return NextResponse.json(
+        { error: `Kolom wajib tidak ditemukan: ${missing.join(", ")} — unduh template resmi dan jangan mengubah baris header` },
+        { status: 400 },
+      );
+    }
+
+    // ---- parse baris data ----
+    const parsed: ParsedRow[] = [];
+    let skippedExample = 0;
+    const headerCols = header.cols;
+    for (let r = header.rowNo + 1; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const val = (key: ImportField): ExcelJS.CellValue => {
+        const col = headerCols[key];
+        return col ? row.getCell(col).value : null;
+      };
+      // baris kosong (semua sel tanpa teks) diabaikan
+      let anyText = false;
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        if (cellText(cell.value) !== "") anyText = true;
+      });
+      if (!anyText) continue;
+      if (/example/i.test(cellText(val("note")))) {
+        skippedExample++; // baris contoh template — diabaikan saat import
+        continue;
+      }
+      const p: ParsedRow = {
+        row: r,
+        nik: cellText(val("nik")),
+        fullName: cellText(val("fullName")),
+        email: cellText(val("email")) || null,
+        phone: cellText(val("phone")) || null,
+        joinDate: parseDateCell(val("joinDate")),
+        gender: "M",
+        marital: null,
+        religion: cellText(val("religion")) || null,
+        bloodType: cellText(val("bloodType")) || null,
+        taxId: cellText(val("taxId")) || null,
+        address: cellText(val("address")) || null,
+        bankName: cellText(val("bankName")) || null,
+        bankAccount: cellText(val("bankAccount")) || null,
+        orgUnitCode: cellText(val("orgUnitCode")),
+        positionCode: cellText(val("positionCode")),
+        gradeCode: cellText(val("gradeCode")),
+        levelCode: cellText(val("level")),
+        orgUnitId: null,
+        positionId: null,
+        gradeId: null,
+        levelId: null,
+        employmentStatus: "Probation",
+        baseSalary: 0,
+        errors: [],
+        warnings: [],
+      };
+
+      // --- validasi per baris ---
+      if (!/^\d{16}$/.test(p.nik)) {
+        p.errors.push(p.nik ? `NIK "${p.nik.slice(0, 24)}" harus 16 digit angka (tulis sebagai teks)` : "NIK wajib diisi (16 digit angka)");
+      }
+      if (!p.fullName) p.errors.push("Nama lengkap wajib diisi");
+      if (!p.joinDate) {
+        p.errors.push(cellText(val("joinDate")) ? `Tanggal masuk "${cellText(val("joinDate")).slice(0, 24)}" tidak valid — format YYYY-MM-DD` : "Tanggal masuk wajib diisi (YYYY-MM-DD)");
+      }
+      if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) {
+        p.errors.push(`Email "${p.email}" tidak valid`);
+      }
+      const genderRaw = cellText(val("gender")).toUpperCase();
+      if (genderRaw) {
+        if (GENDER_MAP[genderRaw]) p.gender = GENDER_MAP[genderRaw];
+        else p.errors.push(`Jenis kelamin "${genderRaw}" tidak dikenal — isi L atau P`);
+      }
+      const maritalRaw = cellText(val("marital")).toLowerCase();
+      if (maritalRaw) {
+        const mapped = MARITAL_TO_DB[maritalRaw];
+        if (mapped) p.marital = mapped;
+        else p.errors.push(`Status pernikahan "${cellText(val("marital")).slice(0, 24)}" tidak dikenal — Single/Married/Divorced/Widowed`);
+      }
+      const empRaw = cellText(val("employmentStatus"));
+      if (empRaw) {
+        const hit = EMPLOYMENT_STATUSES.find((s) => s.toLowerCase() === empRaw.toLowerCase());
+        if (hit) p.employmentStatus = hit;
+        else p.errors.push(`Status kepegawaian "${empRaw.slice(0, 24)}" tidak dikenal — Permanent/Probation/Contract/Outsourcing`);
+      }
+      const statusRaw = cellText(val("status"));
+      if (statusRaw && statusRaw.toLowerCase() !== "active") {
+        p.errors.push(`Status kerja "${statusRaw.slice(0, 24)}" tidak didukung import — hanya Active (non-aktif via offboarding)`);
+      }
+      const salaryCell = val("baseSalary");
+      const salary = parseMoneyCell(salaryCell);
+      if (salary === null) {
+        if (cellText(salaryCell)) p.errors.push(`Gaji pokok "${cellText(salaryCell).slice(0, 24)}" bukan angka (boleh "Rp 5.000.000")`);
+      } else if (salary < 0) {
+        p.errors.push("Gaji pokok tidak boleh negatif");
+      } else {
+        p.baseSalary = salary;
+      }
+      parsed.push(p);
+    }
+
+    if (parsed.length === 0) {
+      return NextResponse.json(
+        { error: skippedExample > 0 ? "Tidak ada baris data — seluruh baris adalah baris contoh (EXAMPLE) yang diabaikan" : "Tidak ada baris data pada sheet" },
+        { status: 400 },
+      );
+    }
+    if (parsed.length > IMPORT_MAX_ROWS) {
+      return NextResponse.json({ error: `Terlalu banyak baris (${parsed.length}) — maksimum ${IMPORT_MAX_ROWS} baris per file` }, { status: 400 });
+    }
+
+    // ---- validasi lintas-baris & referensi tenant (resolve by code) ----
+    const company = await db.company.findFirst({ select: { id: true, code: true, name: true } });
+    if (!company) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });
+
+    const [unitRows, positionRows, gradeRows, levelRows, existingNiks, existingEmails] = await Promise.all([
+      db.orgUnit.findMany({ where: { active: true }, select: { id: true, code: true, name: true } }),
+      db.position.findMany({ where: { active: true }, select: { id: true, code: true, title: true, positionLevel: { select: { id: true, code: true } } } }),
+      db.grade.findMany({ where: { active: true }, select: { id: true, code: true, name: true, minSalary: true, maxSalary: true } }),
+      db.positionLevel.findMany({ where: { active: true }, select: { id: true, code: true, name: true } }),
+      db.employee.findMany({ where: { nationalId: { not: null } }, select: { nationalId: true } }),
+      db.employee.findMany({ where: { email: { not: null } }, select: { email: true } }),
+    ]);
+    const unitByCode = new Map(unitRows.map((u) => [u.code.toUpperCase(), u]));
+    const posByCode = new Map(positionRows.map((p) => [p.code.toUpperCase(), p]));
+    const gradeByCode = new Map(gradeRows.map((g) => [g.code.toUpperCase(), g]));
+    const levelByCode = new Map(levelRows.map((l) => [l.code.toUpperCase(), l]));
+    const nikSet = new Set(existingNiks.map((e) => String(e.nationalId)));
+    const emailSet = new Set(existingEmails.map((e) => String(e.email).toLowerCase()));
+    const nikSeen = new Map<string, number>(); // duplikat dalam file
+    const emailSeen = new Map<string, number>();
+
+    for (const p of parsed) {
+      // unit organisasi (wajib)
+      const unit = unitByCode.get(p.orgUnitCode.toUpperCase());
+      if (unit) p.orgUnitId = unit.id;
+      else p.errors.push(p.orgUnitCode ? `Kode unit organisasi "${p.orgUnitCode}" tidak ditemukan / tidak aktif — lihat sheet Referensi` : "Kode unit organisasi wajib diisi");
+
+      // posisi (wajib)
+      const pos = posByCode.get(p.positionCode.toUpperCase());
+      if (pos) p.positionId = pos.id;
+      else p.errors.push(p.positionCode ? `Kode posisi "${p.positionCode}" tidak ditemukan / tidak aktif — lihat sheet Referensi` : "Kode posisi wajib diisi");
+
+      // grade (opsional, bila diisi harus valid)
+      if (p.gradeCode) {
+        const grade = gradeByCode.get(p.gradeCode.toUpperCase());
+        if (grade) {
+          p.gradeId = grade.id;
+          // rentang gaji grade → ADVISORY (warning, tidak menggagalkan — pola wizard)
+          if (grade.maxSalary > 0 && p.baseSalary > 0 && (p.baseSalary < grade.minSalary || p.baseSalary > grade.maxSalary)) {
+            p.warnings.push(`Gaji pokok ${p.baseSalary.toLocaleString("id-ID")} di luar rentang grade ${grade.code} (Rp ${grade.minSalary.toLocaleString("id-ID")} – Rp ${grade.maxSalary.toLocaleString("id-ID")}) — advisory`);
+          }
+        } else {
+          p.errors.push(`Kode grade "${p.gradeCode}" tidak ditemukan / tidak aktif — lihat sheet Referensi`);
+        }
+      }
+
+      // level jabatan (opsional — snapshot diambil dari posisi; kode divalidasi + advisory mismatch)
+      if (p.levelCode) {
+        const level = levelByCode.get(p.levelCode.toUpperCase());
+        if (level) {
+          p.levelId = level.id;
+          if (pos?.positionLevel && pos.positionLevel.code !== level.code) {
+            p.warnings.push(`Level ${level.code} berbeda dari level posisi ${pos.code} (${pos.positionLevel.code ?? "—"}) — snapshot mengikuti posisi`);
+          }
+        } else {
+          p.errors.push(`Kode level "${p.levelCode}" tidak ditemukan / tidak aktif — lihat sheet Referensi`);
+        }
+      }
+
+      // keunikan NIK (DB + dalam file)
+      if (/^\d{16}$/.test(p.nik)) {
+        if (nikSet.has(p.nik)) p.errors.push(`NIK ${p.nik} sudah dipakai karyawan lain`);
+        const prev = nikSeen.get(p.nik);
+        if (prev) p.errors.push(`NIK ${p.nik} duplikat dengan baris ${prev}`);
+        else nikSeen.set(p.nik, p.row);
+      }
+      // keunikan email opsional
+      if (p.email) {
+        const lower = p.email.toLowerCase();
+        if (emailSet.has(lower)) p.errors.push(`Email ${p.email} sudah dipakai karyawan lain`);
+        const prev = emailSeen.get(lower);
+        if (prev) p.errors.push(`Email ${p.email} duplikat dengan baris ${prev}`);
+        else emailSeen.set(lower, p.row);
+      }
+    }
+
+    const validRows = parsed.filter((p) => p.errors.length === 0);
+    const invalidRows = parsed.filter((p) => p.errors.length > 0);
+
+    // ---- dry-run: laporan saja ----
+    if (dryRun) {
+      const rows = parsed.map((p) => ({
+        row: p.row,
+        nik: p.nik,
+        fullName: p.fullName,
+        errors: p.errors,
+        warnings: p.warnings,
+        error: p.errors.join("; ") || null,
+      }));
+      const preview = validRows.slice(0, 10).map((p) => ({
+        row: p.row,
+        nik: p.nik,
+        fullName: p.fullName,
+        joinDate: p.joinDate ? p.joinDate.toISOString().slice(0, 10) : null,
+        orgUnit: unitByCode.get(p.orgUnitCode.toUpperCase())?.name ?? null,
+        position: posByCode.get(p.positionCode.toUpperCase())?.title ?? null,
+        grade: p.gradeId ? gradeByCode.get(p.gradeCode.toUpperCase())?.code ?? null : null,
+        level: p.levelId
+          ? levelByCode.get(p.levelCode.toUpperCase())?.code ?? null
+          : posByCode.get(p.positionCode.toUpperCase())?.positionLevel?.code ?? null,
+        employmentStatus: p.employmentStatus,
+        baseSalary: p.baseSalary,
+        employeeNoPrefix: codePrefix(company.code) || "EMP",
+      }));
+      return NextResponse.json({
+        dryRun: true,
+        file: file.name,
+        totalRows: parsed.length,
+        skippedExample,
+        valid: validRows.length,
+        invalid: invalidRows.length,
+        rows,
+        preview,
+      });
+    }
+
+    // ---- commit (dryRun=false) ----
+    const prefix = await employeeNoPrefix(req, company.code);
+    const created: { row: number; employeeNo: string; fullName: string }[] = [];
+    const failed: { row: number; error: string }[] = [];
+
+    for (let i = 0; i < validRows.length; i += IMPORT_BATCH) {
+      const batch = validRows.slice(i, i + IMPORT_BATCH);
+      const batchCreated: { row: number; employeeNo: string; fullName: string }[] = [];
+      try {
+        await db.$transaction(async (tx) => {
+          for (const p of batch) {
+            try {
+              const employee = await createEmployeeWithAssignment(tx, prefix, {
+                fullName: p.fullName,
+                gender: p.gender,
+                nationalId: p.nik || null,
+                taxId: p.taxId,
+                maritalStatus: p.marital,
+                religion: p.religion,
+                bloodType: p.bloodType,
+                email: p.email,
+                phone: p.phone,
+                address: p.address,
+                bankName: p.bankName,
+                bankAccount: p.bankAccount,
+                companyId: company.id,
+                joinDate: p.joinDate ?? new Date(),
+                status: "Active",
+              }, {
+                orgUnitId: p.orgUnitId,
+                positionId: p.positionId,
+                gradeId: p.gradeId,
+                managerId: null,
+                companyOfficeId: null,
+                workLocationId: null,
+                employmentStatus: p.employmentStatus,
+                workShift: "Regular",
+                baseSalary: p.baseSalary,
+                validFrom: p.joinDate ?? new Date(),
+                changeReason: "Initial",
+                notes: "Penempatan awal via import Excel",
+              });
+              await tx.activityLog.create({
+                data: {
+                  appUserId: actor.appUserId,
+                  action: "Created",
+                  entity: "Employee",
+                  entityId: employee.id,
+                  employeeId: employee.id,
+                  detail: `Import Excel: karyawan ${employee.fullName} (${employee.employeeNo}) oleh ${actor.appUsername ?? actor.name}`,
+                },
+              });
+              batchCreated.push({ row: p.row, employeeNo: employee.employeeNo, fullName: employee.fullName });
+            } catch (e) {
+              failed.push({ row: p.row, error: friendlyImportError(e) });
+              // bersihkan sisa parsial baris ini (mis. employee terbuat tapi assignment gagal)
+              try { await tx.employee.deleteMany({ where: { nationalId: p.nik } }); } catch { /* noop */ }
+            }
+          }
+        });
+        created.push(...batchCreated);
+      } catch (e) {
+        // transaksi batch gagal menyeluruh (koneksi dll) — seluruh batch dianggap gagal
+        const err = friendlyImportError(e);
+        for (const p of batch) {
+          if (!batchCreated.some((c) => c.row === p.row)) failed.push({ row: p.row, error: err });
+        }
+      }
+    }
+
+    // ringkasan audit satu baris (gagal per baris tetap masuk failed[])
+    try {
+      await db.activityLog.create({
+        data: {
+          appUserId: actor.appUserId,
+          action: "Imported",
+          entity: "Employee",
+          detail: `Import Excel ${file.name}: ${created.length} karyawan dibuat, ${failed.length + invalidRows.length} gagal, oleh ${actor.appUsername ?? actor.name}`,
+        },
+      });
+    } catch { /* audit ringkasan best-effort */ }
+
+    return NextResponse.json({
+      created: created.length,
+      failed: [
+        ...invalidRows.map((p) => ({ row: p.row, error: p.errors.join("; ") })),
+        ...failed,
+      ],
+      employees: created,
+    });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+// ============ export direktori (pola scope T1) ============
+
+/**
+ * GET /api/onevity/employees/export — XLSX seluruh karyawan AKTIF dalam
+ * cakupan akses efektif pengguna (resolveAccessScope + scopeWhere — pola
+ * dashboard/reports). Kolom identitas + pekerjaan; kolom upah (Gaji Pokok)
+ * hanya bila scope akses penuh (scope.all — akses terbatas → identitas +
+ * pekerjaan tanpa upah). Guard: hr:directory view.
+ */
+export async function employeesExportGet(req: NextRequest): Promise<NextResponse> {
+  try {
+    const m = await requireMenuAction(req, "hr:directory", "view");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
+    const scope = await resolveAccessScope(db, {
+      appUserId: m.actor.appUserId,
+      employeeId: m.actor.employeeId,
+      appUserRole: m.actor.appUserRole,
+      platformRole: m.actor.role,
+    });
+    const scopeCond = scopeWhere(scope);
+
+    const employees = await db.employee.findMany({
+      where: { AND: [scopeCond, { status: "Active" }] },
+      include: CURRENT_ASSIGNMENT_INCLUDE,
+      orderBy: { employeeNo: "asc" },
+    });
+    const flat = employees.map((e) => flattenEmployee(e));
+    const includeWage = scope.all; // upah hanya untuk scope penuh
+
+    const columns: (ExportColumn & { key: string })[] = [
+      { header: "No Karyawan", key: "employeeNo", width: 15 },
+      { header: "NIK", key: "nik", width: 22 },
+      { header: "Nama Lengkap", key: "fullName", width: 30 },
+      { header: "Email", key: "email", width: 28 },
+      { header: "Telepon", key: "phone", width: 16 },
+      { header: "Tanggal Masuk (YYYY-MM-DD)", key: "joinDate", width: 22 },
+      { header: "Jenis Kelamin (L/P)", key: "gender", width: 20 },
+      { header: "Status Pernikahan", key: "marital", width: 20 },
+      { header: "Agama", key: "religion", width: 18 },
+      { header: "Golongan Darah", key: "bloodType", width: 16 },
+      { header: "NPWP", key: "taxId", width: 20 },
+      { header: "Alamat", key: "address", width: 34 },
+      { header: "Kode Bank", key: "bankName", width: 14 },
+      { header: "No Rekening", key: "bankAccount", width: 18 },
+      { header: "Kode Unit Organisasi", key: "orgUnitCode", width: 24 },
+      { header: "Unit Organisasi", key: "orgUnitName", width: 28 },
+      { header: "Kode Posisi", key: "positionCode", width: 16 },
+      { header: "Posisi", key: "positionTitle", width: 28 },
+      { header: "Kode Grade", key: "gradeCode", width: 14 },
+      { header: "Grade", key: "gradeName", width: 24 },
+      { header: "Level", key: "levelCode", width: 10 },
+      { header: "Status Kepegawaian", key: "employmentStatus", width: 20 },
+      { header: "Gaji Pokok", key: "baseSalary", width: 16 },
+      { header: "Status Kerja", key: "status", width: 14 },
+    ].filter((c) => includeWage || c.key !== "baseSalary") as (ExportColumn & { key: string })[];
+
+    const rows = flat.map((e) => {
+      const g = String(e.gender ?? "M");
+      return columns.map((c) => {
+        switch (c.key) {
+          case "employeeNo": return e.employeeNo;
+          case "nik": return e.nationalId ?? "";
+          case "joinDate": return e.joinDate instanceof Date ? e.joinDate.toISOString().slice(0, 10) : "";
+          case "gender": return g === "F" ? "P" : "L";
+          case "marital": return e.maritalStatus ? MARITAL_FROM_DB[e.maritalStatus] ?? e.maritalStatus : "";
+          case "orgUnitCode": return e.orgUnit?.code ?? "";
+          case "orgUnitName": return e.orgUnit?.name ?? "";
+          case "positionCode": return e.position?.code ?? "";
+          case "positionTitle": return e.position?.title ?? "";
+          case "gradeCode": return e.grade?.code ?? "";
+          case "gradeName": return e.grade?.name ?? "";
+          case "levelCode": return e.positionLevel?.code ?? "";
+          case "baseSalary": return e.baseSalary ?? 0;
+          case "status": return e.status ?? "Active";
+          default: {
+            const v = (e as unknown as Record<string, unknown>)[c.key];
+            return v === null || v === undefined ? "" : String(v);
+          }
+        }
+      });
+    });
+
+    const buf = await toXlsxMulti([
+      { name: "Karyawan", columns: columns.map(({ header, width }) => ({ header, width })), rows },
+    ]);
+
+    try {
+      await db.activityLog.create({
+        data: {
+          appUserId: m.actor.appUserId,
+          action: "Exported",
+          entity: "Employee",
+          detail: `Export Excel direktori: ${rows.length} karyawan aktif (${scope.all ? "cakupan penuh" : `cakupan terbatas — ${scope.sources.join(" | ") || "self"}`}) oleh ${m.actor.appUsername ?? m.actor.name}`,
+        },
+      });
+    } catch { /* audit best-effort */ }
+
+    return xlsxResponse(buf, exportFilename("onevity-karyawan", "xlsx"));
+  } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }

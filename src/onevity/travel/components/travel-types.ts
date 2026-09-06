@@ -73,6 +73,9 @@ export interface TravelClaimRowUI {
   expenseLines: number;
   overLimitLines: number;
   expenseKinds: string[];
+  /** T16-ATTACH — metadata lampiran kwitansi (badge "lampiran n" + preview). */
+  attachments?: import("@/onevity/shared/components/attachment-upload").AttachmentMetaUI[];
+  attachmentCount?: number;
 }
 
 export interface BudgetItemUI {

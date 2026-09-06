@@ -219,6 +219,23 @@ CREATE INDEX "WorkOffPermission_employeeId_dateFrom_idx" ON "WorkOffPermission"(
 -- CreateIndex
 CREATE INDEX "WorkOffPermission_status_idx" ON "WorkOffPermission"("status");
 
+-- CreateTable (T9-HOLIDAY)
+CREATE TABLE "HolidayDate" (
+    "id" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "name" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'National',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "HolidayDate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (T9-HOLIDAY)
+CREATE UNIQUE INDEX "HolidayDate_date_name_key" ON "HolidayDate"("date", "name");
+CREATE INDEX "HolidayDate_date_idx" ON "HolidayDate"("date");
+CREATE INDEX "HolidayDate_kind_idx" ON "HolidayDate"("kind");
+
+
 -- AddForeignKey
 ALTER TABLE "WorkScheduleDay" ADD CONSTRAINT "WorkScheduleDay_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "WorkSchedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

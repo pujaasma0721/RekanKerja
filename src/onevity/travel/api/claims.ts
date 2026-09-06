@@ -3,6 +3,12 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
+// T16-ATTACH — lampiran kwitansi klaim (draft-upload → rebind saat submit;
+// enforcement jenis biaya needDocs; metadata utk badge "lampiran n").
+import {
+  attachmentsByEntityIds, bindDraftAttachments, countDraftAttachmentsByIds,
+  deleteAttachmentsByEntity, deleteDraftAttachmentsByIds,
+} from "@/onevity/shared/services/attachment-service";
 
 // GET /api/onevity/travel/claims?status=&employeeId= — daftar klaim
 // (padanan TravelClaim.jsp / TravelClaimToApprove.jsp).
@@ -33,6 +39,13 @@ export async function GET(req: NextRequest) {
       status: sp.get("status") ?? "all",
       employeeId: sp.get("employeeId") ?? undefined,
     });
+    // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
+    const attachMap = await attachmentsByEntityIds(db, "TravelClaim", claims.map((c) => c.id));
+    const claimsWithAttachments = claims.map((c) => ({
+      ...c,
+      attachments: attachMap.get(c.id) ?? [],
+      attachmentCount: attachMap.get(c.id)?.length ?? 0,
+    }));
     const stats = {
       total: claims.length,
       submitted: claims.filter((c) => c.status === "Submitted").length,
@@ -45,7 +58,7 @@ export async function GET(req: NextRequest) {
       payableEmployee: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + c.payableEmployee, 0),
       payableCompany: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + c.payableCompany, 0),
     };
-    return NextResponse.json({ claims, stats });
+    return NextResponse.json({ claims: claimsWithAttachments, stats });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -62,6 +75,29 @@ export async function POST(req: NextRequest) {
     const b = await req.json();
     if (!Array.isArray(b.expenses) || b.expenses.length === 0) {
       return NextResponse.json({ error: "Klaim wajib memuat minimal 1 baris biaya" }, { status: 400 });
+    }
+    // ===== T16-ATTACH: enforcement lampiran kwitansi =====
+    // File diunggah PRA-submit ke /api/onevity/attachments dengan entityId
+    // "draft:{uuid}"; klaim mengirim attachmentIds → dicek DI SINI (setelah file
+    // tersimpan) lalu di-rebind ke klaim setelah createClaim sukses.
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
+    const needDocsTypes = await db.travelExpenseType.findMany({
+      where: { code: { in: b.expenses.map((e: { expenseCode?: string }) => String(e.expenseCode ?? "")) }, needDocs: true },
+      select: { code: true, name: true },
+    });
+    // cek jumlah draf yang BENAR-BENAR siap di-rebind (bukan sekadar daftar id)
+    const draftCount = await countDraftAttachmentsByIds(db, "TravelClaim", attachmentIds);
+    if (needDocsTypes.length > 0 && draftCount === 0) {
+      return NextResponse.json(
+        {
+          error:
+            `Jenis biaya ${needDocsTypes.map((t) => t.name).join(", ")} mewajibkan lampiran kwitansi — ` +
+            "unggah kwitansi (JPG/PNG/WEBP/PDF, maks 5 MB) sebelum mengajukan klaim",
+        },
+        { status: 400 },
+      );
     }
     const res = await createClaim(db, {
       requestId: b.requestId ? String(b.requestId) : undefined,
@@ -85,7 +121,21 @@ export async function POST(req: NextRequest) {
       exchangeLoss: Math.max(0, Number(b.exchangeLoss ?? 0)),
       payableEmployee: Math.max(0, Number(b.payableEmployee ?? 0)),
       payableCompany: Math.max(0, Number(b.payableCompany ?? 0)),
+    }).catch(async (e: unknown) => {
+      // gagal membuat klaim → sapu draf lampiran yang dikirim (best-effort)
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
+      throw e;
     });
+
+    // T16-ATTACH — rebind draf lampiran ke klaim yang baru dibuat
+    // (createClaim mengembalikan docNo unik → resolve id klaim).
+    let boundAttachments = 0;
+    if (attachmentIds.length > 0) {
+      const claimRow = await db.travelClaim.findUnique({ where: { docNo: res.docNo }, select: { id: true } });
+      if (claimRow) {
+        boundAttachments = await bindDraftAttachments(db, "TravelClaim", attachmentIds, claimRow.id);
+      }
+    }
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     void (async () => {
@@ -109,7 +159,7 @@ export async function POST(req: NextRequest) {
       } catch { /* never */ }
     })();
 
-    return NextResponse.json(res, { status: 201 });
+    return NextResponse.json({ ...res, attachmentCount: boundAttachments }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -138,6 +188,11 @@ export async function PATCH(req: NextRequest) {
       note: b.note ? String(b.note) : undefined,
       actorId: m.actor.appUserId ?? m.actor.userId,
     });
+
+    // T16-ATTACH — klaim dibatalkan → sapu file+baris lampirannya (best-effort).
+    if (b.action === "cancel") {
+      void deleteAttachmentsByEntity(m.db, "TravelClaim", String(b.id)).catch(() => undefined);
+    }
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     if (b.action !== "cancel") {

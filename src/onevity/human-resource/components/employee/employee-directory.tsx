@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { EmployeeAvatar } from "./employee-avatar";
+import { EmployeeImportDialog } from "./employee-import-dialog";
 import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, employmentStatusBadge, type DirectoryResp, type OrgUnitsLiteResp, type EmployeeRow } from "./types";
 
 const PAGE_SIZE = 25;
@@ -75,7 +76,7 @@ export function EmployeeDirectory() {
     return `/api/onevity/employees?${sp.toString()}`;
   }, [debouncedQ, status, unit, empStatus, offset]);
 
-  const { data, loading, error } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, offset]);
+  const { data, loading, error, refresh } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, offset]);
   const units = useApi<OrgUnitsLiteResp>("/api/onevity/org-units");
 
   const rows = data?.employees ?? [];
@@ -124,6 +125,8 @@ export function EmployeeDirectory() {
                 <UserPlus className="h-4 w-4" /> {t("Onboarding", "Onboarding")}
               </Button>
             )}
+            {/* T13-IMPORT — tombol Import/Export Excel (guard + dry-run di komponen) */}
+            <EmployeeImportDialog onImported={refresh} />
           </div>
         }
       />

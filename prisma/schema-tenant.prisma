@@ -250,6 +250,7 @@ model Employee {
   medicalBalances     MedicalBalance[]
   medicalClaims       MedicalClaim[]
   medicalAdjustments  MedicalAdjustment[]
+  documents           EmployeeDocument[]
 
   // relasi approval berjenjang
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
@@ -910,6 +911,49 @@ model Lookup {
   @@unique([category, code])
 }
 
+// T16-ATTACH — lampiran generik (kwitansi klaim travel/medical, dokumen
+// karyawan, dst.). File fisik disimpan di {projectRoot}/uploads/{tenantSlug}/
+// {yyyy}/{id}{ext}; baris ini menyimpan metadata + path relatif storage.
+// entityType = TravelClaim | MedicalClaim | EmployeeDocument | …;
+// entityId = id entitas pemilik (klaim/dokumen); saat upload pra-submit,
+// entityId sementara berprefix "draft:" lalu di-rebind route submit klaim.
+model Attachment {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storagePath String
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  employeeDocuments EmployeeDocument[]
+
+  @@index([entityType, entityId])
+}
+
+// T16-ATTACH — dokumen kepegawaian (KTP/Paspor/SIM/KK/NPWP/Ijazah/…) milik
+// karyawan; kedaluwarsa (SIM/Paspor) dipantau via filter ?expiring=n hari.
+model EmployeeDocument {
+  id           String    @id @default(cuid())
+  employeeId   String
+  docType      String // KTP|Paspor|SIM|KK|NPWP|Ijazah|Sertifikat|Kontrak|Lainnya
+  docNumber    String?
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  notes        String?
+  attachmentId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attachment Attachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([expiresAt])
+}
+
 // ============ SECURITY SETTING ============
 
 model AppUser {
@@ -1406,6 +1450,21 @@ model AttendanceRule {
   lateDeductionPerHour             Float    @default(0) // 0 = proporsional upah per jam (1/173)
   absenceDeductionPerDay           Float    @default(0) // 0 = 1/25 upah bulanan
   updatedAt                        DateTime @updatedAt
+}
+
+// T9-HOLIDAY — kalender hari libur (nasional/bersama/perusahaan). Overlay engine:
+// tanggal yang terdaftar menang atas cycle jadwal → day type efektif kategori
+// "Holiday" (multiplier lembur PP 35 2×/3×/4×, hari kerja cuti melewati hari libur).
+model HolidayDate {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  name      String
+  kind      String   @default("National") // National|Joint(cuti bersama)|Company
+  createdAt DateTime @default(now())
+
+  @@unique([date, name]) // idempoten seed/import (ON CONFLICT DO NOTHING per date+name)
+  @@index([date])
+  @@index([kind])
 }
 
 // ============ LEAVE (Modul Cuti — padanan Leave Administration) ============

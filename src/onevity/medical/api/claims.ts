@@ -4,6 +4,12 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+// T16-ATTACH — lampiran kwitansi klaim (draft-upload → rebind saat submit;
+// enforcement jenis benefit needReceipt; metadata utk badge "lampiran n").
+import {
+  attachmentsByEntityIds, bindDraftAttachments, countBoundAttachments, countDraftAttachmentsByIds,
+  deleteAttachmentsByEntity, deleteDraftAttachmentsByIds,
+} from "@/onevity/shared/services/attachment-service";
 
 // GET /api/onevity/medical/claims?state=&year=&employeeId=&typeId=&preview=
 // &employeeId&typeId — daftar klaim (padanan MedicalBenefitClaim.jsp /
@@ -40,6 +46,13 @@ export async function GET(req: NextRequest) {
       typeId: sp.get("typeId") ?? undefined,
       includeLines,
     });
+    // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
+    const attachMap = await attachmentsByEntityIds(db, "MedicalClaim", claims.map((c) => c.id));
+    const claimsWithAttachments = claims.map((c) => ({
+      ...c,
+      attachments: attachMap.get(c.id) ?? [],
+      attachmentCount: attachMap.get(c.id)?.length ?? 0,
+    }));
     const stats = {
       total: claims.length,
       draft: claims.filter((c) => c.state === "Draft").length,
@@ -53,7 +66,7 @@ export async function GET(req: NextRequest) {
         .reduce((s, c) => s + c.totalApproved, 0),
       settledAmount: claims.filter((c) => c.state === "Settled").reduce((s, c) => s + c.totalApproved, 0),
     };
-    return NextResponse.json({ claims, stats });
+    return NextResponse.json({ claims: claimsWithAttachments, stats });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -73,6 +86,31 @@ export async function POST(req: NextRequest) {
     const b = await req.json();
     if (!b.employeeId || !b.typeId || !b.claimDate || !Array.isArray(b.lines) || b.lines.length === 0) {
       return NextResponse.json({ error: "employeeId, typeId, claimDate & lines wajib" }, { status: 400 });
+    }
+    // ===== T16-ATTACH: enforcement lampiran kwitansi (klaim langsung submit) =====
+    // File diunggah PRA-submit ke /api/onevity/attachments dengan entityId
+    // "draft:{uuid}"; klaim mengirim attachmentIds → dicek DI SINI (setelah file
+    // tersimpan) lalu di-rebind ke klaim setelah submitClaim sukses.
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
+    if (b.submit !== false) {
+      const type = await m.db.medicalBenefitType.findUnique({
+        where: { id: String(b.typeId) },
+        select: { name: true, needReceipt: true },
+      });
+      // cek jumlah draf yang BENAR-BENAR siap di-rebind (bukan sekadar daftar id)
+      const draftCount = await countDraftAttachmentsByIds(m.db, "MedicalClaim", attachmentIds);
+      if (type?.needReceipt && draftCount === 0) {
+        return NextResponse.json(
+          {
+            error:
+              `Jenis benefit ${type.name} mewajibkan lampiran kwitansi — ` +
+              "unggah kwitansi (JPG/PNG/WEBP/PDF, maks 5 MB) sebelum mengajukan klaim",
+          },
+          { status: 400 },
+        );
+      }
     }
     const res = await submitClaim(m.db, {
       employeeId: String(b.employeeId),
@@ -95,7 +133,16 @@ export async function POST(req: NextRequest) {
         reimburseAmount: Number(l.reimburseAmount ?? 0),
         approvedAmount: Number(l.approvedAmount ?? 0),
       })),
-    }, actorId);
+    }, actorId).catch(async (e: unknown) => {
+      // gagal submit → sapu draf lampiran yang dikirim (best-effort)
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(m.db, attachmentIds);
+      throw e;
+    });
+
+    // T16-ATTACH — rebind draf lampiran ke klaim yang baru dibuat (res.id).
+    const boundAttachments = attachmentIds.length > 0
+      ? await bindDraftAttachments(m.db, "MedicalClaim", attachmentIds, res.id)
+      : 0;
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
     if (b.submit !== false) {
@@ -127,7 +174,7 @@ export async function POST(req: NextRequest) {
       })();
     }
 
-    return NextResponse.json(res, { status: 201 });
+    return NextResponse.json({ ...res, attachmentCount: boundAttachments }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -152,12 +199,40 @@ export async function PATCH(req: NextRequest) {
       : await requireMenuAction(req, "medical:medical-approval", b.action === "settle" ? "op:settle" : "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const actorId = m.actor.appUserId ?? m.actor.userId;
+
+    // ===== T16-ATTACH: enforcement saat submit (Draft/Returned → Submitted) =====
+    // Jenis benefit needReceipt wajib sudah punya lampiran ter-bound pada klaim.
+    if (b.action === "submit") {
+      const claim = await m.db.medicalClaim.findUnique({
+        where: { id: String(b.id) },
+        select: { type: { select: { name: true, needReceipt: true } } },
+      });
+      if (claim?.type.needReceipt) {
+        const bound = await countBoundAttachments(m.db, "MedicalClaim", String(b.id));
+        if (bound === 0) {
+          return NextResponse.json(
+            {
+              error:
+                `Jenis benefit ${claim.type.name} mewajibkan lampiran kwitansi — ` +
+                "unggah kwitansi (JPG/PNG/WEBP/PDF, maks 5 MB) sebelum klaim diajukan",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const res = await decideClaim(m.db, {
       claimId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
     }, actorId);
+
+    // T16-ATTACH — klaim dibatalkan → sapu file+baris lampirannya (best-effort).
+    if (b.action === "cancel") {
+      void deleteAttachmentsByEntity(m.db, "MedicalClaim", String(b.id)).catch(() => undefined);
+    }
 
     // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
     // submit (Draft/Returned → Submitted) & approve parsial → approver jenjang

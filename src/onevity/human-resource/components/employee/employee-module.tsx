@@ -6,6 +6,7 @@ import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
+import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 export function EmployeeModule({ view }: { view: string }) {
   if (view === "wizard") return <OnboardingWizard />;
   if (view === "disciplinary") return <DisciplinaryPage />;
+  if (view === "documents") return <EmployeeDocumentsView />;
   if (view === "detail") return <EmployeeDetail />;
   return <DirectoryView />;
 }

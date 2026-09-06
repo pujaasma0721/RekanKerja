@@ -8,6 +8,7 @@ import { AttendanceClockingPage } from "@/onevity/time-attendance/components/att
 import { AttendanceAbsencePage } from "@/onevity/time-attendance/components/attendance-absence";
 import { AttendanceOvertimePage } from "@/onevity/time-attendance/components/attendance-overtime";
 import { AttendanceWorkoffPage } from "@/onevity/time-attendance/components/attendance-workoff";
+import { AttendanceHolidaysPage } from "@/onevity/time-attendance/components/attendance-holidays";
 
 export function AttendanceModule({ view }: { view: string }) {
   switch (view) {
@@ -18,6 +19,9 @@ export function AttendanceModule({ view }: { view: string }) {
     case "absence": return <AttendanceAbsencePage />;
     case "overtime": return <AttendanceOvertimePage />;
     case "workoff": return <AttendanceWorkoffPage />;
+    // T9-HOLIDAY: view kalender libur (overlay resolveDayType) — item menu
+    // app-shell (attendance:holidays) di-wire koordinator.
+    case "holidays": return <AttendanceHolidaysPage />;
     default: return <AttendanceOverview />;
   }
 }

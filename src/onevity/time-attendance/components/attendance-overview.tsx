@@ -10,7 +10,7 @@ import { apiSend } from "@/onevity/shared/lib/api";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
   CalendarCheck2, Clock, XCircle, CheckCircle2, Users, CalendarClock,
-  RefreshCw, Timer, BadgeCheck, TrendingUp,
+  CalendarDays, RefreshCw, Timer, BadgeCheck, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,9 @@ interface OverviewData {
   activeSchedules: number;
   assignedEmployees: number;
   nonClocking: number;
+  /** T9-HOLIDAY: jumlah hari libur tahun berjalan + libur terdekat */
+  holidaysThisYear: number;
+  nextHoliday: { date: string; name: string; kind: string } | null;
 }
 
 export function AttendanceOverview() {
@@ -153,6 +156,8 @@ export function AttendanceOverview() {
                   <SetupRow icon={Users} label={t("Karyawan ter-assign jadwal", "Employees with assigned schedules")} value={data ? t("{n} karyawan", "{n} employees", { n: data.assignedEmployees }) : "—"} ok={(data?.assignedEmployees ?? 0) > 0} onClick={() => navigate("attendance", "assignment-schedule")} />
                   <SetupRow icon={XCircle} label={t("Karyawan non-clocking", "Non-clocking employees")} value={data ? t("{n} (jam dianggap normal)", "{n} (hours assumed normal)", { n: data.nonClocking }) : "—"} ok={true} onClick={() => navigate("attendance", "assignment-schedule")} />
                   <SetupRow icon={Clock} label={t("Lembur menunggu approval", "Overtime awaiting approval")} value={data ? t("{n} perintah", "{n} orders", { n: data.pendingOvertime }) : "—"} ok={(data?.pendingOvertime ?? 0) === 0} onClick={() => navigate("attendance", "overtime")} />
+                  {/* T9-HOLIDAY: KPI kalender — hari libur tahun ini + libur terdekat */}
+                  <SetupRow icon={CalendarDays} label={t("Hari libur tahun ini", "Holidays this year")} value={data ? t("{n} hari · terdekat {d}: {name}", "{n} days · next {d}: {name}", { n: data.holidaysThisYear, d: data.nextHoliday?.date ?? "—", name: data.nextHoliday?.name ?? "—" }) : "—"} ok={true} onClick={() => navigate("attendance", "holidays")} />
                 </div>
               </CardContent>
             </Card>

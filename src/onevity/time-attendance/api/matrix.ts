@@ -4,6 +4,8 @@ import { resolveDayType, addDays } from "@/onevity/time-attendance/services/atte
 
 // GET /api/onevity/attendance/matrix?from=YYYY-MM-DD — matriks karyawan × 7 hari
 // (padanan Employee Schedule Matrix): day type efektif per hari per karyawan.
+// T9-HOLIDAY: sel hari libur nasional/bersama membawa info holiday (nama+jenis)
+// — kategori "Holiday" menang atas cycle jadwal (overlay kalender).
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -38,13 +40,15 @@ export async function GET(req: NextRequest) {
         const cells = await Promise.all(
           days.map(async (d) => {
             const date = new Date(`${d.date}T00:00:00`);
-            const { dayType } = await resolveDayType(db, emp.id, date);
+            const { dayType, holiday } = await resolveDayType(db, emp.id, date);
             return {
               date: d.date,
               code: dayType?.code ?? null,
               name: dayType?.name ?? null,
               color: dayType?.color ?? null,
               category: dayType?.category ?? null,
+              // T9-HOLIDAY: nama+jenis libur utk tooltip/badge matriks
+              holiday: holiday ? { name: holiday.name, kind: holiday.kind } : null,
             };
           }),
         );

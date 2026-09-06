@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MatrixRow } from "@/onevity/time-attendance/components/attendance-types";
 import { useI18n } from "@/onevity/shared/lib/i18n";
-import { Layers, ChevronLeft, ChevronRight, CalendarRange, Search } from "lucide-react";
+import { Layers, ChevronLeft, ChevronRight, CalendarRange, CalendarDays, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function mondayOf(d: Date): Date {
@@ -98,7 +98,16 @@ export function AttendanceMatrixPage() {
                       </TableCell>
                       {r.cells.map((c) => (
                         <TableCell key={c.date} className="p-1.5 text-center">
-                          {c.code ? (
+                          {c.holiday ? (
+                            // T9-HOLIDAY: sel tanggal libur — merah bata + nama libur
+                            <div
+                              className="rounded-lg border border-rose-400 bg-rose-500/90 px-1.5 py-1.5 text-white"
+                              title={`${c.holiday.name}${c.holiday.kind === "Joint" ? " (cuti bersama)" : c.holiday.kind === "Company" ? " (libur perusahaan)" : ""}`}
+                            >
+                              <p className="text-[10px] font-extrabold">{t("LIBUR", "HOL")}</p>
+                              <p className="hidden truncate text-[8px] font-medium text-rose-50 sm:block" title={c.holiday.name}>{c.holiday.name}</p>
+                            </div>
+                          ) : c.code ? (
                             <div
                               className="rounded-lg border px-1.5 py-1.5"
                               style={{ backgroundColor: (c.color ?? "#E7E5E4") + "55", borderColor: (c.color ?? "#E7E5E4") }}
@@ -127,22 +136,28 @@ export function AttendanceMatrixPage() {
           )}
           {(api.data?.rows.length ?? 0) > 80 && (
             <p className="border-t border-stone-100 px-5 py-2.5 text-[11px] text-stone-400 dark:border-stone-800">
-              {t("Menampilkan 80 dari {n} karyawan — gunakan pencarian untuk memfilter.", "Showing 80 of {n} employees — use search to filter.", { n: api.data?.rows.length })}
+              {t("Menampilkan 80 dari {n} karyawan — gunakan pencarian untuk memfilter.", "Showing 80 of {n} employees — use search to filter.", { n: api.data?.rows.length ?? 0 })}
             </p>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 px-5 py-3 dark:border-stone-800">
             <div className="flex flex-wrap items-center gap-2">
               {legend().map((l) => (
                 <span key={l.code} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-stone-500">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} /> {l.code}
+                  <span className={cn("h-2.5 w-2.5 rounded-full", l.holiday && "bg-rose-500")} style={l.holiday ? undefined : { backgroundColor: l.color }} /> {l.code}
                 </span>
               ))}
             </div>
-            {unassigned > 0 && (
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs font-bold text-amber-600" onClick={() => navigate("attendance", "assignment-schedule")}>
-                {t("{n} karyawan belum ter-assign →", "{n} employees not yet assigned →", { n: unassigned })}
+            <div className="flex items-center gap-2">
+              {unassigned > 0 && (
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs font-bold text-amber-600" onClick={() => navigate("attendance", "assignment-schedule")}>
+                  {t("{n} karyawan belum ter-assign →", "{n} employees not yet assigned →", { n: unassigned })}
+                </Button>
+              )}
+              {/* T9-HOLIDAY: navigasi internal ke kalender libur */}
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400" onClick={() => navigate("attendance", "holidays")}>
+                <CalendarDays className="h-3.5 w-3.5" /> {t("Kalender Libur →", "Holiday Calendar →")}
               </Button>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -155,5 +170,6 @@ function legend() {
     { code: "OFFICE", color: "#99CCFF" }, { code: "FLEX", color: "#E7E5E4" },
     { code: "SHIFT1", color: "#A7F3D0" }, { code: "SHIFT2", color: "#FDE68A" },
     { code: "SHIFT3", color: "#C7D2FE" }, { code: "OFF/Off", color: "#FCA5A5" },
+    { code: "HOLIDAY/Libur", color: "#F87171", holiday: true },
   ];
 }

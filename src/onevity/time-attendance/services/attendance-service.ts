@@ -48,6 +48,16 @@ export function floorToMultiple(minutes: number, multiple: number): number {
 
 // ============ resolusi jadwal (padanan Employee Schedule Assignment) ============
 
+/** Info hari libur (T9-HOLIDAY) — overlay dari tabel HolidayDate. */
+export interface HolidayInfo {
+  id: string;
+  /** YYYY-MM-DD (lokal) */
+  date: string;
+  name: string;
+  /** National|Joint (cuti bersama)|Company */
+  kind: string;
+}
+
 interface ResolvedSchedule {
   assignment: { id: string; clockingRequired: boolean; scheduleId: string };
   dayType: {
@@ -56,7 +66,37 @@ interface ResolvedSchedule {
     breakMinutes: number; normalMinutes: number;
     toleranceLateMinutes: number; toleranceEarlyMinutes: number; flexible: boolean;
   } | null;
+  /**
+   * T9-HOLIDAY: tanggal terdaftar di kalender libur → day type efektif adalah
+   * HOLIDAY sintetis (kategori "Holiday") dan holiday berisi info kalender.
+   * Prioritas: tanggal libur > cycle jadwal. null = bukan hari libur.
+   */
+  holiday: HolidayInfo | null;
 }
+
+/** Warna sel libur (kalender/matriks) — merah bata, beda dari OFF mingguan. */
+export const HOLIDAY_COLOR = "#F87171";
+
+/** Cari hari libur yang jatuh pada tanggal tsb (bila beberapa, National dulu). */
+export async function holidayOn(db: TenantDb, date: Date): Promise<HolidayInfo | null> {
+  try {
+    const h = await db.holidayDate.findFirst({
+      where: { date: { gte: dayStart(date), lt: addDays(dayStart(date), 1) } },
+      orderBy: [{ kind: "desc" }, { name: "asc" }], // National > Joint > Company
+    });
+    if (!h) return null;
+    const d = dayStart(h.date);
+    return {
+      id: h.id,
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      name: h.name,
+      kind: h.kind,
+    };
+  } catch {
+    return null; // schema tenant belum termigrasi — overlay libur mati anggun
+  }
+}
+
 
 /** Assignment jadwal aktif pada tanggal tsb (validFrom ≤ date ≤ validTo). */
 async function assignmentFor(db: TenantDb, employeeId: string, date: Date) {
@@ -80,23 +120,57 @@ async function assignmentFor(db: TenantDb, employeeId: string, date: Date) {
  * Resolusi day type efektif karyawan pada tanggal — padanan "Employee Clocking:
  * resolve day type efektif". Cycle di-anchor ke anchorMonday/anchorSequence.
  * Tidak ada assignment / sequence tidak terdaftar → null (hari tanpa jadwal).
+ *
+ * T9-HOLIDAY — overlay kalender libur: tanggal yang terdaftar di HolidayDate
+ * MENANG atas cycle jadwal → day type efektif kategori "Holiday" (multiplier
+ * lembur PP 35: 2×/3×/4×; hari kerja cuti melewati hari libur). Jam standar
+ * kantor (08:00-17:00/480') dipakai acuan durasi bila lembur menutup hari.
  */
 export async function resolveDayType(db: TenantDb, employeeId: string, date: Date): Promise<ResolvedSchedule> {
+  // 1) overlay libur — cek DULU, prioritas di atas jadwal
+  const holiday = await holidayOn(db, date);
+  if (holiday) {
+    const a = await assignmentFor(db, employeeId, date);
+    return {
+      assignment: a
+        ? { id: a.id, clockingRequired: a.clockingRequired, scheduleId: a.scheduleId }
+        : { id: "", clockingRequired: true, scheduleId: "" },
+      dayType: {
+        // id sintetis "HOLIDAY" — BUKAN baris WorkDayType (jangan ditulis ke
+        // AttendanceDaily.dayTypeId; consumers membaca holiday utk identitas).
+        id: "HOLIDAY",
+        code: "HOLIDAY",
+        name: holiday.name,
+        color: HOLIDAY_COLOR,
+        category: "Holiday",
+        timeIn: null,
+        timeOut: null,
+        nextDay: false,
+        breakMinutes: 0,
+        normalMinutes: 0,
+        toleranceLateMinutes: 0,
+        toleranceEarlyMinutes: 0,
+        flexible: false,
+      },
+      holiday,
+    };
+  }
+
   const a = await assignmentFor(db, employeeId, date);
-  if (!a) return { assignment: { id: "", clockingRequired: true, scheduleId: "" }, dayType: null };
+  if (!a) return { assignment: { id: "", clockingRequired: true, scheduleId: "" }, dayType: null, holiday: null };
 
   const cycle = a.schedule.days;
-  if (cycle.length === 0) return { assignment: a, dayType: null };
+  if (cycle.length === 0) return { assignment: a, dayType: null, holiday: null };
 
   // sequence efektif: offset hari dari anchor, diputar dalam cycle
   const offset = diffDays(a.anchorMonday, date);
   const idx = ((offset + (a.anchorSequence - 1)) % cycle.length + cycle.length) % cycle.length;
   const seq = cycle.reduce((best, d) => (d.sequence < best.sequence ? d : best), cycle[0]!).sequence + idx;
   const day = cycle.find((d) => d.sequence === seq) ?? cycle.find((d) => d.sequence === idx + 1);
-  if (!day) return { assignment: a, dayType: null };
+  if (!day) return { assignment: a, dayType: null, holiday: null };
 
   const dt = await db.workDayType.findUnique({ where: { id: day.dayTypeId } });
-  if (!dt || !dt.active) return { assignment: a, dayType: null };
+  if (!dt || !dt.active) return { assignment: a, dayType: null, holiday: null };
   return {
     assignment: a,
     dayType: {
@@ -106,6 +180,7 @@ export async function resolveDayType(db: TenantDb, employeeId: string, date: Dat
       toleranceLateMinutes: dt.toleranceLateMinutes, toleranceEarlyMinutes: dt.toleranceEarlyMinutes,
       flexible: dt.flexible,
     },
+    holiday: null,
   };
 }
 
@@ -300,7 +375,7 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
 
   let count = 0;
   for (const emp of employees) {
-    const { assignment, dayType } = await resolveDayType(db, emp.id, date);
+    const { assignment, dayType, holiday } = await resolveDayType(db, emp.id, date);
     // Fix K-2: clock-in tetap dibatasi hari tsb (nextDay: hingga D+1), namun clock-out
     // kini sah hingga 10 jam SETELAH jam pulang jadwal — menangkap clock-out lewat
     // tengah malam pada tipe hari non-lintas-hari (dulu dibuang → karyawan dianggap
@@ -324,7 +399,10 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     const wo = await workoffFor(db, emp.id, date);
     const lv = await leaveFor(db, emp.id, date);
     const target = dayType?.normalMinutes ?? 0;
-    const isOffDay = !dayType || dayType.category === "Off";
+    // T9-HOLIDAY: kategori "Holiday" (overlay kalender libur) = hari TIDAK kerja —
+    // konsisten dgn isWorkday (hitungan hari cuti melewati hari libur nasional);
+    // karyawan tanpa clock di hari libur tidak dihitung Absen (dulu: Absen penuh).
+    const isOffDay = !dayType || dayType.category === "Off" || dayType.category === "Holiday";
     const clockingRequired = assignment?.clockingRequired ?? true;
 
     let status: string;
@@ -342,14 +420,18 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
 
     if (isOffDay) {
       if (checkIn && checkOutRaw) {
-        // bekerja pada hari off — hadir (lembur hari libur via work order)
+        // bekerja pada hari off/libur — hadir (lembur hari libur via work order)
         status = "Present";
         presence = 1;
         workMinutes = Math.min(960, minutesBetween(checkIn, checkOutRaw));
         normalMinutes = 0;
-        notes = "Bekerja pada hari off";
+        notes = holiday ? `Bekerja pada hari libur — ${holiday.name}` : "Bekerja pada hari off";
       } else {
         status = "Off";
+        // T9-HOLIDAY: catat nama libur — terlihat di rekap harian & fallback tampilan
+        notes = holiday
+          ? `Libur ${holiday.kind === "Joint" ? "bersama" : holiday.kind === "Company" ? "perusahaan" : "nasional"} — ${holiday.name}`
+          : null;
       }
     } else if (lv) {
       // Cuti (Approved/MassLeave) menutup hari kerja — padanan Absence Code.
@@ -444,14 +526,17 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     await db.attendanceDaily.upsert({
       where: { employeeId_workDate: { employeeId: emp.id, workDate: start } },
       create: {
-        employeeId: emp.id, workDate: start, dayTypeId: dayType?.id ?? null,
+        employeeId: emp.id, workDate: start,
+        // T9-HOLIDAY: dayTypeId sintetis "HOLIDAY" bukan baris WorkDayType (FK) —
+        // identitas libur dibaca dari notes; baris tetap tercatat utk histori.
+        dayTypeId: holiday ? null : (dayType?.id ?? null),
         state: "Calculated", status, presence,
         checkIn, checkOut: checkOutRaw,
         lateMinutes, earlyMinutes, workMinutes, normalMinutes, absenceMinutes,
         overtimeMinutes, paidFlag, notes,
       },
       update: {
-        dayTypeId: dayType?.id ?? null, state: "Calculated", status, presence,
+        dayTypeId: holiday ? null : (dayType?.id ?? null), state: "Calculated", status, presence,
         checkIn, checkOut: checkOutRaw,
         lateMinutes, earlyMinutes, workMinutes, normalMinutes, absenceMinutes,
         overtimeMinutes, paidFlag, notes, revised: false, revisedBy: null,
@@ -1651,6 +1736,30 @@ export async function attendanceStats(db: TenantDb, date: Date, monthFrom: Date,
     db.scheduleAssignment.count({ where: { clockingRequired: false, OR: [{ validTo: null }, { validTo: { gte: new Date() } }] } }),
   ]);
 
+  // T9-HOLIDAY: ringkasan kalender libur — jumlah hari libur tahun berjalan +
+  // libur terdekat dari tanggal acuan (KPI overview modul attendance).
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  const yearEnd = new Date(date.getFullYear() + 1, 0, 1);
+  let holidaysThisYear = 0;
+  let nextHoliday: { date: string; name: string; kind: string } | null = null;
+  try {
+    holidaysThisYear = await db.holidayDate.count({ where: { date: { gte: yearStart, lt: yearEnd } } });
+    const nh = await db.holidayDate.findFirst({
+      where: { date: { gte: dayStart(date) } },
+      orderBy: [{ date: "asc" }, { kind: "desc" }],
+    });
+    if (nh) {
+      const d = dayStart(nh.date);
+      nextHoliday = {
+        date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        name: nh.name,
+        kind: nh.kind,
+      };
+    }
+  } catch {
+    // schema belum termigrasi — KPI libur dilewati mati anggun
+  }
+
   return {
     today: { date: fmtDate(date), ...today, total: daily.length },
     month: { from: fmtDate(monthFrom), to: fmtDate(monthTo), ...month },
@@ -1659,6 +1768,8 @@ export async function attendanceStats(db: TenantDb, date: Date, monthFrom: Date,
     activeSchedules,
     assignedEmployees,
     nonClocking,
+    holidaysThisYear,
+    nextHoliday,
   };
 }
 

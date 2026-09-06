@@ -160,6 +160,27 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
     subject: "Akun OneVity HRIS Anda telah dibuat",
     body: "Halo {{nama}},\n\nAkun Anda untuk aplikasi OneVity HRIS telah dibuat:\n- Email login: {{email}}\n- Kata sandi sementara: {{password}}\n\nSegera login dan ganti kata sandi Anda. Kata sandi sementara hanya ditampilkan sekali.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
+  // ============ T14-SCHED: template pengingat scheduler latar belakang ============
+  {
+    event: "scheduler.contract-expiry", label: "Scheduler — Kontrak/Probation Segera Berakhir", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat Scheduler] {{jenis}} {{nama}} ({{employeeNo}}) berakhir {{date}}",
+    body: "Halo Tim HR,\n\nPengingat otomatis scheduler OneVity:\n- Karyawan: {{nama}} ({{employeeNo}})\n- Jenis: {{jenis}}\n- Tanggal berakhir: {{date}}\n- Sisa waktu: {{days}} hari\n\nMohon tindak lanjut perpanjangan kontrak / evaluasi probation karyawan ini.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.doc-expiry", label: "Scheduler — Dokumen Karyawan Kedaluwarsa", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat Scheduler] Dokumen {{docType}} {{nama}} kedaluwarsa {{date}}",
+    body: "Halo,\n\nDokumen karyawan berikut akan segera / telah kedaluwarsa:\n- Karyawan: {{nama}} ({{employeeNo}})\n- Dokumen: {{docType}} {{docNo}}\n- Tanggal kedaluwarsa: {{date}}\n- Sisa waktu: {{days}} hari\n\nMohon pembaruan dokumen sebelum tanggal tersebut.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.approval-sla", label: "Scheduler — Persetujuan Melewati SLA", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[SLA] {{jenis}} {{docNo}} menunggu {{days}} hari",
+    body: "Halo {{approver}},\n\nPersetujuan berikut menunggu lebih dari 3 hari (SLA terlampaui):\n- Dokumen: {{jenis}} {{docNo}}\n- Pemohon: {{nama}}\n- Jenjang menunggu: {{layer}}\n- Lama menunggu: {{days}} hari\n\nMohon tindak lanjut segera di OneVity HRIS.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.payroll-reminder", label: "Scheduler — Payroll D-3", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[D-{{days}}] Payroll periode {{periode}} gajian {{date}}",
+    body: "Halo Tim HR,\n\nPeriode payroll {{periode}} ({{code}}) dijadwalkan gajian pada {{date}} — {{days}} hari lagi — dan belum ada run yang dikonfirmasi.\n\nMohon mulai proses payroll agar pembayaran tepat waktu.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
 ];
 
 async function main() {

@@ -33,6 +33,8 @@ export interface EmployeeOption {
 
 export interface MatrixCell {
   date: string; code: string | null; name: string | null; color: string | null; category: string | null;
+  /** T9-HOLIDAY: info libur bila tanggal terdaftar di kalender (null = bukan) */
+  holiday: { name: string; kind: string } | null;
 }
 
 export interface MatrixRow {

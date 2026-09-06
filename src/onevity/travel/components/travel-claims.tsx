@@ -3,9 +3,12 @@
 // rincian biaya per jenis (padanan 4 tab: General/Allowance/Mileage/
 // Entertainment+Guest) + formula Total = rincian + rugi kurs − (a) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
+import {
+  AttachmentUploadArea, AttachmentChips, AttachmentCountBadge,
+} from "@/onevity/shared/components/attachment-upload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +25,7 @@ import {
 } from "./travel-types";
 import {
   FileText, Plus, Search, Calculator, Wallet, ChevronDown, ChevronRight,
-  Landmark, AlertTriangle, Trash2, Users,
+  Landmark, AlertTriangle, Trash2, Users, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -79,6 +82,9 @@ export function TravelClaimsPage() {
   const [previewData, setPreviewData] = useState<ClaimPreviewData | null>(null);
   const [lines, setLines] = useState<ExpenseLine[]>([newLine("")]);
   const [amounts, setAmounts] = useState({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
+  // T16-ATTACH — file kwitansi pra-submit (diunggah dgn entityId "draft:" saat
+  // klaim diajukan → di-rebind server ke klaim baru).
+  const [files, setFiles] = useState<File[]>([]);
 
   const api = useApi<{ claims: TravelClaimRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
     `/api/onevity/travel/claims?status=${statusFilter}`,
@@ -119,6 +125,21 @@ export function TravelClaimsPage() {
   // R = rincian + rugi kurs − (a); b = max(0, R − advance); c = max(0, advance − R).
   const totalExpenses = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const advance = previewData?.advanceAmount ?? 0;
+  // T16-ATTACH — hint jenis biaya needDocs pada dialog (enforcement server).
+  const needDocsHint = useMemo(() => {
+    const names = [
+      ...new Set(
+        lines
+          .filter((l) => l.expenseCode && Number(l.amount) > 0)
+          .map((l) => typeByCode.get(l.expenseCode))
+          .filter((et) => et?.needDocs)
+          .map((et) => et!.name),
+      ),
+    ];
+    return names.length > 0
+      ? t("Jenis {x} mewajibkan lampiran kwitansi — unggah minimal 1 file", "Type {x} requires receipts — upload at least 1 file", { x: names.join(", ") })
+      : undefined;
+  }, [lines, typeByCode, t]);
   const totalReimbursement = Math.max(0, totalExpenses + (Number(amounts.exchangeLoss) || 0) - (Number(amounts.otherCompanyExp) || 0));
   const suggestedB = Math.max(0, totalReimbursement - advance);
   const suggestedC = Math.max(0, advance - totalReimbursement);
@@ -130,17 +151,44 @@ export function TravelClaimsPage() {
     setPreviewData(null);
     setLines([newLine("")]);
     setAmounts({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
+    setFiles([]);
     setDialog(true);
   };
+
+  // T16-ATTACH — unggah file sebagai draf (entityId draft:{uuid}); server
+  // me-rebind ke klaim saat POST klaim sukses; gagal submit → draf disapu.
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const form = new FormData();
+      form.append("file", f);
+      form.append("entityType", "TravelClaim");
+      form.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/onevity/attachments", form);
+      ids.push(res.id);
+    }
+    return ids;
+  }
 
   const submit = async () => {
     const validLines = lines.filter((l) => l.expenseCode && Number(l.amount) > 0);
     if (validLines.length === 0) { toast.error(t("Minimal 1 baris biaya dengan jenis & nominal terisi", "At least 1 expense line with type & amount filled")); return; }
     if (mode === "request" && !requestId) { toast.error(t("Pilih permintaan travel Approved sebagai dasar klaim", "Select an Approved travel request as the claim basis")); return; }
     if (mode === "standalone" && !master.data?.employees?.length) { toast.error(t("Data karyawan belum tersedia", "Employee data not yet available")); return; }
+    // T16-ATTACH — mirror enforcement server: jenis biaya needDocs wajib kwitansi.
+    const needDocsNames = validLines
+      .map((l) => typeByCode.get(l.expenseCode))
+      .filter((et) => et?.needDocs)
+      .map((et) => et!.name);
+    if (needDocsNames.length > 0 && files.length === 0) {
+      toast.error(t("Jenis biaya {x} mewajibkan lampiran kwitansi", "Expense type {x} requires receipt attachments", { x: [...new Set(needDocsNames)].join(", ") }));
+      return;
+    }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; totalSettlement: number; totalExpenses: number; overLimitLines: number }>(
+      // 1) unggah file dulu (draf) → 2) submit klaim dgn attachmentIds
+      const attachmentIds = await uploadDraftFiles();
+      const res = await apiSend<{ docNo: string; totalSettlement: number; totalExpenses: number; overLimitLines: number; attachmentCount?: number }>(
         "/api/onevity/travel/claims", "POST",
         {
           requestId: mode === "request" ? requestId : undefined,
@@ -148,6 +196,7 @@ export function TravelClaimsPage() {
           templateCode: mode === "request" ? previewData?.templateCode : "TRAVEL",
           voucherNo: amounts.voucherNo || undefined,
           remark: amounts.remark || undefined,
+          attachmentIds,
           expenses: validLines.map((l) => ({
             expenseCode: l.expenseCode,
             expenseDate: l.expenseDate || undefined,
@@ -165,10 +214,11 @@ export function TravelClaimsPage() {
         },
       );
       toast.success(
-        t("{no} diajukan — total settlement {total}{warn}", "{no} submitted — total settlement {total}{warn}", {
+        t("{no} diajukan — total settlement {total}{warn}{att}", "{no} submitted — total settlement {total}{warn}{att}", {
           no: res.docNo,
           total: fmtIDR(res.totalSettlement),
           warn: res.overLimitLines > 0 ? t(" ({n} baris lewat limit — perlu perhatian approver)", " ({n} lines over limit — needs approver attention)", { n: res.overLimitLines }) : "",
+          att: (res.attachmentCount ?? 0) > 0 ? t(" · {n} lampiran", " · {n} attachments", { n: res.attachmentCount ?? 0 }) : "",
         }),
       );
       setDialog(false);
@@ -288,6 +338,7 @@ export function TravelClaimsPage() {
                         </TableCell>
                         <TableCell>
                           <StatusPill status={t(TRAVEL_STATUS_LABEL[c.status] ?? c.status, TRAVEL_STATUS_LABEL_EN[c.status] ?? c.status)} />
+                          {(c.attachmentCount ?? 0) > 0 && <AttachmentCountBadge count={c.attachmentCount ?? 0} />}
                           {c.overLimitLines > 0 && (
                             <Badge className="ml-1 bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("LEBIH LIMIT", "OVER LIMIT")}</Badge>
                           )}
@@ -341,6 +392,12 @@ export function TravelClaimsPage() {
                                   ))}
                                   <span className="text-[11px] text-stone-500">{t("total biaya {amt}", "total expenses {amt}", { amt: fmtIDR(c.totalExpenses) })}</span>
                                 </div>
+                                <p className="mb-1 mt-3 text-xs font-black uppercase tracking-wide text-stone-500">{t("Lampiran Kwitansi", "Receipt Attachments")}</p>
+                                <AttachmentChips
+                                  attachments={c.attachments ?? []}
+                                  showDelete={c.status === "Submitted" || c.status === "Rejected"}
+                                  onDeleted={() => { api.refresh(); detailApi.refresh(); }}
+                                />
                                 {c.decisionNote && (
                                   <p className="mt-2 rounded-lg bg-white px-3 py-2 text-[11px] text-stone-600 dark:bg-stone-900 dark:text-stone-300">
                                     {c.decisionNote}
@@ -541,6 +598,20 @@ export function TravelClaimsPage() {
                 <Label className="text-xs font-bold">{t("Catatan")}</Label>
                 <Input value={amounts.remark} onChange={(e) => setAmounts({ ...amounts, remark: e.target.value })} placeholder={t("Kwitansi terlampir", "Receipts attached")} className="h-8 text-sm" />
               </div>
+            </div>
+
+            {/* T16-ATTACH — upload kwitansi (multiple, preview, hapus pra-submit) */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold">
+                <Paperclip className="h-3.5 w-3.5" />
+                {t("Lampiran Kwitansi", "Receipt Attachments")}
+                {needDocsHint && <span className="text-amber-600 dark:text-amber-400">*</span>}
+              </Label>
+              <AttachmentUploadArea
+                files={files}
+                onChange={setFiles}
+                hint={needDocsHint}
+              />
             </div>
           </div>
 

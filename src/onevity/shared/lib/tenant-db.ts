@@ -16,13 +16,18 @@ export type { TenantPrismaClient };
 // route lama maupun baru sama-sama mendapat instance DMMF baru.
 // T5-TA-FIX: versi dinaikkan lagi (V4) — kolom AttendanceDaily.paidFlag
 // masuk client hasil generate (recapPeriod/regenerateDaily menulis kolom ini).
+// T16-ATTACH: versi dinaikkan lagi (V5) — model Attachment + EmployeeDocument
+// masuk client hasil generate (route lampiran & dokumen karyawan memakainya).
+// T9-HOLIDAY: versi dinaikkan lagi (V6H) — model HolidayDate masuk client hasil
+// generate (overlay engine resolveDayType meng-query tabel ini); agen paralel
+// lain memakai V5 — key V6H milik T9, instance lama tidak dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsV4: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsV6H: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsV4 ?? new Map();
-globalForTenants.onevityTenantClientsV4 = tenantClients;
+  globalForTenants.onevityTenantClientsV6H ?? new Map();
+globalForTenants.onevityTenantClientsV6H = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

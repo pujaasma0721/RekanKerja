@@ -33,7 +33,7 @@ import {
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
-  Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn,
+  Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +112,7 @@ const HR_NAV: NavGroup[] = [
     { id: "directory", label: "Direktori Karyawan", icon: Users },
     { id: "wizard", label: "Onboarding Karyawan", icon: UserPlus },
     { id: "disciplinary", label: "Catatan Disiplin", icon: Scale },
+    { id: "documents", label: "Dokumen Karyawan", icon: FolderOpen },
   ] },
   { section: "actions", label: "Pengajuan & Persetujuan", children: [
     { id: "inbox", label: "Menunggu Persetujuan", icon: Inbox, badge: "pending" },
@@ -156,6 +157,7 @@ const ATTENDANCE_NAV: NavGroup[] = [
     { id: "templates-schedule", label: "Template Jadwal", icon: CalendarClock },
     { id: "assignment-schedule", label: "Assign Jadwal", icon: CalendarRange },
     { id: "matrix", label: "Matriks Jadwal", icon: Layers },
+    { id: "holidays", label: "Kalender Libur", icon: CalendarDays },
   ] },
   { section: "attendance", label: "Kehadiran", children: [
     { id: "clocking", label: "Data Clocking", icon: Activity },

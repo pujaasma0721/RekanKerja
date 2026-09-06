@@ -119,6 +119,27 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Akun OneVity HRIS Anda telah dibuat",
     body: "Halo {{nama}},\n\nAkun Anda untuk aplikasi OneVity HRIS telah dibuat:\n- Email login: {{email}}\n- Kata sandi sementara: {{password}}\n\nSegera login dan ganti kata sandi Anda. Kata sandi sementara hanya ditampilkan sekali.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
+  // ============ T14-SCHED: template pengingat scheduler latar belakang ============
+  {
+    event: "scheduler.contract-expiry", label: "Scheduler — Kontrak/Probation Segera Berakhir", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat Scheduler] {{jenis}} {{nama}} ({{employeeNo}}) berakhir {{date}}",
+    body: "Halo Tim HR,\n\nPengingat otomatis scheduler OneVity:\n- Karyawan: {{nama}} ({{employeeNo}})\n- Jenis: {{jenis}}\n- Tanggal berakhir: {{date}}\n- Sisa waktu: {{days}} hari\n\nMohon tindak lanjut perpanjangan kontrak / evaluasi probation karyawan ini.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.doc-expiry", label: "Scheduler — Dokumen Karyawan Kedaluwarsa", notifyEmployee: true, notifyApprover: false, notifyHrd: true,
+    subject: "[Pengingat Scheduler] Dokumen {{docType}} {{nama}} kedaluwarsa {{date}}",
+    body: "Halo,\n\nDokumen karyawan berikut akan segera / telah kedaluwarsa:\n- Karyawan: {{nama}} ({{employeeNo}})\n- Dokumen: {{docType}} {{docNo}}\n- Tanggal kedaluwarsa: {{date}}\n- Sisa waktu: {{days}} hari\n\nMohon pembaruan dokumen sebelum tanggal tersebut.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.approval-sla", label: "Scheduler — Persetujuan Melewati SLA", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[SLA] {{jenis}} {{docNo}} menunggu {{days}} hari",
+    body: "Halo {{approver}},\n\nPersetujuan berikut menunggu lebih dari 3 hari (SLA terlampaui):\n- Dokumen: {{jenis}} {{docNo}}\n- Pemohon: {{nama}}\n- Jenjang menunggu: {{layer}}\n- Lama menunggu: {{days}} hari\n\nMohon tindak lanjut segera di OneVity HRIS.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "scheduler.payroll-reminder", label: "Scheduler — Payroll D-3", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[D-{{days}}] Payroll periode {{periode}} gajian {{date}}",
+    body: "Halo Tim HR,\n\nPeriode payroll {{periode}} ({{code}}) dijadwalkan gajian pada {{date}} — {{days}} hari lagi — dan belum ada run yang dikonfirmasi.\n\nMohon mulai proses payroll agar pembayaran tepat waktu.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
+  },
 ];
 
 /** Label tampil untuk sebuah event (UI). */
@@ -152,6 +173,13 @@ const PH_LAYER: PlaceholderDef = { key: "layer", label: "Jenjang/layer persetuju
 const PH_APPROVER: PlaceholderDef = { key: "approver", label: "Nama approver yang dituju", contoh: "Tri Handayani" };
 const PH_TOTAL: PlaceholderDef = { key: "total", label: "Total bruto (Rp)", contoh: "Rp 412.500.000" };
 const PH_NET: PlaceholderDef = { key: "net", label: "Take Home Pay (Rp)", contoh: "Rp 23.678.526" };
+// T14-SCHED: placeholder template pengingat scheduler
+const PH_EMPNO: PlaceholderDef = { key: "employeeNo", label: "Nomor karyawan", contoh: "MII00007" };
+const PH_DATE: PlaceholderDef = { key: "date", label: "Tanggal berakhir / kedaluwarsa / gajian", contoh: "2026-10-06" };
+const PH_DAYS: PlaceholderDef = { key: "days", label: "Jumlah hari (sisa waktu / lama menunggu)", contoh: "30" };
+const PH_JENIS_SCHED: PlaceholderDef = { key: "jenis", label: "Jenis pengingat (Kontrak/Probation)", contoh: "Kontrak" };
+const PH_DOCTYPE: PlaceholderDef = { key: "docType", label: "Jenis dokumen karyawan", contoh: "Paspor" };
+const PH_CODE: PlaceholderDef = { key: "code", label: "Kode periode payroll", contoh: "2026-10" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -179,6 +207,11 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
     { key: "email", label: "Email login akun baru", contoh: "tri@mii.co.id" },
     { key: "password", label: "Kata sandi sementara (sekali tampil)", contoh: "Onevity!2026" },
   ],
+  // T14-SCHED: katalog placeholder template pengingat scheduler
+  "scheduler.contract-expiry": [PH_NAMA, PH_EMPNO, PH_JENIS_SCHED, PH_DATE, PH_DAYS],
+  "scheduler.doc-expiry": [PH_NAMA, PH_EMPNO, PH_DOCTYPE, PH_DOC, PH_DATE, PH_DAYS],
+  "scheduler.approval-sla": [PH_DOC, { ...PH_JENIS_SCHED, label: "Jenis dokumen (Cuti/Travel/dsb)", contoh: "Cuti" }, PH_NAMA, PH_APPROVER, PH_LAYER, PH_DAYS],
+  "scheduler.payroll-reminder": [PH_PERIODE, PH_CODE, PH_DATE, PH_DAYS],
 };
 
 /** Daftar placeholder untuk event (fallback: kosong — contoh config.test sistem). */

@@ -51,6 +51,9 @@ export interface ClaimUI {
   statusLog: { state: string; at: string; by: string; note?: string }[];
   /** info approval berjenjang (Task 25) — null bila tanpa chain */
   approval?: MedicalApprovalUI | null;
+  /** T16-ATTACH — metadata lampiran kwitansi (badge "lampiran n" + preview). */
+  attachments?: import("@/onevity/shared/components/attachment-upload").AttachmentMetaUI[];
+  attachmentCount?: number;
 }
 
 /** Ringkasan jalur approval berjenjang pada row list (Task 25). */
