@@ -1,9 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { type TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { type Employee, Prisma } from "@/generated/tenant";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
+import { readVerifiedSession } from "@/onevity/shared/lib/auth";
+import { db as platformDb } from "@/lib/db";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
+
+/** Sanitasi kode perusahaan/slug → prefix nomor karyawan (A-Z0-9). */
+function codePrefix(code: string | null | undefined): string {
+  return String(code ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/**
+ * Prefix employeeNo tenant ini — fix audit AUDIT-1: dulu hard-coded "MII"
+ * sehingga karyawan tenant Cahaya/Sentra pun ikut bernomor MII000xx.
+ * Sumber: Company.code tenant (mis. MII); bila Company belum di-set / tanpa
+ * kode → fallback 3 karakter pertama slug tenant (registry platform, via
+ * sesi); terakhir "EMP" bila keduanya kosong. Pola nomor: {PREFIX}{5 digit}.
+ */
+async function employeeNoPrefix(req: NextRequest, companyCode: string | null | undefined): Promise<string> {
+  const fromCompany = codePrefix(companyCode);
+  if (fromCompany) return fromCompany;
+  try {
+    const session = await readVerifiedSession(req);
+    if (session?.tid) {
+      const tenant = await platformDb.tenant.findUnique({
+        where: { id: session.tid },
+        select: { slug: true },
+      });
+      const fromSlug = codePrefix(tenant?.slug).slice(0, 3);
+      if (fromSlug) return fromSlug;
+    }
+  } catch {
+    // registry platform tak terbaca → lanjut ke default
+  }
+  return "EMP";
+}
+
+/**
+ * create employee + penomoran employeeNo race-safe (fix audit AUDIT-1):
+ * nomor dihitung dari max urutan dgn prefix yang sama, lalu insert.
+ * Bila P2002 (dua onboarding paralel merebut nomor sama) → retry 1× dgn
+ * nomor dihitung ulang; kalah lagi → dilempar (catch route → 400 ramah).
+ */
+async function createEmployeeWithNoRetry(
+  db: TenantDb,
+  prefix: string,
+  data: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo">,
+): Promise<Employee> {
+  for (let attempt = 0; ; attempt++) {
+    const last = await db.employee.findFirst({
+      where: { employeeNo: { startsWith: prefix } },
+      orderBy: { employeeNo: "desc" },
+      select: { employeeNo: true },
+    });
+    const lastSeq = last ? Number(last.employeeNo.slice(prefix.length).replace(/\D/g, "")) : 0;
+    const employeeNo = `${prefix}${String((Number.isFinite(lastSeq) ? lastSeq : 0) + 1).padStart(5, "0")}`;
+    try {
+      return await db.employee.create({ data: { ...data, employeeNo } });
+    } catch (e) {
+      if ((e as { code?: string })?.code === "P2002" && attempt === 0) continue; // retry 1× (nomor baru)
+      throw e;
+    }
+  }
+}
 
 // GET /api/onevity/employees?q=...&status=...&unit=...&employmentStatus=...&limit=&offset=
 // Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
@@ -101,8 +163,14 @@ export async function POST(req: NextRequest) {
     if (!b.fullName || !String(b.fullName).trim()) {
       return NextResponse.json({ error: "Nama lengkap karyawan wajib diisi" }, { status: 400 });
     }
-    const company = await db.company.findFirst();
-    if (!company) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });
+    const company = b.companyId
+      ? await db.company.findUnique({ where: { id: b.companyId }, select: { id: true, code: true } })
+      : await db.company.findFirst({ select: { id: true, code: true } });
+    const companyId = company?.id;
+    if (b.companyId && !company) {
+      return NextResponse.json({ error: "Perusahaan tidak dikenal — pilih ulang perusahaan" }, { status: 400 });
+    }
+    if (!companyId) return NextResponse.json({ error: "Company belum di-set" }, { status: 400 });
 
     // (d) FK wajib valid → pesan 400 ramah (bukan error 500 prisma)
     if (b.orgUnitId) {
@@ -145,35 +213,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // auto employeeNo
-    const last = await db.employee.findFirst({ orderBy: { employeeNo: "desc" }, select: { employeeNo: true } });
-    const nextNo = last ? Number(last.employeeNo.replace(/\D/g, "")) + 1 : 1;
-    const employeeNo = `MII${String(nextNo).padStart(5, "0")}`;
+    // auto employeeNo — prefix Company.code tenant (fix AUDIT-1, dulu "MII"
+    // hard-coded) + race P2002 ditangani (retry 1×, hitung ulang nomor).
+    const prefix = await employeeNoPrefix(req, company.code);
 
     const joinDate = b.joinDate ? new Date(b.joinDate) : new Date();
 
-    const employee = await db.employee.create({
-      data: {
-        employeeNo,
-        fullName: b.fullName,
-        gender: b.gender ?? "M",
-        birthPlace: b.birthPlace ?? null,
-        birthDate: b.birthDate ? new Date(b.birthDate) : null,
-        nationalId: b.nationalId ?? null,
-        taxId: b.taxId ?? null,
-        maritalStatus: b.maritalStatus ?? null,
-        religion: b.religion ?? null,
-        bloodType: b.bloodType ?? null,
-        email: b.email ?? null,
-        phone: b.phone ?? null,
-        address: b.address ?? null,
-        city: b.city ?? null,
-        bankName: b.bankName ?? null,
-        bankAccount: b.bankAccount ?? null,
-        companyId: b.companyId ?? company.id,
-        joinDate,
-        status: "Active",
-      },
+    const employee = await createEmployeeWithNoRetry(db, prefix, {
+      fullName: b.fullName,
+      gender: b.gender ?? "M",
+      birthPlace: b.birthPlace ?? null,
+      birthDate: b.birthDate ? new Date(b.birthDate) : null,
+      nationalId: b.nationalId ?? null,
+      taxId: b.taxId ?? null,
+      maritalStatus: b.maritalStatus ?? null,
+      religion: b.religion ?? null,
+      bloodType: b.bloodType ?? null,
+      email: b.email ?? null,
+      phone: b.phone ?? null,
+      address: b.address ?? null,
+      city: b.city ?? null,
+      bankName: b.bankName ?? null,
+      bankAccount: b.bankAccount ?? null,
+      companyId,
+      joinDate,
+      status: "Active",
     });
 
     // penempatan awal → riwayat pekerjaan baris pertama
@@ -205,7 +269,7 @@ export async function POST(req: NextRequest) {
         entity: "Employee",
         entityId: employee.id,
         employeeId: employee.id,
-        detail: `Onboarding karyawan ${employee.fullName} (${employeeNo}) oleh ${actor.appUsername ?? actor.name}`,
+        detail: `Onboarding karyawan ${employee.fullName} (${employee.employeeNo}) oleh ${actor.appUsername ?? actor.name}`,
       },
     });
 
@@ -214,6 +278,13 @@ export async function POST(req: NextRequest) {
     // FK prisma (P2003) → 400 ramah (fix M-06d: bukan 500)
     if ((e as { code?: string })?.code === "P2003") {
       return NextResponse.json({ error: "Data referensi tidak valid — periksa unit/posisi/grade/atasan" }, { status: 400 });
+    }
+    // employeeNo kalah race setelah retry (P2002 unique) → 400 ramah, bukan 500 Prisma mentah
+    if ((e as { code?: string })?.code === "P2002") {
+      return NextResponse.json(
+        { error: "Nomor karyawan baru sudah dipakai permintaan lain yang berjalan bersamaan — muat ulang dan coba lagi" },
+        { status: 400 },
+      );
     }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

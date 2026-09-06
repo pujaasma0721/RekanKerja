@@ -933,6 +933,26 @@ model AppUser {
   activities      ActivityLog[]
   menuAccess      UserMenuAccess? @relation("UserMenuAccess")
   passwordHistory PasswordHistory[] @relation("PasswordHistory")
+  notifications   Notification[]
+}
+
+// Pusat notifikasi per AppUser (T7-ESS) — diisi lintas modul via helper
+// pushNotification() (src/onevity/shared/services/notification-service.ts,
+// fire-and-forget). kind = kategori emisi (mis. leave/travel/payroll),
+// link = tujuan navigasi UI bila dibuka (opsional).
+model Notification {
+  id        String    @id @default(cuid())
+  appUserId String
+  title     String
+  body      String?
+  kind      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@index([appUserId, createdAt])
 }
 
 // Kebijakan kata sandi per tenant (Task 33) — aturan validasi SANDI BARU saat
@@ -1261,6 +1281,9 @@ model AttendanceClockLog {
   direction  String   @default("IN") // IN|OUT
   source     String   @default("Manual") // Manual|Web|Mobile|Machine
   note       String?
+  // T7-ESS: posisi clock via web/mobile (opsional — geolocation presensi).
+  latitude   Float?
+  longitude  Float?
   createdAt  DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)

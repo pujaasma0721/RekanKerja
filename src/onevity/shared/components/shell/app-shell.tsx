@@ -5,7 +5,7 @@
 //   · Widget hidup dengan data nyata: avatar pengaju, ring hari menuju akhir periode, status email
 //   · Mobile: bottom tab bar + bottom sheet (pola navigasi native)
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
+import { useNav, useUiMode, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
 import { useApi, initials } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
@@ -26,7 +26,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
-  LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown,
+  LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown, UserRound,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
   Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
@@ -394,6 +394,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false); // dialog Ganti Kata Sandi (Task 33)
   const [sheet, setSheet] = useState<MobileSheet>(null); // bottom sheet mobile
+  const setUiMode = useUiMode((s) => s.setUiMode); // T8: ganti Mode Karyawan/Mode Admin
   const session = useSession();
   const sessionUser = session.info?.user;
   const sessionTenant = session.info?.tenant;
@@ -760,17 +761,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </nav>
 
-          {/* footer panel: user (session SaaS multi-tenant) */}
+          {/* footer panel: user (session SaaS multi-tenant) — T8: avatar kini
+              membuka dropdown berisi item "Mode Karyawan" (ganti ke shell ESS) */}
           <div className="border-t border-white/10 px-3.5 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="relative shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
-                <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-0.5 text-left transition hover:bg-white/5"
+                    aria-label={t("Menu akun", "Account menu")}
+                  >
+                    <div className="relative shrink-0">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
+                      <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-stone-500" aria-hidden />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" className="w-56">
+                  <DropdownMenuItem onClick={() => setUiMode("ess")}>
+                    <UserRound className="h-4 w-4" /> {t("Mode Karyawan", "Employee Mode")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <button
                 onClick={() => setPwOpen(true)}
                 className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:ov-text-accent-base"
@@ -1024,6 +1041,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     sessionTenant={sessionTenant}
                     onPw={() => { setSheet(null); setPwOpen(true); }}
                     onLogout={() => { setSheet(null); void session.logout(); }}
+                    onModeEmployee={() => { setSheet(null); setUiMode("ess"); }}
                   />
                 ) : sheetModule ? (
                   <ModuleMenuSheet m={sheetModule} groups={sheetGroups} onGo={go} onClose={() => setSheet(null)} />
@@ -1045,7 +1063,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 interface SessionUser { name: string }
 interface SessionTenant { name: string; role: string }
 
-function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, onNavigateModule, onGoSettings, sessionUser, sessionTenant, onPw, onLogout }: {
+function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, onNavigateModule, onGoSettings, sessionUser, sessionTenant, onPw, onLogout, onModeEmployee }: {
   allowedModules: ModuleMeta[];
   settingsGroups: NavGroup[];
   module: ModuleId;
@@ -1056,6 +1074,7 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
   sessionTenant: SessionTenant | null | undefined;
   onPw: () => void;
   onLogout: () => void;
+  onModeEmployee: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -1119,6 +1138,13 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
             <LogOut className="h-3.5 w-3.5" /> {t("Keluar")}
           </button>
         </div>
+        {/* T8: pintasan ganti ke pengalaman Employee Self-Service */}
+        <button
+          onClick={onModeEmployee}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 py-2 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/15"
+        >
+          <UserRound className="h-3.5 w-3.5" /> {t("Mode Karyawan", "Employee Mode")}
+        </button>
       </div>
     </div>
   );

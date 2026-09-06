@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // ============ COMPANY OFFICE (kantor perusahaan) ============
 
@@ -26,10 +27,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/onevity/company-offices
+// POST /api/onevity/company-offices — T6-MISC: guard hak AKSI menu hr:offices
+// (Kantor & Lokasi Kerja) — pola sama dgn org-units (T1-SECURITY).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "hr:offices", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -53,10 +55,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/onevity/company-offices
+// PATCH /api/onevity/company-offices — T6-MISC: guard aksi Ubah hr:offices.
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "hr:offices", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -75,10 +77,10 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// DELETE /api/onevity/company-offices?id=
+// DELETE /api/onevity/company-offices?id= — T6-MISC: guard aksi Hapus hr:offices.
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "hr:offices", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 

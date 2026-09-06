@@ -760,6 +760,20 @@ CREATE TABLE "AppUser" (
 );
 
 -- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT,
+    "kind" TEXT,
+    "link" TEXT,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PasswordPolicy" (
     "id" TEXT NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
@@ -1022,6 +1036,8 @@ CREATE TABLE "AttendanceClockLog" (
     "direction" TEXT NOT NULL DEFAULT 'IN',
     "source" TEXT NOT NULL DEFAULT 'Manual',
     "note" TEXT,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AttendanceClockLog_pkey" PRIMARY KEY ("id")
@@ -1671,6 +1687,9 @@ CREATE UNIQUE INDEX "Lookup_category_code_key" ON "Lookup"("category", "code");
 CREATE UNIQUE INDEX "AppUser_username_key" ON "AppUser"("username");
 
 -- CreateIndex
+CREATE INDEX "Notification_appUserId_createdAt_idx" ON "Notification"("appUserId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "PasswordHistory_appUserId_setAt_idx" ON "PasswordHistory"("appUserId", "setAt");
 
 -- CreateIndex
@@ -2008,6 +2027,9 @@ ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_employeeId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "PayrollPeriod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PasswordHistory" ADD CONSTRAINT "PasswordHistory_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;

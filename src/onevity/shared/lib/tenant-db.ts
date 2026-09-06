@@ -11,13 +11,16 @@ export type { TenantPrismaClient };
 // T3-TRAVEL: key diberi versi — regenerasi Prisma client (kolom baru
 // TravelAdvance.status/givenAt nullable) mewajibkan instance client baru;
 // instance lama (DMMF lama) di cache global tidak dipakai ulang.
+// T7-ESS: versi dinaikkan lagi (V3) — model Notification + kolom
+// AttendanceClockLog.latitude/longitude masuk client hasil generate;
+// route lama maupun baru sama-sama mendapat instance DMMF baru.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsV2: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsV3: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsV2 ?? new Map();
-globalForTenants.onevityTenantClientsV2 = tenantClients;
+  globalForTenants.onevityTenantClientsV3 ?? new Map();
+globalForTenants.onevityTenantClientsV3 = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

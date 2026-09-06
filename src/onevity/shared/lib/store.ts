@@ -125,6 +125,50 @@ function writeUrl(mod: ModuleId, section: SectionId, view: string, params: Recor
   window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
 }
 
+// ============ MODE UI: admin vs ESS (Task T8-ESS-FRONTEND) ============
+// Mode UI global: "admin" (shell admin lengkap) | "ess" (Employee Self-Service —
+// pengalaman halaman terpisah penuh).
+//   · setUiMode(m)   → pilihan EKSPLISIT pengguna (menu "Mode Karyawan"/"Mode Admin")
+//                      — dipersist ke localStorage "onevity:mode".
+//   · setAutoMode(m) → deteksi otomatis oleh page.tsx (pengguna tanpa menu admin →
+//                      "ess"); TIDAK menimpa bila pengguna sudah memilih eksplisit.
+//   · hydrate()      → baca localStorage sekali saat mount (sebelum session ready,
+//                      sehingga tidak ada kedip shell yang salah).
+export type UiMode = "admin" | "ess";
+
+const UI_MODE_KEY = "onevity:mode";
+
+interface UiModeState {
+  uiMode: UiMode;
+  /** pilihan eksplisit pengguna (persist); null → ikut deteksi otomatis */
+  override: UiMode | null;
+  /** hasil deteksi otomatis (default admin) */
+  auto: UiMode;
+  setUiMode: (m: UiMode) => void;
+  setAutoMode: (m: UiMode) => void;
+  hydrate: () => void;
+}
+
+export const useUiMode = create<UiModeState>((set) => ({
+  uiMode: "admin",
+  override: null,
+  auto: "admin",
+  setUiMode: (m) => {
+    if (typeof window !== "undefined") {
+      try { window.localStorage.setItem(UI_MODE_KEY, m); } catch { /* storage bisa diblokir */ }
+    }
+    set({ override: m, uiMode: m });
+  },
+  setAutoMode: (m) => set((s) => (s.override ? { auto: m } : { auto: m, uiMode: m })),
+  hydrate: () => {
+    if (typeof window === "undefined") return;
+    try {
+      const v = window.localStorage.getItem(UI_MODE_KEY);
+      if (v === "ess" || v === "admin") set({ override: v, uiMode: v });
+    } catch { /* abaikan */ }
+  },
+}));
+
 export const useNav = create<NavState>((set, get) => ({
   module: "hr",
   section: "dashboard",

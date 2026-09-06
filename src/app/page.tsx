@@ -2,10 +2,13 @@
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNav } from "@/onevity/shared/lib/store";
+import { useNav, useUiMode } from "@/onevity/shared/lib/store";
+import { useApi } from "@/onevity/shared/lib/api";
+import { useSession } from "@/onevity/shared/lib/session-store";
 import { AuthGate } from "@/onevity/shared/components/auth/auth-gate";
 import { AppShell } from "@/onevity/shared/components/shell/app-shell";
-import { I18nProvider } from "@/onevity/shared/lib/i18n";
+import { EssShell } from "@/onevity/ess/components/ess-shell";
+import { I18nProvider, useI18n } from "@/onevity/shared/lib/i18n";
 // Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
 import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-lab";
 // Design Lab — mockup desain halaman masuk (terisolasi, akses ?mockup=auth)
@@ -21,7 +24,7 @@ import { LeaveModule } from "@/onevity/leave/components/leave-module";
 import { TravelModule } from "@/onevity/travel/components/travel-module";
 import { MedicalModule } from "@/onevity/medical/components/medical-module";
 import { SettingsModule } from "@/onevity/shared/components/settings/settings-module";
-import { ModulePlaceholder } from "@/onevity/shared/components/module-placeholder";
+import { Loader2, Waypoints } from "lucide-react";
 
 export default function Page() {
   // useSearchParams butuh boundary Suspense pada halaman statis (Next 16)
@@ -32,12 +35,53 @@ export default function Page() {
   );
 }
 
+/** Splash singkat saat mode UI masih diputuskan (session ready, hak menu termuat). */
+function ModeSplash() {
+  const { t } = useI18n();
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#faf8f3] dark:bg-stone-950">
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-900 text-white shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">
+          <Waypoints className="h-7 w-7" aria-hidden />
+        </div>
+        <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500 dark:text-stone-400">
+          <Loader2 className="h-4 w-4 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
+          {t("Menyiapkan ruang kerja Anda…", "Preparing your workspace…")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PageInner() {
   // Hooks dipanggil selalu (sebelum branch mockup) agar urutan konsisten.
   const { section, view, syncFromUrl } = useNav();
   const searchParams = useSearchParams();
+  const session = useSession();
+  const uiMode = useUiMode((s) => s.uiMode);
+  const modeOverride = useUiMode((s) => s.override);
 
   useEffect(() => { syncFromUrl(); }, [syncFromUrl]);
+
+  // ===== MODE UI (T8): hydrate preferensi tersimpan sekali, SEBELUM session
+  // ready — tidak ada kedip shell yang salah.
+  useEffect(() => { useUiMode.getState().hydrate(); }, []);
+
+  // Hak menu admin pengguna sesi (dipakai untuk auto-deteksi mode default).
+  // Hanya di-fetch saat session ready (menghindari 401 sia-sia saat anonim).
+  const meMenu = useApi<{ all: boolean; menus: string[]; isSuperAdmin: boolean }>(
+    session.status === "ready" ? "/api/onevity/user-menu-access?action=me" : null,
+    [session.status],
+  );
+
+  // Auto-deteksi mode default: pengguna TANPA menu admin apa pun → otomatis ESS.
+  // Tidak menimpa pilihan eksplisit pengguna (override di store).
+  useEffect(() => {
+    if (session.status !== "ready" || !meMenu.data) return;
+    const d = meMenu.data;
+    const noAdminMenu = !d.all && !(d.menus ?? []).length && !d.isSuperAdmin;
+    useUiMode.getState().setAutoMode(noAdminMenu ? "ess" : "admin");
+  }, [session.status, meMenu.data]);
 
   // Mode mockup desain menu (?mockup=menu) — render lab tanpa AuthGate/shell,
   // benar-benar terisolasi dari menu live (dan dari provider bahasa).
@@ -47,10 +91,19 @@ function PageInner() {
   // halaman login live tidak tersentuh sampai pilihan desain diambil.
   if (searchParams.get("mockup") === "auth") return <AuthDesignLab />;
 
+  // Mode UI masih diputuskan (session ready, belum ada override, hak menu
+  // belum termuat) → splash agar tidak berkedip shell admin.
+  const deciding = session.status === "ready" && !modeOverride && !meMenu.data && !meMenu.error;
+
   return (
     <I18nProvider>
       <AuthGate>
-      <AppShell>
+      {deciding ? (
+        <ModeSplash />
+      ) : uiMode === "ess" ? (
+        <EssShell />
+      ) : (
+        <AppShell>
         <AnimatePresence mode="wait">
           <motion.div
             key={`${section}-${view}`}
@@ -73,8 +126,8 @@ function PageInner() {
           </motion.div>
         </AnimatePresence>
       </AppShell>
+      )}
       </AuthGate>
     </I18nProvider>
   );
 }
-
