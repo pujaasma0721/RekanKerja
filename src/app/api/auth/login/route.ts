@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, verifyPassword, buildSessionInfo, currentSessionVersion,
+  readUserMfa, signMfaToken, verifyPassword,
 } from "@/onevity/shared/lib/auth";
-import { resolveLoginLockout, passwordStatusOfSession, touchLastLogin } from "@/onevity/shared/services/password-security";
+import { finishLogin } from "@/onevity/shared/api/login-flow";
+import { resolveLoginLockout } from "@/onevity/shared/services/password-security";
 
 // POST /api/auth/login { email, password } → session cookie (tid otomatis bila 1 workspace)
 // Task 33: lockout percobaan gagal (policy tenant pertama), reset hitungan saat
 // sukses, lastLogin AppUser, dan flag kedaluwarsa kata sandi (lifetime).
+// T17-MFA: 2-LANGKAH bila user.totpEnabled — password benar → JANGAN set cookie;
+// kembalikan { mfaRequired: true, mfaToken } (HMAC 5 menit). Cookie hanya di-set
+// /api/auth/mfa/verify setelah kode 6 digit TOTP benar (finishLogin dipakai bersama).
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
@@ -58,28 +62,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email atau kata sandi salah" }, { status: 401 });
     }
 
-    // ---- sukses: reset hitungan + lastLogin + status umur sandi ----
+    // ---- sukses: reset hitungan gagal (lastLogin + cookie ada di finishLogin) ----
     await db.user.update({ where: { id: user.id }, data: { failedAttempts: 0, lockedUntil: null } });
 
-    const info = await buildSessionInfo(user.id, null);
-    if (!info) return NextResponse.json({ error: "Sesi gagal dibangun" }, { status: 500 });
+    // ---- T17-MFA: akun ber-MFA → langkah 2 (kode TOTP), cookie BELUM di-set ----
+    // Kolom dibaca raw (pola T1 sessionVersion) agar benar juga pada proses dev
+    // yang Prisma client-nya masih cache lama (pra kolom totpSecret/totpEnabled).
+    const mfa = await readUserMfa(user.id);
+    if (mfa?.enabled && mfa.secret) {
+      return NextResponse.json({ mfaRequired: true, mfaToken: signMfaToken(user.id) });
+    }
 
-    // bila user hanya punya 1 workspace aktif → langsung pilih
-    const tid = info.workspaces.length === 1 ? info.workspaces[0]!.id : null;
-    const finalInfo = tid ? (await buildSessionInfo(user.id, tid))! : info;
-
-    await touchLastLogin(email, tid, user.id);
-    const pwStatus = await passwordStatusOfSession(user.id, tid, email);
-
-    const res = NextResponse.json({
-      ...finalInfo,
-      ...(pwStatus ? { password: pwStatus } : {}),
-    });
-    // T1-SECURITY: token membawa sessionVersion user (dicek server-side saat verify;
-    // dibaca raw agar juga benar pada proses dev dengan Prisma client cache lama).
-    const sv = await currentSessionVersion(user.id);
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tid, sv), sessionCookieOptions());
-    return res;
+    return finishLogin(user.id);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -131,6 +131,9 @@ export const DETAIL_LABELS: Record<string, string> = {
   newUnit: "Unit Baru",
   newEmploymentStatus: "Status Kepegawaian Baru",
   percent: "Persentase Kenaikan",
+  pesangonMultiplier: "Faktor UPMK Pesangon",
+  uangPisahPct: "Uang Pisah (% pesangon)",
+  includeBonusProRata: "Bonus Pro-rata (penggantian hak)",
 };
 
 // En paralel untuk DETAIL_LABELS di atas (map ID dipertahankan; render t(MAP[k], MAP_EN[k]) — Task I-3)
@@ -150,6 +153,9 @@ export const DETAIL_LABELS_EN: Record<string, string> = {
   newUnit: "New Unit",
   newEmploymentStatus: "New Employment Status",
   percent: "Raise Percentage",
+  pesangonMultiplier: "UPMK Severance Factor",
+  uangPisahPct: "Separation Pay (% of severance)",
+  includeBonusProRata: "Pro-rata Bonus (replacement entitlement)",
 };
 
 // En paralel untuk label PA_TYPES (ui-kit, di luar scope I-3) — dipakai render t(v.label, PA_TYPE_LABEL_EN[k])
@@ -172,10 +178,12 @@ export function parseDetail(detailJson: string | null): Record<string, unknown> 
 
 // pretty value for a detail field
 export function detailValue(key: string, v: unknown): string {
-  if (v == null) return "—";
+  if (v == null || v === "" || v === false) return "—";
   if (key.toLowerCase().includes("salary")) return fmtIDR(Number(v));
-  if (key === "percent") return `${Number(v).toFixed(1)}%`;
+  if (key === "percent" || key === "uangPisahPct") return `${Number(v).toFixed(0)}%`;
+  if (key === "pesangonMultiplier") return `×${Number(v).toLocaleString("id-ID")}`;
   if (key === "lastDay" || key === "newEndDate" || key === "effectiveDate") return fmtDate(String(v));
+  if (key === "includeBonusProRata") return v === true || v === "true" ? "Ya" : "—";
   return String(v);
 }
 
@@ -204,6 +212,7 @@ export function processEffectSummary(pa: PADetail): string[] {
       break;
     case "Termination":
       out.push(translate("Status karyawan menjadi Terminated, tanggal akhir {d}", "Employee status becomes Terminated, end date {d}", { d: d.lastDay ? fmtDate(String(d.lastDay)) : fmtDate(pa.effectiveDate) }));
+      out.push(translate("Final settlement PHK dihitung otomatis saat diproses — pesangon UPMK ×{m} + uang pisah {p}% + THR prorata + uang cuti − pinjaman − PPh21 final (komponen payroll TERMINATION)", "Final termination settlement computed automatically upon processing — UPMK severance ×{m} + separation pay {p}% + pro-rata THR + leave pay − loans − final income tax (TERMINATION payroll components)", { m: String(d.pesangonMultiplier ?? 1), p: String(d.uangPisahPct ?? 0) }));
       break;
     case "Retirement":
       out.push(translate("Pensiun — status karyawan menjadi Resigned dengan tanggal akhir kerja", "Retirement — employee status becomes Resigned with a last working date"));

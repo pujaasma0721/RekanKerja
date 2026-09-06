@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/onevity/ess/api/ess-auth";
 import { listBalances, listRequests, submitRequest } from "@/onevity/leave/services/leave-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // GET — saldo cuti tahun berjalan + riwayat permintaan saya.
 export async function GET(req: Request) {
@@ -85,6 +86,10 @@ export async function POST(req: Request) {
       actorName: fullName,
     });
 
+    // G5: ESS leave juga memicu webhook leave.submitted (konsistensi event lintas jalur)
+    void dispatchWebhookEvent(db, null, "leave.submitted", {
+      docNo: res.docNo, employeeId, dateFrom, dateTo, reason, source: "ESS",
+    });
     return NextResponse.json({ docNo: res.docNo, status: "Submitted" }, { status: 201 });
   } catch (e) {
     // validasi bisnis leave-service (saldo/bentrok/backdate/maks) → 400 ramah

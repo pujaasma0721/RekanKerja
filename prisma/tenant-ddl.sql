@@ -1130,6 +1130,8 @@ CREATE TABLE "AttendanceRule" (
     "roundingMinutes" INTEGER NOT NULL DEFAULT 5,
     "minOvertimeMinutes" INTEGER NOT NULL DEFAULT 30,
     "overtimeRoundingMinutes" INTEGER NOT NULL DEFAULT 30,
+    "maxOvertimeHours" INTEGER NOT NULL DEFAULT 4,
+    "maxOvertimeHoursMonthly" INTEGER,
     "nonClockingPolicy" TEXT NOT NULL DEFAULT 'AssumeNormal',
     "overtimeComponentCode" TEXT NOT NULL DEFAULT 'LEMBUR',
     "lateDeductionComponentCode" TEXT NOT NULL DEFAULT 'TLATE',
@@ -2250,3 +2252,53 @@ ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_employeeId_fkey"
 
 -- AddForeignKey (T16-ATTACH)
 ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_attachmentId_fkey" FOREIGN KEY ("attachmentId") REFERENCES "Attachment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+
+-- CreateTable (T18-API)
+CREATE TABLE "ApiKey" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "prefix" TEXT NOT NULL,
+    "keyHash" TEXT NOT NULL,
+    "scopes" TEXT NOT NULL DEFAULT 'employees',
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (T18-API)
+CREATE TABLE "Webhook" (
+    "id" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "events" TEXT NOT NULL,
+    "secret" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Webhook_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable (T18-API)
+CREATE TABLE "WebhookLog" (
+    "id" TEXT NOT NULL,
+    "webhookId" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "payload" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "responseStatus" INTEGER,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (T18-API)
+CREATE UNIQUE INDEX "ApiKey_keyHash_key" ON "ApiKey"("keyHash");
+
+-- CreateIndex (T18-API)
+CREATE INDEX "WebhookLog_webhookId_createdAt_idx" ON "WebhookLog"("webhookId", "createdAt");
+
+-- AddForeignKey (T18-API)
+ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_webhookId_fkey" FOREIGN KEY ("webhookId") REFERENCES "Webhook"("id") ON DELETE CASCADE ON UPDATE CASCADE;

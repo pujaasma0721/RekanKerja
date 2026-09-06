@@ -561,6 +561,8 @@ export interface CreateClaimInput {
   exchangeLoss: number;
   payableEmployee: number;
   payableCompany: number;
+  /** T15-CHAIN-EXT: nama aktor sesi — pencipta jalur approval berjenjang. */
+  actorName?: string | null;
 }
 
 export interface CreateClaimResult {
@@ -572,6 +574,10 @@ export interface CreateClaimResult {
   payableEmployee: number;
   payableCompany: number;
   advanceAmount: number;
+  /** T15-CHAIN-EXT: jumlah jenjang persetujuan klaim (struktur TravelClaim). */
+  approvalLevels: number;
+  /** T15-CHAIN-EXT: nama approver jenjang pertama. */
+  firstApprover: string | null;
 }
 
 export async function createClaim(db: TenantDb, input: CreateClaimInput): Promise<CreateClaimResult> {
@@ -703,13 +709,27 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     await db.travelRequest.update({ where: { id: req.id }, data: { claimRequestedAt: new Date() } });
   }
 
+  // ==== Approval berjenjang (T15-CHAIN-EXT) — klaim settlement diajukan
+  // (state Submitted) → bangun jalur "TravelClaim" sesuai struktur pemohon;
+  // nominal = totalSettlement (gross settlement R) supaya jenjang bersyarat
+  // (mis. FIN ≥ 15 jt / HRD ≥ 50 jt) aktif sesuai besar klaim. Fallback tanpa
+  // struktur: atasan langsung → Admin/HR (anti-deadlock). ====
+  const chain = await startApprovalChain(db, {
+    docType: "TravelClaim", docId: claim.id, employeeId: emp.id,
+    amount: totalSettlement, createdBy: input.actorName ?? null,
+  });
+
   await db.activityLog.create({
     data: {
       action: "Submitted", entity: "TravelClaim", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""}`,
+      detail: `${docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""} — approval berjenjang ${chain.totalLevels} level`,
     },
   });
-  return { docNo, totalSettlement, totalExpenses: expensesTotal, overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount };
+  return {
+    docNo, totalSettlement, totalExpenses: expensesTotal, overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount,
+    approvalLevels: chain.totalLevels,
+    firstApprover: chain.steps[0]?.approverLabel ?? null,
+  };
 }
 
 export interface TravelClaimRow {
@@ -727,6 +747,8 @@ export interface TravelClaimRow {
   expenseLines: number;
   overLimitLines: number;
   expenseKinds: string[];
+  /** T15-CHAIN-EXT: ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu). */
+  approval?: ChainSummary | null;
 }
 
 export async function listTravelClaims(db: TenantDb, opts: { status?: string; employeeId?: string } = {}): Promise<TravelClaimRow[]> {
@@ -743,6 +765,8 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
       expenses: true,
     },
   });
+  // T15-CHAIN-EXT: ringkasan approval berjenjang per klaim (satu query batch).
+  const chainMap = await attachChainSummaries(db, "TravelClaim", rows.map((c) => ({ id: c.id })));
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, requestDocNo: c.request?.docNo ?? null,
     employeeId: c.employeeId, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
@@ -760,6 +784,7 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
     expenseLines: c.expenses.length,
     overLimitLines: c.expenses.filter((e) => e.overLimit).length,
     expenseKinds: [...new Set(c.expenses.map((e) => e.kind))],
+    approval: chainMap.get(c.id) ?? null,
   }));
 }
 
@@ -904,11 +929,13 @@ export interface ClaimDecisionResult {
   status: string;
   journalNo: string | null;
   journalLines: number;
+  /** T15-CHAIN-EXT: ada bila approve jenjang menengah — klaim tetap Submitted. */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
 export async function decideClaim(
   db: TenantDb,
-  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string },
+  input: { id: string; action: "approve" | "reject" | "cancel"; note?: string; actorId?: string; actor?: DecideActor },
 ): Promise<ClaimDecisionResult> {
   const claim = await db.travelClaim.findUnique({ where: { id: input.id } });
   if (!claim) throw new Error("Klaim tidak ditemukan");
@@ -922,19 +949,74 @@ export async function decideClaim(
   if (!m) throw new Error("Aksi tidak dikenal");
   if (!m.from.includes(claim.status)) throw new Error(`Status ${claim.status} tidak bisa ${m.log.toLowerCase()}`);
 
+  // ==== Approval berjenjang (T15-CHAIN-EXT) — chain dibuat saat submit
+  // (createClaim, nominal = totalSettlement); klaim legacy Submitted tanpa
+  // chain di-backfill saat putusan pertama (pola workoff). Approve jenjang
+  // menengah → klaim TETAP Submitted (menunggu jenjang berikutnya); hanya
+  // keputusan FINAL yang menjalankan jurnal otomatis + status Approved. ====
+  let chain = await getApprovalChain(db, "TravelClaim", input.id);
+  if (!chain && claim.status === "Submitted") {
+    chain = await startApprovalChain(db, {
+      docType: "TravelClaim", docId: input.id, employeeId: claim.employeeId,
+      amount: claim.totalSettlement, createdBy: "legacy-backfill",
+    });
+  }
+  const actor: DecideActor =
+    input.actor ?? { role: "ADMIN", employeeId: null, name: input.actorId ?? "Sistem" };
+
+  if (input.action === "approve" && chain && chain.status === "InProgress") {
+    const res = await decideApprovalChain(db, {
+      docType: "TravelClaim", docId: input.id, action: "approve", note: input.note, actor,
+    });
+    if (!res.final) {
+      // jenjang menengah — klaim tetap Submitted, menunggu jenjang berikutnya
+      const currentStep = res.chain.steps.find((s) => s.status === "Current");
+      await db.activityLog.create({
+        data: {
+          action: "Approved", entity: "TravelClaim", entityId: claim.docNo,
+          detail: `${claim.docNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui oleh ${actor.name} — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"} (total settlement ${claim.totalSettlement})`,
+        },
+      });
+      return {
+        docNo: claim.docNo, status: "Submitted", journalNo: null, journalLines: 0,
+        approval: {
+          currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels,
+          currentApprover: currentStep?.approverLabel ?? null,
+        },
+      };
+    }
+    // jenjang TERAKHIR → lanjut alur final di bawah (jurnal otomatis + Approved)
+  }
+
+  // level tempat reject/cancel mendarat (snapshot PRA-keputusan — chain lokal
+  // masih InProgress pada jenjang X; string dicatat di ActivityLog + response)
+  const decidedAtLevel = input.action !== "approve" && chain && chain.status === "InProgress"
+    ? ` di jenjang ${chain.currentLevel}/${chain.totalLevels}`
+    : "";
+
   let journalNo = claim.journalNo;
   let journalLines = 0;
 
   if (input.action === "approve") {
-    // posting jurnal otomatis (padanan Journal No/Type/Date)
+    // posting jurnal otomatis (padanan Journal No/Type/Date) — SETELAH final
+    // approve (jenjang menengah tidak menyentuh jurnal)
     const j = await generateClaimJournal(db, claim.id);
     journalNo = j.journalNo || null;
     journalLines = j.lines;
-  } else if (claim.journalNo) {
-    // batalkan/ditolak setelah approve → buang jurnal
-    const del = await db.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
-    journalNo = null;
-    journalLines = -del.count;
+  } else {
+    // reject/cancel pada klaim yang sudah ter-approve → buang jurnalnya;
+    // reject jenjang (klaim Submitted) → chain dihentikan lebih dulu
+    if (input.action === "reject" && chain && chain.status === "InProgress") {
+      await decideApprovalChain(db, { docType: "TravelClaim", docId: input.id, action: "reject", note: input.note, actor });
+    }
+    if (input.action === "cancel" && chain && chain.status === "InProgress") {
+      await cancelApprovalChain(db, "TravelClaim", input.id, actor.name);
+    }
+    if (claim.journalNo) {
+      const del = await db.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
+      journalNo = null;
+      journalLines = -del.count;
+    }
   }
 
   await db.travelClaim.update({
@@ -950,7 +1032,7 @@ export async function decideClaim(
   await db.activityLog.create({
     data: {
       action: m.log, entity: "TravelClaim", entityId: claim.docNo,
-      detail: `${claim.docNo} ${m.log}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}${input.note ? ` — ${input.note.trim()}` : ""}`,
+      detail: `${claim.docNo} ${m.log}${decidedAtLevel}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}${chain ? ` (${chain.totalLevels} jenjang)` : ""}${input.note ? ` — ${input.note.trim()}` : ""}`,
     },
   });
   return { docNo: claim.docNo, status: m.to, journalNo, journalLines };

@@ -5,6 +5,7 @@ import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/onevity/leave/services/leave-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // GET /api/onevity/leave/requests?status=&employeeId=&year= — daftar permintaan
 // (padanan LeaveRequest.jsp / LeaveRequestToApprove.jsp).
@@ -85,6 +86,13 @@ export async function POST(req: NextRequest) {
           body: `${emp?.fullName ?? "Karyawan"} — ${type?.name ?? "cuti"} ${input.dateFrom} → ${input.dateTo} (${res.workingDays} hari kerja)`,
           kind: "leave", link: "actions:inbox",
         });
+        // ===== Webhook (T18-API) — leave.submitted, fire-and-forget =====
+        await dispatchWebhookEvent(db, null, "leave.submitted", {
+          docNo: res.docNo, employeeId: input.employeeId, employeeName: emp?.fullName ?? null,
+          leaveTypeId: input.leaveTypeId, leaveTypeName: type?.name ?? null,
+          dateFrom: input.dateFrom, dateTo: input.dateTo,
+          workingDays: res.workingDays, reason: input.reason || null, source: "app",
+        });
       } catch { /* notifikasi tidak pernah mengganggu proses utama */ }
     })();
 
@@ -162,6 +170,21 @@ export async function PATCH(req: NextRequest) {
               body: `${lr.leaveType?.name ?? "Cuti"} ${new Date(lr.dateFrom).toISOString().slice(0, 10)} → ${new Date(lr.dateTo).toISOString().slice(0, 10)}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
               kind: "leave", link: "leave:leave-request",
             });
+          }
+          // ===== Webhook (T18-API) — keputusan FINAL approve/reject, fire-and-forget =====
+          if (lr) {
+            await dispatchWebhookEvent(
+              m.db, null,
+              b.action === "approve" ? "leave.approved" : "leave.rejected",
+              {
+                docNo: lr.docNo, employeeId: lr.employeeId, employeeName: lr.employee?.fullName ?? null,
+                leaveTypeName: lr.leaveType?.name ?? null,
+                dateFrom: new Date(lr.dateFrom).toISOString().slice(0, 10),
+                dateTo: new Date(lr.dateTo).toISOString().slice(0, 10),
+                workingDays: res.regeneratedDays ?? null,
+                note: b.note ? String(b.note) : null, decidedBy: m.actor.name,
+              },
+            );
           }
         } catch { /* never */ }
       })();

@@ -55,15 +55,27 @@ export function TravelClaimApprovalPage() {
     if (!decide.claim || !decide.action) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; status: string; journalNo: string | null; journalLines: number }>(
+      const res = await apiSend<{ docNo: string; status: string; journalNo: string | null; journalLines: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>(
         "/api/onevity/travel/claims", "PATCH",
         { id: decide.claim.id, action: decide.action, note: note || undefined },
       );
-      toast.success(
-        res.journalNo
-          ? t("{no} disetujui — jurnal {j} otomatis dibuat ({n} baris)", "{no} approved — journal {j} created automatically ({n} lines)", { no: res.docNo, j: res.journalNo, n: res.journalLines })
-          : t("{no} — {status}", "{no} — {status}", { no: res.docNo, status: t(TRAVEL_STATUS_LABEL[res.status] ?? res.status, TRAVEL_STATUS_LABEL_EN[res.status] ?? res.status) }),
-      );
+      if (res.approval) {
+        // T15-CHAIN-EXT: approval parsial — jenjang menengah disetujui, klaim
+        // tetap Submitted menunggu jenjang berikutnya (jurnal BELUM dibuat)
+        toast.success(
+          t("Jenjang {l}/{n} disetujui — menunggu {a}", "Tier {l}/{n} approved — awaiting {a}", {
+            l: res.approval.currentLevel - 1,
+            n: res.approval.totalLevels,
+            a: res.approval.currentApprover ?? t("jenjang berikutnya", "the next tier"),
+          }),
+        );
+      } else {
+        toast.success(
+          res.journalNo
+            ? t("{no} disetujui — jurnal {j} otomatis dibuat ({n} baris)", "{no} approved — journal {j} created automatically ({n} lines)", { no: res.docNo, j: res.journalNo, n: res.journalLines })
+            : t("{no} — {status}", "{no} — {status}", { no: res.docNo, status: t(TRAVEL_STATUS_LABEL[res.status] ?? res.status, TRAVEL_STATUS_LABEL_EN[res.status] ?? res.status) }),
+        );
+      }
       setDecide({ claim: null, action: null });
       setNote("");
       api.refresh();
@@ -169,8 +181,23 @@ export function TravelClaimApprovalPage() {
                       {c.employeeNo}{c.requestDocNo ? t(" · dari {no}", " · from {no}", { no: c.requestDocNo }) : t(" · mandiri", " · standalone")} · {fmtDateID(c.claimDate)}
                     </p>
                   </div>
-                  <StatusPill status={t(TRAVEL_STATUS_LABEL[c.status] ?? c.status, TRAVEL_STATUS_LABEL_EN[c.status] ?? c.status)} />
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusPill status={t(TRAVEL_STATUS_LABEL[c.status] ?? c.status, TRAVEL_STATUS_LABEL_EN[c.status] ?? c.status)} />
+                    {c.approval && (c.approval.status === "InProgress" || c.approval.status === "Rejected") && (
+                      <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                        c.approval.status === "InProgress"
+                          ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                          : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
+                        {c.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {c.approval.currentLevel}/{c.approval.totalLevels}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {c.approval?.status === "InProgress" && c.approval.currentApprover && (
+                  <p className="mt-1 truncate text-[11px] text-stone-400" title={c.approval.currentApprover}>
+                    {t("menunggu", "awaiting")} <b>{c.approval.currentApprover}</b>
+                  </p>
+                )}
 
                 <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                   <div className="rounded-lg bg-stone-50 py-1.5 dark:bg-stone-800/60">
@@ -288,6 +315,11 @@ export function TravelClaimApprovalPage() {
           </DialogHeader>
           {decide.claim && (
             <div className="space-y-3 text-sm">
+              {decide.claim.approval?.status === "InProgress" && (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+                  {t("Approval berjenjang: jenjang", "Tiered approval: tier")} <b>{decide.claim.approval.currentLevel}</b> {t("dari", "of")} <b>{decide.claim.approval.totalLevels}</b> — {t("menunggu keputusan", "awaiting decision by")} <b>{decide.claim.approval.currentApprover ?? t("jenjang berikutnya", "the next tier")}</b>. {t("Menyetujui jenjang ini belum membuat jurnal — hanya keputusan jenjang TERAKHIR yang memposting jurnal + status Approved.", "Approving this tier does not create the journal yet — only the FINAL tier decision posts the journal + sets Approved.")}
+                </p>
+              )}
               <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800/60">
                 <p className="font-mono text-xs font-bold ov-text-accent">{decide.claim.docNo}</p>
                 <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{decide.claim.fullName}</p>

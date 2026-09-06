@@ -4,6 +4,7 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { buildPayslipPdfByLineId, fmtRupiah } from "@/onevity/payroll/services/payslip-pdf";
 
 // GET /api/onevity/payroll-runs?periodId=&status=
@@ -157,6 +158,13 @@ export async function PATCH(req: NextRequest) {
                 kind: "payroll", link: "payroll:runs",
               });
             }
+            // ===== Webhook (T18-API) — payroll.confirmed, fire-and-forget =====
+            await dispatchWebhookEvent(db, null, "payroll.confirmed", {
+              runId: String(b.id), runNo: fresh?.runNo ?? null,
+              period: fresh?.period?.name ?? null,
+              employees: fresh?._count?.lines ?? 0,
+              status: "Confirmed", confirmedBy: m.actor.name,
+            });
           } catch { /* never */ }
         })();
         return NextResponse.json({ ok: true });
@@ -191,6 +199,13 @@ export async function PATCH(req: NextRequest) {
             title: `Run ${run.runNo} Paid`,
             body: `Run payroll periode ${fresh?.period?.name ?? "-"} (${fresh?._count?.lines ?? 0} karyawan) ditandai DIBAYAR.`,
             kind: "payroll", link: "payroll:runs",
+          });
+          // ===== Webhook (T18-API) — payroll.paid, fire-and-forget =====
+          await dispatchWebhookEvent(db, null, "payroll.paid", {
+            runId: String(b.id), runNo: run.runNo,
+            period: fresh?.period?.name ?? null,
+            employees: fresh?._count?.lines ?? 0,
+            status: "Paid", paidAt: new Date().toISOString(), markedPaidBy: m.actor.name,
           });
         })();
         return NextResponse.json({ ok: true });

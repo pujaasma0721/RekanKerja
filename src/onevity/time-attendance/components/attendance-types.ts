@@ -74,6 +74,8 @@ export interface OvertimeRow {
   status: string; approverId: string | null; decidedAt: string | null; decisionNote: string | null; paidRunNo: string | null;
   employee: { employeeNo: string; fullName: string; assignments: { baseSalary: number; orgUnit: { name: string } | null }[] };
   baseSalary: number; orgUnitName: string | null; estPay: number; effectiveMinutes: number;
+  /** T15-CHAIN-EXT: ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu) */
+  approval?: { status: string; currentLevel: number; totalLevels: number; currentApprover: string | null } | null;
 }
 
 export interface WorkoffRow {
@@ -91,6 +93,8 @@ export interface WorkoffRow {
 export interface AttendanceRule {
   id: string;
   roundingMinutes: number; minOvertimeMinutes: number; overtimeRoundingMinutes: number;
+  /** T15-CHAIN-EXT: cap lembur PP 35/2021 (jam/hari, default 4) + cap bulanan opsional. */
+  maxOvertimeHours: number; maxOvertimeHoursMonthly: number | null;
   nonClockingPolicy: string;
   overtimeComponentCode: string; lateDeductionComponentCode: string;
   absenceDeductionComponentCode: string; attendanceAllowanceComponentCode: string;

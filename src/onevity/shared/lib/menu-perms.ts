@@ -126,6 +126,12 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "settings:email": [
     { key: "test", label: "Mengirim email uji", hint: "Tombol Tes Kirim pada konfigurasi SMTP" },
   ],
+
+  // Settings — API key & webhook publik (T18-API)
+  "settings:api": [
+    { key: "test", label: "Menguji kirim webhook", hint: "Tombol Uji Kirim pada endpoint webhook" },
+    { key: "revoke", label: "Mencabut kunci API", hint: "Mencabut (revoke) kunci Public API" },
+  ],
 };
 
 /** Operasi khusus yang terdaftar untuk sebuah key menu. */

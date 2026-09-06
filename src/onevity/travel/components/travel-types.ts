@@ -76,6 +76,8 @@ export interface TravelClaimRowUI {
   /** T16-ATTACH — metadata lampiran kwitansi (badge "lampiran n" + preview). */
   attachments?: import("@/onevity/shared/components/attachment-upload").AttachmentMetaUI[];
   attachmentCount?: number;
+  /** T15-CHAIN-EXT: ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu). */
+  approval?: TravelApprovalUI | null;
 }
 
 export interface BudgetItemUI {

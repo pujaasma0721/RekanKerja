@@ -32,15 +32,24 @@ export interface SessionInfo {
 }
 export type SessionStatus = "loading" | "anonymous" | "select-tenant" | "ready";
 
+/** Hasil langkah-1 login (T17-MFA): mfaRequired → UI beralih ke step OTP. */
+export interface LoginResult {
+  ok: boolean;
+  mfaRequired: boolean;
+  mfaToken: string | null;
+}
+
 interface SessionState {
   status: SessionStatus;
   info: SessionInfo | null;
-  busy: boolean; // login/register/select-tenant sedang berjalan
+  busy: boolean; // login/register/select-tenant/verify MFA sedang berjalan
   error: string | null;
   load: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   register: (input: { workspaceName: string; fullName: string; email: string; password: string }) => Promise<boolean>;
   selectTenant: (tenantId: string) => Promise<boolean>;
+  /** Langkah-2 login MFA (T17-MFA): tukar mfaToken + kode 6 digit → sesi. */
+  verifyMfa: (mfaToken: string, token: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -82,9 +91,29 @@ export const useSession = create<SessionState>((set) => ({
 
   login: async (email, password) => {
     set({ busy: true, error: null });
-    const { ok, data } = await postJson<SessionInfo>("/api/auth/login", { email, password });
+    const { ok, data } = await postJson<SessionInfo & { mfaRequired?: boolean; mfaToken?: string }>("/api/auth/login", {
+      email,
+      password,
+    });
     if (!ok) {
       set({ busy: false, error: data.error ?? "Gagal masuk" });
+      return { ok: false, mfaRequired: false, mfaToken: null };
+    }
+    // T17-MFA: password benar tapi akun ber-MFA → cookie belum di-set server;
+    // UI harus meminta kode 6 digit lalu memanggil verifyMfa.
+    if (data.mfaRequired && data.mfaToken) {
+      set({ busy: false });
+      return { ok: false, mfaRequired: true, mfaToken: data.mfaToken };
+    }
+    set({ busy: false, ...applyInfo(data) });
+    return { ok: true, mfaRequired: false, mfaToken: null };
+  },
+
+  verifyMfa: async (mfaToken, token) => {
+    set({ busy: true, error: null });
+    const { ok, data } = await postJson<SessionInfo>("/api/auth/mfa/verify", { mfaToken, token });
+    if (!ok) {
+      set({ busy: false, error: data.error ?? "Verifikasi gagal" });
       return false;
     }
     set({ busy: false, ...applyInfo(data) });

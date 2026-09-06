@@ -100,6 +100,11 @@ async function resolveDocId(db: TenantDb, docType: string, docNo: string): Promi
         return (await db.travelRequest.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
       case "Medical":
         return (await db.medicalClaim.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
+      // T15-CHAIN-EXT: lembur (OT-…) + klaim settlement (CL-…) punya chain sendiri
+      case "Overtime":
+        return (await db.overtimeOrder.findUnique({ where: { orderNo: docNo }, select: { id: true } }))?.id ?? null;
+      case "TravelClaim":
+        return (await db.travelClaim.findUnique({ where: { docNo }, select: { id: true } }))?.id ?? null;
       default:
         return null;
     }

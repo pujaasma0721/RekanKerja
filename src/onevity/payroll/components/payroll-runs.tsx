@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt } from "lucide-react";
+import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift } from "lucide-react";
+import { BonusMassalDialog } from "@/onevity/payroll/components/bonus-massal-dialog";
 import { PeriodRow, ProcessTypeRow, RunRow } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ export function PayrollRunsPage() {
   const [periodFilter, setPeriodFilter] = useState(params.period ?? "all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
+  const [bonusOpen, setBonusOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const url = `/api/onevity/payroll-runs${periodFilter !== "all" || statusFilter !== "all" ? `?${new URLSearchParams({ ...(periodFilter !== "all" ? { periodId: periodFilter } : {}), ...(statusFilter !== "all" ? { status: statusFilter } : {}) }).toString()}` : ""}`;
@@ -67,11 +69,18 @@ export function PayrollRunsPage() {
         title={t("Proses & Hasil Payroll", "Payroll Runs & Results")}
         description={t("Satu period dapat diproses berkali-kali (gaji, THR, bonus) — tiap run menyimpan snapshot hasil per karyawan", "One period can be processed multiple times (salary, THR, bonus) — each run stores a per-employee result snapshot")}
         actions={
-          perms.can("payroll", "runs", "create") && (
-            <Button onClick={() => setOpen(true)} className="gap-2 font-bold">
-              <Plus className="h-4 w-4" /> {t("Proses Payroll Baru", "New Payroll Run")}
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            {perms.can("payroll", "runs", "calculate") && (
+              <Button variant="outline" onClick={() => setBonusOpen(true)} className="gap-2 font-bold">
+                <Gift className="h-4 w-4" /> {t("Bonus / THR Massal", "Bulk Bonus / THR")}
+              </Button>
+            )}
+            {perms.can("payroll", "runs", "create") && (
+              <Button onClick={() => setOpen(true)} className="gap-2 font-bold">
+                <Plus className="h-4 w-4" /> {t("Proses Payroll Baru", "New Payroll Run")}
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -176,6 +185,7 @@ export function PayrollRunsPage() {
       </Card>
 
       <NewRunDialog open={open} periods={periodsApi.data?.periods ?? []} onClose={() => { setOpen(false); refresh(); }} />
+      <BonusMassalDialog open={bonusOpen} onOpenChange={setBonusOpen} onCommitted={() => refresh()} />
     </div>
   );
 }

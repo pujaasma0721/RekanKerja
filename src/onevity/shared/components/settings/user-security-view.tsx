@@ -12,10 +12,14 @@
 // Tab Kebijakan Kata Sandi:
 //   • Editor aturan lengkap (kompleksitas / umur & riwayat / lockout login)
 //     + kartu UJI CODO live terhadap kebijakan saat ini.
+// Kartu Autentikasi Dua Faktor (T17-MFA):
+//   • Self-service akun login SENDIRI (bukan AppUser lain): status + dialog
+//     setup (QR + secret + input kode verifikasi) + disable dgn kata sandi.
 // Tombol aksi ter-gate hak aksi menu per pengguna (settings:security).
 // =====================================================================
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, initials } from "@/onevity/shared/lib/api";
+import { useSession } from "@/onevity/shared/lib/session-store";
 import { EmptyState, LoadingRows, StatusPill } from "@/onevity/shared/components/ui-kit";
 import { PasswordInput, PasswordRuleChecklist, PasswordStrengthBar } from "@/onevity/shared/components/password-ui";
 import { actionAllowed, type MenuAction, type MenusMap } from "@/onevity/shared/lib/menu-perms";
@@ -30,13 +34,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  KeyRound, Pencil, Plus, ShieldCheck, Trash2, UserCog, Eye, CalendarClock, History,
-  Lock, Gauge, Save, RotateCcw, FlaskConical, UserRound,
+  KeyRound, Pencil, Plus, ShieldCheck, ShieldOff, Smartphone, Trash2, UserCog, Eye, CalendarClock, History,
+  Lock, Gauge, Save, RotateCcw, FlaskConical, UserRound, Copy, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -942,5 +947,323 @@ function PolicySwitch({ label, checked, onChange }: { label: string; checked: bo
       <span className="text-xs font-semibold leading-tight">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </label>
+  );
+}
+
+// =====================================================================
+// KARTU AUTENTIKASI DUA FAKTOR (T17-MFA)
+// =====================================================================
+// Self-service akun login SENDIRI (platform User — email sesi sekarang),
+// bukan manajemen AppUser tenant. Alur: tombol "Aktifkan" → POST setup
+// (secret baru + QR) → dialog pindai/masukkan manual → input kode 6 digit
+// → POST enable → aktif. Disable wajib kata sandi. API:
+// /api/auth/mfa/{setup GET+POST, enable, disable, verify} (auth-mfa.ts).
+
+interface MfaStatusData { enabled: boolean; pending?: boolean }
+interface MfaSetupData { secret: string; otpauthUrl: string; qrDataUrl: string }
+
+export function MfaCard() {
+  const { t } = useI18n();
+  const email = useSession((s) => s.info?.user.email);
+  const { data, loading, refresh } = useApi<MfaStatusData>("/api/auth/mfa/setup");
+
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [disableOpen, setDisableOpen] = useState(false);
+  const [setup, setSetup] = useState<MfaSetupData | null>(null);
+  const [prepBusy, setPrepBusy] = useState(false);
+
+  const enabled = data?.enabled === true;
+
+  // Klik "Aktifkan" → generate secret SEBELUM dialog dibuka (regenerasi tiap
+  // kali — secret lama yang belum diverifikasi ditimpa).
+  const startSetup = async () => {
+    setPrepBusy(true);
+    try {
+      const d = await apiSend<MfaSetupData>("/api/auth/mfa/setup", "POST");
+      setSetup(d);
+      setSetupOpen(true);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPrepBusy(false);
+    }
+  };
+
+  return (
+    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold">
+          <Smartphone className="h-4 w-4 ov-text-accent" aria-hidden />
+          {t("Autentikasi Dua Faktor", "Two-Factor Authentication")}
+        </CardTitle>
+        {loading && !data ? (
+          <Badge variant="secondary" className="text-[10px]">…</Badge>
+        ) : (
+          <Badge
+            variant="secondary"
+            className={cn(
+              "text-[10px] font-bold",
+              enabled
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
+                : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+            )}
+          >
+            {enabled ? t("Aktif", "Active") : t("Nonaktif", "Inactive")}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        <p className="text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+          {t(
+            "Lapisan kedua saat masuk: setelah kata sandi benar, masukkan kode 6 digit dari aplikasi autentikator (Google Authenticator, Authy, Microsoft Authenticator) yang berganti setiap 30 detik.",
+            "A second layer at sign-in: after your password, enter a 6-digit code from an authenticator app (Google Authenticator, Authy, Microsoft Authenticator) that rotates every 30 seconds.",
+          )}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {enabled ? (
+            <Button variant="outline" onClick={() => setDisableOpen(true)} className="gap-2 font-semibold">
+              <ShieldOff className="h-4 w-4" aria-hidden />
+              {t("Nonaktifkan…", "Disable…")}
+            </Button>
+          ) : (
+            <Button onClick={() => void startSetup()} disabled={prepBusy} className="gap-2 font-bold">
+              <Smartphone className="h-4 w-4" aria-hidden />
+              {prepBusy ? t("Menyiapkan QR…", "Preparing QR…") : t("Aktifkan Sekarang", "Activate Now")}
+            </Button>
+          )}
+          {email && (
+            <span className="text-[11px] text-stone-400 dark:text-stone-500">
+              {t("Berlaku untuk akun login Anda: {email}", "Applies to your login account: {email}", { email })}
+            </span>
+          )}
+        </div>
+        {enabled && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-[11.5px] leading-relaxed text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+            {t(
+              "Saat masuk berikutnya Anda akan ditanya kode verifikasi setelah kata sandi. Pastikan aplikasi autentikator terpasang di ponsel Anda.",
+              "On your next sign-in you will be asked for a verification code after your password. Keep the authenticator app installed on your phone.",
+            )}
+          </p>
+        )}
+      </CardContent>
+
+      <MfaSetupDialog
+        open={setupOpen}
+        setOpen={(v) => { setSetupOpen(v); if (!v) refresh(); }}
+        setup={setup}
+        onDone={() => { setSetupOpen(false); refresh(); }}
+      />
+      <MfaDisableDialog
+        open={disableOpen}
+        setOpen={(v) => { setDisableOpen(v); if (!v) refresh(); }}
+        onDone={() => { setDisableOpen(false); refresh(); }}
+      />
+    </Card>
+  );
+}
+
+// ---------- dialog setup: QR + secret + kode verifikasi ----------
+
+function MfaSetupDialog({
+  open, setOpen, setup, onDone,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  setup: MfaSetupData | null;
+  onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // reset saat dialog ditutup/dibuka ulang (state render-time, tanpa effect)
+  const [openMark, setOpenMark] = useState(false);
+  if (open !== openMark) {
+    setOpenMark(open);
+    setCode("");
+    setErr(null);
+    setCopied(false);
+  }
+
+  const copySecret = async () => {
+    if (!setup) return;
+    try {
+      await navigator.clipboard.writeText(setup.secret);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error(t("Gagal menyalin — salin manual dari teks di atas.", "Copy failed — copy the text above manually."));
+    }
+  };
+
+  const confirmEnable = async (value: string) => {
+    if (busy) return;
+    if (!/^\d{6}$/.test(value)) {
+      setErr(t("Masukkan kode 6 digit dari aplikasi autentikator Anda.", "Enter the 6-digit code from your authenticator app."));
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiSend("/api/auth/mfa/enable", "POST", { token: value });
+      toast.success(t("Autentikasi dua faktor aktif.", "Two-factor authentication is now active."));
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+      setCode("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">
+            {t("Siapkan Autentikasi Dua Faktor", "Set Up Two-Factor Authentication")}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              "Pindai QR dengan aplikasi autentikator, atau masukkan secret manual. Lalu masukkan kode 6 digit untuk mengaktifkan.",
+              "Scan the QR with an authenticator app, or enter the secret manually. Then enter the 6-digit code to activate.",
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {setup ? (
+          <div className="space-y-4">
+            <div className="flex justify-center rounded-2xl border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-900">
+              {/* QR data URL dari server (package qrcode) — aman, tanpa layanan luar */}
+              <img src={setup.qrDataUrl} alt={t("QR kode secret TOTP", "TOTP secret QR code")} width={200} height={200} className="h-[200px] w-[200px]" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[11px]">{t("Secret manual (base32)", "Manual secret (base32)")}</Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 font-mono text-[11px] tracking-wide text-stone-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
+                  {setup.secret}
+                </code>
+                <Button type="button" variant="outline" size="sm" onClick={() => void copySecret()} className="gap-1.5 px-2.5">
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                  {copied ? t("Tersalin") : t("Salin")}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[11px]">{t("Kode verifikasi 6 digit", "6-digit verification code")}</Label>
+              <InputOTP
+                maxLength={6}
+                value={code}
+                onChange={(v) => { setCode(v); if (err) setErr(null); }}
+                onComplete={(v) => { void confirmEnable(v); }}
+                disabled={busy}
+                autoFocus
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="^\d+$"
+                aria-label={t("Kode verifikasi 6 digit", "6-digit verification code")}
+                containerClassName="justify-start"
+              >
+                <InputOTPGroup>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <InputOTPSlot key={i} index={i} className="h-10 w-10 text-[15px] font-semibold" />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {err && <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">{err}</p>}
+          </div>
+        ) : (
+          <p className="text-[13px] text-stone-500">{t("Menyiapkan secret…", "Preparing secret…")}</p>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+            {t("Batal")}
+          </Button>
+          <Button onClick={() => void confirmEnable(code)} disabled={busy || !setup} className="gap-2 font-bold">
+            {busy ? t("Memverifikasi…", "Verifying…") : t("Aktifkan", "Activate")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- dialog disable: wajib kata sandi ----------
+
+function MfaDisableDialog({
+  open, setOpen, onDone,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const [openMark, setOpenMark] = useState(false);
+  if (open !== openMark) {
+    setOpenMark(open);
+    setPassword("");
+    setErr(null);
+  }
+
+  const confirmDisable = async () => {
+    if (busy) return;
+    if (!password) {
+      setErr(t("Kata sandi wajib diisi untuk menonaktifkan.", "Password is required to disable."));
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiSend("/api/auth/mfa/disable", "POST", { password });
+      toast.success(t("Autentikasi dua faktor dinonaktifkan — login kembali 1 langkah.", "Two-factor authentication disabled — sign-in is single-step again."));
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">{t("Nonaktifkan Dua Faktor?", "Disable Two-Factor?")}</DialogTitle>
+          <DialogDescription>
+            {t(
+              "Masuk kembali hanya perlu kata sandi. Masukkan kata sandi Anda untuk konfirmasi.",
+              "Signing in will only require your password. Enter your password to confirm.",
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label className="text-[11px]">{t("Kata Sandi Anda", "Your Password")}</Label>
+          <PasswordInput
+            value={password}
+            onChange={(v) => { setPassword(v); if (err) setErr(null); }}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
+          {err && <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">{err}</p>}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+            {t("Batal")}
+          </Button>
+          <Button variant="destructive" onClick={() => void confirmDisable()} disabled={busy} className="font-bold">
+            {busy ? t("Memproses…", "Processing…") : t("Nonaktifkan MFA", "Disable MFA")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

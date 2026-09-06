@@ -34,6 +34,7 @@ import {
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
+  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -219,6 +220,7 @@ export const SETTINGS_NAV: NavGroup[] = [
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
     { id: "approval", label: "Approval Berjenjang", icon: CheckCircle2 },
     { id: "email", label: "Konfigurasi Email", icon: Mail },
+    { id: "api", label: "API & Integrasi", icon: Webhook },
   ] },
 ];
 

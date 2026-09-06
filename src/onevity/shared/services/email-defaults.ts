@@ -119,6 +119,11 @@ export const DEFAULT_TEMPLATES_PLACEHOLDER: EmailTemplateDefault[] = [
     subject: "Akun OneVity HRIS Anda telah dibuat",
     body: "Halo {{nama}},\n\nAkun Anda untuk aplikasi OneVity HRIS telah dibuat:\n- Email login: {{email}}\n- Kata sandi sementara: {{password}}\n\nSegera login dan ganti kata sandi Anda. Kata sandi sementara hanya ditampilkan sekali.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
+  {
+    event: "overtime.submitted", label: "Lembur — Pengajuan Baru", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[Perlu Persetujuan] Perintah Lembur {{docNo}} — {{nama}}",
+    body: "Halo Approver,\n\n{{nama}} mengajukan perintah lembur ({{docNo}}):\n- Tanggal: {{tanggal}}\n- Rencana jam: {{jumlahJam}} jam\n- Alasan: {{alasan}}\n\nMaksimal lembur 4 jam/hari sesuai PP 35/2021.\nSilakan buka OneVity HRIS untuk menyetujui atau menolak pengajuan ini.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
   // ============ T14-SCHED: template pengingat scheduler latar belakang ============
   {
     event: "scheduler.contract-expiry", label: "Scheduler — Kontrak/Probation Segera Berakhir", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
@@ -180,6 +185,9 @@ const PH_DAYS: PlaceholderDef = { key: "days", label: "Jumlah hari (sisa waktu /
 const PH_JENIS_SCHED: PlaceholderDef = { key: "jenis", label: "Jenis pengingat (Kontrak/Probation)", contoh: "Kontrak" };
 const PH_DOCTYPE: PlaceholderDef = { key: "docType", label: "Jenis dokumen karyawan", contoh: "Paspor" };
 const PH_CODE: PlaceholderDef = { key: "code", label: "Kode periode payroll", contoh: "2026-10" };
+// T15-CHAIN-EXT: placeholder template lembur
+const PH_TANGGAL: PlaceholderDef = { key: "tanggal", label: "Tanggal lembur", contoh: "2026-09-03" };
+const PH_JUMLAHJAM: PlaceholderDef = { key: "jumlahJam", label: "Rencana jam lembur", contoh: "3" };
 
 export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "leave.submitted": [PH_NAMA, PH_DOC, PH_JENISCUTI, PH_PERIODE, PH_JUMLAHHARI, PH_ALASAN],
@@ -191,6 +199,7 @@ export const EVENT_PLACEHOLDERS: Record<string, PlaceholderDef[]> = {
   "travel.claim.submitted": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE],
   "travel.claim.approved": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
   "travel.claim.rejected": [PH_NAMA, PH_DOC, PH_JUMLAH, PH_PERIODE, PH_CATATAN],
+  "overtime.submitted": [PH_NAMA, PH_DOC, PH_TANGGAL, PH_JUMLAHJAM, PH_ALASAN],
   "medical.claim.submitted": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH],
   "medical.claim.approved": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],
   "medical.claim.rejected": [PH_NAMA, PH_DOC, PH_JENIS, PH_JUMLAH, PH_CATATAN],

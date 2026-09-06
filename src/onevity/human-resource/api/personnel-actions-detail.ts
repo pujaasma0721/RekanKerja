@@ -5,6 +5,7 @@ import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-r
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
 import { findActiveDelegation } from "@/onevity/shared/services/approval-engine";
+import { applyTerminationSettlement } from "@/onevity/payroll/services/settlement-service";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
 // rollback + dipetakan ke respons yang tepat (409 race / 400 validasi).
@@ -393,6 +394,36 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
       await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})`);
 
+      // ===== T19: Final Settlement PHK — best-effort, SETELAH status karyawan =====
+      // berubah (transaksi di atas sudah commit). Kegagalan settlement TIDAK
+      // memblokir proses PA: error ditangkap + dicatat sebagai ActivityLog —
+      // HR dapat mengulang perhitungan settlement manual.
+      let settlement: Awaited<ReturnType<typeof applyTerminationSettlement>> | null = null;
+      if (action.type === "Termination") {
+        const settlementDate = detail.lastDay ? new Date(String(detail.lastDay)) : effectiveDate;
+        try {
+          settlement = await applyTerminationSettlement(db, {
+            employeeId: action.employeeId,
+            effectiveDate: Number.isNaN(settlementDate.getTime()) ? effectiveDate : settlementDate,
+            params: detail,
+            paDocNo: action.docNo,
+            paId: id,
+            actor: { appUserId: actor.appUserId, name: actorLabel },
+          });
+        } catch (se) {
+          const msg = se instanceof Error ? se.message : "unknown";
+          try {
+            await db.activityLog.create({
+              data: {
+                action: "Error", entity: "PersonnelAction", entityId: id, personnelActionId: id,
+                employeeId: action.employeeId, appUserId: actor.appUserId ?? undefined,
+                detail: `Gagal membuat final settlement PHK untuk ${action.docNo} (best-effort — proses PA tetap berhasil): ${msg}`,
+              },
+            });
+          } catch { /* never */ }
+        }
+      }
+
       // ===== Notifikasi email — DIPROSES (perubahan diterapkan) ke karyawan =====
       void (async () => {
         try {
@@ -408,7 +439,28 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           });
         } catch { /* never */ }
       })();
-      return NextResponse.json({ ok: true, status: "Processed" });
+      return NextResponse.json({
+        ok: true,
+        status: "Processed",
+        // T19: ringkasan final settlement (bila PA Termination) — breakdown + net
+        ...(settlement
+          ? {
+              settlement: {
+                gross: settlement.result.gross,
+                deductions: settlement.result.deductions,
+                tax: settlement.result.tax,
+                net: settlement.result.net,
+                masaKerja: settlement.result.masaKerja.label,
+                upah: settlement.result.upah.total,
+                rows: settlement.result.rows.map((r) => ({ code: r.code, label: r.label, kind: r.kind, amount: r.amount, note: r.note })),
+                period: settlement.period,
+                runNo: settlement.runNo,
+                assignmentsCreated: settlement.assignmentsCreated,
+                assignmentsUpdated: settlement.assignmentsUpdated,
+              },
+            }
+          : {}),
+      });
     }
 
     // ============ CANCEL ============

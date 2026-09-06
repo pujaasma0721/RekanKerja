@@ -6,8 +6,9 @@ import { useApi, apiSend, fmtDate, initials } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { ApprovalEngineView } from "@/onevity/shared/components/settings/approval-views";
 import { UserAccessView } from "@/onevity/shared/components/settings/user-access-view";
-import { PasswordPolicyPanel, UsersPanel } from "@/onevity/shared/components/settings/user-security-view";
+import { PasswordPolicyPanel, UsersPanel, MfaCard } from "@/onevity/shared/components/settings/user-security-view";
 import { EmailConfigView } from "@/onevity/shared/components/settings/email-config-view";
+import { ApiKeysView } from "@/onevity/shared/components/settings/api-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Layers, ShieldCheck, CheckCircle2, Plus, Pencil, Trash2, UserCog, KeyRound, FileKey,
+  Layers, ShieldCheck, Smartphone, CheckCircle2, Plus, Pencil, Trash2, UserCog, KeyRound, FileKey,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -29,6 +30,7 @@ export function SettingsModule({ view }: { view: string }) {
   if (view === "security") return <SecurityPage />;
   if (view === "approval") return <ApprovalEngineView />;
   if (view === "email") return <EmailConfigView />;
+  if (view === "api") return <ApiKeysView />;
   return <LookupPage />;
 }
 
@@ -218,6 +220,9 @@ function SecurityPage() {
           <TabsTrigger value="access" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <KeyRound className="h-3.5 w-3.5" /> {t("Hak Akses per Pengguna", "Access Rights per User")}
           </TabsTrigger>
+          <TabsTrigger value="mfa" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
+            <Smartphone className="h-3.5 w-3.5" /> {t("Dua Faktor (2FA)", "Two-Factor (2FA)")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -232,6 +237,11 @@ function SecurityPage() {
 
         <TabsContent value="access">
           <UserAccessView focusUserId={focusUser} onFocusConsumed={() => setFocusUser(null)} />
+        </TabsContent>
+
+        {/* T17-MFA: self-service akun login sendiri (status/setup/disable). */}
+        <TabsContent value="mfa">
+          <MfaCard />
         </TabsContent>
       </Tabs>
     </div>

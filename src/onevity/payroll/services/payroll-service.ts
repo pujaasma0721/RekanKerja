@@ -93,11 +93,18 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   const templateByCode = new Map(templates.map((t) => [t.code, t]));
 
   // Assignment aktif semua karyawan (validTo null) + data employee.
+  // T19: run TERMINATION (final settlement PHK) memproses karyawan yang BARU
+  // KELUAR (status Termination/Resignation sudah diterapkan PA) — assignment
+  // TERAKHIR dipakai sebagai snapshot penempatan (termasuk yang validTo-nya
+  // sudah ditutup oleh PA). Jenis run lain (SALARY/THR/BONUS/…) tetap hanya
+  // karyawan Active dengan assignment aktif — perilaku lama tidak berubah.
+  const isTerminationRun = processType.code === "TERMINATION";
   const activeEmployees = await db.employee.findMany({
-    where: { status: "Active" },
+    where: { status: isTerminationRun ? { in: ["Active", "Resigned", "Terminated"] } : "Active" },
     include: {
       assignments: {
-        where: { validTo: null },
+        ...(isTerminationRun ? {} : { where: { validTo: null } }),
+        orderBy: { validFrom: "desc" },
         include: { orgUnit: true, position: true },
         take: 1,
       },

@@ -70,8 +70,18 @@ export function AttendanceOvertimePage() {
 
   const decide = async (o: OvertimeRow, action: "approve" | "reject" | "verify" | "cancel", extra?: { note?: string; verifiedMinutes?: number }) => {
     try {
-      const res = await apiSend<{ note: string }>("/api/onevity/attendance/overtime", "PATCH", { id: o.id, action, ...extra });
-      toast.success(res.note);
+      const res = await apiSend<{ note: string; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>("/api/onevity/attendance/overtime", "PATCH", { id: o.id, action, ...extra });
+      if (res.approval) {
+        // T15-CHAIN-EXT: approval parsial — jenjang menengah disetujui, order
+        // tetap menunggu jenjang berikutnya (pola workoff)
+        toast.success(t("Jenjang {l}/{n} disetujui — menunggu {a}", "Tier {l}/{n} approved — awaiting {a}", {
+          l: res.approval.currentLevel - 1,
+          n: res.approval.totalLevels,
+          a: res.approval.currentApprover ?? t("jenjang berikutnya", "the next tier"),
+        }));
+      } else {
+        toast.success(res.note);
+      }
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal"));
@@ -186,6 +196,20 @@ export function AttendanceOvertimePage() {
                       <TableCell>
                         <StatusPill status={o.status} />
                         {o.paidRunNo && <p className="font-mono text-[9px] text-stone-400">{o.paidRunNo}</p>}
+                        {o.approval && (o.approval.status === "InProgress" || o.approval.status === "Rejected") && (
+                          <div className="mt-1 space-y-0.5">
+                            <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                              o.approval.status === "InProgress"
+                                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                                : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
+                              {o.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {o.approval.currentLevel}/{o.approval.totalLevels}
+                            </span>
+                            {o.approval.status === "InProgress" && o.approval.currentApprover && (
+                              <p className="max-w-36 truncate text-[10px] text-stone-400" title={o.approval.currentApprover}>{t("menunggu", "awaiting")} {o.approval.currentApprover}</p>
+                            )}
+                          </div>
+                        )}
+                        {o.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-stone-400" title={o.decisionNote}>{o.decisionNote}</p>}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -265,7 +289,7 @@ export function AttendanceOvertimePage() {
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("mis. penyelesaian order ekspor unit #47", "e.g. completing export order unit #47")} className="min-h-16 text-sm" />
             </div>
             <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
-              {t("Kategori hari otomatis dari jadwal karyawan (weekday / hari libur mingguan / libur nasional) → menentukan multiplier upah. Saat disetujui, jam aktual diambil dari clocking, jam diverifikasi dapat dikoreksi.", "The day category is automatic from the employee's schedule (weekday / weekly day off / national holiday) → determines the pay multiplier. On approval, actual hours are taken from clocking; verified hours can be corrected.")}
+              {t("Kategori hari otomatis dari jadwal karyawan (weekday / hari libur mingguan / libur nasional) → menentukan multiplier upah. Lembur dibatasi maksimal 4 jam/hari (PP 35/2021) dan disetujui berjenjang — jam aktual diambil dari clocking saat disetujui.", "The day category is automatic from the employee's schedule (weekday / weekly day off / national holiday) → determines the pay multiplier. Overtime is capped at 4 hours/day (PP 35/2021) and goes through tiered approval — actual hours are taken from clocking on approval.")}
             </p>
           </div>
           <DialogFooter>
@@ -283,9 +307,16 @@ export function AttendanceOvertimePage() {
           <DialogHeader>
             <DialogTitle>{t("Tolak Lembur {no}", "Reject Overtime {no}", { no: rejectTarget?.orderNo ?? "" })}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-1.5 py-1">
-            <Label className="text-xs font-bold">{t("Alasan penolakan *", "Rejection reason *")}</Label>
-            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={t("mis. tidak ada work order resmi dari dept head", "e.g. no official work order from dept head")} className="min-h-20 text-sm" />
+          <div className="space-y-2.5 py-1">
+            {rejectTarget?.approval?.status === "InProgress" && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+                {t("Approval berjenjang: jenjang", "Tiered approval: tier")} <b>{rejectTarget.approval.currentLevel}</b> {t("dari", "of")} <b>{rejectTarget.approval.totalLevels}</b> — {t("menunggu keputusan", "awaiting decision by")} <b>{rejectTarget.approval.currentApprover ?? t("jenjang berikutnya", "the next tier")}</b>. {t("Menolak jenjang ini menghentikan seluruh proses persetujuan.", "Rejecting this tier stops the whole approval process.")}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Alasan penolakan *", "Rejection reason *")}</Label>
+              <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={t("mis. melebihi batas 4 jam/hari PP 35/2021 / tanpa work order resmi", "e.g. exceeds the 4 h/day PP 35/2021 limit / no official work order")} className="min-h-20 text-sm" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectTarget(null)}>{t("Batal")}</Button>

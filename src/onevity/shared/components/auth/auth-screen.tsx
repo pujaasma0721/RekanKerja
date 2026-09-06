@@ -4,8 +4,9 @@
 // Auth Design Lab (?mockup=auth). Latar ivory hangat + noise film + bingkai
 // hairline; panel kiri serif display besar + testimoni + marquee klien;
 // kartu kanan putih: eyebrow amber, judul serif italic, field underline,
-// tab garis amber, CTA tinta hitam. Logika live tidak berubah: useSession
-// (login/registrasi + provisioning tenant), validasi inline, i18n ID/EN, a11y.
+// tab garis amber, CTA tinta hitam. Logika: useSession (login/registrasi +
+// provisioning tenant + T17-MFA langkah OTP 6 digit), validasi inline,
+// i18n ID/EN, a11y.
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { MotionConfig, motion } from "framer-motion";
 import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
@@ -13,6 +14,7 @@ import { useSession } from "@/onevity/shared/lib/session-store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
 import { NoiseOverlay, HairlineFrame, EditorialLogo, MarqueeStrip, EditorialError } from "./editorial";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,6 +102,12 @@ function UnderlineField({
   );
 }
 
+// ============ slot OTP editorial (underline) — T17-MFA ============
+// InputOTPSlot default kotak shadcn ditimpa jadi garis-bawah serif senada
+// field lain di kartu masuk (pola: 3 digit · 3 digit).
+const OTP_SLOT_CLS =
+  "h-12 w-10 rounded-none border-0 border-b border-stone-300 bg-transparent font-serif text-[18px] text-stone-800 shadow-none first:rounded-none first:border-l-0 last:rounded-none data-[active=true]:border-amber-600 data-[active=true]:ring-0 dark:border-stone-600 dark:bg-transparent dark:text-stone-200 dark:data-[active=true]:border-amber-500";
+
 // ============ CTA tinta ============
 function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: string; children: React.ReactNode }) {
   return (
@@ -127,7 +135,7 @@ function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: st
 
 export function AuthScreen() {
   const { t } = useI18n();
-  const { busy, error, login, register, clearError } = useSession();
+  const { busy, error, login, register, verifyMfa, clearError } = useSession();
 
   const [tab, setTab] = useState<AuthTab>("login");
   const [formError, setFormError] = useState<string | null>(null);
@@ -140,12 +148,23 @@ export function AuthScreen() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
+  // ---- T17-MFA: langkah OTP (kode 6 digit) setelah password benar ----
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaToken, setMfaToken] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+
   const shownError = formError ?? error;
+  const otpShownError = otpError ?? error;
 
   const switchTab = (next: AuthTab) => {
     setTab(next);
     setFormError(null);
     setInvalidFields([]);
+    setMfaStep(false);
+    setMfaToken("");
+    setOtp("");
+    setOtpError(null);
     if (error) clearError();
   };
 
@@ -166,7 +185,34 @@ export function AuthScreen() {
     setFormError(v.message ? t(v.message, VALIDATION_EN[v.message]) : null);
     setInvalidFields(v.fields);
     if (v.message) return;
-    await login(email, loginPassword);
+    const r = await login(email, loginPassword);
+    if (r.mfaRequired && r.mfaToken) {
+      // password benar, akun ber-MFA → tampilkan langkah kode 6 digit
+      setMfaStep(true);
+      setMfaToken(r.mfaToken);
+      setOtp("");
+      setOtpError(null);
+      if (error) clearError();
+    }
+  };
+
+  // ---- T17-MFA: kirim kode 6 digit (auto-submit saat lengkap) ----
+  const submitOtp = async (code: string) => {
+    if (busy || !mfaToken) return;
+    if (!/^\d{6}$/.test(code)) {
+      setOtpError(t("Kode verifikasi harus 6 digit angka.", "The verification code must be 6 digits."));
+      return;
+    }
+    const ok = await verifyMfa(mfaToken, code);
+    if (!ok) setOtp(""); // gagal → bersihkan utk coba lagi (error dari store)
+  };
+
+  const backToPassword = () => {
+    setMfaStep(false);
+    setMfaToken("");
+    setOtp("");
+    setOtpError(null);
+    if (error) clearError();
   };
 
   const submitRegister = async (e: FormEvent<HTMLFormElement>) => {
@@ -295,18 +341,32 @@ export function AuthScreen() {
                 className="relative w-full max-w-md overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-8 shadow-[0_40px_80px_-40px_rgba(87,83,78,0.35)] sm:p-10 dark:border-stone-800 dark:bg-stone-900 dark:shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)]"
               >
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-700 dark:text-amber-500">
-                  {tab === "login" ? t("Masuk ke akun", "Sign in to your account") : t("Registrasi", "Registration")}
+                  {tab === "register"
+                    ? t("Registrasi", "Registration")
+                    : mfaStep
+                      ? t("Verifikasi Dua Langkah", "Two-Step Verification")
+                      : t("Masuk ke akun", "Sign in to your account")}
                 </p>
                 <h2 className="mt-2.5 font-serif text-[27px] italic leading-tight text-stone-900 dark:text-stone-100">
-                  {tab === "login" ? t("Selamat datang.", "Welcome.") : t("Mulai perjalanan.", "Begin your journey.")}
+                  {tab === "register"
+                    ? t("Mulai perjalanan.", "Begin your journey.")
+                    : mfaStep
+                      ? t("Kode autentikator.", "Authenticator code.")
+                      : t("Selamat datang.", "Welcome.")}
                 </h2>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
-                  {tab === "login"
-                    ? t("Masuk untuk melanjutkan ke workspace Anda.", "Sign in to continue to your workspace.")
-                    : t("Database terisolasi siap dalam ± 2 menit.", "Isolated database ready in ± 2 minutes.")}
+                  {tab === "register"
+                    ? t("Database terisolasi siap dalam ± 2 menit.", "Isolated database ready in ± 2 minutes.")
+                    : mfaStep
+                      ? t(
+                          "Masukkan kode 6 digit dari aplikasi autentikator Anda untuk melanjutkan.",
+                          "Enter the 6-digit code from your authenticator app to continue.",
+                        )
+                      : t("Masuk untuk melanjutkan ke workspace Anda.", "Sign in to continue to your workspace.")}
                 </p>
 
-                {/* tab garis bawah editorial */}
+                {/* tab garis bawah editorial (disembunyikan saat langkah OTP) */}
+                {!mfaStep && (
                 <div className="mt-6 flex items-center gap-5 border-b border-stone-200 pb-5 dark:border-stone-800">
                   {(["login", "register"] as const).map((k) => (
                     <button
@@ -339,9 +399,85 @@ export function AuthScreen() {
                     </button>
                   ))}
                 </div>
+                )}
+
+                {/* ============ Langkah OTP (T17-MFA) ============ */}
+                {tab === "login" && mfaStep && (
+                  <form
+                    className="mt-7 space-y-6"
+                    noValidate
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void submitOtp(otp);
+                    }}
+                  >
+                    <p className="text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+                      {t(
+                        "Kode berlaku 30 detik dan berganti otomatis. Akun: {email}.",
+                        "The code is valid for 30 seconds and rotates automatically. Account: {email}.",
+                        { email: loginEmail || "—" },
+                      )}
+                    </p>
+                    <div className="pt-1">
+                      <InputOTP
+                        maxLength={6}
+                        value={otp}
+                        onChange={(v) => {
+                          setOtp(v);
+                          if (otpError) setOtpError(null);
+                          if (error) clearError();
+                        }}
+                        onComplete={(v) => {
+                          void submitOtp(v);
+                        }}
+                        disabled={busy}
+                        autoFocus
+                        autoComplete="one-time-code"
+                        inputMode="numeric"
+                        pattern="^\d+$"
+                        aria-label={t("Kode verifikasi 6 digit", "6-digit verification code")}
+                        aria-invalid={otpShownError ? true : undefined}
+                        aria-describedby={otpShownError ? "otp-error" : undefined}
+                        containerClassName="justify-center"
+                      >
+                        <InputOTPGroup className="gap-2.5">
+                          {[0, 1, 2].map((i) => (
+                            <InputOTPSlot key={i} index={i} className={OTP_SLOT_CLS} />
+                          ))}
+                        </InputOTPGroup>
+                        <span aria-hidden className="h-px w-4 bg-stone-300 dark:bg-stone-600" />
+                        <InputOTPGroup className="gap-2.5">
+                          {[3, 4, 5].map((i) => (
+                            <InputOTPSlot key={i} index={i} className={OTP_SLOT_CLS} />
+                          ))}
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+
+                    {otpShownError && <EditorialError id="otp-error" message={otpShownError} />}
+
+                    <InkButton busy={busy} busyLabel={t("Memeriksa…", "Verifying…")}>
+                      {t("Verifikasi & Masuk", "Verify & Sign In")}
+                    </InkButton>
+
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                        <ShieldCheck className="h-3.5 w-3.5 text-amber-700 dark:text-amber-500" aria-hidden />
+                        {t("Autentikasi dua faktor aktif di akun ini", "Two-factor authentication is active on this account")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={backToPassword}
+                        className="text-[11px] font-bold text-amber-800 hover:underline dark:text-amber-400"
+                      >
+                        ← {t("Kembali ke kata sandi", "Back to password")}
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 {/* ============ Tab Masuk ============ */}
-                {tab === "login" && (
+                {tab === "login" && !mfaStep && (
                   <form className="mt-7 space-y-6" noValidate onSubmit={submitLogin}>
                     <UnderlineField
                       id="login-email"

@@ -160,6 +160,11 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
     subject: "Akun OneVity HRIS Anda telah dibuat",
     body: "Halo {{nama}},\n\nAkun Anda untuk aplikasi OneVity HRIS telah dibuat:\n- Email login: {{email}}\n- Kata sandi sementara: {{password}}\n\nSegera login dan ganti kata sandi Anda. Kata sandi sementara hanya ditampilkan sekali.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
   },
+  {
+    event: "overtime.submitted", label: "Lembur — Pengajuan Baru", notifyEmployee: false, notifyApprover: true, notifyHrd: false,
+    subject: "[Perlu Persetujuan] Perintah Lembur {{docNo}} — {{nama}}",
+    body: "Halo Approver,\n\n{{nama}} mengajukan perintah lembur ({{docNo}}):\n- Tanggal: {{tanggal}}\n- Rencana jam: {{jumlahJam}} jam\n- Alasan: {{alasan}}\n\nMaksimal lembur 4 jam/hari sesuai PP 35/2021.\nSilakan buka OneVity HRIS untuk menyetujui atau menolak pengajuan ini.\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
   // ============ T14-SCHED: template pengingat scheduler latar belakang ============
   {
     event: "scheduler.contract-expiry", label: "Scheduler — Kontrak/Probation Segera Berakhir", notifyEmployee: false, notifyApprover: false, notifyHrd: true,

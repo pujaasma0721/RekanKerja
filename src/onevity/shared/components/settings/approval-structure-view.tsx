@@ -1,11 +1,13 @@
 "use client";
 // OneVity — Settings: Approval STRUKTUR BERJENJANG (Task 25)
-// Setup alur persetujuan multi-level per dokumen (Leave/WorkOff/Travel/Medical/Loan):
+// Setup alur persetujuan multi-level per dokumen (Leave/WorkOff/Overtime/Travel/
+// TravelClaim/Medical/Loan — T15-CHAIN-EXT menambah Overtime + TravelClaim):
 // - 6 kriteria pencocokan pemohon: kantor, lokasi kerja, unit organisasi, posisi,
 //   grade, level jabatan (kosong = semua; struktur paling spesifik menang)
 // - editor jenjang berurutan (Atasan Langsung / Atasan Berjenjang / Pemegang
 //   Posisi / Karyawan / Admin-HR) + syarat nominal (besaran) untuk
-//   Travel/Medical/Loan — jenjang tambahan aktif hanya bila nominal masuk rentang
+//   Travel/Medical/Loan/TravelClaim — jenjang tambahan aktif hanya bila nominal
+//   masuk rentang (TravelClaim: nominal = totalSettlement klaim)
 // - panel simulasi: lihat jalur yang akan terbentuk untuk seorang pemohon.
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort } from "@/onevity/shared/lib/api";
@@ -34,11 +36,13 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 const DOC_TYPES = [
   { value: "Leave", label: "Cuti (Leave)", en: "Leave" },
   { value: "WorkOff", label: "Izin Tidak Masuk (Work Off)", en: "Work Off Permit" },
+  { value: "Overtime", label: "Lembur (Overtime)", en: "Overtime" },
   { value: "Travel", label: "Perjalanan Dinas (Travel)", en: "Travel" },
+  { value: "TravelClaim", label: "Klaim Travel (Settlement)", en: "Travel Claim (Settlement)" },
   { value: "Medical", label: "Klaim Medis (Medical)", en: "Medical" },
   { value: "Loan", label: "Pinjaman Karyawan (Loan)", en: "Employee Loan" },
 ] as const;
-const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan"];
+const AMOUNT_DOC_TYPES = ["Travel", "Medical", "Loan", "TravelClaim"];
 
 const APPROVER_TYPES = [
   { value: "ATASAN_LANGSUNG", label: "Atasan Langsung", en: "Direct Superior" },

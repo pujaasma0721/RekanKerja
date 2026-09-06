@@ -1002,13 +1002,119 @@ const OT_INCLUDE = {
   employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } } },
 } as const;
 
+// ============ cap lembur PP 35/2021 (T15-CHAIN-EXT) ============
+
+/** Batas lembur default bila kolom AttendanceRule belum termigrasi (PP 35/2021: 4 jam/hari). */
+const DEFAULT_MAX_OVERTIME_HOURS = 4;
+
+/** Menit efektif sebuah order terhadap cap (Pending = rencana, sudah diputus = jam dibayar). */
+function otEffectiveMinutes(o: { status: string; planMinutes: number; verifiedMinutes: number; actualMinutes: number }): number {
+  return o.status === "Pending" ? o.planMinutes : o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
+}
+
+/** Cap lembur efektif dari AttendanceRule — maxOvertimeHours (default 4 jam/hari)
+ *  + cap opsional per bulan (null/0 = tanpa cap). Baca defensif: tenant remote
+ *  yang kolomnya belum termigrasi → default PP 35/2021. */
+export async function overtimeCaps(db: TenantDb): Promise<{ dailyHours: number; monthlyHours: number | null }> {
+  try {
+    const rule = await db.attendanceRule.findFirst({
+      orderBy: { id: "asc" },
+      select: { maxOvertimeHours: true, maxOvertimeHoursMonthly: true },
+    });
+    const dailyHours = rule && rule.maxOvertimeHours > 0 ? rule.maxOvertimeHours : DEFAULT_MAX_OVERTIME_HOURS;
+    const monthlyHours = rule?.maxOvertimeHoursMonthly && rule.maxOvertimeHoursMonthly > 0 ? rule.maxOvertimeHoursMonthly : null;
+    return { dailyHours, monthlyHours };
+  } catch {
+    return { dailyHours: DEFAULT_MAX_OVERTIME_HOURS, monthlyHours: null };
+  }
+}
+
+/** Total menit lembur AKTIF (Pending/Approved/Paid) karyawan pada satu tanggal. */
+async function activeOvertimeMinutesOnDate(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+  const rows = await db.overtimeOrder.findMany({
+    where: {
+      employeeId,
+      overtimeDate: dayStart(date),
+      status: { in: ["Pending", "Approved", "Paid"] },
+      ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
+    },
+    select: { status: true, planMinutes: true, verifiedMinutes: true, actualMinutes: true },
+  });
+  return rows.reduce((s, o) => s + otEffectiveMinutes(o), 0);
+}
+
+/** Total menit lembur AKTIF karyawan sepanjang bulan tanggal tsb. */
+async function activeOvertimeMinutesInMonth(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+  const monthStart = dayStart(new Date(date.getFullYear(), date.getMonth(), 1));
+  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  const rows = await db.overtimeOrder.findMany({
+    where: {
+      employeeId,
+      overtimeDate: { gte: monthStart, lt: monthEnd },
+      status: { in: ["Pending", "Approved", "Paid"] },
+      ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
+    },
+    select: { status: true, planMinutes: true, verifiedMinutes: true, actualMinutes: true },
+  });
+  return rows.reduce((s, o) => s + otEffectiveMinutes(o), 0);
+}
+
+/** Validasi cap lembur harian + bulanan — ramah (400 di route), BUKAN sekadar warning.
+ *  Dipakai saat SUBMIT dan di-REVALIDASI saat APPROVE (sebelum chain diputus
+ *  supaya kegagalan meninggalkan order + chain utuh — pola T5 saldo workoff). */
+async function assertOvertimeCaps(
+  db: TenantDb,
+  employeeId: string,
+  overtimeDate: Date,
+  planMinutes: number,
+  opts: { excludeOrderId?: string; verifiedMinutes?: number } = {},
+): Promise<{ dailyHours: number }> {
+  const { dailyHours, monthlyHours } = await overtimeCaps(db);
+  const dailyCap = dailyHours * 60;
+
+  // jam yang akan dibayar (bila diketahui) tak boleh melebihi cap harian
+  const payable = opts.verifiedMinutes ?? planMinutes;
+  if (payable > dailyCap) {
+    throw new Error(
+      `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (PP 35/2021)` +
+        (opts.verifiedMinutes != null ? " — kurangi jam terverifikasi ke dalam batas" : ""),
+    );
+  }
+  const othersToday = await activeOvertimeMinutesOnDate(db, employeeId, overtimeDate, opts.excludeOrderId);
+  if (othersToday + payable > dailyCap) {
+    throw new Error(
+      `Total lembur tanggal ${fmtDate(overtimeDate)} melampaui batas ${dailyHours} jam/hari (PP 35/2021) — ` +
+        `sudah terdaftar ${Math.round(othersToday / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+    );
+  }
+  if (monthlyHours != null) {
+    const othersMonth = await activeOvertimeMinutesInMonth(db, employeeId, overtimeDate, opts.excludeOrderId);
+    if (othersMonth + payable > monthlyHours * 60) {
+      throw new Error(
+        `Total lembur bulan ini melampaui cap ${monthlyHours} jam/bulan — sudah terdaftar ${Math.round(othersMonth / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+      );
+    }
+  }
+  return { dailyHours };
+}
+
+export interface OvertimeSubmitResult {
+  order: unknown;
+  note: string;
+  /** jumlah jenjang persetujuan untuk pengajuan ini (T15-CHAIN-EXT) */
+  approvalLevels: number;
+  /** nama approver jenjang pertama (T15-CHAIN-EXT) */
+  firstApprover: string | null;
+}
+
 export async function submitOvertimeOrder(
   db: TenantDb,
   input: {
     employeeId: string; overtimeDate: string; timeFrom: string; timeTo: string;
     planMinutes?: number; letterNo?: string | null; reason?: string | null;
+    actorName?: string | null;
   },
-): Promise<{ order: unknown; note: string }> {
+): Promise<OvertimeSubmitResult> {
   if (!input.employeeId) throw new Error("Karyawan wajib dipilih");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.overtimeDate)) throw new Error("Tanggal lembur tidak valid (YYYY-MM-DD)");
   if (!/^\d{2}:\d{2}$/.test(input.timeFrom) || !/^\d{2}:\d{2}$/.test(input.timeTo)) throw new Error("Jam mulai/selesai harus format HH:MM");
@@ -1020,6 +1126,10 @@ export async function submitOvertimeOrder(
   const plan = input.planMinutes && input.planMinutes > 0
     ? Math.round(input.planMinutes)
     : Math.max(30, minutesBetween(tFrom, tTo));
+
+  // T15-CHAIN-EXT: cap lembur PP 35/2021 — TOLAK pengajuan yang melampaui
+  // (maks {maxOvertimeHours} jam/hari + cap bulanan opsional dari AttendanceRule).
+  await assertOvertimeCaps(db, input.employeeId, date, plan);
 
   // day type & kategori utk multiplier
   const { dayType } = await resolveDayType(db, input.employeeId, date);
@@ -1039,17 +1149,53 @@ export async function submitOvertimeOrder(
     },
     include: OT_INCLUDE,
   });
-  return { order, note: `Perintah lembur ${orderNo} diajukan (${dayCategory}, rencana ${plan} menit) — menunggu persetujuan` };
+
+  // Approval berjenjang (T15-CHAIN-EXT, padanan WorkOff/Leave): bangun jalur
+  // persetujuan sesuai struktur "Overtime" yang cocok dengan penempatan
+  // pemohon — fallback atasan langsung → Admin/HR. Tanpa ini, perintah lembur
+  // diputus satu langkah datar oleh siapa pun.
+  const chain = await startApprovalChain(db, {
+    docType: "Overtime", docId: order.id, employeeId: input.employeeId,
+    createdBy: input.actorName ?? null,
+  });
+  await db.activityLog.create({
+    data: {
+      action: "Submitted", entity: "OvertimeOrder", entityId: orderNo,
+      detail: `${orderNo}: ${order.employee.fullName} — lembur ${fmtIso(date)} ${input.timeFrom}–${input.timeTo} (${dayCategory}, rencana ${plan} menit) — approval berjenjang ${chain.totalLevels} level`,
+    },
+  });
+  return {
+    order,
+    note: `Perintah lembur ${orderNo} diajukan (${dayCategory}, rencana ${plan} menit) — menunggu persetujuan ${chain.totalLevels} jenjang`,
+    approvalLevels: chain.totalLevels,
+    firstApprover: chain.steps[0]?.approverLabel ?? null,
+  };
+}
+
+export interface OvertimeDecisionResult {
+  order: unknown;
+  note: string;
+  /** ada bila approve jenjang menengah — order masih menunggu jenjang berikutnya (T15) */
+  approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
 }
 
 export async function decideOvertimeOrder(
   db: TenantDb,
   id: string,
   action: "approve" | "reject" | "verify" | "cancel",
-  opts: { approver?: string; note?: string; verifiedMinutes?: number },
-): Promise<{ order: unknown; note: string }> {
+  opts: { approver?: string; note?: string; verifiedMinutes?: number; actor?: DecideActor },
+): Promise<OvertimeDecisionResult> {
   const order = await db.overtimeOrder.findUnique({ where: { id }, include: OT_INCLUDE });
   if (!order) throw new Error("Perintah lembur tidak ditemukan");
+
+  // ==== approval berjenjang (T15-CHAIN-EXT) — chain dibuat saat submit;
+  // dokumen legacy tanpa chain (Pending) di-backfill saat putusan pertama. ====
+  let chain = await getApprovalChain(db, "Overtime", id);
+  if (!chain && order.status === "Pending") {
+    chain = await startApprovalChain(db, { docType: "Overtime", docId: id, employeeId: order.employeeId, createdBy: "legacy-backfill" });
+  }
+  const actor: DecideActor =
+    opts.actor ?? { role: "ADMIN", employeeId: null, name: opts.approver?.trim() || "Admin HR" };
 
   if (action === "approve") {
     if (order.status !== "Pending") throw new Error("Hanya perintah berstatus Pending yang dapat disetujui");
@@ -1077,10 +1223,48 @@ export async function decideOvertimeOrder(
     // Fix M-7: tanpa bukti clock (daily belum ada / tanpa check-in-out) → verified 0
     // (bukan plan) — lembur menunggu verifikasi manual, tidak dibayar otomatis.
     const verified = opts.verifiedMinutes && opts.verifiedMinutes > 0 ? Math.round(opts.verifiedMinutes) : actual > 0 ? actual : 0;
+    // T15-CHAIN-EXT: revalidasi cap (harian total + bulanan) SEBELUM chain diputus
+    // supaya kegagalan meninggalkan order Pending + chain utuh (pola T5 workoff).
+    if (verified > 0) {
+      await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, {
+        excludeOrderId: id, verifiedMinutes: verified,
+      });
+    } else {
+      await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id });
+    }
+
+    if (chain && chain.status === "InProgress") {
+      const res = await decideApprovalChain(db, {
+        docType: "Overtime", docId: id, action: "approve", note: opts.note, actor,
+      });
+      if (!res.final) {
+        // approve jenjang menengah → order tetap Pending, menunggu jenjang berikutnya
+        const currentStep = res.chain.steps.find((s) => s.status === "Current");
+        const waiting = currentStep?.approverLabel ?? "jenjang berikutnya";
+        await db.activityLog.create({
+          data: {
+            action: "Approved", entity: "OvertimeOrder", entityId: order.orderNo,
+            detail: `${order.orderNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui oleh ${actor.name} — menunggu ${waiting}`,
+          },
+        });
+        const refreshed = await db.overtimeOrder.findUnique({ where: { id }, include: OT_INCLUDE });
+        return {
+          order: refreshed,
+          note: `Jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${waiting}`,
+          approval: {
+            currentLevel: res.chain.currentLevel,
+            totalLevels: res.chain.totalLevels,
+            currentApprover: currentStep?.approverLabel ?? null,
+          },
+        };
+      }
+      // jenjang TERAKHIR → lanjut keputusan final di bawah (aktual/verified/estPay)
+    }
+
     const updated = await db.overtimeOrder.update({
       where: { id },
       data: {
-        status: "Approved", approverId: opts.approver?.trim() || "Admin HR",
+        status: "Approved", approverId: actor.name,
         decidedAt: new Date(), decisionNote: opts.note?.trim() || null,
         actualMinutes: actual, verifiedMinutes: verified,
         // multiplier jam ke-1 sesuai kategori hari (Weekday 1,5× / Weekend 2× / Holiday 2×)
@@ -1091,27 +1275,49 @@ export async function decideOvertimeOrder(
       include: OT_INCLUDE,
     });
     await regenerateDaily(db, order.overtimeDate, order.employeeId);
+    const levelsNote = chain ? ` (${chain.totalLevels} jenjang)` : "";
     const note = verified > 0
-      ? `Lembur disetujui — dibayar ${verified} menit (aktual clocking ${actual} menit)`
-      : `Lembur disetujui — belum ada bukti clocking, jam dibayar 0 menit — lakukan verifikasi manual bila lembur benar terjadi`;
+      ? `Lembur disetujui${levelsNote} — dibayar ${verified} menit (aktual clocking ${actual} menit)`
+      : `Lembur disetujui${levelsNote} — belum ada bukti clocking, jam dibayar 0 menit — lakukan verifikasi manual bila lembur benar terjadi`;
+    await db.activityLog.create({
+      data: {
+        action: "Approved", entity: "OvertimeOrder", entityId: order.orderNo,
+        detail: `${order.orderNo}: disetujui penuh${chain ? ` (${chain.totalLevels} jenjang)` : ""} oleh ${actor.name} — dibayar ${verified} menit (aktual ${actual})`,
+      },
+    });
     return { order: updated, note };
   }
 
   if (action === "reject") {
     if (order.status !== "Pending") throw new Error("Hanya perintah berstatus Pending yang dapat ditolak");
     if (!opts.note?.trim()) throw new Error("Alasan penolakan wajib diisi");
+    const rejectedAtLevel = chain && chain.status === "InProgress" ? ` di jenjang ${chain.currentLevel}/${chain.totalLevels}` : "";
+    if (chain && chain.status === "InProgress") {
+      await decideApprovalChain(db, { docType: "Overtime", docId: id, action: "reject", note: opts.note, actor });
+    }
     const updated = await db.overtimeOrder.update({
       where: { id },
-      data: { status: "Rejected", approverId: opts.approver?.trim() || "Admin HR", decidedAt: new Date(), decisionNote: opts.note.trim() },
+      data: { status: "Rejected", approverId: actor.name, decidedAt: new Date(), decisionNote: opts.note.trim() },
       include: OT_INCLUDE,
     });
     await regenerateDaily(db, order.overtimeDate, order.employeeId);
-    return { order: updated, note: `Perintah lembur ${order.orderNo} ditolak` };
+    await db.activityLog.create({
+      data: {
+        action: "Rejected", entity: "OvertimeOrder", entityId: order.orderNo,
+        detail: `${order.orderNo}: ditolak${rejectedAtLevel} oleh ${actor.name} — ${opts.note.trim()}`,
+      },
+    });
+    return { order: updated, note: `Perintah lembur ${order.orderNo} ditolak${rejectedAtLevel}` };
   }
 
   if (action === "verify") {
     if (order.status !== "Approved") throw new Error("Verifikasi hanya untuk perintah yang sudah disetujui");
     const verified = Math.max(0, Math.round(opts.verifiedMinutes ?? order.actualMinutes));
+    // T15-CHAIN-EXT: jam terverifikasi tetap dibatasi cap harian (PP 35/2021)
+    const { dailyHours } = await overtimeCaps(db);
+    if (verified > dailyHours * 60) {
+      throw new Error(`Jam terverifikasi ${Math.ceil(verified / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (PP 35/2021) — kurangi jam dibayar`);
+    }
     const updated = await db.overtimeOrder.update({
       where: { id },
       data: { verifiedMinutes: verified, decisionNote: opts.note?.trim() || `Jam diverifikasi: ${verified} menit` },
@@ -1123,6 +1329,9 @@ export async function decideOvertimeOrder(
 
   // cancel
   if (!["Pending", "Approved"].includes(order.status)) throw new Error("Perintah yang sudah dibayar/ditolak tidak dapat dibatalkan");
+  if (chain && chain.status === "InProgress") {
+    await cancelApprovalChain(db, "Overtime", id, actor.name);
+  }
   const updated = await db.overtimeOrder.update({
     where: { id },
     data: { status: "Cancelled", decisionNote: opts.note?.trim() || "Dibatalkan" },

@@ -37,6 +37,13 @@ export async function PATCH(req: NextRequest) {
     if (b.roundingMinutes !== undefined) data.roundingMinutes = Math.max(1, Math.min(60, parseInt(b.roundingMinutes, 10) || 5));
     if (b.minOvertimeMinutes !== undefined) data.minOvertimeMinutes = Math.max(0, parseInt(b.minOvertimeMinutes, 10) || 0);
     if (b.overtimeRoundingMinutes !== undefined) data.overtimeRoundingMinutes = Math.max(1, Math.min(60, parseInt(b.overtimeRoundingMinutes, 10) || 30));
+    // T15-CHAIN-EXT: cap lembur PP 35/2021 — override per tenant (jam/hari 1–8,
+    // cap bulanan opsional; 0/null = tanpa cap bulanan).
+    if (b.maxOvertimeHours !== undefined) data.maxOvertimeHours = Math.max(1, Math.min(8, parseInt(b.maxOvertimeHours, 10) || 4));
+    if (b.maxOvertimeHoursMonthly !== undefined) {
+      const monthly = parseInt(b.maxOvertimeHoursMonthly, 10);
+      data.maxOvertimeHoursMonthly = Number.isFinite(monthly) && monthly > 0 ? Math.min(200, monthly) : null;
+    }
     if (b.nonClockingPolicy !== undefined && ["AssumeNormal", "ByHours", "ByDays"].includes(b.nonClockingPolicy)) data.nonClockingPolicy = b.nonClockingPolicy;
     for (const key of ["overtimeComponentCode", "lateDeductionComponentCode", "absenceDeductionComponentCode", "attendanceAllowanceComponentCode"] as const) {
       if (b[key] !== undefined) {

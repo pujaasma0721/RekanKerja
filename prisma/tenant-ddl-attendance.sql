@@ -164,6 +164,8 @@ CREATE TABLE "AttendanceRule" (
     "roundingMinutes" INTEGER NOT NULL DEFAULT 5,
     "minOvertimeMinutes" INTEGER NOT NULL DEFAULT 30,
     "overtimeRoundingMinutes" INTEGER NOT NULL DEFAULT 30,
+    "maxOvertimeHours" INTEGER NOT NULL DEFAULT 4,
+    "maxOvertimeHoursMonthly" INTEGER,
     "nonClockingPolicy" TEXT NOT NULL DEFAULT 'AssumeNormal',
     "overtimeComponentCode" TEXT NOT NULL DEFAULT 'LEMBUR',
     "lateDeductionComponentCode" TEXT NOT NULL DEFAULT 'TLATE',

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PA_TYPES } from "@/onevity/shared/components/ui-kit";
 import { PA_TYPE_LABEL_EN } from "./pa-types";
 import { useApi, apiSend, initials, avatarColor, fmtIDR } from "@/onevity/shared/lib/api";
@@ -17,7 +18,8 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Loader2, Workflow } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Workflow, Calculator } from "lucide-react";
+import { SettlementPreviewDialog } from "@/onevity/human-resource/components/actions/settlement-preview-dialog";
 import { cn } from "@/lib/utils";
 
 interface EmpOpt {
@@ -38,13 +40,16 @@ interface MasterOpt {
   grades: { id: string; code: string; name: string }[];
 }
 
-type FieldKind = "select-position" | "select-unit" | "select-grade" | "number" | "date" | "select-empstatus";
+type FieldKind = "select-position" | "select-unit" | "select-grade" | "number" | "date" | "select-empstatus" | "select-multiplier" | "check";
 interface FieldDef {
   key: string;
   label: string;
   kind: FieldKind;
   required?: boolean;
   money?: boolean;
+  /** nilai string yang disimpan saat checkbox aktif (dipakai kind "check") */
+  checkValue?: string;
+  hint?: string;
 }
 
 const TYPE_FIELDS: Record<string, FieldDef[]> = {
@@ -74,6 +79,9 @@ const TYPE_FIELDS: Record<string, FieldDef[]> = {
   ],
   Termination: [
     { key: "lastDay", label: "Tanggal Berakhir", kind: "date", required: true },
+    { key: "pesangonMultiplier", label: "Faktor UPMK Pesangon", kind: "select-multiplier" },
+    { key: "uangPisahPct", label: "Uang Pisah (15% pesangon)", kind: "check", checkValue: "15" },
+    { key: "includeBonusProRata", label: "Bonus Pro-rata (penggantian hak)", kind: "check", checkValue: "true" },
   ],
   Retirement: [
     { key: "lastDay", label: "Tanggal Pensiun", kind: "date", required: true },
@@ -112,6 +120,9 @@ const FIELD_LABEL_EN: Record<string, string> = {
   "Tanggal Berakhir Baru": "New End Date",
   "Perpanjangan (bulan)": "Extension (months)",
   "Status Kepegawaian Baru": "New Employment Status",
+  "Faktor UPMK Pesangon": "UPMK Severance Factor",
+  "Uang Pisah (15% pesangon)": "Separation Pay (15% of severance)",
+  "Bonus Pro-rata (penggantian hak)": "Pro-rata Bonus (replacement entitlement)",
 };
 
 // Kunci ID pendamping tiap field select — dialog menyimpan ID (dipakai handler process)
@@ -133,6 +144,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const [empOpen, setEmpOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [type, setType] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
@@ -349,6 +361,29 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   </SelectContent>
                 </Select>
               )}
+              {f.kind === "select-multiplier" && (
+                <Select value={detail[f.key] ?? "1"} onValueChange={(v) => setField(f.key, v)}>
+                  <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">×0,5 — {t("pengurangan hak", "waiver")}</SelectItem>
+                    <SelectItem value="1">×1 — {t("PHK efisiensi", "efficiency termination")}</SelectItem>
+                    <SelectItem value="1.5">×1,5 — {t("tanpa alasan (murah)", "no cause (light)")}</SelectItem>
+                    <SelectItem value="2">×2 — {t("tanpa alasan", "no cause")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {f.kind === "check" && (
+                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-stone-200 px-3 dark:border-stone-800">
+                  <Checkbox
+                    checked={detail[f.key] === (f.checkValue ?? "true")}
+                    onCheckedChange={(v) => setField(f.key, v ? (f.checkValue ?? "true") : "")}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+                    {t(f.label, FIELD_LABEL_EN[f.label])}
+                  </span>
+                </label>
+              )}
               {f.kind === "number" && (
                 <div className="relative">
                   {f.money && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-stone-400">Rp</span>}
@@ -385,6 +420,16 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy} className="h-11 px-5">{t("Batal")}</Button>
+          {type === "Termination" && employeeId && detail.lastDay && (
+            <Button
+              variant="outline"
+              onClick={() => setPreviewOpen(true)}
+              disabled={busy}
+              className="h-11 gap-2 px-5"
+            >
+              <Calculator className="h-4 w-4" /> {t("Pratinjau Settlement", "Settlement Preview")}
+            </Button>
+          )}
           {perms.can("hr", "all", "create") && (
             <Button disabled={missing || busy} onClick={() => void submit()} className="h-11 px-6 font-bold">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Workflow className="h-4 w-4" />}
@@ -392,6 +437,18 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </Button>
           )}
         </DialogFooter>
+        <SettlementPreviewDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          employeeId={employeeId}
+          employeeName={selected?.label ?? ""}
+          effectiveDate={String(detail.lastDay ?? "")}
+          initialParams={{
+            pesangonMultiplier: Number(detail.pesangonMultiplier ?? 1),
+            uangPisahPct: Number(detail.uangPisahPct ?? 0),
+          }}
+          reason={t("Pratinjau — PA Pemutusan Hubungan Kerja", "Preview — Termination PA")}
+        />
       </DialogContent>
     </Dialog>
   );

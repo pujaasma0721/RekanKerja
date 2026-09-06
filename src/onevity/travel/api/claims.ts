@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 // T16-ATTACH — lampiran kwitansi klaim (draft-upload → rebind saat submit;
 // enforcement jenis biaya needDocs; metadata utk badge "lampiran n").
 import {
@@ -121,6 +123,7 @@ export async function POST(req: NextRequest) {
       exchangeLoss: Math.max(0, Number(b.exchangeLoss ?? 0)),
       payableEmployee: Math.max(0, Number(b.payableEmployee ?? 0)),
       payableCompany: Math.max(0, Number(b.payableCompany ?? 0)),
+      actorName: m.actor.name,
     }).catch(async (e: unknown) => {
       // gagal membuat klaim → sapu draf lampiran yang dikirim (best-effort)
       if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
@@ -138,6 +141,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
+    // T15-CHAIN-EXT: + notifikasi in-app ke approver jenjang pertama (chain
+    // "TravelClaim" kini ada → resolusi nextApprover akurat, bukan fallback).
     void (async () => {
       try {
         const emp = await db.employee.findUnique({
@@ -155,6 +160,12 @@ export async function POST(req: NextRequest) {
             jumlah: `Rp ${total.toLocaleString("id-ID")}`,
             periode: b.claimDate ? String(b.claimDate) : "-",
           },
+        });
+        await notifyEvent(db, {
+          to: "nextApprover", docType: "TravelClaim", docNo: res.docNo,
+          title: `Klaim settlement ${res.docNo} menunggu persetujuan Anda`,
+          body: `${emp?.fullName ?? "Karyawan"} — klaim travel Rp ${res.totalSettlement.toLocaleString("id-ID")}${res.approvalLevels > 1 ? ` — approval ${res.approvalLevels} jenjang` : ""}`,
+          kind: "travel", link: "actions:inbox",
         });
       } catch { /* never */ }
     })();
@@ -187,6 +198,7 @@ export async function PATCH(req: NextRequest) {
       action: b.action,
       note: b.note ? String(b.note) : undefined,
       actorId: m.actor.appUserId ?? m.actor.userId,
+      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name, appUserId: m.actor.appUserId },
     });
 
     // T16-ATTACH — klaim dibatalkan → sapu file+baris lampirannya (best-effort).
@@ -194,8 +206,20 @@ export async function PATCH(req: NextRequest) {
       void deleteAttachmentsByEntity(m.db, "TravelClaim", String(b.id)).catch(() => undefined);
     }
 
+    // ===== Notifikasi in-app (T15-CHAIN-EXT) — approve parsial → approver jenjang berikut =====
+    if (b.action === "approve" && res.approval) {
+      void notifyEvent(m.db, {
+        to: "nextApprover", docType: "TravelClaim", docNo: res.docNo, docId: String(b.id),
+        title: `Klaim settlement ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
+        body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
+        kind: "travel", link: "actions:inbox",
+      });
+    }
+
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====
-    if (b.action !== "cancel") {
+    // Hanya keputusan FINAL (approve/reject — res tanpa field approval) yang
+    // memicu email ke pengaju; approve jenjang menengah tetap menunggu.
+    if (b.action !== "cancel" && !res.approval) {
       void (async () => {
         try {
           const cl = await m.db.travelClaim.findUnique({
@@ -220,6 +244,14 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(res);
   } catch (e) {
+    // T15-CHAIN-EXT: race double-decide → 409 ramah; aktor bukan approver
+    // jenjang (dan bukan delegate) → 403 — bukan 400 generik (pola leave).
+    if (e instanceof DecisionConflictError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
+    if (e instanceof DecisionForbiddenError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

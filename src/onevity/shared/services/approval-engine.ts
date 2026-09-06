@@ -1,14 +1,15 @@
 // OneVity — Mesin APPROVAL STRUKTUR BERJENJANG (Task 25)
 // =====================================================================
 // Alur persetujuan multi-level yang dapat di-setup per modul dokumen
-// (Leave/Travel/Medical/Loan/WorkOff) dengan pencocokan 6 dimensi penempatan
-// pemohon: company office, work location, unit organisasi, posisi,
-// grade, dan level jabatan (semua parameter tersimpan pada Employee —
-// snapshot penempatan aktif). Khusus Travel/Medical/Loan, tiap jenjang
-// dapat membawa syarat nominal (minAmount/maxAmount) sehingga jenjang
-// tambahan aktif hanya bila besaran benefit / jumlah pinjaman masuk
-// rentang; WorkOff (izin tidak masuk) tidak berbasis nominal — semua
-// jenjang aktif untuk tiap pengajuan.
+// (Leave/Travel/Medical/Loan/WorkOff/Overtime/TravelClaim) dengan pencocokan
+// 6 dimensi penempatan pemohon: company office, work location, unit
+// organisasi, posisi, grade, dan level jabatan (semua parameter tersimpan
+// pada Employee — snapshot penempatan aktif). Khusus Travel/Medical/Loan/
+// TravelClaim, tiap jenjang dapat membawa syarat nominal (minAmount/
+// maxAmount) sehingga jenjang tambahan aktif hanya bila besaran benefit /
+// jumlah pinjaman / total settlement klaim masuk rentang; WorkOff (izin
+// tidak masuk) dan Overtime (perintah lembur) tidak berbasis nominal —
+// semua jenjang aktif untuk tiap pengajuan.
 //
 // Fallback tanpa struktur: atasan langsung (bila ada) → Admin/HR —
 // mencegah deadlock (temuan audit BPA: layer tanpa approver).
@@ -20,11 +21,11 @@ export type DbOrTx = TenantDb | Prisma.TransactionClient;
 
 // ============ konstanta domain ============
 
-export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff"] as const;
+export const APPROVAL_DOC_TYPES = ["Leave", "Travel", "Medical", "Loan", "WorkOff", "Overtime", "TravelClaim"] as const;
 export type ApprovalDocType = (typeof APPROVAL_DOC_TYPES)[number];
 
 /** docType yang jenjangnya bisa memakai syarat nominal (besaran). */
-export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan"];
+export const AMOUNT_DOC_TYPES: ApprovalDocType[] = ["Travel", "Medical", "Loan", "TravelClaim"];
 
 export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Leave: "Cuti (Leave)",
@@ -32,6 +33,8 @@ export const DOC_TYPE_LABEL: Record<ApprovalDocType, string> = {
   Medical: "Klaim Medis (Medical)",
   Loan: "Pinjaman Karyawan (Loan)",
   WorkOff: "Izin Tidak Masuk (Work Off)",
+  Overtime: "Lembur (Overtime)",
+  TravelClaim: "Klaim Travel (Settlement)",
 };
 
 export const APPROVER_TYPE_LABEL: Record<string, string> = {
@@ -514,6 +517,8 @@ const DELEGATION_DOC_ALIASES: Record<string, string[]> = {
   Medical: ["Medical", "MedicalClaim"],
   Loan: ["Loan", "EmployeeLoan"],
   WorkOff: ["WorkOff", "WorkOffPermission"],
+  Overtime: ["Overtime", "OvertimeOrder"],
+  TravelClaim: ["TravelClaim", "TravelClaimSettlement"],
   PersonnelAction: ["PersonnelAction", "PA"],
 };
 

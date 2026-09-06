@@ -21,13 +21,20 @@ export type { TenantPrismaClient };
 // T9-HOLIDAY: versi dinaikkan lagi (V6H) — model HolidayDate masuk client hasil
 // generate (overlay engine resolveDayType meng-query tabel ini); agen paralel
 // lain memakai V5 — key V6H milik T9, instance lama tidak dipakai ulang.
+// T18-API: versi dinaikkan lagi (V7) — model ApiKey + Webhook + WebhookLog
+// masuk client hasil generate (apikey/webhook-service & route public
+// memakai model ini); instance DMMF lama (pra-V7) tidak dipakai ulang.
+// T15-CHAIN-EXT: versi dinaikkan lagi (V15T) — kolom AttendanceRule.
+// maxOvertimeHours/maxOvertimeHoursMonthly masuk client hasil generate
+// (validasi cap lembur PP 35/2021 saat submit/approve perintah lembur);
+// agen lain memakai V7/V6H — key V15T milik T15, instance lama tidak dipakai.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsV6H: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsV15T: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsV6H ?? new Map();
-globalForTenants.onevityTenantClientsV6H = tenantClients;
+  globalForTenants.onevityTenantClientsV15T ?? new Map();
+globalForTenants.onevityTenantClientsV15T = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

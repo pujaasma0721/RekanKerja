@@ -520,6 +520,16 @@ function RulesTab() {
               </Select>
               <p className="text-[10px] text-stone-400">{t("Padanan \"Non Clocking Normal Hours Calculation\"", "Counterpart of \"Non Clocking Normal Hours Calculation\"")}</p>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Maksimal lembur / hari (jam) *", "Max overtime / day (hours) *")}</Label>
+              <Input type="number" min={1} max={8} value={rule.maxOvertimeHours} onChange={(e) => set({ maxOvertimeHours: Math.max(1, Math.min(8, parseInt(e.target.value, 10) || 4)) })} className="text-sm" />
+              <p className="text-[10px] text-stone-400">{t("Batas PP 35/2021 — pengajuan lembur di atas nilai ini DITOLAK saat submit & approve", "PP 35/2021 limit — overtime requests above this are REJECTED on submit & approve")}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Maksimal lembur / bulan (jam)", "Max overtime / month (hours)")}</Label>
+              <Input type="number" min={0} max={200} value={rule.maxOvertimeHoursMonthly ?? 0} onChange={(e) => { const v = parseInt(e.target.value, 10) || 0; set({ maxOvertimeHoursMonthly: v > 0 ? v : null }); }} className="text-sm" />
+              <p className="text-[10px] text-stone-400">{t("Cap bulanan opsional (0 / kosong = tanpa cap bulanan)", "Optional monthly cap (0 / empty = no monthly cap)")}</p>
+            </div>
           </div>
         </CardContent>
       </Card>

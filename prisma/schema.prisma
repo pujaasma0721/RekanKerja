@@ -44,6 +44,12 @@ model User {
   // Revokasi sesi server-side (T1-SECURITY): payload token membawa versi ini;
   // naikkan versi (logout / ganti sandi) → semua token lama otomatis invalid.
   sessionVersion Int     @default(0)
+  // MFA TOTP (T17-MFA): secret base32 terenkripsi at-rest (AES-256-GCM, kunci
+  // diturunkan dari SESSION_SECRET — lihat src/onevity/shared/lib/auth.ts) +
+  // status aktif. Login 2-langkah: bila totpEnabled, password benar → token
+  // MFA short-lived 5 menit; cookie hanya di-set setelah kode 6 digit benar.
+  totpSecret    String?
+  totpEnabled   Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

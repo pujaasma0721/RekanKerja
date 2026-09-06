@@ -1440,6 +1440,11 @@ model AttendanceRule {
   roundingMinutes                  Int      @default(5) // pembulatan menit clocking ke kelipatan
   minOvertimeMinutes               Int      @default(30) // minimum menit agar dihitung lembur
   overtimeRoundingMinutes          Int      @default(30) // pembulatan jam lembur ke kelipatan
+  // T15-CHAIN-EXT: cap lembur PP 35/2021 — maksimal jam per hari (default 4)
+  // + cap opsional per bulan (null/0 = tanpa cap bulanan). Divalidasi saat
+  // submit & approve perintah lembur (total per karyawan per tanggal/bulan).
+  maxOvertimeHours                 Int      @default(4)
+  maxOvertimeHoursMonthly          Int?     // null/0 = tanpa cap bulanan
   nonClockingPolicy                String   @default("AssumeNormal") // AssumeNormal|ByHours|ByDays
   // peta komponen payroll (kode WageComponent — padanan "Overtime Specified")
   overtimeComponentCode            String   @default("LEMBUR")
@@ -1986,4 +1991,51 @@ model MedicalAdjustment {
   type     MedicalBenefitType @relation(fields: [typeId], references: [id])
 
   @@index([state])
+}
+
+// ============ PUBLIC API & WEBHOOK (T18-API) ============
+
+// Kunci API per tenant untuk REST API publik (header x-api-key).
+// Kunci asli TIDAK PERNAH disimpan — hanya hash SHA-256; prefix (12 karakter
+// pertama) dipakai display + identitas aktor audit "apikey:{prefix}".
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String // label kunci (mis. "Integrasi Absensi")
+  prefix     String // 12 karakter pertama kunci — display
+  keyHash    String    @unique // SHA-256 hex kunci penuh
+  scopes     String    @default("employees") // csv: employees,leave,payroll
+  lastUsedAt DateTime? // diperbarui verifyApiKey (fire-and-forget)
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime? // null = aktif; terisi = kunci dicabut (401)
+}
+
+// Endpoint webhook per tenant — POST otomatis saat event HRIS terjadi
+// (leave/payroll/workoff). Tanda tangan HMAC-SHA256(secret, body) dikirim
+// pada header X-OneVity-Signature supaya penerima bisa memverifikasi asal.
+model Webhook {
+  id        String   @id @default(cuid())
+  url       String // endpoint https://… penerima
+  events    String // csv: leave.submitted,leave.approved,payroll.confirmed,payroll.paid,workoff.approved
+  secret    String // secret HMAC (auto-generate, bisa diganti)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  logs WebhookLog[]
+}
+
+// Riwayat pengiriman webhook — housekeeping: maks 500 baris per tenant
+// (terlama dihapus saat dispatch menulis baris baru melampaui batas).
+model WebhookLog {
+  id             String   @id @default(cuid())
+  webhookId      String
+  event          String
+  payload        String // body JSON persis yang dikirim (utk audit/verifikasi)
+  status         String // Sent | Failed
+  responseStatus Int? // HTTP status penerima (null bila tak sampai/timeout)
+  error          String?
+  createdAt      DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
 }

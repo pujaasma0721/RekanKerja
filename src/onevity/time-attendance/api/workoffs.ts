@@ -5,6 +5,7 @@ import { attachChainSummaries } from "@/onevity/shared/services/approval-engine"
 import { submitWorkoff, decideWorkoff } from "@/onevity/time-attendance/services/attendance-service";
 import { notifyEmailEvent, employeeEmailOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // GET /api/onevity/attendance/workoffs?status= — izin tidak masuk + statistik
 // (padanan EmployeeWorkOff.jsp + approval berjenjang).
@@ -161,6 +162,19 @@ export async function PATCH(req: NextRequest) {
               body: `Izin tidak masuk ${new Date(wo.dateFrom).toISOString().slice(0, 10)} → ${new Date(wo.dateTo).toISOString().slice(0, 10)}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
               kind: "attendance", link: "attendance:workoff",
             });
+          }
+          // ===== Webhook (T18-API) — keputusan FINAL workoff, fire-and-forget =====
+          if (wo) {
+            await dispatchWebhookEvent(
+              m.db, null,
+              b.action === "approve" ? "workoff.approved" : "workoff.rejected",
+              {
+                docNo: wo.docNo, employeeId: wo.employeeId, employeeName: wo.employee?.fullName ?? null,
+                dateFrom: new Date(wo.dateFrom).toISOString().slice(0, 10),
+                dateTo: new Date(wo.dateTo).toISOString().slice(0, 10),
+                paid: wo.paid, note: b.note ? String(b.note) : null, decidedBy: m.actor.name,
+              },
+            );
           }
         } catch {
           // notifikasi tidak boleh menggagalkan keputusan
