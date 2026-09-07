@@ -7,10 +7,12 @@ import {
   type LetterCategory,
 } from "@/onevity/shared/services/letter-service";
 
-// Penerbitan & pencetakan SURAT (Task 3-LETTERS):
+// Penerbitan & pencetakan SURAT (Task 3-LETTERS + 26-a EmployeeService):
 //   · POST /api/onevity/letters/issue        — terbitkan (idempotent) dari
 //     DisciplinaryRecord / PersonnelAction; templateKey resolusi otomatis
 //     (DISC_<LEVEL> / PA_<TYPE>). Guard hr:directory create.
+//     26-a: category "EmployeeService" — terbit langsung dari profil karyawan
+//     (templateKey EMP_* + employeeId + purpose opsional).
 //   · GET  /api/onevity/letters/[id]/pdf     — PDF surat (kop perusahaan,
 //     snapshot body). Guard hr:directory view.
 //   · GET  /api/onevity/letters?employeeId=  — daftar surat terbaru. Guard
@@ -25,8 +27,35 @@ export async function issueLetterRoute(req: NextRequest) {
 
     const b = await req.json();
     const category = b.category as LetterCategory;
-    if (category !== "Disciplinary" && category !== "PersonnelAction") {
-      return NextResponse.json({ error: "category harus Disciplinary atau PersonnelAction" }, { status: 400 });
+    if (category !== "Disciplinary" && category !== "PersonnelAction" && category !== "EmployeeService") {
+      return NextResponse.json({ error: "category harus Disciplinary, PersonnelAction, atau EmployeeService" }, { status: 400 });
+    }
+
+    // ---- 26-a: surat layanan karyawan — terbit langsung dari profil ----
+    // templateKey EMP_* dipilih HR di dialog, karyawan eksplisit, purpose opsional.
+    if (category === "EmployeeService") {
+      const templateKey = String(b.templateKey ?? "");
+      const employeeId = String(b.employeeId ?? "");
+      if (!templateKey) return NextResponse.json({ error: "templateKey wajib" }, { status: 400 });
+      if (!employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
+      const tpl = await db.letterTemplate.findFirst({ where: { key: templateKey } });
+      if (!tpl || tpl.category !== "EmployeeService") {
+        return NextResponse.json({ error: "Template surat layanan tidak ditemukan" }, { status: 404 });
+      }
+      const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { id: true } });
+      if (!emp) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+      try {
+        const letter = await issueLetter(db, {
+          category,
+          templateKey,
+          employeeId,
+          actorId: actor.appUserId,
+          purpose: typeof b.purpose === "string" ? b.purpose : null,
+        });
+        return NextResponse.json({ letter }, { status: 201 });
+      } catch (e) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : "Gagal menerbitkan surat" }, { status: 400 });
+      }
     }
 
     // resolusi templateKey + karyawan dari dokumen sumber
@@ -123,19 +152,43 @@ export async function letterPdfRoute(req: NextRequest, ctx: { params: Promise<{ 
 }
 
 // ================= GET list =================
+// 26-a: respons kini juga membawa `templates` — katalog EmployeeService aktif
+// (dipakai dialog "Terbitkan Surat" di profil karyawan: pilih jenis + pratinjau
+// live render) supaya halaman hr:directory tidak bergantung menu hr:templates.
 export async function listLetters(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:directory", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
 
     const employeeId = req.nextUrl.searchParams.get("employeeId");
-    const letters = await m.db.letterDocument.findMany({
-      where: employeeId ? { employeeId } : undefined,
-      select: { id: true, refNo: true, category: true, templateKey: true, subject: true, issuedAt: true },
-      orderBy: { issuedAt: "desc" },
-      take: 100,
+    const [letters, templates] = await Promise.all([
+      m.db.letterDocument.findMany({
+        where: employeeId ? { employeeId } : undefined,
+        include: { employee: { select: { fullName: true, employeeNo: true } } },
+        orderBy: { issuedAt: "desc" },
+        take: 100,
+      }),
+      m.db.letterTemplate.findMany({
+        where: { category: "EmployeeService", active: true },
+        orderBy: { key: "asc" },
+        select: { key: true, name: true, description: true, subject: true, body: true, signatoryName: true, signatoryTitle: true },
+      }),
+    ]);
+    return NextResponse.json({
+      letters: letters.map((l) => ({
+        id: l.id,
+        refNo: l.refNo,
+        category: l.category,
+        templateKey: l.templateKey,
+        subject: l.subject,
+        issuedAt: l.issuedAt,
+        employeeName: l.employee.fullName,
+        employeeNo: l.employee.employeeNo,
+        templateName: parseMeta(l.metaJson).templateName ?? l.templateKey,
+        purpose: parseMeta(l.metaJson).purpose ?? null,
+      })),
+      templates,
     });
-    return NextResponse.json({ letters });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

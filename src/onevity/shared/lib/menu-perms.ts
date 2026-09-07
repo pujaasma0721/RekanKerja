@@ -132,6 +132,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "test", label: "Menguji kirim webhook", hint: "Tombol Uji Kirim pada endpoint webhook" },
     { key: "revoke", label: "Mencabut kunci API", hint: "Mencabut (revoke) kunci Public API" },
   ],
+
+  // HR — Dokumen & Surat (26-a): memutuskan permintaan surat karyawan (ESS)
+  "hr:templates": [
+    { key: "decide", label: "Menyetujui / menolak permintaan surat", hint: "Tab Permintaan Masuk pada menu Template Surat — terbitkan atau tolak permintaan surat karyawan" },
+  ],
 };
 
 /** Operasi khusus yang terdaftar untuk sebuah key menu. */
