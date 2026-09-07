@@ -55,6 +55,7 @@ model CompanyOffice {
   assignments   EmployeeAssignment[]
   approvalStructures ApprovalStructure[] @relation("StructureOffice")
   accessRules        DataAccessRule[]    @relation("AccessRuleOffice")
+  minimumWages  MinimumWage[]
 }
 
 // Lokasi kerja (site/plant) — dimensi penempatan & kriteria approval.
@@ -203,6 +204,11 @@ model Employee {
   joinDate  DateTime  @default(now())
   endDate   DateTime?
   status    String    @default("Active") // Active|Resigned|Terminated|Blacklisted
+
+  // ===== kontrak PKWT (PP 35/2021) — pelacakan jangka & perpanjangan =====
+  contractStart DateTime? // mulai PKWT aktif
+  contractEnd   DateTime? // akhir PKWT aktif (null = tanpa batas / PKS)
+  renewalCount  Int       @default(0) // jumlah perpanjangan PKWT (generasi kontrak - 1)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -253,6 +259,7 @@ model Employee {
   medicalAdjustments  MedicalAdjustment[]
   documents           EmployeeDocument[]
   letters             LetterDocument[]
+  letterRequests      LetterRequest[]
   offboardings        Offboarding[]
 
   // relasi approval berjenjang
@@ -655,6 +662,25 @@ model PayrollRegulation {
   active                 Boolean   @default(true)
 }
 
+// ============ UMP/UMK PER KANTOR ============
+// Upah minimum per tahun per CompanyOffice (provinsi/kabupaten) — dipakai
+// payroll engine memvalidasi gaji pokok karyawan yang ditempatkan di kantor
+// tsb (PP 36/2021). companyOfficeId null = kebijakan default tenant.
+model MinimumWage {
+  id              String   @id @default(cuid())
+  year            Int
+  companyOfficeId String?
+  label           String
+  monthlyAmount   Float
+  active          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  companyOffice CompanyOffice? @relation(fields: [companyOfficeId], references: [id])
+
+  @@unique([year, companyOfficeId])
+}
+
 // Eksekusi payroll: 1 run = period × processType × sequence.
 model PayrollRun {
   id             String    @id @default(cuid())
@@ -663,6 +689,7 @@ model PayrollRun {
   processTypeId  String
   sequence       Int       @default(1)
   status         String    @default("Draft") // Draft|Calculated|Confirmed|Paid|Cancelled
+  slipPassword   Boolean   @default(false) // slip email terkirim berpassword (default NIK)
   calculateTax   Boolean   @default(true)
   allEmployee    Boolean   @default(true)
   employeeCount  Int       @default(0)
@@ -2085,6 +2112,31 @@ model LetterDocument {
 
   @@index([employeeId, category])
   @@index([personnelActionId])
+}
+
+// ============ PERMINTAAN SURAT (ESS → HR) ============
+// Karyawan meminta surat layanan dari ESS (SK Keterangan Kerja, SK Gaji,
+// SK Pengalaman Kerja, Referensi, Perjanjian Kerja). HR memutuskan:
+// setujui → terbitkan LetterDocument (PDF terkirim ke ESS) / tolak dgn alasan.
+model LetterRequest {
+  id               String    @id @default(cuid())
+  reqNo            String    @unique // REQ-SURAT-0001
+  employeeId       String
+  templateKey      String    // EMP_SK_KERJA | EMP_SK_GAJI | ...
+  purpose          String?   // keperluan (kredit, visa, KPR, asuransi, dll.)
+  notes            String?   // catatan tambahan karyawan
+  status           String    @default("Pending") // Pending|Approved|Rejected|Issued
+  decidedById      String?   // AppUser id pemutus (plain — trail saja)
+  decidedAt        DateTime?
+  rejectReason     String?
+  letterDocumentId String?   // LetterDocument hasil terbitkan (plain — snapshot audit)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, status])
+  @@index([status, createdAt])
 }
 
 // ============ OFFBOARDING (proses karyawan keluar) ============

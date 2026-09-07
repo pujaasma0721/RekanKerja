@@ -149,6 +149,9 @@ CREATE TABLE "Employee" (
     "joinDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "endDate" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'Active',
+    "contractStart" TIMESTAMP(3),
+    "contractEnd" TIMESTAMP(3),
+    "renewalCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "orgUnitId" TEXT,
@@ -507,6 +510,20 @@ CREATE TABLE "PayrollRegulation" (
 );
 
 -- CreateTable
+CREATE TABLE "MinimumWage" (
+    "id" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "companyOfficeId" TEXT,
+    "label" TEXT NOT NULL,
+    "monthlyAmount" DOUBLE PRECISION NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MinimumWage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PayrollRun" (
     "id" TEXT NOT NULL,
     "runNo" TEXT NOT NULL,
@@ -514,6 +531,7 @@ CREATE TABLE "PayrollRun" (
     "processTypeId" TEXT NOT NULL,
     "sequence" INTEGER NOT NULL DEFAULT 1,
     "status" TEXT NOT NULL DEFAULT 'Draft',
+    "slipPassword" BOOLEAN NOT NULL DEFAULT false,
     "calculateTax" BOOLEAN NOT NULL DEFAULT true,
     "allEmployee" BOOLEAN NOT NULL DEFAULT true,
     "employeeCount" INTEGER NOT NULL DEFAULT 0,
@@ -1698,6 +1716,25 @@ CREATE TABLE "LetterDocument" (
 );
 
 -- CreateTable
+CREATE TABLE "LetterRequest" (
+    "id" TEXT NOT NULL,
+    "reqNo" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "templateKey" TEXT NOT NULL,
+    "purpose" TEXT,
+    "notes" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "rejectReason" TEXT,
+    "letterDocumentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LetterRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Offboarding" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
@@ -1799,6 +1836,9 @@ CREATE UNIQUE INDEX "EmployeePayrollProfile_employeeId_key" ON "EmployeePayrollP
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollRegulation_code_key" ON "PayrollRegulation"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MinimumWage_year_companyOfficeId_key" ON "MinimumWage"("year", "companyOfficeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollRun_runNo_key" ON "PayrollRun"("runNo");
@@ -2026,6 +2066,15 @@ CREATE INDEX "LetterDocument_employeeId_category_idx" ON "LetterDocument"("emplo
 CREATE INDEX "LetterDocument_personnelActionId_idx" ON "LetterDocument"("personnelActionId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "LetterRequest_reqNo_key" ON "LetterRequest"("reqNo");
+
+-- CreateIndex
+CREATE INDEX "LetterRequest_employeeId_status_idx" ON "LetterRequest"("employeeId", "status");
+
+-- CreateIndex
+CREATE INDEX "LetterRequest_status_createdAt_idx" ON "LetterRequest"("status", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "Offboarding_employeeId_idx" ON "Offboarding"("employeeId");
 
 -- CreateIndex
@@ -2174,6 +2223,9 @@ ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_empl
 
 -- AddForeignKey
 ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MinimumWage" ADD CONSTRAINT "MinimumWage_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "PayrollPeriod"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -2396,6 +2448,9 @@ ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_webhookId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "LetterDocument" ADD CONSTRAINT "LetterDocument_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LetterRequest" ADD CONSTRAINT "LetterRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Offboarding" ADD CONSTRAINT "Offboarding_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
