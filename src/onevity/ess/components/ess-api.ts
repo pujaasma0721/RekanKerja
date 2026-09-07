@@ -91,6 +91,10 @@ export const submitOvertime = (body: EssOvertimeInput) =>
 export const submitClock = (body: EssClockInput) =>
   apiSend<EssClockResult>(`${ESS_BASE}/clock`, "POST", body);
 
+// ============ POST permintaan surat layanan (26-a) ============
+export const submitLetterRequest = (body: { templateKey: string; purpose?: string; notes?: string }) =>
+  apiSend<EssSubmitResult>(`${ESS_BASE}/letters`, "POST", body);
+
 export const markNotifRead = (payload: { id?: string; all?: boolean }) =>
   apiSend<unknown>(`${ESS_BASE}/notifications/read`, "POST", payload);
 

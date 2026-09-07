@@ -14,7 +14,8 @@ export type EssView =
   | "attendance"
   | "payslips"
   | "claims"
-  | "requests";
+  | "requests"
+  | "letters";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;
@@ -225,6 +226,37 @@ export interface EssOvertimeInput {
 export interface EssNotificationsData {
   items: EssNotification[];
   unread: number;
+}
+
+// ============ 13. GET/POST /ess/letters (26-a — permintaan surat layanan) ============
+/** Jenis surat layanan yang tersedia (LetterTemplate EmployeeService aktif). */
+export interface EssLetterTemplate {
+  key: string;
+  name: string;
+  description: string | null;
+  subject: string | null;
+}
+
+/** Riwayat permintaan surat milik karyawan. */
+export interface EssLetterRequest {
+  id: string;
+  reqNo: string;
+  templateKey: string;
+  templateName: string;
+  purpose: string | null;
+  notes: string | null;
+  status: string; // Pending | Approved | Rejected | Issued
+  rejectReason: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  letterDocumentId: string | null;
+  letterRefNo: string | null;
+  issuedAt: string | null;
+}
+
+export interface EssLettersData {
+  templates: EssLetterTemplate[];
+  requests: EssLetterRequest[];
 }
 
 // ============ hasil submit umum (201 { docNo, status }) ============
