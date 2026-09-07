@@ -9,6 +9,7 @@ import { OffboardingModule } from "@/onevity/human-resource/components/offboardi
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
 import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
+import { EmployeeLetterIssueDialog, type ServiceTemplateRow } from "@/onevity/human-resource/components/employee/employee-letter-issue-dialog";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,21 @@ const TAB_LABEL_EN: Record<string, string> = {
   education: "Education",
   experience: "Experience",
   discipline: "Discipline",
+  letters: "Letters",
+};
+
+/** Baris riwayat surat karyawan (GET /api/onevity/letters?employeeId= — 26-a). */
+interface LetterRow {
+  id: string;
+  refNo: string;
+  category: string;
+  templateKey: string;
+  subject: string | null;
+  issuedAt: string;
+  employeeName: string;
+  employeeNo: string;
+  templateName: string;
+  purpose: string | null;
 };
 
 function EmployeeDetail() {
@@ -101,6 +117,11 @@ function EmployeeDetail() {
   const openOffboarding = obBanner.data?.offboardings.find((o) => o.status === "Open") ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState("personal");
+  // 26-a — riwayat surat karyawan (LetterDocument by employee) + katalog template layanan
+  const letters = useApi<{ letters: LetterRow[]; templates: ServiceTemplateRow[] }>(
+    params.id ? `/api/onevity/letters?employeeId=${params.id}` : null,
+  );
+  const [issueOpen, setIssueOpen] = useState(false);
 
   if (loading && !data) {
     return <div><PageHeader eyebrow={t("Karyawan")} title={t("Profil Karyawan", "Employee Profile")} /><LoadingRows rows={6} /></div>;
@@ -197,6 +218,7 @@ function EmployeeDetail() {
             ["education", "Pendidikan", GraduationCap],
             ["experience", "Pengalaman", History],
             ["discipline", "Disiplin", Scale],
+            ["letters", "Surat", FileText],
           ] as const).map(([id, label, Icon]) => (
             <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10 [&[data-state=active]_[data-count]]:ov-tile">
               <Icon className="h-4 w-4" aria-hidden /> {t(label, TAB_LABEL_EN[id])}
@@ -204,6 +226,7 @@ function EmployeeDetail() {
               {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.family.length}</span>}
               {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.education.length}</span>}
               {id === "discipline" && e.disciplinary.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.disciplinary.length}</span>}
+              {id === "letters" && (letters.data?.letters.length ?? 0) > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{letters.data!.letters.length}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -382,9 +405,81 @@ function EmployeeDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ===== 26-a: riwayat surat karyawan (LetterDocument by employee) ===== */}
+        <TabsContent value="letters">
+          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                <FileText className="h-4 w-4 ov-text-accent" /> {t("Riwayat Surat", "Letter History")}
+              </CardTitle>
+              {perms.can("hr", "directory", "create") && (
+                <Button size="sm" onClick={() => setIssueOpen(true)} className="gap-2 font-bold">
+                  <FileText className="h-3.5 w-3.5" /> {t("Terbitkan Surat", "Issue Letter")}
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="pt-0">
+              {letters.loading && !letters.data ? (
+                <div className="py-6"><LoadingRows rows={3} /></div>
+              ) : (letters.data?.letters.length ?? 0) === 0 ? (
+                <EmptyState
+                  title={t("Belum ada surat diterbitkan", "No letters issued yet")}
+                  description={t(
+                    "Surat keterangan kerja, gaji, pengalaman, referensi, dan PKWT untuk karyawan ini tampil di sini.",
+                    "Employment, salary, experience, reference letters and PKWT for this employee appear here.",
+                  )}
+                  icon={FileText}
+                />
+              ) : (
+                <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+                  {letters.data!.letters.map((l) => (
+                    <li key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                          {l.templateName}
+                          <span className="font-mono text-[11px] font-semibold text-stone-400">{l.refNo}</span>
+                          {l.category === "EmployeeService" && (
+                            <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-stone-400">
+                              {t("Layanan", "Service")}
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-stone-400">
+                          {fmtDate(l.issuedAt)}
+                          {l.purpose ? ` · ${t("keperluan", "for")} ${l.purpose}` : ""}
+                        </p>
+                      </div>
+                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold">
+                        <a href={`/api/onevity/letters/${l.id}/pdf?download=1`} download>
+                          {t("Unduh PDF", "Download PDF")}
+                        </a>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <EditEmployeeDialog open={editOpen} setOpen={(v) => { setEditOpen(v); if (!v) refresh(); }} employee={e} />
+
+      {/* 26-a — dialog terbitkan surat layanan (pilih jenis + keperluan + pratinjau live) */}
+      <EmployeeLetterIssueDialog
+        employee={{
+          id: e.id, fullName: e.fullName, employeeNo: e.employeeNo,
+          nationalId: e.nationalId, birthPlace: e.birthPlace, birthDate: e.birthDate,
+          address: e.address, city: e.city, joinDate: e.joinDate,
+          employmentStatus: e.employmentStatus, baseSalary: e.baseSalary,
+          position: e.position, orgUnit: e.orgUnit, grade: e.grade, company: e.company,
+        }}
+        templates={letters.data?.templates ?? []}
+        open={issueOpen}
+        setOpen={setIssueOpen}
+        onIssued={() => letters.refresh()}
+      />
     </div>
   );
 }
