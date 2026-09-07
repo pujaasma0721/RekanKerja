@@ -16,11 +16,13 @@ import { toast } from "sonner";
 import {
   UserPlus, User, Briefcase, Wallet, ClipboardCheck, CheckCircle2, ChevronLeft, ChevronRight,
   Check, Pencil, Scale, AlertTriangle, Ban, FileWarning, Users2, IdCard, Lightbulb, Sparkles,
-  Loader2, ArrowRight, Building2, Trash2, Mail,
+  Loader2, ArrowRight, Building2, Trash2, Mail, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { motion } from "framer-motion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { LetterPreviewDialog } from "./letter-preview-dialog";
 
 export interface WizardOptions {
   orgUnits: { id: string; name: string; level: number; code: string }[];
@@ -739,6 +741,21 @@ export function DisciplinaryPage() {
   const { data, loading, refresh } = useApi<{ disciplinary: DiscRecord[] }>("/api/onevity/disciplinary");
   const [addOpen, setAddOpen] = useState(false);
   const { navigate } = useNav();
+  // Task 3-LETTERS: baris terpilih utk surat + konfirmasi hapus catatan
+  const [letterRecord, setLetterRecord] = useState<DiscRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DiscRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiSend(`/api/onevity/disciplinary?id=${deleteTarget.id}`, "DELETE");
+      toast.success(t("Catatan disiplin dihapus", "Disciplinary record deleted"));
+      setDeleteTarget(null);
+      refresh();
+    } catch (e) { toast.error((e as Error).message); } finally { setDeleting(false); }
+  };
 
   const stats = {
     verbal: data?.disciplinary.filter((d) => d.warningLevel === "Verbal").length ?? 0,
@@ -798,6 +815,7 @@ export function DisciplinaryPage() {
                     <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Sanksi", "Sanction")}</th>
                     <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Diterbitkan", "Issued")}</th>
                     <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Kedaluwarsa", "Expiry")}</th>
+                    <th className="w-24 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Aksi", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -825,6 +843,16 @@ export function DisciplinaryPage() {
                         <td className="px-4 py-3 text-xs text-stone-500">{d.sanction ?? "—"}</td>
                         <td className="px-4 py-3 text-xs text-stone-500">{new Date(d.issuedAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</td>
                         <td className="px-4 py-3 text-xs text-stone-500">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <Button variant="outline" size="sm" onClick={() => setLetterRecord(d)} title={t("Terbitkan & pratinjau surat", "Issue & preview the letter")} className="h-7 gap-1.5 rounded-lg px-2 text-[11px] font-bold">
+                              <FileText className="h-3 w-3" /> {t("Surat", "Letter")}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(d)} title={t("Hapus catatan disiplin", "Delete disciplinary record")} className="h-7 gap-1.5 rounded-lg px-2 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -837,9 +865,57 @@ export function DisciplinaryPage() {
         <EmptyState title={t("Tidak ada catatan disiplin", "No disciplinary records")} description={t("Belum ada pelanggaran tercatat. Kerja bagus! 👏", "No violations recorded yet. Great job! 👏")} icon={<Scale className="h-6 w-6" />} />
       )}
       <AddDisciplinaryDialog open={addOpen} setOpen={(v) => { setAddOpen(v); if (!v) refresh(); }} />
+
+      {/* dialog surat — mount-on-open; terbitkan (idempoten) + pratinjau + unduh PDF */}
+      {letterRecord && (
+        <LetterPreviewDialog
+          category="Disciplinary"
+          disciplinaryRecordId={letterRecord.id}
+          employeeName={letterRecord.employee.fullName}
+          onClose={() => setLetterRecord(null)}
+        />
+      )}
+
+      {/* konfirmasi hapus catatan disiplin */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/15">
+                <Trash2 className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+              </span>
+              {t("Hapus Catatan Disiplin?", "Delete Disciplinary Record?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("Catatan pelanggaran {name} akan dihapus permanen — surat yang sudah terbit tetap tersimpan di arsip.", "{name}'s violation record will be permanently deleted — issued letters remain in the archive.", { name: deleteTarget?.employee.fullName ?? "—" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} className="h-11">{t("Batal")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); void doDelete(); }}
+              className="h-11 gap-2 bg-rose-600 font-bold hover:bg-rose-700"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {t("Ya, Hapus", "Yes, Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+// tanggal ISO "YYYY-MM-DD" — default dialog disiplin (hari ini / +6 bulan)
+const isoToday = (): string => new Date().toISOString().slice(0, 10);
+const isoPlusMonths = (months: number): string => {
+  const d = new Date();
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0); // clamp overflow (mis. 31 Mar + 6 bln → 30 Sep)
+  return d.toISOString().slice(0, 10);
+};
 
 function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const { t } = useI18n();
@@ -848,21 +924,35 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
   const [warningLevel, setWarningLevel] = useState("Verbal");
   const [violation, setViolation] = useState("");
   const [sanction, setSanction] = useState("");
+  // Task 3-LETTERS: tanggal kejadian + masa berlaku + catatan (utk template surat)
+  const [issuedAt, setIssuedAt] = useState(isoToday());
+  const [expiresAt, setExpiresAt] = useState(isoPlusMonths(6));
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const reset = () => {
+    setEmployeeId(""); setViolation(""); setSanction(""); setNotes("");
+    setIssuedAt(isoToday()); setExpiresAt(isoPlusMonths(6));
+  };
 
   const submit = async () => {
     if (!employeeId || !violation.trim()) { toast.error(t("Karyawan & pelanggaran wajib diisi", "Employee & violation are required")); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/disciplinary", "POST", { employeeId, warningLevel, violation, sanction: sanction || null });
+      await apiSend("/api/onevity/disciplinary", "POST", {
+        employeeId, warningLevel, violation, sanction: sanction || null,
+        issuedAt: issuedAt || undefined, // kosong → default server (hari ini)
+        expiresAt: expiresAt || null,   // kosong → tanpa masa berlaku
+        notes: notes || null,
+      });
       toast.success(t("Catatan pelanggaran disimpan", "Violation record saved"));
-      setOpen(false); setEmployeeId(""); setViolation(""); setSanction("");
+      setOpen(false); reset();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto max-w-md">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Scale className="h-4 w-4 ov-text-accent" /> {t("Catat Pelanggaran", "Record Violation")}</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           <div>
@@ -886,6 +976,17 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
               </SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">{t("Tanggal Kejadian", "Incident Date")} *</Label>
+              <Input type="date" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} className="mt-1.5" />
+            </div>
+            <div>
+              <Label className="text-xs">{t("Masa Berlaku s.d.", "Valid Until")}</Label>
+              <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="mt-1.5" />
+              <p className="mt-1 text-[10px] text-stone-400">{t("Surat peringatan umumnya berlaku 6 bulan", "Warning letters are typically valid for 6 months")}</p>
+            </div>
+          </div>
           <div>
             <Label className="text-xs">{t("Pelanggaran", "Violation")} *</Label>
             <Input value={violation} onChange={(e) => setViolation(e.target.value)} placeholder={t("cth: Keterlambatan berulang", "e.g. Repeated tardiness")} className="mt-1.5" />
@@ -893,6 +994,10 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
           <div>
             <Label className="text-xs">{t("Sanksi", "Sanction")}</Label>
             <Textarea value={sanction} onChange={(e) => setSanction(e.target.value)} placeholder={t("cth: Surat peringatan I", "e.g. First warning letter")} className="mt-1.5 min-h-16" />
+          </div>
+          <div>
+            <Label className="text-xs">{t("Catatan", "Notes")}</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("cth: Pembinaan oleh atasan langsung", "e.g. Coaching by direct supervisor")} className="mt-1.5 min-h-16" />
           </div>
         </div>
         <DialogFooter>

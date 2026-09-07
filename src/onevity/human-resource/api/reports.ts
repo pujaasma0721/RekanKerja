@@ -10,7 +10,9 @@ import { toXlsxMulti, xlsxResponse, exportFilename, type ExportSheet } from "@/o
 //     divisi (headcount, exits, turnover %), distribusi bucket tenure
 //     (<1 / 1-3 / 3-5 / 5-10 / >10 th), tren hires-exits 12 bulan.
 //   • Demografi: gender, bucket usia, status kepegawaian (assignment aktif),
-//     marital, agama.
+//     marital, agama, pendidikan terakhir (bucket jenjang tertinggi),
+//     unit organisasi, level jabatan, grade, kantor, golongan darah,
+//     cross-tab gender × status kepegawaian.
 // ?export=turnover|demografi → stream XLSX (multi-sheet) — pola respons
 // payroll-run-export.ts (Content-Disposition attachment).
 //
@@ -26,9 +28,25 @@ interface LifeRow {
   birthDate: Date | null;
   maritalStatus: string | null;
   religion: string | null;
+  bloodType: string | null;
   /** unit penempatan: assignment aktif (aktif) / snapshot employee (keluar). */
   unitId: string | null;
   employmentStatus: string | null;
+  /** dimensi demografi tambahan (snapshot employee — driven assignment aktif). */
+  positionLevelId: string | null;
+  gradeId: string | null;
+  companyOfficeId: string | null;
+  /** seluruh jenjang di EmployeeEducation (bucket dihitung dari tertinggi). */
+  eduLevels: string[];
+}
+
+interface GenderStatusRow {
+  gender: "Laki-laki" | "Perempuan";
+  Permanent: number;
+  Probation: number;
+  Contract: number;
+  Outsourcing: number;
+  "Tanpa data": number;
 }
 
 const TENURE_BUCKETS: { key: string; label: string; test: (y: number) => boolean }[] = [
@@ -62,22 +80,33 @@ export async function GET(req: NextRequest) {
     const scopeCond = scopeWhere(scope);
 
     // lifecycle + demografi satu query (assignment aktif utk status pegawai
-    // & unit; snapshot employee.orgUnitId utk yang sudah keluar).
-    const [rows, divisions, subUnits] = await Promise.all([
+    // & unit; snapshot employee.orgUnitId utk yang sudah keluar) + master
+    // referensi (nama unit/level/grade/kantor) utk distribusi demografi.
+    const [rows, divisions, subUnits, unitsAll, posLevels, gradesAll, officesAll] = await Promise.all([
       db.employee.findMany({
         where: scopeCond,
         select: {
           status: true, joinDate: true, endDate: true, gender: true, birthDate: true,
-          maritalStatus: true, religion: true, orgUnitId: true,
+          maritalStatus: true, religion: true, bloodType: true, orgUnitId: true,
+          positionLevelId: true, gradeId: true, companyOfficeId: true,
           assignments: { where: { validTo: null }, select: { orgUnitId: true, employmentStatus: true }, take: 1 },
+          education: { select: { level: true } },
         },
       }),
       db.orgUnit.findMany({ where: { level: 3 }, select: { id: true, name: true } }),
       db.orgUnit.findMany({ where: { level: 4 }, select: { id: true, parentId: true } }),
+      db.orgUnit.findMany({ select: { id: true, name: true } }),
+      db.positionLevel.findMany({ select: { id: true, name: true } }),
+      db.grade.findMany({ select: { id: true, code: true, name: true } }),
+      db.companyOffice.findMany({ select: { id: true, name: true } }),
     ]);
 
     const divisionMap = new Map(divisions.map((d) => [d.id, d.name]));
     const subToDiv = new Map(subUnits.map((s) => [s.id, s.parentId]));
+    const unitNameById = new Map(unitsAll.map((u) => [u.id, u.name]));
+    const plNameById = new Map(posLevels.map((p) => [p.id, p.name]));
+    const gradeById = new Map(gradesAll.map((g) => [g.id, g]));
+    const officeNameById = new Map(officesAll.map((o) => [o.id, o.name]));
     const divNameOf = (unitId: string | null): string => {
       if (!unitId) return "Tanpa Unit";
       const divId = divisionMap.has(unitId) ? unitId : (subToDiv.get(unitId) ?? unitId);
@@ -94,6 +123,11 @@ export async function GET(req: NextRequest) {
       religion: e.religion,
       unitId: e.assignments[0]?.orgUnitId ?? e.orgUnitId,
       employmentStatus: e.assignments[0]?.employmentStatus ?? null,
+      bloodType: e.bloodType,
+      positionLevelId: e.positionLevelId,
+      gradeId: e.gradeId,
+      companyOfficeId: e.companyOfficeId,
+      eduLevels: e.education.map((ed) => ed.level),
     }));
 
     const now = new Date();
@@ -182,12 +216,82 @@ export async function GET(req: NextRequest) {
     }));
     const noBirth = active.filter((e) => !e.birthDate).length;
 
+    // distribusi dgn sentinel "Tanpa data" utk nilai null/kosong (count desc).
+    const distNd = (vals: (string | null)[]) => {
+      const map = new Map<string, number>();
+      for (const v of vals) {
+        const k = v && v.trim() ? v : "Tanpa data";
+        map.set(k, (map.get(k) ?? 0) + 1);
+      }
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([label, count]) => ({ label, count }));
+    };
+
+    // pendidikan terakhir per karyawan = jenjang TERTINGGI dari semua baris
+    // EmployeeEducation (jenjang tak dikenali diabaikan → tanpa data).
+    const EDU_RANK: Record<string, number> = {
+      S3: 6, S2: 5, S1: 4,
+      D1: 3, D2: 3, D3: 3, D4: 3,
+      SD: 2, SMP: 2, "PAKET A": 2, "PAKET B": 2, SMA: 2, SMK: 2,
+    };
+    const eduBucketOf = (levels: string[]): string => {
+      let rank = 0;
+      for (const lv of levels) {
+        const r = EDU_RANK[lv.trim().toUpperCase()];
+        if (r != null && r > rank) rank = r;
+      }
+      if (rank === 0) return "Tanpa data";
+      if (rank >= 6) return "S3";
+      if (rank === 5) return "S2";
+      if (rank === 4) return "S1";
+      if (rank === 3) return "Diploma (D1–D4)";
+      return "SMA & Sederajat";
+    };
+    // urutan bucket tetap utk display (UI boleh re-sort dgn urutan sama).
+    const EDU_ORDER = ["S3", "S2", "S1", "Diploma (D1–D4)", "SMA & Sederajat", "Tanpa data"];
+    const eduCounts = new Map<string, number>();
+    for (const e of active) {
+      const b = eduBucketOf(e.eduLevels);
+      eduCounts.set(b, (eduCounts.get(b) ?? 0) + 1);
+    }
+    const education = EDU_ORDER
+      .filter((label) => label !== "Tanpa data" || (eduCounts.get(label) ?? 0) > 0)
+      .map((label) => ({ label, count: eduCounts.get(label) ?? 0 }));
+
+    // cross-tab gender × status kepegawaian (status: assignment aktif —
+    // sumber yang sama dgn employmentStatus di atas; null → "Tanpa data").
+    const genderByStatus: GenderStatusRow[] = (["Laki-laki", "Perempuan"] as const).map((g) => {
+      const row: GenderStatusRow = {
+        gender: g, Permanent: 0, Probation: 0, Contract: 0, Outsourcing: 0, "Tanpa data": 0,
+      };
+      for (const e of active) {
+        if ((e.gender === "F" ? "Perempuan" : "Laki-laki") !== g) continue;
+        const st = e.employmentStatus ?? "Tanpa data";
+        if (st === "Permanent" || st === "Probation" || st === "Contract" || st === "Outsourcing") row[st] += 1;
+        else row["Tanpa data"] += 1;
+      }
+      return row;
+    });
+
     const demografi = {
       gender: dist(active.map((e) => (e.gender === "F" ? "Perempuan" : e.gender === "M" ? "Laki-laki" : e.gender)), ["Laki-laki", "Perempuan"]),
       ageBuckets: noBirth > 0 ? [...ageBuckets, { key: "na", label: "Tanpa data", count: noBirth }] : ageBuckets,
       employmentStatus: dist(active.map((e) => e.employmentStatus), ["Permanent", "Probation", "Contract", "Outsourcing"]),
       marital: dist(active.map((e) => e.maritalStatus), ["Belum Menikah", "Menikah", "Cerai", "Janda/Duda"]),
       religion: dist(active.map((e) => e.religion)),
+      education,
+      orgUnits: distNd(active.map((e) => (e.unitId ? (unitNameById.get(e.unitId) ?? null) : null))),
+      positionLevels: distNd(active.map((e) => (e.positionLevelId ? (plNameById.get(e.positionLevelId) ?? null) : null))),
+      grades: distNd(active.map((e) => {
+        if (!e.gradeId) return null;
+        const g = gradeById.get(e.gradeId);
+        if (!g) return null;
+        return g.name && g.name.trim() ? `${g.code} — ${g.name}` : g.code;
+      })),
+      offices: distNd(active.map((e) => (e.companyOfficeId ? (officeNameById.get(e.companyOfficeId) ?? null) : null))),
+      bloodTypes: distNd(active.map((e) => (e.bloodType && e.bloodType.trim() ? `Gol. ${e.bloodType.trim()}` : null))),
+      genderByStatus,
     };
 
     const turnover = {
@@ -247,12 +351,32 @@ export async function GET(req: NextRequest) {
         ];
         filename = exportFilename("onevity-hr-turnover", "xlsx");
       } else if (exportMode === "demografi") {
+        const gsTotal = (r: GenderStatusRow) => r.Permanent + r.Probation + r.Contract + r.Outsourcing + r["Tanpa data"];
+        const gsCol = (c: "Permanent" | "Probation" | "Contract" | "Outsourcing" | "Tanpa data") =>
+          genderByStatus.reduce((s, r) => s + r[c], 0);
         sheets = [
           { name: "Gender", columns: [{ header: "Gender", width: 20 }, { header: "Jumlah", width: 12 }], rows: demografi.gender.map((g) => [g.label, g.count]) },
           { name: "Usia", columns: [{ header: "Bucket Usia", width: 20 }, { header: "Jumlah", width: 12 }], rows: demografi.ageBuckets.map((a) => [a.label, a.count]) },
           { name: "Status Pegawai", columns: [{ header: "Status Kepegawaian", width: 26 }, { header: "Jumlah", width: 12 }], rows: demografi.employmentStatus.map((s) => [s.label, s.count]) },
           { name: "Marital", columns: [{ header: "Status Pernikahan", width: 24 }, { header: "Jumlah", width: 12 }], rows: demografi.marital.map((s) => [s.label, s.count]) },
           { name: "Agama", columns: [{ header: "Agama", width: 24 }, { header: "Jumlah", width: 12 }], rows: demografi.religion.map((s) => [s.label, s.count]) },
+          { name: "Pendidikan", columns: [{ header: "Pendidikan Terakhir", width: 22 }, { header: "Jumlah", width: 12 }], rows: education.map((s) => [s.label, s.count]) },
+          { name: "Unit Organisasi", columns: [{ header: "Unit Organisasi", width: 36 }, { header: "Jumlah", width: 12 }], rows: demografi.orgUnits.map((s) => [s.label, s.count]) },
+          { name: "Level Jabatan", columns: [{ header: "Level Jabatan", width: 26 }, { header: "Jumlah", width: 12 }], rows: demografi.positionLevels.map((s) => [s.label, s.count]) },
+          { name: "Grade", columns: [{ header: "Grade", width: 26 }, { header: "Jumlah", width: 12 }], rows: demografi.grades.map((s) => [s.label, s.count]) },
+          { name: "Kantor", columns: [{ header: "Kantor", width: 30 }, { header: "Jumlah", width: 12 }], rows: demografi.offices.map((s) => [s.label, s.count]) },
+          { name: "Golongan Darah", columns: [{ header: "Golongan Darah", width: 20 }, { header: "Jumlah", width: 12 }], rows: demografi.bloodTypes.map((s) => [s.label, s.count]) },
+          {
+            name: "Gender x Status",
+            columns: [
+              { header: "Gender", width: 16 }, { header: "Permanent", width: 12 }, { header: "Probation", width: 12 },
+              { header: "Contract", width: 12 }, { header: "Outsourcing", width: 12 }, { header: "Tanpa data", width: 12 }, { header: "Total", width: 10 },
+            ],
+            rows: [
+              ...genderByStatus.map((r) => [r.gender, r.Permanent, r.Probation, r.Contract, r.Outsourcing, r["Tanpa data"], gsTotal(r)]),
+              ["TOTAL", gsCol("Permanent"), gsCol("Probation"), gsCol("Contract"), gsCol("Outsourcing"), gsCol("Tanpa data"), genderByStatus.reduce((s, r) => s + gsTotal(r), 0)],
+            ],
+          },
         ];
         filename = exportFilename("onevity-hr-demografi", "xlsx");
       } else {

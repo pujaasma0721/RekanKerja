@@ -24,9 +24,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { LetterTemplatesView } from "./letter-templates-view";
+import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
 
 export function ActionsModule({ view }: { view: string }) {
   const { params } = useNav();
+  // Task 3-LETTERS: view "templates" (Dokumen & Surat → Template Surat) —
+  // dicek PERTAMA agar tidak tertelan params.id detail pengajuan.
+  if (view === "templates") return <LetterTemplatesView />;
   if (params.id) return <ActionDetail />;
   if (view === "inbox") return <ApprovalInbox />;
   return <AllDocuments />;
@@ -520,6 +525,8 @@ function ActionDetail() {
   const { data, loading, refresh } = useApi<PADetail>(params.id ? `/api/onevity/personnel-actions/${params.id}` : null);
   const [decision, setDecision] = useState<{ act: "approve" | "reject" } | null>(null);
   const [confirmAct, setConfirmAct] = useState<string | null>(null);
+  // Task 3-LETTERS: dialog terbitkan & cetak surat dari dokumen PA
+  const [letterOpen, setLetterOpen] = useState(false);
 
   const transition = async (act: string, note?: string) => {
     try {
@@ -716,6 +723,10 @@ function ActionDetail() {
               {a.status === "Approved" && (
                 <ActionButton icon={Play} label={t("Proses Sekarang", "Process Now")} tone="teal" prominent onClick={() => setConfirmAct("process")} desc={t("Terapkan efek ke data karyawan (posisi/gaji/status)", "Apply effects to employee data (position/salary/status)")} />
               )}
+              {/* Task 3-LETTERS — cetak surat resmi: hanya dokumen final (Approved/Processed) */}
+              {(a.status === "Approved" || a.status === "Processed") && (
+                <ActionButton icon={FileText} label={t("Cetak Surat", "Print Letter")} tone="stone" onClick={() => setLetterOpen(true)} desc={t("Terbitkan & unduh surat resmi (PDF)", "Issue & download the official letter (PDF)")} />
+              )}
               {["Rejected", "Cancelled"].includes(a.status) && (
                 <ActionButton icon={Undo2} label={t("Kembalikan ke Draft", "Return to Draft")} tone="stone" onClick={() => setConfirmAct("return")} desc={t("Reset semua layer & status menjadi Draft", "Reset all layers & status to Draft")} />
               )}
@@ -740,6 +751,15 @@ function ActionDetail() {
 
       <DecisionDialog decision={decision ? { pa: a, act: decision.act } : null} onClose={() => setDecision(null)} onConfirm={(note) => transition(decision!.act, note)} />
       <ConfirmDialog act={confirmAct} onConfirm={() => transition(confirmAct!)} onClose={() => setConfirmAct(null)} />
+      {/* dialog surat PA (idempoten — klik berkali-kali aman; mount-on-open) */}
+      {letterOpen && (
+        <LetterPreviewDialog
+          category="PersonnelAction"
+          personnelActionId={a.id}
+          employeeName={a.employee.fullName}
+          onClose={() => setLetterOpen(false)}
+        />
+      )}
     </div>
   );
 }

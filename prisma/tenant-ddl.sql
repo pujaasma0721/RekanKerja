@@ -30,6 +30,7 @@ CREATE TABLE "CompanyOffice" (
     "address" TEXT,
     "city" TEXT,
     "phone" TEXT,
+    "npwp" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -745,6 +746,37 @@ CREATE TABLE "Lookup" (
 );
 
 -- CreateTable
+CREATE TABLE "Attachment" (
+    "id" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "storagePath" TEXT NOT NULL,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmployeeDocument" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "docNumber" TEXT,
+    "issuedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "notes" TEXT,
+    "attachmentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "AppUser" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
@@ -1145,7 +1177,7 @@ CREATE TABLE "AttendanceRule" (
     CONSTRAINT "AttendanceRule_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable (T9-HOLIDAY)
+-- CreateTable
 CREATE TABLE "HolidayDate" (
     "id" TEXT NOT NULL,
     "date" DATE NOT NULL,
@@ -1155,11 +1187,6 @@ CREATE TABLE "HolidayDate" (
 
     CONSTRAINT "HolidayDate_pkey" PRIMARY KEY ("id")
 );
-
--- CreateIndex (T9-HOLIDAY)
-CREATE UNIQUE INDEX "HolidayDate_date_name_key" ON "HolidayDate"("date", "name");
-CREATE INDEX "HolidayDate_date_idx" ON "HolidayDate"("date");
-CREATE INDEX "HolidayDate_kind_idx" ON "HolidayDate"("kind");
 
 -- CreateTable
 CREATE TABLE "LeaveType" (
@@ -1594,6 +1621,113 @@ CREATE TABLE "MedicalAdjustment" (
     CONSTRAINT "MedicalAdjustment_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ApiKey" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "prefix" TEXT NOT NULL,
+    "keyHash" TEXT NOT NULL,
+    "scopes" TEXT NOT NULL DEFAULT 'employees',
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Webhook" (
+    "id" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "events" TEXT NOT NULL,
+    "secret" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Webhook_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WebhookLog" (
+    "id" TEXT NOT NULL,
+    "webhookId" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "payload" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "responseStatus" INTEGER,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LetterTemplate" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "subject" TEXT,
+    "body" TEXT NOT NULL,
+    "signatoryName" TEXT,
+    "signatoryTitle" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LetterTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LetterDocument" (
+    "id" TEXT NOT NULL,
+    "refNo" TEXT NOT NULL,
+    "templateKey" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "personnelActionId" TEXT,
+    "disciplinaryRecordId" TEXT,
+    "subject" TEXT,
+    "body" TEXT NOT NULL,
+    "metaJson" TEXT,
+    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdById" TEXT,
+
+    CONSTRAINT "LetterDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Offboarding" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "personnelActionId" TEXT,
+    "lastDay" TIMESTAMP(3),
+    "reason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "exitInterviewJson" TEXT,
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Offboarding_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OffboardingTask" (
+    "id" TEXT NOT NULL,
+    "offboardingId" TEXT NOT NULL,
+    "seq" INTEGER NOT NULL DEFAULT 0,
+    "title" TEXT NOT NULL,
+    "owner" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "completedAt" TIMESTAMP(3),
+    "completedById" TEXT,
+    "notes" TEXT,
+
+    CONSTRAINT "OffboardingTask_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -1703,6 +1837,15 @@ CREATE UNIQUE INDEX "BenefitClaim_claimNo_key" ON "BenefitClaim"("claimNo");
 CREATE UNIQUE INDEX "Lookup_category_code_key" ON "Lookup"("category", "code");
 
 -- CreateIndex
+CREATE INDEX "Attachment_entityType_entityId_idx" ON "Attachment"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "EmployeeDocument_employeeId_idx" ON "EmployeeDocument"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "EmployeeDocument_expiresAt_idx" ON "EmployeeDocument"("expiresAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AppUser_username_key" ON "AppUser"("username");
 
 -- CreateIndex
@@ -1776,6 +1919,15 @@ CREATE INDEX "WorkOffPermission_employeeId_dateFrom_idx" ON "WorkOffPermission"(
 
 -- CreateIndex
 CREATE INDEX "WorkOffPermission_status_idx" ON "WorkOffPermission"("status");
+
+-- CreateIndex
+CREATE INDEX "HolidayDate_date_idx" ON "HolidayDate"("date");
+
+-- CreateIndex
+CREATE INDEX "HolidayDate_kind_idx" ON "HolidayDate"("kind");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HolidayDate_date_name_key" ON "HolidayDate"("date", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LeaveType_code_key" ON "LeaveType"("code");
@@ -1854,6 +2006,33 @@ CREATE UNIQUE INDEX "MedicalAdjustment_docNo_key" ON "MedicalAdjustment"("docNo"
 
 -- CreateIndex
 CREATE INDEX "MedicalAdjustment_state_idx" ON "MedicalAdjustment"("state");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApiKey_keyHash_key" ON "ApiKey"("keyHash");
+
+-- CreateIndex
+CREATE INDEX "WebhookLog_webhookId_createdAt_idx" ON "WebhookLog"("webhookId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LetterTemplate_key_key" ON "LetterTemplate"("key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LetterDocument_refNo_key" ON "LetterDocument"("refNo");
+
+-- CreateIndex
+CREATE INDEX "LetterDocument_employeeId_category_idx" ON "LetterDocument"("employeeId", "category");
+
+-- CreateIndex
+CREATE INDEX "LetterDocument_personnelActionId_idx" ON "LetterDocument"("personnelActionId");
+
+-- CreateIndex
+CREATE INDEX "Offboarding_employeeId_idx" ON "Offboarding"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "Offboarding_status_idx" ON "Offboarding"("status");
+
+-- CreateIndex
+CREATE INDEX "OffboardingTask_offboardingId_idx" ON "OffboardingTask"("offboardingId");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -2048,6 +2227,12 @@ ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_employeeId_fkey" FOREIGN
 ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "PayrollPeriod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_attachmentId_fkey" FOREIGN KEY ("attachmentId") REFERENCES "Attachment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_appUserId_fkey" FOREIGN KEY ("appUserId") REFERENCES "AppUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2206,99 +2391,15 @@ ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_employeeId_fke
 -- AddForeignKey
 ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-
--- CreateTable (T16-ATTACH)
-CREATE TABLE "Attachment" (
-    "id" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT NOT NULL,
-    "fileName" TEXT NOT NULL,
-    "mimeType" TEXT NOT NULL,
-    "sizeBytes" INTEGER NOT NULL,
-    "storagePath" TEXT NOT NULL,
-    "uploadedBy" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (T16-ATTACH)
-CREATE TABLE "EmployeeDocument" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "docType" TEXT NOT NULL,
-    "docNumber" TEXT,
-    "issuedAt" TIMESTAMP(3),
-    "expiresAt" TIMESTAMP(3),
-    "notes" TEXT,
-    "attachmentId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "EmployeeDocument_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex (T16-ATTACH)
-CREATE INDEX "Attachment_entityType_entityId_idx" ON "Attachment"("entityType", "entityId");
-
--- CreateIndex (T16-ATTACH)
-CREATE INDEX "EmployeeDocument_employeeId_idx" ON "EmployeeDocument"("employeeId");
-
--- CreateIndex (T16-ATTACH)
-CREATE INDEX "EmployeeDocument_expiresAt_idx" ON "EmployeeDocument"("expiresAt");
-
--- AddForeignKey (T16-ATTACH)
-ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey (T16-ATTACH)
-ALTER TABLE "EmployeeDocument" ADD CONSTRAINT "EmployeeDocument_attachmentId_fkey" FOREIGN KEY ("attachmentId") REFERENCES "Attachment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-
--- CreateTable (T18-API)
-CREATE TABLE "ApiKey" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "prefix" TEXT NOT NULL,
-    "keyHash" TEXT NOT NULL,
-    "scopes" TEXT NOT NULL DEFAULT 'employees',
-    "lastUsedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "revokedAt" TIMESTAMP(3),
-
-    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (T18-API)
-CREATE TABLE "Webhook" (
-    "id" TEXT NOT NULL,
-    "url" TEXT NOT NULL,
-    "events" TEXT NOT NULL,
-    "secret" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Webhook_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (T18-API)
-CREATE TABLE "WebhookLog" (
-    "id" TEXT NOT NULL,
-    "webhookId" TEXT NOT NULL,
-    "event" TEXT NOT NULL,
-    "payload" TEXT NOT NULL,
-    "status" TEXT NOT NULL,
-    "responseStatus" INTEGER,
-    "error" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex (T18-API)
-CREATE UNIQUE INDEX "ApiKey_keyHash_key" ON "ApiKey"("keyHash");
-
--- CreateIndex (T18-API)
-CREATE INDEX "WebhookLog_webhookId_createdAt_idx" ON "WebhookLog"("webhookId", "createdAt");
-
--- AddForeignKey (T18-API)
+-- AddForeignKey
 ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_webhookId_fkey" FOREIGN KEY ("webhookId") REFERENCES "Webhook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LetterDocument" ADD CONSTRAINT "LetterDocument_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Offboarding" ADD CONSTRAINT "Offboarding_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OffboardingTask" ADD CONSTRAINT "OffboardingTask_offboardingId_fkey" FOREIGN KEY ("offboardingId") REFERENCES "Offboarding"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

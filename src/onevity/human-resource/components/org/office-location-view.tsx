@@ -22,7 +22,7 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 // ============ types (kontrak API Task 25) ============
 interface OfficeRow {
   id: string; code: string; name: string;
-  address: string | null; city: string | null; phone: string | null;
+  address: string | null; city: string | null; phone: string | null; npwp: string | null;
   active: boolean; employeeCount: number; locationCount: number;
 }
 interface OfficesRes { offices: OfficeRow[] }
@@ -204,6 +204,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
                     <TableHead className="text-[11px] font-bold">{t("Kantor", "Office")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Kota", "City")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">NPWP</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Alamat")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Lokasi", "Location")}</TableHead>
@@ -226,6 +227,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-stone-600 dark:text-stone-300">{o.city || "—"}</TableCell>
+                      <TableCell className="font-mono text-[11px] text-stone-600 dark:text-stone-300" title={o.npwp ?? undefined}>{o.npwp || "—"}</TableCell>
                       <TableCell className="max-w-[240px]">
                         <p className="truncate text-xs text-stone-500 dark:text-stone-400" title={o.address ?? undefined}>{o.address || "—"}</p>
                       </TableCell>
@@ -424,7 +426,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
   open: boolean; onOpenChange: (v: boolean) => void; office: OfficeRow | null; onDone: () => void;
 }) {
   const { t } = useI18n();
-  const [form, setForm] = useState({ code: "", name: "", city: "", address: "", phone: "" });
+  const [form, setForm] = useState({ code: "", name: "", city: "", address: "", phone: "", npwp: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -435,6 +437,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
       city: office?.city ?? "",
       address: office?.address ?? "",
       phone: office?.phone ?? "",
+      npwp: office?.npwp ?? "",
     });
   }, [open, office]);
 
@@ -449,6 +452,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
           city: form.city.trim(),
           address: form.address.trim(),
           phone: form.phone.trim(),
+          npwp: form.npwp.trim(),
         });
         toast.success(t("Kantor {c} berhasil diperbarui", "Office {c} updated successfully", { c: office.code }));
       } else {
@@ -458,6 +462,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
           city: form.city.trim() || null,
           address: form.address.trim() || null,
           phone: form.phone.trim() || null,
+          npwp: form.npwp.trim() || null,
         };
         await apiSend("/api/onevity/company-offices", "POST", payload);
         toast.success(t("Kantor {c} berhasil dibuat", "Office {c} created successfully", { c: payload.code }));
@@ -500,6 +505,11 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
               <Label htmlFor="o-phone">{t("Telepon")}</Label>
               <Input id="o-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="021-4600808" />
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="o-npwp">{t("NPWP Kantor", "Office NPWP")}</Label>
+            <Input id="o-npwp" value={form.npwp} onChange={(e) => setForm((f) => ({ ...f, npwp: e.target.value }))} placeholder="01.234.567.8-090.000" className="font-mono text-xs" />
+            <p className="text-[10px] text-stone-400">{t("Tiap kantor bisa berbeda NPWP untuk pelaporan pajak (mis. Jakarta vs Surabaya).", "Each office may have a different NPWP for tax reporting (e.g. Jakarta vs Surabaya).")}</p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="o-address">{t("Alamat")}</Label>

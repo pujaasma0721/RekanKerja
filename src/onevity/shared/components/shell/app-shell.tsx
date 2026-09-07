@@ -114,10 +114,14 @@ const HR_NAV: NavGroup[] = [
     { id: "wizard", label: "Onboarding Karyawan", icon: UserPlus },
     { id: "disciplinary", label: "Catatan Disiplin", icon: Scale },
     { id: "documents", label: "Dokumen Karyawan", icon: FolderOpen },
+    { id: "offboarding", label: "Offboarding Karyawan", icon: LogOut },
   ] },
   { section: "actions", label: "Pengajuan & Persetujuan", children: [
     { id: "inbox", label: "Menunggu Persetujuan", icon: Inbox, badge: "pending" },
     { id: "all", label: "Semua Pengajuan", icon: Workflow },
+  ] },
+  { section: "actions", label: "Dokumen & Surat", children: [
+    { id: "templates", label: "Template Surat", icon: FileText },
   ] },
   { section: "reports", label: "Laporan", children: [
     { id: "reports", label: "Laporan HR", icon: ChartNoAxesColumn },

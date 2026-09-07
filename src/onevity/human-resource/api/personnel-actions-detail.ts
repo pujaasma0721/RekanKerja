@@ -6,6 +6,7 @@ import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/em
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
 import { findActiveDelegation } from "@/onevity/shared/services/approval-engine";
 import { applyTerminationSettlement } from "@/onevity/payroll/services/settlement-service";
+import { createOffboardingWithTasks, DEFAULT_OFFBOARDING_TASKS } from "@/onevity/human-resource/api/offboarding";
 
 // Error alur kerja dengan status HTTP — dilempar dari dalam $transaction agar
 // rollback + dipetakan ke respons yang tepat (409 race / 400 validasi).
@@ -424,6 +425,50 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         }
       }
 
+      // ===== 5-OFFBOARDING: proses offboarding OTOMATIS — best-effort, SETELAH =====
+      // commit transaksi PA. PA Resignation/Termination/Retirement yang baru
+      // diproses membuat proses offboarding (checklist clearance 9 tugas) bila
+      // karyawan belum punya proses berjalan (Open). Kegagalan TIDAK memblokir
+      // proses PA — dicatat ActivityLog + console.warn; HR bisa buat manual.
+      let offboardingCreated = false;
+      if (isTermination) {
+        const exitDate = detail.lastDay ? new Date(String(detail.lastDay)) : effectiveDate;
+        try {
+          const existing = await db.offboarding.findFirst({
+            where: { employeeId: action.employeeId, status: "Open" },
+            select: { id: true },
+          });
+          if (!existing) {
+            const ob = await createOffboardingWithTasks(db, {
+              employeeId: action.employeeId,
+              personnelActionId: id,
+              lastDay: Number.isNaN(exitDate.getTime()) ? null : exitDate,
+              reason: action.reason ?? null,
+            });
+            offboardingCreated = true;
+            await db.activityLog.create({
+              data: {
+                appUserId: actor.appUserId, personnelActionId: id, employeeId: action.employeeId,
+                action: "Created", entity: "Offboarding", entityId: ob.id,
+                detail: `Proses offboarding otomatis dibuat dari ${action.docNo} (${paTypeLabel(action.type)}) oleh ${actorLabel} — ${DEFAULT_OFFBOARDING_TASKS.length} tugas clearance menunggu penyelesaian`,
+              },
+            });
+          }
+        } catch (oe) {
+          const msg = oe instanceof Error ? oe.message : "unknown";
+          console.warn(`[offboarding] gagal membuat proses offboarding otomatis untuk ${action.docNo}:`, msg);
+          try {
+            await db.activityLog.create({
+              data: {
+                appUserId: actor.appUserId, personnelActionId: id, employeeId: action.employeeId,
+                action: "Error", entity: "Offboarding", entityId: id,
+                detail: `Gagal membuat proses offboarding otomatis untuk ${action.docNo} (best-effort — proses PA tetap berhasil): ${msg}`,
+              },
+            });
+          } catch { /* never */ }
+        }
+      }
+
       // ===== Notifikasi email — DIPROSES (perubahan diterapkan) ke karyawan =====
       void (async () => {
         try {
@@ -442,6 +487,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({
         ok: true,
         status: "Processed",
+        // 5-OFFBOARDING: flag proses offboarding otomatis (UI toast "otomatis dibuat")
+        offboardingCreated,
         // T19: ringkasan final settlement (bila PA Termination) — breakdown + net
         ...(settlement
           ? {

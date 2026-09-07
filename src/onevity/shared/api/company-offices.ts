@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({
       offices: offices.map((o) => ({
-        id: o.id, code: o.code, name: o.name, address: o.address, city: o.city, phone: o.phone, active: o.active,
+        id: o.id, code: o.code, name: o.name, address: o.address, city: o.city, phone: o.phone, npwp: o.npwp, active: o.active,
         employeeCount: o._count.employees, locationCount: o._count.workLocations,
       })),
     });
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       data: {
         code: b.code, name: b.name, companyId: company.id,
         address: b.address ?? null, city: b.city ?? null, phone: b.phone ?? null,
+        npwp: b.npwp ? String(b.npwp).trim() : null, // NPWP kantor — beda per kantor utk pelaporan pajak
       },
     });
     await db.activityLog.create({ data: { action: "Created", entity: "CompanyOffice", entityId: office.id, detail: `Kantor ${office.code} — ${office.name} dibuat` } });
@@ -69,6 +70,7 @@ export async function PATCH(req: NextRequest) {
     if (b.address !== undefined) data.address = b.address || null;
     if (b.city !== undefined) data.city = b.city || null;
     if (b.phone !== undefined) data.phone = b.phone || null;
+    if (b.npwp !== undefined) data.npwp = b.npwp ? String(b.npwp).trim() : null;
     if (b.active != null) data.active = !!b.active;
     const office = await db.companyOffice.update({ where: { id: b.id }, data });
     return NextResponse.json({ office });

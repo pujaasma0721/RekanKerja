@@ -22,6 +22,7 @@ import {
   ChevronDown, CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
 
 export function PADetail({ id }: { id: string }) {
   const { setParams, navigate } = useNav();
@@ -30,6 +31,8 @@ export function PADetail({ id }: { id: string }) {
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [confirm, setConfirm] = useState<"process" | "cancel" | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Task 3-LETTERS: dialog terbitkan & cetak surat dari dokumen PA
+  const [letterOpen, setLetterOpen] = useState(false);
 
   const pa = data?.action;
   const detail = useMemo(() => parseDetail(pa?.detailJson ?? null), [pa?.detailJson]);
@@ -157,6 +160,7 @@ export function PADetail({ id }: { id: string }) {
         onRefresh={refresh}
         onDecision={setDecision}
         onConfirm={setConfirm}
+        onPrint={() => setLetterOpen(true)}
       />
 
       {/* ===== two column: payload + activity | timeline ===== */}
@@ -263,6 +267,16 @@ export function PADetail({ id }: { id: string }) {
         </section>
       </div>
 
+      {/* ===== dialog surat PA (Approved/Processed; mount-on-open) ===== */}
+      {letterOpen && (
+        <LetterPreviewDialog
+          category="PersonnelAction"
+          personnelActionId={pa.id}
+          employeeName={emp.fullName}
+          onClose={() => setLetterOpen(false)}
+        />
+      )}
+
       {/* ===== dialogs ===== */}
       {decision && (
         <DecisionDialog
@@ -326,7 +340,7 @@ function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
 }
 
 function WorkflowBar({
-  pa, canAct, curRole, busy, onRefresh, onDecision, onConfirm,
+  pa, canAct, curRole, busy, onRefresh, onDecision, onConfirm, onPrint,
 }: {
   pa: PADetailType;
   canAct: boolean;
@@ -335,6 +349,7 @@ function WorkflowBar({
   onRefresh: () => void;
   onDecision: (v: "approve" | "reject") => void;
   onConfirm: (v: "process" | "cancel") => void;
+  onPrint: () => void;
 }) {
   const { t } = useI18n();
   const [busyLocal, setBusyLocal] = useState(false);
@@ -408,6 +423,13 @@ function WorkflowBar({
         {pa.status === "Approved" && (
           <Button onClick={() => onConfirm("process")} disabled={loading} className="h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 px-6 text-[15px] font-extrabold shadow-md shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700">
             <Zap className="h-5 w-5" /> {t("Proses Sekarang", "Process Now")}
+          </Button>
+        )}
+
+        {/* Task 3-LETTERS — cetak surat: hanya dokumen final (Approved/Processed) */}
+        {(pa.status === "Approved" || pa.status === "Processed") && (
+          <Button variant="outline" onClick={onPrint} disabled={loading} className="h-11 gap-2 px-5 font-semibold">
+            <FileText className="h-4 w-4" /> {t("Cetak Surat", "Print Letter")}
           </Button>
         )}
 

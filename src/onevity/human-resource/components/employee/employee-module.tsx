@@ -5,6 +5,7 @@ import { useApi, apiSend, fmtIDR, fmtDate, fmtDateLong, tenure, genderLabel } fr
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
+import { OffboardingModule } from "@/onevity/human-resource/components/offboarding/offboarding-module";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
 import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
@@ -22,7 +23,7 @@ import { toast } from "sonner";
 import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
-  Landmark, Banknote, Clock3, ArrowRight, Building2, FileText,
+  Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -31,6 +32,7 @@ export function EmployeeModule({ view }: { view: string }) {
   if (view === "wizard") return <OnboardingWizard />;
   if (view === "disciplinary") return <DisciplinaryPage />;
   if (view === "documents") return <EmployeeDocumentsView />;
+  if (view === "offboarding") return <OffboardingModule />;
   if (view === "detail") return <EmployeeDetail />;
   return <DirectoryView />;
 }
@@ -92,6 +94,11 @@ function EmployeeDetail() {
   const { t } = useI18n();
   const perms = useMenuPerms();
   const { data, loading, refresh } = useApi<{ employee: DetailEmp }>(params.id ? `/api/onevity/employee-detail?id=${params.id}` : null);
+  // 5-OFFBOARDING — proses offboarding berjalan utk karyawan ini (banner info di profil)
+  const obBanner = useApi<{ offboardings: { id: string; status: string; lastDay: string | null; taskStats: { total: number; done: number } }[] }>(
+    params.id ? `/api/onevity/offboarding?employeeId=${params.id}` : null,
+  );
+  const openOffboarding = obBanner.data?.offboardings.find((o) => o.status === "Open") ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState("personal");
 
@@ -155,6 +162,30 @@ function EmployeeDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 5-OFFBOARDING — banner proses offboarding berjalan */}
+      {openOffboarding && (
+        <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                <LogOut className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                  {t("Proses offboarding berjalan — {done}/{total} tugas clearance selesai", "Offboarding in progress — {done}/{total} clearance tasks done", { done: openOffboarding.taskStats.done, total: openOffboarding.taskStats.total })}
+                </p>
+                <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                  {t("Hari terakhir kerja {date}", "Last working day {date}", { date: fmtDate(openOffboarding.lastDay) })}
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate("employee", "offboarding", { id: openOffboarding.id })} className="gap-1.5 border-amber-300 bg-white font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-transparent dark:text-amber-400">
+              {t("Buka Proses", "Open Process")} <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* tabs — satu baris scrollable (tanpa wrap berantakan) */}
       <Tabs value={tab} onValueChange={setTab}>

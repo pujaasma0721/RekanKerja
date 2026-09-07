@@ -45,6 +45,7 @@ model CompanyOffice {
   address   String?
   city      String?
   phone     String?
+  npwp      String? // NPWP kantor — tiap kantor bisa berbeda utk pelaporan pajak (Jakarta ≠ Surabaya)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -251,6 +252,8 @@ model Employee {
   medicalClaims       MedicalClaim[]
   medicalAdjustments  MedicalAdjustment[]
   documents           EmployeeDocument[]
+  letters             LetterDocument[]
+  offboardings        Offboarding[]
 
   // relasi approval berjenjang
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
@@ -2038,4 +2041,88 @@ model WebhookLog {
   webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@index([webhookId, createdAt])
+}
+
+// ============ TEMPLATE SURAT & DOKUMEN SURAT (HR letters) ============
+// Template surat resmi perusahaan — bisa DIEDIT per tenant agar sesuai
+// template surat perusahaan masing-masing. Dipakai untuk:
+//   · Disciplinary  → surat teguran / surat peringatan (SP)
+//   · PersonnelAction → surat keputusan per jenis aksi (promosi, mutasi, PHK, dst.)
+// Isi template memakai placeholder {{token}} yang diganti data aktual saat
+// surat diterbitkan. Surat terbit disimpan sebagai SNAPSHOT (LetterDocument)
+// supaya audit tetap utuh meski template kemudian diedit.
+
+model LetterTemplate {
+  id              String   @id @default(cuid())
+  key             String   @unique // DISC_VERBAL | DISC_WRITTEN | DISC_FINAL | PA_PROMOTION | ...
+  category        String // Disciplinary | PersonnelAction
+  name            String
+  description     String?
+  subject         String? // perihal surat (opsional)
+  body            String // isi surat — teks + {{placeholder}}
+  signatoryName   String? // nama penanda tangan (kosong = garis tanda tangan)
+  signatoryTitle  String // jabatan penanda tangan
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LetterDocument {
+  id                  String   @id @default(cuid())
+  refNo               String   @unique // 001/HR-DIS/X/2026
+  templateKey         String
+  category            String // Disciplinary | PersonnelAction
+  employeeId          String
+  personnelActionId   String? // dokumen PA sumber (tanpa FK — snapshot audit)
+  disciplinaryRecordId String? // catatan disiplin sumber (tanpa FK — snapshot audit)
+  subject             String?
+  body                String // snapshot isi surat SUDAH dirender (utk audit & cetak ulang)
+  metaJson            String? // konteks saat terbit (nama template, versi, dsb.)
+  issuedAt            DateTime @default(now())
+  createdById         String? // AppUser id penerbit (plain — trail saja)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, category])
+  @@index([personnelActionId])
+}
+
+// ============ OFFBOARDING (proses karyawan keluar) ============
+// Checklist proses keluar karyawan — terhubung ke PersonnelAction
+// Resignation/Termination/Retirement (dibuat otomatis saat PA diproses,
+// atau manual). Mencakup clearance lintas divisi + exit interview.
+
+model Offboarding {
+  id                String    @id @default(cuid())
+  employeeId        String
+  personnelActionId String? // PA sumber (plain string — tampilan dokNo)
+  lastDay           DateTime?
+  reason            String?
+  status            String    @default("Open") // Open|Completed|Cancelled
+  exitInterviewJson String? // {reason, nextPlan, feedback, satisfaction, notes}
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  employee Employee          @relation(fields: [employeeId], references: [id])
+  tasks    OffboardingTask[]
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+model OffboardingTask {
+  id            String    @id @default(cuid())
+  offboardingId String
+  seq           Int       @default(0)
+  title         String
+  owner         String? // IT | HR | Finance | Supervisor | GA | Payroll
+  status        String    @default("Pending") // Pending|Done|Na
+  completedAt   DateTime?
+  completedById String? // AppUser id (plain)
+  notes         String?
+
+  offboarding Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
+
+  @@index([offboardingId])
 }

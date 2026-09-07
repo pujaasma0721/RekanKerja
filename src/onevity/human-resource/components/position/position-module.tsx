@@ -1,6 +1,6 @@
 "use client";
 // OneVity — Modul Posisi & Grading: list, job library, grades
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, initials, avatarColor } from "@/onevity/shared/lib/api";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -12,13 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
-  BriefcaseBusiness, FileText, GraduationCap, Plus, Search, Pencil, Users,
+  BriefcaseBusiness, FileText, GraduationCap, Plus, Search, Pencil, Users, Trash2,
   ChevronDown, ChevronUp, Layers, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,10 @@ function PositionList() {
   const [unit, setUnit] = useState("all");
   const [grade, setGrade] = useState("all");
   const [selected, setSelected] = useState<Position | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Position | null>(null);
+  const [deleting, setDeleting] = useState<Position | null>(null);
+  const [busyDelete, setBusyDelete] = useState(false);
 
   const url = useMemo(() => {
     const p = new URLSearchParams();
@@ -84,7 +88,7 @@ function PositionList() {
         title={t("Daftar Posisi")}
         description={t("{total} posisi · {filled} terisi · {open} lowongan", "{total} positions · {filled} filled · {open} open", { total: stats.total, filled: stats.filled, open: stats.open })}
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="gap-2 font-bold">
+          <Button onClick={() => { setEditing(null); setDialogOpen(true); }} className="gap-2 font-bold">
             <Plus className="h-4 w-4" /> {t("Posisi Baru")}
           </Button>
         }
@@ -139,6 +143,7 @@ function PositionList() {
                     <TableHead className="min-w-32 text-[11px] font-bold">{t("Okupasi", "Occupancy")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Pemegang", "Holder")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    <TableHead className="w-20 text-[11px] font-bold">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -170,6 +175,16 @@ function PositionList() {
                           {p.active ? t("Aktif") : t("Non-aktif", "Inactive")}
                         </Badge>
                       </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(p); setDialogOpen(true); }} aria-label={t("Ubah posisi {t}", "Edit position {t}", { t: p.title })} title={t("Ubah posisi", "Edit position")}>
+                            <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => setDeleting(p)} aria-label={t("Hapus posisi {t}", "Delete position {t}", { t: p.title })} title={t("Hapus posisi", "Delete position")}>
+                            <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -193,6 +208,9 @@ function PositionList() {
                 </div>
                 <SheetTitle className="text-lg">{selected.title}</SheetTitle>
                 <p className="text-xs text-stone-500">{selected.job?.title} · {selected.orgUnit?.name}</p>
+                <Button variant="outline" size="sm" className="mt-3 w-fit gap-2 font-bold" onClick={() => { setEditing(selected); setSelected(null); setDialogOpen(true); }}>
+                  <Pencil className="h-3.5 w-3.5" /> {t("Ubah Posisi Ini", "Edit This Position")}
+                </Button>
               </SheetHeader>
               <div className="space-y-5 p-6">
                 <div className="grid grid-cols-3 gap-3">
@@ -240,7 +258,34 @@ function PositionList() {
         </SheetContent>
       </Sheet>
 
-      <PositionDialog open={createOpen} setOpen={setCreateOpen} units={units.data?.units ?? []} jobs={[]} grades={grades.data?.grades ?? []} positions={data?.positions ?? []} onSaved={refresh} />
+      <PositionDialog open={dialogOpen} setOpen={setDialogOpen} position={editing} units={units.data?.units ?? []} jobs={[]} grades={grades.data?.grades ?? []} positions={data?.positions ?? []} onSaved={refresh} />
+
+      {/* konfirmasi hapus posisi */}
+      <AlertDialog open={!!deleting} onOpenChange={(v) => { if (!v) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Hapus posisi {t}?", "Delete position {t}?", { t: deleting?.title })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("Tindakan ini permanen. Posisi yang masih dipegang karyawan atau menjadi atasan posisi lain tidak dapat dihapus.", "This action is permanent. Positions still held by employees or referenced as a supervisor of other positions cannot be deleted.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
+            <AlertDialogAction disabled={busyDelete} className="bg-rose-600 hover:bg-rose-700" onClick={async (e) => {
+              e.preventDefault();
+              if (!deleting) return;
+              setBusyDelete(true);
+              try {
+                await apiSend(`/api/onevity/positions?id=${encodeURIComponent(deleting.id)}`, "DELETE");
+                toast.success(t("Posisi {t} dihapus", "Position {t} deleted", { t: deleting.title }));
+                setDeleting(null); refresh();
+              } catch (err) { toast.error((err as Error).message); } finally { setBusyDelete(false); }
+            }}>
+              {busyDelete ? t("Menghapus…") : t("Ya, Hapus", "Yes, Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -274,8 +319,8 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: number; 
   );
 }
 
-function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved }: {
-  open: boolean; setOpen: (v: boolean) => void; units: UnitOpt[]; jobs: JobOpt[]; grades: GradeOpt[];
+function PositionDialog({ open, setOpen, position, units, jobs, grades, positions, onSaved }: {
+  open: boolean; setOpen: (v: boolean) => void; position: Position | null; units: UnitOpt[]; jobs: JobOpt[]; grades: GradeOpt[];
   positions: Position[]; onSaved: () => void;
 }) {
   const jobsApi = useApi<{ jobs: JobOpt[] }>("/api/onevity/jobs");
@@ -289,17 +334,38 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   const [reportsToId, setReportsToId] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // sinkronkan form saat dialog dibuka (mode baru / mode ubah)
+  useEffect(() => {
+    if (!open) return;
+    setCode(position?.code ?? "");
+    setTitle(position?.title ?? "");
+    setJobId("");
+    setOrgUnitId("");
+    setGradeId("");
+    setHeadcount(String(position?.headcount ?? 1));
+    setReportsToId("");
+  }, [open, position]);
+
   const submit = async () => {
     if (!code.trim() || !title.trim()) { toast.error(t("Kode dan judul wajib diisi", "Code and title are required")); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/positions", "POST", {
-        code: code.trim().toUpperCase(), title: title.trim(),
-        jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
-        headcount: Number(headcount) || 1, reportsToId: reportsToId || null,
-      });
-      toast.success(t("Posisi {title} berhasil dibuat", "Position {title} created successfully", { title }));
-      setOpen(false); setCode(""); setTitle(""); setJobId(""); setOrgUnitId(""); setGradeId(""); setHeadcount("1"); setReportsToId("");
+      if (position) {
+        await apiSend("/api/onevity/positions", "PATCH", {
+          id: position.id, title: title.trim(),
+          jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
+          headcount: Number(headcount) || 1, reportsToId: reportsToId || null, active: position.active,
+        });
+        toast.success(t("Posisi {title} diperbarui", "Position {title} updated", { title }));
+      } else {
+        await apiSend("/api/onevity/positions", "POST", {
+          code: code.trim().toUpperCase(), title: title.trim(),
+          jobId: jobId || null, orgUnitId: orgUnitId || null, gradeId: gradeId || null,
+          headcount: Number(headcount) || 1, reportsToId: reportsToId || null,
+        });
+        toast.success(t("Posisi {title} berhasil dibuat", "Position {title} created successfully", { title }));
+      }
+      setOpen(false);
       onSaved();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
@@ -308,11 +374,12 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> {t("Posisi Baru")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> {position ? t("Ubah Posisi", "Edit Position") : t("Posisi Baru")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-xs">{t("Kode *", "Code *")}</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="P-QAS2" className="mt-1 font-mono uppercase" />
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="P-QAS2" disabled={!!position} className="mt-1 font-mono uppercase disabled:opacity-60" />
+            {position && <p className="mt-1 text-[10px] text-stone-400">{t("Kode tidak dapat diubah setelah posisi dibuat.", "The code cannot be changed after the position is created.")}</p>}
           </div>
           <div>
             <Label className="text-xs">{t("Judul *", "Title *")}</Label>
@@ -358,14 +425,14 @@ function PositionDialog({ open, setOpen, units, jobs, grades, positions, onSaved
               <SelectTrigger className="mt-1"><SelectValue placeholder={t("Pilih posisi atasan", "Select a supervisor position")} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">{t("— Tanpa atasan —", "— No supervisor —")}</SelectItem>
-                {positions.filter((p) => p.active).map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.code})</SelectItem>)}
+                {positions.filter((p) => p.active && p.id !== position?.id).map((p) => <SelectItem key={p.id} value={p.id}>{p.title} ({p.code})</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
-          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan Posisi", "Save Position")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : position ? t("Simpan Perubahan", "Save Changes") : t("Simpan Posisi", "Save Position")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

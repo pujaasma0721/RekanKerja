@@ -19,14 +19,22 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from "recharts";
 import { motion } from "framer-motion";
-import {
-  Users, UserPlus, UserMinus, TrendingUp, Hourglass, Download, RefreshCw, BarChart3, PieChart as PieIcon, Cake, BriefcaseBusiness, Heart, Landmark,
-} from "lucide-react";
+import { Users, UserPlus, UserMinus, TrendingUp, Hourglass, Download, RefreshCw, BarChart3, PieChart as PieIcon, Cake, BriefcaseBusiness, Heart, Landmark, GraduationCap, Network, Medal, Award, Building2, Droplet, Table2 } from "lucide-react";
 import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface CountRow { label: string; count: number }
 interface BucketRow { key: string; label: string; count: number }
+
+/** Baris cross-tab gender × status kepegawaian (mirip payload API). */
+interface GenderStatusRow {
+  gender: "Laki-laki" | "Perempuan";
+  Permanent: number;
+  Probation: number;
+  Contract: number;
+  Outsourcing: number;
+  "Tanpa data": number;
+}
 
 interface ReportsData {
   generatedAt: string;
@@ -47,11 +55,21 @@ interface ReportsData {
     employmentStatus: CountRow[];
     marital: CountRow[];
     religion: CountRow[];
+    education: CountRow[];
+    orgUnits: CountRow[];
+    positionLevels: CountRow[];
+    grades: CountRow[];
+    offices: CountRow[];
+    bloodTypes: CountRow[];
+    genderByStatus: GenderStatusRow[];
   };
 }
 
 const CHART_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)"];
 const TOOLTIP_STYLE = { borderRadius: 12, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" };
+
+/** Urutan tampil bucket pendidikan terakhir (S3 → tanpa data). */
+const EDU_ORDER = ["S3", "S2", "S1", "Diploma (D1–D4)", "SMA & Sederajat", "Tanpa data"];
 
 /** Buka unduhan export XLSX dari API (Content-Disposition attachment). */
 function downloadExport(kind: "turnover" | "demografi") {
@@ -247,72 +265,8 @@ export function HrReportsView() {
           </TabsContent>
 
           {/* ================= TAB DEMOGRAFI ================= */}
-          <TabsContent value="demografi" className="space-y-4">
-            <div className="flex justify-end">
-              <Button size="sm" variant="outline" onClick={() => downloadExport("demografi")} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
-                <Download className="h-3.5 w-3.5" /> {t("Export Demografi (XLSX)")}
-              </Button>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-              {/* gender donut */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4 ov-text-accent" /> {t("Komposisi Gender")}</CardTitle>
-                  <p className="mt-0.5 text-[11px] text-stone-400">{t("Karyawan aktif", "Active employees")}</p>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={data.demografi.gender.map((g) => ({ name: loc(g.label), value: g.count }))} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={3} strokeWidth={0}>
-                            {data.demografi.gender.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={TOOLTIP_STYLE} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-col justify-center gap-2.5">
-                      {data.demografi.gender.map((g, i) => (
-                        <div key={g.label} className="flex items-center gap-2 text-xs">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                          <span className="font-semibold text-stone-700 dark:text-stone-300">{loc(g.label)}</span>
-                          <span className="ml-auto font-bold text-stone-900 dark:text-stone-100">{g.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* bucket usia */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold"><Cake className="h-4 w-4 ov-text-accent" /> {t("Distribusi Usia")}</CardTitle>
-                  <p className="mt-0.5 text-[11px] text-stone-400">{t("Bucket usia karyawan aktif", "Age buckets of active employees")}</p>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="h-44">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.demografi.ageBuckets.map((b) => ({ bucket: loc(b.label), count: b.count }))} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                        <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ fontWeight: 700 }} cursor={{ fill: "var(--color-muted)" }} />
-                        <Bar dataKey="count" name={t("Karyawan")} fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} maxBarSize={42} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-              <DistCard title={t("Status Kepegawaian", "Employment Status")} icon={BriefcaseBusiness} rows={data.demografi.employmentStatus} />
-              <DistCard title={t("Status Pernikahan", "Marital Status")} icon={Heart} rows={data.demografi.marital} />
-              <DistCard title={t("Agama", "Religion")} icon={Landmark} rows={data.demografi.religion} />
-            </div>
+          <TabsContent value="demografi">
+            <DemografiTab data={data} />
           </TabsContent>
         </Tabs>
       )}
@@ -320,11 +274,226 @@ export function HrReportsView() {
   );
 }
 
-/** Kartu distribusi sederhana (label + jumlah + bar proporsional). */
+/** Label seksi kecil (pengelompok kartu) — tipografi uppercase stone-400. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 px-1 pt-1">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-stone-400">{children}</p>
+      <span className="h-px flex-1 bg-stone-200/70 dark:bg-stone-800" />
+    </div>
+  );
+}
+
+/** Tab Demografi — komposisi karyawan aktif: profil personal + komposisi
+ *  organisasi (gender/usia/pendidikan chart, cross-tab gender×status, dan
+ *  kartu distribusi per dimensi penempatan). */
+function DemografiTab({ data }: { data: ReportsData }) {
+  const { t } = useI18n();
+  const d = data.demografi;
+
+  // pendidikan: urutan bucket tetap (API sudah berurutan — sort defensif
+  // agar label tak dikenal tetap rapi di akhir).
+  const eduRows = useMemo(() => {
+    return [...(d.education ?? [])].sort((a, b) => {
+      const ia = EDU_ORDER.indexOf(a.label);
+      const ib = EDU_ORDER.indexOf(b.label);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+  }, [d.education]);
+
+  // label bucket pendidikan: full utk tooltip, compact utk tick sumbu X.
+  const eduFull = (l: string) =>
+    l === "Tanpa data" ? t("Tanpa data", "No data")
+      : l === "SMA & Sederajat" ? t("SMA & Sederajat", "High School & Equivalent")
+      : l;
+  const eduTick = (l: string) =>
+    l === "Diploma (D1–D4)" ? t("D1–D4")
+      : l === "SMA & Sederajat" || l === "High School & Equivalent" ? t("≤ SMA", "≤ HS")
+      : l === "Tanpa data" || l === "No data" ? t("Tanpa data", "No data")
+      : l;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" onClick={() => downloadExport("demografi")} className="h-7 gap-1.5 px-2.5 text-[11px] font-bold">
+          <Download className="h-3.5 w-3.5" /> {t("Export Demografi (XLSX)")}
+        </Button>
+      </div>
+
+      <SectionLabel>{t("Profil Karyawan", "Employee Profile")}</SectionLabel>
+
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        {/* gender donut */}
+        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4 ov-text-accent" /> {t("Komposisi Gender")}</CardTitle>
+            <p className="mt-0.5 text-[11px] text-stone-400">{t("Karyawan aktif", "Active employees")}</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={d.gender.map((g) => ({ name: loc(g.label), value: g.count }))} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={3} strokeWidth={0}>
+                      {d.gender.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col justify-center gap-2.5">
+                {d.gender.map((g, i) => (
+                  <div key={g.label} className="flex items-center gap-2 text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="font-semibold text-stone-700 dark:text-stone-300">{loc(g.label)}</span>
+                    <span className="ml-auto font-bold text-stone-900 dark:text-stone-100">{g.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* bucket usia */}
+        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold"><Cake className="h-4 w-4 ov-text-accent" /> {t("Distribusi Usia")}</CardTitle>
+            <p className="mt-0.5 text-[11px] text-stone-400">{t("Bucket usia karyawan aktif", "Age buckets of active employees")}</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={d.ageBuckets.map((b) => ({ bucket: loc(b.label), count: b.count }))} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ fontWeight: 700 }} cursor={{ fill: "var(--color-muted)" }} />
+                  <Bar dataKey="count" name={t("Karyawan")} fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} maxBarSize={42} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+        {/* pendidikan terakhir */}
+        <Card className="rounded-2xl border-stone-200/80 shadow-sm lg:col-span-2 dark:border-stone-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold"><GraduationCap className="h-4 w-4 ov-text-accent" /> {t("Pendidikan Terakhir", "Highest Education")}</CardTitle>
+            <p className="mt-0.5 text-[11px] text-stone-400">{t("Jenjang tertinggi per karyawan aktif", "Highest attainment per active employee")}</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={eduRows.map((r) => ({ bucket: eduFull(r.label), count: r.count }))} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="bucket" tickFormatter={eduTick} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ fontWeight: 700 }} cursor={{ fill: "var(--color-muted)" }} />
+                  <Bar dataKey="count" name={t("Karyawan")} fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} maxBarSize={42} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* cross-tab gender × status */}
+        <GenderStatusCard rows={d.genderByStatus ?? []} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+        <DistCard title={t("Status Pernikahan", "Marital Status")} icon={Heart} rows={d.marital ?? []} />
+        <DistCard title={t("Agama", "Religion")} icon={Landmark} rows={d.religion ?? []} />
+        <DistCard title={t("Golongan Darah", "Blood Type")} icon={Droplet} rows={d.bloodTypes ?? []} />
+      </div>
+
+      <SectionLabel>{t("Komposisi Organisasi", "Organizational Composition")}</SectionLabel>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+        <DistCard title={t("Status Kepegawaian", "Employment Status")} icon={BriefcaseBusiness} rows={d.employmentStatus ?? []} />
+        <DistCard title={t("Unit Organisasi", "Organizational Units")} icon={Network} rows={d.orgUnits ?? []} />
+        <DistCard title={t("Level Jabatan", "Job Levels")} icon={Medal} rows={d.positionLevels ?? []} />
+        <DistCard title={t("Grade")} icon={Award} rows={d.grades ?? []} />
+        <DistCard title={t("Kantor", "Office")} icon={Building2} rows={d.offices ?? []} />
+      </div>
+    </div>
+  );
+}
+
+/** Cross-tab gender × status kepegawaian — tabel ringkas dgn TOTAL bold. */
+function GenderStatusCard({ rows }: { rows: GenderStatusRow[] }) {
+  const { t, locale } = useI18n();
+  const fmt = (n: number) => n.toLocaleString(locale);
+
+  const STATUS_COLS = ["Permanent", "Probation", "Contract", "Outsourcing", "Tanpa data"] as const;
+  // kolom "Tanpa data" disembunyikan bila seluruhnya nol (hemat lebar).
+  const showNoData = rows.some((r) => r["Tanpa data"] > 0);
+  const cols = showNoData ? STATUS_COLS : STATUS_COLS.slice(0, 4);
+  const sumAll = (r: GenderStatusRow) => r.Permanent + r.Probation + r.Contract + r.Outsourcing + r["Tanpa data"];
+  const colTotal = (c: (typeof STATUS_COLS)[number]) => rows.reduce((s, r) => s + r[c], 0);
+  const grand = rows.reduce((s, r) => s + sumAll(r), 0);
+  const colLabel = (c: (typeof STATUS_COLS)[number]) => (c === "Tanpa data" ? t("Tanpa data", "No data") : t(c));
+
+  return (
+    <Card className="h-full rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold"><Table2 className="h-4 w-4 ov-text-accent" /> {t("Gender × Status Kepegawaian", "Gender × Employment Status")}</CardTitle>
+        <p className="mt-0.5 text-[11px] text-stone-400">{t("Karyawan aktif per gender & status", "Active employees by gender & status")}</p>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-stone-200 bg-stone-50 hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900/60 dark:hover:bg-stone-900/60">
+                <TableHead className="whitespace-nowrap text-[11px] font-bold">{t("Gender")}</TableHead>
+                {cols.map((c) => (
+                  <TableHead key={c} className="whitespace-nowrap px-2 text-right text-[11px] font-bold">{colLabel(c)}</TableHead>
+                ))}
+                <TableHead className="whitespace-nowrap px-2 text-right text-[11px] font-extrabold">{t("TOTAL")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.gender} className="border-stone-100 dark:border-stone-800/60">
+                  <TableCell className="whitespace-nowrap text-xs font-bold text-stone-700 dark:text-stone-200">
+                    {r.gender === "Laki-laki" ? t("Laki-laki", "Male") : t("Perempuan", "Female")}
+                  </TableCell>
+                  {cols.map((c) => (
+                    <TableCell key={c} className={cn(
+                      "whitespace-nowrap px-2 text-right text-xs font-semibold tabular-nums",
+                      r[c] > 0 ? "text-stone-700 dark:text-stone-200" : "text-stone-300 dark:text-stone-600",
+                    )}>{fmt(r[c])}</TableCell>
+                  ))}
+                  <TableCell className="whitespace-nowrap px-2 text-right text-xs font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{fmt(sumAll(r))}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="border-stone-200 bg-stone-50/60 dark:border-stone-800 dark:bg-stone-900/60">
+                <TableCell className="whitespace-nowrap text-xs font-extrabold text-stone-900 dark:text-stone-50">{t("TOTAL")}</TableCell>
+                {cols.map((c) => (
+                  <TableCell key={c} className="whitespace-nowrap px-2 text-right text-xs font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{fmt(colTotal(c))}</TableCell>
+                ))}
+                <TableCell className="whitespace-nowrap px-2 text-right text-xs font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{fmt(grand)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Kartu distribusi sederhana (label + jumlah + bar proporsional).
+ *  Daftar panjang dipotong 12 baris + ringkasan "{n} lainnya". */
 function DistCard({ title, icon: Icon, rows }: { title: string; icon: React.ElementType; rows: CountRow[] }) {
   const { t } = useI18n();
   const max = Math.max(1, ...rows.map((r) => r.count));
   const total = rows.reduce((s, r) => s + r.count, 0);
+  const CAP = 12;
+  const shown = rows.slice(0, CAP);
+  const hidden = rows.slice(CAP);
+  const hiddenTotal = hidden.reduce((s, r) => s + r.count, 0);
+  const rowLabel = (l: string) => (l === "Tanpa data" ? t("Tanpa data", "No data") : l);
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardHeader className="pb-2">
@@ -332,9 +501,9 @@ function DistCard({ title, icon: Icon, rows }: { title: string; icon: React.Elem
         <p className="mt-0.5 text-[11px] text-stone-400">{t("{n} karyawan aktif", "{n} active employees", { n: total })}</p>
       </CardHeader>
       <CardContent className="space-y-2 pt-0">
-        {rows.map((r, i) => (
+        {shown.map((r, i) => (
           <div key={r.label} className="flex items-center gap-2.5">
-            <span className="w-28 shrink-0 truncate text-[11px] font-bold text-stone-700 dark:text-stone-200" title={r.label}>{r.label}</span>
+            <span className="w-28 shrink-0 truncate text-[11px] font-bold text-stone-700 dark:text-stone-200" title={rowLabel(r.label)}>{rowLabel(r.label)}</span>
             <div className="h-5 flex-1 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
               <motion.div
                 initial={{ width: 0 }}
@@ -346,6 +515,11 @@ function DistCard({ title, icon: Icon, rows }: { title: string; icon: React.Elem
             <span className="w-8 shrink-0 text-right text-[11px] font-extrabold tabular-nums text-stone-900 dark:text-stone-100">{r.count}</span>
           </div>
         ))}
+        {hidden.length > 0 && (
+          <p className="border-t border-dashed border-stone-100 pt-2 text-[10px] font-bold text-stone-400 dark:border-stone-800">
+            {t("{n} kategori lainnya · {m} karyawan", "{n} more categories · {m} employees", { n: hidden.length, m: hiddenTotal })}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

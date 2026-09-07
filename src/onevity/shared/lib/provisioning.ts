@@ -122,12 +122,28 @@ const TPL_DEFS: { code: string; name: string; description: string; components: s
   { code: "FREELANCE", name: "Kontrak/Freelance", description: "Gaji pokok + tunjangan transport-makan (tanpa BPJS)", components: ["BASIC", "TTRANS", "TMAKAN", "WORKDAYS"] },
 ];
 
+import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
+
 export async function seedTenantReference(db: TenantDb): Promise<void> {
   // lookup master
   for (const [category, labels] of LOOKUPS) {
     await db.lookup.createMany({
       data: labels.map((label, i) => ({ category, code: label.toUpperCase().replace(/[^A-Z0-9]/g, ""), label, sortOrder: i })),
     });
+  }
+
+  // template surat default (Task Admin-6) — idempoten per key
+  for (const t of LETTER_TEMPLATE_DEFAULTS) {
+    const before = await db.letterTemplate.findUnique({ where: { key: t.key }, select: { id: true } });
+    if (!before) {
+      await db.letterTemplate.create({
+        data: {
+          key: t.key, category: t.category, name: t.name,
+          description: t.description ?? null, subject: t.subject ?? null,
+          body: t.body, signatoryTitle: t.signatoryTitle,
+        },
+      });
+    }
   }
 
   // komponen gaji
