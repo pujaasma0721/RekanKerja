@@ -20,7 +20,7 @@
 //   · UI Template Surat (daftar token + tombol "Kembalikan ke bawaan")
 // =====================================================================
 
-export type LetterCategory = "Disciplinary" | "PersonnelAction";
+export type LetterCategory = "Disciplinary" | "PersonnelAction" | "EmployeeService";
 
 export interface LetterTemplateDefault {
   key: string;
@@ -554,6 +554,236 @@ Kami menyampaikan penghargaan yang setinggi-tingginya atas dedikasi dan kontribu
 {{signatory_name}}
 {{signatory_title}}`,
   },
+
+  // ---------------- EMPLOYEE SERVICE (surat layanan karyawan) ----------------
+  // Task 26-a (P0 wave-1): 5 surat paling sering diminta karyawan Indonesia —
+  // diterbitkan HR dari profil karyawan, atau dari permintaan ESS (LetterRequest
+  // → disetujui HR → LetterDocument diterbitkan, karyawan mengunduh PDF).
+  {
+    key: "EMP_SK_KERJA",
+    category: "EmployeeService",
+    name: "Surat Keterangan Kerja",
+    description: "Keterangan masih aktif bekerja — posisi, unit, masa kerja. Umum untuk kredit, visa, KPR.",
+    subject: "Surat Keterangan Kerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Keterangan Kerja
+
+Yang bertanda tangan di bawah ini, atas nama {{company_name}}, beralamat di {{company_address}}, dengan ini menerangkan bahwa:
+
+    Nama               : {{employee_name}}
+    NIK                : {{nik}}
+    Nomor Karyawan     : {{employee_no}}
+    Jabatan            : {{employee_position}}
+    Unit Kerja         : {{employee_org_unit}}
+    Status Kepegawaian : {{status_kerja}}
+    Mulai Bekerja      : {{join_date}}
+    Masa Kerja         : {{masa_kerja}}
+
+Saudara/i {{employee_name}} adalah karyawan {{company_name}} yang masih aktif bekerja hingga saat diterbitkannya surat keterangan ini.
+
+Surat keterangan ini dibuat untuk keperluan {{purpose}}. Apabila diperlukan keterangan lebih lanjut, silakan menghubungi bagian kepegawaian {{company_name}}.
+
+Demikian surat keterangan ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "EMP_SK_GAJI",
+    category: "EmployeeService",
+    name: "Surat Keterangan Gaji",
+    description: "Rincian gaji pokok + tunjangan tetap + total bruto bulanan. Umum untuk pengajuan kredit/KPR.",
+    subject: "Surat Keterangan Gaji",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Keterangan Gaji
+
+Yang bertanda tangan di bawah ini, atas nama {{company_name}}, dengan ini menerangkan bahwa Saudara/i:
+
+    Nama               : {{employee_name}}
+    NIK                : {{nik}}
+    Nomor Karyawan     : {{employee_no}}
+    Jabatan            : {{employee_position}}
+    Unit Kerja         : {{employee_org_unit}}
+    Status Kepegawaian : {{status_kerja}}
+    Mulai Bekerja      : {{join_date}}
+    Masa Kerja         : {{masa_kerja}}
+
+adalah karyawan {{company_name}} yang memperoleh penghasilan tetap bulanan dengan rincian:
+
+    Gaji Pokok                      : {{gaji_pokok}}
+    Tunjangan Tetap                 : {{tunjangan_tetap}}
+    Total Penghasilan Bruto Bulanan : {{total_bruto}}
+
+Besaran penghasilan tersebut di atas merupakan penghasilan tetap sebelum potongan pajak penghasilan dan iuran wajib lainnya sesuai peraturan yang berlaku, dan dibayarkan secara teratur setiap bulan melalui rekening bank karyawan.
+
+Surat keterangan ini dibuat untuk keperluan {{purpose}} dan bersifat rahasia, hanya untuk keperluan tersebut di atas.
+
+Demikian surat keterangan ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "EMP_SK_PENGALAMAN",
+    category: "EmployeeService",
+    name: "Surat Keterangan Pengalaman Kerja",
+    description: "Riwayat kerja di perusahaan — periode, posisi terakhir. Untuk karyawan aktif maupun mantan karyawan.",
+    subject: "Surat Keterangan Pengalaman Kerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Keterangan Pengalaman Kerja
+
+Yang bertanda tangan di bawah ini, atas nama {{company_name}}, dengan ini menerangkan bahwa:
+
+    Nama               : {{employee_name}}
+    NIK                : {{nik}}
+    Nomor Karyawan     : {{employee_no}}
+    Status Kepegawaian : {{status_kerja}}
+
+telah bekerja di {{company_name}} dengan riwayat penempatan sebagai berikut:
+
+    Periode Kerja      : {{join_date}} s.d. {{end_date}}
+    Jabatan Terakhir   : {{employee_position}}
+    Unit Kerja         : {{employee_org_unit}}
+    Alasan Berakhir    : {{reason}}
+
+Selama bekerja di {{company_name}}, Saudara/i {{employee_name}} menunjukkan dedikasi, sikap kerja yang baik, dan tidak pernah dikenai sanksi atas pelanggaran berat.
+
+Surat keterangan ini dibuat untuk keperluan {{purpose}}. Apabila diperlukan keterangan lebih lanjut, silakan menghubungi bagian kepegawaian {{company_name}}.
+
+Demikian surat keterangan ini dibuat dengan sebenarnya.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "EMP_REFERENSI",
+    category: "EmployeeService",
+    name: "Surat Referensi Kerja",
+    description: "Penilaian singkat kualitas kerja (keandalan, tanggung jawab, kerja sama, integritas) — teks netral positif standar.",
+    subject: "Surat Referensi Kerja",
+    signatoryTitle: "HR Manager",
+    body: `{{letter_no}}
+
+Perihal: Surat Referensi Kerja
+
+Kepada Yth.
+Pimpinan / Sumber Daya Manusia
+perusahaan yang bersangkutan
+
+di tempat
+
+Yang bertanda tangan di bawah ini, atas nama {{company_name}}, dengan ini memberikan referensi mengenai Saudara/i:
+
+    Nama           : {{employee_name}}
+    Nomor Karyawan : {{employee_no}}
+    Jabatan        : {{employee_position}}
+    Unit Kerja     : {{employee_org_unit}}
+    Periode Kerja  : {{join_date}} s.d. {{end_date}}
+
+Selama bekerja di {{company_name}}, Saudara/i {{employee_name}} menunjukkan kinerja yang baik dan dapat dipertanggungjawabkan. Berdasarkan catatan kepegawaian, hal-hal yang dapat kami sampaikan antara lain:
+
+    1. Keandalan      : hadir dan menyelesaikan penugasan secara konsisten sesuai tenggat yang ditetapkan.
+    2. Tanggung Jawab : menjalankan tugas dan wewenang dengan penuh kesungguhan serta akuntabel atas hasil pekerjaan.
+    3. Kerja Sama     : berinteraksi secara profesional dengan rekan kerja lintas unit maupun pihak eksternal.
+    4. Integritas     : menjaga kerahasiaan data dan aset perusahaan selama maupun setelah masa kerja.
+
+Referensi ini kami sampaikan sebaik-baiknya tanpa mengurangi keobjektifan penilaian, untuk keperluan {{purpose}}.
+
+Demikian surat referensi ini dibuat. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.
+
+{{city}}, {{letter_date}}
+
+{{company_name}}
+
+{{signatory_name}}
+{{signatory_title}}`,
+  },
+  {
+    key: "EMP_PKWT",
+    category: "EmployeeService",
+    name: "Perjanjian Kerja Waktu Tertentu (PKWT)",
+    description: "Dokumen 2 pihak — identitas perusahaan × karyawan, jangka waktu, gaji, dan klausul standar (8 pasal ringkas).",
+    subject: "Perjanjian Kerja Waktu Tertentu",
+    signatoryTitle: "HR Director",
+    body: `{{letter_no}}
+
+PERJANJIAN KERJA WAKTU TERTENTU (PKWT)
+
+Perjanjian Kerja Waktu Tertentu ini dibuat dan ditandatangani pada hari ini, {{letter_date}}, di {{city}}, oleh dan antara:
+
+PIHAK PERTAMA
+    {{company_name}}, badan usaha berkantor di {{office_name}}, {{company_address}}, {{company_city}}, NPWP {{office_npwp}}, dalam hal ini diwakili oleh {{signatory_name}} selaku {{signatory_title}}, bertindak untuk dan atas nama {{company_name}}.
+
+PIHAK KEDUA
+    Nama Lengkap     : {{employee_name}}
+    NIK              : {{nik}}
+    Tempat/Tgl Lahir : {{birth_place}}, {{birth_date}}
+    Alamat           : {{alamat}}
+    Nomor Karyawan   : {{employee_no}}
+
+PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama disebut PARA PIHAK, dan sepakat mengikatkan diri dalam Perjanjian Kerja Waktu Tertentu dengan ketentuan sebagai berikut:
+
+Pasal 1 — Status dan Jabatan
+    PIHAK KEDUA bekerja pada {{company_name}} sebagai {{employee_position}} pada unit {{employee_org_unit}} dengan status kepegawaian {{status_kerja}}.
+
+Pasal 2 — Jangka Waktu
+    Perjanjian ini berlaku untuk jangka waktu tertentu terhitung sejak {{contract_start}} sampai dengan {{contract_end}} (kontrak generasi ke-{{renewal_count}}). Perpanjangan dilakukan atas kesepakatan PARA PIHAK paling lambat sebelum jangka waktu berakhir, dengan tetap mengikuti batasan perpanjangan dan jenis pekerjaan sesuai peraturan perundang-undangan.
+
+Pasal 3 — Kompensasi
+    PIHAK KEDUA berhak atas kompensasi tetap bulanan dengan rincian:
+        Gaji Pokok                     : {{gaji_pokok}}
+        Tunjangan Tetap                : {{tunjangan_tetap}}
+        Total Kompensasi Bruto Bulanan : {{total_bruto}}
+    serta hak jaminan sosial tenaga kerja, cuti tahunan, dan hak lainnya sesuai ketentuan {{company_name}} dan peraturan perundang-undangan.
+
+Pasal 4 — Jam Kerja
+    PIHAK KEDUA tunduk pada jam kerja, hari kerja, serta ketentuan kehadiran dan lembur yang berlaku di {{company_name}} sesuai kebijakan dan peraturan perusahaan.
+
+Pasal 5 — Kerahasiaan
+    PIHAK KEDUA wajib menjaga kerahasiaan seluruh data, informasi, dan dokumen milik {{company_name}} yang diketahui karena pekerjaannya, baik selama maupun setelah berakhirnya hubungan kerja.
+
+Pasal 6 — Berakhirnya Perjanjian
+    Perjanjian ini berakhir apabila jangka waktu sebagaimana dimaksud Pasal 2 telah berakhir, PARA PIHAK sepakat mengakhirinya sebelum waktunya, atau terjadi pemutusan hubungan kerja sesuai alasan dan tata cara yang diatur peraturan perundang-undangan. Pada saat berakhir, PIHAK KEDUA wajib menyelesaikan seluruh kewajiban dan serah terima pekerjaan.
+
+Pasal 7 — Penyelesaian Perselisihan
+    Apabila timbul perbedaan pendapat dalam pelaksanaan perjanjian ini, PARA PIHAK menyelesaikannya terlebih dahulu secara musyawarah. Apabila tidak tercapai kesepakatan, penyelesaian dilakukan melalui mekanisme bipartit dan/atau lembaga penyelesaian perselisihan hubungan industrial sesuai peraturan perundang-undangan.
+
+Pasal 8 — Penutup
+    Perjanjian ini dibuat dalam 2 (dua) rangkap asli bermeterai cukup dan mempunyai kekuatan hukum yang sama, masing-masing dipegang PIHAK PERTAMA dan PIHAK KEDUA. Hal-hal yang belum diatur dalam perjanjian ini mengikuti peraturan perusahaan dan peraturan perundang-undangan.
+
+Demikian perjanjian ini dibuat dalam keadaan sadar tanpa paksaan dari pihak mana pun.
+
+PIHAK PERTAMA — {{company_name}}
+    diwakili oleh,
+
+    {{signatory_name}}
+    {{signatory_title}}
+
+
+PIHAK KEDUA
+    secara pribadi,
+
+    {{employee_name}}
+    Karyawan — {{employee_no}}`,
+  },
 ];
 
 // ---------------- KATALOG PLACEHOLDER (untuk editor + mesin render) ----------------
@@ -621,6 +851,35 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholderGroup[] = [
       { token: "expires_at", desc: "Tanggal berakhir masa berlaku" },
       { token: "validity_months", desc: "Lama masa berlaku (bulan)" },
       { token: "notes", desc: "Catatan tambahan" },
+    ],
+  },
+  {
+    group: "Surat Layanan Karyawan",
+    tokens: [
+      { token: "purpose", desc: "Keperluan surat (dari permintaan karyawan; default \"sesuai keperluan\")" },
+      { token: "nik", desc: "NIK (KTP) karyawan" },
+      { token: "birth_date", desc: "Tanggal lahir karyawan" },
+      { token: "birth_place", desc: "Tempat lahir karyawan" },
+      { token: "alamat", desc: "Alamat karyawan" },
+      { token: "status_kerja", desc: "Status kepegawaian pada surat layanan" },
+      { token: "masa_kerja", desc: "Masa kerja (\"X tahun Y bulan\")" },
+      { token: "end_date", desc: "Tanggal berakhir hubungan kerja (aktif → \"hingga saat ini\")" },
+    ],
+  },
+  {
+    group: "Gaji (hanya surat EMP_SK_GAJI & EMP_PKWT)",
+    tokens: [
+      { token: "gaji_pokok", desc: "Gaji pokok bulanan (format Rupiah)" },
+      { token: "tunjangan_tetap", desc: "Total tunjangan tetap bulanan (format Rupiah)" },
+      { token: "total_bruto", desc: "Total penghasilan bruto bulanan (format Rupiah)" },
+    ],
+  },
+  {
+    group: "Kontrak PKWT",
+    tokens: [
+      { token: "contract_start", desc: "Mulai periode PKWT aktif (Employee.contractStart)" },
+      { token: "contract_end", desc: "Akhir periode PKWT aktif (Employee.contractEnd)" },
+      { token: "renewal_count", desc: "Generasi kontrak ke-N (jumlah perpanjangan + 1)" },
     ],
   },
 ];

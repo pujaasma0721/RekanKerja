@@ -29,8 +29,17 @@ export interface LetterEmployee {
   orgUnit?: { name: string | null } | null;
   grade?: { code: string | null } | null;
   positionLevel?: { name: string | null } | null;
-  /** assignment aktif (validTo null) — sumber status kepegawaian. */
-  assignments?: { employmentStatus: string }[];
+  // identitas utk surat layanan (SK kerja/gaji/pengalaman & PKWT 26-a)
+  nationalId?: string | null;
+  birthPlace?: string | null;
+  birthDate?: Date | null;
+  address?: string | null;
+  endDate?: Date | null;
+  contractStart?: Date | null;
+  contractEnd?: Date | null;
+  renewalCount?: number | null;
+  /** assignment aktif (validTo null) — sumber status kepegawaian + gaji pokok. */
+  assignments?: { employmentStatus: string; baseSalary: number }[];
 }
 
 /** Catatan disiplin sumber surat. */
@@ -91,6 +100,66 @@ export function fmtRupiahText(n: number): string {
   return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }
 
+/** Masa kerja teks Indonesia: "3 tahun 4 bulan" / "7 bulan" / "5 tahun". */
+export function fmtTenureId(joinDate: Date | null | undefined): string {
+  if (!joinDate) return "—";
+  const d = new Date(joinDate);
+  if (isNaN(d.getTime())) return "—";
+  const now = new Date();
+  let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (now.getDate() < d.getDate()) months--;
+  if (months < 0) months = 0;
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years <= 0 && rest <= 0) return "kurang dari 1 bulan";
+  if (years <= 0) return `${rest} bulan`;
+  if (rest <= 0) return `${years} tahun`;
+  return `${years} tahun ${rest} bulan`;
+}
+
+/** Template surat yang boleh memuat nilai gaji (sensitive — hanya SK Gaji & PKWT). */
+const SALARY_TEMPLATE_KEYS = new Set(["EMP_SK_GAJI", "EMP_PKWT"]);
+
+/**
+ * Total tunjangan tetap bulanan karyawan: komponen Earning tetap (calcMethod
+ * Fixed, wageType Compensation) dari item wage-template profil payroll +
+ * assignment Periodic aktif. Gaji pokok TIDAK dihitung (sudah token sendiri).
+ */
+async function fixedAllowanceOf(db: TenantDb, employeeId: string): Promise<number> {
+  try {
+    const profile = await db.employeePayrollProfile.findUnique({
+      where: { employeeId },
+      select: { wageTemplateId: true },
+    });
+    let sum = 0;
+    const isFixedEarning = (c: { type: string; wageType: string; calcMethod: string }) =>
+      c.type === "Earning" && c.wageType === "Compensation" && c.calcMethod === "Fixed";
+    // 1. item wage-template profil payroll (amount override 0 → pakai amount master)
+    if (profile?.wageTemplateId) {
+      const tpl = await db.wageTemplate.findUnique({
+        where: { id: profile.wageTemplateId },
+        include: { items: { include: { wageComponent: true } } },
+      });
+      for (const it of tpl?.items ?? []) {
+        if (!it.wageComponent || !isFixedEarning(it.wageComponent)) continue;
+        sum += it.amount > 0 ? it.amount : it.wageComponent.amount;
+      }
+    }
+    // 2. komponen Periodic aktif milik karyawan (tunjangan khusus tetap)
+    const periodic = await db.employeeComponentAssignment.findMany({
+      where: { employeeId, active: true, kind: "Periodic" },
+      include: { wageComponent: true },
+    });
+    for (const p of periodic) {
+      if (!p.wageComponent || !isFixedEarning(p.wageComponent)) continue;
+      sum += p.amount > 0 ? p.amount : p.wageComponent.amount;
+    }
+    return sum;
+  } catch {
+    return 0; // profil/komponen belum tersedia → tunjangan 0, surat tetap terbit
+  }
+}
+
 /** Bulan Romawi I..XII (untuk nomor surat). */
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
@@ -144,9 +213,11 @@ export async function buildLetterContext(
     disciplinaryRecord?: LetterDisciplinaryRecord | null;
     personnelAction?: LetterPersonnelAction | null;
     letterNo: string;
+    /** keperluan surat (permintaan ESS / input HR) — default "sesuai keperluan". */
+    purpose?: string | null;
   },
 ): Promise<Record<string, string>> {
-  const { employee, template, disciplinaryRecord, personnelAction, letterNo } = opts;
+  const { employee, template, disciplinaryRecord, personnelAction, letterNo, purpose } = opts;
 
   // ---- Perusahaan (baris pertama) + kantor penempatan karyawan ----
   const company = await db.company.findFirst({
@@ -196,6 +267,24 @@ export async function buildLetterContext(
     employee_status: val(employee.assignments?.[0]?.employmentStatus),
     join_date: employee.joinDate ? fmtDateIdLong(new Date(employee.joinDate)) : "—",
 
+    // Surat layanan karyawan (26-a) — identitas, masa kerja, kontrak PKWT
+    purpose: purpose?.trim() || "sesuai keperluan",
+    nik: val(employee.nationalId),
+    birth_date: employee.birthDate ? fmtDateIdLong(new Date(employee.birthDate)) : "—",
+    birth_place: val(employee.birthPlace),
+    alamat: val(employee.address),
+    status_kerja: val(employee.assignments?.[0]?.employmentStatus),
+    masa_kerja: fmtTenureId(employee.joinDate),
+    // aktif → "hingga saat ini" (SK pengalaman/referensi utk karyawan aktif)
+    end_date: employee.endDate ? fmtDateIdLong(new Date(employee.endDate)) : "hingga saat ini",
+    contract_start: employee.contractStart ? fmtDateIdLong(new Date(employee.contractStart)) : "—",
+    contract_end: employee.contractEnd ? fmtDateIdLong(new Date(employee.contractEnd)) : "—",
+    renewal_count: String((employee.renewalCount ?? 0) + 1),
+    // nilai gaji (SENSITIVE) — hanya dirender utk EMP_SK_GAJI & EMP_PKWT
+    gaji_pokok: "—",
+    tunjangan_tetap: "—",
+    total_bruto: "—",
+
     // Personnel Action (diisi bila surat bersumber PA)
     effective_date: "—",
     reason: "—",
@@ -218,6 +307,15 @@ export async function buildLetterContext(
     validity_months: "—",
     notes: "—",
   };
+
+  // ---- Konteks GAJI (hanya template sensitive EMP_SK_GAJI & EMP_PKWT) ----
+  if (SALARY_TEMPLATE_KEYS.has(template.key)) {
+    const base = employee.assignments?.[0]?.baseSalary ?? 0;
+    const allowance = await fixedAllowanceOf(db, employee.id);
+    ctx.gaji_pokok = fmtRupiahText(base);
+    ctx.tunjangan_tetap = fmtRupiahText(allowance);
+    ctx.total_bruto = fmtRupiahText(base + allowance);
+  }
 
   // ---- Konteks DISIPLINER ----
   if (disciplinaryRecord) {
@@ -327,12 +425,14 @@ export async function buildLetterContext(
 export async function issueLetter(
   db: TenantDb,
   opts: {
-    category: "Disciplinary" | "PersonnelAction";
+    category: "Disciplinary" | "PersonnelAction" | "EmployeeService";
     templateKey: string;
     employeeId: string;
     personnelActionId?: string | null;
     disciplinaryRecordId?: string | null;
     actorId?: string | null;
+    /** keperluan surat layanan (Permintaan ESS / input HR saat terbit dari profil). */
+    purpose?: string | null;
   },
 ): Promise<IssuedLetter> {
   const { category, templateKey, employeeId } = opts;
@@ -390,7 +490,7 @@ export async function issueLetter(
   const countSame = await db.letterDocument.count({
     where: { category, issuedAt: { gte: yearStart, lt: yearEnd } },
   });
-  const code = category === "Disciplinary" ? "HR-DIS" : "HR-PA";
+  const code = category === "Disciplinary" ? "HR-DIS" : category === "PersonnelAction" ? "HR-PA" : "HR-ES";
   const refNo = `${String(countSame + 1).padStart(3, "0")}/${code}/${ROMAN[now.getMonth()]}/${year}`;
 
   // 4. render snapshot + simpan + jejak aktivitas
@@ -400,6 +500,7 @@ export async function issueLetter(
     disciplinaryRecord,
     personnelAction,
     letterNo: refNo,
+    purpose: opts.purpose ?? null,
   });
   const body = renderLetterBody(template.body, ctx);
 
@@ -413,7 +514,12 @@ export async function issueLetter(
       disciplinaryRecordId: opts.disciplinaryRecordId ?? null,
       subject: template.subject,
       body,
-      metaJson: JSON.stringify({ templateName: template.name, templateKey, officeId: employee.companyOfficeId }),
+      metaJson: JSON.stringify({
+        templateName: template.name,
+        templateKey,
+        officeId: employee.companyOfficeId,
+        ...(opts.purpose?.trim() ? { purpose: opts.purpose.trim() } : {}),
+      }),
       issuedAt: now,
       createdById: opts.actorId ?? null,
     },
@@ -442,11 +548,11 @@ export async function issueLetter(
 }
 
 /** Parse metaJson LetterDocument dengan aman. */
-export function parseMeta(metaJson: string | null): { templateName?: string; templateKey?: string; officeId?: string } {
+export function parseMeta(metaJson: string | null): { templateName?: string; templateKey?: string; officeId?: string; purpose?: string } {
   if (!metaJson) return {};
   try {
     const parsed = JSON.parse(metaJson) as Record<string, unknown>;
-    return (parsed && typeof parsed === "object" ? parsed : {}) as { templateName?: string; templateKey?: string; officeId?: string };
+    return (parsed && typeof parsed === "object" ? parsed : {}) as { templateName?: string; templateKey?: string; officeId?: string; purpose?: string };
   } catch {
     return {};
   }
@@ -458,6 +564,8 @@ export async function loadLetterEmployee(db: TenantDb, employeeId: string): Prom
     where: { id: employeeId },
     select: {
       id: true, fullName: true, employeeNo: true, joinDate: true, companyOfficeId: true,
+      nationalId: true, birthPlace: true, birthDate: true, address: true,
+      endDate: true, contractStart: true, contractEnd: true, renewalCount: true,
       position: { select: { title: true } },
       orgUnit: { select: { name: true } },
       grade: { select: { code: true } },
@@ -466,7 +574,7 @@ export async function loadLetterEmployee(db: TenantDb, employeeId: string): Prom
         where: { validTo: null },
         orderBy: { validFrom: "desc" },
         take: 1,
-        select: { employmentStatus: true },
+        select: { employmentStatus: true, baseSalary: true },
       },
     },
   });
