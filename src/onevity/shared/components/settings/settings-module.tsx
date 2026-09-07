@@ -9,6 +9,7 @@ import { UserAccessView } from "@/onevity/shared/components/settings/user-access
 import { PasswordPolicyPanel, UsersPanel, MfaCard } from "@/onevity/shared/components/settings/user-security-view";
 import { EmailConfigView } from "@/onevity/shared/components/settings/email-config-view";
 import { ApiKeysView } from "@/onevity/shared/components/settings/api-view";
+import { ActivityLogView } from "@/onevity/shared/components/settings/activity-log-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ export function SettingsModule({ view }: { view: string }) {
   if (view === "approval") return <ApprovalEngineView />;
   if (view === "email") return <EmailConfigView />;
   if (view === "api") return <ApiKeysView />;
+  // 26-b P0 — viewer audit trail (menu Log Aktivitas)
+  if (view === "audit") return <ActivityLogView />;
   return <LookupPage />;
 }
 

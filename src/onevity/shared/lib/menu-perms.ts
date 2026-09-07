@@ -133,6 +133,11 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "revoke", label: "Mencabut kunci API", hint: "Mencabut (revoke) kunci Public API" },
   ],
 
+  // Settings — audit trail viewer (26-b P0): ekspor log aktivitas
+  "settings:audit": [
+    { key: "export", label: "Mengekspor log aktivitas", hint: "Tombol Export CSV pada Log Aktivitas (Pengaturan)" },
+  ],
+
   // HR — Dokumen & Surat (26-a): memutuskan permintaan surat karyawan (ESS)
   "hr:templates": [
     { key: "decide", label: "Menyetujui / menolak permintaan surat", hint: "Tab Permintaan Masuk pada menu Template Surat — terbitkan atau tolak permintaan surat karyawan" },

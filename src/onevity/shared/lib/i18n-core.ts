@@ -172,6 +172,7 @@ export const BASE_EN: Record<string, string> = {
   "Keamanan & Akses": "Security & Access",
   "Approval Berjenjang": "Tiered Approvals",
   "Konfigurasi Email": "Email Configuration",
+  "Log Aktivitas": "Activity Log",
 
   // — quick create shell —
   "Proses Payroll": "Run Payroll",
