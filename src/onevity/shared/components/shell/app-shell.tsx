@@ -34,7 +34,7 @@ import {
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
-  Webhook, ScrollText,
+  Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +114,8 @@ const HR_NAV: NavGroup[] = [
     { id: "wizard", label: "Onboarding Karyawan", icon: UserPlus },
     { id: "disciplinary", label: "Catatan Disiplin", icon: Scale },
     { id: "documents", label: "Dokumen Karyawan", icon: FolderOpen },
+    // 27-b — inventaris aset perusahaan (penugasan + pengembalian)
+    { id: "assets", label: "Aset Karyawan", icon: Package },
     { id: "offboarding", label: "Offboarding Karyawan", icon: LogOut },
   ] },
   { section: "actions", label: "Pengajuan & Persetujuan", children: [
@@ -123,8 +125,14 @@ const HR_NAV: NavGroup[] = [
   { section: "actions", label: "Dokumen & Surat", children: [
     { id: "templates", label: "Template Surat", icon: FileText },
   ] },
+  // 27-f — broadcast pengumuman ke seluruh ESS (dengan read-tracking)
+  { section: "employee", label: "Komunikasi", children: [
+    { id: "announcements", label: "Pengumuman", icon: Megaphone },
+  ] },
   { section: "reports", label: "Laporan", children: [
     { id: "reports", label: "Laporan HR", icon: ChartNoAxesColumn },
+    // 28-b — report builder kustom (entity + field + filter + ekspor)
+    { id: "custom-reports", label: "Laporan Kustom", icon: SlidersHorizontal },
   ] },
 ];
 
@@ -166,9 +174,15 @@ const ATTENDANCE_NAV: NavGroup[] = [
   ] },
   { section: "attendance", label: "Kehadiran", children: [
     { id: "clocking", label: "Data Clocking", icon: Activity },
+    // 27-e — papan kehadiran real-time (siapa di kantor sekarang)
+    { id: "liveboard", label: "Papan Kehadiran", icon: Radar },
     { id: "absence", label: "Absensi & Izin", icon: XCircle },
     { id: "overtime", label: "Lembur (Overtime)", icon: Clock },
     { id: "workoff", label: "Work Off Permission", icon: CheckCircle2 },
+    // 27-g — persetujuan tukar shift antar karyawan (ESS mengajukan)
+    { id: "shift-swap", label: "Tukar Shift", icon: ArrowLeftRight },
+    // 27-a — import log mesin absen (sidik jari/face) CSV/Excel
+    { id: "machine-import", label: "Import Mesin Absen", icon: FileUp },
   ] },
 ];
 
@@ -224,6 +238,8 @@ export const SETTINGS_NAV: NavGroup[] = [
     { id: "security", label: "Keamanan & Akses", icon: ShieldCheck },
     { id: "approval", label: "Approval Berjenjang", icon: CheckCircle2 },
     { id: "email", label: "Konfigurasi Email", icon: Mail },
+    // 28-a — kanal notifikasi WhatsApp (provider Fonnte/Wablas/Custom)
+    { id: "whatsapp", label: "Notifikasi WhatsApp", icon: MessageCircle },
     { id: "api", label: "API & Integrasi", icon: Webhook },
     // 26-b P0 — viewer audit trail (data ActivityLog sudah terkumpul sejak lama)
     { id: "audit", label: "Log Aktivitas", icon: ScrollText },

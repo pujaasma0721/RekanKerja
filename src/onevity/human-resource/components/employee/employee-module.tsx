@@ -8,6 +8,9 @@ import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/com
 import { OffboardingModule } from "@/onevity/human-resource/components/offboarding/offboarding-module";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
 import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
+// wave 27 stub — diisi Task 27-b (Aset) & Task 27-f (Pengumuman)
+import { AssetsModule } from "@/onevity/human-resource/components/assets/assets-module";
+import { AnnouncementsView } from "@/onevity/human-resource/components/announcements/announcements-view";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
 import { EmployeeLetterIssueDialog, type ServiceTemplateRow } from "@/onevity/human-resource/components/employee/employee-letter-issue-dialog";
 import { pkwtDurationLabel } from "@/onevity/human-resource/services/pkwt";
@@ -34,6 +37,9 @@ export function EmployeeModule({ view }: { view: string }) {
   if (view === "wizard") return <OnboardingWizard />;
   if (view === "disciplinary") return <DisciplinaryPage />;
   if (view === "documents") return <EmployeeDocumentsView />;
+  // wave 27 stub — diisi Task 27-b (Aset) & Task 27-f (Pengumuman)
+  if (view === "assets") return <AssetsModule />;
+  if (view === "announcements") return <AnnouncementsView />;
   if (view === "offboarding") return <OffboardingModule />;
   if (view === "detail") return <EmployeeDetail />;
   return <DirectoryView />;

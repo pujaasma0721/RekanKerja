@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch,
-  AlertTriangle, Loader2, LayoutTemplate,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
@@ -39,6 +39,10 @@ import { EssPayslips } from "./ess-payslips";
 import { EssClaims } from "./ess-claims";
 import { EssRequests } from "./ess-requests";
 import { EssLetters } from "./ess-letters";
+// wave 27 stub — diisi Task 27-f (pengumuman), 27-g (tukar shift), 27-b (aset saya)
+import { EssAnnouncements } from "./ess-announcements";
+import { EssSwap } from "./ess-swap";
+import { EssAssets } from "./ess-assets";
 
 // ============ NAVIGASI ESS ============
 interface EssNavItem { id: EssView; label: string; en: string; short: string; shortEn: string; icon: React.ElementType }
@@ -52,6 +56,10 @@ const ESS_NAV: EssNavItem[] = [
   { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
+  // wave 27 — pengumuman / tukar shift / aset saya (stub → Task 27-f/27-g/27-b)
+  { id: "announcements", label: "Pengumuman", en: "Announcements", short: "Pengumuman", shortEn: "News", icon: Megaphone },
+  { id: "swap", label: "Tukar Shift", en: "Shift Swap", short: "Tukar Shift", shortEn: "Swap", icon: ArrowLeftRight },
+  { id: "assets", label: "Aset Saya", en: "My Assets", short: "Aset", shortEn: "Assets", icon: Package },
   { id: "profile", label: "Profil Saya", en: "My Profile", short: "Profil", shortEn: "Profile", icon: UserRound },
 ];
 
@@ -447,6 +455,10 @@ export function EssShell() {
             {view === "claims" && <EssClaims />}
             {view === "requests" && <EssRequests intent={intent} />}
             {view === "letters" && <EssLetters />}
+            {/* wave 27 stub — pengumuman / tukar shift / aset saya */}
+            {view === "announcements" && <EssAnnouncements />}
+            {view === "swap" && <EssSwap />}
+            {view === "assets" && <EssAssets />}
           </motion.div>
         </AnimatePresence>
       </main>

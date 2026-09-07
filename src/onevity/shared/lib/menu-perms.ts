@@ -142,6 +142,38 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   "hr:templates": [
     { key: "decide", label: "Menyetujui / menolak permintaan surat", hint: "Tab Permintaan Masuk pada menu Template Surat — terbitkan atau tolak permintaan surat karyawan" },
   ],
+
+  // wave 27 — aset: menugaskan & menerima kembali aset perusahaan
+  "hr:assets": [
+    { key: "assign", label: "Menugaskan aset ke karyawan", hint: "Dialog tugaskan aset (laptop, seragam, alat kerja) ke karyawan" },
+    { key: "return", label: "Menerima pengembalian aset", hint: "Aksi kembalikan aset + catat kondisi (Baik/Rusak/Hilang)" },
+  ],
+
+  // wave 27 — pengumuman: mempublikasikan broadcast ke seluruh ESS
+  "hr:announcements": [
+    { key: "publish", label: "Mempublikasikan pengumuman", hint: "Menerbitkan pengumuman agar terlihat seluruh karyawan ESS" },
+  ],
+
+  // wave 27 — attendance: tukar shift (ESS mengajukan, admin memutuskan)
+  "attendance:shift-swap": [
+    { key: "approve", label: "Menyetujui / menolak tukar shift", hint: "Memutuskan permintaan tukar shift antar karyawan (approval menukar jadwal kedua pihak)" },
+  ],
+
+  // wave 27 — attendance: import log mesin absen
+  "attendance:machine-import": [
+    { key: "import", label: "Mengimport log mesin absen", hint: "Tombol import file CSV/Excel log presensi mesin (sidik jari/face)" },
+  ],
+
+  // wave 28 — WhatsApp: mengirim pesan uji
+  "settings:whatsapp": [
+    { key: "test", label: "Mengirim pesan WhatsApp uji", hint: "Tombol Tes Kirim pada konfigurasi provider WhatsApp" },
+  ],
+
+  // wave 28 — report builder: menjalankan & mengekspor laporan kustom
+  "hr:custom-reports": [
+    { key: "run", label: "Menjalankan laporan kustom", hint: "Tombol Jalankan pada laporan kustom tersimpan" },
+    { key: "export", label: "Mengekspor hasil laporan", hint: "Tombol ekspor CSV/Excel hasil laporan kustom" },
+  ],
 };
 
 /** Operasi khusus yang terdaftar untuk sebuah key menu. */

@@ -15,7 +15,11 @@ export type EssView =
   | "payslips"
   | "claims"
   | "requests"
-  | "letters";
+  | "letters"
+  // wave 27 — pengumuman / tukar shift / aset saya
+  | "announcements"
+  | "swap"
+  | "assets";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

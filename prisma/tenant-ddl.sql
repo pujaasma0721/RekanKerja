@@ -47,6 +47,9 @@ CREATE TABLE "WorkLocation" (
     "address" TEXT,
     "city" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "radiusMeters" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "WorkLocation_pkey" PRIMARY KEY ("id")
@@ -1192,6 +1195,7 @@ CREATE TABLE "AttendanceRule" (
     "attendanceAllowanceAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "lateDeductionPerHour" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "absenceDeductionPerDay" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "geofenceMode" TEXT NOT NULL DEFAULT 'Off',
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AttendanceRule_pkey" PRIMARY KEY ("id")
@@ -1767,6 +1771,163 @@ CREATE TABLE "OffboardingTask" (
     CONSTRAINT "OffboardingTask_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "MachineImportBatch" (
+    "id" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "rowCount" INTEGER NOT NULL DEFAULT 0,
+    "inserted" INTEGER NOT NULL DEFAULT 0,
+    "skipped" INTEGER NOT NULL DEFAULT 0,
+    "unknownEmployees" TEXT,
+    "dateFrom" TIMESTAMP(3),
+    "dateTo" TIMESTAMP(3),
+    "importedById" TEXT,
+    "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MachineImportBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Announcement" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'Umum',
+    "pinned" BOOLEAN NOT NULL DEFAULT false,
+    "publishedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Announcement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AnnouncementRead" (
+    "id" TEXT NOT NULL,
+    "announcementId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AnnouncementRead_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Asset" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'Lainnya',
+    "serialNumber" TEXT,
+    "notes" TEXT,
+    "purchaseDate" TIMESTAMP(3),
+    "value" DOUBLE PRECISION,
+    "status" TEXT NOT NULL DEFAULT 'Available',
+    "location" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Asset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AssetAssignment" (
+    "id" TEXT NOT NULL,
+    "assetId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dueAt" TIMESTAMP(3),
+    "returnedAt" TIMESTAMP(3),
+    "returnCondition" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AssetAssignment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ShiftSwapRequest" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "requesterId" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "swapDate" TIMESTAMP(3) NOT NULL,
+    "requesterScheduleId" TEXT,
+    "targetScheduleId" TEXT,
+    "reason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "decidedById" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "decisionNote" TEXT,
+    "appliedAssignment1" TEXT,
+    "appliedAssignment2" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ShiftSwapRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WaConfig" (
+    "id" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT false,
+    "provider" TEXT NOT NULL DEFAULT 'Fonnte',
+    "endpoint" TEXT NOT NULL DEFAULT '',
+    "token" TEXT NOT NULL DEFAULT '',
+    "sender" TEXT NOT NULL DEFAULT '',
+    "lastTestOk" BOOLEAN,
+    "lastTestAt" TIMESTAMP(3),
+    "lastTestMessage" TEXT,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WaConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WaTemplate" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "body" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WaTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WaLog" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "toPhone" TEXT NOT NULL,
+    "body" TEXT,
+    "status" TEXT NOT NULL,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WaLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CustomReport" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "entity" TEXT NOT NULL,
+    "fieldsJson" TEXT NOT NULL,
+    "filtersJson" TEXT,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CustomReport_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2084,6 +2245,63 @@ CREATE INDEX "Offboarding_status_idx" ON "Offboarding"("status");
 
 -- CreateIndex
 CREATE INDEX "OffboardingTask_offboardingId_idx" ON "OffboardingTask"("offboardingId");
+
+-- CreateIndex
+CREATE INDEX "MachineImportBatch_importedAt_idx" ON "MachineImportBatch"("importedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Announcement_code_key" ON "Announcement"("code");
+
+-- CreateIndex
+CREATE INDEX "Announcement_publishedAt_idx" ON "Announcement"("publishedAt");
+
+-- CreateIndex
+CREATE INDEX "AnnouncementRead_employeeId_idx" ON "AnnouncementRead"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AnnouncementRead_announcementId_employeeId_key" ON "AnnouncementRead"("announcementId", "employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Asset_code_key" ON "Asset"("code");
+
+-- CreateIndex
+CREATE INDEX "Asset_category_idx" ON "Asset"("category");
+
+-- CreateIndex
+CREATE INDEX "Asset_status_idx" ON "Asset"("status");
+
+-- CreateIndex
+CREATE INDEX "AssetAssignment_employeeId_idx" ON "AssetAssignment"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "AssetAssignment_assetId_idx" ON "AssetAssignment"("assetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ShiftSwapRequest_code_key" ON "ShiftSwapRequest"("code");
+
+-- CreateIndex
+CREATE INDEX "ShiftSwapRequest_status_idx" ON "ShiftSwapRequest"("status");
+
+-- CreateIndex
+CREATE INDEX "ShiftSwapRequest_requesterId_idx" ON "ShiftSwapRequest"("requesterId");
+
+-- CreateIndex
+CREATE INDEX "ShiftSwapRequest_targetId_idx" ON "ShiftSwapRequest"("targetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WaTemplate_event_key" ON "WaTemplate"("event");
+
+-- CreateIndex
+CREATE INDEX "WaLog_createdAt_idx" ON "WaLog"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "WaLog_event_idx" ON "WaLog"("event");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomReport_code_key" ON "CustomReport"("code");
+
+-- CreateIndex
+CREATE INDEX "CustomReport_entity_idx" ON "CustomReport"("entity");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -2459,4 +2677,22 @@ ALTER TABLE "Offboarding" ADD CONSTRAINT "Offboarding_employeeId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "OffboardingTask" ADD CONSTRAINT "OffboardingTask_offboardingId_fkey" FOREIGN KEY ("offboardingId") REFERENCES "Offboarding"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnnouncementRead" ADD CONSTRAINT "AnnouncementRead_announcementId_fkey" FOREIGN KEY ("announcementId") REFERENCES "Announcement"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnnouncementRead" ADD CONSTRAINT "AnnouncementRead_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AssetAssignment" ADD CONSTRAINT "AssetAssignment_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AssetAssignment" ADD CONSTRAINT "AssetAssignment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
