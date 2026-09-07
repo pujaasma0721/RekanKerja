@@ -45,6 +45,14 @@ export async function PATCH(req: NextRequest) {
       data.maxOvertimeHoursMonthly = Number.isFinite(monthly) && monthly > 0 ? Math.min(200, monthly) : null;
     }
     if (b.nonClockingPolicy !== undefined && ["AssumeNormal", "ByHours", "ByDays"].includes(b.nonClockingPolicy)) data.nonClockingPolicy = b.nonClockingPolicy;
+    // 27-a P0: mode geofencing presensi (Off|Warn|Strict) — validasi nilai.
+    if (b.geofenceMode !== undefined) {
+      const mode = String(b.geofenceMode);
+      if (!["Off", "Warn", "Strict"].includes(mode)) {
+        return NextResponse.json({ error: "geofenceMode harus Off, Warn, atau Strict" }, { status: 400 });
+      }
+      data.geofenceMode = mode;
+    }
     for (const key of ["overtimeComponentCode", "lateDeductionComponentCode", "absenceDeductionComponentCode", "attendanceAllowanceComponentCode"] as const) {
       if (b[key] !== undefined) {
         const code = String(b[key]).trim().toUpperCase();

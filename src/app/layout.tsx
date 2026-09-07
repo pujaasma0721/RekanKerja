@@ -31,16 +31,27 @@ export const metadata: Metadata = {
   description:
     "OneVity HR Suite: modern Human Resource Base platform — organizational structure, positions, employee master data, personnel action workflow, and approval engine.",
   keywords: ["OneVity", "HRIS", "Human Resource Base", "Personnel Action", "HR Indonesia"],
+  // PWA (Task 27-d) — manifest + dukungan iOS standalone + ikon brand.
+  applicationName: "OneVity",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "OneVity",
+  },
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
+// PWA (Task 27-d) — warna bilah browser/OS mengikuti tema brand ink-stone.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0d9464" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a1512" },
-  ],
+  themeColor: "#1c1917",
 };
 
 export default function RootLayout({

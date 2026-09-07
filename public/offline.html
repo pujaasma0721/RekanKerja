@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Offline — OneVity</title>
+  <meta name="robots" content="noindex" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #faf8f3; color: #1c1917;
+      min-height: 100dvh; display: grid; place-items: center; padding: 1.5rem;
+      -webkit-font-smoothing: antialiased;
+    }
+    .card { max-width: 22rem; text-align: center; }
+    .mark {
+      width: 3.5rem; height: 3.5rem; border-radius: 1rem; margin: 0 auto 1.125rem;
+      background: #1c1917; color: #fff; display: grid; place-items: center;
+      box-shadow: 0 10px 28px -12px rgba(28, 25, 23, 0.7);
+    }
+    .mark svg { width: 1.75rem; height: 1.75rem; }
+    h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
+    p { margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.6; color: #57534e; }
+    a.retry {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      margin-top: 1.25rem; padding: 0.75rem 1.5rem; border-radius: 0.75rem;
+      text-decoration: none; background: #d97706; color: #fff;
+      font-weight: 700; font-size: 0.875rem; min-height: 44px;
+      box-shadow: 0 8px 20px -8px rgba(217, 119, 6, 0.6);
+      transition: background 0.15s ease;
+    }
+    a.retry:hover { background: #b45309; }
+    a.retry:active { transform: scale(0.98); }
+    .hint { margin-top: 1.25rem; font-size: 0.75rem; color: #a8a29e; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="19.999" cy="19.999" r="2"></circle>
+        <circle cx="19.999" cy="4" r="2"></circle>
+        <circle cx="4" cy="12" r="2"></circle>
+        <path d="m6.17 12h7.36"></path>
+        <path d="m18 6-4.3 4.3"></path>
+        <path d="m18 18-4.3-4.3"></path>
+      </svg>
+    </div>
+    <h1>Anda sedang offline</h1>
+    <p>Koneksi internet terputus. OneVity kembali otomatis begitu jaringan tersedia — data Anda tersimpan aman di server.</p>
+    <a href="/">Muat ulang OneVity</a>
+    <p class="hint">OneVity HRIS · Employee Self Service</p>
+  </main>
+</body>
+</html>

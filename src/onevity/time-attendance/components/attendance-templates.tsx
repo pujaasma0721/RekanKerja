@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { DayTypeRow, ScheduleRow, AttendanceRule, DAY_CATEGORY_LABEL, DAY_CATEGORY_LABEL_EN } from "@/onevity/time-attendance/components/attendance-types";
 import { useI18n } from "@/onevity/shared/lib/i18n";
-import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw } from "lucide-react";
+import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw, MapPin, Radar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PRESET_COLORS = ["#99CCFF", "#A7F3D0", "#FDE68A", "#C7D2FE", "#FCA5A5", "#86EFAC", "#E7E5E4", "#FDBA74", "#D9F99D", "#F5D0FE"];
@@ -529,6 +529,48 @@ function RulesTab() {
               <Label className="text-xs font-bold">{t("Maksimal lembur / bulan (jam)", "Max overtime / month (hours)")}</Label>
               <Input type="number" min={0} max={200} value={rule.maxOvertimeHoursMonthly ?? 0} onChange={(e) => { const v = parseInt(e.target.value, 10) || 0; set({ maxOvertimeHoursMonthly: v > 0 ? v : null }); }} className="text-sm" />
               <p className="text-[10px] text-stone-400">{t("Cap bulanan opsional (0 / kosong = tanpa cap bulanan)", "Optional monthly cap (0 / empty = no monthly cap)")}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ===== 27-a: Geofencing Presensi ===== */}
+      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <CardContent className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-bold">{t("Geofencing Presensi", "Attendance Geofencing")}</p>
+              <p className="text-[11px] text-stone-400">{t("Validasi radius GPS saat clock in/out ESS dari perangkat karyawan", "GPS radius validation for ESS clock in/out from employee devices")}</p>
+            </div>
+            <Radar className="h-5 w-5 ov-text-accent" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Mode geofencing *", "Geofence mode *")}</Label>
+              <Select value={rule.geofenceMode || "Off"} onValueChange={(v) => set({ geofenceMode: v })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Off">{t("Nonaktif (Off)", "Disabled (Off)")}</SelectItem>
+                  <SelectItem value="Warn">{t("Peringatan (Warn)", "Warning (Warn)")}</SelectItem>
+                  <SelectItem value="Strict">{t("Ketat (Strict)", "Strict (Strict)")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-stone-400">{
+                (rule.geofenceMode || "Off") === "Strict"
+                  ? t("Clock ESS DITOLAK bila di luar radius atau GPS tidak aktif — presensi hanya sah di dalam area lokasi kerja.", "ESS clock is REJECTED outside the radius or without GPS — attendance is only valid inside the work location area.")
+                  : (rule.geofenceMode || "Off") === "Warn"
+                    ? t("Clock di luar radius tetap tercatat, tetapi diberi catatan peringatan [geofence] jarak vs radius pada log.", "Clocking outside the radius is still recorded but flagged with a [geofence] distance-vs-radius note on the log.")
+                    : t("Koordinat dicatat bila tersedia — tanpa validasi radius (semua clock diterima).", "Coordinates are stored when available — no radius validation (all clocks accepted).")
+              }</p>
+            </div>
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-bold"><MapPin className="h-3.5 w-3.5 ov-text-accent" aria-hidden /> {t("Koordinat lokasi kerja", "Work location coordinates")}</p>
+              <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+                {t(
+                  "Koordinat (latitude/longitude/radius) diatur per lokasi kerja di menu Perusahaan & Organisasi › Kantor & Lokasi Kerja. Karyawan tanpa lokasi berkoordinat tidak divalidasi. Radius kosong = 200 m.",
+                  "Coordinates (latitude/longitude/radius) are set per work location under Company & Organization › Offices & Work Locations. Employees without a coordinated location are not validated. Empty radius = 200 m.",
+                )}
+              </p>
             </div>
           </div>
         </CardContent>

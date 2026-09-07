@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
       locations: locations.map((l) => ({
         id: l.id, code: l.code, name: l.name, address: l.address, city: l.city, active: l.active,
         officeId: l.officeId, office: l.office,
+        // 27-a: koordinat geofencing presensi
+        latitude: l.latitude, longitude: l.longitude, radiusMeters: l.radiusMeters,
         employeeCount: l._count.employees,
       })),
     });
@@ -31,6 +33,24 @@ export async function GET(req: NextRequest) {
 
 // POST /api/onevity/work-locations — T6-MISC: guard hak AKSI menu hr:offices
 // (Kantor & Lokasi Kerja) — pola sama dgn org-units (T1-SECURITY).
+// 27-a: field koordinat geofencing opsional (latitude/longitude/radiusMeters).
+function coordField(v: unknown, min: number, max: number): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < min || n > max) {
+    throw new Error(`Koordinat di luar rentang (harus ${min}..${max})`);
+  }
+  return n;
+}
+function radiusField(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n < 1 || n > 100_000) {
+    throw new Error("Radius harus angka meter 1..100000");
+  }
+  return n;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "hr:offices", "create");
@@ -52,6 +72,9 @@ export async function POST(req: NextRequest) {
       data: {
         code: b.code, name: b.name, companyId: company.id,
         officeId: b.officeId || null, address: b.address ?? null, city: b.city ?? null,
+        latitude: coordField(b.latitude, -90, 90),
+        longitude: coordField(b.longitude, -180, 180),
+        radiusMeters: radiusField(b.radiusMeters),
       },
     });
     await db.activityLog.create({ data: { action: "Created", entity: "WorkLocation", entityId: loc.id, detail: `Lokasi kerja ${loc.code} — ${loc.name} dibuat` } });
@@ -76,6 +99,10 @@ export async function PATCH(req: NextRequest) {
     if (b.address !== undefined) data.address = b.address || null;
     if (b.city !== undefined) data.city = b.city || null;
     if (b.active != null) data.active = !!b.active;
+    // 27-a: koordinat geofencing — undefined = biarkan; null/"" = hapus koordinat.
+    if (b.latitude !== undefined) data.latitude = coordField(b.latitude, -90, 90);
+    if (b.longitude !== undefined) data.longitude = coordField(b.longitude, -180, 180);
+    if (b.radiusMeters !== undefined) data.radiusMeters = radiusField(b.radiusMeters);
     const loc = await db.workLocation.update({ where: { id: b.id }, data });
     return NextResponse.json({ location: loc });
   } catch (e) {

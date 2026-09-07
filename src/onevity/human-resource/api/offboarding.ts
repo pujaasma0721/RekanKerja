@@ -31,8 +31,19 @@ export interface CreateOffboardingOpts {
 }
 
 /** Buat Offboarding + checklist bawaan (seq 1..n) dalam SATU create Prisma
- *  (nested create tasks — atomik). Dipakai POST manual & hook PA exit. */
+ *  (nested create tasks — atomik). Dipakai POST manual & hook PA exit.
+ *  Task 27-b: bila karyawan masih memegang aset aktif, SATU tugas clearance
+ *  tambahan "Kembalikan aset perusahaan (N item)" owner GA ditambahkan
+ *  setelah tugas bawaan — additive & tidak mengubah checklist lama. */
 export async function createOffboardingWithTasks(tx: DbOrTx, opts: CreateOffboardingOpts) {
+  // aset belum dikembalikan (penugasan aktif) → tugas GA dgn jumlah item
+  const outstandingAssets = await tx.assetAssignment.count({
+    where: { employeeId: opts.employeeId, returnedAt: null },
+  });
+  const tasks = [...DEFAULT_OFFBOARDING_TASKS];
+  if (outstandingAssets > 0) {
+    tasks.push({ title: `Kembalikan aset perusahaan (${outstandingAssets} item)`, owner: "GA" });
+  }
   return tx.offboarding.create({
     data: {
       employeeId: opts.employeeId,
@@ -41,7 +52,7 @@ export async function createOffboardingWithTasks(tx: DbOrTx, opts: CreateOffboar
       reason: opts.reason ?? null,
       status: "Open",
       tasks: {
-        create: DEFAULT_OFFBOARDING_TASKS.map((task, i) => ({
+        create: tasks.map((task, i) => ({
           seq: i + 1,
           title: task.title,
           owner: task.owner,

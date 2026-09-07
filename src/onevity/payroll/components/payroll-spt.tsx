@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TAX_STATUS_LABEL, SptReportData, PeriodRow } from "@/onevity/payroll/components/payroll-types";
-import { FileSpreadsheet, FileDown, Landmark, Calculator, ArrowDownUp, Info } from "lucide-react";
+import { FileSpreadsheet, FileDown, Landmark, Calculator, ArrowDownUp, Info, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
@@ -60,12 +60,45 @@ export function PayrollSptPage() {
         title={t("SPT & Pajak Tahunan", "SPT & Annual Tax")}
         description={t("Rekap PPh21 tahunan (1721-A1) dari seluruh run final — bruto, biaya jabatan, iuran JSTK, PKP, progresif setahun vs telah dipotong", "Annual PPh21 recap (1721-A1) from all final runs — gross, employment expense, JSTK contributions, PKP, annual progressive vs withheld")}
         actions={
-          <a
-            href={`/api/onevity/payroll-spt?year=${year}&export=a1`}
-            className="ov-fill hover:ov-fill-deep inline-flex h-9 items-center gap-2 rounded-xl px-4 text-[13px] font-bold shadow-sm transition"
-          >
-            <FileDown className="h-4 w-4" /> {t("Ekspor 1721-A1 (CSV)", "Export 1721-A1 (CSV)")}
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={`/api/onevity/payroll-spt?year=${year}&export=a1`}
+              className="ov-fill hover:ov-fill-deep inline-flex h-9 items-center gap-2 rounded-xl px-4 text-[13px] font-bold shadow-sm transition"
+            >
+              <FileDown className="h-4 w-4" /> {t("Ekspor 1721-A1 (CSV)", "Export 1721-A1 (CSV)")}
+            </a>
+            {/* 27-c — e-SPT 1721-A1 format resmi DJP (siap tempel ke template impor
+                e-Bupot 21/26 sheet A1 / Coretax BP A1). Tooltip = peta kolom. */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href={`/api/onevity/payroll-spt?year=${year}&export=espt`}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 text-[13px] font-bold text-teal-700 shadow-sm transition hover:bg-teal-100 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-400 dark:hover:bg-teal-500/20"
+                  >
+                    <FileUp className="h-4 w-4" /> {t("e-SPT 1721-A1 (CSV DJP)", "e-SPT 1721-A1 (DJP CSV)")}
+                    <Info className="h-3.5 w-3.5 text-teal-500/70" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="w-80 text-[11px] leading-relaxed">
+                  <p className="mb-1 font-bold">{t("Peta kolom template A1 DJP (e-Bupot 21/26 v1.4 Tabel 3.3, 39 kolom, semicolon)", "DJP A1 template map (e-Bupot 21/26 v1.4 Table 3.3, 39 columns, semicolon)")}</p>
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    <li>{t("Gaji/Pensiun ← komponen Gaji Pokok", "Salary/Pension ← Base Salary components")}</li>
+                    <li>{t("Tunjangan PPh ← Tunjangan PPh21 ditanggung perusahaan (gross-up)", "Tax Allowance ← company-borne PPh21 allowance (gross-up)")}</li>
+                    <li>{t("Tunjangan Lainnya/Lembur ← tunjangan reguler + iuran JHT/JP perusahaan (objek pajak)", "Other Allowances/Overtime ← regular allowances + company JHT/JP (taxable)")}</li>
+                    <li>{t("Premi Asuransi ← JKK + JKM + JKN perusahaan", "Insurance Premium ← company JKK + JKM + JKN")}</li>
+                    <li>{t("Tantiem/Bonus/THR ← komponen irreguler (THR, bonus)", "Bonus/THR ← irregular components")}</li>
+                    <li>{t("Biaya Jabatan ← 5% (cap Rp 6 jt/thn)", "Employment expense ← 5% (capped Rp 6M/yr)")}</li>
+                    <li>{t("Iuran Pensiun/THT/JHT ← potongan JHT 2% + JP 1% pegawai", "Pension/JHT contributions ← employee JHT 2% + JP 1%")}</li>
+                    <li>{t("Bruto & PPh21 masa terakhir/sebelumnya ← pecahan per masa pajak dari run final", "Last & prior-masa gross/PPh21 ← per-tax-month split from final runs")}</li>
+                  </ul>
+                  <p className="mt-1 font-semibold text-stone-500">
+                    {t("Angka tanpa tanda baca · tanggal dd/mm/yyyy · NPWP 15 digit · Honorarium/Natura/Zakat = 0 (belum dipisah). Tempel ke sheet A1 Template Impor e-Bupot 21/26 (maks 2 MB/10.000 baris, masa pajak = masa terakhir) — hati-hati Excel mengubah kolom NPWP jadi notasi ilmiah saat CSV dibuka & disimpan ulang.", "Numbers without punctuation · dates dd/mm/yyyy · NPWP 15 digits · Honorarium/Natura/Zakat = 0 (not split yet). Paste into sheet A1 of the e-Bupot 21/26 import template (max 2 MB/10,000 rows, tax period = last period) — beware Excel converting the NPWP column to scientific notation when the CSV is re-opened & re-saved.")}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         }
       />
 

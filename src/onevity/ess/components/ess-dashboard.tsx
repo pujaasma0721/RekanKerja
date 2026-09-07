@@ -56,6 +56,9 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   const [note, setNote] = useState("");
   const [clockBusy, setClockBusy] = useState<"IN" | "OUT" | null>(null);
   const [geoState, setGeoState] = useState<"idle" | "ok" | "off">("idle");
+  // 27-a: pesan error presensi (geofence / validasi) tampil menetap di widget clock,
+  // bukan hanya toast sekilas.
+  const [clockError, setClockError] = useState<string | null>(null);
 
   // ===== sapaan sesuai jam =====
   const hour = new Date().getHours();
@@ -67,9 +70,12 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   const firstName = me.employee.fullName.split(" ")[0] ?? me.employee.fullName;
 
   // ===== clock in/out — geolokasi opsional dgn fallback mulus =====
+  // 27-a: bila Geofencing Ketat aktif dan lokasi ditolak, server menolak clock —
+  // pesan error server ditampilkan toast + banner menetap di widget.
   const doClock = async (direction: "IN" | "OUT") => {
     if (clockBusy) return;
     setClockBusy(direction);
+    setClockError(null);
     let latitude: number | undefined;
     let longitude: number | undefined;
     try {
@@ -93,7 +99,9 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
       setNote("");
       dash.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("Gagal mencatat presensi", "Failed to record attendance"));
+      const msg = e instanceof Error ? e.message : t("Gagal mencatat presensi", "Failed to record attendance");
+      toast.error(msg, { duration: 8000 });
+      setClockError(msg);
     } finally {
       setClockBusy(null);
     }
@@ -266,9 +274,25 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 {geoState === "ok"
                   ? t("Koordinat lokasi dilampirkan pada catatan presensi.", "Location coordinates attached to the attendance record.")
                   : geoState === "off"
-                    ? t("Lokasi tidak tersedia — presensi tetap tercatat tanpa koordinat.", "Location unavailable — attendance is still recorded without coordinates.")
+                    ? t("Lokasi tidak tersedia — presensi tetap tercatat tanpa koordinat (ditolak bila geofencing ketat).", "Location unavailable — attendance is still recorded without coordinates (rejected when strict geofencing is on).")
                     : t("Lokasi akan dilampirkan otomatis bila perangkat mengizinkan.", "Location will be attached automatically if the device allows it.")}
               </p>
+
+              {/* 27-a: banner error presensi (geofence ketat / validasi) — menetap */}
+              {clockError && (
+                <div role="alert" className="mt-3 flex items-start gap-2 rounded-xl bg-rose-950/50 px-3.5 py-2.5 text-[12px] font-semibold text-rose-100 ring-1 ring-rose-400/40">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 break-words">{clockError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setClockError(null)}
+                    className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase text-rose-200/70 hover:text-white"
+                    aria-label={t("Tutup pesan error", "Dismiss error")}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -15,6 +15,21 @@ import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/expor
 //     dipotong dari pegawai (k).
 //   • ?export=xlsx → stream XLSX (pola payroll-run-export.ts); tanpa param =
 //     preview JSON (utk preview UI/tombol BpjsExportButton).
+//   • 27-c: ?format=tk  → CSV "Laporan Kepegawaian" BPJS Ketenagakerjaan
+//     (semicolon, tanggal DDMMYYYY, angka tanpa pemisah) — populasi: pegawai
+//     dgn No. BPJS TK terisi (bpjsEmpSkill); bila runId diberikan → peserta
+//     run tsb, tanpa runId → seluruh pegawai Aktif. Kolom de-facto 10 kolom
+//     vendor payroll (NO KTP;NAMA;TEMPAT LAHIR;TGL LAHIR;NO BPJS TK;KODE
+//     KANTOR;STATUS KARYAWAN;JABATAN;TGL MASUK;GAJI) — BPJS Ketenagakerjaan
+//     tidak mempublikasikan spesifikasi kolom CSV resmi di luar portal
+//     badan usaha; verifikasi terhadap template portal sebelum upload.
+//   • 27-c: ?format=jkn → CSV "Data Peserta" BPJS Kesehatan (pola sheet
+//     PESERTA e-Dabu) — populasi: pegawai dgn No. BPJS Kesehatan (bpjsHealth).
+//     Riset 27-c: e-Dabu v7.6.0 (Okt 2023) mengubah formulir upload BU dari
+//     37 → 23 kolom (sheet PESERTA), PENONAKTIFAN 5 kolom, batas unggah min 1
+//     baris maks 100 baris/1 MB (sumber: ptgasi.co.id, materi eDabu v7.6.0).
+//     OneVity mengekspor subset identitas+upah utk sheet PESERTA — anggota
+//     keluarga (sheet ANGKEL) belum bisa (EmployeeFamily tanpa NIK).
 //
 // Guard: requireMenuAction payroll:runs view (pola payroll-runs.ts).
 
@@ -43,6 +58,138 @@ interface BpjsBuckets {
 
 const r0 = (n: number) => Math.round(n);
 
+// ===== 27-c — format upload resmi BPJS (CSV) ======================================
+
+/** Baris peserta utk format upload BPJS (identitas + penempatan + upah). */
+interface BpjsMemberRow {
+  employeeNo: string;
+  nik: string | null;
+  fullName: string;
+  gender: string;
+  birthPlace: string | null;
+  birthDate: Date | null;
+  address: string | null;
+  city: string | null;
+  bpjsTk: string | null;
+  bpjsKes: string | null;
+  joinDate: Date;
+  employmentStatus: string; // Permanent|Contract|Probation|Outsourcing
+  positionName: string | null;
+  baseSalary: number;
+}
+
+/** Status karyawan BPJS TK: PKWTT / PKWTT Terbatas (PKWT). */
+function tkStatusOf(employmentStatus: string): string {
+  if (employmentStatus === "Permanent" || employmentStatus === "Probation") return "PKWTT";
+  return "PKWTT Terbatas"; // Contract|Outsourcing → PKWT
+}
+
+/** Status pegawai e-Dabu BPJS Kesehatan. */
+function jknStatusOf(employmentStatus: string): string {
+  switch (employmentStatus) {
+    case "Permanent": return "Pegawai Tetap";
+    case "Contract": return "Pegawai Tidak Tetap";
+    case "Probation": return "Pegawai Tetap";
+    default: return employmentStatus;
+  }
+}
+
+/** Tanggal → DDMMYYYY (konvensi upload BPJS, tanpa pemisah). */
+const ddmmyyyy = (d: Date | null): string =>
+  d ? `${String(d.getDate()).padStart(2, "0")}${String(d.getMonth() + 1).padStart(2, "0")}${d.getFullYear()}` : "";
+
+const genderLP = (g: string): string => (g === "F" ? "P" : "L");
+
+const csvEscBpjs = (v: string | number | null | undefined): string => {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+/** Kolom identitas+penempatan+upah pegawai utk query run / master. */
+const memberSelect = {
+  nationalId: true, fullName: true, gender: true, birthPlace: true, birthDate: true,
+  address: true, city: true, bpjsEmpSkill: true, bpjsHealth: true, joinDate: true,
+  position: { select: { title: true } },
+  assignments: { where: { validTo: null }, orderBy: { validFrom: "desc" as const }, take: 1, select: { employmentStatus: true, baseSalary: true } },
+} as const;
+
+type MemberEmployee = {
+  nationalId: string | null; fullName: string; gender: string; birthPlace: string | null;
+  birthDate: Date | null; address: string | null; city: string | null;
+  bpjsEmpSkill: string | null; bpjsHealth: string | null; joinDate: Date;
+  position: { title: string } | null;
+  assignments: { employmentStatus: string; baseSalary: number }[];
+};
+
+const toMemberRow = (employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
+  employeeNo,
+  nik: emp.nationalId,
+  fullName: emp.fullName,
+  gender: emp.gender,
+  birthPlace: emp.birthPlace,
+  birthDate: emp.birthDate,
+  address: emp.address,
+  city: emp.city,
+  bpjsTk: emp.bpjsEmpSkill,
+  bpjsKes: emp.bpjsHealth,
+  joinDate: emp.joinDate,
+  employmentStatus: emp.assignments[0]?.employmentStatus ?? "Permanent",
+  positionName: positionFallback ?? emp.position?.title ?? null,
+  baseSalary: Math.round(emp.assignments[0]?.baseSalary ?? 0),
+});
+
+/**
+ * CSV "Laporan Kepegawaian" BPJS Ketenagakerjaan — 10 kolom klasik
+ * (NO KTP;NAMA;TEMPAT LAHIR;TANGGAL LAHIR;NO BPJS KETENAGAKERJAAN;KODE
+ * KANTOR;STATUS KARYAWAN;JABATAN;TANGGAL MASUK;GAJI). KODE KANTOR kosong
+ * (belum ada field kode kantor cabang BPJS — lihat worklog 27-c).
+ */
+function buildBpjsTkCsv(rows: BpjsMemberRow[]): string {
+  const header = ["NO KTP", "NAMA", "TEMPAT LAHIR", "TANGGAL LAHIR", "NO BPJS KETENAGAKERJAAN", "KODE KANTOR", "STATUS KARYAWAN", "JABATAN", "TANGGAL MASUK", "GAJI"];
+  const lines = [header.map(csvEscBpjs).join(";")];
+  for (const r of rows) {
+    lines.push([
+      r.nik ?? "", r.fullName.toUpperCase(), r.birthPlace ?? "", ddmmyyyy(r.birthDate),
+      r.bpjsTk ?? "", "", tkStatusOf(r.employmentStatus), r.positionName ?? "",
+      ddmmyyyy(r.joinDate), r.baseSalary,
+    ].map(csvEscBpjs).join(";"));
+  }
+  return lines.join("\n") + "\n";
+}
+
+/**
+ * CSV "Data Peserta" BPJS Kesehatan (pola sheet PESERTA e-Dabu v7.x) —
+ * hanya baris PEGAWAI (anggota keluarga belum bisa diekspor: EmployeeFamily
+ * tanpa NIK — lihat worklog 27-c). KELAS PERAWATAN kosong (belum ada field).
+ */
+function buildBpjsJknCsv(rows: BpjsMemberRow[]): string {
+  const header = ["NO", "NIK", "NO KARTU BPJS KESEHATAN", "NAMA PESERTA", "TANGGAL LAHIR", "JENIS KELAMIN (L/P)", "HUBUNGAN KELUARGA", "ALAMAT", "STATUS PEGAWAI", "JABATAN", "UPAH", "KELAS PERAWATAN"];
+  const lines = [header.map(csvEscBpjs).join(";")];
+  rows.forEach((r, i) => {
+    lines.push([
+      i + 1, r.nik ?? "", r.bpjsKes ?? "", r.fullName.toUpperCase(), ddmmyyyy(r.birthDate),
+      genderLP(r.gender), "Pegawai", [r.address, r.city].filter(Boolean).join(", "),
+      jknStatusOf(r.employmentStatus), r.positionName ?? "", r.baseSalary, "",
+    ].map(csvEscBpjs).join(";"));
+  });
+  return lines.join("\n") + "\n";
+}
+
+async function logBpjsFormatExport(db: TenantDb, format: "tk" | "jkn", scope: string, count: number, appUserId: string | null) {
+  try {
+    await db.activityLog.create({
+      data: {
+        action: "Exported",
+        entity: "PayrollRun",
+        ...(appUserId ? { appUserId } : {}),
+        detail: `Ekspor format upload BPJS ${format === "tk" ? "Ketenagakerjaan (Laporan Kepegawaian)" : "Kesehatan (Data Peserta)"} ${scope} (${count} peserta)`,
+      },
+    });
+  } catch {
+    // ActivityLog tak tersedia di schema legacy — export tetap sukses.
+  }
+}
+
 /** Klasifikasi program BPJS dari code+name (order matters: JPK/JKK/JKM sebelum JP). */
 function basisOf(code: string, name: string): "JHT" | "JP" | "JKK" | "JKM" | "JKN" | null {
   const s = `${code} ${name}`.toUpperCase().replace(/\s+/g, "");
@@ -60,7 +207,68 @@ export async function GET(req: NextRequest) {
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
-    const runId = req.nextUrl.searchParams.get("runId");
+    const sp = req.nextUrl.searchParams;
+    const runId = sp.get("runId");
+
+    // ===== 27-c — format upload resmi BPJS (CSV) =====
+    // runId OPSIONAL di sini: dgn runId → populasi pegawai run tsb yang
+    // memiliki No. BPJS; tanpa runId → seluruh pegawai Aktif ber-No. BPJS.
+    const uploadFormat = sp.get("format");
+    if (uploadFormat === "tk" || uploadFormat === "jkn") {
+      const isTk = uploadFormat === "tk";
+      const now = new Date();
+      const masterScope = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+      let members: BpjsMemberRow[] = [];
+      let scope = masterScope;
+      if (runId) {
+        const run = await db.payrollRun.findUnique({
+          where: { id: runId },
+          include: {
+            period: true,
+            lines: {
+              orderBy: { employeeNo: "asc" },
+              include: { employee: { select: { employeeNo: true, ...memberSelect } } },
+            },
+          },
+        });
+        if (!run) return NextResponse.json({ error: "Run tidak ditemukan" }, { status: 404 });
+        if (run.status === "Draft" || run.status === "Cancelled") {
+          return NextResponse.json(
+            { error: `Run ${run.runNo} berstatus ${run.status} — hitung (calculate) payroll terlebih dahulu` },
+            { status: 400 },
+          );
+        }
+        scope = run.runNo;
+        members = run.lines
+          .filter((l) => (isTk ? l.employee?.bpjsEmpSkill : l.employee?.bpjsHealth))
+          .map((l) => toMemberRow(l.employeeNo, l.employee as MemberEmployee, l.positionName));
+      } else {
+        const emps = await db.employee.findMany({
+          where: isTk
+            ? { status: "Active", bpjsEmpSkill: { not: null } }
+            : { status: "Active", bpjsHealth: { not: null } },
+          orderBy: { employeeNo: "asc" },
+          select: { employeeNo: true, ...memberSelect },
+        });
+        members = emps.map((e) => toMemberRow(e.employeeNo, e as MemberEmployee, null));
+      }
+
+      const csv = isTk ? buildBpjsTkCsv(members) : buildBpjsJknCsv(members);
+      await logBpjsFormatExport(db, isTk ? "tk" : "jkn", scope, members.length, m.actor.appUserId);
+      const company = await db.company.findFirst({ select: { code: true } });
+      const tenant = (company?.code ?? "ONEVITY").replace(/[^A-Za-z0-9]+/g, "");
+      const filename = isTk
+        ? `LaporanKepegawaian_BPJSTK_${tenant}_${scope}.csv`
+        : `DataPeserta_BPJSKes_${tenant}_${scope}.csv`;
+      return new NextResponse(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     if (!runId) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
 
     const run = await db.payrollRun.findUnique({

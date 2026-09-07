@@ -31,6 +31,8 @@ interface LocationRow {
   id: string; code: string; name: string;
   address: string | null; city: string | null; active: boolean;
   officeId: string | null; office: { code: string; name: string } | null;
+  /** 27-a: koordinat geofencing presensi (null = lokasi tak berpartisipasi). */
+  latitude: number | null; longitude: number | null; radiusMeters: number | null;
   employeeCount: number;
 }
 interface LocationsRes { locations: LocationRow[] }
@@ -530,7 +532,7 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
   open: boolean; onOpenChange: (v: boolean) => void; location: LocationRow | null; offices: OfficeRow[]; onDone: () => void;
 }) {
   const { t } = useI18n();
-  const [form, setForm] = useState({ code: "", name: "", officeId: "", city: "", address: "", active: true });
+  const [form, setForm] = useState({ code: "", name: "", officeId: "", city: "", address: "", active: true, latitude: "", longitude: "", radiusMeters: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -542,11 +544,30 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
       city: location?.city ?? "",
       address: location?.address ?? "",
       active: location?.active ?? true,
+      latitude: location?.latitude != null ? String(location.latitude) : "",
+      longitude: location?.longitude != null ? String(location.longitude) : "",
+      radiusMeters: location?.radiusMeters != null ? String(location.radiusMeters) : "",
     });
   }, [open, location]);
 
+  // 27-a: koordinat opsional — string kosong → null; nilai divalidasi rentangnya.
+  const coordOrNull = (v: string, min: number, max: number): number | null | "invalid" => {
+    const s = v.trim();
+    if (!s) return null;
+    const n = Number(s);
+    if (!Number.isFinite(n) || n < min || n > max) return "invalid";
+    return n;
+  };
+
   const submit = async () => {
     if (!form.code.trim() || !form.name.trim()) { toast.error(t("Kode dan nama lokasi wajib diisi", "Location code and name are required")); return; }
+    const latitude = coordOrNull(form.latitude, -90, 90);
+    const longitude = coordOrNull(form.longitude, -180, 180);
+    const radiusRaw = form.radiusMeters.trim();
+    const radiusMeters = radiusRaw === "" ? null : Math.max(1, Math.min(100_000, Math.round(Number(radiusRaw))));
+    if (latitude === "invalid") { toast.error(t("Latitude harus angka antara -90 dan 90", "Latitude must be a number between -90 and 90")); return; }
+    if (longitude === "invalid") { toast.error(t("Longitude harus angka antara -180 dan 180", "Longitude must be a number between -180 and 180")); return; }
+    if (radiusRaw !== "" && !Number.isFinite(Number(radiusRaw))) { toast.error(t("Radius harus angka meter", "Radius must be a number in meters")); return; }
     setSaving(true);
     try {
       if (location) {
@@ -557,6 +578,9 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
           city: form.city.trim(),
           address: form.address.trim(),
           active: form.active,
+          latitude,
+          longitude,
+          radiusMeters,
         });
         toast.success(t("Lokasi {c} berhasil diperbarui", "Location {c} updated successfully", { c: location.code }));
       } else {
@@ -566,6 +590,9 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
           officeId: form.officeId || null,
           city: form.city.trim() || null,
           address: form.address.trim() || null,
+          latitude,
+          longitude,
+          radiusMeters,
         };
         await apiSend("/api/onevity/work-locations", "POST", payload);
         toast.success(t("Lokasi {c} berhasil dibuat", "Location {c} created successfully", { c: payload.code }));
@@ -623,6 +650,31 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
               <Label htmlFor="l-address">{t("Alamat")}</Label>
               <Input id="l-address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder={t("Kawasan Industri Pulogadung", "Pulogadung Industrial Estate")} />
             </div>
+          </div>
+          {/* 27-a: koordinat geofencing presensi */}
+          <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+            <p className="flex items-center gap-1.5 text-xs font-bold">
+              <MapPin className="h-3.5 w-3.5 ov-text-accent" aria-hidden />
+              {t("Koordinat Geofencing Presensi (opsional)", "Attendance Geofencing Coordinates (optional)")}
+            </p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-stone-400">
+              {t("Digunakan validasi radius clock ESS (mode Warn/Strict di Pengaturan Absensi). Kosongkan bila lokasi tanpa geofence.", "Used for ESS clock radius validation (Warn/Strict mode in Attendance Settings). Leave empty for locations without geofence.")}
+            </p>
+            <div className="mt-2.5 grid grid-cols-3 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="l-latitude" className="text-[11px]">{t("Latitude", "Latitude")}</Label>
+                <Input id="l-latitude" type="number" step="any" min={-90} max={90} value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))} placeholder="-6.2563" className="font-mono text-xs" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="l-longitude" className="text-[11px]">{t("Longitude", "Longitude")}</Label>
+                <Input id="l-longitude" type="number" step="any" min={-180} max={180} value={form.longitude} onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value }))} placeholder="106.8654" className="font-mono text-xs" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="l-radius" className="text-[11px]">{t("Radius (m)", "Radius (m)")}</Label>
+                <Input id="l-radius" type="number" min={1} value={form.radiusMeters} onChange={(e) => setForm((f) => ({ ...f, radiusMeters: e.target.value }))} placeholder="200" className="font-mono text-xs" />
+              </div>
+            </div>
+            <p className="mt-1.5 text-[10px] text-stone-400">{t("radius meter, kosong = 200", "radius in meters, empty = 200")}</p>
           </div>
           {location && (
             <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">

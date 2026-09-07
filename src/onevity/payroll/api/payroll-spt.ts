@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { buildAnnualSpt } from "@/onevity/payroll/services/payroll-spt";
+import { buildAnnualSpt, buildEsptA1Csv } from "@/onevity/payroll/services/payroll-spt";
 
 // GET /api/onevity/payroll-spt?year=2026                → laporan tahunan per karyawan
 // GET /api/onevity/payroll-spt?year=2026&export=a1      → CSV rekap 1721-A1
+// GET /api/onevity/payroll-spt?year=2026&export=espt    → CSV e-SPT 1721-A1 format DJP
+//                                                        (39 kolom template impor e-Bupot
+//                                                        21/26 sheet A1 — siap tempel/upload)
 // GET /api/onevity/payroll-spt?periodId=..&export=coretax → CSV bukti potong bulanan (Coretax)
 export async function GET(req: NextRequest) {
   try {
@@ -91,6 +94,28 @@ export async function GET(req: NextRequest) {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="onevity-spt1721a1-${year}.csv"`,
+        },
+      });
+    }
+
+    // --- CSV e-SPT 1721-A1 format resmi DJP (27-c) ---
+    // 39 kolom Template Impor Excel TAHUNAN sheet A1 e-Bupot 21/26 v1.4 —
+    // struktur sama dgn isian BP A1 Coretax. Guard mengikuti endpoint SPT
+    // existing (requireTenant — sesi valid), activity log tercatat.
+    if (exportMode === "espt") {
+      const company = await db.company.findFirst({ select: { code: true, name: true, taxId: true } });
+      const csv = buildEsptA1Csv(report, {
+        tenantCode: company?.code ?? "ONEVITY",
+        companyName: company?.name ?? "OneVity",
+        companyNpwp: company?.taxId ?? null,
+      });
+      await db.activityLog.create({ data: { action: "Exported", entity: "SptReport", entityId: String(year), detail: `Ekspor e-SPT 1721-A1 format DJP tahun ${year} (${report.employees.length} pegawai)` } });
+      const tenant = (company?.code ?? "ONEVITY").replace(/[^A-Za-z0-9]+/g, "");
+      return new NextResponse(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="eSPT_1721A1_${year}_${tenant}.csv"`,
+          "Cache-Control": "no-store",
         },
       });
     }

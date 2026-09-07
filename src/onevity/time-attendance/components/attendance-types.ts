@@ -99,6 +99,8 @@ export interface AttendanceRule {
   overtimeComponentCode: string; lateDeductionComponentCode: string;
   absenceDeductionComponentCode: string; attendanceAllowanceComponentCode: string;
   attendanceAllowanceAmount: number; lateDeductionPerHour: number; absenceDeductionPerDay: number;
+  /** 27-a P0: mode geofencing presensi ESS — Off|Warn|Strict. */
+  geofenceMode: string;
 }
 
 export interface PeriodOption {

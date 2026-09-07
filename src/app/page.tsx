@@ -14,6 +14,8 @@ import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-la
 // Design Lab — mockup desain halaman masuk (terisolasi, akses ?mockup=auth)
 import { AuthDesignLab } from "@/onevity/shared/components/design/auth-design-lab";
 import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
+// PWA (Task 27-d) — registrasi service worker + banner instal aplikasi
+import { PwaRegister } from "@/onevity/shared/components/pwa/pwa-register";
 import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
 import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
 import { EmployeeModule } from "@/onevity/human-resource/components/employee/employee-module";
@@ -132,6 +134,7 @@ function PageInner() {
       </AppShell>
       )}
       </AuthGate>
+      <PwaRegister />
     </I18nProvider>
   );
 }

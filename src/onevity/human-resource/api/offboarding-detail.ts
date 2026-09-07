@@ -58,6 +58,16 @@ export async function buildOffboardingDetail(db: TenantDb, id: string) {
     : [];
   const nameMap = new Map(completers.map((c) => [c.id, c.fullName]));
 
+  // Task 27-b — aset belum dikembalikan oleh karyawan (clearance offboarding)
+  const outstandingAssets = await db.assetAssignment.findMany({
+    where: { employeeId: ob.employeeId, returnedAt: null },
+    orderBy: { assignedAt: "asc" },
+    select: {
+      id: true, assignedAt: true, dueAt: true, notes: true,
+      asset: { select: { id: true, code: true, name: true, category: true, serialNumber: true } },
+    },
+  });
+
   // flatten assignment aktif → position/orgUnit/grade pada level employee
   const cur = ob.employee.assignments[0] ?? null;
   const { assignments: _a, ...empRest } = ob.employee as typeof ob.employee & { assignments?: unknown[] };
@@ -102,6 +112,14 @@ export async function buildOffboardingDetail(db: TenantDb, id: string) {
     tasks,
     exitInterview,
     taskStats: { total: tasks.length, done, pending: tasks.length - done - na, na },
+    // Task 27-b — seksi clearance "Aset Belum Dikembalikan" di UI detail
+    outstandingAssets: outstandingAssets.map((a) => ({
+      id: a.id,
+      assignedAt: a.assignedAt,
+      dueAt: a.dueAt,
+      notes: a.notes,
+      asset: a.asset,
+    })),
   };
 }
 

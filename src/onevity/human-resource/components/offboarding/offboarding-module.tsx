@@ -23,9 +23,12 @@ import { toast } from "sonner";
 import {
   LogOut, Plus, CheckCircle2, Ban, ArrowLeft, Trash2, Pencil, Star, FileText,
   Calendar, ClipboardCheck, ChevronRight, MessageSquareText, RotateCcw, Check, Minus,
+  Package, PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+// Task 27-b — dialog pengembalian aset dipakai ulang di seksi clearance
+import { ReturnDialog } from "@/onevity/human-resource/components/assets/assets-module";
 
 export function OffboardingModule() {
   const { params } = useNav();
@@ -58,6 +61,13 @@ interface ExitInterview {
   reason: string | null; nextPlan: string | null; feedback: string | null;
   satisfaction: number | null; notes: string | null;
 }
+interface OutstandingAsset {
+  id: string;
+  assignedAt: string;
+  dueAt: string | null;
+  notes: string | null;
+  asset: { id: string; code: string; name: string; category: string; serialNumber: string | null };
+}
 interface OffDetail {
   id: string; employeeId: string; personnelActionId: string | null;
   lastDay: string | null; reason: string | null; status: string;
@@ -67,6 +77,8 @@ interface OffDetail {
   tasks: OffTask[];
   exitInterview: ExitInterview | null;
   taskStats: { total: number; done: number; pending: number; na: number };
+  // Task 27-b — aset belum dikembalikan (clearance)
+  outstandingAssets?: OutstandingAsset[];
 }
 
 // peta warna status proses offboarding (kustom — Open di sini = "Berjalan")
@@ -313,8 +325,8 @@ function CreateOffboardingDialog({ open, setOpen, onCreated }: {
           </div>
           <p className="rounded-xl bg-stone-50 p-3 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
             {t(
-              "Checklist clearance bawaan (9 tugas: handover, aset IT, akses sistem, clearance keuangan, BPJS, exit interview, settlement, arsip) akan dibuat otomatis.",
-              "A default clearance checklist (9 tasks: handover, IT assets, system access, financial clearance, BPJS, exit interview, settlement, archiving) will be created automatically.",
+              "Checklist clearance bawaan (9 tugas: handover, aset IT, akses sistem, clearance keuangan, BPJS, exit interview, settlement, arsip) akan dibuat otomatis — ditambah tugas pengembalian aset bila karyawan masih memegang aset perusahaan.",
+              "A default clearance checklist (9 tasks: handover, IT assets, system access, financial clearance, BPJS, exit interview, settlement, archiving) will be created automatically — plus an asset return task if the employee still holds company assets.",
             )}
           </p>
         </div>
@@ -342,6 +354,8 @@ function OffboardingDetail({ id }: { id: string }) {
   const [newTaskOwner, setNewTaskOwner] = useState("HR");
   const [ivEdit, setIvEdit] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Task 27-b — aset yang sedang diterima pengembaliannya (seksi clearance)
+  const [returningAsset, setReturningAsset] = useState<OutstandingAsset | null>(null);
 
   if (loading && !data) {
     return <div><PageHeader eyebrow={t("Karyawan")} title={t("Detail Offboarding", "Offboarding Details")} /><LoadingRows rows={6} /></div>;
@@ -646,6 +660,87 @@ function OffboardingDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
+          {/* ===== Task 27-b: aset belum dikembalikan ===== */}
+          <Card className={cn(
+            "rounded-2xl shadow-sm",
+            (ob.outstandingAssets?.length ?? 0) > 0
+              ? "border-amber-200 dark:border-amber-500/25"
+              : "border-stone-200/80 dark:border-stone-800",
+          )}>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                <Package className="h-4 w-4 ov-text-accent" />
+                {t("Aset Belum Dikembalikan", "Assets Pending Return")}
+                {(ob.outstandingAssets?.length ?? 0) > 0 && (
+                  <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                    {t("{n} item", "{n} item(s)", { n: ob.outstandingAssets!.length })}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5 pt-0">
+              {(ob.outstandingAssets?.length ?? 0) === 0 ? (
+                <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/25 dark:bg-emerald-500/5">
+                  <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  <p className="text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
+                    {t("Tidak ada aset tertunda — clearance aset tuntas", "No pending assets — asset clearance is clear")}
+                  </p>
+                </div>
+              ) : (
+                ob.outstandingAssets!.map((a) => {
+                  const overdue = a.dueAt != null && new Date(a.dueAt).getTime() < Date.now();
+                  return (
+                    <div
+                      key={a.id}
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-100 bg-white p-3 dark:border-stone-800 dark:bg-stone-900"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                        <Package className="h-4 w-4" aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.asset.name}</p>
+                          <span className="font-mono text-[10px] font-bold text-stone-400">{a.asset.code}</span>
+                          {a.asset.serialNumber && (
+                            <span className="font-mono text-[9px] text-stone-400">SN {a.asset.serialNumber}</span>
+                          )}
+                          {overdue && (
+                            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-[9px] font-bold text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400">
+                              {t("Terlambat", "Overdue")}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-[10.5px] text-stone-400">
+                          {t("Dipegang sejak {date}", "Held since {date}", { date: fmtDate(a.assignedAt) })}
+                          {a.dueAt ? ` · ${t("jatuh tempo", "due")} ${fmtDate(a.dueAt)}` : ""}
+                        </p>
+                        {a.notes && <p className="mt-0.5 line-clamp-1 text-[10.5px] italic text-stone-400">"{a.notes}"</p>}
+                      </div>
+                      {perms.canOp("hr", "assets", "return") && (
+                        <Button
+                          size="sm" variant="outline"
+                          onClick={() => setReturningAsset(a)}
+                          className="h-7 gap-1 px-2.5 text-[11px] font-bold hover:ov-border-accent"
+                          aria-label={t("Terima pengembalian {code}", "Receive return of {code}", { code: a.asset.code })}
+                        >
+                          <PackageCheck className="h-3.5 w-3.5" /> {t("Kembalikan", "Return")}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              {(ob.outstandingAssets?.length ?? 0) > 0 && (
+                <p className="pt-1 text-[10.5px] leading-relaxed text-stone-400">
+                  {t(
+                    "Pengembalian di sini mencatat kondisi aset (Baik/Rusak/Hilang) dan memperbarui status inventaris — riwayat tetap tersimpan di modul Aset Karyawan.",
+                    "Returning here records the asset condition (Good/Damaged/Lost) and updates the inventory status — history stays in the Employee Assets module.",
+                  )}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* ===== exit interview ===== */}
           <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
             <CardHeader className="pb-3">
@@ -774,6 +869,22 @@ function OffboardingDetail({ id }: { id: string }) {
           </Card>
         </div>
       </div>
+
+      {/* ===== Task 27-b — dialog pengembalian aset (clearance) ===== */}
+      {returningAsset && (
+        <ReturnDialog
+          compact
+          assignment={{
+            id: returningAsset.id,
+            asset: returningAsset.asset,
+            employee: { fullName: ob.employee.fullName, employeeNo: ob.employee.employeeNo },
+            dueAt: returningAsset.dueAt,
+            notes: returningAsset.notes,
+          }}
+          onClose={() => setReturningAsset(null)}
+          onSaved={refresh}
+        />
+      )}
 
       {/* ===== dialog edit catatan tugas ===== */}
       <Dialog open={!!noteEdit} onOpenChange={(v) => { if (!v) setNoteEdit(null); }}>
