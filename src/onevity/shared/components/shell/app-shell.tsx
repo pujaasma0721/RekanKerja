@@ -2,6 +2,7 @@
 // OneVity App Shell — obsidian sidebar (module dropdown + nav per modul) + topbar + command palette
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNav, SectionId, ModuleId, MODULE_LABEL, moduleOfSection } from "@/onevity/shared/lib/store";
+import { enterEss } from "@/onevity/ess/lib/ess-store";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
@@ -19,7 +20,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Command } from "@/components/ui/command";
 import {
-  LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check,
+  LayoutDashboard, Users, Workflow, Settings2, ChevronDown, Check, UserRound,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
   Scale, ShieldCheck, ShieldOff, Layers, Bell, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
   UserCog, Menu, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Trash2, Pencil, Waypoints, XCircle, HeartHandshake,
@@ -526,6 +527,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-xs font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
                 <p className="truncate text-[10px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
               </div>
+              <button
+                onClick={() => enterEss()}
+                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-emerald-300"
+                aria-label="Buka Portal Karyawan"
+                title="Buka Portal Karyawan (absensi, cuti, slip gaji Anda)"
+              >
+                <UserRound className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setPwOpen(true)}
                 className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-emerald-300"

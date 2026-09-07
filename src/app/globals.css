@@ -177,3 +177,17 @@
   background-clip: text;
   color: transparent;
 }
+
+/* Portal Karyawan (ESS) — cetak slip gaji: hanya area slip yang tampil */
+@media print {
+  body * { visibility: hidden !important; }
+  .ess-slip-print-area, .ess-slip-print-area * { visibility: visible !important; }
+  .ess-slip-print-area {
+    position: absolute !important;
+    left: 0; right: 0; top: 0;
+    width: 100%;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  @page { margin: 12mm; }
+}

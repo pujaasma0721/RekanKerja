@@ -309,18 +309,22 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
   } });
 
   // level jabatan + struktur approval berjenjang default (Task 25)
-  await db.positionLevel.createMany({
-    data: [
-      { code: "PL1", name: "Officer", sortOrder: 1 },
-      { code: "PL2", name: "Senior Officer", sortOrder: 2 },
-      { code: "PL3", name: "Supervisor", sortOrder: 3 },
-      { code: "PL4", name: "Assistant Manager", sortOrder: 4 },
-      { code: "PL5", name: "Manager", sortOrder: 5 },
-      { code: "PL6", name: "Senior Manager", sortOrder: 6 },
-      { code: "PL7", name: "General Manager", sortOrder: 7 },
-      { code: "PL8", name: "Director", sortOrder: 8 },
-    ],
-  });
+  // Idempoten: skip bila sudah ada (mis. dibuat lebih dulu oleh
+  // scripts/migrate-approval-structure.ts saat recovery environment).
+  if ((await db.positionLevel.count()) === 0) {
+    await db.positionLevel.createMany({
+      data: [
+        { code: "PL1", name: "Officer", sortOrder: 1 },
+        { code: "PL2", name: "Senior Officer", sortOrder: 2 },
+        { code: "PL3", name: "Supervisor", sortOrder: 3 },
+        { code: "PL4", name: "Assistant Manager", sortOrder: 4 },
+        { code: "PL5", name: "Manager", sortOrder: 5 },
+        { code: "PL6", name: "Senior Manager", sortOrder: 6 },
+        { code: "PL7", name: "General Manager", sortOrder: 7 },
+        { code: "PL8", name: "Director", sortOrder: 8 },
+      ],
+    });
+  }
   const defaultStructures: { code: string; name: string; docType: string; levels: { approverType: string; minAmount?: number; note?: string }[] }[] = [
     { code: "AS-LEAVE-STD", name: "Persetujuan Cuti (default)", docType: "Leave", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
     { code: "AS-TRAVEL-STD", name: "Persetujuan Perjalanan Dinas (default)", docType: "Travel", levels: [{ approverType: "ATASAN_LANGSUNG" }] },
@@ -334,6 +338,8 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     },
   ];
   for (const s of defaultStructures) {
+    const exists = await db.approvalStructure.findFirst({ where: { code: s.code }, select: { id: true } });
+    if (exists) continue; // idempoten — struktur default sudah dibuat (migrasi Task 25)
     await db.approvalStructure.create({
       data: {
         code: s.code, name: s.name, docType: s.docType,
