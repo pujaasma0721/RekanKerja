@@ -55,12 +55,10 @@ function pkwtSeed(): { employeeNo: string; start: string; end: string | null; re
     { employeeNo: "MII00022", start: "2020-12-26", end: day(5), renewal: 2 },
     // berakhir ≤ 30 hari (badge amber)
     { employeeNo: "MII00015", start: "2023-11-26", end: day(21), renewal: 1 },
-    // berakhir ≤ 60 hari
-    { employeeNo: "MII00031", start: "2024-12-14", end: day(45), renewal: 0 },
-    // berakhir ≤ 90 hari
-    { employeeNo: "MII00028", start: "2021-11-27", end: day(75), renewal: 1 },
     // sudah LEWAT jatuh tempo namun masih Active — butuh tindak lanjut HR
-    { employeeNo: "MII00043", start: "2021-04-22", end: day(-12), renewal: 0 },
+    { employeeNo: "MII00031", start: "2024-12-14", end: day(-9), renewal: 0 },
+    // berakhir ≤ 60 hari
+    { employeeNo: "MII00028", start: "2021-11-27", end: day(45), renewal: 1 },
     // probation: tanggal mulai kontrak = joinDate (akhir kontrak belum ditetapkan)
     { employeeNo: "MII00014", start: "2024-03-02", end: null, renewal: 0 },
     { employeeNo: "MII00035", start: "2024-03-12", end: null, renewal: 0 },
@@ -113,12 +111,12 @@ for (const schema of SCHEMAS) {
     }
     console.log(`  UMP/UMK 2026 baru: ${wages} (sisanya sudah ada)`);
 
-    // ---- 3. seed PKWT MII (hanya bila contractEnd masih kosong) ----
+    // ---- 3. seed PKWT MII (hanya bila contractEnd masih kosong; karyawan AKTIF saja) ----
     if (schema === "tenant_pt_mitra_industri_internasional") {
       let pkwt = 0;
       for (const s of pkwtSeed()) {
         const emp = await c.query(
-          'SELECT id FROM "Employee" WHERE "employeeNo" = $1 AND "contractStart" IS NULL AND "contractEnd" IS NULL',
+          'SELECT id FROM "Employee" WHERE "employeeNo" = $1 AND "contractStart" IS NULL AND "contractEnd" IS NULL AND status = \'Active\'',
           [s.employeeNo],
         );
         if (emp.rowCount === 0) continue;

@@ -27,6 +27,45 @@ const PAGE_SIZE = 25;
 
 type ViewMode = "table" | "grid";
 
+/** 26-b — sisa hari masa kontrak (null bila tanpa contractEnd). */
+function contractDaysLeft(contractEnd: string | null): number | null {
+  if (!contractEnd) return null;
+  const end = new Date(contractEnd);
+  end.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((end.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Badge masa kontrak: merah ≤7 hr / sudah lewat, amber ≤30 hr. */
+function ContractBadge({ employmentStatus, contractEnd }: { employmentStatus: string; contractEnd: string | null }) {
+  const { t } = useI18n();
+  const isPkwt = ["Contract", "Probation", "Outsourcing"].includes(employmentStatus);
+  const days = isPkwt ? contractDaysLeft(contractEnd) : null;
+  if (days == null) return <span className="text-[12.5px] text-stone-300">—</span>;
+  const overdue = days < 0;
+  const critical = days <= 7;
+  const soon = days <= 30;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap",
+        overdue || critical
+          ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400"
+          : soon
+            ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+            : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-800/60 dark:text-stone-400",
+      )}
+      title={contractEnd ? new Date(contractEnd).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : undefined}
+    >
+      <CalendarClock className="h-3 w-3" aria-hidden />
+      {overdue
+        ? t("Lewat {n} hr", "Overdue {n}d", { n: String(Math.abs(days)) })
+        : t("{n} hari", "{n} days", { n: String(days) })}
+    </span>
+  );
+}
+
 // status kerja → dot + teks tenang (mengganti pill "stiker" yang ramai)
 const EMPLOYMENT_TAG: Record<string, { text: string; dot: string }> = {
   Permanent: { text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
@@ -55,6 +94,7 @@ export function EmployeeDirectory() {
   const [status, setStatus] = useState("all");
   const [unit, setUnit] = useState("all");
   const [empStatus, setEmpStatus] = useState("all");
+  const [contractDue, setContractDue] = useState<number | null>(null); // 26-b: 30/60/90
   const [offset, setOffset] = useState(0);
   const [view, setView] = useState<ViewMode>("grid");
   const [quick, setQuick] = useState<EmployeeRow | null>(null);
@@ -73,10 +113,11 @@ export function EmployeeDirectory() {
     if (status !== "all") sp.set("status", status);
     if (unit !== "all") sp.set("unit", unit);
     if (empStatus !== "all") sp.set("employmentStatus", empStatus);
+    if (contractDue != null) sp.set("contractExpiring", String(contractDue));
     return `/api/onevity/employees?${sp.toString()}`;
-  }, [debouncedQ, status, unit, empStatus, offset]);
+  }, [debouncedQ, status, unit, empStatus, contractDue, offset]);
 
-  const { data, loading, error, refresh } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, offset]);
+  const { data, loading, error, refresh } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, contractDue, offset]);
   const units = useApi<OrgUnitsLiteResp>("/api/onevity/org-units");
 
   const rows = data?.employees ?? [];
@@ -95,7 +136,7 @@ export function EmployeeDirectory() {
     { key: "inactive", label: t("Non-aktif", "Inactive"), value: stats?.inactive, active: status === "inactive", onClick: () => { setStatus(status === "inactive" ? "all" : "inactive"); setEmpStatus("all"); resetPage(); } },
   ];
 
-  const hasFilter = debouncedQ !== "" || status !== "all" || unit !== "all" || empStatus !== "all";
+  const hasFilter = debouncedQ !== "" || status !== "all" || unit !== "all" || empStatus !== "all" || contractDue != null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -167,13 +208,43 @@ export function EmployeeDirectory() {
         </div>
         {hasFilter && (
           <button
-            onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); resetPage(); }}
+            onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); setContractDue(null); resetPage(); }}
             className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-[12px] font-medium text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
           >
             <X className="h-3.5 w-3.5" /> {t("Reset")}
           </button>
         )}
       </div>
+
+      {/* 26-b P0 — chip PKWT: kontrak berakhir ≤ 30/60/90 hari (PP 35/2021) */}
+      {(stats?.contract90 ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400">
+            <CalendarClock className="h-3.5 w-3.5" aria-hidden /> {t("Kontrak berakhir:", "Contract ending:")}
+          </span>
+          {([30, 60, 90] as const).map((band) => {
+            const count = band === 30 ? (stats?.contract30 ?? 0) : band === 60 ? (stats?.contract60 ?? 0) : (stats?.contract90 ?? 0);
+            const active = contractDue === band;
+            return (
+              <button
+                key={band}
+                onClick={() => { setContractDue(active ? null : band); resetPage(); }}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-[11.5px] font-bold transition-all",
+                  active
+                    ? "border-amber-300 bg-amber-100 text-amber-800 shadow-sm dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "border-stone-200 bg-white text-stone-500 hover:border-amber-200 hover:text-amber-700 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-400 dark:hover:text-amber-400",
+                )}
+              >
+                {t("≤ {n} hari", "≤ {n} days", { n: String(band) })}
+                <span className={cn("rounded-full px-1.5 py-px text-[10px] font-extrabold tabular-nums", active ? "bg-amber-200 text-amber-800 dark:bg-amber-500/25 dark:text-amber-200" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400")}>{count}</span>
+              </button>
+            );
+          })}
+          <span className="text-[10.5px] text-stone-400">{t("termasuk yang sudah lewat jatuh tempo", "including those past their end date")}</span>
+        </div>
+      )}
 
       {/* toolbar pencarian & filter */}
       <div className="flex flex-col gap-2.5 lg:flex-row">
@@ -253,6 +324,7 @@ export function EmployeeDirectory() {
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell">{t("Unit", "Unit")}</TableHead>
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400">{t("Grade")}</TableHead>
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400">{t("Status Kerja", "Employment Status")}</TableHead>
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] hidden text-stone-400 sm:table-cell">{t("Masa Kontrak", "Contract")}</TableHead>
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell">{t("Gaji Pokok")}</TableHead>
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell">{t("Masa Kerja", "Tenure")}</TableHead>
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400">{t("Status")}</TableHead>
@@ -289,6 +361,9 @@ export function EmployeeDirectory() {
                     </TableCell>
                     <TableCell className="py-3.5 pr-4">
                       <EmploymentTag status={e.employmentStatus} />
+                    </TableCell>
+                    <TableCell className="hidden py-3.5 pr-4 sm:table-cell">
+                      <ContractBadge employmentStatus={e.employmentStatus} contractEnd={e.contractEnd} />
                     </TableCell>
                     <TableCell className="py-3.5 pr-4 text-right text-[13px] font-medium tabular-nums text-stone-600 dark:text-stone-300 hidden lg:table-cell">
                       {fmtIDR(e.baseSalary)}
@@ -337,6 +412,13 @@ export function EmployeeDirectory() {
                   <span className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-medium text-stone-600 dark:bg-stone-800/80 dark:text-stone-300">
                     <Building2 className="h-3 w-3 shrink-0 text-stone-400" aria-hidden />
                     <span className="truncate">{e.orgUnit.name}</span>
+                  </span>
+                )}
+
+                {/* 26-b — sisa masa kontrak (hanya karyawan PKWT dgn contractEnd) */}
+                {contractDaysLeft(e.contractEnd) != null && ["Contract", "Probation", "Outsourcing"].includes(e.employmentStatus) && (
+                  <span className="mt-2 flex justify-center">
+                    <ContractBadge employmentStatus={e.employmentStatus} contractEnd={e.contractEnd} />
                   </span>
                 )}
 
@@ -413,6 +495,14 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
                 <InfoRow icon={<Building2 className="h-4 w-4" />} label={t("Unit Organisasi")} value={emp.orgUnit?.name} />
                 <InfoRow icon={<GraduationCap className="h-4 w-4" />} label={t("Grade")} value={emp.grade ? `${emp.grade.code}${emp.grade.name ? ` · ${emp.grade.name}` : ""}` : undefined} />
                 <InfoRow icon={<CalendarClock className="h-4 w-4" />} label={t("Bergabung", "Joined")} value={`${fmtDate(emp.joinDate)} · ${tenure(emp.joinDate)}`} />
+                {/* 26-b — sisa masa kontrak PKWT */}
+                {["Contract", "Probation", "Outsourcing"].includes(emp.employmentStatus) && emp.contractEnd && (
+                  <InfoRow
+                    icon={<CalendarClock className="h-4 w-4" />}
+                    label={t("Kontrak Berakhir", "Contract Ends")}
+                    value={`${fmtDate(emp.contractEnd)}${contractDaysLeft(emp.contractEnd) != null ? ` · ${t("sisa {n} hari", "{n} days left", { n: String(contractDaysLeft(emp.contractEnd)) })}` : ""}`}
+                  />
+                )}
               </QuickSection>
               <QuickSection title={t("Kontak", "Contact")}>
                 <InfoRow icon={<Mail className="h-4 w-4" />} label={t("Email")} value={emp.email ?? undefined} />

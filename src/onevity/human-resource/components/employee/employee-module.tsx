@@ -10,6 +10,7 @@ import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/com
 import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
 import { EmployeeAvatar } from "@/onevity/human-resource/components/employee/employee-avatar";
 import { EmployeeLetterIssueDialog, type ServiceTemplateRow } from "@/onevity/human-resource/components/employee/employee-letter-issue-dialog";
+import { pkwtDurationLabel } from "@/onevity/human-resource/services/pkwt";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import { toast } from "sonner";
 import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
-  Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut,
+  Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut, OctagonX, FileWarning,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -66,6 +67,13 @@ interface DetailEmp {
   email: string | null; phone: string | null; address: string | null; city: string | null;
   bankName: string | null; bankAccount: string | null;
   employmentStatus: string; joinDate: string; endDate: string | null;
+  // 26-b — PKWT PP 35/2021
+  contractStart: string | null; contractEnd: string | null; renewalCount: number;
+  pkwt: {
+    isPkwt: boolean; daysRemaining: number | null; totalMonths: number | null;
+    over5y: boolean; due: "overdue" | "critical" | "soon" | "watch" | "later" | null;
+    renewals: number; start: string | null; end: string | null;
+  };
   baseSalary: number; workShift: string; status: string;
   company: { name: string } | null;
   orgUnit: { name: string; code: string } | null;
@@ -184,6 +192,54 @@ function EmployeeDetail() {
         </CardContent>
       </Card>
 
+      {/* 26-b P0 — GUARD PKWT PP 35/2021 Pasal 8: durasi total > 5 tahun →
+          wajib tawarkan konversi ke PKS (banner merah, mencolok). */}
+      {e.pkwt.over5y && (
+        <Card className="mb-4 rounded-2xl border-rose-300 bg-rose-50/80 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10">
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400">
+              <OctagonX className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-rose-800 dark:text-rose-300">
+                {t(
+                  "Durasi PKWT melebihi 5 tahun — wajib konversi ke PKS (PP 35/2021 Pasal 8)",
+                  "PKWT duration exceeds 5 years — conversion to a permanent contract required (PP 35/2021 Art. 8)",
+                )}
+              </p>
+              <p className="text-[11px] text-rose-700/80 dark:text-rose-400/80">
+                {t(
+                  "Total {dur} sejak {start} ({renew} perpanjangan) — PKWT + seluruh perpanjangannya dibatasi maksimal 5 tahun; lewat itu perusahaan WAJIB menawarkan PKS. Terbitkan PA Perubahan Status → Permanent, atau lakukan PHK dengan penggantian hak.",
+                  "Total {dur} since {start} ({renew} renewals) — a PKWT plus all its renewals is capped at 5 years; beyond that the employer MUST offer a permanent contract. Issue a Change Status personnel action → Permanent, or terminate with statutory compensation.",
+                  { dur: pkwtDurationLabel(e.pkwt.totalMonths ?? 0), start: fmtDate(e.pkwt.start ?? e.joinDate), renew: String(e.pkwt.renewals) },
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 26-b P0 — warning akhir kontrak dekat (amber) */}
+      {e.pkwt.isPkwt && (e.pkwt.due === "overdue" || e.pkwt.due === "critical" || e.pkwt.due === "soon") && !e.pkwt.over5y && (
+        <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10">
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+              <FileWarning className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                {e.pkwt.daysRemaining != null && e.pkwt.daysRemaining < 0
+                  ? t("Kontrak PKWT sudah BERAKHIR {n} hari lalu — tindak lanjut segera", "PKWT contract ENDED {n} days ago — follow up immediately", { n: String(Math.abs(e.pkwt.daysRemaining)) })
+                  : t("Kontrak PKWT berakhir dalam {n} hari", "PKWT contract ends in {n} days", { n: String(e.pkwt.daysRemaining ?? 0) })}
+              </p>
+              <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                {t("Tanggal berakhir kontrak: {date} — siapkan perpanjangan (PA Perpanjangan Kontrak) atau penyelesaian.", "Contract end date: {date} — prepare a renewal (Contract Renewal personnel action) or settlement.", { date: fmtDate(e.pkwt.end) })}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 5-OFFBOARDING — banner proses offboarding berjalan */}
       {openOffboarding && (
         <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/5">
@@ -267,6 +323,39 @@ function EmployeeDetail() {
                     {e.endDate && <InfoItem icon={Calendar} label={t("Tanggal Keluar", "End Date")} value={fmtDateLong(e.endDate)} />}
                     <InfoItem icon={Clock3} label={t("Jadwal Kerja", "Work Schedule")} value={e.workShift} />
                     <InfoItem icon={Banknote} label={t("Gaji Pokok")} value={fmtIDR(e.baseSalary)} />
+                    {/* 26-b — kontrak PKWT (PP 35/2021) */}
+                    {e.pkwt.isPkwt && (
+                      <>
+                        <InfoItem icon={Calendar} label={t("Mulai Kontrak PKWT", "PKWT Contract Start")} value={e.contractStart ? fmtDateLong(e.contractStart) : "—"} />
+                        <InfoItem
+                          icon={Calendar}
+                          label={t("Berakhir Kontrak PKWT", "PKWT Contract End")}
+                          value={e.contractEnd ? fmtDateLong(e.contractEnd) : "—"}
+                          hint={e.pkwt.daysRemaining != null
+                            ? (e.pkwt.daysRemaining < 0
+                              ? t("Lewat {n} hari", "Overdue {n} days", { n: String(Math.abs(e.pkwt.daysRemaining)) })
+                              : t("Sisa {n} hari", "{n} days left", { n: String(e.pkwt.daysRemaining) }))
+                            : undefined}
+                          hintTone={e.pkwt.daysRemaining != null && e.pkwt.daysRemaining <= 7
+                            ? "text-rose-600 dark:text-rose-400"
+                            : e.pkwt.daysRemaining != null && e.pkwt.daysRemaining <= 30
+                              ? "text-amber-600 dark:text-amber-400"
+                              : undefined}
+                        />
+                        <InfoItem icon={FileText} label={t("Jumlah Perpanjangan", "Renewal Count")} value={String(e.renewalCount ?? 0)} />
+                        {e.pkwt.totalMonths != null && (
+                          <InfoItem
+                            icon={Scale}
+                            label={t("Total Durasi PKWT", "Total PKWT Duration")}
+                            value={pkwtDurationLabel(e.pkwt.totalMonths)}
+                            hint={e.pkwt.over5y
+                              ? t("> 5 tahun — wajib konversi PKS", "> 5 years — permanent conversion due")
+                              : t("batas 5 tahun (Pasal 8)", "5-year cap (Art. 8)")}
+                            hintTone={e.pkwt.over5y ? "text-rose-600 dark:text-rose-400" : undefined}
+                          />
+                        )}
+                      </>
+                    )}
                     {e.grade && (
                       <div className="sm:col-span-2">
                         <InfoItem icon={GraduationCap} label={t("Rentang Grade", "Grade Range")} value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
@@ -601,7 +690,7 @@ function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: stri
   );
 }
 
-function InfoItem({ icon: Icon, label, value, mono, span }: { icon: React.ElementType; label: string; value: string; mono?: boolean; span?: boolean }) {
+function InfoItem({ icon: Icon, label, value, mono, span, hint, hintTone }: { icon: React.ElementType; label: string; value: string; mono?: boolean; span?: boolean; hint?: string; hintTone?: string }) {
   return (
     <div className={cn("flex items-start gap-3", span && "sm:col-span-2 lg:col-span-3")}>
       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-tile">
@@ -610,6 +699,9 @@ function InfoItem({ icon: Icon, label, value, mono, span }: { icon: React.Elemen
       <div className="min-w-0">
         <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
         <p className={cn("break-words text-[13px] font-semibold text-stone-800 dark:text-stone-200", mono && "font-mono")}>{value}</p>
+        {hint && (
+          <p className={cn("mt-0.5 text-[10px] font-bold", hintTone ?? "text-stone-400")}>{hint}</p>
+        )}
       </div>
     </div>
   );
@@ -841,14 +933,30 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
     address: employee.address ?? "", city: employee.city ?? "",
     maritalStatus: employee.maritalStatus ?? "", religion: employee.religion ?? "",
     bloodType: employee.bloodType ?? "", nationalId: employee.nationalId ?? "", taxId: employee.taxId ?? "",
+    // 26-b — PKWT (PP 35/2021): hanya relevan utk Contract/Probation/Outsourcing
+    contractStart: employee.contractStart ? employee.contractStart.slice(0, 10) : "",
+    contractEnd: employee.contractEnd ? employee.contractEnd.slice(0, 10) : "",
+    renewalCount: String(employee.renewalCount ?? 0),
   });
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const isPkwt = ["Contract", "Probation", "Outsourcing"].includes(employee.employmentStatus);
 
   const submit = async () => {
+    if (isPkwt && form.contractStart && form.contractEnd && form.contractEnd <= form.contractStart) {
+      toast.error(t("Tanggal berakhir kontrak harus setelah tanggal mulai", "Contract end date must be after the start date"));
+      return;
+    }
     setBusy(true);
     try {
-      await apiSend(`/api/onevity/employee-detail?id=${employee.id}`, "PATCH", form);
+      await apiSend(`/api/onevity/employee-detail?id=${employee.id}`, "PATCH", {
+        ...form,
+        ...(isPkwt ? {
+          contractStart: form.contractStart || null,
+          contractEnd: form.contractEnd || null,
+          renewalCount: Number(form.renewalCount) || 0,
+        } : {}),
+      });
       toast.success(t("Data karyawan diperbarui", "Employee data updated"));
       setOpen(false);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -856,7 +964,7 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="text-base">{t("Edit Data — {name}", "Edit Data — {name}", { name: employee.fullName })}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {([
@@ -873,6 +981,30 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
             <Label className="text-xs">{t("Alamat")}</Label>
             <Input value={form.address} onChange={(e) => set("address", e.target.value)} className="mt-1.5" />
           </div>
+
+          {/* 26-b — PKWT: tanggal kontrak & jumlah perpanjangan */}
+          {isPkwt && (
+            <>
+              <div className="sm:col-span-2 mt-1 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[11px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+                <FileWarning className="h-3.5 w-3.5" /> {t("Kontrak PKWT — PP 35/2021 (status {s})", "PKWT Contract — PP 35/2021 (status {s})", { s: employee.employmentStatus })}
+              </div>
+              <div>
+                <Label className="text-xs">{t("Mulai Kontrak", "Contract Start")}</Label>
+                <Input type="date" value={form.contractStart} onChange={(e) => set("contractStart", e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs">{t("Berakhir Kontrak", "Contract End")}</Label>
+                <Input type="date" value={form.contractEnd} onChange={(e) => set("contractEnd", e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs">{t("Jumlah Perpanjangan", "Renewal Count")}</Label>
+                <Input type="number" min={0} value={form.renewalCount} onChange={(e) => set("renewalCount", e.target.value.replace(/\D/g, ""))} className="mt-1.5 font-mono" />
+              </div>
+              <div className="self-end text-[10.5px] leading-relaxed text-stone-400">
+                {t("Konversi ke Permanent dilakukan lewat PA Perubahan Status — jejak PKWT otomatis dikosongkan.", "Conversion to Permanent is done via a Change Status personnel action — the PKWT record is cleared automatically.")}
+              </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>

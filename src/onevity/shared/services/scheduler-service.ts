@@ -325,6 +325,8 @@ interface ContractEmp {
   email: string | null;
   joinDate: Date;
   endDate: Date | null;
+  /** 26-b P0 — akhir PKWT (PP 35/2021); diutamakan di atas endDate bila terisi. */
+  contractEnd: Date | null;
 }
 
 async function jobContractReminders(db: TenantDb): Promise<{ contract: number; probation: number; notif: number }> {
@@ -334,12 +336,19 @@ async function jobContractReminders(db: TenantDb): Promise<{ contract: number; p
   let probation = 0;
   let notif = 0;
 
-  // --- kontrak berakhir: Employee aktif dengan endDate masa depan ---
+  // --- kontrak berakhir: Employee aktif — 26-b: tanggal efektif = PKWT
+  // contractEnd bila terisi, else endDate lama (kompatibel data pra-migrasi) ---
   let emps: ContractEmp[] = [];
   try {
     emps = await db.employee.findMany({
-      where: { status: "Active", endDate: { gte: startOfDay(today) } },
-      select: { id: true, employeeNo: true, fullName: true, email: true, joinDate: true, endDate: true },
+      where: {
+        status: "Active",
+        OR: [
+          { endDate: { gte: startOfDay(today) } },
+          { contractEnd: { gte: startOfDay(today) } },
+        ],
+      },
+      select: { id: true, employeeNo: true, fullName: true, email: true, joinDate: true, endDate: true, contractEnd: true },
       take: 500,
     });
   } catch {
@@ -347,16 +356,22 @@ async function jobContractReminders(db: TenantDb): Promise<{ contract: number; p
   }
 
   for (const emp of emps) {
-    if (!emp.endDate) continue;
-    const days = daysUntil(emp.endDate, today);
+    // 26-b: PKWT contractEnd menang atas endDate lifecycle (bila keduanya terisi,
+    // ambil yang TERDEKAT — pengingat paling relevan untuk HR)
+    const candidates = [emp.contractEnd, emp.endDate].filter((d): d is Date => d != null);
+    if (candidates.length === 0) continue;
+    const due = candidates.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
+    const days = daysUntil(due, today);
     if (days < 1) continue; // hari ini/lewat → bukan pengingat (job a menangani)
     // band TERKECIL yang ≥ sisa hari (30 dulu, lalu 60, lalu 90) — tiap band
-    // mengingatkan SEKALI per karyawan (dedupe key per band).
+    // mengingatkan SEKALI per karyawan per tanggal jatuh tempo (dedupe key
+    // menyertakan tanggal: perpanjangan PKWT baru = pengingat baru).
     const band = CONTRACT_BANDS.find((b) => days <= b);
     if (!band) continue; // masih > 90 hari → belum waktunya
 
-    const key = `reminder:contract:${emp.id}:${band}`;
-    const tanggal = fmtDate(emp.endDate);
+    const dueKey = due.toISOString().slice(0, 10);
+    const key = `reminder:contract:${emp.id}:${band}:${dueKey}`;
+    const tanggal = fmtDate(due);
     // klaim atomik DULU (dedupe anti dobel antar-proses) → baru kirim
     const claimed = await claimReminder(
       db,

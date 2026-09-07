@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/onevity/human-resource/services/assignment";
+import { computePkwtInfo } from "@/onevity/human-resource/services/pkwt";
 
 // GET /api/onevity/employee-detail?id=
 // Response: employee (data personal + pekerjaan saat ini hasil flatten assignment aktif)
@@ -87,6 +88,17 @@ export async function GET(req: NextRequest) {
     });
 
     const { assignments: _curAssignments, ...personal } = employee;
+    // 26-b P0 — guard PKWT PP 35/2021 (total durasi kontrak > 5 tahun → wajib
+    // konversi ke PKS) + sisa masa kontrak; dihitung server agar UI profil &
+    // banner memakai logika satu sumber.
+    const pkwt = computePkwtInfo({
+      status: employee.status,
+      employmentStatus: cur?.employmentStatus ?? null,
+      joinDate: employee.joinDate,
+      contractStart: employee.contractStart,
+      contractEnd: employee.contractEnd,
+      renewalCount: employee.renewalCount,
+    });
     const flat = {
       ...personal,
       orgUnitId: cur?.orgUnitId ?? null,
@@ -120,6 +132,7 @@ export async function GET(req: NextRequest) {
         grade: a.grade ? { code: a.grade.code, name: a.grade.name } : null,
         managerName: a.manager?.fullName ?? null,
       })),
+      pkwt,
     };
 
     return NextResponse.json({ employee: flat });
@@ -151,7 +164,10 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
 
     // cek keberadaan + cakupan skema akses data SEBELUM menulis apa pun
-    const exists = await db.employee.findUnique({ where: { id }, select: { id: true } });
+    const exists = await db.employee.findUnique({
+      where: { id },
+      select: { id: true, contractStart: true, contractEnd: true },
+    });
     if (!exists) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
     const scope = await resolveAccessScope(db, {
       appUserId: m.actor.appUserId,
@@ -174,6 +190,27 @@ export async function PATCH(req: NextRequest) {
     if (b.birthDate !== undefined) data.birthDate = b.birthDate ? new Date(b.birthDate) : null;
     if (b.joinDate !== undefined) data.joinDate = b.joinDate ? new Date(b.joinDate) : undefined;
     if (b.endDate !== undefined) data.endDate = b.endDate ? new Date(b.endDate) : null;
+
+    // 26-b P0 — PKWT PP 35/2021: tanggal kontrak & jumlah perpanjangan.
+    // Konsistensi: konversi ke Permanent → jejak PKWT dikosongkan (PKS tak
+    // berbatas); akhir kontrak wajib setelah tanggal mulai (gabungan nilai
+    // baru + nilai tersimpan bila hanya salah satu yang dikirim).
+    if (b.contractStart !== undefined) data.contractStart = b.contractStart ? new Date(b.contractStart) : null;
+    if (b.contractEnd !== undefined) data.contractEnd = b.contractEnd ? new Date(b.contractEnd) : null;
+    if (b.renewalCount !== undefined) data.renewalCount = Math.max(0, Number(b.renewalCount) || 0);
+    if (b.employmentStatus === "Permanent") {
+      data.contractStart = null;
+      data.contractEnd = null;
+      data.renewalCount = 0;
+    }
+    const finalStart = data.contractStart !== undefined ? (data.contractStart as Date | null) : exists.contractStart;
+    const finalEnd = data.contractEnd !== undefined ? (data.contractEnd as Date | null) : exists.contractEnd;
+    if (finalStart && finalEnd && finalEnd.getTime() <= finalStart.getTime()) {
+      return NextResponse.json(
+        { error: "Tanggal berakhir kontrak harus setelah tanggal mulai kontrak" },
+        { status: 400 },
+      );
+    }
 
     const employee = await db.employee.update({ where: { id }, data });
 

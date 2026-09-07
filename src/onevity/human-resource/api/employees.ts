@@ -137,6 +137,8 @@ export async function GET(req: NextRequest) {
     const status = sp.get("status") ?? undefined;
     const unit = sp.get("unit") ?? undefined;
     const employmentStatus = sp.get("employmentStatus") ?? undefined;
+    // 26-b P0 — filter PKWT: kontrak berakhir ≤ N hari (termasuk yang sudah lewat)
+    const contractExpiring = sp.get("contractExpiring");
     const limit = Math.min(Number(sp.get("limit") ?? 50), 200);
     const offset = Number(sp.get("offset") ?? 0);
 
@@ -152,6 +154,17 @@ export async function GET(req: NextRequest) {
     if (status && status !== "all") {
       // "inactive" = agregat semua status non-aktif
       where.status = status === "inactive" ? { in: ["Resigned", "Terminated", "Blacklisted"] } : status;
+    }
+    // 26-b: filter masa kontrak — hanya baris dgn contractEnd ≤ hari ini + N hari.
+    // Pelacakan kontrak relevan utk karyawan AKTIF; bila user belum memfilter
+    // status secara eksplisit, filter chip menyiratkan status Active.
+    if (contractExpiring) {
+      const days = Math.max(1, Number(contractExpiring) || 30);
+      const limitDate = new Date();
+      limitDate.setHours(23, 59, 59, 999);
+      limitDate.setDate(limitDate.getDate() + days);
+      where.contractEnd = { lte: limitDate };
+      if (!status || status === "all") where.status = "Active";
     }
     // filter pekerjaan via assignment aktif
     const assignSome: Record<string, unknown> = { validTo: null };
@@ -175,6 +188,19 @@ export async function GET(req: NextRequest) {
       db.employeeAssignment.groupBy({ by: ["employmentStatus"], where: { validTo: null, employee: scoped }, _count: true }),
     ]);
 
+    // 26-b — jumlah karyawan aktif dengan kontrak berakhir dalam band (chip filter)
+    const contractBandCount = async (days: number) => {
+      const limitDate = new Date();
+      limitDate.setHours(23, 59, 59, 999);
+      limitDate.setDate(limitDate.getDate() + days);
+      return db.employee.count({ where: { ...scoped, status: "Active", contractEnd: { lte: limitDate } } });
+    };
+    const [contract30, contract60, contract90] = await Promise.all([
+      contractBandCount(30).catch(() => 0),
+      contractBandCount(60).catch(() => 0),
+      contractBandCount(90).catch(() => 0),
+    ]);
+
     const employees = employeesRaw.map((e) => {
       const flat = flattenEmployee(e);
       // strip array dari response agar payload ramping
@@ -196,6 +222,10 @@ export async function GET(req: NextRequest) {
         probation: empCount("Probation"),
         contract: empCount("Contract"),
         inactive: statusCount("Resigned") + statusCount("Terminated") + statusCount("Blacklisted"),
+        // 26-b — PKWT: band masa kontrak tersisa (Active + contractEnd ≤ band)
+        contract30,
+        contract60,
+        contract90,
       },
     });
   } catch (e) {
@@ -274,6 +304,23 @@ export async function POST(req: NextRequest) {
 
     const joinDate = b.joinDate ? new Date(b.joinDate) : new Date();
 
+    // 26-b P0 — PKWT PP 35/2021: tanggal kontrak opsional (hanya relevan utk
+    // status Contract/Probation/Outsourcing); akhir harus setelah mulai.
+    const contractStart = b.contractStart ? new Date(b.contractStart) : null;
+    const contractEnd = b.contractEnd ? new Date(b.contractEnd) : null;
+    const renewalCount = Math.max(0, Number(b.renewalCount) || 0);
+    if (contractStart && contractEnd && contractEnd.getTime() <= contractStart.getTime()) {
+      return NextResponse.json(
+        { error: "Tanggal berakhir kontrak harus setelah tanggal mulai kontrak" },
+        { status: 400 },
+      );
+    }
+    const employmentStatus = b.employmentStatus ?? "Probation";
+    const isPermanent = employmentStatus === "Permanent";
+    const contractData = isPermanent
+      ? { contractStart: null, contractEnd: null, renewalCount: 0 }
+      : { contractStart, contractEnd, renewalCount };
+
     const employee = await createEmployeeWithAssignment(db, prefix, {
       fullName: b.fullName,
       gender: b.gender ?? "M",
@@ -293,6 +340,7 @@ export async function POST(req: NextRequest) {
       companyId,
       joinDate,
       status: "Active",
+      ...contractData,
     }, {
       orgUnitId: b.orgUnitId ?? null,
       positionId: b.positionId ?? null,

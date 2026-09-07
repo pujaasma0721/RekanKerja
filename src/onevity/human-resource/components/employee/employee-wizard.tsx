@@ -59,6 +59,8 @@ const EMPTY_FORM: Record<string, string> = {
   orgUnitId: "", positionId: "", gradeId: "", employmentStatus: "Probation", joinDate: "", managerId: "", workShift: "Regular",
   companyOfficeId: "", workLocationId: "",
   baseSalary: "", bankName: "", bankAccount: "",
+  // 26-b P0 — PKWT PP 35/2021 (hanya relevan utk Contract/Probation/Outsourcing)
+  contractStart: "", contractEnd: "", renewalCount: "",
 };
 
 const TIPS: Record<number, { icon: React.ElementType; text: string }> = {
@@ -80,6 +82,7 @@ const TRACKED_FIELDS = [
   "fullName", "birthDate", "nationalId", "taxId", "email", "phone", "address", "city",
   "orgUnitId", "positionId", "gradeId", "joinDate", "managerId", "companyOfficeId", "workLocationId",
   "baseSalary", "bankName", "bankAccount",
+  "contractStart", "contractEnd",
 ];
 
 export function OnboardingWizard() {
@@ -150,6 +153,10 @@ export function OnboardingWizard() {
       if (!form.orgUnitId) errs.orgUnitId = t("Pilih unit organisasi", "Select an organizational unit");
       if (!form.positionId) errs.positionId = t("Pilih posisi", "Select a position");
       if (!form.joinDate) errs.joinDate = t("Tanggal masuk wajib diisi", "Join date is required");
+      // 26-b — PKWT: akhir kontrak harus setelah mulai (bila keduanya diisi)
+      if (form.contractStart && form.contractEnd && form.contractEnd <= form.contractStart) {
+        errs.contractEnd = t("Harus setelah tanggal mulai", "Must be after the start date");
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -173,6 +180,10 @@ export function OnboardingWizard() {
         gradeId: form.gradeId || null,
         companyOfficeId: form.companyOfficeId || null,
         workLocationId: form.workLocationId || null,
+        // 26-b — PKWT: kosong bila Permanent (server juga mengosongkan)
+        contractStart: form.contractStart || null,
+        contractEnd: form.contractEnd || null,
+        renewalCount: Number(form.renewalCount) || 0,
       });
       setCreated(res.employee);
       setStep(5);
@@ -433,7 +444,14 @@ export function OnboardingWizard() {
                   <SectionLabel icon={Briefcase} title={t("Kepegawaian", "Employment")} className="pt-1" />
                   <div className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
                     <Field label={t("Status Kepegawaian", "Employment Status")}>
-                      <Select value={form.employmentStatus} onValueChange={(v) => set("employmentStatus", v)}>
+                      <Select
+                        value={form.employmentStatus}
+                        onValueChange={(v) => {
+                          set("employmentStatus", v);
+                          // 26-b — Permanent = PKS tanpa batas: kosongkan jejak PKWT
+                          if (v === "Permanent") setForm((f) => ({ ...f, contractStart: "", contractEnd: "", renewalCount: "" }));
+                        }}
+                      >
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {lk("EmploymentStatus").map((s) => <SelectItem key={s.code} value={s.label}>{s.label}</SelectItem>)}
@@ -452,6 +470,53 @@ export function OnboardingWizard() {
                       </Select>
                     </Field>
                   </div>
+
+                  {/* 26-b P0 — PKWT PP 35/2021: tanggal kontrak (khusus Contract/Probation/Outsourcing) */}
+                  {["Contract", "Probation", "Outsourcing"].includes(form.employmentStatus) && (
+                    <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 dark:border-amber-500/25 dark:bg-amber-500/10">
+                      <p className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                        <FileWarning className="h-3.5 w-3.5" /> {t("Kontrak PKWT — PP 35/2021", "PKWT Contract — PP 35/2021")}
+                      </p>
+                      <div className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
+                        <Field label={t("Mulai Kontrak", "Contract Start")} hint={t("default: tgl masuk", "default: join date")}>
+                          <Input
+                            type="date"
+                            value={form.contractStart}
+                            onChange={(e) => set("contractStart", e.target.value)}
+                            placeholder={form.joinDate}
+                            className="h-9"
+                            aria-label={t("Tanggal mulai kontrak", "Contract start date")}
+                          />
+                        </Field>
+                        <Field label={t("Berakhir Kontrak", "Contract End")} error={errors.contractEnd} hint={t("wajib utk PKWT", "required for PKWT")}>
+                          <Input
+                            type="date"
+                            value={form.contractEnd}
+                            onChange={(e) => set("contractEnd", e.target.value)}
+                            className={cn("h-9", errors.contractEnd && "border-rose-400 focus-visible:ring-rose-400")}
+                            aria-label={t("Tanggal berakhir kontrak", "Contract end date")}
+                          />
+                        </Field>
+                        <Field label={t("Perpanjangan Ke-", "Renewal No.")} hint={t("0 = kontrak pertama", "0 = first contract")}>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={form.renewalCount}
+                            onChange={(e) => set("renewalCount", e.target.value.replace(/\D/g, ""))}
+                            className="h-9 font-mono"
+                            placeholder="0"
+                            aria-label={t("Jumlah perpanjangan kontrak", "Contract renewal count")}
+                          />
+                        </Field>
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/90">
+                        {t(
+                          "Total PKWT + perpanjangan maksimal 5 tahun (Pasal 8) — sistem memperingatkan bila terlampaui dan menyarankan konversi ke PKS.",
+                          "Total PKWT plus renewals is capped at 5 years (Article 8) — the system warns when exceeded and suggests converting to a permanent contract.",
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -502,6 +567,11 @@ export function OnboardingWizard() {
                     [t("Kantor", "Office"), selectedOffice ? `${selectedOffice.code} — ${selectedOffice.name}` : "—"],
                     [t("Lokasi Kerja", "Work Location"), selectedLocation ? `${selectedLocation.code} — ${selectedLocation.name}` : "—"],
                     [t("Status Kepegawaian", "Employment Status"), form.employmentStatus], [t("Tanggal Masuk", "Join Date"), form.joinDate || "—"],
+                    ...(form.employmentStatus !== "Permanent" ? ([
+                      [t("Kontrak PKWT", "PKWT Contract"), form.contractStart || form.contractEnd
+                        ? `${form.contractStart || "?"} → ${form.contractEnd || "?"}${Number(form.renewalCount) > 0 ? ` · ${t("perpanjangan ke-{n}", "renewal no. {n}", { n: String(Number(form.renewalCount)) })}` : ""}`
+                        : "—"],
+                    ] as [string, string][]) : []),
                     [t("Jadwal Kerja", "Work Schedule"), form.workShift], [t("Atasan", "Manager"), selectedManager?.fullName ?? "—"],
                   ]} />
                   <ReviewSection icon={Wallet} title={t("Upah & Bank", "Salary & Bank")} onEdit={() => setStep(3)} items={[

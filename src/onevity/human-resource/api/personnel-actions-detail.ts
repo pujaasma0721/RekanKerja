@@ -332,6 +332,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // Fix K-02: seluruh side-effect + perubahan status PA dalam SATU transaksi —
       // kegagalan di tengah tidak meninggalkan assignment tertutup tanpa pengganti /
       // status berubah tanpa jejak; PA hanya menjadi Processed bila semua efek berhasil.
+      // 26-b: pkwtNote diisi blok PKWT di dalam transaksi → dilekatkan ke log proses.
+      let pkwtNote = "";
       await db.$transaction(async (tx) => {
         if (isStructural) {
           await applyAssignmentChange(
@@ -384,6 +386,56 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           await closeCurrentAssignment(tx, action.employeeId, endDate);
         }
 
+        // ===== 26-b P0 — aritmetika kontrak PKWT (PP 35/2021) =====
+        // CONTRACTRENEWAL → renewalCount +1 dan geser contractEnd (newEndDate
+        // PA bila ada, else contractEnd lama + months). contractStart dipertahankan
+        // sebagai tanggal mulai PKWT PERTAMA (basis hitung durasi total 5 tahun).
+        // CHANGESTATUS → jadi Permanent = konversi PKS: kosongkan jejak PKWT;
+        // berubah ke Contract/Probation & belum ada start → set dari effectiveDate.
+        if (action.type === "ContractRenewal") {
+          const emp = await tx.employee.findUnique({
+            where: { id: action.employeeId },
+            select: { contractStart: true, contractEnd: true, renewalCount: true },
+          });
+          if (emp) {
+            const months = detail.months ? Number(detail.months) : null;
+            let newEnd = detail.newEndDate ? new Date(String(detail.newEndDate)) : null;
+            if (!newEnd && months && emp.contractEnd) {
+              newEnd = new Date(emp.contractEnd);
+              newEnd.setMonth(newEnd.getMonth() + months);
+            }
+            const renewals = (emp.renewalCount ?? 0) + 1;
+            await tx.employee.update({
+              where: { id: action.employeeId },
+              data: {
+                renewalCount: renewals,
+                ...(newEnd ? { contractEnd: newEnd } : {}),
+              },
+            });
+            pkwtNote = ` — perpanjangan PKWT ke-${renewals + 1}${newEnd ? `, kontrak berakhir ${paDate(newEnd)}` : ""}`;
+          }
+        } else if (action.type === "ChangeStatus" && detail.newEmploymentStatus) {
+          const newStatus = String(detail.newEmploymentStatus);
+          if (newStatus === "Permanent") {
+            await tx.employee.update({
+              where: { id: action.employeeId },
+              data: { contractStart: null, contractEnd: null, renewalCount: 0 },
+            });
+            pkwtNote = " — konversi ke PKS: jejak PKWT dikosongkan (PP 35/2021 Pasal 8)";
+          } else {
+            const emp = await tx.employee.findUnique({
+              where: { id: action.employeeId },
+              select: { contractStart: true },
+            });
+            if (emp && !emp.contractStart) {
+              await tx.employee.update({
+                where: { id: action.employeeId },
+                data: { contractStart: effectiveDate },
+              });
+            }
+          }
+        }
+
         // status PA berubah menjadi Processed hanya di DALAM transaksi, dengan kondisi
         // status Approved (idempoten + aman terhadap proses ganda paralel → 409).
         const upd = await tx.personnelAction.updateMany({
@@ -393,7 +445,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         if (upd.count === 0) throw new WorkflowError(409, "Dokumen sudah diproses sebelumnya");
       });
 
-      await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})`);
+      await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})${pkwtNote}`);
 
       // ===== T19: Final Settlement PHK — best-effort, SETELAH status karyawan =====
       // berubah (transaksi di atas sudah commit). Kegagalan settlement TIDAK

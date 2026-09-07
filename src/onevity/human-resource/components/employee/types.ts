@@ -15,6 +15,10 @@ export interface EmployeeRow {
   endDate: string | null;
   baseSalary: number;
   status: string;
+  // 26-b — PKWT PP 35/2021 (badge masa kontrak + filter jatuh tempo)
+  contractStart: string | null;
+  contractEnd: string | null;
+  renewalCount: number;
   position: { title: string; code: string } | null;
   orgUnit: { name: string; code: string } | null;
   grade: { code: string; name: string } | null;
@@ -31,6 +35,10 @@ export interface DirectoryResp {
     probation: number;
     contract: number;
     inactive: number;
+    /** 26-b — PKWT: jumlah Active dengan contractEnd ≤ band (30/60/90 hari). */
+    contract30: number;
+    contract60: number;
+    contract90: number;
   };
 }
 
