@@ -28,13 +28,18 @@ export type { TenantPrismaClient };
 // maxOvertimeHours/maxOvertimeHoursMonthly masuk client hasil generate
 // (validasi cap lembur PP 35/2021 saat submit/approve perintah lembur);
 // agen lain memakai V7/V6H — key V15T milik T15, instance lama tidak dipakai.
+// WAVE-27: versi dinaikkan (W27) — 10 model baru (Asset/AssetAssignment,
+// Announcement/AnnouncementRead, ShiftSwapRequest, MachineImportBatch,
+// WaConfig/WaTemplate/WaLog, CustomReport) + kolom WorkLocation geofence +
+// AttendanceRule.geofenceMode masuk client hasil generate; instance lama
+// (pra-W27, DMMF tanpa model baru) tidak dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsV15T: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsW27: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsV15T ?? new Map();
-globalForTenants.onevityTenantClientsV15T = tenantClients;
+  globalForTenants.onevityTenantClientsW27 ?? new Map();
+globalForTenants.onevityTenantClientsW27 = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;
