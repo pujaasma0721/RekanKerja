@@ -1,10 +1,11 @@
 "use client";
-// OneVity ESS Shell — pengalaman Employee Self-Service SEPENUHNYA terpisah dari
-// shell admin (Task T8): topbar sendiri, sidebar 248px desktop + bottom tab
-// mobile (Dashboard · Cuti · Presensi · Slip · Lainnya), bell notifikasi ESS,
-// language switcher & theme toggle reuse, avatar menu (Mode Admin / Ganti Kata
-// Sandi / Keluar). Konten = view-state internal (tanpa route baru).
-// Akun tanpa data karyawan (403 dari /ess/me) → layar pemberitahuan elegan.
+// OneVity ESS Shell — pengalaman Employee Self-Service SEPENUHNYA terpisah
+// dari shell admin (Task T8). REFACTOR (permintaan user): navigasi TIDAK
+// memakai sidebar seperti admin — desktop memakai TOPNAV horizontal
+// (menu pill aktif amber), mobile tetap bottom tab + sheet "Lainnya".
+// Fitur dipertahankan: bell notifikasi ESS, language switcher, theme toggle,
+// avatar menu (Mode Admin / Ganti Kata Sandi / Keluar), jam live, layar
+// 403 akun tanpa data karyawan. Konten = view-state internal (tanpa route).
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
-  Waypoints, ChevronRight, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch,
+  Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch,
   AlertTriangle, Loader2, LayoutTemplate,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,12 +44,12 @@ interface EssNavItem { id: EssView; label: string; en: string; short: string; sh
 
 const ESS_NAV: EssNavItem[] = [
   { id: "dashboard", label: "Dashboard", en: "Dashboard", short: "Dashboard", shortEn: "Home", icon: LayoutDashboard },
-  { id: "profile", label: "Profil Saya", en: "My Profile", short: "Profil", shortEn: "Profile", icon: UserRound },
   { id: "leave", label: "Cuti Saya", en: "My Leave", short: "Cuti", shortEn: "Leave", icon: Palmtree },
   { id: "attendance", label: "Presensi Saya", en: "My Attendance", short: "Presensi", shortEn: "Time", icon: Fingerprint },
   { id: "payslips", label: "Slip Gaji", en: "Payslips", short: "Slip", shortEn: "Pay", icon: ReceiptText },
   { id: "claims", label: "Klaim Saya", en: "My Claims", short: "Klaim", shortEn: "Claims", icon: HeartPulse },
-  { id: "requests", label: "Pengajuan", en: "Requests", short: "Pengajuan", shortEn: "Requests", icon: ClipboardList },
+  { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
+  { id: "profile", label: "Profil Saya", en: "My Profile", short: "Profil", shortEn: "Profile", icon: UserRound },
 ];
 
 // tab mobile: 4 item pertama + "Lainnya" (bottom sheet sisanya)
@@ -81,7 +82,7 @@ function EssLogo({ compact = false }: { compact?: boolean }) {
   );
 }
 
-// ============ JAM KECIL TOPBAR (mutakhir tiap 30 detik) ============
+// ============ JAM KECIL TOPNAV (mutakhir tiap 30 detik) ============
 function LiveClock() {
   const { locale } = useI18n();
   const [now, setNow] = useState(() => new Date());
@@ -90,7 +91,7 @@ function LiveClock() {
     return () => window.clearInterval(id);
   }, []);
   return (
-    <span className="hidden items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-bold tabular-nums text-stone-600 md:inline-flex dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+    <span className="hidden items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-bold tabular-nums text-stone-600 xl:inline-flex dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
       <ClockIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
       {new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(now)}
     </span>
@@ -200,35 +201,7 @@ function EssNotificationBell() {
   );
 }
 
-// ============ ITEM NAVIGASI (sidebar desktop) ============
-function SideItem({ item, active, onClick }: { item: EssNavItem; active: boolean; onClick: () => void }) {
-  const { t } = useI18n();
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-        active ? "bg-amber-100/70 dark:bg-amber-500/15" : "hover:bg-stone-100 dark:hover:bg-stone-800/60",
-      )}
-    >
-      {active && (
-        <motion.span
-          layoutId="ov-ess-active"
-          className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-amber-500"
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-        />
-      )}
-      <Icon className={cn("h-[17px] w-[17px] shrink-0 transition-colors", active ? "text-amber-700 dark:text-amber-400" : "text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300")} aria-hidden />
-      <span className={cn("flex-1 truncate text-[13px] font-semibold", active ? "text-amber-900 dark:text-amber-200" : "text-stone-600 dark:text-stone-400")}>
-        {t(item.label, item.en)}
-      </span>
-    </button>
-  );
-}
-
-// ============ SHELL UTAMA ============
+// ============ SHELL UTAMA — TOPNAV TANPA SIDEBAR ============
 export function EssShell() {
   const { t } = useI18n();
   const session = useSession();
@@ -343,73 +316,21 @@ export function EssShell() {
   const activeItem = ESS_NAV.find((n) => n.id === view) ?? ESS_NAV[0];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* ============ SIDEBAR DESKTOP (248px) — terang, aksen amber ============ */}
-      <aside
-        className="hidden w-[248px] shrink-0 flex-col border-r border-stone-200/80 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen dark:border-stone-800 dark:bg-stone-900"
-        aria-label={t("Navigasi OneVity Self Service", "OneVity Self Service navigation")}
-      >
-        <div className="flex items-center justify-between px-5 py-4">
-          <EssLogo />
-        </div>
-        <div className="mx-5 h-px bg-stone-200/80 dark:bg-stone-800" aria-hidden />
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
-          {ESS_NAV.map((item) => (
-            <SideItem key={item.id} item={item} active={view === item.id} onClick={() => go(item.id)} />
-          ))}
-        </nav>
-        {/* footer: mini profil karyawan */}
-        <div className="border-t border-stone-200/80 px-4 py-3 dark:border-stone-800">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-8 w-8 ring-2 ring-amber-500/25">
-              {me.employee.photoUrl && <AvatarImage src={me.employee.photoUrl} alt={me.employee.fullName} />}
-              <AvatarFallback className="bg-amber-100 text-[10px] font-extrabold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
-                {initials(me.employee.fullName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11.5px] font-bold text-stone-800 dark:text-stone-100">{me.employee.fullName}</p>
-              <p className="truncate text-[10px] text-stone-400">{me.employee.employeeNo}</p>
-            </div>
-            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
-              ESS
-            </span>
-          </div>
-          <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-400">
-            OneVity · {t("Employee Self Service", "Employee Self Service")}
-          </p>
-        </div>
-      </aside>
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* ============ TOPNAV (desktop & mobile) — TANPA SIDEBAR ============ */}
+      <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-white/90 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-950/85">
+        {/* baris 1: brand + aksi */}
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-2.5 px-4 sm:px-6">
+          <button className="flex items-center gap-3 text-left" onClick={() => go("dashboard")} aria-label={t("Ke Dashboard", "Go to Dashboard")}>
+            <EssLogo compact />
+          </button>
 
-      {/* ============ MAIN COLUMN ============ */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* topbar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-stone-200/80 bg-background/85 px-4 backdrop-blur-xl dark:border-stone-800/80 sm:px-6">
-          {/* brand mobile — desktop identitas dibawa sidebar */}
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 shadow">
-              <Waypoints className="h-4 w-4 text-white" aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-extrabold leading-none tracking-tight text-stone-900 dark:text-stone-50">
-                One<span className="text-amber-700 dark:text-amber-500">Vity</span>
-              </p>
-              <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-wider text-stone-400">{t("Self Service", "Self Service")}</p>
-            </div>
-          </div>
-
-          {/* breadcrumb view (desktop) */}
-          <nav className="hidden min-w-0 items-center gap-1.5 text-[13px] lg:flex" aria-label={t("Breadcrumb", "Breadcrumb")}>
-            <span className="font-bold text-amber-700 dark:text-amber-500">OneVity ESS</span>
-            <ChevronRight className="h-3.5 w-3.5 text-stone-300 dark:text-stone-600" aria-hidden />
-            <span className="truncate font-semibold text-stone-900 dark:text-stone-100">{t(activeItem.label, activeItem.en)}</span>
-          </nav>
           <span className="flex-1" />
 
           {/* workspace */}
           <span
             title={sessionTenant?.name ?? me.companyName ?? ""}
-            className="hidden max-w-[180px] items-center gap-1.5 truncate rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-stone-600 sm:flex dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+            className="hidden max-w-[180px] items-center gap-1.5 truncate rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-stone-600 lg:flex dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
           >
             <Building2 className="h-3.5 w-3.5 shrink-0 text-stone-400" aria-hidden />
             <span className="truncate">{sessionTenant?.name ?? me.companyName ?? t("tanpa workspace", "no workspace")}</span>
@@ -440,6 +361,9 @@ export function EssShell() {
                   {me.employee.email ?? me.employee.employeeNo}
                   {me.role ? ` · ${me.role}` : ""}
                 </p>
+                <p className="mt-0.5 truncate font-normal text-stone-400">
+                  {me.employee.positionTitle ?? me.employee.employeeNo}
+                </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {me.canAdmin && (
@@ -456,43 +380,86 @@ export function EssShell() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </header>
+        </div>
 
-        {/* konten — view-state internal ESS */}
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-            >
-              {view === "dashboard" && <EssDashboard me={me} go={go} />}
-              {view === "profile" && <EssProfile me={me} />}
-              {view === "leave" && <EssLeavePage intent={intent} />}
-              {view === "attendance" && <EssAttendance />}
-              {view === "payslips" && <EssPayslips intent={intent} />}
-              {view === "claims" && <EssClaims />}
-              {view === "requests" && <EssRequests intent={intent} />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+        {/* baris 2 (desktop): menu horizontal — pengganti sidebar */}
+        <nav className="hidden border-t border-stone-100/80 dark:border-stone-800/60 md:block" aria-label={t("Navigasi utama Self Service", "Self Service main navigation")}>
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-4 sm:px-6">
+            {ESS_NAV.map((item) => {
+              const active = view === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => go(item.id)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-bold transition-colors",
+                    active
+                      ? "text-amber-800 dark:text-amber-400"
+                      : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200",
+                  )}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="ov-ess-active-pill"
+                      className="absolute inset-0 rounded-t-xl border-b-2 border-amber-500 bg-amber-50/70 dark:bg-amber-500/10"
+                      transition={{ type: "spring", stiffness: 400, damping: 34 }}
+                    />
+                  )}
+                  <Icon className={cn("relative h-[15px] w-[15px] shrink-0", active ? "text-amber-600 dark:text-amber-400" : "text-stone-400")} aria-hidden />
+                  <span className="relative truncate">{t(item.label, item.en)}</span>
+                </button>
+              );
+            })}
+            {/* identitas view aktif ringan di ujung kanan */}
+            <span className="flex-1" />
+            <span className="hidden items-center gap-1.5 text-[11px] font-medium text-stone-400 xl:flex">
+              <Waypoints className="h-3 w-3 text-amber-500" aria-hidden />
+              {t("OneVity Employee Self Service", "OneVity Employee Self Service")}
+            </span>
+          </div>
+        </nav>
+      </header>
 
-        {/* footer */}
-        <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
-          <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
-            © 2026 <span className="font-bold text-amber-700 dark:text-amber-500">OneVity</span> · {t("Employee Self Service", "Employee Self Service")}
-            {me.companyName ? ` · ${me.companyName}` : ""}
-          </p>
-        </footer>
+      {/* ============ KONTEN — view-state internal ESS ============ */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        {/* judul view untuk mobile (desktop sudah punya menu aktif di topnav) */}
+        <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-500 md:hidden">
+          {t(activeItem.label, activeItem.en)}
+        </p>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
+            {view === "dashboard" && <EssDashboard me={me} go={go} />}
+            {view === "profile" && <EssProfile me={me} />}
+            {view === "leave" && <EssLeavePage intent={intent} />}
+            {view === "attendance" && <EssAttendance />}
+            {view === "payslips" && <EssPayslips intent={intent} />}
+            {view === "claims" && <EssClaims />}
+            {view === "requests" && <EssRequests intent={intent} />}
+          </motion.div>
+        </AnimatePresence>
+      </main>
 
-        {/* spacer — jaga konten & footer tidak tertutup tab bar mobile */}
-        <div className="h-[84px] shrink-0 lg:hidden" aria-hidden="true" />
-      </div>
+      {/* ============ FOOTER ============ */}
+      <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
+        <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
+          © 2026 <span className="font-bold text-amber-700 dark:text-amber-500">OneVity</span> · {t("Employee Self Service", "Employee Self Service")}
+          {me.companyName ? ` · ${me.companyName}` : ""}
+        </p>
+      </footer>
+
+      {/* spacer — jaga konten & footer tidak tertutup tab bar mobile */}
+      <div className="h-[84px] shrink-0 md:hidden" aria-hidden="true" />
 
       {/* ============ NAVIGASI MOBILE: bottom tab + sheet "Lainnya" ============ */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 lg:hidden" aria-label={t("Navigasi Self Service", "Self Service navigation")}>
+      <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden" aria-label={t("Navigasi Self Service", "Self Service navigation")}>
         <div
           className="flex items-stretch justify-around border-t border-stone-200 bg-white/95 pt-1 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-900/95"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.375rem)" }}
@@ -553,7 +520,7 @@ export function EssShell() {
         {sheet && (
           <>
             <motion.div
-              className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
+              className="fixed inset-0 z-[60] bg-black/40 md:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -564,7 +531,7 @@ export function EssShell() {
               role="dialog"
               aria-modal="true"
               aria-label={t("Menu lainnya", "More menu")}
-              className="fixed inset-x-0 bottom-0 z-[70] max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl lg:hidden dark:bg-stone-900 dark:text-stone-100"
+              className="fixed inset-x-0 bottom-0 z-[70] max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl md:hidden dark:bg-stone-900 dark:text-stone-100"
               style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1.25rem)" }}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}

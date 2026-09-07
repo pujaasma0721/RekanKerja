@@ -5,7 +5,9 @@
 // server tampil inline di dalam dialog).
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { Palmtree, Plus, Send, Loader2, AlertTriangle, Clock3, CalendarRange } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useApi, fmtDate } from "@/onevity/shared/lib/api";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -18,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ESS_BASE, submitLeave, pickNum } from "./ess-api";
 import type { EssLeaveData } from "./ess-types";
 
@@ -98,59 +99,90 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
         }
       />
 
-      {/* ===== saldo ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <Palmtree className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Saldo Cuti", "Leave Balances")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-2 pt-0">
-          {api.loading && !api.data ? (
-            <div className="px-6"><LoadingRows rows={4} /></div>
-          ) : balances.length === 0 ? (
-            <div className="px-6 pb-2">
-              <EmptyState title={t("Saldo cuti belum tersedia", "Leave balance unavailable")} description={t("Saldo muncul setelah kebijakan & jenis cuti ditetapkan oleh admin.", "Balances appear once leave policy & types are configured by admin.")} icon={Palmtree} />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("Jenis Cuti", "Leave Type")}</TableHead>
-                    <TableHead className="text-right">{t("Hak", "Entitlement")}</TableHead>
-                    <TableHead className="text-right">{t("Terpakai", "Used")}</TableHead>
-                    <TableHead className="text-right">{t("Pending", "Pending")}</TableHead>
-                    <TableHead className="text-right">{t("Tersedia", "Available")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {balances.map((b) => {
-                    const entitlement = b.entitlement ?? pickNum(b as unknown as Record<string, unknown>, ["entitlement", "quota", "hak"]);
-                    const used = b.taken ?? b.used ?? pickNum(b as unknown as Record<string, unknown>, ["taken", "used"]);
-                    const pending = b.applied ?? b.pending ?? pickNum(b as unknown as Record<string, unknown>, ["applied", "pending"]);
-                    const avail = b.available ?? 0;
-                    return (
-                      <TableRow key={(b.code ?? "") + b.name}>
-                        <TableCell>
-                          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{b.name}</p>
-                          {b.code && <p className="font-mono text-[10px] text-stone-400">{b.code}</p>}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-stone-600 dark:text-stone-300">{entitlement ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums text-stone-600 dark:text-stone-300">{used ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums text-stone-600 dark:text-stone-300">{pending ?? "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <span className={avail > 0 ? "font-extrabold tabular-nums text-amber-700 dark:text-amber-400" : "font-extrabold tabular-nums text-stone-400"}>{avail}</span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ===== saldo — kartu visual (tahunan menonjol) ===== */}
+      {api.loading && !api.data ? (
+        <LoadingRows rows={4} />
+      ) : balances.length === 0 ? (
+        <EmptyState title={t("Saldo cuti belum tersedia", "Leave balance unavailable")} description={t("Saldo muncul setelah kebijakan & jenis cuti ditetapkan oleh admin.", "Balances appear once leave policy & types are configured by admin.")} icon={Palmtree} />
+      ) : (() => {
+        // jenis tahunan (kode CT-THN/CT-ANNIV) tampil besar; sisanya grid ringkas
+        const annual = balances.filter((b) => ["CT-THN", "CT-ANNIV"].includes(String(b.code ?? "")));
+        const others = balances.filter((b) => !["CT-THN", "CT-ANNIV"].includes(String(b.code ?? "")));
+        const read = (b: (typeof balances)[number]) => ({
+          entitlement: b.entitlement ?? pickNum(b as unknown as Record<string, unknown>, ["entitlement", "quota", "hak"]) ?? 0,
+          used: b.taken ?? b.used ?? pickNum(b as unknown as Record<string, unknown>, ["taken", "used"]) ?? 0,
+          pending: b.applied ?? b.pending ?? pickNum(b as unknown as Record<string, unknown>, ["applied", "pending"]) ?? 0,
+          avail: b.available ?? 0,
+        });
+        return (
+          <div className="space-y-4">
+            {annual.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2">
+                {annual.map((b, i) => {
+                  const r = read(b);
+                  const pct = r.entitlement > 0 ? Math.max(4, Math.min(100, (r.avail / r.entitlement) * 100)) : 0;
+                  return (
+                    <motion.div
+                      key={(b.code ?? "") + b.name}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-bold text-stone-800 dark:text-stone-100">{b.name}</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
+                          {r.avail}
+                          <span className="ml-1 text-xs font-bold text-stone-400">/ {r.entitlement} {t("hari", "days")}</span>
+                        </p>
+                      </div>
+                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600"
+                        />
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                        <span>{t("Terpakai", "Used")}: <b className="text-stone-700 dark:text-stone-200">{r.used}</b></span>
+                        <span>{t("Pending", "Pending")}: <b className={r.pending > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-700 dark:text-stone-200"}>{r.pending}</b></span>
+                        {b.code && <span className="font-mono text-stone-400">{b.code}</span>}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+            {others.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                {others.map((b, i) => {
+                  const r = read(b);
+                  return (
+                    <motion.div
+                      key={(b.code ?? "") + b.name}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(0.2 + i * 0.03, 0.45) }}
+                      className="rounded-xl border border-stone-200/80 bg-white p-3.5 shadow-sm transition-colors hover:border-amber-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-amber-500/40"
+                    >
+                      <p className="truncate text-[11px] font-semibold text-stone-500 dark:text-stone-400" title={b.name}>{b.name}</p>
+                      <p className="mt-1 text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">
+                        {r.avail}
+                        <span className="ml-1 text-[10px] font-bold text-stone-400">/ {r.entitlement}</span>
+                      </p>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${r.entitlement > 0 ? Math.max(4, Math.min(100, (r.avail / r.entitlement) * 100)) : 0}%` }} />
+                      </div>
+                      {r.pending > 0 && <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">{r.pending} {t("pending", "pending")}</p>}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ===== daftar permintaan ===== */}
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
@@ -263,9 +295,39 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
               </div>
             </div>
 
-            <p className="text-[11px] font-medium text-stone-400">
-              {t("Perkiraan {n} hari kalender (hari kerja dihitung sistem sesuai jadwal).", "≈ {n} calendar days (working days computed by the system per your schedule).", { n: daysHint })}
-            </p>
+            {/* ===== panel estimasi live ===== */}
+            <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/50">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Estimasi Pengajuan", "Request Estimate")}</p>
+              {(() => {
+                const sel = submitTypes.find((x) => x.id === form.typeId);
+                const estAvail = sel?.available ?? null;
+                const estLeft = estAvail != null ? estAvail - daysHint : null;
+                const valid = daysHint > 0;
+                return valid ? (
+                  <div className="mt-2 grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{daysHint}</p>
+                      <p className="text-[10px] text-stone-400">{t("hari kalender", "calendar days")}</p>
+                    </div>
+                    <div>
+                      <p className={cn("text-lg font-extrabold tabular-nums", estLeft != null && estLeft < 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-400")}>
+                        {estLeft != null ? estLeft : "—"}
+                      </p>
+                      <p className="text-[10px] text-stone-400">{t("sisa est. setelahnya", "est. remaining")}</p>
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-extrabold text-stone-800 dark:text-stone-100">{estAvail != null ? estAvail : "—"}</p>
+                      <p className="text-[10px] text-stone-400">{t("sisa saat ini", "current balance")}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-[11px] text-stone-400">{t("Pilih jenis & tanggal untuk melihat estimasi.", "Pick a type & dates to see the estimate.")}</p>
+                );
+              })()}
+              <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+                {t("Hari kerja final dihitung sistem sesuai jadwal & hari libur nasional saat pengajuan diproses.", "Final working days are computed by the system per your schedule & national holidays upon submission.")}
+              </p>
+            </div>
 
             <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
               <Checkbox
