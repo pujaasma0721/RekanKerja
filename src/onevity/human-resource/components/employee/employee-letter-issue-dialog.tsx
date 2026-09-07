@@ -12,7 +12,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FileDown, FileText, Loader2, Send, TriangleAlert } from "lucide-react";
-import { apiSend, fmtDate, fmtIDR, tenure } from "@/onevity/shared/lib/api";
+import { apiSend, fmtDate, fmtIDR } from "@/onevity/shared/lib/api";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +69,23 @@ const SALARY_TEMPLATES = new Set(["EMP_SK_GAJI", "EMP_PKWT"]);
 const todayLongId = () =>
   new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
 
+/** Masa kerja pratinjau — samakan dgn fmtTenureId server ("X tahun Y bulan"). */
+const tenurePreview = (joinDate: string | null) => {
+  if (!joinDate) return "—";
+  const d = new Date(joinDate);
+  if (isNaN(d.getTime())) return "—";
+  const now = new Date();
+  let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (now.getDate() < d.getDate()) months--;
+  if (months < 0) months = 0;
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years <= 0 && rest <= 0) return "kurang dari 1 bulan";
+  if (years <= 0) return `${rest} bulan`;
+  if (rest <= 0) return `${years} tahun`;
+  return `${years} tahun ${rest} bulan`;
+};
+
 export function EmployeeLetterIssueDialog({
   employee, templates, open, setOpen, onIssued,
 }: {
@@ -100,7 +117,7 @@ export function EmployeeLetterIssueDialog({
       employee_status: employee.employmentStatus,
       status_kerja: employee.employmentStatus,
       join_date: employee.joinDate ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date(employee.joinDate)) : "—",
-      masa_kerja: tenure(employee.joinDate),
+      masa_kerja: tenurePreview(employee.joinDate),
       nik: employee.nationalId ?? "—",
       birth_place: employee.birthPlace ?? "—",
       birth_date: employee.birthDate ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date(employee.birthDate)) : "—",
