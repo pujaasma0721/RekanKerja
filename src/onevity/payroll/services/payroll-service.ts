@@ -316,6 +316,9 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
 
   const result = runPayroll(rows, reg, brackets, ter, { calculateTax: run.calculateTax });
 
+  // 26-b P0: validasi UMP/UMK (baca-saja) — snapshot per baris untuk UI run.
+  const umkWarnings = await computeUmkWarnings(db, run.period, rows);
+
   // --- Fase 2: persist atomik dalam satu $transaction ---
   // updateMany bersyarat di awal = kunci baris run (serialisasi terhadap
   // calculate/confirm/concurrent lain); bila status berubah sejak Fase 1
@@ -339,6 +342,7 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
 
     await tx.payrollRunLine.deleteMany({ where: { runId } });
     for (const line of result.lines) {
+      const umk = umkWarnings.get(line.employeeId);
       const created = await tx.payrollRunLine.create({
         data: {
           runId,
@@ -356,6 +360,8 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
           net: line.net,
           actualNetTax: line.actualNetTax,
           notes: line.notes,
+          umkWarning: umk != null,
+          umkJson: umk != null ? JSON.stringify(umk) : null,
         },
       });
       if (line.items.length) {
@@ -386,6 +392,19 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
           },
         });
       }
+    }
+
+    // 26-b P0: rekap UMP/UMK → ActivityLog (satu baris rekap, ter-audit).
+    if (umkWarnings.size > 0) {
+      const contoh = [...umkWarnings.values()][0];
+      await tx.activityLog.create({
+        data: {
+          actorType: "system", action: "Warning", entity: "PayrollRun", entityId: runId,
+          detail:
+            `Validasi UMP/UMK (PP 36/2021): ${umkWarnings.size} karyawan bergaji pokok di bawah upah minimum kantor penempatan ` +
+            `(contoh: ${contoh.employeeNo} ${contoh.employeeName} Rp ${contoh.baseSalary.toLocaleString("id-ID")} < ${contoh.umk.label} Rp ${contoh.umk.amount.toLocaleString("id-ID")}) — warning edukatif, hitungan tetap sah`,
+        },
+      });
     }
   });
 
@@ -495,4 +514,84 @@ export async function nextRunNo(db: TenantDb, periodCode: string, typeCode: stri
   const prefix = `PR-${periodCode}-${typeCode.slice(0, 3).toUpperCase()}`;
   const count = await db.payrollRun.count({ where: { runNo: { startsWith: prefix } } });
   return `${prefix}-${String(count + 1).padStart(2, "0")}`;
+}
+
+// ============ VALIDASI UMP/UMK (26-b P0 — PP 36/2021) =====================
+// Warning EDUKATIF non-bloking: gaji pokok (gabungan dasar, bukan prorata)
+// di bawah upah minimum kantor penempatan karyawan. Prioritas pencocokan:
+//   1. MinimumWage aktif tahun period (sptYear) + companyOfficeId sama
+//   2. tahun sama + companyOfficeId null (default tenant)
+//   3. entri aktif TERBARU apa pun tahunnya (fallback)
+// Hasil: map employeeId → JSON snapshot (umk label/amount, kantor, gaji, selisih)
+// — dipersist ke PayrollRunLine.umkWarning/umkJson + ActivityLog rekap.
+
+export interface UmkSnapshot {
+  employeeNo: string;
+  employeeName: string;
+  office: string | null;
+  officeCode: string | null;
+  baseSalary: number;
+  umk: { label: string; amount: number };
+  gap: number;
+}
+
+/** Cari entri upah minimum yang berlaku untuk satu kantor pada tahun run. */
+export function pickMinimumWage(
+  wages: { year: number; companyOfficeId: string | null; label: string; monthlyAmount: number }[],
+  officeId: string | null,
+  year: number,
+): { label: string; monthlyAmount: number } | null {
+  const active = wages; // pemanggil sudah menyaring active
+  const exact = active.find((w) => w.year === year && w.companyOfficeId === officeId);
+  if (exact) return { label: exact.label, monthlyAmount: exact.monthlyAmount };
+  const fallbackDefault = active.find((w) => w.year === year && w.companyOfficeId === null);
+  if (fallbackDefault) return { label: fallbackDefault.label, monthlyAmount: fallbackDefault.monthlyAmount };
+  const latest = [...active].sort((a, b) => b.year - a.year)[0];
+  return latest ? { label: latest.label, monthlyAmount: latest.monthlyAmount } : null;
+}
+
+/**
+ * Hitung daftar karyawan di bawah UMP/UMK untuk satu run hasil kalkulasi.
+ * Murni baca (tanpa mutasi) — dipanggil Fase 1 calculateAndSaveRun.
+ */
+export async function computeUmkWarnings(
+  db: TenantDb,
+  period: { sptYear: number; startDate: Date; endDate: Date },
+  rows: EngineRow[],
+): Promise<Map<string, UmkSnapshot>> {
+  const out = new Map<string, UmkSnapshot>();
+  try {
+    const wages = await db.minimumWage.findMany({ where: { active: true } });
+    if (wages.length === 0) return out;
+
+    const employeeIds = rows.map((r) => r.employee.id);
+    if (employeeIds.length === 0) return out;
+    const emps = await db.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: { id: true, companyOfficeId: true, companyOffice: { select: { code: true, name: true } } },
+    });
+    const officeById = new Map(emps.map((e) => [e.id, e]));
+
+    for (const row of rows) {
+      const emp = officeById.get(row.employee.id);
+      if (!emp) continue;
+      const wage = pickMinimumWage(wages, emp.companyOfficeId, period.sptYear);
+      if (!wage) continue;
+      const base = row.employee.baseSalary;
+      if (base > 0 && base < wage.monthlyAmount) {
+        out.set(row.employee.id, {
+          employeeNo: row.employee.employeeNo,
+          employeeName: row.employee.fullName,
+          office: emp.companyOffice?.name ?? null,
+          officeCode: emp.companyOffice?.code ?? null,
+          baseSalary: base,
+          umk: { label: wage.label, amount: wage.monthlyAmount },
+          gap: Math.round(wage.monthlyAmount - base),
+        });
+      }
+    }
+  } catch {
+    // tabel MinimumWage belum termigrasi di tenant → skip senyap (bukan error payroll)
+  }
+  return out;
 }

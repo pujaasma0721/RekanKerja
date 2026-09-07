@@ -12,8 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail } from "lucide-react";
-import { RunDetail, RunLine, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert } from "lucide-react";
+import { RunDetail, RunLine, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export function PayrollRunDetailPage() {
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [slipLine, setSlipLine] = useState<RunLine | null>(null);
+  const [umkOpen, setUmkOpen] = useState(false);
 
   const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/onevity/payroll-run?id=${params.id}` : null);
 
@@ -90,6 +91,10 @@ export function PayrollRunDetailPage() {
   );
   const earnings = data.componentTotals.filter((c) => c.type === "Earning");
   const deductions = data.componentTotals.filter((c) => c.type === "Deduction");
+  // 26-b P0 — warning UMP/UMK (PP 36/2021): snapshot per line di bawah upah minimum
+  const umkWarnings: UmkLineWarning[] = run.lines
+    .filter((l) => l.umkWarning && l.umkJson)
+    .map((l) => JSON.parse(l.umkJson!) as UmkLineWarning);
 
   return (
     <div>
@@ -166,6 +171,72 @@ export function PayrollRunDetailPage() {
           <SummaryCard icon={Receipt} label={t("PPh21")} value={fmtIDR(run.totalTax)} tone="text-amber-600 dark:text-amber-400" />
           <SummaryCard icon={Wallet} label={t("Take Home Pay")} value={fmtIDR(run.totalNet)} tone="text-teal-600 dark:text-teal-400" />
         </div>
+      )}
+
+      {/* 26-b P0 — banner warning UMP/UMK (amber, edukatif non-bloking) */}
+      {run.status !== "Draft" && umkWarnings.length > 0 && (
+        <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                  <TriangleAlert className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                    {t(
+                      "{n} karyawan di bawah UMP/UMK kantor penempatan (PP 36/2021)",
+                      "{n} employees below the minimum wage of their placement office (PP 36/2021)",
+                      { n: String(umkWarnings.length) },
+                    )}
+                  </p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                    {t("Warning edukatif — hitungan payroll tetap sah. Tinjau gaji pokok atau ubah penempatan sebelum konfirmasi.", "Educational warning — the payroll calculation remains valid. Review base salaries or placements before confirming.")}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm" variant="outline"
+                onClick={() => setUmkOpen((v) => !v)}
+                className="gap-1.5 border-amber-300 bg-white font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-transparent dark:text-amber-400"
+              >
+                {umkOpen ? t("Sembunyikan Rincian", "Hide Details") : t("Lihat Rincian", "View Details")} ({umkWarnings.length})
+              </Button>
+            </div>
+            {umkOpen && (
+              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-amber-200/70 bg-white/80 [scrollbar-width:thin] dark:border-amber-500/20 dark:bg-stone-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300 dark:[&::-webkit-scrollbar-thumb]:bg-amber-500/40">
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-amber-50/95 backdrop-blur dark:bg-stone-900/95">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Karyawan")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Kantor", "Office")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Gaji Pokok", "Base Salary")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("UMP/UMK")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Selisih", "Gap")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {umkWarnings.map((w) => (
+                      <TableRow key={w.employeeNo} className="hover:bg-amber-50/60 dark:hover:bg-amber-500/5">
+                        <TableCell>
+                          <p className="text-[12.5px] font-bold text-stone-800 dark:text-stone-100">{w.employeeName}</p>
+                          <p className="font-mono text-[10.5px] text-stone-400">{w.employeeNo}</p>
+                        </TableCell>
+                        <TableCell className="text-[12.5px] text-stone-600 dark:text-stone-300">{w.office ?? t("— tanpa kantor —", "— no office —")}</TableCell>
+                        <TableCell className="text-right font-mono text-[12.5px] font-semibold text-amber-700 dark:text-amber-400">{fmtIDR(w.baseSalary)}</TableCell>
+                        <TableCell>
+                          <p className="font-mono text-[12.5px] font-bold text-stone-700 dark:text-stone-200">{fmtIDR(w.umk.amount)}</p>
+                          <p className="text-[10px] text-stone-400">{w.umk.label}</p>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-[12.5px] font-extrabold text-rose-600 dark:text-rose-400">-{fmtIDR(w.gap)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {run.status === "Draft" && (

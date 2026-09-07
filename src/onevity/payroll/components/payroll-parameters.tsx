@@ -12,9 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Percent, Scale, Landmark, Save } from "lucide-react";
+import { Percent, Scale, Landmark, Save, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
+import { MinimumWageTab } from "@/onevity/payroll/components/minimum-wage-tab";
 
 interface TaxData {
   brackets: { id: string; lowerLimit: number; upperLimit: number | null; rateNpwp: number; rateNonNpwp: number }[];
@@ -63,7 +64,7 @@ export function PayrollParametersPage() {
       <PageHeader
         eyebrow={t("MODUL PAYROLL", "PAYROLL MODULE")}
         title={t("Parameter Pajak & Regulasi", "Tax Parameters & Regulations")}
-        description={t("Bracket PPh21 progresif (UU HPP), TER PP 58/2023, biaya jabatan, PTKP, dan tarif/cap BPJS — dipakai engine perhitungan", "Progressive PPh21 brackets (HPP Law), TER PP 58/2023, employment expense, PTKP, and BPJS rates/caps — used by the calculation engine")}
+        description={t("Bracket PPh21 progresif (UU HPP), TER PP 58/2023, biaya jabatan, PTKP, tarif/cap BPJS, dan UMP/UMK per kantor — dipakai engine perhitungan", "Progressive PPh21 brackets (HPP Law), TER PP 58/2023, employment expense, PTKP, BPJS rates/caps, and UMP/UMK per office — used by the calculation engine")}
       />
 
       {loading && !data ? (
@@ -82,6 +83,9 @@ export function PayrollParametersPage() {
             </TabsTrigger>
             <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
               {t("PTKP")}
+            </TabsTrigger>
+            <TabsTrigger value="umk" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+              <Coins className="h-3.5 w-3.5" /> {t("UMP/UMK", "Min. Wage")}
             </TabsTrigger>
           </TabsList>
 
@@ -223,6 +227,11 @@ export function PayrollParametersPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* 26-b P0 — UMP/UMK per kantor (PP 36/2021): CRUD + filter tahun */}
+          <TabsContent value="umk">
+            <MinimumWageTab />
           </TabsContent>
         </Tabs>
       )}

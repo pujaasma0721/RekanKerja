@@ -727,6 +727,10 @@ model PayrollRunLine {
   net          Float   @default(0) // THP
   actualNetTax Float?
   notes        String?
+  // 26-b P0 — validasi UMP/UMK (PP 36/2021): gaji pokok < upah minimum
+  // kantor penempatan. Warning edukatif NON-BLOKING — hitungan tetap sah.
+  umkWarning Boolean @default(false)
+  umkJson    String?  // {umk:{label,amount}, office, base, gap} — snapshot saat kalkulasi
 
   run      PayrollRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
   employee Employee         @relation(fields: [employeeId], references: [id])

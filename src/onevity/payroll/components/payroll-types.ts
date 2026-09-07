@@ -51,7 +51,21 @@ export interface RunLine {
   ptkpStatus: string; ptkpValue: number;
   bruto: number; deduction: number; taxRegular: number; taxIrregular: number;
   net: number; actualNetTax: number | null; notes: string | null;
+  // 26-b P0 — penanda UMP/UMK (PP 36/2021) dari hasil kalkulasi
+  umkWarning: boolean;
+  umkJson: string | null;
   items: RunItem[];
+}
+
+/** Snapshot warning UMP/UMK per line (parse umkJson — 26-b). */
+export interface UmkLineWarning {
+  employeeNo: string;
+  employeeName: string;
+  office: string | null;
+  officeCode: string | null;
+  baseSalary: number;
+  umk: { label: string; amount: number };
+  gap: number;
 }
 
 export interface RunDetail {

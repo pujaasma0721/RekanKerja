@@ -566,6 +566,8 @@ CREATE TABLE "PayrollRunLine" (
     "net" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "actualNetTax" DOUBLE PRECISION,
     "notes" TEXT,
+    "umkWarning" BOOLEAN NOT NULL DEFAULT false,
+    "umkJson" TEXT,
 
     CONSTRAINT "PayrollRunLine_pkey" PRIMARY KEY ("id")
 );
