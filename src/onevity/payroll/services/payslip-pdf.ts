@@ -13,7 +13,7 @@
 // iuran perusahaan (di luar bruto/THP), PPH21 termasuk dalam potongan.
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe data snapshot ----------
 
@@ -165,6 +165,13 @@ const LABEL_COL_W = 300; // kolom nama komponen (sisanya kolom jumlah)
 export interface PayslipPdfResult {
   bytes: Uint8Array;
   filename: string;
+  /** true bila PDF dienkripsi kata sandi (26-b P0). */
+  encrypted: boolean;
+}
+
+/** Opsi proteksi slip (26-b P0): userPassword = NIK karyawan (fallback employeeNo). */
+export interface PayslipPdfOptions {
+  password?: string | null;
 }
 
 /**
@@ -173,8 +180,11 @@ export interface PayslipPdfResult {
  * karyawan, tabel penghasilan & potongan (subtotal masing-masing), band
  * TAKE HOME PAY besar, footer kecil otomatis. Multi-halaman bila komponen
  * banyak (footer + band THP selalu di halaman terakhir).
+ * Opsi password (kirim slip via email): PDF dienkripsi AES-256 — hanya bisa
+ * dibuka karyawan pemilik NIK; unduhan UI tetap tanpa sandi (sudah login).
  */
-export async function buildPayslipPdf(slip: PayslipSlip): Promise<PayslipPdfResult> {
+export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions = {}): Promise<PayslipPdfResult> {
+  const password = opts.password?.trim() || null;
   const doc = await PDFDocument.create();
   doc.setTitle(`Slip Gaji ${slip.employeeName} — ${slip.periodName}`);
   doc.setSubject(`${slip.runNo} · ${slip.periodName} · ${slip.processName}`);
@@ -341,6 +351,10 @@ export async function buildPayslipPdf(slip: PayslipSlip): Promise<PayslipPdfResu
   const footer2 = "Slip gaji bersifat RAHASIA — hanya untuk karyawan yang bersangkutan. Pertanyaan: hubungi HRD.";
   footerPage.drawText(safe(footer1), { x: MARGIN, y: footerY - 2, size: 7, font: regular, color: INK_FAINT });
   footerPage.drawText(safe(footer2), { x: MARGIN, y: footerY - 11, size: 7, font: regular, color: INK_FAINT });
+  if (password) {
+    const footer3 = "Dokumen ini diproteksi kata sandi (NIK Anda) — slip tidak dapat dibuka pihak lain.";
+    footerPage.drawText(safe(footer3), { x: MARGIN, y: footerY - 20, size: 7, font: bold, color: INK_FAINT });
+  }
 
   const pages = doc.getPages();
   pages.forEach((p, i) => {
@@ -350,17 +364,47 @@ export async function buildPayslipPdf(slip: PayslipSlip): Promise<PayslipPdfResu
     }
   });
 
+  // 26-b P0 — enkripsi AES-256 sebelum save (hanya saat kirim via email):
+  // userPassword = NIK karyawan; ownerPassword acak per file; izin hanya
+  // cetak + aksesibilitas konten (salin/modifikasi/isi-form diblokir).
+  if (password) {
+    doc.encrypt({
+      userPassword: password,
+      ownerPassword: ownerSecret(),
+      permissions: {
+        printing: "highResolution",
+        modifying: false,
+        copying: false,
+        annotating: false,
+        fillingForms: false,
+        contentAccessibility: true,
+        documentAssembly: false,
+      },
+    });
+  }
+
   const bytes = await doc.save();
   return {
     bytes,
     filename: `Slip-Gaji-${slip.employeeNo}-${slip.periodCode}.pdf`,
+    encrypted: Boolean(password),
   };
 }
 
+/** Kata sandi pemilik acak per file (hex) — tidak pernah dibagikan. */
+function ownerSecret(): string {
+  const rnd = new Uint8Array(16);
+  crypto.getRandomValues(rnd);
+  return Array.from(rnd, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Muat data + bangun PDF satu line (gabungan praktis untuk route & email). */
-export async function buildPayslipPdfByLineId(db: TenantDb, lineId: string): Promise<PayslipPdfResult & { slip: PayslipSlip } | null> {
+export async function buildPayslipPdfByLineId(
+  db: TenantDb,
+  lineId: string,
+  opts: PayslipPdfOptions = {},
+): Promise<PayslipPdfResult & { slip: PayslipSlip } | null> {
   const slip = await loadPayslipSlip(db, lineId);
   if (!slip) return null;
-  const { bytes, filename } = await buildPayslipPdf(slip);
-  return { bytes, filename, slip };
+  return { ...(await buildPayslipPdf(slip, opts)), slip };
 }

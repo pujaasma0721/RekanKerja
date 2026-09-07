@@ -14,7 +14,7 @@
 // Server-only (db Prisma tenant + pdf-lib) — dipakai route API surat.
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe input (struktural — cocok utk hasil include Prisma) ----------
 

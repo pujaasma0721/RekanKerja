@@ -229,7 +229,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       case "send-slips": {
-        return handleSendSlips(db, actor, run.id);
+        return handleSendSlips(db, actor, run.id, b.slipPassword);
       }
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
@@ -243,10 +243,14 @@ export async function PATCH(req: NextRequest) {
 // Kirim email slip gaji (lampiran PDF) ke TIAP karyawan line run berstatus
 // Confirmed/Paid. Email karyawan kosong → skip + log EmailLog (Skipped).
 // Ringkasan hasil + ActivityLog "Slip terkirim {n} karyawan".
+// 26-b P0 — slipPassword=true: PDF dienkripsi AES-256, userPassword = NIK
+// karyawan (fallback employeeNo) — kirim massal slip tanpa risiko dibaca
+// pihak lain di mailbox; flag dipersist ke run untuk kirim berikutnya.
 async function handleSendSlips(
   db: TenantDb,
   actor: { appUserId: string | null; name: string },
   runId: unknown,
+  slipPassword?: unknown,
 ): Promise<NextResponse> {
   const id = typeof runId === "string" ? runId : "";
   if (!id) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
@@ -262,10 +266,16 @@ async function handleSendSlips(
     );
   }
 
+  // persist preferensi proteksi pada run (default: nilai tersimpan / false)
+  const protect = slipPassword === true || (slipPassword === undefined && run.slipPassword);
+  if (protect !== run.slipPassword) {
+    await db.payrollRun.update({ where: { id }, data: { slipPassword: protect } });
+  }
+
   const lines = await db.payrollRunLine.findMany({
     where: { runId: id },
     orderBy: { employeeNo: "asc" },
-    select: { id: true, employeeId: true, employeeNo: true, employeeName: true, net: true, employee: { select: { email: true } } },
+    select: { id: true, employeeId: true, employeeNo: true, employeeName: true, net: true, employee: { select: { email: true, nationalId: true } } },
   });
   if (lines.length === 0) {
     return NextResponse.json({ error: "Run tidak memiliki baris hasil" }, { status: 400 });
@@ -276,7 +286,9 @@ async function handleSendSlips(
   let failed = 0;
   let disabled = 0;
   for (const line of lines) {
-    const built = await buildPayslipPdfByLineId(db, line.id);
+    // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
+    const slipPwd = protect ? (line.employee?.nationalId?.trim() || line.employeeNo) : null;
+    const built = await buildPayslipPdfByLineId(db, line.id, { password: slipPwd });
     if (!built) { skipped += 1; continue; }
     const status = await sendPayslipEmail(db, {
       to: { email: line.employee?.email ?? "", name: line.employeeName },
@@ -300,11 +312,11 @@ async function handleSendSlips(
       entity: "PayrollRun",
       entityId: run.id,
       appUserId: actor.appUserId ?? undefined,
-      detail: `Slip terkirim ${sent} karyawan (run ${run.runNo} · ${run.period.name}) oleh ${actor.name}; ${skipped} dilewati, ${failed} gagal`,
+      detail: `Slip terkirim ${sent} karyawan (run ${run.runNo} · ${run.period.name}) oleh ${actor.name}${protect ? " — PDF berpassword (sandi NIK karyawan)" : ""}; ${skipped} dilewati, ${failed} gagal`,
     },
   });
 
-  return NextResponse.json({ ok: true, total: lines.length, sent, skipped, failed, disabled });
+  return NextResponse.json({ ok: true, total: lines.length, sent, skipped, failed, disabled, protected: protect });
 }
 
 // DELETE /api/onevity/payroll-runs?id= — hanya Draft/Calculated

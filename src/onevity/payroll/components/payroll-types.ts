@@ -34,6 +34,8 @@ export interface RunRow {
   processType: { id: string; code: string; name: string };
   sequence: number; status: string;
   calculateTax: boolean; allEmployee: boolean;
+  /** 26-b P0 — preferensi slip email berpassword (sandi NIK karyawan). */
+  slipPassword: boolean;
   employeeCount: number; totalBruto: number; totalDeduction: number; totalTax: number; totalNet: number;
   notes: string | null;
   calculatedAt: string | null; confirmedAt: string | null; paidAt: string | null; createdAt: string;

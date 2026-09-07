@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert } from "lucide-react";
@@ -28,6 +29,9 @@ export function PayrollRunDetailPage() {
   const [sending, setSending] = useState(false);
   const [slipLine, setSlipLine] = useState<RunLine | null>(null);
   const [umkOpen, setUmkOpen] = useState(false);
+  // 26-b P0 — dialog kirim slip + pilihan proteksi password (sandi NIK)
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendPwd, setSendPwd] = useState(false);
 
   const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/onevity/payroll-run?id=${params.id}` : null);
 
@@ -47,27 +51,32 @@ export function PayrollRunDetailPage() {
   };
 
   // T10 — kirim slip gaji PDF massal via email ke seluruh karyawan run.
+  // 26-b P0 — dialog konfirmasi berisi saklar "slip berpassword" (sandi NIK);
+  // preferensi dipersist di run (slipPassword) utk pengiriman berikutnya.
+  const openSendDialog = () => {
+    if (!data) return;
+    setSendPwd(Boolean(data.run.slipPassword));
+    setSendOpen(true);
+  };
+
   const sendSlips = async () => {
     if (!data) return;
-    const msg = t(
-      "Kirim slip gaji PDF via email ke {n} karyawan run {no}?",
-      "Email PDF payslips to {n} employees of run {no}?",
-      { n: String(data.run.lines.length), no: data.run.runNo }
-    );
-    if (!window.confirm(msg)) return;
     setSending(true);
     try {
-      const res = await apiSend<{ ok: boolean; total: number; sent: number; skipped: number; failed: number; disabled: number }>(
-        "/api/onevity/payroll-runs", "PATCH", { id: data.run.id, action: "send-slips" }
+      const res = await apiSend<{ ok: boolean; total: number; sent: number; skipped: number; failed: number; disabled: number; protected: boolean }>(
+        "/api/onevity/payroll-runs", "PATCH", { id: data.run.id, action: "send-slips", slipPassword: sendPwd }
       );
       const parts = [
         t("{n} terkirim", "{n} sent", { n: String(res.sent) }),
         res.skipped > 0 ? t("{n} dilewati", "{n} skipped", { n: String(res.skipped) }) : "",
         res.failed > 0 ? t("{n} gagal", "{n} failed", { n: String(res.failed) }) : "",
+        res.protected ? t("berpassword", "password-protected") : "",
       ].filter(Boolean).join(" · ");
       if (res.sent > 0) toast.success(t("Slip terkirim — {parts}", "Slips sent — {parts}", { parts }));
       else if (res.disabled > 0) toast.info(t("Template email slip gaji dinonaktifkan — tidak ada yang dikirim", "Payslip email template is disabled — nothing sent"));
       else toast.warning(t("Tidak ada slip terkirim — {parts}", "No slips sent — {parts}", { parts }));
+      setSendOpen(false);
+      refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setSending(false); }
   };
 
@@ -142,7 +151,7 @@ export function PayrollRunDetailPage() {
               <>
                 {perms.canOp("payroll", "runs", "export") && (
                   <button
-                    onClick={sendSlips}
+                    onClick={openSendDialog}
                     disabled={sending || busy}
                     className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:text-stone-300"
                   >
@@ -351,6 +360,46 @@ export function PayrollRunDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 26-b P0 — dialog kirim slip (konfirmasi + saklar proteksi password NIK) */}
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Mail className="h-4 w-4" /> {t("Kirim Slip Gaji via Email", "Email Payslips")}
+            </DialogTitle>
+            <DialogDescription className="pt-1 text-[13px] leading-relaxed">
+              {t(
+                "Slip PDF akan dikirim ke {n} karyawan run {no}.",
+                "PDF payslips will be emailed to {n} employees of run {no}.",
+                { n: String(run.lines.length), no: run.runNo }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 dark:border-stone-800 dark:bg-stone-900/60">
+            <Switch checked={sendPwd} onCheckedChange={setSendPwd} className="mt-0.5" aria-label={t("Proteksi PDF dengan kata sandi", "Protect PDF with password")} />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-[13px] font-bold">
+                {t("Proteksi slip dengan kata sandi", "Protect slips with password")}
+                <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">AES-256</Badge>
+              </span>
+              <span className="mt-0.5 block text-[11.5px] leading-snug text-stone-500 dark:text-stone-400">
+                {t(
+                  "Sandi = NIK karyawan (fallback: nomor karyawan). Karyawan membuka PDF dengan NIK-nya sendiri — slip tidak terbaca pihak lain di mailbox.",
+                  "Password = employee NIK (fallback: employee number). Each employee opens their PDF with their own NIK — slips stay private in transit."
+                )}
+              </span>
+            </span>
+          </label>
+          <DialogFooter className="mt-2 gap-2">
+            <Button variant="outline" onClick={() => setSendOpen(false)} disabled={sending}>{t("Batal", "Cancel")}</Button>
+            <Button onClick={sendSlips} disabled={sending} className="gap-1.5">
+              <Mail className={cn("h-4 w-4", sending && "animate-pulse")} />
+              {sending ? t("Mengirim…", "Sending…") : t("Kirim Sekarang", "Send Now")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* payslip dialog */}
       <PaySlipDialog line={slipLine} onClose={() => setSlipLine(null)} context={{ runNo: run.runNo, periodName: run.period.name, processName: run.processType.name, status: run.status }} />
