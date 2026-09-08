@@ -82,7 +82,16 @@ export const RULE_PARAMS: RuleParamDef[] = [
     ],
     desc: "Type karyawan pada penempatan aktif", descEn: "Employment type in active assignment",
   },
-  { key: "workShift", label: "Shift Kerja", labelEn: "Work Shift", group: "job", kind: "text", staticOptions: [{ value: "Regular", label: "Regular" }], desc: "Pola shift penempatan", descEn: "Assignment shift pattern" },
+  {
+    key: "workShift", label: "Shift Kerja", labelEn: "Work Shift", group: "job", kind: "text", optionsKey: "workShift",
+    staticOptions: [
+      { value: "Regular", label: "Regular (Non-Shift)", labelEn: "Regular (Non-Shift)" },
+      { value: "Shift 1", label: "Shift 1" },
+      { value: "Shift 2", label: "Shift 2" },
+      { value: "Shift 3", label: "Shift 3" },
+    ],
+    desc: "Pola shift penempatan — opsi mengikuti data aktual", descEn: "Assignment shift pattern — options follow actual data",
+  },
   { key: "tenureYears", label: "Masa Kerja (tahun)", labelEn: "Tenure (years)", group: "job", kind: "number", desc: "Sejak join date s.d. tanggal acuan", descEn: "From join date to reference date" },
   {
     key: "employeeStatus", label: "Status Karyawan", labelEn: "Employee Status", group: "job", kind: "enum",
@@ -101,10 +110,35 @@ export const RULE_PARAMS: RuleParamDef[] = [
       { value: "F", label: "Perempuan", labelEn: "Female" },
     ],
   },
-  { key: "religion", label: "Agama", labelEn: "Religion", group: "personal", kind: "text", desc: "Sesuai data kepegawaian", descEn: "As per employee master data" },
-  { key: "maritalStatus", label: "Status Pernikahan", labelEn: "Marital Status", group: "personal", kind: "text" },
-  { key: "bloodType", label: "Golongan Darah", labelEn: "Blood Type", group: "personal", kind: "text" },
-  { key: "city", label: "Kota Domisili", labelEn: "City of Residence", group: "personal", kind: "text" },
+  // teks dgn opsi terkendali: chips dari data aktual (optionsKey) digabung opsi baku
+  {
+    key: "religion", label: "Agama", labelEn: "Religion", group: "personal", kind: "text", optionsKey: "religion",
+    staticOptions: [
+      { value: "Islam", label: "Islam" },
+      { value: "Kristen Protestan", label: "Kristen Protestan", labelEn: "Protestant" },
+      { value: "Katolik", label: "Katolik", labelEn: "Catholic" },
+      { value: "Hindu", label: "Hindu" },
+      { value: "Buddha", label: "Buddha" },
+      { value: "Konghucu", label: "Konghucu", labelEn: "Confucian" },
+    ],
+    desc: "Sesuai data kepegawaian", descEn: "As per employee master data",
+  },
+  {
+    key: "maritalStatus", label: "Status Pernikahan", labelEn: "Marital Status", group: "personal", kind: "text", optionsKey: "maritalStatus",
+    staticOptions: [
+      { value: "Belum Menikah", label: "Belum Menikah", labelEn: "Single" },
+      { value: "Menikah", label: "Menikah", labelEn: "Married" },
+      { value: "Cerai", label: "Cerai", labelEn: "Divorced" },
+      { value: "Janda/Duda", label: "Janda/Duda", labelEn: "Widowed" },
+    ],
+  },
+  {
+    key: "bloodType", label: "Golongan Darah", labelEn: "Blood Type", group: "personal", kind: "text", optionsKey: "bloodType",
+    staticOptions: [
+      { value: "A", label: "A" }, { value: "B", label: "B" }, { value: "AB", label: "AB" }, { value: "O", label: "O" },
+    ],
+  },
+  { key: "city", label: "Kota Domisili", labelEn: "City of Residence", group: "personal", kind: "text", optionsKey: "city", desc: "Pilihan kota dari data karyawan aktual", descEn: "Options are actual cities from employee data" },
   { key: "ageYears", label: "Usia (tahun)", labelEn: "Age (years)", group: "personal", kind: "number" },
   {
     key: "taxStatus", label: "Status PPh21 (PTKP)", labelEn: "Tax Status (PTKP)", group: "personal", kind: "enum",
@@ -251,6 +285,13 @@ export function applyRuleValue(actionType: string, value: number, base: number):
 /** Kompatibilitas Task 32 — nama lama (payroll). */
 export const applyRuleAmount = applyRuleValue;
 
+/** Label ramah utk satu nilai kondisi (map enum → label, sisanya raw). */
+export function describeConditionValue(param: string, value: string, t: (id: string, en: string) => string): string {
+  const def = RULE_PARAM_BY_KEY.get(param);
+  const so = def?.staticOptions?.find((o) => o.value === value);
+  return so ? t(so.label, so.labelEn ?? so.label) : value;
+}
+
 /** Ringkasan human-readable satu kondisi (utk tabel/tooltip UI). */
 export function describeCondition(cond: RuleCondition, t: (id: string, en: string) => string): string {
   const def = RULE_PARAM_BY_KEY.get(cond.param);
@@ -258,7 +299,7 @@ export function describeCondition(cond: RuleCondition, t: (id: string, en: strin
   const paramLabel = def ? t(def.label, def.labelEn) : cond.param;
   if (op.noValues) return `${paramLabel} ${t(op.label, op.labelEn)}`;
   if (op.numericOnly) return `${paramLabel} ${t(op.label, op.labelEn)} ${cond.values[0] ?? ""}`;
-  return `${paramLabel} ${t(op.label, op.labelEn)} [${cond.values.join(", ")}]`;
+  return `${paramLabel} ${t(op.label, op.labelEn)} [${cond.values.map((v) => describeConditionValue(cond.param, v, t)).join(", ")}]`;
 }
 
 // ============ VALIDASI PAYLOAD KONDISI (dipakai API semua domain) ============

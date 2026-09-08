@@ -345,6 +345,14 @@ function RuleEditorDialog({ open, comp, rule, options, onClose }: {
       return { ...f, conditions };
     });
   };
+  // toggle nilai chip dgn update fungsional — aman utk klik beruntun (batching) sekalipun
+  const toggleCondValue = (i: number, v: string) => {
+    setForm((f) => ({
+      ...f,
+      conditions: f.conditions.map((c, idx) =>
+        idx === i ? { ...c, values: c.values.includes(v) ? c.values.filter((x) => x !== v) : [...c.values, v] } : c),
+    }));
+  };
 
   const addCond = () => setForm((f) => ({ ...f, conditions: [...f.conditions, { param: "gender", op: "in", values: [] }] }));
   const removeCond = (i: number) => setForm((f) => ({ ...f, conditions: f.conditions.filter((_, idx) => idx !== i) }));
@@ -474,7 +482,7 @@ function RuleEditorDialog({ open, comp, rule, options, onClose }: {
                             className="h-8 w-40 font-mono text-[11px]"
                           />
                         ) : (
-                          <ValueChips cond={c} def={def} options={options} onChange={(values) => updateCond(i, { values })} />
+                          <ValueChips cond={c} def={def} options={options} onToggle={(v) => toggleCondValue(i, v)} onChange={(values) => updateCond(i, { values })} />
                         )}
                         {def.desc && <p className="mt-1 text-[10px] text-stone-400">{t(def.desc, def.descEn ?? def.desc)}</p>}
                       </div>
@@ -538,11 +546,12 @@ function RuleEditorDialog({ open, comp, rule, options, onClose }: {
   );
 }
 
-/** Pemilih nilai kondisi — chips toggle utk entity/enum/text, single utk boolean. */
-function ValueChips({ cond, def, options, onChange }: {
+/** Pemilih nilai kondisi — chips toggle (master entity / data aktual / opsi baku). */
+function ValueChips({ cond, def, options, onToggle, onChange }: {
   cond: RuleCondition;
   def: RuleParamDef;
   options?: OptionsPayload;
+  onToggle?: (v: string) => void;
   onChange: (values: string[]) => void;
 }) {
   const { t } = useI18n();
@@ -551,14 +560,18 @@ function ValueChips({ cond, def, options, onChange }: {
   if (def.kind === "entity" && def.optionsKey && options) {
     const list = (options as unknown as Record<string, EntityOpt[]>)[def.optionsKey] ?? [];
     opts = list.map((o) => ({ value: o.code, label: `${o.code} — ${o.shortName ?? o.name ?? o.title ?? ""}`.trim() }));
-  } else if (def.optionsKey && options) {
-    const list = (options as unknown as Record<string, string[]>)[def.optionsKey] ?? [];
-    opts = list.map((v) => ({ value: v, label: v }));
-  } else if (def.staticOptions) {
-    opts = def.staticOptions.map((o) => ({ value: o.value, label: t(o.label, o.labelEn ?? o.label) }));
+  } else {
+    // gabung opsi baku (staticOptions) + nilai distinkt data aktual (optionsKey)
+    const statik = (def.staticOptions ?? []).map((o) => ({ value: o.value, label: t(o.label, o.labelEn ?? o.label) }));
+    const dataValues = def.optionsKey && options
+      ? ((options as unknown as Record<string, string[]>)[def.optionsKey] ?? [])
+      : [];
+    const seen = new Set(statik.map((o) => o.value));
+    opts = [...statik, ...dataValues.filter((v) => !seen.has(v)).map((v) => ({ value: v, label: v }))];
   }
 
   const toggle = (v: string) => {
+    if (onToggle) { onToggle(v); return; }
     const has = cond.values.includes(v);
     onChange(has ? cond.values.filter((x) => x !== v) : [...cond.values, v]);
   };
