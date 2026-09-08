@@ -259,7 +259,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 ov-text-accent" /> {comp ? t("Edit Komponen", "Edit Component") : t("Komponen Baru", "New Component")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {!comp && (

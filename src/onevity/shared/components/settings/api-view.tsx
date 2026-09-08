@@ -261,7 +261,7 @@ function ApiKeyCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base">{t("Kunci API Baru", "New API Key")}</DialogTitle>
         </DialogHeader>
@@ -316,7 +316,7 @@ function KeyRevealDialog({ created, onClose }: { created: { key: string; record:
 
   return (
     <Dialog open={!!created} onOpenChange={(v) => { if (!v) { setSyncKey(null); onClose(); } }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <ShieldAlert className="h-4 w-4 text-amber-500" /> {t("Simpan Kunci Ini Sekarang", "Save This Key Now")}
@@ -610,7 +610,7 @@ function WebhookDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-base">{item ? t("Edit Webhook", "Edit Webhook") : t("Webhook Baru", "New Webhook")}</DialogTitle>
         </DialogHeader>

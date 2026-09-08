@@ -257,7 +257,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
 
       {/* ===== dialog ajukan cuti ===== */}
       <Dialog open={dialog} onOpenChange={(v) => { if (!busy) setDialog(v); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("Ajukan Cuti", "Request Leave")}</DialogTitle>
             <DialogDescription>

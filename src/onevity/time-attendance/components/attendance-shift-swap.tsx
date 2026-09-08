@@ -354,7 +354,7 @@ export function AttendanceShiftSwapPage() {
 
       {/* ===== dialog detail ===== */}
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ArrowLeftRight className="h-4 w-4 text-teal-600 dark:text-teal-400" aria-hidden />
@@ -468,7 +468,7 @@ export function AttendanceShiftSwapPage() {
 
       {/* ===== dialog tolak ===== */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => { if (!rejectBusy) setRejectTarget(v ? rejectTarget : null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("Tolak Tukar Shift {no}", "Reject Shift Swap {no}", { no: rejectTarget?.code ?? "" })}</DialogTitle>
             <DialogDescription>

@@ -227,7 +227,7 @@ export function TravelApprovalPage() {
       )}
 
       <Dialog open={Boolean(dialog.request)} onOpenChange={(o) => !o && setDialog({ request: null, action: null })}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {dialog.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-teal-600" /> : dialog.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}

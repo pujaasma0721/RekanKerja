@@ -209,7 +209,7 @@ export function LeaveApprovalPage() {
       </Card>
 
       <Dialog open={!!target} onOpenChange={(v) => !v && setTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className={cn("flex items-center gap-2 text-sm",
               action === "approve" ? "text-emerald-700 dark:text-emerald-400" : action === "reject" ? "text-rose-600" : "text-stone-500")}>

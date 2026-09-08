@@ -656,7 +656,7 @@ function AssetDialog({ open, editing, setOpen, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Package className="h-4 w-4 ov-text-accent" aria-hidden />
@@ -817,7 +817,7 @@ function AssignDialog({ asset, onClose, onSaved }: {
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <UserRoundCheck className="h-4 w-4 ov-text-accent" aria-hidden />
@@ -936,7 +936,7 @@ export function ReturnDialog({ assignment, onClose, onSaved, compact }: {
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
-      <DialogContent className={compact ? "max-w-sm" : "max-w-md"}>
+      <DialogContent className={compact ? "sm:max-w-lg" : "sm:max-w-xl"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <PackageCheck className="h-4 w-4 ov-text-accent" aria-hidden />

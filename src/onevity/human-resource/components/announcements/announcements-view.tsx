@@ -610,7 +610,7 @@ function AnnouncementDialog({ open, editing, canPublish, setOpen, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!busyNow) setOpen(v); }}>
-      <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Megaphone className="h-4 w-4 ov-text-accent" aria-hidden />
@@ -742,7 +742,7 @@ function PreviewDialog({ row, onClose }: { row: AnnouncementRow; onClose: () => 
   const { t } = useI18n();
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
             <Megaphone className="h-4 w-4 ov-text-accent" aria-hidden />

@@ -205,7 +205,7 @@ export function AttendanceAbsencePage() {
 
       {/* dialog transfer */}
       <Dialog open={transferDialog} onOpenChange={setTransferDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("Transfer Absensi ke Payroll", "Transfer Attendance to Payroll")}</DialogTitle>
           </DialogHeader>

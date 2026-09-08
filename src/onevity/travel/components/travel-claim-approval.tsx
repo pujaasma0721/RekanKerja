@@ -306,7 +306,7 @@ export function TravelClaimApprovalPage() {
       )}
 
       <Dialog open={Boolean(decide.claim)} onOpenChange={(o) => !o && setDecide({ claim: null, action: null })}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {decide.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-teal-600" /> : decide.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}
@@ -357,7 +357,7 @@ export function TravelClaimApprovalPage() {
       </Dialog>
 
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-teal-600" /> {t("Transfer Klaim ke Payroll", "Transfer Claims to Payroll")}

@@ -241,7 +241,7 @@ export function AttendanceClockingPage() {
       </Card>
 
       <Dialog open={clockDialog} onOpenChange={setClockDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("Catat Clock Manual — {date}", "Record Manual Clock — {date}", { date })}</DialogTitle>
           </DialogHeader>

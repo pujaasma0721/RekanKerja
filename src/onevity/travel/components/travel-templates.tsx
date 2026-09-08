@@ -273,7 +273,7 @@ export function TravelTemplatesPage() {
       )}
 
       <Dialog open={tplDialog} onOpenChange={setTplDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LayoutTemplate className="h-5 w-5 ov-text-accent" /> {tplForm.id ? t("Ubah Template {c}", "Edit Template {c}", { c: tplForm.code }) : t("Template Baru", "New Template")}
@@ -325,7 +325,7 @@ export function TravelTemplatesPage() {
       </Dialog>
 
       <Dialog open={expDialog} onOpenChange={setExpDialog}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Boxes className="h-5 w-5 ov-text-accent" /> {expForm.id ? t("Ubah Jenis Biaya {c}", "Edit Expense Type {c}", { c: expForm.code }) : t("Jenis Biaya Baru", "New Expense Type")}

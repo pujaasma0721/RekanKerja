@@ -889,7 +889,7 @@ export function CustomReportsView() {
 
       {/* ============ dialog simpan ============ */}
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-        <DialogContent className="max-h-[calc(100dvh-3rem)] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-3rem)] sm:max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing ? t("Simpan Perubahan Laporan", "Save Report Changes") : t("Simpan Laporan Baru", "Save New Report")}

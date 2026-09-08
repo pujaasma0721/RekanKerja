@@ -155,7 +155,7 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
   const isApprove = decision.act === "approve";
   return (
     <Dialog open onOpenChange={(v) => { if (!v) { setNote(""); onClose(); } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className={cn("flex items-center gap-2 text-base", isApprove ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
             {isApprove ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
@@ -385,7 +385,7 @@ function CreatePADialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Workflow className="h-4 w-4 ov-text-accent" /> {t("Dokumen Personnel Action Baru", "New Personnel Action Document")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -804,7 +804,7 @@ function ConfirmDialog({ act, onConfirm, onClose }: { act: string | null; onConf
   const l = labels[act];
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle className="text-base">{t(l.title, labelsEn[act].title)}</DialogTitle></DialogHeader>
         <p className="text-sm text-stone-500">{t(l.desc, labelsEn[act].desc)}</p>
         <DialogFooter>

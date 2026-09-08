@@ -213,7 +213,7 @@ export function AttendanceAssignmentsPage() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("Assign Jadwal Karyawan", "Employee Schedule Assignment")}</DialogTitle>
           </DialogHeader>

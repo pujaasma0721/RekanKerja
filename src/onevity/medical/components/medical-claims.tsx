@@ -374,7 +374,7 @@ export function MedicalClaimsPage() {
 
       {/* ==== dialog klaim ==== */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 ov-text-accent" /> {t("Ajukan Klaim Medis", "Submit Medical Claim")}

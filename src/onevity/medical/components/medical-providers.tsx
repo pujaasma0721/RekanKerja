@@ -148,7 +148,7 @@ export function MedicalProvidersPage() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {form.kind === "HOSPITAL" ? <Hospital className="h-5 w-5 ov-text-accent" /> : <ShieldCheck className="h-5 w-5 ov-text-accent" />}

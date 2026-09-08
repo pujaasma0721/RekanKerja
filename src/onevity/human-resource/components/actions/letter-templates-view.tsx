@@ -451,7 +451,7 @@ export function LetterTemplatesView() {
 
       {/* dialog tolak permintaan surat (26-a) */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => { if (!v && !rejectBusy) { setRejectTarget(null); setRejectReason(""); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/15">

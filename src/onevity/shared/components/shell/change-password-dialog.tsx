@@ -57,7 +57,7 @@ export function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <KeyRound className="h-4 w-4 ov-text-accent" /> {t("Ganti Kata Sandi")}

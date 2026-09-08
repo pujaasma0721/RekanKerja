@@ -198,7 +198,7 @@ function DayTypesTab() {
 
       {/* dialog create/edit */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{edit ? t("Edit Tipe Hari {code}", "Edit Day Type {code}", { code: edit.code }) : t("Tipe Hari Baru", "New Day Type")}</DialogTitle>
           </DialogHeader>
@@ -393,7 +393,7 @@ function SchedulesTab() {
       </CardContent>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{edit ? t("Edit Jadwal {code}", "Edit Schedule {code}", { code: edit.code }) : t("Jadwal Cycle Baru", "New Cycle Schedule")}</DialogTitle>
           </DialogHeader>

@@ -300,7 +300,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
 
       {/* dialog tes kirim */}
       <Dialog open={testOpen} onOpenChange={setTestOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Send className="h-4 w-4 ov-text-accent" /> {t("Tes Kirim WhatsApp", "Send Test WhatsApp")}
@@ -472,7 +472,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: WaTemplateRow | null; 
 
   return (
     <Dialog open={!!tpl} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[calc(100dvh-3rem)] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[calc(100dvh-3rem)] sm:max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
             <FileText className="h-4 w-4 ov-text-accent" /> {t("Edit Template", "Edit Template")} — {tpl?.label}

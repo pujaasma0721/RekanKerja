@@ -69,7 +69,7 @@ export function DecisionDialog({
         if (!v) setNote("");
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
             {approve ? (

@@ -250,7 +250,7 @@ export function AttendanceOvertimePage() {
 
       {/* dialog ajukan */}
       <Dialog open={orderDialog} onOpenChange={setOrderDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("Ajukan Perintah Lembur", "Submit Overtime Order")}</DialogTitle>
           </DialogHeader>
@@ -303,7 +303,7 @@ export function AttendanceOvertimePage() {
 
       {/* dialog tolak */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => !v && setRejectTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("Tolak Lembur {no}", "Reject Overtime {no}", { no: rejectTarget?.orderNo ?? "" })}</DialogTitle>
           </DialogHeader>
@@ -331,7 +331,7 @@ export function AttendanceOvertimePage() {
 
       {/* dialog verifikasi */}
       <Dialog open={!!verifyTarget} onOpenChange={(v) => !v && setVerifyTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("Verifikasi Jam — {no}", "Verify Hours — {no}", { no: verifyTarget?.orderNo ?? "" })}</DialogTitle>
           </DialogHeader>

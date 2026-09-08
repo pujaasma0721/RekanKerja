@@ -220,7 +220,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
 
       {/* ===== dialog izin work off ===== */}
       <Dialog open={workoffOpen} onOpenChange={(v) => { if (!wBusy) setWorkoffOpen(v); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("Ajukan Izin Tidak Masuk", "Request Work Off")}</DialogTitle>
             <DialogDescription>
@@ -288,7 +288,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
 
       {/* ===== dialog lembur ===== */}
       <Dialog open={overtimeOpen} onOpenChange={(v) => { if (!oBusy) setOvertimeOpen(v); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("Ajukan Lembur", "Request Overtime")}</DialogTitle>
             <DialogDescription>

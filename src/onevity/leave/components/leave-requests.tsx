@@ -235,7 +235,7 @@ export function LeaveRequestsPage() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Send className="h-4 w-4 ov-text-accent" /> {t("Ajukan Permintaan Cuti", "Submit Leave Request")}

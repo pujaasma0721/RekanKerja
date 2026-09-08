@@ -359,7 +359,7 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4 ov-text-accent" /> {t("Pinjaman Karyawan", "Employee Loan")}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div>
@@ -454,7 +454,7 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 text-amber-600" /> {t("Komponen Upah Karyawan", "Employee Wage Component")}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div>
@@ -596,7 +596,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { setPreview(null); onClose(); } }}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4 text-teal-600" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}</DialogTitle>
         </DialogHeader>

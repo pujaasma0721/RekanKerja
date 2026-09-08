@@ -188,7 +188,7 @@ export function EssAnnouncements() {
 
       {/* ===== dialog isi lengkap ===== */}
       <Dialog open={!!detail} onOpenChange={(v) => { if (!v) setDetail(null); }}>
-        <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto max-w-xl">
+        <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto sm:max-w-2xl">
           {detail && (
             <>
               <DialogHeader>

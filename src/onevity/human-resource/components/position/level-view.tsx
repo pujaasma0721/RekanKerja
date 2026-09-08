@@ -81,7 +81,7 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{level ? t("Ubah Level {code}", "Edit Level {code}", { code: level.code }) : t("Level Jabatan Baru", "New Job Level")}</DialogTitle>
           <DialogDescription>

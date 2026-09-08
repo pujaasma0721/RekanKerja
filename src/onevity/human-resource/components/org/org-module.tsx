@@ -267,7 +267,7 @@ function DeleteUnitButton({ unit, onDeleted }: { unit: UnitNode; onDeleted: () =
         <Trash2 className="h-3.5 w-3.5" /> {t("Hapus")}
       </Button>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="text-base">{t("Hapus unit?", "Delete unit?")}</DialogTitle></DialogHeader>
           <p className="text-sm text-stone-500">{t("Unit")} <b>{unit.name}</b> {t("akan dihapus permanen.", "will be permanently deleted.")}</p>
           <DialogFooter>
@@ -303,7 +303,7 @@ function NewUnitDialog({ open, setOpen, units, onCreated }: { open: boolean; set
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><Building2 className="h-4 w-4 ov-text-accent" /> {t("Unit Organisasi Baru", "New Organizational Unit")}</DialogTitle>
         </DialogHeader>
@@ -435,7 +435,7 @@ function CompanyProfile() {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader><DialogTitle className="text-base">{t("Edit Profil Perusahaan", "Edit Company Profile")}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             {([

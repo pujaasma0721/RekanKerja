@@ -466,7 +466,7 @@ function ConfirmDialog({
 
   return (
     <AlertDialog open={kind !== null} onOpenChange={(v) => { if (!v) { setNote(""); onClose(); } }}>
-      <AlertDialogContent className="sm:max-w-md">
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2.5">
             {isProcess ? (

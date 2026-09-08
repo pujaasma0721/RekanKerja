@@ -363,7 +363,7 @@ export function PayrollRunDetailPage() {
 
       {/* 26-b P0 — dialog kirim slip (konfirmasi + saklar proteksi password NIK) */}
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>
-        <DialogContent className="max-w-md" aria-describedby={undefined}>
+        <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Mail className="h-4 w-4" /> {t("Kirim Slip Gaji via Email", "Email Payslips")}
@@ -429,7 +429,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
 
   return (
     <Dialog open={!!line} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+      <DialogContent className="sm:max-w-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Receipt className="h-4 w-4 ov-text-accent" />

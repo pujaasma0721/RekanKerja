@@ -480,7 +480,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{office ? t("Ubah Kantor {c}", "Edit Office {c}", { c: office.code }) : t("Kantor Baru", "New Office")}</DialogTitle>
           <DialogDescription>
@@ -608,7 +608,7 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{location ? t("Ubah Lokasi {c}", "Edit Location {c}", { c: location.code }) : t("Lokasi Kerja Baru", "New Work Location")}</DialogTitle>
           <DialogDescription>

@@ -146,7 +146,7 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><LayoutTemplate className="h-4 w-4 ov-text-accent" /> {tpl ? t("Edit Template", "Edit Template") : t("Template Upah Baru", "New Wage Template")}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           {!tpl && (

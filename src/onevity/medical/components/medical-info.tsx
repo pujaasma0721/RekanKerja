@@ -200,7 +200,7 @@ export function MedicalInfoPage() {
 
       {/* dialog generate */}
       <Dialog open={genOpen} onOpenChange={setGenOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RefreshCw className="h-5 w-5 ov-text-accent" /> {t("Generate Saldo Medis", "Generate Medical Balances")}

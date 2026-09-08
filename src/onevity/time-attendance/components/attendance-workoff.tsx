@@ -249,7 +249,7 @@ export function AttendanceWorkoffPage() {
 
       {/* dialog ajukan */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("Ajukan Izin Tidak Masuk", "Submit Absence Permit")}</DialogTitle>
           </DialogHeader>
@@ -325,7 +325,7 @@ export function AttendanceWorkoffPage() {
 
       {/* dialog tolak */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => !v && setRejectTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("Tolak Izin {no}", "Reject Permit {no}", { no: rejectTarget?.docNo ?? "" })}</DialogTitle>
           </DialogHeader>

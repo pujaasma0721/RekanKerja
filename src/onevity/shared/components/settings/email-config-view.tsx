@@ -434,7 +434,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
 
   return (
     <Dialog open={!!tpl} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
             <FileText className="h-4 w-4 ov-text-accent" /> {t("Edit Template", "Edit Template")} — {tpl?.label}

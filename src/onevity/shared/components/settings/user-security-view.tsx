@@ -287,7 +287,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
         onClose={(saved) => { setResetTarget(null); if (saved) refresh(); }}
       />
       <Dialog open={!!deleting} onOpenChange={(v) => { if (!v) setDeleting(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Trash2 className="h-4 w-4 text-rose-500" /> {t("Hapus Pengguna", "Delete User")}
@@ -379,7 +379,7 @@ function UserCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !busy) onClose(false); }}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <UserRound className="h-4 w-4 ov-text-accent" /> {t("Tambah Pengguna", "Add User")}
@@ -559,7 +559,7 @@ function UserEditDialog({
 
   return (
     <Dialog open={!!user} onOpenChange={(v) => { if (!v && !busy) onClose(false); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base">{t("Edit Pengguna — {username}", "Edit User — {username}", { username: user?.username ?? "" })}</DialogTitle>
           <DialogDescription>{t("Hak akses menu & data diatur di tab Hak Akses per Pengguna.", "Menu & data access rights are configured in the Access Rights per User tab.")}</DialogDescription>
@@ -654,7 +654,7 @@ function ResetPasswordDialog({
 
   return (
     <Dialog open={!!user} onOpenChange={(v) => { if (!v && !busy) onClose(false); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <KeyRound className="h-4 w-4 text-amber-600" /> {t("Reset Kata Sandi", "Reset Password")}
@@ -1119,7 +1119,7 @@ function MfaSetupDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base">
             {t("Siapkan Autentikasi Dua Faktor", "Set Up Two-Factor Authentication")}
@@ -1235,7 +1235,7 @@ function MfaDisableDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base">{t("Nonaktifkan Dua Faktor?", "Disable Two-Factor?")}</DialogTitle>
           <DialogDescription>

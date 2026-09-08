@@ -185,7 +185,7 @@ function LookupDialog({ open, setOpen, category, item }: { open: boolean; setOpe
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle className="text-base">{item ? t("Edit Entri", "Edit Entry") : t("Entri Baru", "New Entry")} — {category}</DialogTitle></DialogHeader>
         <div>
           <Label className="text-xs">{t("Label *", "Label *")}</Label>

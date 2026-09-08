@@ -525,7 +525,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && p.onClose()}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[92vh] sm:max-w-3xl overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle>{s ? t("Ubah Struktur {code}", "Edit Structure {code}", { code: s.code }) : t("Struktur Approval Berjenjang Baru", "New Tiered Approval Structure")}</DialogTitle>
           <DialogDescription>
@@ -722,7 +722,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[92vh] sm:max-w-2xl overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 ov-text-accent" /> {t("Simulasi Jalur Persetujuan", "Approval Path Simulation")}</DialogTitle>
           <DialogDescription>

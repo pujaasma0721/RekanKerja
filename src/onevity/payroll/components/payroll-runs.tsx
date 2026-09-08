@@ -237,7 +237,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><Play className="h-4 w-4 ov-text-accent" /> {t("Proses Payroll Baru", "New Payroll Run")}</DialogTitle>
         </DialogHeader>

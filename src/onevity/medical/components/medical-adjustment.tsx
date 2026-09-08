@@ -235,7 +235,7 @@ export function MedicalAdjustmentPage() {
 
       {/* dialog ajukan */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 ov-text-accent" /> {t("Ajukan Penyesuaian Saldo", "Submit Balance Adjustment")}
@@ -295,7 +295,7 @@ export function MedicalAdjustmentPage() {
 
       {/* dialog keputusan */}
       <Dialog open={Boolean(decideDialog)} onOpenChange={(v) => !v && setDecideDialog(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {decideDialog?.action === "approve" ? <XCircle className="h-5 w-5 rotate-45 text-emerald-600" /> : <Ban className="h-5 w-5 text-rose-600" />}

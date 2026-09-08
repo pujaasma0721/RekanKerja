@@ -265,7 +265,7 @@ export function EssLetters() {
 
       {/* ===== dialog permintaan surat ===== */}
       <Dialog open={reqOpen} onOpenChange={(v) => { if (!busy) setReqOpen(v); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />

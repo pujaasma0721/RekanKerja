@@ -373,7 +373,7 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><BriefcaseBusiness className="h-4 w-4 ov-text-accent" /> {position ? t("Ubah Posisi", "Edit Position") : t("Posisi Baru")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -539,7 +539,7 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle className="text-base">{job ? "Edit Job" : t("Job Baru", "New Job")}</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           {!job && (

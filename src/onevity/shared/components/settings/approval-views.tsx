@@ -252,7 +252,7 @@ function TemplateDialog({ initial, onClose, onDone }: { initial: ApprovalTemplat
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{initial ? t("Edit Template — {code}", "Edit Template — {code}", { code: initial.code }) : t("Template Approval Baru", "New Approval Template")}</DialogTitle>
           <DialogDescription>{t("Layer disetujui berurutan dari layer 1 hingga terakhir.", "Layers are approved sequentially from layer 1 to the last.")}</DialogDescription>
@@ -523,7 +523,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl ov-fill">

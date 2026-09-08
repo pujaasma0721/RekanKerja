@@ -181,7 +181,7 @@ export function LeaveTypesPage() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Layers className="h-4 w-4 ov-text-accent" />

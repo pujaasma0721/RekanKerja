@@ -779,7 +779,7 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
   };
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) onSaved(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader><DialogTitle className="text-base">{t("Tambah Anggota Keluarga", "Add Family Member")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -835,7 +835,7 @@ function AddEducationDialog({ employeeId, onSaved }: { employeeId: string; onSav
   };
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) onSaved(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader><DialogTitle className="text-base">{t("Tambah Pendidikan", "Add Education")}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -893,7 +893,7 @@ function AddExperienceDialog({ employeeId, onSaved }: { employeeId: string; onSa
   };
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) onSaved(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle className="text-base">{t("Tambah Pengalaman Kerja", "Add Work Experience")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
@@ -970,7 +970,7 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="text-base">{t("Edit Data — {name}", "Edit Data — {name}", { name: employee.fullName })}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {([

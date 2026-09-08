@@ -266,7 +266,7 @@ export function AttendanceHolidaysPage() {
 
       {/* ==== dialog tambah/edit ==== */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogContent className="rounded-2xl sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <CalendarDays className="h-4 w-4 ov-text-accent" />
@@ -317,7 +317,7 @@ export function AttendanceHolidaysPage() {
 
       {/* ==== dialog konfirmasi hapus ==== */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent className="rounded-2xl sm:max-w-sm">
+        <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">{t("Hapus hari libur?", "Delete holiday?")}</DialogTitle>
           </DialogHeader>

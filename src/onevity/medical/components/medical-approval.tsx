@@ -279,7 +279,7 @@ export function MedicalApprovalPage() {
 
       {/* dialog keputusan */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <actionMeta.icon className="h-5 w-5" /> {t(actionMeta.title, ACTION_META_EN[action].title)}
@@ -328,7 +328,7 @@ export function MedicalApprovalPage() {
 
       {/* dialog transfer sisa saldo */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 ov-text-accent" /> {t("Tarik Sisa Saldo → Payroll (UMC)", "Draw Remaining Balance → Payroll (UMC)")}

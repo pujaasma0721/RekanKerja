@@ -175,7 +175,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
 
   return (
     <Dialog open={!!row} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><IdCard className="h-4 w-4 ov-text-accent" /> {t("Data Payroll — {name}", "Payroll Data — {name}", { name: row.fullName })}</DialogTitle>
         </DialogHeader>

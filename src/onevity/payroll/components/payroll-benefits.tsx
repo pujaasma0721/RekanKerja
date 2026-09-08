@@ -497,7 +497,7 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><HeartHandshake className="h-4 w-4 text-violet-600" /> {t("Ajukan Klaim Benefit", "Submit Benefit Claim")}</DialogTitle>
         </DialogHeader>
@@ -644,7 +644,7 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { setInitialized(null); onClose(); } }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] sm:max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Sparkles className="h-4 w-4 text-violet-600" /> {editing ? t("Ubah — {n}", "Edit — {n}", { n: editing.name }) : t("Jenis Benefit Baru", "New Benefit Type")}
@@ -780,7 +780,7 @@ function RejectDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | nul
   };
   return (
     <Dialog open={!!claim} onOpenChange={(v) => { if (!v) { setReason(""); onClose(); } }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><XCircle className="h-4 w-4 text-rose-500" /> {t("Tolak Klaim {no}", "Reject Claim {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
         </DialogHeader>
@@ -826,7 +826,7 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
 
   return (
     <Dialog open={!!claim} onOpenChange={(v) => { if (!v) { setPeriodId(""); onClose(); } }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-violet-600" /> {t("Jadwalkan {no}", "Schedule {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
         </DialogHeader>

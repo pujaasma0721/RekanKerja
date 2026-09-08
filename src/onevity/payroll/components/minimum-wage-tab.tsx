@@ -182,7 +182,7 @@ export function MinimumWageTab() {
       />
 
       <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">{t("Hapus entri UMP/UMK?", "Delete minimum wage entry?")}</DialogTitle>
           </DialogHeader>
@@ -248,7 +248,7 @@ function WageDialog({ open, setOpen, offices, defaultYear, item }: {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base">
             {item ? t("Edit UMP/UMK", "Edit Minimum Wage") : t("Entri UMP/UMK Baru", "New Minimum Wage Entry")}

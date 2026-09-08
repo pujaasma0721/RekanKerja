@@ -180,7 +180,7 @@ export function TravelBudgetPage() {
       )}
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 ov-text-accent" /> {editId ? t("Ubah Budget {y}", "Edit Budget {y}", { y: form.year }) : t("Budget Tahun Baru", "New Budget Year")}

@@ -1171,7 +1171,7 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{t("Atur Aksi — {label}", "Configure Actions — {label}", { label: t(menuLabel) })}</DialogTitle>
           <DialogDescription>

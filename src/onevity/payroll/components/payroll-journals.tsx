@@ -193,7 +193,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
   const { t } = useI18n();
   return (
     <Dialog open={!!journal} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
             <BookOpen className="h-4 w-4 ov-text-accent" />

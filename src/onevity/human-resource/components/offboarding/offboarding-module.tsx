@@ -299,7 +299,7 @@ function CreateOffboardingDialog({ open, setOpen, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base"><LogOut className="h-4 w-4 ov-text-accent" /> {t("Proses Offboarding Baru", "New Offboarding Process")}</DialogTitle>
         </DialogHeader>
@@ -888,7 +888,7 @@ function OffboardingDetail({ id }: { id: string }) {
 
       {/* ===== dialog edit catatan tugas ===== */}
       <Dialog open={!!noteEdit} onOpenChange={(v) => { if (!v) setNoteEdit(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base"><Pencil className="h-4 w-4 ov-text-accent" /> {t("Catatan Tugas", "Task Note")}</DialogTitle>
           </DialogHeader>
@@ -942,7 +942,7 @@ function OffboardingDetail({ id }: { id: string }) {
 
       {/* ===== konfirmasi batalkan (dengan alasan opsional) ===== */}
       <Dialog open={cancelOpen} onOpenChange={(v) => { setCancelOpen(v); if (!v) setCancelReason(""); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base"><Ban className="h-4 w-4 text-rose-500" /> {t("Batalkan Proses Offboarding?", "Cancel Offboarding Process?")}</DialogTitle>
           </DialogHeader>

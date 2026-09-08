@@ -222,7 +222,7 @@ export function LeaveEncashmentPage() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Wallet className="h-4 w-4 ov-text-accent" /> {t("Ajukan Uang Pengganti Cuti", "Request Leave Encashment")}
@@ -276,7 +276,7 @@ export function LeaveEncashmentPage() {
       </Dialog>
 
       <Dialog open={transferDialog} onOpenChange={setTransferDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <ArrowRightCircle className="h-4 w-4 text-teal-600" /> {t("Transfer ke Payroll", "Transfer to Payroll")}
@@ -316,7 +316,7 @@ export function LeaveEncashmentPage() {
       </Dialog>
 
       <Dialog open={!!rejectTarget} onOpenChange={(v) => !v && setRejectTarget(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm text-rose-600">
               <XCircle className="h-4 w-4" /> {t("Tolak Encashment", "Reject Encashment")}

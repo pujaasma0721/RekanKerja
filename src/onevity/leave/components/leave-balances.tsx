@@ -186,7 +186,7 @@ export function LeaveBalancesPage() {
       </Card>
 
       <Dialog open={genDialog} onOpenChange={setGenDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Sparkles className="h-4 w-4 ov-text-accent" /> {t("Generate Leave Information")}
@@ -225,7 +225,7 @@ export function LeaveBalancesPage() {
       </Dialog>
 
       <Dialog open={!!adjTarget} onOpenChange={(v) => !v && setAdjTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Plus className="h-4 w-4 text-amber-600" /> {t("Penyesuaian Saldo", "Balance Adjustment")}
