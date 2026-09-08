@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ESS_BASE, submitWorkoff, submitOvertime, essDocTypeLabel } from "./ess-api";
+import { ESS_BASE, submitWorkoff, submitOvertime, essDocTypeLabel, essDocTypeLabelEn } from "./ess-api";
 import type { EssDashboard } from "./ess-types";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -205,7 +205,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
                 <li key={r.docNo + r.docType} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
-                      {t(essDocTypeLabel(r.docType), essDocTypeLabel(r.docType))}
+                      {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
                       <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.docNo}</span>
                     </p>
                     <p className="text-[11px] text-stone-400">{r.dateLabel ?? "—"}</p>

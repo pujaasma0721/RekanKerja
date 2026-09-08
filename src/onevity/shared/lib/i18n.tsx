@@ -13,7 +13,7 @@ import {
   type Lang,
 } from "@/onevity/shared/lib/i18n-core";
 
-export { LANG_OPTIONS, BASE_EN, type Lang, loc } from "@/onevity/shared/lib/i18n-core";
+export { LANG_OPTIONS, BASE_EN, type Lang, loc, locActivity } from "@/onevity/shared/lib/i18n-core";
 export { translate } from "@/onevity/shared/lib/i18n-core";
 
 const STORAGE_KEY = "onevity:lang";

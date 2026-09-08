@@ -136,7 +136,7 @@ export function HrReportsView() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 { label: t("Headcount Aktif", "Active Headcount"), value: fmtNum(data.turnover.kpi.headcount), sub: t("{n} total dalam scope", "{n} total in scope", { n: data.turnover.kpi.headcountTotal }), icon: Users, hero: true, trend: t("awal tahun {n}", "start of year {n}", { n: data.turnover.kpi.startHeadcount }) },
-                { label: t("Hires YTD"), value: fmtNum(data.turnover.kpi.hiresYtd), sub: t(`sejak 1 Jan ${data.year}`), icon: UserPlus, trend: t("bergabung tahun ini", "joined this year") },
+                { label: t("Hires YTD"), value: fmtNum(data.turnover.kpi.hiresYtd), sub: t(`sejak 1 Jan ${data.year}`, `since 1 Jan ${data.year}`), icon: UserPlus, trend: t("bergabung tahun ini", "joined this year") },
                 { label: t("Exits YTD"), value: fmtNum(data.turnover.kpi.exitsYtd), sub: t("Resign + Terminated", "Resigned + Terminated"), icon: UserMinus, trend: t("keluar tahun ini", "left this year") },
                 { label: t("Turnover Rate"), value: `${data.turnover.kpi.turnoverRate.toLocaleString(locale)}%`, sub: t("exits / rata-rata headcount", "exits / average headcount"), icon: TrendingUp, trend: t("avg HC {n}", "avg HC {n}", { n: data.turnover.kpi.avgHeadcount.toLocaleString(locale) }) },
                 { label: t("Avg Tenure"), value: `${data.turnover.kpi.avgTenureYears.toLocaleString(locale)} ${t("thn", "yr")}`, sub: t("karyawan aktif", "active employees"), icon: Hourglass, trend: t("sejak join date", "since join date") },

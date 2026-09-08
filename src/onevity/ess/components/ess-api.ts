@@ -66,6 +66,18 @@ export function essDocTypeLabel(v: string): string {
   return v;
 }
 
+/** Padanan EN utk essDocTypeLabel (dipakai t(label, en) — Task 38). */
+export function essDocTypeLabelEn(v: string): string {
+  const s = v.toLowerCase();
+  if (s.includes("leave")) return "Leave";
+  if (s.includes("work") && s.includes("off")) return "Work Off";
+  if (s.includes("overtime")) return "Overtime";
+  if (s.includes("medical")) return "Medical Claim";
+  if (s.includes("travel")) return "Business Travel";
+  if (s.includes("personnel") || s.includes("pa")) return "Personnel Action";
+  return v;
+}
+
 // ============ GET tipis ============
 export async function essGet<T>(path: string): Promise<T> {
   const res = await fetch(`${ESS_BASE}${path}`);

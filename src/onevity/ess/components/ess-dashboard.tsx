@@ -11,13 +11,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDateLong } from "@/onevity/shared/lib/api";
-import { useI18n, loc } from "@/onevity/shared/lib/i18n";
+import { useI18n, loc, locActivity } from "@/onevity/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingCards, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ESS_BASE, essDocTypeLabel, fmtClockTime, submitClock } from "./ess-api";
+import { ESS_BASE, essDocTypeLabel, essDocTypeLabelEn, fmtClockTime, submitClock } from "./ess-api";
 import type { EssDashboard, EssMe, EssView } from "./ess-types";
 
 interface EssDashboardProps {
@@ -347,7 +347,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                   <li key={r.docNo + r.docType} className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-100">
-                        {t(essDocTypeLabel(r.docType), essDocTypeLabel(r.docType))}
+                        {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
                         <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.docNo}</span>
                       </p>
                       <p className="text-[11px] text-stone-400">{r.dateLabel ?? "—"}</p>
@@ -443,8 +443,8 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                     <li key={n.id} className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-stone-50 dark:hover:bg-stone-800/60">
                       <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", unread ? "bg-amber-500" : "bg-stone-200 dark:bg-stone-700")} aria-hidden />
                       <div className="min-w-0 flex-1">
-                        <p className={cn("truncate text-[12.5px]", unread ? "font-bold text-stone-800 dark:text-stone-100" : "font-medium text-stone-600 dark:text-stone-400")}>{n.title}</p>
-                        {n.body && <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-stone-400">{n.body}</p>}
+                        <p className={cn("truncate text-[12.5px]", unread ? "font-bold text-stone-800 dark:text-stone-100" : "font-medium text-stone-600 dark:text-stone-400")}>{locActivity(n.title)}</p>
+                        {n.body && <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-stone-400">{locActivity(n.body)}</p>}
                       </div>
                     </li>
                   );

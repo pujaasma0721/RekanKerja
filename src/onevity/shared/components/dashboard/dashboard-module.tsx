@@ -16,7 +16,7 @@ import {
   CheckCircle2, Clock, FileText, Sparkles, Award,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useI18n, loc } from "@/onevity/shared/lib/i18n";
+import { useI18n, loc, locActivity } from "@/onevity/shared/lib/i18n";
 
 interface DashData {
   totalEmployees: number; activeEmployees: number; pendingActions: number;
@@ -289,7 +289,7 @@ export function DashboardModule() {
                   <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-stone-400">· {a.action}</span> <span className="font-semibold ov-text-accent">{a.entity}</span></p>
                   <time className="text-[10px] text-stone-400">{fmtDateTime(a.createdAt)}</time>
                 </div>
-                <p className="mt-0.5 text-[11px] text-stone-500">{a.detail}</p>
+                <p className="mt-0.5 text-[11px] text-stone-500">{locActivity(a.detail)}</p>
               </li>
             ))}
           </ol>

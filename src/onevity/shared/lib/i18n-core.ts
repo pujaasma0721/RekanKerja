@@ -73,6 +73,173 @@ export function loc(s: string | null | undefined): string {
   return globalLang === "en" ? applyMonthSwap(s) : s;
 }
 
+// ============ LOKALISASI TEKS SISTEM (activity log & notifikasi) ============
+// Task 38: ActivityLog.detail & Notification.title/body ditulis SERVER dalam
+// Bahasa Indonesia (data historis di DB). locActivity() menerjemahkan pola
+// frasa sistem saat bahasa EN aktif — pengganti frasa TERPANJANG dulu; bagian
+// yang tak dikenal tetap tampil Indonesia (fallback mulus, spt translate()).
+// Hanya dipakai utk teks SISTEM — jangan utk konten user (pengumuman dsb.).
+
+const ACTIVITY_PHRASES: [string, string][] = [
+  // — surat & dokumen (frasa panjang dulu; urutan final di-sort by length) —
+  ["Surat Keterangan Pengalaman Kerja", "Work Experience Certificate"],
+  ["Surat Keterangan Kerja", "Employment Certificate"],
+  ["Surat Keterangan Gaji", "Salary Certificate"],
+  ["Surat Peringatan (SP)", "Warning Letter (SP)"],
+  ["Permintaan surat", "Letter request"],
+  ["Permintaan surat baru", "New letter request"],
+  ["Permintaan Masuk", "Incoming Requests"],
+  ["siap diunduh di menu", "ready to download from the"],
+  ["siap diunduh", "ready to download"],
+  ["meminta", "requests"],
+  ["Buka", "Open"],
+  ["Referensi Kerja", "Reference"],
+  ["mengunduh PDF surat", "downloaded letter PDF"],
+  ["Unduh PDF surat", "Download letter PDF"],
+  ["dokumen lengkap", "documents complete"],
+  ["Surat", "Letter"],
+  ["Dokumen", "Document"],
+  // — notifikasi scheduler —
+  ["menunggu persetujuan Anda", "awaiting your approval"],
+  ["menunggu persetujuan atasan", "awaiting supervisor approval"],
+  ["menunggu keputusan jenjang", "awaiting decision at tier"],
+  ["approver terakhir", "final approver"],
+  ["kedaluwarsa", "expiring"],
+  ["berakhir", "ends"],
+  ["hari lagi", "days left"],
+  ["menunggu", "pending"],
+  ["Kontrak", "Contract"],
+  ["evaluasi", "evaluation"],
+  ["gajian", "payday"],
+  ["notifikasi", "notifications"],
+  ["terkirim", "sent"],
+  ["Dokumen Anda", "Your document"],
+  // — aturan diferensiasi (Task 32–37) —
+  ["Aturan diferensiasi", "Differentiation rule"],
+  ["utk Jenis Benefit Medis", "for medical benefit type"],
+  ["utk Jenis Biaya Travel", "for travel expense type"],
+  ["utk Jenis Cuti", "for leave type"],
+  ["utk komponen", "for component"],
+  ["kondisi", "conditions"],
+  // — payroll / ekspor / jurnal —
+  ["Ekspor format upload BPJS Ketenagakerjaan (Laporan Kepegawaian)", "BPJS Employment (Employment Report) upload export"],
+  ["Ekspor format upload BPJS Kesehatan (Data Peserta)", "BPJS Health (Participant Data) upload export"],
+  ["Ekspor laporan kustom", "Custom report export"],
+  ["Ekspor e-SPT", "e-SPT export"],
+  ["Data payroll karyawan diperbarui", "Employee payroll data updated"],
+  ["Export Excel direktori", "Directory Excel export"],
+  ["otomatis dibuat dari run", "auto-created from run"],
+  ["dibuat dari run", "created from run"],
+  ["dihitung otomatis", "calculated automatically"],
+  ["Laporan kustom baru", "New custom report"],
+  ["Laporan kustom", "Custom report"],
+  ["laporan tersimpan", "saved report"],
+  ["total pajak", "total tax"],
+  ["karyawan aktif", "active employees"],
+  ["cakupan penuh", "full scope"],
+  ["pegawai", "employees"],
+  ["peserta", "participants"],
+  ["Jurnal", "Journal"],
+  ["jurnal", "journal"],
+  ["karyawan", "employees"],
+  ["baris", "rows"],
+  ["jenjang", "tier"],
+  ["Ekspor", "Export"],
+  // — medis —
+  ["Generate saldo medis", "Medical balance generation"],
+  ["saldo medis", "medical balances"],
+  ["Penyesuaian medis", "Medical adjustment"],
+  ["Klaim medis", "Medical claim"],
+  ["dikoreksi", "corrected"],
+  ["diselesaikan", "settled"],
+  ["nilai disetujui", "approved value"],
+  // — pengumuman / template WA / laporan —
+  ["Pengumuman baru", "New announcement"],
+  ["Pengumuman", "Announcement"],
+  ["diterbitkan ke seluruh ESS", "published to all ESS"],
+  ["terbit langsung", "published immediately"],
+  ["Template WhatsApp", "WhatsApp template"],
+  ["Konfigurasi WhatsApp", "WhatsApp configuration"],
+  ["isi pesan diubah", "message body edited"],
+  // — aset / offboarding / tukar shift —
+  ["ditugaskan kepada Anda", "assigned to you"],
+  ["Pengembalian aset", "Asset return"],
+  ["Permintaan tukar shift", "Shift swap request"],
+  ["Tukar shift", "Shift swap"],
+  ["Tugas clearance", "Clearance task"],
+  ["Aset", "Asset"],
+  ["tercatat", "recorded"],
+  // — verba umum (terpanjang dulu di-sort; caps & lowercase) —
+  ["dibatalkan pemohon", "cancelled by requester"],
+  ["diajukan dari ESS", "submitted from ESS"],
+  ["dilewati (assignment sudah ada)", "skipped (assignment already exists)"],
+  ["Import mesin absen", "Attendance machine import"],
+  ["log disisipkan", "logs inserted"],
+  ["Disetujui", "Approved"],
+  ["Ditolak", "Rejected"],
+  ["Dibatalkan", "Cancelled"],
+  ["Dikembalikan", "Returned"],
+  ["dihapus", "deleted"],
+  ["dibuat", "created"],
+  ["diubah", "changed"],
+  ["diperbarui", "updated"],
+  ["dikonfirmasi", "confirmed"],
+  ["dihitung", "calculated"],
+  ["diterbitkan", "issued"],
+  ["disetujui", "approved"],
+  ["ditolak", "rejected"],
+  ["dibatalkan", "cancelled"],
+  ["dikembalikan", "returned"],
+  ["diajukan", "submitted"],
+  ["diaktifkan", "enabled"],
+  ["dinonaktifkan", "disabled"],
+  ["ditugaskan", "assigned"],
+  ["dilewati", "skipped"],
+  ["disisipkan", "inserted"],
+  ["duplikat", "duplicates"],
+  ["tak dikenal", "unknown"],
+  ["tak valid", "invalid"],
+  ["oleh", "by"],
+  ["keperluan", "purpose"],
+  ["Pengajuan cuti", "Leave request"],
+  ["buka rincian gaji Anda di portal ESS", "open your payslip details in the ESS portal"],
+  ["Slip gaji", "Payslip"],
+  ["Perjalanan dinas", "Business travel"],
+  ["Jam Kantor", "Office Hours"],
+  ["Klaim", "Claim"],
+  ["klaim", "claim"],
+  ["Selesai", "Done"],
+  ["ATAU", "OR"],
+  ["DAN", "AND"],
+  ["tersedia", "available"],
+  ["pada", "on"],
+  ["dari", "from"],
+  ["dengan", "with"],
+  ["sejak", "since"],
+  ["tahun", "year"],
+  ["hari", "days"],
+  ["gaji", "salary"],
+  ["cuti", "leave"],
+  ["baru", "new"],
+  ["jenis", "types"],
+];
+
+/** Frasa diurut TERPANJANG-DULU sekali di init (hindari kecocokan parsial). */
+const ACTIVITY_PHRASES_SORTED = [...ACTIVITY_PHRASES].sort(
+  (a, b) => b[0].length - a[0].length,
+);
+
+/** Terjemahkan best-effort teks sistem (activity/notifikasi) saat EN aktif. */
+export function locActivity(s: string | null | undefined): string {
+  if (s == null) return "";
+  if (globalLang !== "en") return s;
+  let out = applyMonthSwap(s); // nama bulan ID→EN dulu (mis. "Slip gaji AGUSTUS 2026")
+  for (const [id, en] of ACTIVITY_PHRASES_SORTED) {
+    if (out.includes(id)) out = out.split(id).join(en);
+  }
+  return out;
+}
+
 // ============ KAMUS DASAR (istilah umum + seluruh label navigasi shell) ============
 // Dipakai via t("…") TANPA argumen en. String spesifik modul memakai t("…", "…") inline.
 export const BASE_EN: Record<string, string> = {
@@ -173,6 +340,26 @@ export const BASE_EN: Record<string, string> = {
   "Approval Berjenjang": "Tiered Approvals",
   "Konfigurasi Email": "Email Configuration",
   "Log Aktivitas": "Activity Log",
+  // — navigasi HR lanjutan (Task 38: label menu yang belum tercakup) —
+  "Dokumen Karyawan": "Employee Documents",
+  "Aset Karyawan": "Employee Assets",
+  "Offboarding Karyawan": "Employee Offboarding",
+  "Dokumen & Surat": "Documents & Letters",
+  "Template Surat": "Letter Templates",
+  "Komunikasi": "Communication",
+  "Pengumuman": "Announcements",
+  "Laporan": "Reports",
+  "Laporan HR": "HR Reports",
+  "Laporan Kustom": "Custom Reports",
+  // — navigasi Attendance lanjutan —
+  "Kalender Libur": "Holiday Calendar",
+  "Papan Kehadiran": "Attendance Board",
+  "Tukar Shift": "Shift Swap",
+  "Import Mesin Absen": "Attendance Machine Import",
+  // — navigasi Settings lanjutan —
+  "Data Master": "Master Data",
+  "Notifikasi WhatsApp": "WhatsApp Notifications",
+  "API & Integrasi": "API & Integrations",
 
   // — quick create shell —
   "Proses Payroll": "Run Payroll",
@@ -265,4 +452,18 @@ export const BASE_EN: Record<string, string> = {
   "Menunggu": "Pending",
   "Diproses": "Processed",
   "Dibatalkan": "Cancelled",
+
+  // — laporan HR & misc (Task 38) —
+  "Komposisi Gender": "Gender Composition",
+  "Divisi": "Division",
+  "Laporan belum tersedia": "Report not yet available",
+  "Cuti Massal": "Mass Leave",
+  "Berjalan": "Ongoing",
+  "Kedaluwarsa": "Expired",
+  "Terbit": "Published",
+  "Demografi": "Demographics",
+  "Distribusi Tenure": "Tenure Distribution",
+  "Distribusi Usia": "Age Distribution",
+  "Rata-rata": "Average",
+  "Kunci (prefix)": "Key (prefix)",
 };

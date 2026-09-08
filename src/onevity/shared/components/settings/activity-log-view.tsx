@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, ChevronLeft, ChevronRight, Download, ScrollText, X, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/onevity/shared/lib/i18n";
+import { useI18n, locActivity } from "@/onevity/shared/lib/i18n";
 
 const PAGE_SIZE = 50;
 
@@ -306,7 +306,7 @@ export function ActivityLogView() {
                       <span className="text-[12.5px] font-medium text-stone-600 dark:text-stone-300">{r.entity}</span>
                     </TableCell>
                     <TableCell className="py-3 pr-4">
-                      <p className="max-w-xl text-[12.5px] leading-relaxed text-stone-600 dark:text-stone-300">{r.detail ?? "—"}</p>
+                      <p className="max-w-xl text-[12.5px] leading-relaxed text-stone-600 dark:text-stone-300">{locActivity(r.detail) ?? "—"}</p>
                     </TableCell>
                   </TableRow>
                 ))}

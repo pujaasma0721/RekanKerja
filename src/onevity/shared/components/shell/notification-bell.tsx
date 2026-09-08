@@ -13,7 +13,7 @@ import { Bell, CheckCheck, Palmtree, Plane, HeartPulse, Wallet, CalendarClock, I
 import { cn } from "@/lib/utils";
 import { useApi, apiSend, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useNav, type SectionId } from "@/onevity/shared/lib/store";
-import { useI18n } from "@/onevity/shared/lib/i18n";
+import { useI18n, locActivity } from "@/onevity/shared/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -176,9 +176,9 @@ export function NotificationBell() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       {!isUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent" aria-hidden />}
-                      <span className="truncate text-xs font-bold text-stone-800 dark:text-stone-100">{n.title}</span>
+                      <span className="truncate text-xs font-bold text-stone-800 dark:text-stone-100">{locActivity(n.title)}</span>
                     </span>
-                    {n.body && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">{n.body}</span>}
+                    {n.body && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">{locActivity(n.body)}</span>}
                     <span className="mt-1 block text-[10px] font-medium text-stone-400">{fmtDateTime(n.createdAt)}</span>
                   </span>
                   {isUnread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden />}
