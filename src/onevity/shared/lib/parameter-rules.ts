@@ -12,7 +12,9 @@
 //
 // Semantik evaluasi (konsisten semua domain):
 //   1. Rule aktif diurut priority ASC (tie-break createdAt ASC).
-//   2. Rule PERTAMA yang seluruh kondisinya cocok (AND) → menang.
+//   2. Rule PERTAMA yang cocok → menang. Cocok = mode kombinasi kondisi:
+//      "all" (DAN — semua kondisi harus cocok) atau "any" (ATAU — cukup
+//      satu kondisi cocok). Mode "any" hanya relevan bila kondisi ≥ 2.
 //   3. Tanpa kecocokan → nilai dasar entitas dipakai.
 //   4. Rule tanpa kondisi TIDAK dievaluasi (guard — cegah rule serakah).
 //
@@ -20,6 +22,11 @@
 //   in | not_in  → daftar (cocok case-insensitive utk teks; numerik utk angka)
 //   gt|gte|lt|lte → numerik (values[0] sebagai pembanding)
 //   is_empty | not_empty → nilai kosong/null
+//
+// Format penyimpanan JSON `conditions` (Task 36):
+//   Baru  : { "mode": "all" | "any", "conditions": [ RuleCondition, ... ] }
+//   Lama  : [ RuleCondition, ... ]  (array polos) → dibaca mode "all" (DAN)
+//   — 100% backward-compatible: semua rule Task 32–35 tetap dievaluasi AND.
 
 // ============ TIPE ============
 
@@ -27,6 +34,16 @@ export interface RuleCondition {
   param: string;
   op: "in" | "not_in" | "gt" | "gte" | "lt" | "lte" | "is_empty" | "not_empty";
   values: string[];
+}
+
+/** Mode kombinasi ANTAR kondisi dalam satu rule:
+ *  "all" = DAN (semua kondisi harus cocok) — default & format lama.
+ *  "any" = ATAU (cukup satu kondisi cocok). */
+export type RuleMatchMode = "all" | "any";
+
+export interface RuleSpec {
+  mode: RuleMatchMode;
+  conditions: RuleCondition[];
 }
 
 export type RuleContext = Record<string, string | number | boolean | null | undefined>;
@@ -171,24 +188,54 @@ export const RULE_OP_LABEL: Record<RuleCondition["op"], { label: string; labelEn
   not_empty: { label: "Ada isinya", labelEn: "is not empty", noValues: true },
 };
 
+/** Label singkat mode kombinasi (badge UI). */
+export const RULE_MODE_LABEL: Record<RuleMatchMode, { label: string; labelEn: string }> = {
+  all: { label: "DAN — semua kondisi cocok", labelEn: "AND — all conditions match" },
+  any: { label: "ATAU — salah satu cukup", labelEn: "OR — any one matches" },
+};
+
 // ============ PARSER & MATCHER (murni) ============
 
-/** Parse JSON kondisi secara aman — array kosong bila rusak. */
-export function parseConditions(json: string | null | undefined): RuleCondition[] {
-  if (!json) return [];
+/** Normalisasi array kondisi mentah → RuleCondition[] valid (best-effort). */
+const sanitizeConditions = (arr: unknown[]): RuleCondition[] =>
+  arr
+    .filter((c) => c && typeof c === "object" && typeof (c as Record<string, unknown>).param === "string" && typeof (c as Record<string, unknown>).op === "string")
+    .map((c) => {
+      const cc = c as Record<string, unknown>;
+      return {
+        param: String(cc.param),
+        op: cc.op as RuleCondition["op"],
+        values: Array.isArray(cc.values) ? cc.values.map(String) : [],
+      };
+    });
+
+/** Parse JSON spesifikasi rule secara aman (kedua format) → { mode, conditions }.
+ *  Format lama (array polos) → mode "all" (DAN). Output tidak pernah throw. */
+export function parseRuleSpec(json: string | null | undefined): RuleSpec {
+  const empty: RuleSpec = { mode: "all", conditions: [] };
+  if (!json) return empty;
   try {
-    const arr = JSON.parse(json);
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((c) => c && typeof c.param === "string" && typeof c.op === "string")
-      .map((c) => ({
-        param: String(c.param),
-        op: c.op as RuleCondition["op"],
-        values: Array.isArray(c.values) ? c.values.map(String) : [],
-      }));
+    const parsed: unknown = JSON.parse(json);
+    if (Array.isArray(parsed)) return { mode: "all", conditions: sanitizeConditions(parsed) };
+    if (parsed && typeof parsed === "object") {
+      const obj = parsed as Record<string, unknown>;
+      const mode: RuleMatchMode = obj.mode === "any" ? "any" : "all";
+      return { mode, conditions: Array.isArray(obj.conditions) ? sanitizeConditions(obj.conditions) : [] };
+    }
+    return empty;
   } catch {
-    return [];
+    return empty;
   }
+}
+
+/** Kondisi ter-parse dari JSON rule (abaikan mode — utk response API/UI). */
+export function parseConditions(json: string | null | undefined): RuleCondition[] {
+  return parseRuleSpec(json).conditions;
+}
+
+/** Mode kombinasi kondisi rule ("all" = DAN, "any" = ATAU). */
+export function parseMatchMode(json: string | null | undefined): RuleMatchMode {
+  return parseRuleSpec(json).mode;
 }
 
 const norm = (v: unknown): string => (v == null ? "" : String(v).trim().toLowerCase());
@@ -245,26 +292,28 @@ export function matchCondition(cond: RuleCondition, ctx: RuleContext): boolean {
   }
 }
 
-/** Semua kondisi harus cocok (AND). */
-export function matchConditions(conds: RuleCondition[], ctx: RuleContext): boolean {
-  return conds.every((c) => matchCondition(c, ctx));
+/** Kombinasi kondisi sesuai mode: "all" = DAN (semua), "any" = ATAU (salah satu).
+ *  Kondisi tunggal: mode tidak berefek. */
+export function matchConditions(conds: RuleCondition[], ctx: RuleContext, mode: RuleMatchMode = "all"): boolean {
+  return mode === "any" ? conds.some((c) => matchCondition(c, ctx)) : conds.every((c) => matchCondition(c, ctx));
 }
 
 /**
  * Rule pertama yang cocok (priority ASC, createdAt ASC, hanya aktif).
- * Mengembalikan rule + kondisi ter-parse (hemat parse berulang).
+ * Mode kombinasi kondisi (DAN/ATAU) ikut dibaca dari JSON rule.
+ * Mengembalikan rule + kondisi ter-parse + mode (hemat parse berulang).
  */
 export function matchFirstRule(
   rules: EntityRuleLite[],
   ctx: RuleContext,
-): { rule: EntityRuleLite; conds: RuleCondition[] } | null {
+): { rule: EntityRuleLite; conds: RuleCondition[]; mode: RuleMatchMode } | null {
   const sorted = [...rules]
     .filter((r) => r.active)
     .sort((a, b) => (a.priority - b.priority) || (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
   for (const rule of sorted) {
-    const conds = parseConditions(rule.conditions);
-    if (conds.length === 0) continue; // rule tanpa kondisi = tidak dievaluasi (guard)
-    if (matchConditions(conds, ctx)) return { rule, conds };
+    const spec = parseRuleSpec(rule.conditions);
+    if (spec.conditions.length === 0) continue; // rule tanpa kondisi = tidak dievaluasi (guard)
+    if (matchConditions(spec.conditions, ctx, spec.mode)) return { rule, conds: spec.conditions, mode: spec.mode };
   }
   return null;
 }
@@ -309,10 +358,18 @@ const OPS = new Set(["in", "not_in", "gt", "gte", "lt", "lte", "is_empty", "not_
 /** Error validasi payload → HTTP 400 (bukan 500). */
 export class RuleValidationError extends Error {}
 
-/** Validasi + normalisasi payload kondisi → JSON string; throw RuleValidationError bila tidak valid. */
+/** Bentuk payload yang diterima (Task 36):
+ *  · array polos RuleCondition[]                      → mode "all" (kompatibilitas lama)
+ *  · { mode: "all"|"any", conditions: RuleCondition[] } → mode eksplisit
+ *  Output JSON string SELALU format baru { mode, conditions }.
+ *  Mode "any" hanya berguna bila kondisi ≥ 2 — bila kurang, dinormalisasi "all". */
 export function validateConditions(input: unknown): string {
-  if (input == null) return "[]";
-  if (typeof input === "string") {
+  let mode: RuleMatchMode = "all";
+  let rawList: unknown[];
+
+  if (input == null) {
+    rawList = [];
+  } else if (typeof input === "string") {
     let parsed: unknown;
     try {
       parsed = JSON.parse(input);
@@ -320,10 +377,22 @@ export function validateConditions(input: unknown): string {
       throw new RuleValidationError("conditions bukan JSON valid");
     }
     return validateConditions(parsed);
+  } else if (Array.isArray(input)) {
+    rawList = input;
+  } else if (typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    if (obj.mode != null && obj.mode !== "all" && obj.mode !== "any") {
+      throw new RuleValidationError("mode kombinasi harus 'all' (DAN) atau 'any' (ATAU)");
+    }
+    mode = obj.mode === "any" ? "any" : "all";
+    if (!Array.isArray(obj.conditions)) throw new RuleValidationError("conditions harus array");
+    rawList = obj.conditions;
+  } else {
+    throw new RuleValidationError("conditions harus array");
   }
-  if (!Array.isArray(input)) throw new RuleValidationError("conditions harus array");
+
   const out: RuleCondition[] = [];
-  for (const raw of input) {
+  for (const raw of rawList) {
     if (!raw || typeof raw !== "object") throw new RuleValidationError("kondisi tidak valid");
     const c = raw as Record<string, unknown>;
     const param = String(c.param ?? "");
@@ -341,5 +410,13 @@ export function validateConditions(input: unknown): string {
     }
     out.push({ param, op: op as RuleCondition["op"], values: noValues ? [] : values });
   }
-  return JSON.stringify(out);
+
+  // mode ATAU hanya relevan utk ≥ 2 kondisi — cegah data membingungkan
+  const finalMode: RuleMatchMode = out.length >= 2 ? mode : "all";
+  return JSON.stringify({ mode: finalMode, conditions: out });
+}
+
+/** Hasil validateConditions kosong kondisi? (guard "minimal satu kondisi" API). */
+export function isEmptyConditions(json: string): boolean {
+  return parseRuleSpec(json).conditions.length === 0;
 }

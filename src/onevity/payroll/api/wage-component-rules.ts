@@ -3,8 +3,8 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
-  RULE_PARAMS, parseConditions, matchFirstRule, applyRuleAmount,
-  validateConditions, RuleValidationError, ComponentRuleLite, EntityRuleLite,
+  RULE_PARAMS, parseConditions, parseMatchMode, parseRuleSpec, matchFirstRule, applyRuleAmount,
+  validateConditions, isEmptyConditions, RuleValidationError, ComponentRuleLite, EntityRuleLite,
 } from "@/onevity/payroll/services/component-rules";
 import { evalFormula, workingDaysBetween, EngineRegulation } from "@/onevity/payroll/services/payroll-engine";
 
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
         type: component.type, calcMethod: component.calcMethod,
         amount: component.amount, formula: component.formula,
       },
-      rules: rules.map((r) => ({ ...r, conditions: parseConditions(r.conditions) })),
+      rules: rules.map((r) => ({ ...r, conditions: parseConditions(r.conditions), matchMode: parseMatchMode(r.conditions) })),
       options,
       params: RULE_PARAMS,
     };
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
       try { return validateConditions(b.conditions); }
       catch (e) { throw new RuleValidationError(e instanceof Error ? e.message : String(e)); }
     })();
-    if (conditions === "[]") return NextResponse.json({ error: "Minimal satu kondisi parameter diperlukan" }, { status: 400 });
+    if (isEmptyConditions(conditions)) return NextResponse.json({ error: "Minimal satu kondisi parameter diperlukan" }, { status: 400 });
     const actionType = String(b.actionType ?? "SetAmount");
     if (!ACTIONS.has(actionType)) return NextResponse.json({ error: "actionType tidak valid" }, { status: 400 });
     const amount = Number(b.amount ?? 0);
@@ -269,10 +269,10 @@ export async function POST(req: NextRequest) {
     await db.activityLog.create({
       data: {
         action: "Created", entity: "WageComponentRule", entityId: rule.id,
-        detail: `Aturan diferensiasi '${rule.name}' utk komponen ${component.code} dibuat (${JSON.parse(conditions).length} kondisi)`,
+        detail: `Aturan diferensiasi '${rule.name}' utk komponen ${component.code} dibuat (${parseRuleSpec(conditions).conditions.length} kondisi${parseMatchMode(conditions) === "any" ? ", ATAU" : ""})`,
       },
     });
-    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } }, { status: 201 });
+    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions), matchMode: parseMatchMode(rule.conditions) } }, { status: 201 });
   } catch (e) {
     if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -313,7 +313,7 @@ export async function PATCH(req: NextRequest) {
     if (b.active != null) data.active = !!b.active;
 
     const rule = await db.wageComponentRule.update({ where: { id: b.id }, data });
-    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } });
+    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions), matchMode: parseMatchMode(rule.conditions) } });
   } catch (e) {
     if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

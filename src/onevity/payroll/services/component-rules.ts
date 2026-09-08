@@ -3,14 +3,15 @@
 // src/onevity/shared/lib/parameter-rules.ts (leave/medical/travel/benefit
 // memakainya juga). File ini re-export + label aksi spesifik payroll.
 export {
-  parseConditions, matchCondition, matchConditions, matchFirstRule,
+  parseConditions, parseMatchMode, parseRuleSpec, matchCondition, matchConditions, matchFirstRule,
   applyRuleValue, applyRuleAmount, describeCondition,
-  validateConditions, RuleValidationError,
+  validateConditions, isEmptyConditions, RuleValidationError,
 } from "@/onevity/shared/lib/parameter-rules";
 export type {
-  RuleCondition, RuleContext, RuleParamDef, EntityRuleLite, ComponentRuleLite,
+  RuleCondition, RuleContext, RuleParamDef, RuleMatchMode, RuleSpec,
+  EntityRuleLite, ComponentRuleLite,
 } from "@/onevity/shared/lib/parameter-rules";
-export { RULE_PARAMS, RULE_PARAM_BY_KEY, RULE_OP_LABEL } from "@/onevity/shared/lib/parameter-rules";
+export { RULE_PARAMS, RULE_PARAM_BY_KEY, RULE_OP_LABEL, RULE_MODE_LABEL } from "@/onevity/shared/lib/parameter-rules";
 
 import type { EntityRuleLite } from "@/onevity/shared/lib/parameter-rules";
 

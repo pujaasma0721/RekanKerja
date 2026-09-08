@@ -20,7 +20,7 @@ import { Plus, Pencil, Trash2, SlidersHorizontal, FlaskConical, Info, X } from "
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
-  RuleCondition, RuleParamDef,
+  RuleCondition, RuleParamDef, RuleMatchMode,
   RULE_PARAMS, RULE_OP_LABEL,
   describeCondition,
 } from "@/onevity/shared/lib/parameter-rules";
@@ -31,6 +31,8 @@ interface RuleRow {
   name: string;
   priority: number;
   conditions: RuleCondition[];
+  /** mode kombinasi antar kondisi ("all"=DAN default; "any"=ATAU). */
+  matchMode?: RuleMatchMode;
   actionType: string;
   notes: string | null;
   active: boolean;
@@ -132,8 +134,8 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
           </DialogTitle>
           <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
             {t(
-              `Rule menilai parameter karyawan (pekerjaan & personal) lalu mengubah ${valueField === "days" ? "entitlement" : "limit"} ${entityLabel.toLowerCase()} ini. Urutan prioritas menentukan rule yang menang (pertama yang cocok).`,
-              `Rules evaluate employee parameters (job & personal) then adjust this ${entityLabel.toLowerCase()}'s ${valueField === "days" ? "entitlement" : "limit"}. Priority order decides the winning rule (first match).`,
+              `Rule menilai parameter karyawan (pekerjaan & personal) lalu mengubah ${valueField === "days" ? "entitlement" : "limit"} ${entityLabel.toLowerCase()} ini. Kombinasi antar kondisi bisa DAN (semua cocok) atau ATAU (salah satu); urutan prioritas menentukan rule yang menang (pertama yang cocok).`,
+              `Rules evaluate employee parameters (job & personal) then adjust this ${entityLabel.toLowerCase()}'s ${valueField === "days" ? "entitlement" : "limit"}. Conditions combine with AND (all match) or OR (any one); priority order decides the winning rule (first match).`,
             )}
           </p>
         </DialogHeader>
@@ -179,7 +181,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                         <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
                           <TableHead className="text-[11px] font-bold">#</TableHead>
                           <TableHead className="text-[11px] font-bold">{t("Nama Aturan", "Rule Name")}</TableHead>
-                          <TableHead className="text-[11px] font-bold">{t("Kondisi (dan)", "Conditions (and)")}</TableHead>
+                          <TableHead className="text-[11px] font-bold">{t("Kondisi", "Conditions")}</TableHead>
                           <TableHead className="text-[11px] font-bold">{t("Aksi", "Action")}</TableHead>
                           <TableHead className="text-[11px] font-bold">{t("Aktif")}</TableHead>
                           <TableHead className="w-20" />
@@ -192,6 +194,19 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                             <TableCell className="max-w-64 text-[12px] font-bold">{r.name}</TableCell>
                             <TableCell className="max-w-80">
                               <div className="flex flex-col gap-1">
+                                {r.conditions.length > 1 && (
+                                  <span
+                                    className={cn(
+                                      "w-fit rounded-md px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide",
+                                      (r.matchMode ?? "all") === "any"
+                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
+                                        : "bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-300",
+                                    )}
+                                    title={(r.matchMode ?? "all") === "any" ? t("Salah satu kondisi cukup", "Any one condition suffices") : t("Semua kondisi harus cocok", "All conditions must match")}
+                                  >
+                                    {(r.matchMode ?? "all") === "any" ? t("ATAU", "OR") : t("DAN", "AND")}
+                                  </span>
+                                )}
                                 {r.conditions.map((c, i) => (
                                   <span key={i} className="rounded-lg bg-stone-100 px-2 py-1 text-[10px] font-semibold leading-relaxed text-stone-600 dark:bg-stone-800 dark:text-stone-300">
                                     {describeCondition(c, t)}
@@ -347,10 +362,38 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
 
 // ============ EDITOR RULE ============
 
-const blankRule = (): { name: string; priority: string; actionType: string; value: string; notes: string; active: boolean; conditions: RuleCondition[] } => ({
+const blankRule = (): { name: string; priority: string; actionType: string; value: string; notes: string; active: boolean; matchMode: RuleMatchMode; conditions: RuleCondition[] } => ({
   name: "", priority: "100", actionType: "", value: "0", notes: "", active: true,
+  matchMode: "all",
   conditions: [{ param: "office", op: "in", values: [] }],
 });
+
+/** Toggle mode kombinasi antar kondisi (DAN / ATAU) — muncul saat kondisi ≥ 2. */
+function MatchModeToggle({ value, onChange }: { value: RuleMatchMode; onChange: (m: RuleMatchMode) => void }) {
+  const { t } = useI18n();
+  const items: { v: RuleMatchMode; label: string; labelEn: string; activeCls: string }[] = [
+    { v: "all", label: "DAN — semua cocok", labelEn: "AND — all match", activeCls: "bg-white ov-text-accent shadow-sm dark:bg-stone-700" },
+    { v: "any", label: "ATAU — salah satu", labelEn: "OR — any one", activeCls: "bg-white text-amber-600 shadow-sm dark:bg-stone-700 dark:text-amber-400" },
+  ];
+  return (
+    <div className="flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800" role="group" aria-label={t("Kombinasi kondisi", "Condition combination")}>
+      {items.map((it) => (
+        <button
+          key={it.v}
+          type="button"
+          onClick={() => onChange(it.v)}
+          aria-pressed={value === it.v}
+          className={cn(
+            "rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors",
+            value === it.v ? it.activeCls : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300",
+          )}
+        >
+          {t(it.label, it.labelEn)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, rule, options, onClose }: {
   open: boolean;
@@ -380,6 +423,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
           value: String(rule[def.valueField] ?? 0),
           notes: rule.notes ?? "",
           active: rule.active,
+          matchMode: rule.matchMode ?? "all",
           conditions: rule.conditions.length > 0 ? rule.conditions.map((c) => ({ ...c, values: [...c.values] })) : [{ param: "office", op: "in", values: [] }],
         }
       : { ...blankRule(), actionType: fallbackAction });
@@ -411,7 +455,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
     const payload = {
       domain, entityId, name: form.name.trim(),
       priority: Number(form.priority) || 100,
-      conditions: conds, actionType: form.actionType, value,
+      conditions: { mode: form.matchMode, conditions: conds }, actionType: form.actionType, value,
       notes: form.notes.trim() || null, active: form.active,
     };
     try {
@@ -453,14 +497,27 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
 
           {/* ---- kondisi ---- */}
           <div className="rounded-2xl border border-stone-200 p-3 dark:border-stone-800">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                {t("Kondisi Parameter (semua harus cocok)", "Parameter Conditions (all must match)")}
+                {form.matchMode === "any"
+                  ? t("Kondisi Parameter (salah satu cocok — ATAU)", "Parameter Conditions (any one matches — OR)")
+                  : t("Kondisi Parameter (semua harus cocok — DAN)", "Parameter Conditions (all must match — AND)")}
               </p>
-              <Button size="sm" variant="outline" onClick={addCond} className="h-7 gap-1 px-2 text-[10px] font-bold">
-                <Plus className="h-3 w-3" /> {t("Kondisi", "Condition")}
-              </Button>
+              <div className="flex items-center gap-2">
+                {form.conditions.length > 1 && <MatchModeToggle value={form.matchMode} onChange={(m) => setForm((f) => ({ ...f, matchMode: m }))} />}
+                <Button size="sm" variant="outline" onClick={addCond} className="h-7 gap-1 px-2 text-[10px] font-bold">
+                  <Plus className="h-3 w-3" /> {t("Kondisi", "Condition")}
+                </Button>
+              </div>
             </div>
+            {form.conditions.length > 1 && (
+              <p className="mb-2 text-[10px] leading-relaxed text-stone-400">
+                {t(
+                  "Beberapa nilai dalam satu kondisi sudah bermakna ATAU (\"salah satu dari\"). Pilihan di atas mengatur hubungan ANTAR kondisi: DAN = semua kondisi harus cocok; ATAU = cukup satu kondisi cocok.",
+                  "Multiple values within one condition already mean OR (\"is one of\"). The toggle above controls the relation BETWEEN conditions: AND = all must match; OR = any one suffices.",
+                )}
+              </p>
+            )}
             <div className="flex flex-col gap-2">
               {form.conditions.map((c, i) => {
                 const pd = RULE_PARAMS.find((p) => p.key === c.param);

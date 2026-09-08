@@ -3,8 +3,8 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
-  RULE_PARAMS, EntityRuleLite, parseConditions, matchFirstRule, applyRuleValue,
-  validateConditions, RuleValidationError,
+  RULE_PARAMS, EntityRuleLite, parseConditions, parseMatchMode, parseRuleSpec, matchFirstRule, applyRuleValue,
+  validateConditions, isEmptyConditions, RuleValidationError,
 } from "@/onevity/shared/lib/parameter-rules";
 import { ENTITY_RULE_DOMAINS, isRuleDomain } from "@/onevity/shared/lib/entity-rule-domains";
 import { EMPLOYEE_RULE_INCLUDE, buildEmployeeRuleContext, EmployeeRuleRecord } from "@/onevity/shared/services/employee-rule-context";
@@ -181,6 +181,7 @@ export async function GET(req: NextRequest) {
         ...r,
         [def.valueField]: (r as Record<string, unknown>)[def.valueField],
         conditions: parseConditions((r as Record<string, unknown>).conditions as string),
+        matchMode: parseMatchMode((r as Record<string, unknown>).conditions as string),
       })),
       options,
       params: RULE_PARAMS,
@@ -258,7 +259,7 @@ export async function POST(req: NextRequest) {
       try { return validateConditions(b.conditions); }
       catch (e) { throw new RuleValidationError(e instanceof Error ? e.message : String(e)); }
     })();
-    if (conditions === "[]") return NextResponse.json({ error: "Minimal satu kondisi parameter diperlukan" }, { status: 400 });
+    if (isEmptyConditions(conditions)) return NextResponse.json({ error: "Minimal satu kondisi parameter diperlukan" }, { status: 400 });
     const actionType = String(b.actionType ?? def.actions[0].value);
     if (!ACTIONS.has(actionType)) return NextResponse.json({ error: "actionType tidak valid" }, { status: 400 });
     const value = Number(b.value ?? b[def.valueField] ?? 0);
@@ -305,10 +306,16 @@ export async function POST(req: NextRequest) {
     await db.activityLog.create({
       data: {
         action: "Created", entity: `${def.key}Rule`, entityId: rule.id,
-        detail: `Aturan diferensiasi '${rule.name}' utk ${def.entityLabel} dibuat (${JSON.parse(conditions).length} kondisi)`,
+        detail: `Aturan diferensiasi '${rule.name}' utk ${def.entityLabel} dibuat (${parseRuleSpec(conditions).conditions.length} kondisi${parseMatchMode(conditions) === "any" ? ", ATAU" : ""})`,
       },
     });
-    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } }, { status: 201 });
+    return NextResponse.json({
+      rule: {
+        ...rule,
+        conditions: parseConditions((rule as Record<string, unknown>).conditions as string),
+        matchMode: parseMatchMode((rule as Record<string, unknown>).conditions as string),
+      },
+    }, { status: 201 });
   } catch (e) {
     if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -356,7 +363,13 @@ export async function PATCH(req: NextRequest) {
       case "travel": rule = await db.travelExpenseTypeRule.update({ where: { id: b.id }, data }); break;
       default: rule = await db.benefitTypeRule.update({ where: { id: b.id }, data }); break;
     }
-    return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } });
+    return NextResponse.json({
+      rule: {
+        ...rule,
+        conditions: parseConditions((rule as Record<string, unknown>).conditions as string),
+        matchMode: parseMatchMode((rule as Record<string, unknown>).conditions as string),
+      },
+    });
   } catch (e) {
     if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
