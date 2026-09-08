@@ -6,7 +6,8 @@
 //      bankAccount) → enc:v1:t:… — AES-256-GCM per-tenant, kunci SAMA dgn
 //      aplikasi (import tenantCrypto dari field-crypto langsung).
 //   3. Skip baris yang sudah enc:v1 → rerun = 0 perubahan.
-// Jalankan: bun run scripts/migrate-encrypt.ts
+// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// (main() tanpa efek samping) ATAU CLI: bun run scripts/migrate-encrypt.ts
 import { Client } from "pg";
 import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
 
@@ -41,7 +42,10 @@ const TARGETS: [string, string, "n" | "t"][] = [
   ["EmployeePayrollProfile", "bankAccount", "t"],
 ];
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
   await c.connect();
   try {
@@ -80,5 +84,11 @@ for (const schema of SCHEMAS) {
   } finally {
     await c.end();
   }
+  }
+  console.log("\nDONE — rerun utk verifikasi idempotensi (semua 0)");
 }
-console.log("\nDONE — rerun utk verifikasi idempotensi (semua 0)");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

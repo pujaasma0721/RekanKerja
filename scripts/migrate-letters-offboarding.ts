@@ -3,7 +3,7 @@
 //      Offboarding, OffboardingTask) + kolom CompanyOffice.npwp (idempoten)
 //   2. seedLetterTemplates — default template surat (idempoten per key;
 //      TIDAK menimpa template yang sudah diedit user)
-// Jalankan: bun run scripts/migrate-letters-offboarding.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-letters-offboarding.ts
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
@@ -108,7 +108,10 @@ export async function seedLetterTemplates(db: TenantDb): Promise<number> {
 
 // ============ main ============
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi template surat + offboarding…`);
   const ddl = await applyLettersDdl(schema);
   console.log(`  DDL: ${ddl.tables} tabel baru, ${ddl.columns} kolom baru`);
@@ -116,5 +119,11 @@ for (const schema of SCHEMAS) {
   const templates = await seedLetterTemplates(db);
   console.log(`  Template surat: ${templates} template default di-seed`);
   await db.$disconnect();
+  }
+  console.log("\nDONE");
 }
-console.log("\nDONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

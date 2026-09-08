@@ -5,7 +5,7 @@
 //      bila unik) — syarat requireEss() menemukan data karyawan aktor
 //   3. Seed notifikasi demo (3 baris) utk AppUser MII hrd & agus — hanya bila
 //      pengguna tsb belum punya notifikasi (idempoten)
-// Jalankan: bun scripts/migrate-ess.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-ess.ts
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { pushNotification } from "@/onevity/shared/services/notification-service";
@@ -174,8 +174,11 @@ async function seedDemoNotifications(schemaName: string): Promise<string[]> {
 
 // ============ run ============
 
-let ddlTotal = 0;
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  let ddlTotal = 0;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi ESS…`);
   const ddl = await applyEssDdl(schema);
   ddlTotal += ddl.length;
@@ -190,5 +193,11 @@ for (const schema of SCHEMAS) {
 
   const seeded = await seedDemoNotifications(schema);
   for (const s of seeded) console.log(`  notifikasi demo: ${s}`);
+  }
+  console.log(`\nDONE — ${ddlTotal} statement DDL diterapkan (idempoten) di ${list.length} tenant`);
 }
-console.log(`\nDONE — ${ddlTotal} statement DDL diterapkan (idempoten) di ${SCHEMAS.length} tenant`);
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

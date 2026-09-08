@@ -2,7 +2,7 @@
 //   DDL: kolom "AttendanceDaily"."paidFlag" BOOLEAN (nullable) — klasifikasi
 //   izin berbayar/tidak yang eksplisit (mengganti notes.includes("tidak dibayar")
 //   di recapPeriod; baris lama fallback ke notes).
-// Jalankan: bun scripts/migrate-t5-ta.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-t5-ta.ts
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -44,10 +44,21 @@ async function applyDdl(schemaName: string): Promise<string[]> {
 }
 
 let total = 0;
-for (const schema of SCHEMAS) {
+
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  total = 0;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi T5-TA-FIX…`);
   const ddl = await applyDdl(schema);
   total += ddl.length;
   console.log(`  ${ddl.join(" · ")}`);
+  }
+  console.log(`\nDONE — ${total} langkah diterapkan (idempoten) di ${list.length} tenant`);
 }
-console.log(`\nDONE — ${total} langkah diterapkan (idempoten) di ${SCHEMAS.length} tenant`);
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

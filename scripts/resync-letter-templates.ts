@@ -16,7 +16,10 @@ function untouched(row: { createdAt: Date; updatedAt: Date }): boolean {
   return Math.abs(row.updatedAt.getTime() - row.createdAt.getTime()) < 1500;
 }
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   const db = getTenantClient(schema);
   let created = 0;
   let refreshed = 0;
@@ -61,4 +64,11 @@ for (const schema of SCHEMAS) {
   }
   console.log(`${schema}: ${created} template baru, ${refreshed} di-refresh, ${skipped} dibiarkan (sudah diedit)`);
   await db.$disconnect();
+  }
+  console.log("DONE — resync template surat");
+}
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
 }

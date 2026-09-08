@@ -2,7 +2,7 @@
 //   1. CREATE TABLE "Attachment" + "EmployeeDocument" (IF NOT EXISTS)
 //   2. indeks (entityType,entityId) / employeeId / expiresAt
 //   3. FK EmployeeDocument → Employee (Cascade) & → Attachment (SetNull)
-// Jalankan: bun scripts/migrate-attachments.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-attachments.ts
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -88,10 +88,21 @@ async function applyDdl(schemaName: string): Promise<string[]> {
 }
 
 let steps = 0;
-for (const schema of SCHEMAS) {
+
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  steps = 0;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi T16-ATTACH…`);
   const out = await applyDdl(schema);
   steps += out.length;
   console.log(`  ${out.join(" · ")}`);
+  }
+  console.log(`\nDONE — ${steps} langkah (idempoten) di ${list.length} tenant`);
 }
-console.log(`\nDONE — ${steps} langkah (idempoten) di ${SCHEMAS.length} tenant`);
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

@@ -12,7 +12,9 @@
 //        + 1 riwayat pengembalian; koordinat kantor OFF-HO (Jakarta Timur)
 //        untuk uji geofencing.
 //      · Cahaya & Sentra: 4 aset ringkas + 2 penugasan.
-// Jalankan: bun run scripts/migrate-wave27.ts
+// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// (main() tanpa efek samping modul) ATAU dijalankan CLI:
+//   bun run scripts/migrate-wave27.ts
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -266,7 +268,11 @@ const ASSIGNMENT_SEED: Record<string, [string, string, string | null, string | n
 
 // ============ main ============
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner).
+ *  Tanpa parameter → 3 tenant sandbox default. */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
   await c.connect();
   try {
@@ -390,5 +396,12 @@ for (const schema of SCHEMAS) {
   } finally {
     await c.end();
   }
+  }
+  console.log("\nDONE");
 }
-console.log("\nDONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung (bun scripts/migrate-wave27.ts),
+// BUKAN saat diimpor aplikasi (parity-runner mengimpor main() saja).
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

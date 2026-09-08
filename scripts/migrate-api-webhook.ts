@@ -3,7 +3,7 @@
 //      (kunci API per tenant, endpoint webhook, riwayat pengiriman)
 //   2. tanpa seed — kunci & webhook dibuat admin via menu Pengaturan →
 //      API & Integrasi (atau REST /api/onevity/api-keys & /api/onevity/webhooks).
-// Jalankan: bun scripts/migrate-api-webhook.ts (idempoten)
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-api-webhook.ts (idempoten)
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -56,14 +56,16 @@ const FK_CHECK = `SELECT 1 FROM pg_constraint WHERE conname = 'WebhookLog_webhoo
 const FK_ADD = `ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_webhookId_fkey"
   FOREIGN KEY ("webhookId") REFERENCES "Webhook"("id") ON DELETE CASCADE ON UPDATE CASCADE`;
 
-async function main() {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
   const client = new Client({
     connectionString:
       process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity",
   });
   await client.connect();
 
-  for (const schema of SCHEMAS) {
+  for (const schema of list) {
     // guard: schema tenant belum di-provision → skip (bukan error)
     const exists = await client.query(
       `SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`,
@@ -92,7 +94,10 @@ async function main() {
   console.log("DONE — Public API & Webhook siap (T18-API)");
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

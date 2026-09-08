@@ -11,7 +11,7 @@
 //      karyawan Contract/Probation yang kolomnya masih kosong — termasuk satu
 //      kasus durasi total > 5 tahun (uji guard konversi PKS) dan sebaran
 //      tanggal berakhir ≤7/≤21/≤45/≤75 hari + 1 lewat (uji filter directory).
-// Jalankan: bun run scripts/migrate-p0-wave2.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-p0-wave2.ts
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -67,7 +67,10 @@ function pkwtSeed(): { employeeNo: string; start: string; end: string | null; re
 
 // ============ main ============
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
   await c.connect();
   try {
@@ -131,5 +134,11 @@ for (const schema of SCHEMAS) {
   } finally {
     await c.end();
   }
+  }
+  console.log("\nDONE");
 }
-console.log("\nDONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

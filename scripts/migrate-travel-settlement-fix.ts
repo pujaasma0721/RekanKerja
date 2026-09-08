@@ -14,7 +14,12 @@
 //      dihapus & di-regenerate via generateClaimJournal (D=C tetap).
 //   5. Sinkronkan amount EmployeeComponentAssignment UTRP/TRVSTLIN klaim
 //      Transferred yang b/c-nya berubah (notes memuat docNo klaim).
-// Jalankan: bun run scripts/migrate-travel-settlement-fix.ts
+// FIX (seed-remote wave): (a) kunci tenant kini dari schemaName aktual — dulu
+//      memakai env SEED_TENANT_SCHEMA (salah kunci saat dijalankan standalone);
+//      (b) amount jurnal PayrollJournalLine kini TERENKRIPSI (wave 28-c) →
+//      didekripsi dulu sebelum uji konsistensi (tanpa ini, jurnal dianggap
+//      selalu tidak-konsisten & diregenerasi tiap rerun).
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-travel-settlement-fix.ts
 import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
@@ -59,7 +64,9 @@ function journalSplit(claim: ClaimRow, advance: number) {
   return { total, aEff, bPayroll, cPayroll, cashPortion: round2(R - bPayroll - cPayroll) };
 }
 
-/** Apakah jurnal existing sudah konsisten dgn formula baru? */
+/** Apakah jurnal existing sudah konsisten dgn formula baru?
+ *  amount bisa string terenkripsi (enc:v1:…) ATAU number legacy → dinormalisasi
+ *  oleh caller via decodeAmount sebelum masuk sini. */
 function journalConsistent(claim: ClaimRow, advance: number, lines: JournalLineRow[]): boolean {
   const exp = journalSplit(claim, advance);
   const sum = (pos: string, filter: (l: JournalLineRow) => boolean) =>
@@ -76,6 +83,13 @@ function journalConsistent(claim: ClaimRow, advance: number, lines: JournalLineR
 }
 
 async function migrateSchema(schemaName: string) {
+  const tc = tenantCrypto(schemaName);
+  // normalisasi amount jurnal: string terenkripsi → number (legacy number tetap)
+  const decodeAmount = (v: number | string | null): number => {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === "number") return v;
+    return tc.decryptMoney(v) ?? Number(v) ?? 0;
+  };
   // ---- 1. DDL lifecycle advance (idempoten) ----
   const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
   await c.connect();
@@ -172,7 +186,9 @@ async function migrateSchema(schemaName: string) {
       include: { lines: { select: { position: true, accountCode: true, amount: true, memo: true } } },
     });
     // jurnal klaim = runId null + runNo = docNo; jurnal run payroll tidak disentuh
-    if (journal && journal.runId === null && !journalConsistent(claim, advance, journal.lines as unknown as JournalLineRow[])) {
+    if (journal && journal.runId === null && !journalConsistent(claim, advance,
+      (journal.lines as unknown as { position: string; accountCode: string; amount: number | string; memo: string | null }[])
+        .map((l) => ({ position: l.position, accountCode: l.accountCode, memo: l.memo, amount: decodeAmount(l.amount) })))) {
       const regen = await generateClaimJournal(db, claim.id);
       if (regen.journalNo) {
         await db.travelClaim.update({
@@ -199,12 +215,12 @@ async function migrateSchema(schemaName: string) {
         },
         select: { id: true, wageComponentId: true, amount: true },
       });
-      const tcM = tenantCrypto(process.env.SEED_TENANT_SCHEMA ?? "tenant_seed");
+      // FIX: kunci tenant dari schemaName aktual (dulu SEED_TENANT_SCHEMA — salah kunci standalone)
       for (const t of targets) {
         const expected = Math.round(t.wageComponentId === compUtrp.id ? b : c);
-        const currentAmt = tcM.decryptMoney(t.amount) ?? 0; // legacy plaintext di-parse
+        const currentAmt = tc.decryptMoney(t.amount as unknown as string) ?? Number(t.amount) ?? 0; // legacy plaintext di-parse
         if (Math.abs(currentAmt - expected) > 0.5) {
-          await db.employeeComponentAssignment.update({ where: { id: t.id }, data: { amount: tcM.encryptMoney(expected) } });
+          await db.employeeComponentAssignment.update({ where: { id: t.id }, data: { amount: tc.encryptMoney(expected) } });
           assignmentsSynced++;
         }
       }
@@ -225,7 +241,14 @@ async function migrateSchema(schemaName: string) {
 }
 
 let totalClaims = 0, totalRecalc = 0, totalJournals = 0, totalAssign = 0;
-for (const schema of SCHEMAS) {
+
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner).
+ *  PENTING: jalankan SETELAH migrate-encrypt (kolom jurnal/assignment sudah TEXT
+ *  terenkripsi — generateClaimJournal & tulis amount terenkripsi aman). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  totalClaims = 0; totalRecalc = 0; totalJournals = 0; totalAssign = 0;
+  for (const schema of list) {
   console.log(`\n[${schema}] T3-TRAVEL settlement fix…`);
   const r = await migrateSchema(schema);
   totalClaims += r.claims; totalRecalc += r.recalculated; totalJournals += r.journalsRegen; totalAssign += r.assignmentsSynced;
@@ -234,6 +257,12 @@ for (const schema of SCHEMAS) {
     ` · jurnal di-regenerate: ${r.journalsRegen} · assignment disinkronkan: ${r.assignmentsSynced}` +
     ` · advance Void/Requested/Given: ${r.voided}/${r.requested}/${r.givenFixed}`,
   );
+  }
+  console.log(`\nTOTAL: klaim ${totalClaims} (rekalkulasi ${totalRecalc}), jurnal ${totalJournals}, assignment ${totalAssign}`);
+  console.log("DONE");
 }
-console.log(`\nTOTAL: klaim ${totalClaims} (rekalkulasi ${totalRecalc}), jurnal ${totalJournals}, assignment ${totalAssign}`);
-console.log("DONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

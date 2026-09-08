@@ -2,7 +2,7 @@
 //   DDL: tabel "HolidayDate" (id/date/name/kind) + unique (date,name) + index.
 //   SEED: kalender hari libur Indonesia 2025 + 2026 (nasional + cuti bersama),
 //        INSERT … ON CONFLICT ("date","name") DO NOTHING — aman dijalankan ulang.
-// Jalankan: bun scripts/migrate-holidays.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-holidays.ts
 import { Client } from "pg";
 
 const SCHEMAS = [
@@ -103,10 +103,21 @@ async function applyDdl(schemaName: string): Promise<{ ddl: string[]; inserted: 
 }
 
 let grand = 0;
-for (const schema of SCHEMAS) {
+
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  grand = 0;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi T9-HOLIDAY…`);
   const r = await applyDdl(schema);
   grand += r.inserted;
   console.log(`  ${r.ddl.join(" · ")} · seed: ${r.inserted} baru dari ${HOLIDAYS.length} baris (total ${r.total})`);
+  }
+  console.log(`\nDONE — ${grand} baris libur baru (idempoten) di ${list.length} tenant`);
 }
-console.log(`\nDONE — ${grand} baris libur baru (idempoten) di ${SCHEMAS.length} tenant`);
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

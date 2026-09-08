@@ -188,11 +188,13 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
   },
 ];
 
-async function main() {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
   const client = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
   await client.connect();
 
-  for (const schema of SCHEMAS) {
+  for (const schema of list) {
     // guard: schema tenant belum di-provision → skip (bukan error — mis. environment parsial)
     const exists = await client.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [schema]);
     if ((exists.rowCount ?? 0) === 0) {
@@ -230,4 +232,7 @@ async function main() {
   console.log("DONE — konfigurasi email siap (Task 34)");
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

@@ -1,10 +1,15 @@
 // OneVity instrumentation — hook startup Next.js (dipanggil sekali per proses
-// server). Dua fungsi (rev T14):
-// 1. AUTO-SEED demo: bila database platform masih KOSONG (belum ada tenant
-//    sama sekali) → jalankan scripts/restore-demo.ts di latar belakang
-//    sehingga deployment baru langsung punya data demo 3 tenant
-//    (MII penuh + Cahaya + Sentra) persis seperti environment lokal sandbox.
-// 2. BACKGROUND JOB SCHEDULER (T14-SCHED): nyalakan scheduler lintas tenant
+// server). Tiga fungsi (rev Task 30 / seed-remote wave):
+// 1. AUTO-SEED demo FRESH: bila database platform masih KOSONG (belum ada
+//    tenant) → seed demo 3 tenant (MII penuh + Cahaya + Sentra) di latar
+//    belakang — deployment baru langsung punya data persis sandbox.
+// 2. AUTO-PARITY UPGRADE (BARU): bila tenant SUDAH ada tapi struktur
+//    wave-26/27/28 belum lengkap (deployment lama yang baru pull kode baru —
+//    DB masih skema lama) → jalankan parity runner IN-PROCESS di latar
+//    belakang. Ini menyehatkan kondisi transisional "kode baru + DB lama"
+//    (mis. payroll error type mismatch) TANPA perintah manual: cukup
+//    pull → build → restart.
+// 3. BACKGROUND JOB SCHEDULER (T14-SCHED): nyalakan scheduler lintas tenant
 //    (siklus tiap 6 jam + run pertama 60 dtk) — resign terjadwal, pengingat
 //    kontrak/probation/dokumen, SLA approval, payroll D-3, housekeeping.
 //
@@ -12,20 +17,34 @@
 // - hanya runtime nodejs (bukan edge)
 // - tidak saat `next build` (phase-production-build)
 // - matikan via env DEMO_AUTOSEED=off / SCHEDULER=off
-// - auto-seed hanya bila Tenant count == 0 (tidak pernah menyentuh DB berdata)
-// - restore-demo idempoten → aman bila proses restart di tengah seed
+// - parity runner idempoten → aman bila proses restart di tengah jalan
+//   (rerun = no-op; gap check murah hanya 2 query information_schema)
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
   try {
     if (process.env.DEMO_AUTOSEED !== "off") {
-      const { platformCounts, spawnRestoreDemo } = await import("./onevity/shared/lib/demo-seed");
-      const { tenants } = await platformCounts();
-      if (tenants > 0) return; // sudah ada data — jangan sentuh apa pun
-      console.log("[demo-seed] database kosong — restore demo 3 tenant dimulai di latar belakang…");
-      const r = spawnRestoreDemo();
-      console.log(`[demo-seed] ${r.note}`);
-      if (!r.ok) console.warn("[demo-seed] auto-seed tidak jalan — jalankan manual: bun scripts/restore-demo.ts");
+      const { platformCounts, startDemoSeed } = await import("./onevity/shared/lib/demo-seed");
+      const { checkParityGap } = await import("./onevity/shared/lib/parity-runner");
+      const counts = await platformCounts();
+      if (counts.tenants === 0) {
+        console.log("[demo-seed] database kosong — restore demo 3 tenant dimulai di latar belakang…");
+        const r = startDemoSeed();
+        console.log(`[demo-seed] ${r.note}`);
+        if (!r.ok) console.warn("[demo-seed] auto-seed tidak jalan — jalankan manual: bun scripts/restore-demo.ts");
+      } else {
+        // tenant ada — pastikan DB sudah paritas dgn kode yang berjalan
+        const gap = await checkParityGap();
+        if (gap.gap) {
+          console.log(
+            `[demo-seed] gap parity terdeteksi (${gap.readySchemas}/${gap.tenants} tenant siap — ${gap.reasons.join("; ")}) — migrasi upgrade dimulai di latar belakang…`,
+          );
+          const r = startDemoSeed({ parityOnly: true });
+          console.log(`[demo-seed] ${r.note}`);
+        } else {
+          console.log(`[demo-seed] ${gap.tenants} tenant sudah paritas — tidak ada tindakan.`);
+        }
+      }
     }
   } catch (e) {
     // platform DB belum siap / tabel belum ada → diam (deployment pertama sebelum db:push)

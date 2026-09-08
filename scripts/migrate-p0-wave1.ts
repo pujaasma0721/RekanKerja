@@ -4,7 +4,7 @@
 //      + PayrollRun.slipPassword (slip gaji email berpassword)
 //   2. Tidak menimpa template surat — seed template EMP_* dilakukan oleh
 //      scripts/resync-letter-templates.ts setelah letter-defaults.ts diperluas.
-// Jalankan: bun run scripts/migrate-p0-wave1.ts
+// Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-p0-wave1.ts
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
@@ -87,9 +87,18 @@ async function applyP0Ddl(schemaName: string): Promise<{ tables: number; columns
 
 // ============ main ============
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi P0 wave-1 (LetterRequest, MinimumWage, PKWT, slipPassword)…`);
   const ddl = await applyP0Ddl(schema);
   console.log(`  DDL: ${ddl.tables} tabel baru, ${ddl.columns} kolom baru`);
+  }
+  console.log("\nDONE");
 }
-console.log("\nDONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

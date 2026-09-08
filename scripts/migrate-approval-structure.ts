@@ -397,7 +397,10 @@ async function backfillChains(db: TenantDb): Promise<{ created: number; finalize
 
 // ============ main ============
 
-for (const schema of SCHEMAS) {
+/** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */
+export async function main(schemas?: string[]): Promise<void> {
+  const list = schemas ?? SCHEMAS;
+  for (const schema of list) {
   console.log(`\n[${schema}] migrasi approval struktur berjenjang…`);
   const ddl = await applyApprovalDdl(schema);
   console.log(`  DDL: ${ddl.tables} tabel baru, ${ddl.columns} kolom baru`);
@@ -416,5 +419,11 @@ for (const schema of SCHEMAS) {
   const chains = await backfillChains(db);
   console.log(`  Chain backfill: ${chains.created} dibuat, ${chains.finalized} difinalkan`);
   await db.$disconnect();
+  }
+  console.log("\nDONE");
 }
-console.log("\nDONE");
+
+// CLI guard — hanya auto-run saat dieksekusi langsung, bukan saat diimpor aplikasi.
+if (process.argv[1]?.replace(/\\/g, "/").includes("/scripts/")) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}
