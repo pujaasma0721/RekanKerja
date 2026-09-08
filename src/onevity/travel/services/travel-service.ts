@@ -8,8 +8,9 @@
 //   c (payableCompany, TRVSTLIN) = max(0, advance − R)
 //   totalSettlement = R (gross settlement, sebanding total beban)
 // (a) biaya dibayar pihak lain TIDAK dibayar ke karyawan — jurnal: baris KONTRA.
-import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
+import { startApprovalChain, decideApprovalChain, cancelApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 
 // ============ util ============
@@ -906,15 +907,17 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
 
   const journalNo = await nextJournalNo(db);
   const journalDate = new Date();
+  // 28-c: total & baris jurnal disimpan TERENKRIPSI (enc:v1:n:…).
+  const tcJ = tenantCryptoForDb(db);
   await db.payrollJournal.create({
     data: {
       journalNo, journalDate, runId: null, runNo: claim.docNo,
       description: `Klaim perjalanan dinas ${claim.docNo} — ${claim.employee.fullName}`,
-      totalDebit: total, totalCredit: total, status: "Posted",
+      totalDebit: tcJ.encryptMoney(total), totalCredit: tcJ.encryptMoney(total), status: "Posted",
       lines: {
         create: drafts.map((d, i) => ({
           sequence: i + 1, accountCode: d.accountCode, accountName: d.accountName,
-          position: d.position, amount: d.amount, memo: d.memo, wageCode: d.wageCode,
+          position: d.position, amount: tcJ.encryptMoney(d.amount), memo: d.memo, wageCode: d.wageCode,
         })),
       },
     },
@@ -1110,12 +1113,14 @@ export async function transferClaimsToPayroll(
   const employees = new Set<string>();
   let earningTotal = 0;
   let deductionTotal = 0;
+  // 28-c: nilai komponen khusus disimpan TERENKRIPSI (enc:v1:n:…).
+  const tcC = tenantCryptoForDb(db);
   for (const c of claims) {
     if (c.payableEmployee > 0) {
       await db.employeeComponentAssignment.create({
         data: {
           employeeId: c.employeeId, wageComponentId: compUtrp.id,
-          kind: "Specific", amount: Math.round(c.payableEmployee),
+          kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableEmployee)),
           periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
           notes: `Kompensasi perjalanan dinas ${c.docNo} — ${c.employee.fullName}`,
           active: true,
@@ -1128,7 +1133,7 @@ export async function transferClaimsToPayroll(
       await db.employeeComponentAssignment.create({
         data: {
           employeeId: c.employeeId, wageComponentId: compDed.id,
-          kind: "Specific", amount: Math.round(c.payableCompany),
+          kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableCompany)),
           periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
           notes: `Potongan settlement travel ${c.docNo} — kelebihan uang muka`,
           active: true,

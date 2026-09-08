@@ -4,8 +4,8 @@ import {
   issueLetter,
   letterPdfBuffer,
   parseMeta,
-  type LetterCategory,
 } from "@/onevity/shared/services/letter-service";
+import type { LetterCategory } from "@/onevity/shared/lib/letter-defaults";
 
 // Penerbitan & pencetakan SURAT (Task 3-LETTERS + 26-a EmployeeService):
 //   · POST /api/onevity/letters/issue        — terbitkan (idempotent) dari

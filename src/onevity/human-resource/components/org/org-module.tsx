@@ -413,7 +413,7 @@ function CompanyProfile() {
                   <Badge className="gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {t("Aktif")}
                   </Badge>
-                  <Badge variant="secondary" className="text-[10px]">{t("Mata uang: {c}", "Currency: {c}", { c: c?.currency })}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{t("Mata uang: {c}", "Currency: {c}", { c: c?.currency ?? "" })}</Badge>
                 </div>
               </div>
             </div>

@@ -6,6 +6,7 @@
 // saldo used bertambah → penyesuaian ± (Medical Adjustment + approval) → sisa saldo
 // jenis CASH ditarik ke payroll (komponen UMC) → Paid saat run dikonfirmasi.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import type { Prisma } from "@/generated/tenant";
@@ -35,12 +36,17 @@ async function nextDocNo(db: TenantDb, prefix: "MC" | "MA"): Promise<string> {
   return `${prefix}-${year}-${String(max + 1).padStart(3, "0")}`;
 }
 
+/** Gaji pokok aktif (28-c: terenkripsi di DB — dekripsi via field-crypto). */
+export function salaryOfAssignment(tc: FieldCrypto, stored: string | null): number {
+  return tc.decryptMoney(stored) ?? 0;
+}
+
 async function activeSalary(db: TenantDb, employeeId: string): Promise<number> {
   const emp = await db.employee.findUnique({
     where: { id: employeeId },
     select: { assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
   });
-  return emp?.assignments[0]?.baseSalary ?? 0;
+  return emp?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
 }
 
 const MEDICAL_EXPENSE_ACC = { code: "5106", name: "Beban Kesejahteraan Medis" };
@@ -113,7 +119,8 @@ async function claimPoolAvailability(
   ]);
   // fallback bila saldo tahun itu belum digenerate (backlog m-5: submit masih
   // memakai limit on-the-fly; settle kini MENOLAK tanpa saldo — lihat decideClaim)
-  const salary = emp?.assignments[0]?.baseSalary ?? 0;
+  // 28-c: baseSalary terenkripsi — dekripsi utk kalkulasi plafon.
+  const salary = emp?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
   const limit = bal?.benefitAmount ?? benefitLimitFor(t, salary);
   const empRemaining = bal
     ? round2(bal.benefitAmount + bal.adjustmentAmount + bal.carriedOver - bal.usedAmount - bal.initialUsed)
@@ -337,8 +344,10 @@ export async function generateBalances(
 
   let created = 0;
   let updated = 0;
+  // 28-c: baseSalary terenkripsi — dekripsi utk kalkulasi plafon.
+  const tcGen = tenantCryptoForDb(db);
   for (const emp of employees) {
-    const salary = emp.assignments[0]?.baseSalary ?? 0;
+    const salary = emp.assignments[0] ? salaryOfAssignment(tcGen, emp.assignments[0].baseSalary) : 0;
     for (const t of types) {
       const limit = benefitLimitFor(t, salary);
       const prev = prevByKey.get(`${emp.id}:${t.id}`);
@@ -447,6 +456,8 @@ export async function listBalances(
     take: 1500,
   });
   // jenis UNLIMITED tidak masuk agregat nominal (menampilkan ∞ per baris)
+  // 28-c: baseSalary karyawan terenkripsi — dekripsi utk kolom saldo.
+  const tcBal = tenantCryptoForDb(db);
   return rows.filter((b) => b.type.limitRule !== "UNLIMITED").map((b) => {
     const remaining = round2(
       b.benefitAmount + b.adjustmentAmount + b.carriedOver - b.usedAmount - b.initialUsed,
@@ -456,7 +467,7 @@ export async function listBalances(
       id: b.id, employeeId: b.employeeId, employeeNo: b.employee.employeeNo,
       fullName: b.employee.fullName,
       orgUnitName: b.employee.assignments[0]?.orgUnit?.name ?? null,
-      baseSalary: b.employee.assignments[0]?.baseSalary ?? 0,
+      baseSalary: b.employee.assignments[0] ? tcBal.decryptMoney(b.employee.assignments[0].baseSalary) ?? 0 : 0,
       typeCode: b.type.code, typeName: b.type.name, year: b.year, limitRule: b.type.limitRule,
       benefitAmount: b.benefitAmount, adjustmentAmount: b.adjustmentAmount,
       carriedOver: b.carriedOver, initialUsed: b.initialUsed, usedAmount: b.usedAmount,
@@ -548,7 +559,8 @@ export async function previewClaim(
   const bal = await db.medicalBalance.findUnique({
     where: { employeeId_typeId_year: { employeeId: input.employeeId, typeId: input.typeId, year: input.year } },
   });
-  const salary = emp.assignments[0]?.baseSalary ?? 0;
+  // 28-c: gaji pokok terenkripsi — dekripsi utk fallback plafon.
+  const salary = emp.assignments[0] ? salaryOfAssignment(tenantCryptoForDb(db), emp.assignments[0].baseSalary) : 0;
   const limit = bal?.benefitAmount ?? benefitLimitFor(t, salary);
   const used = (bal?.usedAmount ?? 0) + (bal?.initialUsed ?? 0);
   const claimCountYear = await db.medicalClaim.count({
@@ -910,15 +922,17 @@ async function generateSettleJournal(
   });
   const journalNo = await nextJournalNo(db);
   const journalDate = new Date();
+  // 28-c: total & baris jurnal disimpan TERENKRIPSI (enc:v1:n:…).
+  const tcJ = tenantCryptoForDb(db);
   await db.payrollJournal.create({
     data: {
       journalNo, journalDate, runId: null, runNo: claim.docNo,
       description: `Klaim medis ${claim.docNo} — ${claim.employee.fullName} (${claim.type.name})`,
-      totalDebit: total, totalCredit: total, status: "Posted",
+      totalDebit: tcJ.encryptMoney(total), totalCredit: tcJ.encryptMoney(total), status: "Posted",
       lines: {
         create: drafts.map((d, i) => ({
           sequence: i + 1, accountCode: d.accountCode, accountName: d.accountName,
-          position: d.position, amount: d.amount, memo: d.memo,
+          position: d.position, amount: tcJ.encryptMoney(d.amount), memo: d.memo,
         })),
       },
     },
@@ -1355,7 +1369,8 @@ export async function transferUnusedToPayroll(
     await db.employeeComponentAssignment.create({
       data: {
         employeeId: empId, wageComponentId: comp.id,
-        kind: "Specific", amount: v.amount,
+        // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+        kind: "Specific", amount: tenantCryptoForDb(db).encryptMoney(v.amount),
         periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
         notes: `Uang sisa saldo medis ${input.year}: ${v.detail.join(", ")}`,
         active: true,

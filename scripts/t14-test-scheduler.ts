@@ -28,6 +28,7 @@
 // SMTP sandbox mati → EmailLog berstatus "Failed" (ECONNREFUSED) — bukti
 // dispatch tetap tercatat (pola sama payslip T10).
 // =========================================================================
+import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { initScheduler, runAllJobs, schedulerStatus } from "@/onevity/shared/services/scheduler-service";
@@ -146,7 +147,7 @@ async function main(): Promise<void> {
       validFrom: new Date(today.getTime() - 60 * DAY_MS),
       validTo: null,
       changeReason: "Initial",
-      baseSalary: 0,
+      baseSalary: tenantCrypto(process.env.SEED_TENANT_SCHEMA ?? "tenant_seed").encryptMoney(0),
     },
   });
   console.log(pad(`T14TEST03 (${e3.id}) Probation, joinDate 60 hari lalu (evaluasi 30 hari lagi)`));

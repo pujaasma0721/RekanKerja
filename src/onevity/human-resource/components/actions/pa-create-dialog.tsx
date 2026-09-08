@@ -441,7 +441,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
           open={previewOpen}
           onOpenChange={setPreviewOpen}
           employeeId={employeeId}
-          employeeName={selected?.label ?? ""}
+          employeeName={selected?.fullName ?? ""}
           effectiveDate={String(detail.lastDay ?? "")}
           initialParams={{
             pesangonMultiplier: Number(detail.pesangonMultiplier ?? 1),

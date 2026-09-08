@@ -272,7 +272,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("Hapus kantor {c}?", "Delete office {c}?", { c: editing?.code })}</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus kantor {c}?", "Delete office {c}?", { c: editing?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("Tindakan ini permanen. Kantor yang masih dipakai lokasi kerja atau struktur approval berjenjang tidak dapat dihapus.", "This action is permanent. Offices still used by work locations or tiered approval structures cannot be deleted.")}
             </AlertDialogDescription>
@@ -406,7 +406,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setEditing(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("Hapus lokasi {c}?", "Delete location {c}?", { c: editing?.code })}</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus lokasi {c}?", "Delete location {c}?", { c: editing?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("Tindakan ini permanen. Lokasi yang masih dipakai penempatan karyawan atau struktur approval berjenjang tidak dapat dihapus.", "This action is permanent. Locations still used by employee placement or tiered approval structures cannot be deleted.")}
             </AlertDialogDescription>

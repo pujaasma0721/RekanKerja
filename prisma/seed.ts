@@ -1,5 +1,6 @@
 // OneVity seed — realistic Indonesian company "MII - Mitra Industri Internasional"
 import { PrismaClient } from "@/generated/tenant";
+
 import { calculateAndSaveRun, confirmRun } from "../src/onevity/payroll/services/payroll-service";
 import {
   submitClaim, scheduleClaim, approveClaim, rejectClaim, markClaimPaidCash, nextClaimNo,
@@ -10,6 +11,10 @@ import {
 const db = new PrismaClient({
   datasources: { db: { url: `${process.env.TENANT_DB_BASE_URL}?schema=${process.env.SEED_TENANT_SCHEMA ?? "tenant_seed"}` } },
 });
+// 28-c: nilai uang payroll (baseSalary/amount komponen) dienkripsi saat seed —
+// kunci per-tenant schema (SEED_TENANT_SCHEMA, fallback tenant_seed).
+import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+const tc = tenantCrypto(process.env.SEED_TENANT_SCHEMA ?? "tenant_seed");
 
 // deterministic pseudo-random
 let seed = 42;
@@ -251,7 +256,7 @@ async function main() {
         gradeId: grades[gradeCode] ?? null,
         employmentStatus: opts.empStatus ?? "Permanent",
         managerId: opts.manager ?? null,
-        baseSalary: salaryOf(gradeCode),
+        baseSalary: tc.encryptMoney(salaryOf(gradeCode)),
         workShift: posCode === "P-OPR" ? pick(["Shift 1", "Shift 2", "Shift 3"]) : "Regular",
         validFrom: joinDate,
         validTo: null,
@@ -346,7 +351,7 @@ async function main() {
         employeeId: empId,
         orgUnitId: current.orgUnitId, positionId: current.positionId, gradeId: current.gradeId,
         managerId: current.managerId, employmentStatus: current.employmentStatus, workShift: current.workShift,
-        baseSalary: Math.round(current.baseSalary * h.salaryMult / 50000) * 50000,
+        baseSalary: tc.encryptMoney(Math.round((tc.decryptMoney(current.baseSalary) ?? 0) * h.salaryMult / 50000) * 50000),
         validFrom: new Date(2022, 6, 1), validTo: null,
         changeReason: h.reason, sourceDocNo: h.docNo, notes: h.notes,
       },
@@ -791,7 +796,7 @@ async function main() {
     await db.employeeComponentAssignment.create({
       data: {
         employeeId: eid, wageComponentId: compIds["BONUS"], kind: "Specific",
-        amount, periodId: sepPeriod.id, processTypeId: salaryType.id,
+        amount: tc.encryptMoney(amount), periodId: sepPeriod.id, processTypeId: salaryType.id,
         basedDate: new Date(2026, 8, 15), notes: "Bonus kinerja Q3",
       },
     });
@@ -800,7 +805,7 @@ async function main() {
   await db.employeeComponentAssignment.create({
     data: {
       employeeId: empIds[20], wageComponentId: compIds["TTRANS"], kind: "Periodic",
-      amount: 1_000_000, notes: "Transport lapangan lebih tinggi",
+      amount: tc.encryptMoney(1_000_000), notes: "Transport lapangan lebih tinggi",
     },
   });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
       },
       orderBy: [{ createdAt: "desc" }],
     });
-    return NextResponse.json({ runs });
+    // 28-c: dekripsi total uang run di batas serializer (angka utk frontend).
+    return NextResponse.json({ runs: tenantCryptoForDb(db).decryptJson(runs) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -282,13 +284,22 @@ async function handleSendSlips(
     return NextResponse.json({ error: "Run tidak memiliki baris hasil" }, { status: 400 });
   }
 
+  // 28-c: net + NIK tersimpan terenkripsi — dekripsi utk email & kata sandi slip
+  // (password slip = NIK karyawan; nilai TERDEKRIPSI tidak pernah masuk log).
+  const tc = tenantCryptoForDb(db);
+  const linesDec = lines.map((l) => ({
+    ...l,
+    net: tc.decryptMoney(l.net) ?? 0,
+    employeeNik: tc.decryptText(l.employee?.nationalId),
+  }));
+
   let sent = 0;
   let skipped = 0;
   let failed = 0;
   let disabled = 0;
-  for (const line of lines) {
+  for (const line of linesDec) {
     // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
-    const slipPwd = protect ? (line.employee?.nationalId?.trim() || line.employeeNo) : null;
+    const slipPwd = protect ? (line.employeeNik?.trim() || line.employeeNo) : null;
     const built = await buildPayslipPdfByLineId(db, line.id, { password: slipPwd });
     if (!built) { skipped += 1; continue; }
     const status = await sendPayslipEmail(db, {

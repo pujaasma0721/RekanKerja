@@ -15,6 +15,7 @@
 // = masa pajak terakhir penerima. CSV ini kolomnya 1:1 dgn sheet A1 template →
 // siap DITEMPEL (paste) ke template resmi tanpa re-format manual.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { progressiveTax, EngineBracket } from "@/onevity/payroll/services/payroll-engine";
 import { getBrackets, getActiveRegulation } from "@/onevity/payroll/services/payroll-service";
 
@@ -124,7 +125,10 @@ function esptBucketOf(item: RunItemLike): "gaji" | "tunjPph" | "tunjLain" | "pre
 }
 
 export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptReport> {
-  const runs = await db.payrollRun.findMany({
+  // 28-c: konteks dekripsi per-tenant — field uang & identitas tersimpan
+  // terenkripsi; dipetakan ke tipe terdekripsi SEBELUM komputasi rekap.
+  const tc = tenantCryptoForDb(db);
+  const runsRaw = await db.payrollRun.findMany({
     where: { status: { in: ["Confirmed", "Paid"] }, period: { sptYear: year } },
     include: {
       period: true, // 27-c: masa pajak (sptMonth) utk kolom Masa Penghasilan Awal/Akhir
@@ -138,6 +142,61 @@ export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptRep
     orderBy: { createdAt: "asc" },
   });
 
+  // Baris hasil kalkulasi dgn nilai uang SUDAH terdekripsi (tipe number).
+  interface SptLine {
+    employeeId: string;
+    employeeNo: string;
+    employeeName: string;
+    orgUnitName: string | null;
+    positionName: string | null;
+    ptkpStatus: string;
+    ptkpValue: number;
+    bruto: number;
+    taxRegular: number;
+    taxIrregular: number;
+    items: { code: string; name: string; wageType: string; type: string; incomeTaxMethod: string; amount: number }[];
+    employee: {
+      nationalId: string | null;
+      taxId: string | null;
+      gender: string | null;
+      address: string | null;
+      city: string | null;
+      payrollProfile: { npwp: string | null; hasNpwp: boolean } | null;
+    } | null;
+  }
+  const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+  const runs: { month: number; lines: SptLine[] }[] = runsRaw.map((run) => ({
+    month: run.period?.sptMonth ?? 12,
+    lines: run.lines.map((line) => ({
+      employeeId: line.employeeId,
+      employeeNo: line.employeeNo,
+      employeeName: line.employeeName,
+      orgUnitName: line.orgUnitName,
+      positionName: line.positionName,
+      ptkpStatus: line.ptkpStatus,
+      ptkpValue: line.ptkpValue,
+      bruto: dm(line.bruto),
+      taxRegular: dm(line.taxRegular),
+      taxIrregular: dm(line.taxIrregular),
+      items: line.items.map((it) => ({
+        code: it.code, name: it.name, wageType: it.wageType, type: it.type,
+        incomeTaxMethod: it.incomeTaxMethod, amount: dm(it.amount),
+      })),
+      employee: line.employee
+        ? {
+            nationalId: tc.decryptText(line.employee.nationalId),
+            taxId: tc.decryptText(line.employee.taxId),
+            gender: line.employee.gender,
+            address: line.employee.address,
+            city: line.employee.city,
+            payrollProfile: line.employee.payrollProfile
+              ? { npwp: tc.decryptText(line.employee.payrollProfile.npwp), hasNpwp: line.employee.payrollProfile.hasNpwp }
+              : null,
+          }
+        : null,
+    })),
+  }));
+
   const [reg, brackets] = await Promise.all([getActiveRegulation(db), getBrackets(db)]);
   const biayaJabatanCapAnnual = reg.biayaJabatanCapMonthly * 12;
 
@@ -145,9 +204,8 @@ export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptRep
   // 27-c: statistik per-masa-pajak per pegawai (bruto & PPh21 dipotong) utk
   // kolom "Masa Pajak Terakhir" vs "Masa Sebelumnya" pada template A1 DJP.
   const mstatsByEmp = new Map<string, { bruto: Map<number, number>; tax: Map<number, number>; neto: Map<number, number> }>();
-  for (const run of runs) {
-    const month = run.period?.sptMonth ?? 12;
-    for (const line of run.lines) {
+  for (const { month, lines } of runs) {
+    for (const line of lines) {
       let row = byEmp.get(line.employeeId);
       if (!row) {
         const profile = line.employee?.payrollProfile;

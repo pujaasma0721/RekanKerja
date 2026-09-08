@@ -223,7 +223,6 @@ export const BASE_EN: Record<string, string> = {
   "Catatan": "Notes",
   "Keterangan": "Description",
   "Karyawan": "Employee",
-  "Perusahaan": "Company",
   "Aktif": "Active",
   "Nonaktif": "Inactive",
   "Berhasil": "Success",

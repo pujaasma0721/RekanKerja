@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // GET /api/onevity/payroll-profiles?q= — daftar karyawan aktif + profil payroll + assignment aktif
 export async function GET(req: NextRequest) {
@@ -28,6 +29,8 @@ export async function GET(req: NextRequest) {
     const rows = employees.map((e) => {
       const a = e.assignments[0];
       const p = e.payrollProfile;
+      // 28-c: konteks dekripsi per-tenant di batas serializer.
+      const tc = tenantCryptoForDb(db);
       return {
         employeeId: e.id,
         employeeNo: e.employeeNo,
@@ -35,11 +38,12 @@ export async function GET(req: NextRequest) {
         orgUnitName: a?.orgUnit?.name ?? null,
         positionName: a?.position?.title ?? null,
         gradeName: a?.grade?.name ?? null,
-        baseSalary: a?.baseSalary ?? 0,
+        // 28-c: baseSalary + npwp/rekening terenkripsi — dekripsi di batas serializer.
+        baseSalary: a ? (tc.decryptMoney(a.baseSalary) ?? 0) : 0,
         profile: p
           ? {
               id: p.id,
-              npwp: p.npwp ?? e.taxId ?? null,
+              npwp: tc.decryptText(p.npwp) ?? tc.decryptText(e.taxId),
               hasNpwp: p.hasNpwp,
               processMethod: p.processMethod,
               paymentFrequency: p.paymentFrequency,
@@ -49,7 +53,7 @@ export async function GET(req: NextRequest) {
               ptkpValue: PTKP_ANNUAL[p.taxStatus] ?? PTKP_ANNUAL.TK0,
               dependents: p.dependents,
               bankName: p.bankName ?? e.bankName ?? null,
-              bankAccount: p.bankAccount ?? e.bankAccount ?? null,
+              bankAccount: tc.decryptText(p.bankAccount) ?? tc.decryptText(e.bankAccount),
             }
           : null,
       };
@@ -77,8 +81,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: `Status PTKP tidak valid (${validStatus.join(", ")})` }, { status: 400 });
     }
 
+    // 28-c: npwp/rekening dienkripsi saat disimpan (enc:v1:t:…).
+    const tcW = tenantCryptoForDb(db);
     const data = {
-      npwp: b.npwp,
+      npwp: b.npwp != null ? tcW.encryptText(String(b.npwp)) : undefined,
       hasNpwp: b.hasNpwp,
       processMethod: b.processMethod,
       paymentFrequency: b.paymentFrequency,
@@ -86,7 +92,7 @@ export async function PATCH(req: NextRequest) {
       taxStatus,
       dependents: b.dependents != null ? Math.max(0, Math.min(3, Number(b.dependents))) : undefined,
       bankName: b.bankName,
-      bankAccount: b.bankAccount,
+      bankAccount: b.bankAccount != null ? tcW.encryptText(String(b.bankAccount)) : undefined,
     };
 
     const existing = await db.employeePayrollProfile.findUnique({ where: { employeeId: b.employeeId } });
@@ -97,7 +103,8 @@ export async function PATCH(req: NextRequest) {
     await db.activityLog.create({
       data: { action: "Updated", entity: "EmployeePayrollProfile", entityId: profile.id, employeeId: b.employeeId, detail: `Data payroll karyawan diperbarui (PTKP ${profile.taxStatus}, ${profile.processMethod})` },
     });
-    return NextResponse.json({ profile });
+    // 28-c: response profil di-dekripsi (bentuk lama utk UI).
+    return NextResponse.json({ profile: { ...profile, npwp: tcW.decryptText(profile.npwp), bankAccount: tcW.decryptText(profile.bankAccount) } });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -4,6 +4,7 @@
 // permintaan + cuti massal SKB + encashment. Idempoten-guarded: bila saldo 2026
 // sudah ada, seed dilewati (return skipped).
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { ensureLeaveReference } from "@/onevity/shared/lib/provisioning";
 import { generateLeaveInfo, listBalances, createMassLeave } from "./leave-service";
 
@@ -118,7 +119,8 @@ export async function seedLeaveDemoData(db: TenantDb): Promise<{ skipped: boolea
       where: { id: employeeId },
       select: { assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
     });
-    return e?.assignments[0]?.baseSalary ?? 0;
+    // 28-c: gaji pokok terenkripsi — dekripsi (seed encashment).
+    return e?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(e.assignments[0].baseSalary) ?? 0 : 0;
   };
   const encDefs: { empIdx: number; days: number; status: string; paymentDate?: string; note?: string; periodCode?: string; runNo?: string }[] = [
     { empIdx: 2, days: 4, status: "Approved", paymentDate: "2026-09-25", note: "Pengganti cuti tahunan tidak terpakai" },

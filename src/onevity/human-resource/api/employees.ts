@@ -6,7 +6,8 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, scopeWhere, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
-import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, type DbOrTx } from "@/onevity/human-resource/services/assignment";
+import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
+import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, decryptBaseSalary, type DbOrTx } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/onevity/shared/lib/export";
 
@@ -90,6 +91,8 @@ export interface AssignmentSeed {
  * dan bulk import Excel — Employee + EmployeeAssignment awal (riwayat baris
  * pertama) + snapshot dimensi approval (syncEmployeePlacementSnapshot).
  * Bekerja pada client tenant ATAU transaksi interaktif ($transaction).
+ * 28-c: NIK/NPWP/rekening + gaji pokok DIENKRIPSI saat persist — tc WAJIB
+ * (client $transaction tidak membawa brand schema; ambil dari client luar).
  * ActivityLog tetap ditulis PEMANGGIL (teks berbeda per konteks).
  */
 export async function createEmployeeWithAssignment(
@@ -97,8 +100,16 @@ export async function createEmployeeWithAssignment(
   prefix: string,
   employeeData: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo">,
   assignment: AssignmentSeed,
+  tc: FieldCrypto,
 ): Promise<Employee> {
-  const employee = await createEmployeeWithNoRetry(db, prefix, employeeData);
+  // 28-c: enkripsi field sensitif (NIK/NPWP/rekening) sebelum persist.
+  const encData: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo"> = {
+    ...employeeData,
+    nationalId: employeeData.nationalId != null ? tc.encryptText(employeeData.nationalId) : null,
+    taxId: employeeData.taxId != null ? tc.encryptText(employeeData.taxId) : null,
+    bankAccount: employeeData.bankAccount != null ? tc.encryptText(employeeData.bankAccount) : null,
+  };
+  const employee = await createEmployeeWithNoRetry(db, prefix, encData);
   await db.employeeAssignment.create({
     data: {
       employeeId: employee.id,
@@ -110,7 +121,8 @@ export async function createEmployeeWithAssignment(
       workLocationId: assignment.workLocationId,
       employmentStatus: assignment.employmentStatus,
       workShift: assignment.workShift,
-      baseSalary: assignment.baseSalary,
+      // 28-c: gaji pokok disimpan TERENKRIPSI (enc:v1:n:…).
+      baseSalary: tc.encryptMoney(assignment.baseSalary),
       validFrom: assignment.validFrom,
       validTo: null,
       changeReason: assignment.changeReason,
@@ -202,7 +214,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     const employees = employeesRaw.map((e) => {
-      const flat = flattenEmployee(e);
+      // 28-c: dekripsi identitas sensitif + gaji pokok di batas serializer.
+      const flat = flattenEmployee(e, tenantCryptoForDb(db));
       // strip array dari response agar payload ramping
       const { assignments, ...rest } = flat as Record<string, unknown>;
       return rest;
@@ -354,7 +367,7 @@ export async function POST(req: NextRequest) {
       validFrom: joinDate,
       changeReason: "Initial",
       notes: "Penempatan awal saat onboarding",
-    });
+    }, tenantCryptoForDb(db));
 
     await db.activityLog.create({
       data: {
@@ -858,7 +871,10 @@ export async function employeesImportPost(req: NextRequest): Promise<NextRespons
     const posByCode = new Map(positionRows.map((p) => [p.code.toUpperCase(), p]));
     const gradeByCode = new Map(gradeRows.map((g) => [g.code.toUpperCase(), g]));
     const levelByCode = new Map(levelRows.map((l) => [l.code.toUpperCase(), l]));
-    const nikSet = new Set(existingNiks.map((e) => String(e.nationalId)));
+    // 28-c: NIK tersimpan terenkripsi — dekripsi utk set dedupe (match JS,
+    // bukan SQL: ciphertext random-IV tidak bisa dicocokkan di query).
+    const tcImp = tenantCryptoForDb(db);
+    const nikSet = new Set(existingNiks.map((e) => tcImp.decryptText(e.nationalId)).filter((n): n is string => !!n));
     const emailSet = new Set(existingEmails.map((e) => String(e.email).toLowerCase()));
     const nikSeen = new Map<string, number>(); // duplikat dalam file
     const emailSeen = new Map<string, number>();
@@ -963,6 +979,9 @@ export async function employeesImportPost(req: NextRequest): Promise<NextRespons
     const created: { row: number; employeeNo: string; fullName: string }[] = [];
     const failed: { row: number; error: string }[] = [];
 
+    // 28-c: tangkap konteks enkripsi dari client LUAR sebelum $transaction
+    // (client transaksi Prisma tidak membawa brand schema).
+    const tcImport = tenantCryptoForDb(db);
     for (let i = 0; i < validRows.length; i += IMPORT_BATCH) {
       const batch = validRows.slice(i, i + IMPORT_BATCH);
       const batchCreated: { row: number; employeeNo: string; fullName: string }[] = [];
@@ -999,7 +1018,7 @@ export async function employeesImportPost(req: NextRequest): Promise<NextRespons
                 validFrom: p.joinDate ?? new Date(),
                 changeReason: "Initial",
                 notes: "Penempatan awal via import Excel",
-              });
+              }, tcImport);
               await tx.activityLog.create({
                 data: {
                   appUserId: actor.appUserId,
@@ -1081,7 +1100,8 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
       include: CURRENT_ASSIGNMENT_INCLUDE,
       orderBy: { employeeNo: "asc" },
     });
-    const flat = employees.map((e) => flattenEmployee(e));
+    // 28-c: pass tc — NIK/NPWP/rekening + gaji pokok terdekripsi di batas serializer.
+    const flat = employees.map((e) => flattenEmployee(e, tenantCryptoForDb(db)));
     const includeWage = scope.all; // upah hanya untuk scope penuh
 
     const columns: (ExportColumn & { key: string })[] = [

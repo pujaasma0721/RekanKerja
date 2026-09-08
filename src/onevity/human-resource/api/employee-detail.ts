@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/shared/services/access-scope";
-import { applyAssignmentChange, CHANGE_REASON_LABEL } from "@/onevity/human-resource/services/assignment";
+import { applyAssignmentChange, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/onevity/human-resource/services/assignment";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { computePkwtInfo } from "@/onevity/human-resource/services/pkwt";
 
 // GET /api/onevity/employee-detail?id=
@@ -70,6 +71,8 @@ export async function GET(req: NextRequest) {
     });
 
     const cur = employee.assignments[0] ?? null;
+    // 28-c: konteks dekripsi per-tenant utk identitas + gaji di batas serializer.
+    const tcD = tenantCryptoForDb(db);
     // manager aktif + posisinya (nested: manager → assignment aktifnya)
     let manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string | null } | null } | null = null;
     if (cur?.managerId) {
@@ -88,6 +91,11 @@ export async function GET(req: NextRequest) {
     });
 
     const { assignments: _curAssignments, ...personal } = employee;
+    // 28-c: NIK/NPWP/rekening terenkripsi di DB — dekripsi utk tampilan detail
+    // (profil HR; decryptText meloloskan plaintext legacy).
+    personal.nationalId = tcD.decryptText(personal.nationalId);
+    personal.taxId = tcD.decryptText(personal.taxId);
+    personal.bankAccount = tcD.decryptText(personal.bankAccount);
     // 26-b P0 — guard PKWT PP 35/2021 (total durasi kontrak > 5 tahun → wajib
     // konversi ke PKS) + sisa masa kontrak; dihitung server agar UI profil &
     // banner memakai logika satu sumber.
@@ -107,7 +115,7 @@ export async function GET(req: NextRequest) {
       managerId: cur?.managerId ?? null,
       employmentStatus: cur?.employmentStatus ?? "—",
       workShift: cur?.workShift ?? "—",
-      baseSalary: cur?.baseSalary ?? 0,
+      baseSalary: cur ? decryptBaseSalary(tcD, cur.baseSalary) : 0,
       orgUnit: cur?.orgUnit ?? null,
       position: cur?.position ?? null,
       grade: cur?.grade ?? null,
@@ -126,7 +134,7 @@ export async function GET(req: NextRequest) {
         notes: a.notes,
         employmentStatus: a.employmentStatus,
         workShift: a.workShift,
-        baseSalary: a.baseSalary,
+        baseSalary: decryptBaseSalary(tcD, a.baseSalary),
         orgUnit: a.orgUnit ? { name: a.orgUnit.name, code: a.orgUnit.code } : null,
         position: a.position ? { title: a.position.title, code: a.position.code } : null,
         grade: a.grade ? { code: a.grade.code, name: a.grade.name } : null,

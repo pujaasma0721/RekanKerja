@@ -194,7 +194,7 @@ export function AttendanceAbsencePage() {
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="flex items-center gap-2 text-[12px] font-semibold text-amber-800 dark:text-amber-300">
               <TrendingDown className="h-4 w-4" />
-              {t("{n} izin work-off menunggu persetujuan — hari izin belum dihitung dalam rekap.", "{n} work-off permits awaiting approval — permit days are not yet counted in the recap.", { n: workoffApi.data?.stats.pending })}
+              {t("{n} izin work-off menunggu persetujuan — hari izin belum dihitung dalam rekap.", "{n} work-off permits awaiting approval — permit days are not yet counted in the recap.", { n: workoffApi.data?.stats.pending ?? 0 })}
             </p>
             <Button size="sm" variant="outline" className="gap-1.5 border-amber-300 font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-300" onClick={() => navigate("attendance", "workoff")}>
               {t("Tinjau Izin →", "Review Permits →")}

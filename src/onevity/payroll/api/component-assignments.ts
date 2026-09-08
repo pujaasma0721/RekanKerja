@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // GET /api/onevity/component-assignments?kind=&employeeId=
 export async function GET(req: NextRequest) {
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json({ assignments });
+    // 28-c: dekripsi amount di batas serializer (angka utk frontend).
+    return NextResponse.json({ assignments: tenantCryptoForDb(db).decryptJson(assignments) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -67,7 +69,8 @@ export async function POST(req: NextRequest) {
         employeeId: b.employeeId,
         wageComponentId: b.wageComponentId,
         kind,
-        amount: Number(b.amount ?? 0),
+        // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+        amount: tenantCryptoForDb(db).encryptMoney(Number(b.amount ?? 0)),
         periodId: kind === "Specific" ? b.periodId : null,
         processTypeId: kind === "Specific" ? b.processTypeId : null,
         basedDate: b.basedDate ? new Date(b.basedDate) : null,
@@ -78,7 +81,8 @@ export async function POST(req: NextRequest) {
     await db.activityLog.create({
       data: { action: "Created", entity: "EmployeeComponentAssignment", entityId: assignment.id, employeeId: b.employeeId, detail: `Komponen ${comp.name} (${kind}) ${assignment.employee.fullName}` },
     });
-    return NextResponse.json({ assignment }, { status: 201 });
+    // 28-c: dekripsi amount di batas serializer.
+    return NextResponse.json({ assignment: tenantCryptoForDb(db).decryptJson(assignment) }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

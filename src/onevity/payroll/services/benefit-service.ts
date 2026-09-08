@@ -3,6 +3,7 @@
 // Pola "Employee Benefit": BenefitType (limit/reset/auto-approve) +
 // BenefitClaim dengan snapshot audit limit saat pengajuan.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // Status klaim yang mengonsumsi limit (Pending dihitung terpisah saat approval).
 const CONSUMING = ["Approved", "Scheduled", "Paid"] as const;
@@ -128,7 +129,8 @@ export async function syncClaimComponent(
     if (total > 0) {
       await db.employeeComponentAssignment.update({
         where: { id: existing.id },
-        data: { amount: total, notes: notes || "Klaim benefit" },
+        // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+        data: { amount: tenantCryptoForDb(db).encryptMoney(total), notes: notes || "Klaim benefit" },
       });
     } else {
       await db.employeeComponentAssignment.delete({ where: { id: existing.id } });
@@ -139,7 +141,7 @@ export async function syncClaimComponent(
         employeeId,
         wageComponentId: benefitType.wageComponentId,
         kind: "Specific",
-        amount: total,
+        amount: tenantCryptoForDb(db).encryptMoney(total),
         periodId,
         processTypeId: pt.id,
         basedDate: new Date(),

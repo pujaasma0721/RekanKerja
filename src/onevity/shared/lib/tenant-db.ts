@@ -4,6 +4,7 @@
 import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { db as platformDb } from "@/lib/db";
 import { readVerifiedSession } from "./auth";
+import { TENANT_SCHEMA_BRAND } from "./field-crypto";
 
 export type TenantDb = TenantPrismaClient;
 export type { TenantPrismaClient };
@@ -33,13 +34,18 @@ export type { TenantPrismaClient };
 // WaConfig/WaTemplate/WaLog, CustomReport) + kolom WorkLocation geofence +
 // AttendanceRule.geofenceMode masuk client hasil generate; instance lama
 // (pra-W27, DMMF tanpa model baru) tidak dipakai ulang.
+// TASK 28-c: versi dinaikkan (W28) — field uang payroll FLIP Float→String
+// (PayrollRun/RunLine/RunItem, EmployeeAssignment.baseSalary,
+// EmployeeComponentAssignment.amount, PayrollJournal[Line]) — DMMF lama
+// (pra-W28, tipe Float) tidak boleh dipakai ulang. Instance juga kini
+// membawa brand symbol schema (TENANT_SCHEMA_BRAND) utk field-crypto.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsW27: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsW28: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsW27 ?? new Map();
-globalForTenants.onevityTenantClientsW27 = tenantClients;
+  globalForTenants.onevityTenantClientsW28 ?? new Map();
+globalForTenants.onevityTenantClientsW28 = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;
@@ -53,6 +59,14 @@ export function getTenantClient(schemaName: string): TenantDb {
   if (!client) {
     const url = `${tenantBaseUrl()}?schema=${schemaName}&connection_limit=5&pool_timeout=10`;
     client = new TenantPrismaClient({ datasources: { db: { url } } });
+    // 28-c: brand schema pada instance — sumber konteks kunci enkripsi field
+    // (tenantCryptoForDb). Non-enumerable supaya tidak ikut ke JSON log.
+    Object.defineProperty(client, TENANT_SCHEMA_BRAND, {
+      value: schemaName,
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    });
     tenantClients.set(schemaName, client);
   }
   return client;

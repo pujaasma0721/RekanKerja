@@ -189,6 +189,8 @@ model Employee {
   gender        String    @default("M")
   birthPlace    String?
   birthDate     DateTime?
+  // 28-c: NIK/NPWP/rekening DIENKRIPSI di DB (enc:v1:t:… — AES-256-GCM
+  // per-tenant, field-crypto). Kolom tetap String? — nilai jadi enc:v1:t:….
   nationalId    String? // NIK
   taxId         String? // NPWP
   bpjsHealth    String? // BPJS Kesehatan
@@ -202,7 +204,7 @@ model Employee {
   city          String?
   photoUrl      String?
   bankName      String?
-  bankAccount   String?
+  bankAccount   String? // no. rekening — terenkripsi (enc:v1:t:…)
 
   // lifecycle kepegawaian (bukan riwayat penempatan)
   companyId String
@@ -289,7 +291,10 @@ model EmployeeAssignment {
   managerId        String?
   employmentStatus String    @default("Permanent") // Permanent|Contract|Probation|Outsourcing
   workShift        String    @default("Regular")
-  baseSalary       Float     @default(0)
+  // 28-c: gaji pokok DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant).
+  // Baca/tulis via field-crypto (encryptMoney/decryptMoney); plaintext
+  // numerik pra-migrasi masih terbaca (decryptMoney legacy parse).
+  baseSalary       String?
   validFrom        DateTime  @default(now())
   validTo          DateTime? // null = penempatan aktif saat ini
   changeReason     String    @default("Initial") // Initial|Promotion|Demotion|Transfer|Mutation|SalaryAdjustment|ChangeStatus|ContractRenewal|ExtendProbation|ManualEdit
@@ -610,6 +615,7 @@ model WageTemplateItem {
 model EmployeePayrollProfile {
   id                      String    @id @default(cuid())
   employeeId              String    @unique
+  // 28-c: NPWP & rekening profil payroll DIENKRIPSI di DB (enc:v1:t:…).
   npwp                    String?
   npwpSubmittedAt         DateTime?
   idtku                   String?
@@ -621,7 +627,7 @@ model EmployeePayrollProfile {
   dependents              Int       @default(0)
   payrollDependentAllowed Boolean   @default(true)
   bankName                String?
-  bankAccount             String?
+  bankAccount             String? // terenkripsi (enc:v1:t:…)
   active                  Boolean   @default(true)
 
   employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -704,10 +710,11 @@ model PayrollRun {
   calculateTax   Boolean   @default(true)
   allEmployee    Boolean   @default(true)
   employeeCount  Int       @default(0)
-  totalBruto     Float     @default(0)
-  totalDeduction Float     @default(0)
-  totalTax       Float     @default(0)
-  totalNet       Float     @default(0)
+  // 28-c: total uang run DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant).
+  totalBruto     String?
+  totalDeduction String?
+  totalTax       String?
+  totalNet       String?
   notes          String?
   calculatedAt   DateTime?
   confirmedAt    DateTime?
@@ -731,12 +738,14 @@ model PayrollRunLine {
   positionName String?
   ptkpStatus   String
   ptkpValue    Float
-  bruto        Float   @default(0)
-  deduction    Float   @default(0)
-  taxRegular   Float   @default(0)
-  taxIrregular Float   @default(0)
-  net          Float   @default(0) // THP
-  actualNetTax Float?
+  // 28-c: nilai uang line DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant;
+  // engine tetap memakai number — de/enkripsi terjadi di service/API).
+  bruto        String?
+  deduction    String?
+  taxRegular   String?
+  taxIrregular String?
+  net          String? // THP
+  actualNetTax String?
   notes        String?
   // 26-b P0 — validasi UMP/UMK (PP 36/2021): gaji pokok < upah minimum
   // kantor penempatan. Warning edukatif NON-BLOKING — hitungan tetap sah.
@@ -760,7 +769,8 @@ model PayrollRunItem {
   wageType        String
   type            String // wageCategory: Earning|Deduction|Informational
   incomeTaxMethod String
-  amount          Float
+  // 28-c: nilai komponen DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant).
+  amount          String?
   note            String?
   sortOrder       Int     @default(0)
 
@@ -808,7 +818,8 @@ model EmployeeComponentAssignment {
   employeeId      String
   wageComponentId String
   kind            String    @default("Specific") // Specific|Periodic
-  amount          Float     @default(0)
+  // 28-c: nilai komponen khusus DIENKRIPSI (enc:v1:n:… per-tenant).
+  amount          String?
   periodId        String? // untuk Specific
   processTypeId   String? // untuk Specific
   basedDate       DateTime?
@@ -832,8 +843,9 @@ model PayrollJournal {
   runId       String?  @unique // 1-1 dengan PayrollRun
   runNo       String?
   description String?
-  totalDebit  Float    @default(0)
-  totalCredit Float    @default(0)
+  // 28-c: total jurnal DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant).
+  totalDebit  String?
+  totalCredit String?
   status      String   @default("Posted") // Posted|Reversed
   createdAt   DateTime @default(now())
 
@@ -848,7 +860,8 @@ model PayrollJournalLine {
   accountCode String
   accountName String
   position    String // Debit|Credit
-  amount      Float
+  // 28-c: nominal baris jurnal DIENKRIPSI (enc:v1:n:… — AES-256-GCM per-tenant).
+  amount      String?
   memo        String?
   wageCode    String? // komponen asal (Salary Chart of Account)
 

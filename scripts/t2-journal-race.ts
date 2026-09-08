@@ -10,6 +10,8 @@ import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { nextJournalNo, nextJournalNoInTx } from "@/onevity/shared/lib/journal-no";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
+import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+const tcE = (n: number) => tenantCrypto(MII_SCHEMA).encryptMoney(n);
 const RUN_NO = "T2-RACE";
 
 async function main() {
@@ -25,8 +27,8 @@ async function main() {
         runId: null,
         runNo: RUN_NO,
         description: `T2 journal race — ${via}`,
-        totalDebit: 0,
-        totalCredit: 0,
+        totalDebit: tcE(0),
+        totalCredit: tcE(0),
         status: "Posted",
       },
       select: { journalNo: true },
@@ -67,8 +69,8 @@ async function main() {
             runId: null,
             runNo: RUN_NO,
             description: "T2 journal race — in-tx",
-            totalDebit: 0,
-            totalCredit: 0,
+            totalDebit: tcE(0),
+            totalCredit: tcE(0),
             status: "Posted",
           },
         });

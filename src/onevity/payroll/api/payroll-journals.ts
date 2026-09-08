@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
 
@@ -10,6 +11,9 @@ export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // 28-c: nominal jurnal tersimpan terenkripsi — dekripsi di batas serializer.
+    const tc = tenantCryptoForDb(db);
+    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
 
     const exportCsv = req.nextUrl.searchParams.get("export");
     const id = req.nextUrl.searchParams.get("id");
@@ -24,10 +28,10 @@ export async function GET(req: NextRequest) {
       if (exportCsv === "csv") {
         const header = ["SEQ", "AKUN", "NAMA_AKUN", "POSISI", "NOMINAL", "MEMO", "KOMPONEN"].join(";");
         const rows = journal.lines.map((l) => [
-          l.sequence, l.accountCode, `"${l.accountName}"`, l.position, Math.round(l.amount),
+          l.sequence, l.accountCode, `"${l.accountName}"`, l.position, Math.round(dm(l.amount)),
           `"${l.memo ?? ""}"`, l.wageCode ?? "",
         ].join(";"));
-        const totals = ["", "", `"TOTAL (${journal.journalNo})"`, "D", Math.round(journal.totalDebit), `"C = ${Math.round(journal.totalCredit)} (balance ✓)"`, ""].join(";");
+        const totals = ["", "", `"TOTAL (${journal.journalNo})"`, "D", Math.round(dm(journal.totalDebit)), `"C = ${Math.round(dm(journal.totalCredit))} (balance ✓)"`, ""].join(";");
         const csv = [`OneVity Payroll Journal — ${journal.journalNo} (${journal.runNo ?? "-"})`, header, ...rows, totals].join("\n");
         return new NextResponse(csv, {
           headers: {
@@ -36,7 +40,7 @@ export async function GET(req: NextRequest) {
           },
         });
       }
-      return NextResponse.json({ journal });
+      return NextResponse.json({ journal: tc.decryptJson(journal) });
     }
 
     const journals = await db.payrollJournal.findMany({
@@ -55,7 +59,7 @@ export async function GET(req: NextRequest) {
       .filter((r) => !journalRunIds.has(r.id))
       .map((r) => ({ id: r.id, runNo: r.runNo, periodName: r.period.name, typeName: r.processType.name, status: r.status }));
 
-    return NextResponse.json({ journals, missingRuns });
+    return NextResponse.json({ journals: tc.decryptJson(journals), missingRuns });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -73,7 +77,8 @@ export async function POST(req: NextRequest) {
     const b = await req.json();
     if (!b.runId) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
     const journal = await generateJournalForRun(db, b.runId);
-    return NextResponse.json({ journal });
+    // 28-c: dekripsi nominal di batas serializer (angka utk frontend).
+    return NextResponse.json({ journal: tenantCryptoForDb(db).decryptJson(journal) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

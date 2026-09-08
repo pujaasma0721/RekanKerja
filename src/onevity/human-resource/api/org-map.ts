@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+
+
 
 // GET /api/onevity/org-map
 // Comprehensive org map: merges people (active), org units, positions,
@@ -69,7 +72,8 @@ export async function GET(req: NextRequest) {
       return {
         id: e.id, employeeNo: e.employeeNo, fullName: e.fullName, gender: e.gender, status: e.status, joinDate: e.joinDate,
         employmentStatus: cur?.employmentStatus ?? "—",
-        baseSalary: cur?.baseSalary ?? 0,
+        // 28-c: baseSalary terenkripsi — dekripsi di batas serializer.
+        baseSalary: cur ? (tenantCryptoForDb(db).decryptMoney(cur.baseSalary) ?? 0) : 0,
         positionId: cur?.positionId ?? null,
         position: cur?.position ?? null,
         grade: cur?.grade ?? null,

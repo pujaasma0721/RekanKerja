@@ -14,6 +14,7 @@
 // Server-only (db Prisma tenant + pdf-lib) — dipakai route API surat.
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe input (struktural — cocok utk hasil include Prisma) ----------
@@ -142,7 +143,9 @@ async function fixedAllowanceOf(db: TenantDb, employeeId: string): Promise<numbe
       });
       for (const it of tpl?.items ?? []) {
         if (!it.wageComponent || !isFixedEarning(it.wageComponent)) continue;
-        sum += it.amount > 0 ? it.amount : it.wageComponent.amount;
+        // WageTemplateItem.amount TIDAK dienkripsi (master template, bukan nilai
+        // per-karyawan — di luar lingkup 28-c; hanya EmployeeComponentAssignment).
+        sum += it.wageComponent.amount;
       }
     }
     // 2. komponen Periodic aktif milik karyawan (tunjangan khusus tetap)
@@ -150,9 +153,12 @@ async function fixedAllowanceOf(db: TenantDb, employeeId: string): Promise<numbe
       where: { employeeId, active: true, kind: "Periodic" },
       include: { wageComponent: true },
     });
+    // 28-c: amount komponen tersimpan terenkripsi — dekripsi (0 → pakai master).
+    const tc = tenantCryptoForDb(db);
     for (const p of periodic) {
       if (!p.wageComponent || !isFixedEarning(p.wageComponent)) continue;
-      sum += p.amount > 0 ? p.amount : p.wageComponent.amount;
+      const pAmount = tc.decryptMoney(p.amount) ?? 0;
+      sum += pAmount > 0 ? pAmount : p.wageComponent.amount;
     }
     return sum;
   } catch {
@@ -560,6 +566,9 @@ export function parseMeta(metaJson: string | null): { templateName?: string; tem
 
 /** Muat karyawan + relasi snapshot yang dibutuhkan konteks surat. */
 export async function loadLetterEmployee(db: TenantDb, employeeId: string): Promise<LetterEmployee> {
+  // 28-c: NIK & gaji pokok tersimpan terenkripsi — dekripsi di sini (surat
+  // merender nilai riil {{nik}} / gaji via placeholder server-side).
+  const tc = tenantCryptoForDb(db);
   const emp = await db.employee.findUnique({
     where: { id: employeeId },
     select: {
@@ -579,7 +588,11 @@ export async function loadLetterEmployee(db: TenantDb, employeeId: string): Prom
     },
   });
   if (!emp) throw new Error("Karyawan tidak ditemukan");
-  return emp;
+  return {
+    ...emp,
+    nationalId: tc.decryptText(emp.nationalId),
+    assignments: emp.assignments.map((a) => ({ ...a, baseSalary: tc.decryptMoney(a.baseSalary) ?? 0 })),
+  };
 }
 
 // ================= PDF (pola payslip-pdf.ts) =================

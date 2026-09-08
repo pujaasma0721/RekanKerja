@@ -221,13 +221,13 @@ export function processEffectSummary(pa: PADetail): string[] {
       out.push(translate("Data karyawan terhubung dengan dokumen rekrutmen (tanpa perubahan data)", "Employee data linked to the recruitment document (no data changes)"));
       break;
     case "ChangeStatus":
-      out.push(translate("Status kepegawaian diubah menjadi {s}", "Employment status changed to {s}", { s: d.newEmploymentStatus ?? "—" }));
+      out.push(translate("Status kepegawaian diubah menjadi {s}", "Employment status changed to {s}", { s: String(d.newEmploymentStatus ?? "—") }));
       break;
     case "ContractRenewal":
-      out.push(translate("Kontrak diperpanjang {n} bulan — tercatat sebagai catatan saja", "Contract extended by {n} months — recorded as a note only", { n: d.months ?? "—" }));
+      out.push(translate("Kontrak diperpanjang {n} bulan — tercatat sebagai catatan saja", "Contract extended by {n} months — recorded as a note only", { n: String(d.months ?? "—") }));
       break;
     case "ExtendProbation":
-      out.push(translate("Masa probation diperpanjang {n} bulan — tercatat sebagai catatan saja", "Probation extended by {n} months — recorded as a note only", { n: d.months ?? "—" }));
+      out.push(translate("Masa probation diperpanjang {n} bulan — tercatat sebagai catatan saja", "Probation extended by {n} months — recorded as a note only", { n: String(d.months ?? "—") }));
       break;
     default:
       out.push(translate("Perubahan data karyawan sesuai detail dokumen", "Employee data changes per document details"));

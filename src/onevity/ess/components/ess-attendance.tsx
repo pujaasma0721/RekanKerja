@@ -98,7 +98,7 @@ export function EssAttendance() {
     { label: t("Hadir", "Present"), value: summary ? String(summary.present ?? 0) : "—", accent: "text-emerald-600 dark:text-emerald-400", icon: <CalendarDays className="h-3.5 w-3.5" /> },
     { label: t("Telat", "Late"), value: summary ? String(summary.late ?? 0) : "—", accent: "text-amber-600 dark:text-amber-400", icon: <Timer className="h-3.5 w-3.5" /> },
     { label: t("Absen", "Absent"), value: summary ? String(summary.absent ?? 0) : "—", accent: "text-rose-600 dark:text-rose-400", icon: <Clock3 className="h-3.5 w-3.5" /> },
-    { label: t("Cuti / Izin", "Leave / Permit"), value: summary ? String((summary.onLeave ?? 0) + (summary.workoff ?? 0)) : "—", accent: "text-teal-600 dark:text-teal-400", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+    { label: t("Cuti / Izin", "Leave / Permit"), value: summary ? String((Number(summary.onLeave ?? 0) + Number(summary.workoff ?? 0))) : "—", accent: "text-teal-600 dark:text-teal-400", icon: <TrendingUp className="h-3.5 w-3.5" /> },
     { label: t("Lembur", "Overtime"), value: summary ? `${summary.overtimeHours ?? 0} ${t("jam", "h")}` : "—", accent: "text-amber-700 dark:text-amber-400", icon: <Clock3 className="h-3.5 w-3.5" /> },
   ];
 

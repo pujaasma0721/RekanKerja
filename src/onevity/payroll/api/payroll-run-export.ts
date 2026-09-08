@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // GET /api/onevity/payroll-run-export?id=&bank=umum|bca|mandiri|bni
 // File transfer bank (pattern "Transfer Bank Payment": file per bank).
@@ -34,19 +35,38 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Ekspor hanya untuk run yang sudah dikonfirmasi" }, { status: 400 });
     }
 
-    const bankOf = (l: (typeof run.lines)[number]) =>
+    // 28-c: uang line/total run + no. rekening tersimpan terenkripsi — dekripsi
+    // di sini (file transfer bank butuh nilai riil).
+    const tc = tenantCryptoForDb(db);
+    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+    const lines = run.lines.map((l) => ({
+      ...l,
+      bruto: dm(l.bruto),
+      deduction: dm(l.deduction),
+      taxRegular: dm(l.taxRegular),
+      taxIrregular: dm(l.taxIrregular),
+      net: dm(l.net),
+    }));
+    const runTotals = {
+      totalBruto: dm(run.totalBruto),
+      totalDeduction: dm(run.totalDeduction),
+      totalTax: dm(run.totalTax),
+      totalNet: dm(run.totalNet),
+    };
+
+    const bankOf = (l: (typeof lines)[number]) =>
       (l.employee?.payrollProfile?.bankName ?? l.employee?.bankName ?? "").toUpperCase();
-    const accountOf = (l: (typeof run.lines)[number]) =>
-      l.employee?.payrollProfile?.bankAccount ?? l.employee?.bankAccount ?? "";
+    const accountOf = (l: (typeof lines)[number]) =>
+      tc.decryptText(l.employee?.payrollProfile?.bankAccount) ?? tc.decryptText(l.employee?.bankAccount) ?? "";
 
     if (bankKey === "umum") {
       // Rekap umum (semua karyawan) — format lama.
       const header = ["NO", "EMPLOYEE_ID", "NAMA", "UNIT", "BANK", "NO_REKENING", "BRUTO", "POTONGAN", "PPh21", "NETTO"].join(";");
-      const rows = run.lines.map((l, i) => [
+      const rows = lines.map((l, i) => [
         i + 1, l.employeeNo, `"${l.employeeName}"`, `"${l.orgUnitName ?? ""}"`, bankOf(l), accountOf(l),
         Math.round(l.bruto), Math.round(l.deduction), Math.round(l.taxRegular + l.taxIrregular), Math.round(l.net),
       ].join(";"));
-      const totals = ["", "", `"TOTAL (${run.employeeCount} karyawan)"`, "", "", "", Math.round(run.totalBruto), Math.round(run.totalDeduction), Math.round(run.totalTax), Math.round(run.totalNet)].join(";");
+      const totals = ["", "", `"TOTAL (${run.employeeCount} karyawan)"`, "", "", "", Math.round(runTotals.totalBruto), Math.round(runTotals.totalDeduction), Math.round(runTotals.totalTax), Math.round(runTotals.totalNet)].join(";");
       const csv = [`OneVity Payroll Transfer — ${run.runNo} (${run.period.name} / ${run.processType.name})`, header, ...rows, totals].join("\n");
       await db.activityLog.create({ data: { action: "Exported", entity: "PayrollRun", entityId: run.id, detail: `Ekspor CSV umum run ${run.runNo}` } });
       return csvResponse(csv, `onevity-transfer-${run.runNo}.csv`);
@@ -55,7 +75,7 @@ export async function GET(req: NextRequest) {
     const bank = BANKS[bankKey];
     if (!bank) return NextResponse.json({ error: `Bank tidak dikenal: ${bankKey}` }, { status: 400 });
 
-    const matched = run.lines.filter((l) => bank.match(bankOf(l)));
+    const matched = lines.filter((l) => bank.match(bankOf(l)));
     if (matched.length === 0) {
       return NextResponse.json(
         { error: `Tidak ada karyawan dengan rekening ${bank.label} pada run ini — gunakan format "umum"` },

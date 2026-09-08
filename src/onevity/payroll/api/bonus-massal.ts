@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { calculateAndSaveRun, nextRunNo, getBrackets, getActiveRegulation } from "@/onevity/payroll/services/payroll-service";
 import { ptkpValueOf, progressiveTax } from "@/onevity/payroll/services/payroll-engine";
 
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const actorLabel = m.actor.appUsername ?? m.actor.name;
+    // 28-c: baseSalary terenkripsi (baca) & amount komponen dienkripsi (tulis).
+    const tc = tenantCryptoForDb(db);
 
     const b = await req.json().catch(() => ({}));
     const dryRun = b.dryRun === true;
@@ -138,7 +141,8 @@ export async function POST(req: NextRequest) {
 
     const rows = list.map((emp) => {
       const assignment = emp.assignments[0];
-      const baseSalary = assignment?.baseSalary ?? 0;
+      // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk prorata % gaji.
+      const baseSalary = assignment ? tc.decryptMoney(assignment.baseSalary) ?? 0 : 0;
       const factor = monthsFactorOf(emp.joinDate);
       const raw = amountMode === "nominal" ? amount : baseSalary * (percent / 100);
       return {
@@ -244,7 +248,8 @@ export async function POST(req: NextRequest) {
           employeeId: r.employeeId,
           wageComponentId: component.id,
           kind: "Specific",
-          amount: r.amount,
+          // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+          amount: tc.encryptMoney(r.amount),
           periodId: period.id,
           processTypeId: processType.id,
           basedDate: new Date(),
@@ -303,7 +308,13 @@ export async function POST(req: NextRequest) {
         created: createdAssignments.length,
         createdAssignments,
         skipped: skipped.map((s) => ({ employeeNo: s.employeeNo, fullName: s.fullName })),
-        run: run ? { id: run.id, runNo: run.runNo, status: run.status, employeeCount: run.employeeCount, totalBruto: run.totalBruto, totalTax: run.totalTax, totalNet: run.totalNet } : null,
+        run: run ? {
+          id: run.id, runNo: run.runNo, status: run.status, employeeCount: run.employeeCount,
+          // 28-c: total run terenkripsi — dekripsi utk response.
+          totalBruto: tc.decryptMoney(run.totalBruto) ?? 0,
+          totalTax: tc.decryptMoney(run.totalTax) ?? 0,
+          totalNet: tc.decryptMoney(run.totalNet) ?? 0,
+        } : null,
         calculated,
       },
       { status: 201 },

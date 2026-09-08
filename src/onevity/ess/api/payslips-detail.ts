@@ -4,6 +4,7 @@
 // (type Earning|Deduction|Informational — wageType mapping payroll engine).
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
@@ -26,6 +27,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Slip gaji ini bukan milik Anda" }, { status: 403 });
     }
 
+    // 28-c: nilai uang terenkripsi di DB — dekripsi di batas serializer.
+    const tc = tenantCryptoForDb(db);
     return NextResponse.json({
       periodName: line.run.period.name,
       runStatus: line.run.status,
@@ -33,11 +36,11 @@ export async function GET(req: Request) {
       items: line.items.map((it) => ({
         name: it.name,
         kind: it.type === "Deduction" ? "deduction" : "income",
-        amount: it.amount,
+        amount: tc.decryptMoney(it.amount),
       })),
-      gross: line.bruto,
-      totalDeductions: line.deduction,
-      net: line.net,
+      gross: tc.decryptMoney(line.bruto),
+      totalDeductions: tc.decryptMoney(line.deduction),
+      net: tc.decryptMoney(line.net),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

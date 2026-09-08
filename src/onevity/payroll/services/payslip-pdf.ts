@@ -13,6 +13,7 @@
 // iuran perusahaan (di luar bruto/THP), PPH21 termasuk dalam potongan.
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe data snapshot ----------
@@ -56,6 +57,10 @@ export interface PayslipSlip {
 
 /** Ambil seluruh data slip untuk satu PayrollRunLine (null bila tak ada). */
 export async function loadPayslipSlip(db: TenantDb, lineId: string): Promise<PayslipSlip | null> {
+  // 28-c: nilai uang & identitas tersimpan terenkripsi — dekripsi di sini;
+  // PDF/kontrak PayslipSlip tetap memakai angka & teks polos.
+  const tc = tenantCryptoForDb(db);
+  const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
   const line = await db.payrollRunLine.findUnique({
     where: { id: lineId },
     include: {
@@ -88,17 +93,17 @@ export async function loadPayslipSlip(db: TenantDb, lineId: string): Promise<Pay
     orgUnitName: line.orgUnitName,
     ptkpStatus: line.ptkpStatus,
     ptkpValue: line.ptkpValue,
-    npwp: line.employee?.payrollProfile?.npwp ?? line.employee?.taxId ?? null,
-    bruto: line.bruto,
-    deduction: line.deduction,
-    taxRegular: line.taxRegular,
-    taxIrregular: line.taxIrregular,
-    net: line.net,
-    actualNetTax: line.actualNetTax,
+    npwp: tc.decryptText(line.employee?.payrollProfile?.npwp) ?? tc.decryptText(line.employee?.taxId) ?? null,
+    bruto: dm(line.bruto),
+    deduction: dm(line.deduction),
+    taxRegular: dm(line.taxRegular),
+    taxIrregular: dm(line.taxIrregular),
+    net: dm(line.net),
+    actualNetTax: tc.decryptMoney(line.actualNetTax),
     notes: line.notes,
     items: line.items.map((i) => ({
       code: i.code, name: i.name, wageType: i.wageType, type: i.type,
-      amount: i.amount, note: i.note,
+      amount: dm(i.amount), note: i.note,
     })),
     company: company ?? null,
   };

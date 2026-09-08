@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/export";
 
@@ -38,6 +39,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 28-c: uang line/total run tersimpan terenkripsi — dekripsi di sini.
+    const tc = tenantCryptoForDb(db);
+    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+
     // kelompokkan per unit kerja (null → "Tanpa Unit")
     const unitOf = (u: string | null) => u?.trim() || "Tanpa Unit";
     const groups = new Map<string, { unit: string; employees: { employeeId: string; employeeNo: string; fullName: string; gross: number; deduction: number; net: number }[] }>();
@@ -48,9 +53,9 @@ export async function GET(req: NextRequest) {
         employeeId: l.employeeId,
         employeeNo: l.employeeNo,
         fullName: l.employeeName,
-        gross: r0(l.bruto),
-        deduction: r0(l.deduction),
-        net: r0(l.net),
+        gross: r0(dm(l.bruto)),
+        deduction: r0(dm(l.deduction)),
+        net: r0(dm(l.net)),
       });
       groups.set(unit, g);
     }
@@ -79,10 +84,10 @@ export async function GET(req: NextRequest) {
     };
     const totals = {
       employees: run.lines.length,
-      totalGross: r0(run.totalBruto),
-      totalDeduction: r0(run.totalDeduction),
-      totalTax: r0(run.totalTax),
-      totalNet: r0(run.totalNet),
+      totalGross: r0(dm(run.totalBruto)),
+      totalDeduction: r0(dm(run.totalDeduction)),
+      totalTax: r0(dm(run.totalTax)),
+      totalNet: r0(dm(run.totalNet)),
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {

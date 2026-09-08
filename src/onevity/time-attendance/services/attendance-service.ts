@@ -4,6 +4,7 @@
 // (Plan → Actual → Verified, multiplier PP 35/2021) → Transfer to Payroll
 // (rekap period → komponen Specific LEMBUR/TLATE/TABS/TKEHADIRAN, idempoten).
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, cancelApprovalChain,
   type DecideActor,
@@ -663,9 +664,11 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
   }
 
   const out: RecapRow[] = [];
+  // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk rekap uang.
+  const tc = tenantCryptoForDb(db);
   for (const emp of employees) {
     const empRows = byEmp.get(emp.id) ?? [];
-    const baseSalary = emp.assignments[0]?.baseSalary ?? 0;
+    const baseSalary = emp.assignments[0] ? tc.decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
     const orgName = emp.assignments[0]?.orgUnit?.name ?? null;
 
     let presentDays = 0, lateCount = 0, lateMinutes = 0, absentDays = 0, absenceMinutes = 0;
@@ -864,6 +867,8 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
       [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
     ];
     let any = false;
+    // 28-c: nilai komponen rekap kehadiran disimpan TERENKRIPSI (enc:v1:n:…).
+    const tcRec = tenantCryptoForDb(db);
     for (const [code, amount, note] of amounts) {
       if (amount <= 0) continue;
       const comp = compByCode.get(code);
@@ -872,7 +877,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
       await db.employeeComponentAssignment.create({
         data: {
           employeeId: r.employeeId, wageComponentId: comp.id,
-          kind: "Specific", amount: Math.round(amount),
+          kind: "Specific", amount: tcRec.encryptMoney(Math.round(amount)),
           periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
           notes: `${note} · window ${fmtDate(from)}–${fmtDate(to)}`,
           active: true,

@@ -2,6 +2,7 @@
 // komponen, regulasi, pinjaman) dan menyimpan hasil run ke database.
 // Dipakai oleh API routes dan seed.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
   runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
   EngineTer, EngineRegulation, EngineRunResult,
@@ -70,6 +71,8 @@ function toEngineComponent(c: {
 // Komponen per karyawan = item template profil + komponen Periodic aktif +
 // komponen Specific (period & processType cocok) + angsuran pinjaman jatuh tempo.
 export async function buildRunRows(db: TenantDb, periodId: string, processTypeId: string): Promise<EngineRow[]> {
+  // 28-c: konteks dekripsi per-tenant (baseSalary & komponen tersimpan terenkripsi).
+  const tc = tenantCryptoForDb(db);
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
 
@@ -116,13 +119,13 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   const specificByEmp = new Map<string, { wageComponentId: string; amount: number; notes: string | null }[]>();
   for (const s of specific) {
     const arr = specificByEmp.get(s.employeeId) ?? [];
-    arr.push({ wageComponentId: s.wageComponentId, amount: s.amount, notes: s.notes });
+    arr.push({ wageComponentId: s.wageComponentId, amount: tc.decryptMoney(s.amount) ?? 0, notes: s.notes });
     specificByEmp.set(s.employeeId, arr);
   }
   const periodicByEmp = new Map<string, { wageComponentId: string; amount: number }[]>();
   for (const p of periodic) {
     const arr = periodicByEmp.get(p.employeeId) ?? [];
-    arr.push({ wageComponentId: p.wageComponentId, amount: p.amount });
+    arr.push({ wageComponentId: p.wageComponentId, amount: tc.decryptMoney(p.amount) ?? 0 });
     periodicByEmp.set(p.employeeId, arr);
   }
   const loansByEmp = new Map<string, typeof loans>();
@@ -174,12 +177,12 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     for (const r of salaryRuns) {
       for (const line of r.lines) {
         const cur = ytdCtx.get(line.employeeId) ?? { bruto: 0, iuran: 0, months: 0 };
-        cur.bruto += line.bruto;
+        cur.bruto += tc.decryptMoney(line.bruto) ?? 0;
         // Iuran pegawai (snapshot run historis — run lama masih mencakup JPK_E;
         // toleransi kecil, hanya sebagai konteks pajak ireguler).
         cur.iuran += line.items
           .filter((it) => it.wageType === "Jamsostek" && it.type === "Deduction")
-          .reduce((s, it) => s + it.amount, 0);
+          .reduce((s, it) => s + (tc.decryptMoney(it.amount) ?? 0), 0);
         cur.months += 1;
         ytdCtx.set(line.employeeId, cur);
       }
@@ -191,7 +194,8 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     if (!assignment) continue; // tidak punya penempatan aktif → dilewati
     const profile = emp.payrollProfile;
     const taxStatus = profile?.taxStatus ?? "TK0";
-    const baseSalary = assignment.baseSalary;
+    // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk engine (number).
+    const baseSalary = tc.decryptMoney(assignment.baseSalary) ?? 0;
 
     // Prorata: karyawan masuk di tengah period.
     const validFrom = new Date(assignment.validFrom);
@@ -319,6 +323,10 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
   // 26-b P0: validasi UMP/UMK (baca-saja) — snapshot per baris untuk UI run.
   const umkWarnings = await computeUmkWarnings(db, run.period, rows);
 
+  // 28-c: konteks enkripsi per-tenant — ditangkap dari client LUAR sebelum
+  // $transaction (client transaksi Prisma tidak membawa brand schema).
+  const tc = tenantCryptoForDb(db);
+
   // --- Fase 2: persist atomik dalam satu $transaction ---
   // updateMany bersyarat di awal = kunci baris run (serialisasi terhadap
   // calculate/confirm/concurrent lain); bila status berubah sejak Fase 1
@@ -329,10 +337,11 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
       data: {
         status: "Calculated",
         employeeCount: result.lines.length,
-        totalBruto: result.totalBruto,
-        totalDeduction: result.totalDeduction,
-        totalTax: result.totalTax,
-        totalNet: result.totalNet,
+        // 28-c: total uang run disimpan TERENKRIPSI (enc:v1:n:…).
+        totalBruto: tc.encryptMoney(result.totalBruto),
+        totalDeduction: tc.encryptMoney(result.totalDeduction),
+        totalTax: tc.encryptMoney(result.totalTax),
+        totalNet: tc.encryptMoney(result.totalNet),
         calculatedAt: new Date(),
       },
     });
@@ -353,12 +362,13 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
           positionName: line.positionName,
           ptkpStatus: line.ptkpStatus,
           ptkpValue: line.ptkpValue,
-          bruto: line.bruto,
-          deduction: line.deduction,
-          taxRegular: line.taxRegular,
-          taxIrregular: line.taxIrregular,
-          net: line.net,
-          actualNetTax: line.actualNetTax,
+          // 28-c: nilai uang line disimpan TERENKRIPSI (enc:v1:n:…).
+          bruto: tc.encryptMoney(line.bruto),
+          deduction: tc.encryptMoney(line.deduction),
+          taxRegular: tc.encryptMoney(line.taxRegular),
+          taxIrregular: tc.encryptMoney(line.taxIrregular),
+          net: tc.encryptMoney(line.net),
+          actualNetTax: tc.encryptMoney(line.actualNetTax),
           notes: line.notes,
           umkWarning: umk != null,
           umkJson: umk != null ? JSON.stringify(umk) : null,
@@ -369,7 +379,7 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
           data: line.items.map((it) => ({
             lineId: created.id,
             code: it.code, name: it.name, wageType: it.wageType, type: it.type,
-            incomeTaxMethod: it.incomeTaxMethod, amount: it.amount, note: it.note, sortOrder: it.sortOrder,
+            incomeTaxMethod: it.incomeTaxMethod, amount: tc.encryptMoney(it.amount), note: it.note, sortOrder: it.sortOrder,
           })),
         });
       }

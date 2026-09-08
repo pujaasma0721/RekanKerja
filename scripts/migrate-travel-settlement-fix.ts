@@ -15,6 +15,7 @@
 //   5. Sinkronkan amount EmployeeComponentAssignment UTRP/TRVSTLIN klaim
 //      Transferred yang b/c-nya berubah (notes memuat docNo klaim).
 // Jalankan: bun run scripts/migrate-travel-settlement-fix.ts
+import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
@@ -198,10 +199,12 @@ async function migrateSchema(schemaName: string) {
         },
         select: { id: true, wageComponentId: true, amount: true },
       });
+      const tcM = tenantCrypto(process.env.SEED_TENANT_SCHEMA ?? "tenant_seed");
       for (const t of targets) {
         const expected = Math.round(t.wageComponentId === compUtrp.id ? b : c);
-        if (Math.abs(t.amount - expected) > 0.5) {
-          await db.employeeComponentAssignment.update({ where: { id: t.id }, data: { amount: expected } });
+        const currentAmt = tcM.decryptMoney(t.amount) ?? 0; // legacy plaintext di-parse
+        if (Math.abs(currentAmt - expected) > 0.5) {
+          await db.employeeComponentAssignment.update({ where: { id: t.id }, data: { amount: tcM.encryptMoney(expected) } });
           assignmentsSynced++;
         }
       }

@@ -4,6 +4,7 @@
 //   earned dihitung dinamis (prorate bulanan opsional), taken/applied dari request
 //   berstatus Approved/MassLeave, forfeited dari tanggal kadaluarsa carry-over.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { dayStart, addDays, diffDays, resolveDayType } from "@/onevity/time-attendance/services/attendance-service";
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries,
@@ -533,7 +534,8 @@ async function activeSalary(db: TenantDb, employeeId: string): Promise<number> {
     where: { id: employeeId },
     select: { assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
   });
-  return emp?.assignments[0]?.baseSalary ?? 0;
+  // 28-c: gaji pokok terenkripsi — dekripsi (encashment cuti).
+  return emp?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
 }
 
 export async function previewRequest(
@@ -1242,13 +1244,15 @@ export async function transferEncashment(
 
   const employees = new Set<string>();
   let total = 0;
+  // 28-c: nilai komponen encashment disimpan TERENKRIPSI (enc:v1:n:…).
+  const tcE = tenantCryptoForDb(db);
   for (const e of encs) {
     const salary = await activeSalary(db, e.employeeId);
     const amount = Math.round((e.days * salary) / 25);
     await db.employeeComponentAssignment.create({
       data: {
         employeeId: e.employeeId, wageComponentId: comp.id,
-        kind: "Specific", amount,
+        kind: "Specific", amount: tcE.encryptMoney(amount),
         periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
         notes: `Uang pengganti cuti ${e.docNo} — ${e.days} hari × upah harian`,
         active: true,

@@ -264,7 +264,7 @@ function PositionList() {
       <AlertDialog open={!!deleting} onOpenChange={(v) => { if (!v) setDeleting(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("Hapus posisi {t}?", "Delete position {t}?", { t: deleting?.title })}</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus posisi {t}?", "Delete position {t}?", { t: deleting?.title ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("Tindakan ini permanen. Posisi yang masih dipegang karyawan atau menjadi atasan posisi lain tidak dapat dihapus.", "This action is permanent. Positions still held by employees or referenced as a supervisor of other positions cannot be deleted.")}
             </AlertDialogDescription>

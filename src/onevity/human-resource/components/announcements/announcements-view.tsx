@@ -240,7 +240,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
         <MiniStat label={t("Terbit Aktif", "Active Published")} value={String(stats.active)} icon={Megaphone} tone="emerald" />
         <MiniStat label={t("Draft", "Drafts")} value={String(stats.draft)} icon={FileText} tone="amber" />
         <MiniStat label={t("Kedaluwarsa", "Expired")} value={String(stats.expired)} icon={CalendarClock} />
-        <MiniStat label={t("Total Dibaca", "Total Reads")} value={String(stats.totalReads)} icon={CheckCheck} tone="mono" />
+        <MiniStat label={t("Total Dibaca", "Total Reads")} value={String(stats.totalReads)} icon={CheckCheck} mono />
       </div>
 
       {/* ===== toolbar: tab status + kategori + cari + buat ===== */}
@@ -417,7 +417,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-rose-500" />
-              {t("Hapus pengumuman {code}?", "Delete announcement {code}?", { code: deleting?.code })}
+              {t("Hapus pengumuman {code}?", "Delete announcement {code}?", { code: deleting?.code ?? "" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(

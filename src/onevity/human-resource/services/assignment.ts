@@ -4,6 +4,7 @@
 // bentuk lama (orgUnit/position/grade/employmentStatus/…) agar kontrak frontend stabil.
 import type { Prisma } from "@/generated/tenant";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb, TENANT_SCHEMA_BRAND, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
 
 /** Handle DB: client tenant penuh ATAU transaksi interaktif Prisma ($transaction). */
 export type DbOrTx = TenantDb | Prisma.TransactionClient;
@@ -39,7 +40,7 @@ export const CURRENT_ASSIGNMENT_INCLUDE = {
 type CurAssign = {
   orgUnitId: string | null; positionId: string | null; gradeId: string | null; managerId: string | null;
   companyOfficeId: string | null; workLocationId: string | null;
-  employmentStatus: string; workShift: string; baseSalary: number;
+  employmentStatus: string; workShift: string; baseSalary: string | null; // 28-c: terenkripsi
   orgUnit: { name: string; code: string } | null;
   position: { title: string; code: string; positionLevelId: string | null; positionLevel: { code: string; name: string } | null } | null;
   grade: { code: string; name: string } | null;
@@ -47,12 +48,28 @@ type CurAssign = {
   workLocation: { code: string; name: string; city: string | null } | null;
 };
 
-/** Flatten employee + assignments[] → objek dengan field pekerjaan lama (untuk response API). */
-export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T) {
+/** Dekripsi gaji pokok assignment (28-c — tersimpan enc:v1:n:…). */
+export function decryptBaseSalary(tc: FieldCrypto, stored: string | null): number {
+  return tc.decryptMoney(stored) ?? 0;
+}
+
+/**
+ * Flatten employee + assignments[] → objek dengan field pekerjaan lama (untuk
+ * response API). 28-c: baseSalary + NIK/NPWP/rekening assignment TERENKRIPSI —
+ * berikan tc agar terdekripsi (baseSalary → number, identitas → teks asli);
+ * tanpa tc: nilai mentah string — hanya utk pemakaian internal yang
+ * mengenkripsi ulang.
+ */
+export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T, tc?: FieldCrypto) {
   const cur = (emp.assignments as unknown as CurAssign[] | undefined)?.[0] ?? null;
   const { assignments, ...rest } = emp as Record<string, unknown>;
   return {
     ...rest,
+    // 28-c: identitas sensitif terenkripsi di DB — dekripsi di batas serializer
+    // (decryptText meloloskan plaintext legacy apa adanya).
+    nationalId: tc ? tc.decryptText((rest.nationalId as string | null) ?? null) : (rest.nationalId ?? null),
+    taxId: tc ? tc.decryptText((rest.taxId as string | null) ?? null) : (rest.taxId ?? null),
+    bankAccount: tc ? tc.decryptText((rest.bankAccount as string | null) ?? null) : (rest.bankAccount ?? null),
     orgUnitId: cur?.orgUnitId ?? null,
     positionId: cur?.positionId ?? null,
     gradeId: cur?.gradeId ?? null,
@@ -61,7 +78,7 @@ export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T) {
     workLocationId: cur?.workLocationId ?? null,
     employmentStatus: cur?.employmentStatus ?? "Permanent",
     workShift: cur?.workShift ?? "Regular",
-    baseSalary: cur?.baseSalary ?? 0,
+    baseSalary: cur ? (tc ? decryptBaseSalary(tc, cur.baseSalary) : (cur.baseSalary as unknown as number)) : 0,
     orgUnit: cur?.orgUnit ?? null,
     position: cur?.position ?? null,
     grade: cur?.grade ?? null,
@@ -122,15 +139,26 @@ export async function syncEmployeePlacementSnapshot(db: DbOrTx, employeeId: stri
  * Terapkan perubahan data pekerjaan: tutup assignment aktif (validTo = effectiveDate),
  * buka assignment baru berisi gabungan data lama + perubahan. Perubahan tercatat sebagai riwayat.
  * Jika tidak ada field yang benar-benar berubah, tidak dibuat riwayat baru (idempotent).
+ * 28-c: tc = konteks enkripsi per-tenant (baseSalary tersimpan terenkripsi) —
+ * WAJIB diberikan bila db adalah client transaksi ($transaction) karena client
+ * transaksi tidak membawa brand schema; untuk TenantDb penuh tc opsional
+ * (diambil otomatis dari brand).
  */
 export async function applyAssignmentChange(
   db: DbOrTx,
   employeeId: string,
   overrides: AssignmentOverrides,
   opts: { reason: string; effectiveDate: Date; sourceDocNo?: string | null; notes?: string | null },
+  tc?: FieldCrypto,
 ) {
+  const tcr = tc ?? (TENANT_SCHEMA_BRAND in (db as object) ? tenantCryptoForDb(db as TenantDb) : undefined);
   const current = await getCurrentAssignment(db, employeeId);
   if (!current) throw new Error("Karyawan tidak memiliki penempatan aktif");
+  if (!tcr) {
+    throw new Error("[field-crypto] applyAssignmentChange dalam $transaction tanpa konteks kunci — berikan tc dari client luar (pola payroll-service 28-c)");
+  }
+  // 28-c: gaji pokok lama terenkripsi — dekripsi untuk perbandingan.
+  const currentBase = decryptBaseSalary(tcr, current.baseSalary);
 
   const merged = {
     orgUnitId: overrides.orgUnitId !== undefined && overrides.orgUnitId !== null ? overrides.orgUnitId : current.orgUnitId,
@@ -141,10 +169,11 @@ export async function applyAssignmentChange(
     workLocationId: overrides.workLocationId !== undefined ? (overrides.workLocationId || null) : current.workLocationId,
     employmentStatus: overrides.employmentStatus ?? current.employmentStatus,
     workShift: overrides.workShift ?? current.workShift,
-    baseSalary: overrides.baseSalary !== undefined ? overrides.baseSalary : current.baseSalary,
+    baseSalary: overrides.baseSalary !== undefined ? overrides.baseSalary : currentBase,
   };
 
-  const changed = (Object.keys(merged) as (keyof typeof merged)[]).some((k) => merged[k] !== current[k]);
+  const changed = (Object.keys(merged) as (keyof typeof merged)[]).some((k) =>
+    merged[k] !== (k === "baseSalary" ? currentBase : current[k]));
   if (!changed) return { changed: false, assignment: current };
 
   const eff = opts.effectiveDate;
@@ -153,6 +182,8 @@ export async function applyAssignmentChange(
     data: {
       employeeId,
       ...merged,
+      // 28-c: gaji pokok disimpan TERENKRIPSI (enc:v1:n:…).
+      baseSalary: tcr.encryptMoney(merged.baseSalary),
       validFrom: eff,
       validTo: null,
       changeReason: opts.reason,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { attachChainSummaries, DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
     const chainMap = await attachChainSummaries(db, "Overtime", orders.map((o) => ({ id: o.id })));
 
     const all = orders.map((o) => {
-      const baseSalary = o.employee.assignments[0]?.baseSalary ?? 0;
+      // 28-c: baseSalary terenkripsi — dekripsi utk perhitungan uang lembur.
+      const baseSalary = tenantCryptoForDb(db).decryptMoney(o.employee.assignments[0]?.baseSalary) ?? 0;
       // fix M-7: order yang sudah disetujui tanpa bukti clock → jam efektif = verified/actual
       // (bukan plan) — konsisten dengan rekap uang; Pending menampilkan rencana (plan).
       const minutes = o.status === "Pending"

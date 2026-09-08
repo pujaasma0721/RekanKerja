@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/export";
 
@@ -118,12 +119,15 @@ type MemberEmployee = {
   birthDate: Date | null; address: string | null; city: string | null;
   bpjsEmpSkill: string | null; bpjsHealth: string | null; joinDate: Date;
   position: { title: string } | null;
-  assignments: { employmentStatus: string; baseSalary: number }[];
+  // 28-c: baseSalary tersimpan sbg string terenkripsi (enc:v1:n:…).
+  assignments: { employmentStatus: string; baseSalary: string | null }[];
 };
 
-const toMemberRow = (employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
+const toMemberRow = (tc: FieldCrypto, employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
   employeeNo,
-  nik: emp.nationalId,
+  // 28-c: NIK & gaji pokok tersimpan terenkripsi — dekripsi (format upload
+  // BPJS memuat KTP & GAJI riil).
+  nik: tc.decryptText(emp.nationalId),
   fullName: emp.fullName,
   gender: emp.gender,
   birthPlace: emp.birthPlace,
@@ -135,7 +139,7 @@ const toMemberRow = (employeeNo: string, emp: MemberEmployee, positionFallback: 
   joinDate: emp.joinDate,
   employmentStatus: emp.assignments[0]?.employmentStatus ?? "Permanent",
   positionName: positionFallback ?? emp.position?.title ?? null,
-  baseSalary: Math.round(emp.assignments[0]?.baseSalary ?? 0),
+  baseSalary: Math.round(tc.decryptMoney(emp.assignments[0]?.baseSalary) ?? 0),
 });
 
 /**
@@ -209,6 +213,8 @@ export async function GET(req: NextRequest) {
 
     const sp = req.nextUrl.searchParams;
     const runId = sp.get("runId");
+    // 28-c: konteks dekripsi per-tenant (NIK, gaji pokok, item iuran run).
+    const tc = tenantCryptoForDb(db);
 
     // ===== 27-c — format upload resmi BPJS (CSV) =====
     // runId OPSIONAL di sini: dgn runId → populasi pegawai run tsb yang
@@ -241,7 +247,7 @@ export async function GET(req: NextRequest) {
         scope = run.runNo;
         members = run.lines
           .filter((l) => (isTk ? l.employee?.bpjsEmpSkill : l.employee?.bpjsHealth))
-          .map((l) => toMemberRow(l.employeeNo, l.employee as MemberEmployee, l.positionName));
+          .map((l) => toMemberRow(tc, l.employeeNo, l.employee as MemberEmployee, l.positionName));
       } else {
         const emps = await db.employee.findMany({
           where: isTk
@@ -250,7 +256,7 @@ export async function GET(req: NextRequest) {
           orderBy: { employeeNo: "asc" },
           select: { employeeNo: true, ...memberSelect },
         });
-        members = emps.map((e) => toMemberRow(e.employeeNo, e as MemberEmployee, null));
+        members = emps.map((e) => toMemberRow(tc, e.employeeNo, e as MemberEmployee, null));
       }
 
       const csv = isTk ? buildBpjsTkCsv(members) : buildBpjsJknCsv(members);
@@ -305,12 +311,12 @@ export async function GET(req: NextRequest) {
           : basis === "JKK" ? "jkk"
           : basis === "JKM" ? "jkm"
           : isCompany ? "jknC" : "jknE";
-        b[key] += item.amount;
+        b[key] += tc.decryptMoney(item.amount) ?? 0; // 28-c: iuran terenkripsi
       }
       return {
         employeeId: l.employeeId,
         employeeNo: l.employeeNo,
-        nik: l.employee?.nationalId ?? null,
+        nik: tc.decryptText(l.employee?.nationalId), // 28-c: NIK terenkripsi
         fullName: l.employeeName,
         orgUnitName: l.orgUnitName,
         jhtCompany: r0(b.jhtC), jhtEmployee: r0(b.jhtE),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor, type TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
@@ -95,12 +96,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
     // flatten assignment aktif → bentuk lama (employmentStatus/baseSalary/workShift/position/…)
     const emp = action.employee as typeof action.employee & { assignments?: unknown[] };
-    const cur = (emp.assignments as { employmentStatus: string; workShift: string; baseSalary: number; position: unknown; orgUnit: unknown; grade: unknown }[] | undefined)?.[0];
+    const cur = (emp.assignments as { employmentStatus: string; workShift: string; baseSalary: string | null; position: unknown; orgUnit: unknown; grade: unknown }[] | undefined)?.[0];
     const { assignments: _a, ...empRest } = emp as Record<string, unknown>;
     const employee = {
       ...empRest,
       employmentStatus: cur?.employmentStatus ?? "—",
-      baseSalary: cur?.baseSalary ?? 0,
+      // 28-c: baseSalary terenkripsi — dekripsi di batas serializer.
+      baseSalary: cur ? (tenantCryptoForDb(db).decryptMoney(cur.baseSalary) ?? 0) : 0,
       workShift: cur?.workShift ?? "—",
       position: cur?.position ?? null,
       orgUnit: cur?.orgUnit ?? null,

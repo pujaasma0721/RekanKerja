@@ -70,7 +70,7 @@ export function PayrollRunsPage() {
         description={t("Satu period dapat diproses berkali-kali (gaji, THR, bonus) — tiap run menyimpan snapshot hasil per karyawan", "One period can be processed multiple times (salary, THR, bonus) — each run stores a per-employee result snapshot")}
         actions={
           <div className="flex flex-wrap gap-2">
-            {perms.can("payroll", "runs", "calculate") && (
+            {perms.canOp("payroll", "runs", "calculate") && (
               <Button variant="outline" onClick={() => setBonusOpen(true)} className="gap-2 font-bold">
                 <Gift className="h-4 w-4" /> {t("Bonus / THR Massal", "Bulk Bonus / THR")}
               </Button>

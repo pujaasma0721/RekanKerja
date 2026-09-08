@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { buildAnnualSpt, buildEsptA1Csv } from "@/onevity/payroll/services/payroll-spt";
 
 // GET /api/onevity/payroll-spt?year=2026                → laporan tahunan per karyawan
@@ -27,18 +28,21 @@ export async function GET(req: NextRequest) {
         include: { lines: { include: { employee: { include: { payrollProfile: true } } } } },
         orderBy: { createdAt: "asc" },
       });
+      // 28-c: uang line + NPWP tersimpan terenkripsi — dekripsi utk bukti potong.
+      const tc = tenantCryptoForDb(db);
+      const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
       // Jumlahkan lintas run (gaji + THR + rapel) per karyawan utk bukti potong 1 masa pajak.
       const byEmp = new Map<string, { employeeNo: string; name: string; npwp: string | null; bruto: number; tax: number; net: number }>();
       for (const run of runs) {
         for (const l of run.lines) {
           const cur = byEmp.get(l.employeeId) ?? {
             employeeNo: l.employeeNo, name: l.employeeName,
-            npwp: l.employee?.payrollProfile?.npwp ?? l.employee?.taxId ?? null,
+            npwp: tc.decryptText(l.employee?.payrollProfile?.npwp) ?? tc.decryptText(l.employee?.taxId),
             bruto: 0, tax: 0, net: 0,
           };
-          cur.bruto += l.bruto;
-          cur.tax += l.taxRegular + l.taxIrregular;
-          cur.net += l.net;
+          cur.bruto += dm(l.bruto);
+          cur.tax += dm(l.taxRegular) + dm(l.taxIrregular);
+          cur.net += dm(l.net);
           byEmp.set(l.employeeId, cur);
         }
       }

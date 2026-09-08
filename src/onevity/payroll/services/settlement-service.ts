@@ -21,6 +21,7 @@
 // (incomeTaxMethod SeveranceFinal → engine payroll TIDAK memotong pajak
 // progresif; pajak final dihitung di sini sebagai komponen potongan).
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { nextRunNo } from "@/onevity/payroll/services/payroll-service";
 
 // ============ tipe hasil ============
@@ -187,6 +188,9 @@ export async function computeTerminationSettlement(
   params: SettlementParams,
   reason?: string | null,
 ): Promise<SettlementResult> {
+  // 28-c: gaji pokok & komponen Periodic tersimpan terenkripsi — dekripsi
+  // sebelum komputasi settlement (angka murni di dalam hasil).
+  const tc = tenantCryptoForDb(db);
   const employee = await db.employee.findUnique({
     where: { id: employeeId },
     include: {
@@ -205,15 +209,16 @@ export async function computeTerminationSettlement(
     : `${tenure.totalMonths} bulan`;
 
   // --- upah: gaji pokok assignment + tunjangan tetap (Periodic Earning) ---
-  const baseSalary = assignment.baseSalary;
+  const baseSalary = tc.decryptMoney(assignment.baseSalary) ?? 0;
   const periodic = await db.employeeComponentAssignment.findMany({
     where: { employeeId, kind: "Periodic", active: true, wageComponent: { type: "Earning", active: true } },
     include: { wageComponent: { select: { code: true, name: true } } },
   });
-  const fixedAllowances = periodic.reduce((s, p) => s + p.amount, 0);
+  const periodicDec = periodic.map((p) => ({ ...p, amount: tc.decryptMoney(p.amount) ?? 0 }));
+  const fixedAllowances = periodicDec.reduce((s, p) => s + p.amount, 0);
   const upah = baseSalary + fixedAllowances;
   const upahNote = fixedAllowances > 0
-    ? `Gaji pokok ${fmtRp(baseSalary)} + tunjangan tetap ${periodic.map((p) => `${p.wageComponent.name} ${fmtRp(p.amount)}`).join(", ")}`
+    ? `Gaji pokok ${fmtRp(baseSalary)} + tunjangan tetap ${periodicDec.map((p) => `${p.wageComponent.name} ${fmtRp(p.amount)}`).join(", ")}`
     : `Gaji pokok ${fmtRp(baseSalary)} (tanpa tunjangan tetap Periodic)`;
 
   const rows: SettlementRow[] = [];
@@ -496,6 +501,8 @@ export async function applyTerminationSettlement(
 
   // komputasi MURNI dulu — gagal hitung = tidak menulis apa pun
   const result = await computeTerminationSettlement(db, input.employeeId, input.effectiveDate, norm);
+  // 28-c: konteks enkripsi utk penulisan komponen settlement (per-tenant).
+  const tc = tenantCryptoForDb(db);
 
   // processType TERMINATION (provisioning fallback — pola rapel)
   let processType = await db.processType.findFirst({ where: { code: "TERMINATION" } });
@@ -530,14 +537,15 @@ export async function applyTerminationSettlement(
     if (existing) {
       await db.employeeComponentAssignment.update({
         where: { id: existing.id },
-        data: { amount: row.amount, notes: `${notePrefix}: ${row.note}` },
+        // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+        data: { amount: tc.encryptMoney(row.amount), notes: `${notePrefix}: ${row.note}` },
       });
       updated += 1;
     } else {
       await db.employeeComponentAssignment.create({
         data: {
           employeeId: input.employeeId, wageComponentId, kind: "Specific",
-          amount: row.amount, periodId: period.id, processTypeId: processType.id,
+          amount: tc.encryptMoney(row.amount), periodId: period.id, processTypeId: processType.id,
           basedDate: input.effectiveDate, notes: `${notePrefix}: ${row.note}`,
         },
       });

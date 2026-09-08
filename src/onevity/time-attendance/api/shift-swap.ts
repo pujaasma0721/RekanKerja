@@ -137,13 +137,13 @@ export async function GET(req: NextRequest) {
     const [schedules, deciders] = await Promise.all([
       schedIds.size
         ? db.workSchedule.findMany({ where: { id: { in: Array.from(schedIds) } }, select: { id: true, name: true } })
-        : Promise.resolve([]),
+        : Promise.resolve([] as { id: string; name: string }[]),
       deciderIds.size
         ? db.appUser.findMany({ where: { id: { in: Array.from(deciderIds) } }, select: { id: true, fullName: true, username: true } })
-        : Promise.resolve([]),
+        : Promise.resolve([] as { id: string; fullName: string | null; username: string }[]),
     ]);
-    const schedName = new Map(schedules.map((s) => [s.id, s.name]));
-    const deciderName = new Map(deciders.map((d) => [d.id, d.fullName || d.username]));
+    const schedName = new Map<string, string>(schedules.map((s) => [s.id, s.name] as [string, string]));
+    const deciderName = new Map<string, string>(deciders.map((d) => [d.id, d.fullName || d.username] as [string, string]));
 
     return NextResponse.json({
       requests: requests.map((r) => ({

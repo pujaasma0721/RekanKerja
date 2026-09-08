@@ -222,7 +222,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
         <MiniStat label={t("Total Aset", "Total Assets")} value={String(stats.total)} icon={Boxes} />
         <MiniStat label={t("Ditugaskan", "Assigned")} value={String(stats.assigned)} icon={UserRoundCheck} tone="amber" />
         <MiniStat label={t("Tersedia", "Available")} value={String(stats.available)} icon={PackageCheck} tone="emerald" />
-        <MiniStat label={t("Nilai Total", "Total Value")} value={fmtIDR(stats.totalValue)} icon={Banknote} tone="mono" />
+        <MiniStat label={t("Nilai Total", "Total Value")} value={fmtIDR(stats.totalValue)} icon={Banknote} mono />
       </div>
 
       {/* ===== toolbar ===== */}
@@ -391,7 +391,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-rose-500" />
-              {t("Hapus aset {code}?", "Delete asset {code}?", { code: deleting?.code })}
+              {t("Hapus aset {code}?", "Delete asset {code}?", { code: deleting?.code ?? "" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
 import type { Prisma } from "@/generated/tenant";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // GET /api/onevity/dashboard — KPI ringkasan HR.
 // T1-SECURITY:
@@ -62,7 +63,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     // agregasi pekerjaan (status/unit/gaji/grade) dihitung dari assignment aktif
-    const cur = activeWithAssignments.map((e) => e.assignments[0]).filter(Boolean) as { employmentStatus: string; orgUnitId: string | null; gradeId: string | null; baseSalary: number }[];
+    // 28-c: baseSalary aktif TERENKRIPSI (String) — dekripsi sebelum agregasi.
+    const tcAgg = tenantCryptoForDb(db);
+    const cur = activeWithAssignments
+      .map((e) => e.assignments[0])
+      .filter(Boolean)
+      .map((a) => ({ ...a, baseSalary: tcAgg.decryptMoney(a.baseSalary) ?? 0 })) as { employmentStatus: string; orgUnitId: string | null; gradeId: string | null; baseSalary: number }[];
     const empStatusCount: Record<string, number> = {};
     const unitCount: Record<string, number> = {};
     const gradeCount: Record<string, number> = {};

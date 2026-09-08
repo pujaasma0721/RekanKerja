@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireEss, fmtHhMm, fmtRangeId, fmtDateId } from "@/onevity/ess/api/ess-auth";
 import { dayStart, addDays } from "@/onevity/time-attendance/services/attendance-service";
 import { listBalances } from "@/onevity/leave/services/leave-service";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 interface RecentDoc {
   docType: "Leave" | "WorkOff" | "Overtime" | "Travel" | "Medical";
@@ -169,7 +170,8 @@ export async function GET(req: Request) {
         ? {
             lineId: latestLine.id,
             periodName: latestLine.run.period.name,
-            netAmount: latestLine.net,
+            // 28-c: net terenkripsi — dekripsi di batas serializer.
+            netAmount: tenantCryptoForDb(db).decryptMoney(latestLine.net),
             status: latestLine.run.status,
           }
         : null,

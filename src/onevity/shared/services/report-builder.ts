@@ -20,6 +20,7 @@
 // Dipakai route src/app/api/onevity/custom-reports/** (run, export,
 // catalog, CRUD laporan tersimpan — model CustomReport RPT-KUSTOM-%04d).
 import type { TenantDb } from "../lib/tenant-db";
+import { tenantCryptoForDb, isEncrypted } from "../lib/field-crypto";
 import { exportFilename, toCsv, toXlsx, type ExportCell, type ExportColumn } from "../lib/export";
 
 // ================= TIPE DASAR =================
@@ -42,6 +43,13 @@ export interface ReportFieldDef {
   group: string;
   /** jalur Prisma — ["employeeNo"] atau ["orgUnit","name"] (relasi to-one). */
   path: string[];
+  /**
+   * 28-c: field uang terenkripsi di DB (enc:v1:n:…) — TIDAK bisa difilter /
+   * diurutkan di SQL (ciphertext). Filter gt/gte/lt/lte/eq/neq/in diterapkan
+   * IN-APP setelah dekripsi (fetch → decrypt → filter JS); urutan field ini
+   * juga di-sort di JS. Pelajari catatan di runReport.
+   */
+  encrypted?: boolean;
 }
 
 export interface ReportEntityDef {
@@ -67,7 +75,7 @@ export interface NormalizedFilter {
   field: string;
   op: FilterOp;
   /** nilai ter-tipe; null untuk op empty/notEmpty; array untuk op "in". */
-  value: string | number | boolean | Date | (string | number | Date)[] | null;
+  value: string | number | boolean | Date | (string | number | boolean | Date)[] | null;
   def: ReportFieldDef;
 }
 
@@ -115,7 +123,8 @@ const F = (
   path: string,
   group: string,
   filterable = true,
-): ReportFieldDef => ({ key, label, labelEn, type, filterable, group, path: path.split(".") });
+  encrypted = false,
+): ReportFieldDef => ({ key, label, labelEn, type, filterable, group, path: path.split("."), ...(encrypted ? { encrypted: true } : {}) });
 
 export const REPORT_ENTITIES: ReportEntityDef[] = [
   {
@@ -168,11 +177,11 @@ export const REPORT_ENTITIES: ReportEntityDef[] = [
       F("employeeName", "Nama Karyawan", "Employee Name", "string", "employeeName", "Karyawan"),
       F("orgUnitName", "Unit Organisasi", "Org Unit", "string", "orgUnitName", "Karyawan"),
       F("ptkpStatus", "Status PTKP", "PTKP Status", "string", "ptkpStatus", "Upah & Pajak"),
-      F("bruto", "Bruto", "Gross", "number", "bruto", "Upah & Pajak"),
-      F("deduction", "Potongan", "Deduction", "number", "deduction", "Upah & Pajak"),
-      F("taxRegular", "PPh 21 Regular", "Regular Income Tax", "number", "taxRegular", "Upah & Pajak"),
-      F("taxIrregular", "PPh 21 Irregular", "Irregular Income Tax", "number", "taxIrregular", "Upah & Pajak"),
-      F("net", "Net (THP)", "Net", "number", "net", "Upah & Pajak"),
+      F("bruto", "Bruto", "Gross", "number", "bruto", "Upah & Pajak", true, true),
+      F("deduction", "Potongan", "Deduction", "number", "deduction", "Upah & Pajak", true, true),
+      F("taxRegular", "PPh 21 Regular", "Regular Income Tax", "number", "taxRegular", "Upah & Pajak", true, true),
+      F("taxIrregular", "PPh 21 Irregular", "Irregular Income Tax", "number", "taxIrregular", "Upah & Pajak", true, true),
+      F("net", "Net (THP)", "Net", "number", "net", "Upah & Pajak", true, true),
       F("umkWarning", "Peringatan UMK", "UMK Warning", "boolean", "umkWarning", "Upah & Pajak"),
       F("notes", "Catatan", "Notes", "string", "notes", "Lainnya"),
     ],
@@ -506,10 +515,34 @@ function delegateOf(db: TenantDb, model: string) {
   return d;
 }
 
-/** Urutan: field terpilih PERTAMA asc (fallback default entity). */
-function orderByOf(ent: ReportEntityDef, fields: ReportFieldDef[]): Record<string, unknown>[] {
+/** Urutan: field terpilih PERTAMA asc (fallback default entity).
+ *  28-c: field terenkripsi tidak bisa diurutkan SQL (ciphertext) → urutan
+ *  diterapkan IN-APP setelah dekripsi; SQL memakai fallback default. */
+function orderByOf(ent: ReportEntityDef, fields: ReportFieldDef[]): { sql: Record<string, unknown>[]; appSortKey: string | null } {
   const first = fields[0] ?? ent.fields.find((f) => f.key === ent.defaultField) ?? ent.fields[0]!;
-  return [nested(first.path, "asc")];
+  if (first.encrypted) {
+    return { sql: [nested(ent.fields.find((f) => f.key === ent.defaultField)?.path ?? ["employeeNo"], "asc")], appSortKey: first.key };
+  }
+  return { sql: [nested(first.path, "asc")], appSortKey: null };
+}
+
+/** Bandingkan nilai utk filter IN-APP pada field terenkripsi (number/string). */
+function appMatch(op: FilterOp, actual: unknown, value: unknown): boolean {
+  if (op === "empty") return actual == null || actual === "";
+  if (op === "notEmpty") return !(actual == null || actual === "");
+  const a = typeof actual === "number" ? actual : String(actual ?? "").toLowerCase();
+  const b = typeof value === "number" ? value : String(value ?? "").toLowerCase();
+  switch (op) {
+    case "eq": return a === b;
+    case "neq": return a !== b;
+    case "contains": return String(a).includes(String(b));
+    case "in": return Array.isArray(value) && value.some((v) => (typeof v === "number" ? v === actual : String(v).toLowerCase() === String(a)));
+    case "gt": return (a as number) > (b as number);
+    case "gte": return (a as number) >= (b as number);
+    case "lt": return (a as number) < (b as number);
+    case "lte": return (a as number) <= (b as number);
+    default: return true;
+  }
 }
 
 // ================= RUN =================
@@ -517,12 +550,17 @@ function orderByOf(ent: ReportEntityDef, fields: ReportFieldDef[]): Record<strin
 export interface RunResult {
   entity: string;
   columns: { key: string; label: string; labelEn: string; type: FieldType }[];
-  /** nilai mentah (tanggal = ISO string — diformat di UI). */
+  /** nilai mentah (tanggal = ISO string — diformat di UI; uang terenkripsi
+   *  sudah terdekripsi menjadi number). */
   rows: Record<string, unknown>[];
   total: number;
   page: number;
   pageSize: number;
   truncated: boolean;
+  /** 28-c: true bila ada filter pada field uang terenkripsi — filter
+   *  diterapkan IN-APP (post-dekripsi), total = hasil filter JS (batas aman
+   *  baris yang dibaca = exportRows). */
+  inAppFiltered?: boolean;
 }
 
 export async function runReport(
@@ -531,27 +569,71 @@ export async function runReport(
 ): Promise<RunResult> {
   const { entity: ent, fields, filters } = validateSpec(input);
   const page = Math.max(1, Math.trunc(Number(input.page ?? 1)) || 1);
-  const where = buildWhere(filters);
+  // 28-c: pisahkan filter SQL vs filter field TERENKRIPSI (uang payroll).
+  // Filter terenkripsi tidak dapat dievaluasi database (random-IV ciphertext,
+  // bukan angka) → fetch baris (cap LIMITS.exportRows) → dekripsi → filter JS.
+  const sqlFilters = filters.filter((f) => !f.def.encrypted);
+  const appFilters = filters.filter((f) => f.def.encrypted);
+  const inApp = appFilters.length > 0;
+  const where = buildWhere(sqlFilters);
   const select = buildSelect(fields);
-  const orderBy = orderByOf(ent, fields);
+  const { sql: orderBy, appSortKey } = orderByOf(ent, fields);
   const dl = delegateOf(db, ent.model);
-  const [rawRows, total] = await Promise.all([
-    dl.findMany({ where, select, orderBy, take: LIMITS.runPageSize, skip: (page - 1) * LIMITS.runPageSize } as never),
-    dl.count({ where } as never),
-  ]);
-  const rows = rawRows.map((r) => {
+  const tc = tenantCryptoForDb(db);
+  const dm = (v: unknown): unknown => (v == null ? null : isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v));
+
+  if (!inApp) {
+    const [rawRows, total] = await Promise.all([
+      dl.findMany({ where, select, orderBy, take: LIMITS.runPageSize, skip: (page - 1) * LIMITS.runPageSize } as never),
+      dl.count({ where } as never),
+    ]);
+    const rows = rawRows.map((r) => {
+      const o: Record<string, unknown> = {};
+      for (const f of fields) o[f.key] = f.encrypted ? dm(readPath(r, f.path)) : readPath(r, f.path);
+      return o;
+    });
+    return {
+      entity: ent.key,
+      columns: fields.map((f) => ({ key: f.key, label: f.label, labelEn: f.labelEn, type: f.type })),
+      rows,
+      total,
+      page,
+      pageSize: LIMITS.runPageSize,
+      truncated: total > page * LIMITS.runPageSize,
+    };
+  }
+
+  // jalur filter in-app: baca hingga cap exportRows, filter JS, halaman manual.
+  const rawRows = await dl.findMany({ where, select, orderBy, take: LIMITS.exportRows } as never);
+  let rows = rawRows.map((r) => {
     const o: Record<string, unknown> = {};
-    for (const f of fields) o[f.key] = readPath(r, f.path);
+    for (const f of fields) o[f.key] = f.encrypted ? dm(readPath(r, f.path)) : readPath(r, f.path);
     return o;
   });
+  for (const f of appFilters) {
+    rows = rows.filter((row) => appMatch(f.op, row[f.field], f.value));
+  }
+  if (appSortKey) {
+    rows.sort((a, b) => {
+      const av = a[appSortKey], bv = b[appSortKey];
+      const an = typeof av === "number" ? av : Number(av);
+      const bn = typeof bv === "number" ? bv : Number(bv);
+      if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+      return String(av ?? "").localeCompare(String(bv ?? ""));
+    });
+  }
+  const total = rows.length;
+  const start = (page - 1) * LIMITS.runPageSize;
+  const paged = rows.slice(start, start + LIMITS.runPageSize);
   return {
     entity: ent.key,
     columns: fields.map((f) => ({ key: f.key, label: f.label, labelEn: f.labelEn, type: f.type })),
-    rows,
+    rows: paged,
     total,
     page,
     pageSize: LIMITS.runPageSize,
     truncated: total > page * LIMITS.runPageSize,
+    inAppFiltered: true,
   };
 }
 
@@ -601,15 +683,29 @@ export async function buildReportFile(
   const { entity: ent, fields, filters } = validateSpec(input);
   const format = input.format === "xlsx" ? "xlsx" : input.format === "csv" ? "csv" : null;
   if (!format) throw new ReportSpecError("Format ekspor harus csv atau xlsx");
-  const where = buildWhere(filters);
+  // 28-c: filter field terenkripsi diterapkan IN-APP (pola runReport).
+  const sqlFilters = filters.filter((f) => !f.def.encrypted);
+  const appFilters = filters.filter((f) => f.def.encrypted);
+  const where = buildWhere(sqlFilters);
   const select = buildSelect(fields);
-  const orderBy = orderByOf(ent, fields);
+  const { sql: orderBy } = orderByOf(ent, fields);
   const dl = delegateOf(db, ent.model);
   const rawRows = await dl.findMany({
     where, select, orderBy, take: LIMITS.exportRows,
   } as never);
+  // 28-c: dekripsi field uang terenkripsi → number (sebelum masuk sel ekspor).
+  const tc = tenantCryptoForDb(db);
+  const dm = (v: unknown): unknown => (v == null ? null : isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v));
+  const decRows = rawRows.map((r) => {
+    const o: Record<string, unknown> = {};
+    for (const f of fields) o[f.key] = f.encrypted ? dm(readPath(r, f.path)) : readPath(r, f.path);
+    return o;
+  });
+  const filtered = appFilters.length > 0
+    ? appFilters.reduce((acc, f) => acc.filter((row) => appMatch(f.op, row[f.field], f.value)), decRows)
+    : decRows;
   const columns: ExportColumn[] = fields.map((f) => ({ header: f.label, width: widthOf(f) }));
-  const rows: ExportCell[][] = rawRows.map((r) => fields.map((f) => toCell(readPath(r, f.path), f.type)));
+  const rows: ExportCell[][] = filtered.map((r) => fields.map((f) => toCell(r[f.key], f.type)));
   const name = typeof input.name === "string" && input.name.trim() ? input.name.trim() : ent.label;
   const filename = exportFilename(name, format);
   if (format === "csv") {

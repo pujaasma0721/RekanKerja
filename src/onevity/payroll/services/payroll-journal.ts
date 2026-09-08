@@ -8,6 +8,7 @@
 //   3. D 2101 Hutang Gaji (tiap potongan)                     / C 2102/2103/2104/2105
 //   4. D 2101 Hutang Gaji (net / pembulatan)                  / C 1101 Kas & Bank
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 
 // Akun default (COA minimal seed) — kode komponen boleh menimpa via
@@ -75,6 +76,11 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
     throw new Error("Jurnal hanya dapat dibuat untuk run yang dikonfirmasi/dibayar");
   }
 
+  // 28-c: nilai uang snapshot run tersimpan terenkripsi — dekripsi utk agregasi.
+  const tc = tenantCryptoForDb(db);
+  const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+  const runTotalNet = dm(run.totalNet);
+
   // Salary Chart of Account per komponen (menimpa fallback wageType).
   const comps = await db.wageComponent.findMany({ select: { code: true, accountDebitCode: true, accountCreditCode: true } });
   const compMap = new Map(comps.map((c) => [c.code, c]));
@@ -85,7 +91,7 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
     for (const item of line.items) {
       if (item.type === "Informational") continue; // komponen informasi tidak dijurnal
       const cur = agg.get(item.code) ?? { code: item.code, name: item.name, wageType: item.wageType, type: item.type, total: 0 };
-      cur.total += item.amount;
+      cur.total += dm(item.amount);
       agg.set(item.code, cur);
     }
   }
@@ -136,7 +142,7 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
   }
 
   // 4. Pembayaran net dari hutang gaji ke kas/bank + baris pembulatan penyeimbang.
-  const netPaid = Math.round(run.lines.reduce((s, l) => s + l.net, 0));
+  const netPaid = Math.round(run.lines.reduce((s, l) => s + dm(l.net), 0));
   const diff = thpEarnings - Math.round(totalDeductions) - netPaid; // selisih pembulatan per baris
   if (Math.abs(diff) >= 1) {
     drafts.push({
@@ -171,9 +177,10 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
       journalDate: run.confirmedAt ?? new Date(),
       runId: run.id,
       runNo: run.runNo,
-      description: `Payroll ${run.processType.name} — ${run.period.name} (${run.runNo}) · ${run.employeeCount} karyawan · THP Rp ${Math.round(run.totalNet).toLocaleString("id-ID")}`,
-      totalDebit,
-      totalCredit,
+      description: `Payroll ${run.processType.name} — ${run.period.name} (${run.runNo}) · ${run.employeeCount} karyawan · THP Rp ${Math.round(runTotalNet).toLocaleString("id-ID")}`,
+      // 28-c: total jurnal disimpan TERENKRIPSI (enc:v1:n:…).
+      totalDebit: tc.encryptMoney(totalDebit),
+      totalCredit: tc.encryptMoney(totalCredit),
       status: "Posted",
       lines: {
         create: drafts.map((d, i) => ({
@@ -181,7 +188,7 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
           accountCode: d.accountCode,
           accountName: d.accountName,
           position: d.position,
-          amount: d.amount,
+          amount: tc.encryptMoney(d.amount),
           memo: d.memo,
           wageCode: d.wageCode,
         })),

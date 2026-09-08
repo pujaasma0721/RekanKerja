@@ -186,7 +186,7 @@ export function AttendanceWorkoffPage() {
                       <TableCell>
                         {p.allDay
                           ? <Badge variant="outline" className="text-[10px] font-bold">{t("{n} hari penuh", "{n} full days", { n: daysBetween(p.dateFrom, p.dateTo) })}</Badge>
-                          : <Badge variant="outline" className="text-[10px] font-bold text-amber-600">{t("½ hari {t}", "½ day {t}", { t: p.timeFrom })}</Badge>}
+                          : <Badge variant="outline" className="text-[10px] font-bold text-amber-600">{t("½ hari {t}", "½ day {t}", { t: p.timeFrom ?? "" })}</Badge>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn("text-[10px] font-bold",

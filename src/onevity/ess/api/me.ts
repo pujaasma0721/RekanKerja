@@ -1,5 +1,6 @@
 // GET /api/onevity/ess/me — profil karyawan aktor (kontrak T8-ESS-FRONTEND).
 import { NextResponse } from "next/server";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireEss, fmtIsoDate, essCanAdmin } from "@/onevity/ess/api/ess-auth";
 
 export async function GET(req: Request) {
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
         managerName: a?.manager?.fullName ?? null,
         joinDate: fmtIsoDate(emp.joinDate),
         employmentStatus: a?.employmentStatus ?? null,
-        taxId: emp.taxId,
+        taxId: tenantCryptoForDb(db).decryptText(emp.taxId),
         bpjsHealth: emp.bpjsHealth,
         bpjsEmpskill: emp.bpjsEmpSkill,
       },

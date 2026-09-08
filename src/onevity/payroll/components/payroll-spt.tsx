@@ -31,7 +31,7 @@ export function PayrollSptPage() {
   const kpi = [
     {
       label: t("Bruto Kena Pajak Setahun", "Annual Taxable Gross"), value: totals ? fmtIDRShort(totals.brutoTaxable) : "—",
-      sub: report ? t("{e} pegawai · {r} baris run", "{e} employees · {r} run rows", { e: totals?.employees, r: report.employees.reduce((s, r) => s + r.runs, 0) }) : "",
+      sub: report ? t("{e} pegawai · {r} baris run", "{e} employees · {r} run rows", { e: totals?.employees ?? 0, r: report.employees.reduce((s, r) => s + r.runs, 0) }) : "",
       icon: Landmark, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
     },
     {
@@ -230,7 +230,7 @@ export function PayrollSptPage() {
                       </TableRow>
                     ))}
                     <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} pegawai)", "Total ({n} employees)", { n: totals?.employees })}</TableCell>
+                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} pegawai)", "Total ({n} employees)", { n: totals?.employees ?? 0 })}</TableCell>
                       <TableCell />
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeRegular, 0))}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeIrregular, 0))}</TableCell>

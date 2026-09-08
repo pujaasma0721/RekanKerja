@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/tenant";
 import { requireMutator } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { calculateAndSaveRun, nextRunNo } from "@/onevity/payroll/services/payroll-service";
 
 type RapelRun = Prisma.PayrollRunGetPayload<{ include: { period: true; processType: true } }>;
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
     const m = await requireMutator(req);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
+    // 28-c: item run historis & penulisan komponen rapel memakai field uang
+    // terenkripsi — dekripsi saat baca, enkripsi saat tulis.
+    const tc = tenantCryptoForDb(db);
 
     const b = await req.json();
     const { employeeId, componentCode, fromPeriodId, toPeriodId, targetPeriodId } = b;
@@ -84,7 +88,7 @@ export async function POST(req: NextRequest) {
       const run = runs.find((r) => r.periodId === p.id);
       const line = run?.lines[0];
       const item = line?.items.find((it) => it.code === componentCode);
-      const paid = item ? Math.round(item.amount) : 0;
+      const paid = item ? Math.round(tc.decryptMoney(item.amount) ?? 0) : 0;
       const expected = Math.round(newAmount);
       if (!run) continue; // period belum diproses final → di luar lingkup rapel
       breakdown.push({ periodCode: p.code, periodName: p.name, paid, expected, diff: expected - paid });
@@ -176,7 +180,8 @@ export async function POST(req: NextRequest) {
         employeeId,
         wageComponentId: rapelComp.id,
         kind: "Specific",
-        amount: totalDiff,
+        // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
+        amount: tc.encryptMoney(totalDiff),
         periodId: targetPeriod.id,
         processTypeId: rapelType.id,
         basedDate: new Date(),
@@ -215,8 +220,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      assignment,
-      run,
+      // 28-c: dekripsi di batas serializer — amount komponen & total run.
+      assignment: tc.decryptJson(assignment),
+      run: run ? tc.decryptJson(run) : null,
       breakdown,
       totalDiff,
       periods: breakdown.length,

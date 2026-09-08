@@ -2,6 +2,7 @@
 // terbaru dulu) — kontrak T8-ESS-FRONTEND.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
@@ -20,13 +21,15 @@ export async function GET(req: Request) {
       },
     });
 
+    // 28-c: bruto/net terenkripsi di DB — dekripsi di batas serializer.
+    const tc = tenantCryptoForDb(db);
     return NextResponse.json({
       slips: lines.map((l) => ({
         lineId: l.id,
         periodName: l.run.period.name,
         status: l.run.status,
-        gross: l.bruto,
-        net: l.net,
+        gross: tc.decryptMoney(l.bruto),
+        net: tc.decryptMoney(l.net),
         paidAt: l.run.paidAt,
       })),
     });
