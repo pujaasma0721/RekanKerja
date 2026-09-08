@@ -115,3 +115,58 @@ export async function ruleContextMap(
   }
   return map;
 }
+
+// ============ DISPLAY PARAMETER (simulasi / preview) =====================
+// Task 37: map paramKey → nilai RAMAH utk kolom "Parameter" simulasi rule.
+// ctx menyimpan CODE utk param entity (orgUnit="HO", office="MII"…) — utk
+// tampilan user kita kirim NAME/TITLE. Param personal & angka pakai nilai ctx.
+
+/** Bentuk longgar record employee utk display (subset EMPLOYEE_RULE_INCLUDE). */
+export type RuleParamDisplayRecord = {
+  company?: { code: string; name: string } | null;
+  positionLevel?: { code: string; name: string } | null;
+  assignments?: {
+    orgUnit?: { code: string; name: string } | null;
+    position?: { code: string; title: string } | null;
+    grade?: { code: string; name: string } | null;
+    companyOffice?: { code: string; name: string } | null;
+    workLocation?: { code: string; name: string } | null;
+  }[];
+  payrollProfile?: { hasNpwp: boolean; taxStatus: string; dependents: number } | null;
+};
+
+const strOrNull = (v: string | number | boolean | null | undefined): string | null =>
+  v == null || String(v).trim() === "" ? null : String(v);
+const num1 = (v: number | null | undefined): string | null =>
+  v == null || !isFinite(v) ? null : String(Number(v.toFixed(1)));
+
+/**
+ * Nilai display SEMUA 20 parameter utk satu karyawan (dari record + ctx rule).
+ * Key = RULE_PARAMS.key → nilai ramah (nama entity, teks personal, angka 1 desimal,
+ * boolean "true"/"false" — label Ya/Tidak & enum dipetakan client-side bilingual).
+ */
+export function buildRuleParamDisplay(emp: RuleParamDisplayRecord, ctx: RuleContext): Record<string, string | null> {
+  const a = emp.assignments?.[0];
+  return {
+    company: strOrNull(emp.company?.name),
+    orgUnit: strOrNull(a?.orgUnit?.name),
+    position: strOrNull(a?.position?.title),
+    grade: strOrNull(a?.grade?.name),
+    positionLevel: strOrNull(emp.positionLevel?.name),
+    office: strOrNull(a?.companyOffice?.name),
+    workLocation: strOrNull(a?.workLocation?.name),
+    employmentStatus: strOrNull(ctx.employmentStatus),
+    workShift: strOrNull(ctx.workShift),
+    tenureYears: num1(ctx.tenureYears as number | null),
+    employeeStatus: strOrNull(ctx.employeeStatus),
+    gender: strOrNull(ctx.gender),
+    religion: strOrNull(ctx.religion),
+    maritalStatus: strOrNull(ctx.maritalStatus),
+    bloodType: strOrNull(ctx.bloodType),
+    city: strOrNull(ctx.city),
+    ageYears: num1(ctx.ageYears as number | null),
+    taxStatus: strOrNull(ctx.taxStatus),
+    dependents: strOrNull(ctx.dependents),
+    hasNpwp: ctx.hasNpwp == null ? null : String(ctx.hasNpwp),
+  };
+}

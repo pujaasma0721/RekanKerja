@@ -7,7 +7,7 @@ import {
   validateConditions, isEmptyConditions, RuleValidationError,
 } from "@/onevity/shared/lib/parameter-rules";
 import { ENTITY_RULE_DOMAINS, isRuleDomain } from "@/onevity/shared/lib/entity-rule-domains";
-import { EMPLOYEE_RULE_INCLUDE, buildEmployeeRuleContext, EmployeeRuleRecord } from "@/onevity/shared/services/employee-rule-context";
+import { EMPLOYEE_RULE_INCLUDE, buildEmployeeRuleContext, buildRuleParamDisplay, EmployeeRuleRecord } from "@/onevity/shared/services/employee-rule-context";
 import { benefitLimitFor } from "@/onevity/medical/services/medical-service";
 
 // OneVity — Task 33: API ATURAN PARAMETER GENERIK (leave/medical/travel/benefit).
@@ -231,7 +231,12 @@ export async function GET(req: NextRequest) {
         maritalStatus: emp.maritalStatus ?? null,
         tenureYears: ctx.tenureYears != null ? Number(Number(ctx.tenureYears).toFixed(1)) : null,
         base: empBase,
-        matchedRule: matched ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, value: matched.rule.value } : null,
+        // Task 37: param yang DIPAKAI rule pemenang + nilai param karyawan —
+        // kolom "Parameter" simulasi kini mencerminkan kondisi rule sebenarnya.
+        paramDisplay: buildRuleParamDisplay(emp, ctx),
+        matchedRule: matched
+          ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, value: matched.rule.value, conditions: matched.conds }
+          : null,
         final,
       }];
     });

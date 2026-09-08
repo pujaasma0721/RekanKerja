@@ -24,8 +24,8 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 import { WageCompFull } from "@/onevity/payroll/components/payroll-types";
 import {
   RuleCondition, RuleParamDef, RuleMatchMode,
-  RULE_PARAMS, RULE_OP_LABEL, RULE_ACTION_LABEL,
-  describeCondition,
+  RULE_PARAMS, RULE_OP_LABEL, RULE_ACTION_LABEL, RULE_PARAM_BY_KEY,
+  describeCondition, describeConditionValue,
 } from "@/onevity/payroll/services/component-rules";
 
 interface RuleRow {
@@ -62,8 +62,10 @@ interface PreviewRow {
   officeName: string | null; workLocationName: string | null;
   employmentStatus: string; gender: string | null; religion: string | null; maritalStatus: string | null;
   tenureYears: number | null;
+  /** Task 37: nilai ramah semua 20 param karyawan (key RULE_PARAMS). */
+  paramDisplay?: Record<string, string | null>;
   base: number | null; final: number | null;
-  matchedRule: { id: string; name: string; actionType: string; amount: number } | null;
+  matchedRule: { id: string; name: string; actionType: string; amount: number; conditions?: RuleCondition[] } | null;
 }
 
 export function ComponentRulesDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull | null; onClose: () => void }) {
@@ -271,7 +273,7 @@ function PreviewTab({ compId }: { compId: string }) {
                   <TableHead className="text-[11px] font-bold">{t("No.")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Karyawan", "Employee")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Penempatan", "Placement")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Parameter", "Parameters")}</TableHead>
+                  <TableHead className="text-[11px] font-bold">{t("Parameter (rule yang cocok)", "Parameters (matched rule)")}</TableHead>
                   <TableHead className="text-right text-[11px] font-bold">{t("Dasar", "Base")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Aturan", "Rule")}</TableHead>
                   <TableHead className="text-right text-[11px] font-bold">{t("Final", "Final")}</TableHead>
@@ -287,7 +289,26 @@ function PreviewTab({ compId }: { compId: string }) {
                       {r.officeName ?? r.workLocationName ?? "—"} · {r.employmentStatus}
                     </TableCell>
                     <TableCell className="max-w-48 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
-                      {[r.religion, r.maritalStatus, r.tenureYears != null ? `${r.tenureYears} th` : null].filter(Boolean).join(" · ") || "—"}
+                      {r.matchedRule && r.matchedRule.conditions && r.matchedRule.conditions.length > 0 ? (
+                        <div
+                          className="flex flex-col gap-0.5"
+                          title={r.matchedRule.conditions.map((c) => describeCondition(c, t)).join("  •  ")}
+                        >
+                          {r.matchedRule.conditions.map((c) => {
+                            const pd = RULE_PARAM_BY_KEY.get(c.param);
+                            const label = pd ? t(pd.label, pd.labelEn) : c.param;
+                            const raw = r.paramDisplay?.[c.param];
+                            const val = raw == null ? t("(kosong)", "(empty)") : describeConditionValue(c.param, raw, t);
+                            return (
+                              <span key={c.param} className="truncate">
+                                {label}: <span className="font-bold text-stone-600 dark:text-stone-300">{val}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-[11px] text-stone-500">{r.base != null ? fmtIDR(r.base) : "—"}</TableCell>
                     <TableCell>

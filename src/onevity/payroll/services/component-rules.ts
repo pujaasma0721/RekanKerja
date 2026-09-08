@@ -4,7 +4,7 @@
 // memakainya juga). File ini re-export + label aksi spesifik payroll.
 export {
   parseConditions, parseMatchMode, parseRuleSpec, matchCondition, matchConditions, matchFirstRule,
-  applyRuleValue, applyRuleAmount, describeCondition,
+  applyRuleValue, applyRuleAmount, describeCondition, describeConditionValue,
   validateConditions, isEmptyConditions, RuleValidationError,
 } from "@/onevity/shared/lib/parameter-rules";
 export type {

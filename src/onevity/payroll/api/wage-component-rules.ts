@@ -7,6 +7,7 @@ import {
   validateConditions, isEmptyConditions, RuleValidationError, ComponentRuleLite, EntityRuleLite,
 } from "@/onevity/payroll/services/component-rules";
 import { evalFormula, workingDaysBetween, EngineRegulation } from "@/onevity/payroll/services/payroll-engine";
+import { buildRuleParamDisplay } from "@/onevity/shared/services/employee-rule-context";
 
 // Task 32 — API ATURAN DIFERENSIASI BESARAN KOMPONEN UPAH.
 //   GET    /api/onevity/wage-component-rules?componentId=      → rules + opsi parameter
@@ -220,7 +221,12 @@ export async function GET(req: NextRequest) {
         maritalStatus: emp.maritalStatus ?? null,
         tenureYears: ctx.tenureYears != null ? Number(ctx.tenureYears.toFixed(1)) : null,
         base: baseAmount,
-        matchedRule: matched ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, amount: matched.rule.value } : null,
+        // Task 37: param yang DIPAKAI rule pemenang + nilai param karyawan —
+        // kolom "Parameter" simulasi kini mencerminkan kondisi rule sebenarnya.
+        paramDisplay: buildRuleParamDisplay({ ...emp, payrollProfile: profile ?? null }, ctx),
+        matchedRule: matched
+          ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, amount: matched.rule.value, conditions: matched.conds }
+          : null,
         final,
       }];
     });
