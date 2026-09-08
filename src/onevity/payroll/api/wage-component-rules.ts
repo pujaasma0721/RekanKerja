@@ -3,8 +3,8 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
-  RULE_PARAMS, RULE_PARAM_BY_KEY, RuleCondition, ComponentRuleLite,
-  parseConditions, matchFirstRule, applyRuleAmount,
+  RULE_PARAMS, parseConditions, matchFirstRule, applyRuleAmount,
+  validateConditions, RuleValidationError, ComponentRuleLite, EntityRuleLite,
 } from "@/onevity/payroll/services/component-rules";
 import { evalFormula, workingDaysBetween, EngineRegulation } from "@/onevity/payroll/services/payroll-engine";
 
@@ -16,42 +16,7 @@ import { evalFormula, workingDaysBetween, EngineRegulation } from "@/onevity/pay
 //   DELETE /api/onevity/wage-component-rules?id=               → hapus rule (delete)
 //
 // Guard aksi mengikuti menu payroll:components (sama dgn CRUD komponen).
-
-const OPS = new Set(["in", "not_in", "gt", "gte", "lt", "lte", "is_empty", "not_empty"]);
 const ACTIONS = new Set(["SetAmount", "AddAmount", "Multiply"]);
-
-/** Error validasi payload → HTTP 400 (bukan 500). */
-class ValidationError extends Error {}
-
-/** Validasi + normalisasi payload kondisi → JSON string; throw bila tidak valid. */
-function validateConditions(input: unknown): string {
-  if (input == null) return "[]";
-  if (typeof input === "string") {
-    const parsed = JSON.parse(input); // biarkan JSON error lempar 400 alami
-    return validateConditions(parsed);
-  }
-  if (!Array.isArray(input)) throw new Error("conditions harus array");
-  const out: RuleCondition[] = [];
-  for (const raw of input) {
-    if (!raw || typeof raw !== "object") throw new Error("kondisi tidak valid");
-    const c = raw as Record<string, unknown>;
-    const param = String(c.param ?? "");
-    const op = String(c.op ?? "");
-    const def = RULE_PARAM_BY_KEY.get(param);
-    if (!def) throw new Error(`parameter '${param}' tidak dikenal`);
-    if (!OPS.has(op)) throw new Error(`operator '${op}' tidak dikenal`);
-    const values = Array.isArray(c.values) ? c.values.map((v) => String(v).trim()).filter(Boolean) : [];
-    const noValues = op === "is_empty" || op === "not_empty";
-    if (!noValues && values.length === 0) throw new Error(`kondisi '${param}' belum memiliki nilai`);
-    if (noValues && values.length > 0) throw new Error(`operator '${op}' tidak memakai nilai`);
-    if (["gt", "gte", "lt", "lte"].includes(op)) {
-      const n = Number(values[0].replace(",", "."));
-      if (!isFinite(n)) throw new Error(`operator '${op}' membutuhkan nilai angka`);
-    }
-    out.push({ param, op: op as RuleCondition["op"], values: noValues ? [] : values });
-  }
-  return JSON.stringify(out);
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -153,7 +118,7 @@ export async function GET(req: NextRequest) {
 
     const ruleLite: ComponentRuleLite[] = rules.map((r) => ({
       id: r.id, name: r.name, priority: r.priority, conditions: r.conditions,
-      actionType: r.actionType, amount: r.amount, active: r.active, createdAt: r.createdAt,
+      actionType: r.actionType, value: r.amount, active: r.active, createdAt: r.createdAt,
     }));
 
     // Basis formula: regulasi aktif (fallback nilai baku BPJS/PPh) + hari kerja bulan berjalan.
@@ -234,11 +199,11 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const matched = ruleLite.length > 0 ? matchFirstRule(ruleLite, ctx) : null;
+      const matched = ruleLite.length > 0 ? matchFirstRule(ruleLite as EntityRuleLite[], ctx) : null;
       let final: number | null = null;
       if (baseAmount != null) {
         final = matched
-          ? applyRuleAmount(matched.rule.actionType, matched.rule.amount, baseAmount)
+          ? applyRuleAmount(matched.rule.actionType, matched.rule.value, baseAmount)
           : baseAmount;
       }
 
@@ -255,7 +220,7 @@ export async function GET(req: NextRequest) {
         maritalStatus: emp.maritalStatus ?? null,
         tenureYears: ctx.tenureYears != null ? Number(ctx.tenureYears.toFixed(1)) : null,
         base: baseAmount,
-        matchedRule: matched ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, amount: matched.rule.amount } : null,
+        matchedRule: matched ? { id: matched.rule.id, name: matched.rule.name, actionType: matched.rule.actionType, amount: matched.rule.value } : null,
         final,
       }];
     });
@@ -280,7 +245,7 @@ export async function POST(req: NextRequest) {
 
     const conditions = (() => {
       try { return validateConditions(b.conditions); }
-      catch (e) { throw new ValidationError(e instanceof Error ? e.message : String(e)); }
+      catch (e) { throw new RuleValidationError(e instanceof Error ? e.message : String(e)); }
     })();
     if (conditions === "[]") return NextResponse.json({ error: "Minimal satu kondisi parameter diperlukan" }, { status: 400 });
     const actionType = String(b.actionType ?? "SetAmount");
@@ -309,7 +274,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } }, { status: 201 });
   } catch (e) {
-    if (e instanceof ValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }
@@ -333,7 +298,7 @@ export async function PATCH(req: NextRequest) {
     if (b.priority != null) data.priority = Number(b.priority);
     if (b.conditions !== undefined) {
       try { data.conditions = validateConditions(b.conditions); }
-      catch (e) { throw new ValidationError(e instanceof Error ? e.message : String(e)); }
+      catch (e) { throw new RuleValidationError(e instanceof Error ? e.message : String(e)); }
     }
     if (b.actionType != null) {
       if (!ACTIONS.has(String(b.actionType))) return NextResponse.json({ error: "actionType tidak valid" }, { status: 400 });
@@ -350,7 +315,7 @@ export async function PATCH(req: NextRequest) {
     const rule = await db.wageComponentRule.update({ where: { id: b.id }, data });
     return NextResponse.json({ rule: { ...rule, conditions: parseConditions(rule.conditions) } });
   } catch (e) {
-    if (e instanceof ValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof RuleValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
 }

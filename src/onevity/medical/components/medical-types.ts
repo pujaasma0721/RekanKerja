@@ -15,6 +15,8 @@ export interface BenefitTypeUI {
   unusedRule: string; cashWageCode: string | null; maxCarryOver: number;
   dependentEnabled: boolean; maxDependents: number; maxChildAge: number; depLimitRule: string;
   balanceCount: number; claimCount: number;
+  /** Task 33 — jumlah aturan diferensiasi plafon. */
+  ruleCount?: number;
 }
 
 export interface ProviderUI {

@@ -2,6 +2,7 @@
 // OneVity Leave — Jenis Cuti: master 12 jenis Indonesia (padanan LeaveTypeDetail.jsp)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { EntityRulesButton, EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function LeaveTypesPage() {
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState(false);
   const [editTarget, setEditTarget] = useState<LeaveTypeRow | null>(null);
+  const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const api = useApi<{ types: LeaveTypeRow[] }>("/api/onevity/leave/types?all=1");
@@ -125,6 +127,7 @@ export function LeaveTypesPage() {
                     <TableHead className="text-right text-[11px] font-bold">{t("Hak", "Entitlement")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Periode")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Kebijakan", "Policy")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Aturan", "Rules")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
@@ -153,6 +156,9 @@ export function LeaveTypesPage() {
                           {ty.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("Advance")}</Badge>}
                           {ty.needDocs && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t("Dokumen", "Docs")}</Badge>}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <EntityRulesButton target={{ domain: "leave", id: ty.id, code: ty.code, name: ty.name }} ruleCount={ty.ruleCount ?? 0} onOpen={setRulesTarget} />
                       </TableCell>
                       <TableCell><StatusPill status={ty.active ? "Approved" : "Cancelled"} /></TableCell>
                       <TableCell>
@@ -261,6 +267,15 @@ export function LeaveTypesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {rulesTarget && (
+        <EntityRulesDialog
+          key={rulesTarget.id}
+          open={!!rulesTarget}
+          target={rulesTarget}
+          onClose={() => { setRulesTarget(null); api.refresh(); }}
+        />
+      )}
     </div>
   );
 }

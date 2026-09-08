@@ -4,6 +4,7 @@
 // (pay-in-payroll) atau kas langsung + master jenis benefit.
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/onevity/shared/lib/api";
+import { EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import {
   HeartHandshake, Plus, CheckCircle2, XCircle, CalendarClock, Wallet, Pencil,
-  Stethoscope, Glasses, Dumbbell, PartyPopper, Sparkles, Landmark, Ban, FileText, ChevronRight,
+  Stethoscope, Glasses, Dumbbell, PartyPopper, Sparkles, Landmark, Ban, FileText, ChevronRight, SlidersHorizontal,
 } from "lucide-react";
 import { BenefitTypeRow, BenefitClaimRow, BenefitStats, PeriodRow, WageCompFull } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ export function PayrollBenefitsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [rejectTarget, setRejectTarget] = useState<BenefitClaimRow | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<BenefitClaimRow | null>(null);
+  const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
 
   const claimsApi = useApi<{ claims: BenefitClaimRow[]; stats: BenefitStats }>(`/api/onevity/benefit-claims?status=${statusFilter}`);
   const typesApi = useApi<{ types: BenefitTypeRow[] }>("/api/onevity/benefit-types");
@@ -202,6 +204,7 @@ export function PayrollBenefitsPage() {
                 <TypeCard key={t.id} type={t}
                   onEdit={() => { setEditType(t); setTypeDialog(true); }}
                   onChanged={() => { typesApi.refresh(); claimsApi.refresh(); }}
+                  onOpenRules={setRulesTarget}
                 />
               ))}
             </div>
@@ -213,6 +216,15 @@ export function PayrollBenefitsPage() {
       <TypeDialog open={typeDialog} editing={editType} onClose={() => { setTypeDialog(false); setEditType(null); }} onSaved={() => typesApi.refresh()} />
       <RejectDialog claim={rejectTarget} onClose={() => setRejectTarget(null)} onDone={() => { claimsApi.refresh(); setRejectTarget(null); }} />
       <ScheduleDialog claim={scheduleTarget} onClose={() => setScheduleTarget(null)} onDone={() => { claimsApi.refresh(); setScheduleTarget(null); }} />
+
+      {rulesTarget && (
+        <EntityRulesDialog
+          key={rulesTarget.id}
+          open={!!rulesTarget}
+          target={rulesTarget}
+          onClose={() => { setRulesTarget(null); typesApi.refresh(); }}
+        />
+      )}
     </div>
   );
 }
@@ -378,8 +390,8 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
 
 // ============ KARTU JENIS BENEFIT ============
 
-function TypeCard({ type, onEdit, onChanged }: {
-  type: BenefitTypeRow; onEdit: () => void; onChanged: () => void;
+function TypeCard({ type, onEdit, onChanged, onOpenRules }: {
+  type: BenefitTypeRow; onEdit: () => void; onChanged: () => void; onOpenRules: (t: EntityRuleTarget) => void;
 }) {
   const { t } = useI18n();
   const Icon = CATEGORY_ICON[type.category] ?? Sparkles;
@@ -431,6 +443,9 @@ function TypeCard({ type, onEdit, onChanged }: {
         <div className="mt-3 flex gap-2">
           <Button variant="outline" size="sm" onClick={onEdit} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold">
             <Pencil className="h-3 w-3" /> {t("Ubah")}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenRules({ domain: "benefit", id: type.id, code: type.code, name: type.name })} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold">
+            <SlidersHorizontal className="h-3 w-3" /> {t("Aturan", "Rules")} {type.ruleCount ? `(${type.ruleCount})` : ""}
           </Button>
           <Button variant="ghost" size="sm" onClick={toggleActive} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold text-stone-500">
             {type.active ? t("Nonaktifkan", "Deactivate") : t("Aktifkan", "Activate")}

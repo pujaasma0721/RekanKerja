@@ -10,6 +10,34 @@ import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import type { Prisma } from "@/generated/tenant";
+// Task 33 — rule diferensiasi plafon per parameter karyawan.
+import { EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue } from "@/onevity/shared/lib/parameter-rules";
+import { EMPLOYEE_RULE_INCLUDE, buildEmployeeRuleContext, EmployeeRuleRecord } from "@/onevity/shared/services/employee-rule-context";
+
+// ============ Task 33 — resolver plafon via rule ============
+
+/** Muat rule plafon semua jenis medis terlibat (map typeId → lite). */
+async function medicalTypeRules(
+  db: Pick<TenantDb, "medicalBenefitTypeRule">,
+  typeIds: string[],
+): Promise<Map<string, EntityRuleLite[]>> {
+  const map = new Map<string, EntityRuleLite[]>();
+  if (typeIds.length === 0) return map;
+  const rows = await db.medicalBenefitTypeRule.findMany({ where: { medicalBenefitTypeId: { in: typeIds }, active: true } });
+  for (const r of rows) {
+    const arr = map.get(r.medicalBenefitTypeId) ?? [];
+    arr.push({ id: r.id, name: r.name, priority: r.priority, conditions: r.conditions, actionType: r.actionType, value: r.amount, active: r.active, createdAt: r.createdAt });
+    map.set(r.medicalBenefitTypeId, arr);
+  }
+  return map;
+}
+
+/** Plafon efektif: rule cocok pertama menang (atas plafon dasar hasil limitRule). */
+function limitWithRules(base: number, rules: EntityRuleLite[] | undefined, ctx: RuleContext | undefined | null): number {
+  if (!rules || rules.length === 0 || !ctx) return base;
+  const matched = matchFirstRule(rules, ctx);
+  return matched ? applyRuleValue(matched.rule.actionType, matched.rule.value, base) : base;
+}
 
 // ============ util ============
 
@@ -114,14 +142,19 @@ async function claimPoolAvailability(
     }),
     db.employee.findUnique({
       where: { id: input.employeeId },
-      select: { assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
+      // Task 33: include konteks rule plafon (assignment full-row + entitas).
+      include: EMPLOYEE_RULE_INCLUDE,
     }),
   ]);
   // fallback bila saldo tahun itu belum digenerate (backlog m-5: submit masih
   // memakai limit on-the-fly; settle kini MENOLAK tanpa saldo — lihat decideClaim)
   // 28-c: baseSalary terenkripsi — dekripsi utk kalkulasi plafon.
   const salary = emp?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
-  const limit = bal?.benefitAmount ?? benefitLimitFor(t, salary);
+  // Task 33 — fallback plafon on-the-fly ikut rule parameter karyawan.
+  const poolRules = await medicalTypeRules(db, [input.typeId]);
+  const poolCtx = emp ? buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date()) : null;
+  const fallbackLimit = limitWithRules(benefitLimitFor(t, salary), poolRules.get(input.typeId), poolCtx);
+  const limit = bal?.benefitAmount ?? fallbackLimit;
   const empRemaining = bal
     ? round2(bal.benefitAmount + bal.adjustmentAmount + bal.carriedOver - bal.usedAmount - bal.initialUsed)
     : round2(limit);
@@ -170,12 +203,15 @@ export interface BenefitTypeRow {
   unusedRule: string; cashWageCode: string | null; maxCarryOver: number;
   dependentEnabled: boolean; maxDependents: number; maxChildAge: number; depLimitRule: string;
   balanceCount: number; claimCount: number;
+  /** Task 33 — jumlah aturan diferensiasi plafon. */
+  ruleCount: number;
 }
 
 export async function listBenefitTypes(db: TenantDb): Promise<BenefitTypeRow[]> {
   const rows = await db.medicalBenefitType.findMany({
     orderBy: { sortOrder: "asc" },
-    include: { _count: { select: { balances: true, claims: true } } },
+    // Task 33 — jumlah aturan diferensiasi plafon per jenis.
+    include: { _count: { select: { balances: true, claims: true, rules: true } } },
   });
   return rows.map((t) => ({
     id: t.id, code: t.code, name: t.name, description: t.description, active: t.active,
@@ -187,6 +223,7 @@ export async function listBenefitTypes(db: TenantDb): Promise<BenefitTypeRow[]> 
     dependentEnabled: t.dependentEnabled, maxDependents: t.maxDependents, maxChildAge: t.maxChildAge,
     depLimitRule: t.depLimitRule,
     balanceCount: t._count.balances, claimCount: t._count.claims,
+    ruleCount: t._count.rules,
   }));
 }
 
@@ -335,9 +372,15 @@ export async function generateBalances(
       status: "Active",
       ...(input.employeeIds?.length ? { id: { in: input.employeeIds } } : {}),
     },
-    select: { id: true, assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 } },
+    // Task 33: include lengkap utk konteks rule plafon (assignment full-row
+    // — termasuk baseSalary terenkripsi & kode entitas penempatan).
+    include: EMPLOYEE_RULE_INCLUDE,
   });
   if (employees.length === 0) throw new Error("Tidak ada karyawan aktif");
+
+  // Task 33 — rule plafon per jenis (dievaluasi per parameter karyawan).
+  const medRules = await medicalTypeRules(db, types.map((t) => t.id));
+  const asOfYear = new Date(year, 0, 1);
 
   const prevBalances = await db.medicalBalance.findMany({ where: { year: year - 1 } });
   const prevByKey = new Map(prevBalances.map((b) => [`${b.employeeId}:${b.typeId}`, b]));
@@ -348,8 +391,9 @@ export async function generateBalances(
   const tcGen = tenantCryptoForDb(db);
   for (const emp of employees) {
     const salary = emp.assignments[0] ? salaryOfAssignment(tcGen, emp.assignments[0].baseSalary) : 0;
+    const empCtx = buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, asOfYear);
     for (const t of types) {
-      const limit = benefitLimitFor(t, salary);
+      const limit = limitWithRules(benefitLimitFor(t, salary), medRules.get(t.id), empCtx);
       const prev = prevByKey.get(`${emp.id}:${t.id}`);
       // carry-over: kebijakan CARRY → sisa tahun lalu (max maxCarryOver) dibawa
       const carried = t.unusedRule === "CARRY" && prev
@@ -546,9 +590,14 @@ export async function previewClaim(
 ): Promise<ClaimPreview> {
   const emp = await db.employee.findUnique({
     where: { id: input.employeeId },
+    // Task 33: include konteks rule plafon + field preview.
     select: {
       employeeNo: true, fullName: true, status: true, joinDate: true,
-      assignments: { where: { validTo: null }, select: { baseSalary: true }, take: 1 },
+      religion: true, maritalStatus: true, gender: true, birthDate: true, city: true, bloodType: true,
+      company: { select: { code: true, name: true } },
+      positionLevel: { select: { code: true, name: true } },
+      payrollProfile: { select: { hasNpwp: true, taxStatus: true, dependents: true } },
+      assignments: { where: { validTo: null }, orderBy: { validFrom: "desc" }, include: { orgUnit: { select: { code: true, name: true } }, position: { select: { code: true, title: true } }, grade: { select: { code: true, name: true } }, companyOffice: { select: { code: true, name: true } }, workLocation: { select: { code: true, name: true } } }, take: 1 },
     },
   });
   if (!emp) throw new Error("Karyawan tidak ditemukan");
@@ -561,7 +610,10 @@ export async function previewClaim(
   });
   // 28-c: gaji pokok terenkripsi — dekripsi utk fallback plafon.
   const salary = emp.assignments[0] ? salaryOfAssignment(tenantCryptoForDb(db), emp.assignments[0].baseSalary) : 0;
-  const limit = bal?.benefitAmount ?? benefitLimitFor(t, salary);
+  // Task 33 — fallback plafon ikut rule parameter karyawan.
+  const wizRules = await medicalTypeRules(db, [input.typeId]);
+  const wizCtx = buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date());
+  const limit = bal?.benefitAmount ?? limitWithRules(benefitLimitFor(t, salary), wizRules.get(input.typeId), wizCtx);
   const used = (bal?.usedAmount ?? 0) + (bal?.initialUsed ?? 0);
   const claimCountYear = await db.medicalClaim.count({
     where: {

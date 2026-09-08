@@ -10,6 +10,11 @@ import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries,
   type ChainSummary, type DecideActor,
 } from "@/onevity/shared/services/approval-engine";
+// Task 33 — rule diferensiasi entitlement per parameter karyawan.
+import {
+  EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue,
+} from "@/onevity/shared/lib/parameter-rules";
+import { ruleContextMap, ruleContextForEmployee } from "@/onevity/shared/services/employee-rule-context";
 
 // ============ util ============
 
@@ -116,19 +121,54 @@ interface TypeLite {
   allowAdvance: boolean; allowHalfDay: boolean; active: boolean;
 }
 
-/** Hitung bagian dinamis saldo: earned/taken/applied/forfeited/remaining. */
+// ============ Task 33 — rule diferensiasi entitlement ============
+
+/** Muat rule entitlement semua jenis cuti terlibat (map typeId → lite). */
+async function leaveTypeRules(
+  db: Pick<TenantDb, "leaveTypeRule">,
+  typeIds: string[],
+): Promise<Map<string, EntityRuleLite[]>> {
+  const map = new Map<string, EntityRuleLite[]>();
+  if (typeIds.length === 0) return map;
+  const rows = await db.leaveTypeRule.findMany({
+    where: { leaveTypeId: { in: typeIds }, active: true },
+  });
+  for (const r of rows) {
+    const arr = map.get(r.leaveTypeId) ?? [];
+    arr.push({ id: r.id, name: r.name, priority: r.priority, conditions: r.conditions, actionType: r.actionType, value: r.days, active: r.active, createdAt: r.createdAt });
+    map.set(r.leaveTypeId, arr);
+  }
+  return map;
+}
+
+/** Entitlement efektif karyawan: rule cocok pertama menang, tanpa rule/konteks → dasar. */
+function entitlementFor(
+  base: number,
+  rules: EntityRuleLite[] | undefined,
+  ctx: RuleContext | undefined | null,
+): number {
+  if (!rules || rules.length === 0 || !ctx) return base;
+  const matched = matchFirstRule(rules, ctx);
+  return matched ? applyRuleValue(matched.rule.actionType, matched.rule.value, base) : base;
+}
+
+/** Hitung bagian dinamis saldo: earned/taken/applied/forfeited/remaining.
+ * Task 33: `entitlementOverride` = entitlement hasil rule parameter karyawan
+ * (prioritas rule > entitlement dasar) — dipakai utk prorata & earned. */
 function computeParts(
   balance: { year: number; carriedOver: number; adjustment: number; cashed: number },
   type: TypeLite,
   employee: { joinDate: Date },
   requests: { workingDays: number; dateTo: Date }[],
   asOf: Date,
+  entitlementOverride?: number,
 ): Pick<BalanceRow, "earned" | "forfeited" | "taken" | "applied" | "remaining"> {
   const win = periodWindow(type, employee, balance.year);
   const from = employee.joinDate > win.validFrom ? employee.joinDate : win.validFrom;
+  const entitlement = entitlementOverride ?? type.entitlement;
   const earned = type.prorateMonthly
-    ? (type.entitlement * earnedMonths(from, employee.joinDate, asOf)) / 12
-    : type.entitlement;
+    ? (entitlement * earnedMonths(from, employee.joinDate, asOf)) / 12
+    : entitlement;
   // carry-over hangus setelah 31 Des tahun periode (padanan "Carry Over Forfeiture 31-12")
   const forfeitDate = new Date(balance.year, 11, 31, 23, 59, 59);
   const forfeited = balance.carriedOver > 0 && asOf > forfeitDate ? balance.carriedOver : 0;
@@ -183,14 +223,22 @@ export async function listBalances(
     reqMap.set(key, arr);
   }
 
+  // Task 33 — rule entitlement per karyawan (batch: 1 query rule + 1 query ctx).
+  const [ruleMap, ctxMap] = await Promise.all([
+    leaveTypeRules(db, filtered.map((b) => b.leaveTypeId)),
+    ruleContextMap(db, asOf),
+  ]);
+
   return filtered
     .filter((b) => b.employee.status === "Active")
     .map((b) => {
       const type = b.leaveType as unknown as TypeLite;
+      const eff = entitlementFor(b.leaveType.entitlement, ruleMap.get(b.leaveTypeId), ctxMap.get(b.employeeId));
       const parts = computeParts(
         b, type, b.employee,
         reqMap.get(`${b.employeeId}|${b.leaveTypeId}|${b.year}`) ?? [],
         asOf,
+        eff,
       );
       const win = periodWindow(type, b.employee, b.year);
       return {
@@ -199,8 +247,8 @@ export async function listBalances(
         leaveTypeId: b.leaveTypeId, leaveTypeCode: b.leaveType.code, leaveTypeName: b.leaveType.name,
         unit: b.leaveType.unit, paid: b.leaveType.paid, cashable: b.leaveType.cashable,
         year: b.year, periodLabel: win.label, validFrom: win.validFrom, validTo: win.validTo,
-        entitlement: b.leaveType.entitlement,
-        maxPerRequest: b.leaveType.maxPerRequest > 0 ? b.leaveType.maxPerRequest : b.leaveType.entitlement,
+        entitlement: eff,
+        maxPerRequest: b.leaveType.maxPerRequest > 0 ? b.leaveType.maxPerRequest : eff,
         carriedOver: round2(b.carriedOver), adjustment: round2(b.adjustment), cashed: round2(b.cashed),
         ...parts,
       };
@@ -208,8 +256,9 @@ export async function listBalances(
 }
 
 /** Subset tx-capable dari TenantDb — bisa dipakai untuk db utama MAUPUN client
- *  transaksi (Omit<PrismaClient, ITXClientDenyList>) tanpa import Prisma. */
-type LeaveDb = Pick<TenantDb, "employee" | "leaveType" | "leaveBalance" | "leaveRequest" | "leaveEncashment">;
+ *  transaksi (Omit<PrismaClient, ITXClientDenyList>) tanpa import Prisma.
+ *  Task 33: + leaveTypeRule (resolver entitlement). */
+type LeaveDb = Pick<TenantDb, "employee" | "leaveType" | "leaveBalance" | "leaveRequest" | "leaveEncashment" | "leaveTypeRule">;
 
 /** Transaksi serializable + retry konflik (P2034) — race-safe untuk
  *  validasi-saldo → update-status (fix L-01/L-02: 2 approve paralel tidak boleh
@@ -273,7 +322,13 @@ async function availableForRequest(
     where: { employeeId, leaveTypeId: type.id, year, status: { in: ["Approved", "MassLeave"] } },
     select: { workingDays: true, dateTo: true },
   });
-  const parts = computeParts(balance, type, emp, used, asOf);
+  // Task 33 — entitlement efektif via rule parameter karyawan.
+  const [ctx, typeRules] = await Promise.all([
+    ruleContextForEmployee(db, employeeId, asOf),
+    leaveTypeRules(db, [type.id]),
+  ]);
+  const eff = entitlementFor(type.entitlement, typeRules.get(type.id), ctx);
+  const parts = computeParts(balance, type, emp, used, asOf, eff);
   const pending = await db.leaveRequest.findMany({
     where: {
       employeeId, leaveTypeId: type.id, year, status: "Submitted",
@@ -363,6 +418,11 @@ export async function generateLeaveInfo(
   }
   const prevBalances = await db.leaveBalance.findMany({ where: { year: prevYear } });
   const prevMap = new Map(prevBalances.map((b) => [`${b.employeeId}|${b.leaveTypeId}`, b]));
+  // Task 33 — rule entitlement per karyawan (posisi akhir tahun lalu).
+  const [genRuleMap, genCtxMap] = await Promise.all([
+    leaveTypeRules(db, types.map((t) => t.id)),
+    ruleContextMap(db, new Date(prevYear, 11, 31, 23, 59, 59)),
+  ]);
 
   for (const emp of employees) {
     for (const type of types) {
@@ -375,6 +435,7 @@ export async function generateLeaveInfo(
           reqMap.get(`${emp.id}|${type.id}|${prevYear}`) ?? [],
           // posisi akhir tahun lalu: 31 Des prevYear
           new Date(prevYear, 11, 31, 23, 59, 59),
+          entitlementFor(type.entitlement, genRuleMap.get(type.id), genCtxMap.get(emp.id)),
         );
         carry = Math.max(0, Math.min(parts.remaining, type.carryOverMax));
       }
@@ -566,12 +627,18 @@ export async function previewRequest(
   // L-01: saldo preview memperhitungkan reservasi permintaan pending lain
   const avail = await availableForRequest(db, input.employeeId, type, year, new Date());
   const current = avail.available;
+  // Task 33 — entitlement efektif utk fallback maxPerRequest.
+  const [pvCtx, pvRules] = await Promise.all([
+    ruleContextForEmployee(db, input.employeeId, new Date()),
+    leaveTypeRules(db, [type.id]),
+  ]);
+  const pvEff = entitlementFor(type.entitlement, pvRules.get(type.id), pvCtx);
   return {
     workingDays: calc.workingDays,
     balance: current,
     remaining: round2(current - calc.workingDays),
     backToWork: calc.backToWork ? iso(calc.backToWork) : null,
-    maxPerRequest: type.maxPerRequest > 0 ? type.maxPerRequest : type.entitlement,
+    maxPerRequest: type.maxPerRequest > 0 ? type.maxPerRequest : pvEff,
     unit: type.unit,
     waitingMonths: type.waitingMonths,
     allowAdvance: type.allowAdvance,
@@ -606,8 +673,13 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   const calc = await calculateRequestDays(db, input.employeeId, from, input.sessionFrom, to, input.sessionTo);
   if (calc.workingDays <= 0) throw new Error("Rentang tanggal tidak memuat hari kerja");
 
-  // maksimum per permintaan
-  const maxPer = type.maxPerRequest > 0 ? type.maxPerRequest : type.entitlement;
+  // maksimum per permintaan — Task 33: fallback entitlement memakai nilai efektif rule.
+  const [sbCtx, sbRules] = await Promise.all([
+    ruleContextForEmployee(db, input.employeeId, asOf),
+    leaveTypeRules(db, [type.id]),
+  ]);
+  const sbEff = entitlementFor(type.entitlement, sbRules.get(type.id), sbCtx);
+  const maxPer = type.maxPerRequest > 0 ? type.maxPerRequest : sbEff;
   if (calc.workingDays > maxPer) {
     throw new Error(`Maksimum ${maxPer} ${type.unit === "MONTH" ? "bulan" : "hari"} per permintaan untuk ${type.name}`);
   }
@@ -1125,7 +1197,13 @@ export async function decideEncashment(
         where: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year, status: { in: ["Approved", "MassLeave"] } },
         select: { workingDays: true, dateTo: true },
       });
-      const parts = computeParts(balance, type, { joinDate: enc.employee.joinDate }, used, new Date());
+      // Task 33 — entitlement efektif utk saldo encashment.
+      const [encCtx, encRules] = await Promise.all([
+        ruleContextForEmployee(tx, enc.employeeId, new Date()),
+        leaveTypeRules(tx, [type.id]),
+      ]);
+      const encEff = entitlementFor(type.entitlement, encRules.get(type.id), encCtx);
+      const parts = computeParts(balance, type, { joinDate: enc.employee.joinDate }, used, new Date(), encEff);
       const pending = await tx.leaveEncashment.findMany({
         where: { employeeId: enc.employeeId, leaveTypeId: enc.leaveTypeId, year: enc.year, status: "Submitted", id: { not: input.id } },
         select: { days: true },
@@ -1389,6 +1467,11 @@ export async function leaveStats(db: TenantDb) {
     arr.push(r);
     reqMap.set(key, arr);
   }
+  // Task 33 — rule entitlement utk statistik saldo tahunan.
+  const [rptRules, rptCtx] = await Promise.all([
+    leaveTypeRules(db, [...new Set(balances.map((b) => b.leaveTypeId))]),
+    ruleContextMap(db, now),
+  ]);
   let annualRemaining = 0;
   let annualCount = 0;
   for (const b of balances) {
@@ -1396,7 +1479,7 @@ export async function leaveStats(db: TenantDb) {
     const join = empJoin.get(b.employeeId);
     if (!join) continue;
     const t = { ...b.leaveType, periodMode: b.leaveType.periodMode } as unknown as TypeLite;
-    const parts = computeParts(b, t, { joinDate: join }, reqMap.get(`${b.employeeId}|${b.leaveTypeId}|${b.year}`) ?? [], now);
+    const parts = computeParts(b, t, { joinDate: join }, reqMap.get(`${b.employeeId}|${b.leaveTypeId}|${b.year}`) ?? [], now, entitlementFor(t.entitlement, rptRules.get(b.leaveTypeId), rptCtx.get(b.employeeId)));
     annualRemaining += parts.remaining;
     annualCount++;
   }

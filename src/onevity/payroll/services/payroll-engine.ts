@@ -396,7 +396,7 @@ export function runPayroll(
           : evalFormula(comp.formula ?? "0", { ...baseEnv, ...computedByCode });
         const matched = (comp.rules?.length ?? 0) > 0 ? matchFirstRule(comp.rules ?? [], ruleCtx) : null;
         if (matched) {
-          amount = applyRuleAmount(matched.rule.actionType, matched.rule.amount, base);
+          amount = applyRuleAmount(matched.rule.actionType, matched.rule.value, base);
           ruleNote = `Aturan: ${matched.rule.name}`;
         } else {
           amount = base;

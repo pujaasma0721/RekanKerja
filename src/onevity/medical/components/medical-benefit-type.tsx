@@ -3,6 +3,7 @@
 // (padanan MedicalBenefitTypeDetail.jsp ±60 atribut → atribut kunci).
 import { useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { EntityRulesButton, EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function MedicalBenefitTypePage() {
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
 
   const types = api.data?.types ?? [];
 
@@ -130,6 +132,7 @@ export function MedicalBenefitTypePage() {
                     <TableHead>{t("Sisa Saldo", "Remaining Balance")}</TableHead>
                     <TableHead>Dependent</TableHead>
                     <TableHead className="text-right">{t("Saldo / Klaim", "Balances / Claims")}</TableHead>
+                    <TableHead>{t("Aturan", "Rules")}</TableHead>
                     <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
@@ -167,6 +170,9 @@ export function MedicalBenefitTypePage() {
                       </TableCell>
                       <TableCell className="text-right text-sm text-stone-500">
                         {t("{n} saldo · {m} klaim", "{n} balances · {m} claims", { n: bt.balanceCount, m: bt.claimCount })}
+                      </TableCell>
+                      <TableCell>
+                        <EntityRulesButton target={{ domain: "medical", id: bt.id, code: bt.code, name: bt.name }} ruleCount={bt.ruleCount ?? 0} onOpen={setRulesTarget} />
                       </TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(bt)}>
@@ -315,6 +321,15 @@ export function MedicalBenefitTypePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {rulesTarget && (
+        <EntityRulesDialog
+          key={rulesTarget.id}
+          open={!!rulesTarget}
+          target={rulesTarget}
+          onClose={() => { setRulesTarget(null); api.refresh(); }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,29 @@
 // BenefitClaim dengan snapshot audit limit saat pengajuan.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+// Task 33 — rule diferensiasi limit klaim per parameter karyawan.
+import { EntityRuleLite, matchFirstRule, applyRuleValue } from "@/onevity/shared/lib/parameter-rules";
+import { ruleContextForEmployee } from "@/onevity/shared/services/employee-rule-context";
+
+// ============ Task 33 — resolver limit klaim via rule ============
+
+/** Limit klaim efektif karyawan: rule cocok pertama menang (atas maxClaimAmount). */
+async function effectiveClaimLimit(
+  db: Pick<TenantDb, "benefitTypeRule" | "employee">,
+  type: { id: string; maxClaimAmount: number },
+  employeeId: string,
+): Promise<number> {
+  const rules = await db.benefitTypeRule.findMany({ where: { benefitTypeId: type.id, active: true } });
+  if (rules.length === 0) return type.maxClaimAmount;
+  const ctx = await ruleContextForEmployee(db, employeeId);
+  if (!ctx) return type.maxClaimAmount;
+  const lite: EntityRuleLite[] = rules.map((r) => ({
+    id: r.id, name: r.name, priority: r.priority, conditions: r.conditions,
+    actionType: r.actionType, value: r.amount, active: r.active, createdAt: r.createdAt,
+  }));
+  const matched = matchFirstRule(lite, ctx);
+  return matched ? applyRuleValue(matched.rule.actionType, matched.rule.value, type.maxClaimAmount) : type.maxClaimAmount;
+}
 
 // Status klaim yang mengonsumsi limit (Pending dihitung terpisah saat approval).
 const CONSUMING = ["Approved", "Scheduled", "Paid"] as const;
@@ -43,6 +66,8 @@ export function resetWindow(resetPeriod: string, claimDate: Date): { start: Date
 }
 
 // Snapshot limit utk karyawan×jenis pada tanggal klaim.
+// Task 33 — limit dievaluasi per parameter karyawan (rule BenefitTypeRule):
+// unlimited tetap unlimited; maxClaimAmount → limit efektif hasil rule.
 export async function limitSnapshot(
   db: TenantDb,
   type: { id: string; resetPeriod: string; maxClaimAmount: number; unlimited: boolean },
@@ -52,6 +77,11 @@ export async function limitSnapshot(
 ): Promise<LimitSnapshot> {
   if (type.unlimited || type.maxClaimAmount <= 0) {
     return { used: 0, limit: null, remaining: null, inLimit: true, windowLabel: "tanpa limit" };
+  }
+  const effective = await effectiveClaimLimit(db, type, employeeId);
+  if (effective <= 0) {
+    // rule meniadakan benefit utk karyawan ini (SetLimit 0)
+    return { used: 0, limit: 0, remaining: 0, inLimit: extraAmount <= 0, windowLabel: "tidak berhak (aturan)" };
   }
   const w = resetWindow(type.resetPeriod, claimDate);
   const rows = await db.benefitClaim.findMany({
@@ -64,9 +94,9 @@ export async function limitSnapshot(
     select: { amount: true },
   });
   const used = rows.reduce((s, r) => s + r.amount, 0);
-  const remaining = Math.max(0, type.maxClaimAmount - used);
-  const inLimit = used + extraAmount <= type.maxClaimAmount;
-  return { used, limit: type.maxClaimAmount, remaining, inLimit, windowLabel: w.label };
+  const remaining = Math.max(0, effective - used);
+  const inLimit = used + extraAmount <= effective;
+  return { used, limit: effective, remaining, inLimit, windowLabel: w.label };
 }
 
 // Kelayakan karyawan menurut entitleFor (status kepegawaian penempatan aktif).

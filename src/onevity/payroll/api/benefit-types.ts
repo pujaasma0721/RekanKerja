@@ -15,7 +15,11 @@ export async function GET(req: NextRequest) {
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const types = await db.benefitType.findMany({
       where: { active: true },
-      include: { wageComponent: { select: { id: true, code: true, name: true } } },
+      include: {
+        wageComponent: { select: { id: true, code: true, name: true } },
+        // Task 33 — jumlah aturan diferensiasi limit klaim.
+        _count: { select: { rules: true } },
+      },
       orderBy: { code: "asc" },
     });
     const claims = await db.benefitClaim.findMany({
@@ -27,8 +31,10 @@ export async function GET(req: NextRequest) {
       const of = claims.filter((c) => c.benefitTypeId === t.id);
       const active = of.filter((c) => ["Approved", "Scheduled", "Paid"].includes(c.status));
       const usage = employeeId ? await limitSnapshot(db, t, employeeId, now) : null;
+      const { _count, ...rest } = t;
       return {
-        ...t,
+        ...rest,
+        ruleCount: _count.rules,
         claimCount: of.length,
         activeClaimCount: active.length,
         totalApprovedAmount: active.reduce((s, c) => s + c.amount, 0),

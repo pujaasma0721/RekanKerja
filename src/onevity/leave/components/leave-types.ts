@@ -11,6 +11,8 @@ export interface LeaveTypeRow {
   prorateMonthly: boolean; carryOverMax: number; waitingMonths: number;
   allowAdvance: boolean; allowHalfDay: boolean; needDocs: boolean;
   active: boolean;
+  /** Task 33 — jumlah aturan diferensiasi entitlement. */
+  ruleCount?: number;
 }
 
 export interface BalanceRowUI {

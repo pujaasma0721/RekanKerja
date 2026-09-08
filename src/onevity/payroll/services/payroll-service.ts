@@ -107,7 +107,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     const arr = rulesByComp.get(r.wageComponentId) ?? [];
     arr.push({
       id: r.id, name: r.name, priority: r.priority, conditions: r.conditions,
-      actionType: r.actionType, amount: r.amount, active: r.active, createdAt: r.createdAt,
+      actionType: r.actionType, value: r.amount, active: r.active, createdAt: r.createdAt,
     });
     rulesByComp.set(r.wageComponentId, arr);
   }

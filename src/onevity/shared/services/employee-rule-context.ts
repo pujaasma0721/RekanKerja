@@ -1,0 +1,117 @@
+// OneVity — Task 33: KONTEKS PARAMETER KARYAWAN utk evaluasi rule lintas modul.
+// Satu sumber kebenaran bentuk data employee (include Prisma) + builder ctx —
+// dipakai: payroll-service (run), wage-component-rules preview, leave-service
+// (entitlement), medical-service (plafon), travel-service (limit biaya),
+// benefit-service (limit klaim), entity-rules API (simulasi).
+//
+// Server-side (butuh TenantDb). Murni builder — tanpa efek samping.
+import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import type { RuleContext } from "@/onevity/shared/lib/parameter-rules";
+
+/** Include Prisma lengkap utk membangun konteks rule (assignment aktif pertama). */
+export const EMPLOYEE_RULE_INCLUDE = {
+  assignments: {
+    where: { validTo: null },
+    orderBy: { validFrom: "desc" as const },
+    include: {
+      orgUnit: { select: { code: true, name: true } },
+      position: { select: { code: true, title: true } },
+      grade: { select: { code: true, name: true } },
+      companyOffice: { select: { code: true, name: true } },
+      workLocation: { select: { code: true, name: true } },
+    },
+    take: 1,
+  },
+  positionLevel: { select: { code: true, name: true } },
+  company: { select: { code: true, name: true } },
+  payrollProfile: { select: { hasNpwp: true, taxStatus: true, dependents: true } },
+} as const;
+
+/** Bentuk hasil include (loose — cukup utk builder). */
+export type EmployeeRuleRecord = {
+  id: string;
+  status: string;
+  gender: string | null;
+  religion: string | null;
+  maritalStatus: string | null;
+  bloodType: string | null;
+  city: string | null;
+  joinDate: Date;
+  birthDate: Date | null;
+  assignments: {
+    employmentStatus: string;
+    workShift: string;
+    orgUnit: { code: string; name: string } | null;
+    position: { code: string; title: string } | null;
+    grade: { code: string; name: string } | null;
+    companyOffice: { code: string; name: string } | null;
+    workLocation: { code: string; name: string } | null;
+  }[];
+  positionLevel: { code: string; name: string } | null;
+  company: { code: string; name: string } | null;
+  payrollProfile: { hasNpwp: boolean; taxStatus: string; dependents: number } | null;
+};
+
+const yearsBetween = (from: Date | null | undefined, to: Date): number | null =>
+  from != null ? (to.getTime() - new Date(from).getTime()) / (365.25 * 86_400_000) : null;
+
+/**
+ * Bangun konteks rule dari record employee (dgn EMPLOYEE_RULE_INCLUDE).
+ * `asOf` = tanggal acuan umur/masa kerja (akhir period payroll / tanggal klaim /
+ * hari ini utk simulasi).
+ */
+export function buildEmployeeRuleContext(emp: EmployeeRuleRecord, asOf: Date): RuleContext {
+  const assignment = emp.assignments[0];
+  return {
+    company: emp.company?.code ?? null,
+    orgUnit: assignment?.orgUnit?.code ?? null,
+    position: assignment?.position?.code ?? null,
+    grade: assignment?.grade?.code ?? null,
+    positionLevel: emp.positionLevel?.code ?? null,
+    office: assignment?.companyOffice?.code ?? null,
+    workLocation: assignment?.workLocation?.code ?? null,
+    employmentStatus: assignment?.employmentStatus ?? "Permanent",
+    workShift: assignment?.workShift ?? null,
+    tenureYears: yearsBetween(emp.joinDate, asOf),
+    employeeStatus: emp.status,
+    gender: emp.gender ?? null,
+    religion: emp.religion ?? null,
+    maritalStatus: emp.maritalStatus ?? null,
+    bloodType: emp.bloodType ?? null,
+    city: emp.city ?? null,
+    ageYears: yearsBetween(emp.birthDate, asOf),
+    taxStatus: emp.payrollProfile?.taxStatus ?? "TK0",
+    dependents: emp.payrollProfile?.dependents ?? 0,
+    hasNpwp: emp.payrollProfile?.hasNpwp ?? true,
+  };
+}
+
+/** Konteks rule satu karyawan (fetch lengkap) — null bila tidak ditemukan. */
+export async function ruleContextForEmployee(
+  db: Pick<TenantDb, "employee">,
+  employeeId: string,
+  asOf: Date = new Date(),
+): Promise<RuleContext | null> {
+  const emp = await db.employee.findUnique({
+    where: { id: employeeId },
+    include: EMPLOYEE_RULE_INCLUDE,
+  });
+  if (!emp) return null;
+  return buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, asOf);
+}
+
+/** Map konteks semua karyawan aktif — utk loop batch (list saldo/generate). */
+export async function ruleContextMap(
+  db: Pick<TenantDb, "employee">,
+  asOf: Date = new Date(),
+): Promise<Map<string, RuleContext>> {
+  const employees = await db.employee.findMany({
+    where: { status: "Active" },
+    include: EMPLOYEE_RULE_INCLUDE,
+  });
+  const map = new Map<string, RuleContext>();
+  for (const emp of employees) {
+    map.set(emp.id, buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, asOf));
+  }
+  return map;
+}

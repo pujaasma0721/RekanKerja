@@ -12,6 +12,53 @@ import { startApprovalChain, decideApprovalChain, cancelApprovalChain, getApprov
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
+// Task 33 — rule diferensiasi limit jenis biaya per parameter karyawan.
+import { EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue } from "@/onevity/shared/lib/parameter-rules";
+import { ruleContextForEmployee } from "@/onevity/shared/services/employee-rule-context";
+
+// ============ Task 33 — resolver limit biaya via rule ============
+
+/** Muat rule limit semua jenis biaya terlibat (map typeId → lite). */
+async function travelTypeRules(
+  db: Pick<TenantDb, "travelExpenseTypeRule">,
+  typeIds: string[],
+): Promise<Map<string, EntityRuleLite[]>> {
+  const map = new Map<string, EntityRuleLite[]>();
+  if (typeIds.length === 0) return map;
+  const rows = await db.travelExpenseTypeRule.findMany({ where: { travelExpenseTypeId: { in: typeIds }, active: true } });
+  for (const r of rows) {
+    const arr = map.get(r.travelExpenseTypeId) ?? [];
+    arr.push({ id: r.id, name: r.name, priority: r.priority, conditions: r.conditions, actionType: r.actionType, value: r.amount, active: r.active, createdAt: r.createdAt });
+    map.set(r.travelExpenseTypeId, arr);
+  }
+  return map;
+}
+
+/** Limit efektif karyawan: rule cocok pertama menang (atas limitAmount dasar). */
+function limitWithRules(base: number, rules: EntityRuleLite[] | undefined, ctx: RuleContext | undefined | null): number {
+  if (!rules || rules.length === 0 || !ctx) return base;
+  const matched = matchFirstRule(rules, ctx);
+  return matched ? applyRuleValue(matched.rule.actionType, matched.rule.value, base) : base;
+}
+
+/** Map limit efektif per kode jenis biaya utk satu karyawan (claim submit). */
+async function effectiveExpenseLimits(
+  db: TenantDb,
+  types: { id: string; code: string; limitAmount: number; unlimited: boolean }[],
+  employeeId: string,
+): Promise<Map<string, number>> {
+  const ids = types.map((t) => t.id);
+  if (ids.length === 0) return new Map();
+  const [rules, ctx] = await Promise.all([
+    travelTypeRules(db, ids),
+    ruleContextForEmployee(db, employeeId),
+  ]);
+  const map = new Map<string, number>();
+  for (const t of types) {
+    map.set(t.code, t.unlimited || t.limitAmount <= 0 ? t.limitAmount : limitWithRules(t.limitAmount, rules.get(t.id), ctx));
+  }
+  return map;
+}
 
 // ============ util ============
 
@@ -106,14 +153,21 @@ export interface ExpenseTypeRow {
   id: string; code: string; name: string; kind: string; description: string | null;
   needDocs: boolean; limitAmount: number; unlimited: boolean; currency: string;
   compWageCode: string | null; debitAccount: string | null; creditAccount: string | null; active: boolean;
+  /** Task 33 — jumlah aturan diferensiasi limit. */
+  ruleCount: number;
 }
 
 export async function listExpenseTypes(db: TenantDb): Promise<ExpenseTypeRow[]> {
-  const rows = await db.travelExpenseType.findMany({ orderBy: [{ kind: "asc" }, { code: "asc" }] });
+  const rows = await db.travelExpenseType.findMany({
+    orderBy: [{ kind: "asc" }, { code: "asc" }],
+    // Task 33 — jumlah aturan diferensiasi limit per jenis biaya.
+    include: { _count: { select: { rules: true } } },
+  });
   return rows.map((t) => ({
     id: t.id, code: t.code, name: t.name, kind: t.kind, description: t.description,
     needDocs: t.needDocs, limitAmount: t.limitAmount, unlimited: t.unlimited, currency: t.currency,
     compWageCode: t.compWageCode, debitAccount: t.debitAccount, creditAccount: t.creditAccount, active: t.active,
+    ruleCount: t._count.rules,
   }));
 }
 
@@ -591,13 +645,16 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
   // validasi jenis biaya + limit (padanan Expense Definition Rules — warning, tetap boleh)
   const types = await db.travelExpenseType.findMany();
   const typeByCode = new Map(types.map((t) => [t.code, t]));
+  // Task 33 — limit jenis biaya efektif per parameter karyawan (rule).
+  const effLimits = await effectiveExpenseLimits(db, types, input.employeeId);
   let overLimitLines = 0;
   let totalExpenses = 0;
   for (const e of input.expenses) {
     const t = typeByCode.get(e.expenseCode);
     if (!t || !t.active) throw new Error(`Jenis biaya ${e.expenseCode} tidak ditemukan / tidak aktif`);
     if (e.amount <= 0) throw new Error(`Baris biaya ${e.expenseCode}: nominal harus > 0`);
-    if (!t.unlimited && t.limitAmount > 0 && e.amount > t.limitAmount) overLimitLines++;
+    const effLimit = effLimits.get(e.expenseCode) ?? t.limitAmount;
+    if (!t.unlimited && effLimit > 0 && e.amount > effLimit) overLimitLines++;
     totalExpenses += Math.max(0, e.amount);
   }
 
@@ -695,13 +752,15 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     data: input.expenses.map((e) => {
       const t = typeByCode.get(e.expenseCode)!;
       const amount = Math.max(0, e.amount);
+      // Task 33 — overLimit dievaluasi thd limit efektif rule karyawan.
+      const effLimit = effLimits.get(e.expenseCode) ?? t.limitAmount;
       return {
         claimId: claim.id, expenseCode: e.expenseCode, kind: t.kind,
         expenseDate: e.expenseDate ? dayStart(e.expenseDate) : null,
         description: e.description?.trim() || null,
         amount, qty: e.qty && e.qty > 0 ? e.qty : 1,
         guestName: e.guestName?.trim() || null,
-        overLimit: !t.unlimited && t.limitAmount > 0 && amount > t.limitAmount,
+        overLimit: !t.unlimited && effLimit > 0 && amount > effLimit,
       };
     }),
   });

@@ -15,6 +15,8 @@ export interface ExpenseTypeRowUI {
   id: string; code: string; name: string; kind: string; description: string | null;
   needDocs: boolean; limitAmount: number; unlimited: boolean; currency: string;
   compWageCode: string | null; debitAccount: string | null; creditAccount: string | null; active: boolean;
+  /** Task 33 — jumlah aturan diferensiasi limit. */
+  ruleCount?: number;
 }
 
 export interface ZoneRowUI {

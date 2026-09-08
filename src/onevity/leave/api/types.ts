@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
       db.leaveType.findMany({
         where: activeOnly ? { active: true } : {},
         orderBy: [{ code: "asc" }],
+        // Task 33 — jumlah aturan diferensiasi entitlement per jenis.
+        include: { _count: { select: { rules: true } } },
       }),
       db.employee.findMany({
         where: { status: "Active" },
@@ -19,7 +21,13 @@ export async function GET(req: NextRequest) {
         orderBy: { employeeNo: "asc" },
       }),
     ]);
-    return NextResponse.json({ types, employees });
+    return NextResponse.json({
+      types: types.map((ty) => {
+        const { _count, ...rest } = ty;
+        return { ...rest, ruleCount: _count.rules };
+      }),
+      employees,
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

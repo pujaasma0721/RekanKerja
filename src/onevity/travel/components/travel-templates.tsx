@@ -4,6 +4,7 @@
 // ExpenseDefinition + Rules + DomesticZone + Expense Chart of Account).
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { EntityRulesButton, EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ export function TravelTemplatesPage() {
   const [busy, setBusy] = useState(false);
   const [tplForm, setTplForm] = useState<TemplateForm>(emptyTpl);
   const [expForm, setExpForm] = useState<ExpenseForm>(emptyExp);
+  const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
 
   const templates = api.data?.templates ?? [];
   const expenseTypes = useMemo(() => (api.data?.expenseTypes ?? []).slice().sort((a, b) => a.kind.localeCompare(b.kind) || a.code.localeCompare(b.code)), [api.data]);
@@ -202,6 +204,7 @@ export function TravelTemplatesPage() {
                         <TableHead className="text-right">Limit</TableHead>
                         <TableHead className="hidden lg:table-cell">{t("Akun (D/K)", "Account (D/C)")}</TableHead>
                         <TableHead className="text-center">{t("Dokumen", "Docs")}</TableHead>
+                        <TableHead>{t("Aturan", "Rules")}</TableHead>
                         <TableHead />
                       </TableRow>
                     </TableHeader>
@@ -225,6 +228,9 @@ export function TravelTemplatesPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             {et.needDocs ? <Badge variant="outline" className="text-[9px] font-bold">{t("Perlu", "Required")}</Badge> : <span className="text-stone-300">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <EntityRulesButton target={{ domain: "travel", id: et.id, code: et.code, name: et.name }} ruleCount={et.ruleCount ?? 0} onOpen={setRulesTarget} />
                           </TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => {
@@ -391,6 +397,15 @@ export function TravelTemplatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {rulesTarget && (
+        <EntityRulesDialog
+          key={rulesTarget.id}
+          open={!!rulesTarget}
+          target={rulesTarget}
+          onClose={() => { setRulesTarget(null); api.refresh(); }}
+        />
+      )}
     </div>
   );
 }

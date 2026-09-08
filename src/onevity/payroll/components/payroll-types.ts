@@ -185,6 +185,8 @@ export interface BenefitTypeRow {
   wageComponent: { id: string; code: string; name: string } | null;
   claimCount: number; activeClaimCount: number; totalApprovedAmount: number; ytdAmount: number;
   usage: BenefitTypeUsage | null;
+  /** Task 33 — jumlah aturan diferensiasi limit klaim. */
+  ruleCount?: number;
 }
 
 export interface BenefitClaimRow {

@@ -142,6 +142,7 @@ const STEPS: Step[] = [
   { key: "encrypt", label: "Enkripsi NIK/NPWP/rekening + nilai uang payroll (16 kolom)", run: (s) => import("../../../../scripts/migrate-encrypt").then((m) => m.main(s)) },
   { key: "travel-settlement", label: "Fix settlement travel (pasca-enkripsi)", run: (s) => import("../../../../scripts/migrate-travel-settlement-fix").then((m) => m.main(s)) },
   { key: "component-rules", label: "Task 32 — tabel WageComponentRule + aturan diferensiasi besaran", run: (s) => import("../../../../scripts/migrate-component-rules").then((m) => m.main(s)) },
+  { key: "entity-rules", label: "Task 33 — 4 tabel rule leave/medical/travel/benefit + aturan demo", run: (s) => import("../../../../scripts/migrate-entity-rules").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 2 query information_schema) ============

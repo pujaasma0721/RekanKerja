@@ -954,6 +954,27 @@ model BenefitType {
 
   wageComponent WageComponent? @relation(fields: [wageComponentId], references: [id])
   claims        BenefitClaim[]
+  rules         BenefitTypeRule[]
+}
+
+// Task 33 — ATURAN DIFERENSIASI LIMIT KLAIM BENEFIT (P5) per parameter
+// karyawan (cth. reimburse medis lebih besar utk level jabatan tertentu).
+//   · actionType: SetLimit | AddLimit | Multiply terhadap maxClaimAmount.
+model BenefitTypeRule {
+  id            String    @id @default(cuid())
+  benefitTypeId String
+  name          String
+  priority      Int       @default(100)
+  conditions    String    @default("[]")
+  actionType    String    @default("SetLimit") // SetLimit|AddLimit|Multiply
+  amount        Float     @default(0)
+  notes         String?
+  active        Boolean   @default(true)
+  validFrom     DateTime  @default(now())
+  validTo       DateTime?
+  createdAt     DateTime  @default(now())
+
+  benefitType BenefitType @relation(fields: [benefitTypeId], references: [id], onDelete: Cascade)
 }
 
 // Klaim benefit karyawan — lifecycle:
@@ -1594,6 +1615,30 @@ model LeaveType {
   requests    LeaveRequest[]
   encashments LeaveEncashment[]
   massLeaves  MassLeave[]
+  rules       LeaveTypeRule[]
+}
+
+// Task 33 — ATURAN DIFERENSIASI ENTITLEMENT CUTI per parameter karyawan
+// (pola sama dgn WageComponentRule Task 32; katalog parameter + matcher
+// bersama di shared/lib/parameter-rules.ts).
+//   · actionType: SetDays (hak = X hari) | AddDays (+/- X) | Multiply (× X)
+//   · Evaluasi: priority ASC → rule pertama yang cocok menang; tanpa
+//     kecocokan → entitlement dasar jenis cuti.
+model LeaveTypeRule {
+  id          String    @id @default(cuid())
+  leaveTypeId String
+  name        String
+  priority    Int       @default(100)
+  conditions  String    @default("[]") // JSON array kondisi (AND)
+  actionType  String    @default("SetDays") // SetDays|AddDays|Multiply
+  days        Float     @default(0)
+  notes       String?
+  active      Boolean   @default(true)
+  validFrom   DateTime  @default(now())
+  validTo     DateTime?
+  createdAt   DateTime  @default(now())
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
 }
 
 // Saldo cuti per karyawan×jenis×tahun — padanan "Employee Leave Information".
@@ -1759,6 +1804,28 @@ model TravelExpenseType {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  rules TravelExpenseTypeRule[]
+}
+
+// Task 33 — ATURAN DIFERENSIASI LIMIT JENIS BIAYA TRAVEL per parameter
+// karyawan (cth. limit hotel lebih tinggi utk manajemen senior).
+//   · actionType: SetLimit | AddLimit | Multiply terhadap limitAmount.
+model TravelExpenseTypeRule {
+  id                 String    @id @default(cuid())
+  travelExpenseTypeId String
+  name               String
+  priority           Int       @default(100)
+  conditions         String    @default("[]")
+  actionType         String    @default("SetLimit") // SetLimit|AddLimit|Multiply
+  amount             Float     @default(0)
+  notes              String?
+  active             Boolean   @default(true)
+  validFrom          DateTime  @default(now())
+  validTo            DateTime?
+  createdAt          DateTime  @default(now())
+
+  travelExpenseType TravelExpenseType @relation(fields: [travelExpenseTypeId], references: [id], onDelete: Cascade)
 }
 
 // Budget travel tahunan — padanan "Travel Budget" (TravelPeriod.jsp):
@@ -1952,6 +2019,27 @@ model MedicalBenefitType {
   balances    MedicalBalance[]
   claims      MedicalClaim[]
   adjustments MedicalAdjustment[]
+  rules       MedicalBenefitTypeRule[]
+}
+
+// Task 33 — ATURAN DIFERENSIASI PLAFON BENEFIT MEDIS per parameter karyawan.
+//   · actionType: SetLimit | AddLimit | Multiply terhadap plafon hasil
+//     kebijakan limitRule (NOMINAL/FACTOR/WAGE_COMPONENT).
+model MedicalBenefitTypeRule {
+  id                   String    @id @default(cuid())
+  medicalBenefitTypeId String
+  name                 String
+  priority             Int       @default(100)
+  conditions           String    @default("[]")
+  actionType           String    @default("SetLimit") // SetLimit|AddLimit|Multiply
+  amount               Float     @default(0)
+  notes                String?
+  active               Boolean   @default(true)
+  validFrom            DateTime  @default(now())
+  validTo              DateTime?
+  createdAt            DateTime  @default(now())
+
+  medicalBenefitType MedicalBenefitType @relation(fields: [medicalBenefitTypeId], references: [id], onDelete: Cascade)
 }
 
 // Rumah sakit & perusahaan asuransi — padanan Hospital.jsp + InsuranceCompany.jsp
