@@ -14,8 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Coins, Plus, Pencil, Search, TrendingUp, TrendingDown, Info, Trash2 } from "lucide-react";
+import { Coins, Plus, Pencil, Search, TrendingUp, TrendingDown, Info, Trash2, SlidersHorizontal } from "lucide-react";
 import { WageCompFull, WAGE_TYPE_LABEL, WAGE_TYPE_LABEL_EN, TAX_METHOD_LABEL, TAX_METHOD_LABEL_EN, FORMULA_VARIABLES, FORMULA_VARIABLES_EN } from "@/onevity/payroll/components/payroll-types";
+import { ComponentRulesDialog } from "@/onevity/payroll/components/component-rules-dialog";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
@@ -29,6 +30,7 @@ export function WageComponentsPage() {
   const url = `/api/onevity/wage-components${typeFilter !== "all" || q ? `?${new URLSearchParams({ ...(typeFilter !== "all" ? { type: typeFilter } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`;
   const { data, loading, refresh } = useApi<{ components: WageCompFull[]; typeCounts: Record<string, number> }>(url);
   const [dialog, setDialog] = useState<{ open: boolean; comp: WageCompFull | null }>({ open: false, comp: null });
+  const [rulesDialog, setRulesDialog] = useState<{ open: boolean; comp: WageCompFull | null }>({ open: false, comp: null });
 
   const counts = data?.typeCounts ?? {};
 
@@ -91,6 +93,7 @@ export function WageComponentsPage() {
                     <TableHead className="text-[11px] font-bold">{t("Klasifikasi", "Classification")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Nilai / Formula", "Value / Formula")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Metode Pajak", "Tax Method")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Aturan", "Rules")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("THP", "Net Pay")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Aktif")}</TableHead>
                     <TableHead className="w-20" />
@@ -120,6 +123,20 @@ export function WageComponentsPage() {
                         </span>
                       </TableCell>
                       <TableCell>
+                        <button
+                          onClick={() => setRulesDialog({ open: true, comp: c })}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors",
+                            c.ruleCount
+                              ? "ov-soft ov-border-accent ov-text-accent hover:shadow-sm"
+                              : "border-stone-200 text-stone-400 hover:border-stone-300 hover:text-stone-600 dark:border-stone-700 dark:text-stone-500",
+                          )}
+                          title={t("Aturan diferensiasi besaran", "Amount differentiation rules")}
+                        >
+                          <SlidersHorizontal className="h-3 w-3" /> {c.ruleCount}
+                        </button>
+                      </TableCell>
+                      <TableCell>
                         <span className={cn("text-[11px] font-bold", c.includeInTHP ? "text-emerald-600 dark:text-emerald-400" : "text-stone-300")}>{c.includeInTHP ? t("Ya") : t("Tidak")}</span>
                       </TableCell>
                       <TableCell>
@@ -147,6 +164,15 @@ export function WageComponentsPage() {
       </Card>
 
       <WageDialog open={dialog.open} comp={dialog.comp} onClose={() => { setDialog({ open: false, comp: null }); refresh(); }} />
+
+      {rulesDialog.comp && (
+        <ComponentRulesDialog
+          key={rulesDialog.comp.id}
+          open={rulesDialog.open}
+          comp={rulesDialog.comp}
+          onClose={() => { setRulesDialog({ open: false, comp: null }); refresh(); }}
+        />
+      )}
     </div>
   );
 }

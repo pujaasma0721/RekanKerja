@@ -13,6 +13,8 @@ export interface WageCompFull {
   sptReference: string | null; naturaType: string | null; wageCodeBackPay: string | null;
   accountDebitCode: string | null; accountCreditCode: string | null;
   active: boolean;
+  /** Task 32 — jumlah aturan diferensiasi besaran (relasi rules). */
+  ruleCount?: number;
 }
 
 export interface PeriodRow {

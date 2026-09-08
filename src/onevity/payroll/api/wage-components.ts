@@ -14,11 +14,22 @@ export async function GET(req: NextRequest) {
       ...(type && type !== "all" ? { type } : {}),
       ...(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}),
     };
-    const components = await db.wageComponent.findMany({ where, orderBy: [{ type: "asc" }, { code: "asc" }] });
+    const components = await db.wageComponent.findMany({
+      where,
+      orderBy: [{ type: "asc" }, { code: "asc" }],
+      // Task 32: jumlah aturan diferensiasi besaran per komponen.
+      include: { _count: { select: { rules: true } } },
+    });
     const counts = await db.wageComponent.groupBy({ by: ["type"], _count: true });
     const typeCounts: Record<string, number> = {};
     for (const c of counts) typeCounts[c.type] = c._count;
-    return NextResponse.json({ components, typeCounts });
+    return NextResponse.json({
+      components: components.map((c) => {
+        const { _count, ...rest } = c;
+        return { ...rest, ruleCount: _count.rules };
+      }),
+      typeCounts,
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

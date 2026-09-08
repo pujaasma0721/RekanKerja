@@ -7,6 +7,7 @@ import {
   runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
   EngineTer, EngineRegulation, EngineRunResult,
 } from "@/onevity/payroll/services/payroll-engine";
+import { ComponentRuleLite } from "@/onevity/payroll/services/component-rules";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
 import { markClaimsPaidForRun } from "@/onevity/payroll/services/benefit-service";
 import { markOvertimePaidForRun } from "@/onevity/time-attendance/services/attendance-service";
@@ -58,12 +59,13 @@ function toEngineComponent(c: {
   amount: number; formula: string | null; incomeTaxMethod: string; prorated: boolean;
   includeInTHP: boolean; includeInBasicIncome: boolean; jamsostekBasis: string | null;
   roundingType: string; roundingValue: number;
-}): EngineComponent {
+}, rules?: ComponentRuleLite[]): EngineComponent {
   return {
     code: c.code, name: c.name, type: c.type, wageType: c.wageType, calcMethod: c.calcMethod,
     amount: c.amount, formula: c.formula, incomeTaxMethod: c.incomeTaxMethod, prorated: c.prorated,
     includeInTHP: c.includeInTHP, includeInBasicIncome: c.includeInBasicIncome,
     jamsostekBasis: c.jamsostekBasis, roundingType: c.roundingType, roundingValue: c.roundingValue,
+    ...(rules && rules.length > 0 ? { rules } : {}),
   };
 }
 
@@ -76,7 +78,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
 
-  const [processType, profiles, components, templates, periodic, specific, loans] = await Promise.all([
+  const [processType, profiles, components, templates, periodic, specific, loans, rules] = await Promise.all([
     db.processType.findUnique({ where: { id: processTypeId } }),
     db.employeePayrollProfile.findMany({ where: { active: true }, include: { employee: true } }),
     db.wageComponent.findMany({ where: { active: true, OR: [{ validTo: null }, { validTo: { gte: period.startDate } }] } }),
@@ -89,11 +91,26 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       where: { status: "Active" },
       include: { installments: { where: { status: "Pending" }, orderBy: { sequence: "asc" } } },
     }),
+    // Task 32: aturan diferensiasi besaran per parameter karyawan (aktif +
+    // berlaku pada period ini). Validitas validTo difilter ulang di memori.
+    db.wageComponentRule.findMany({
+      where: { active: true, OR: [{ validTo: null }, { validTo: { gte: period.startDate } }] },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+    }),
   ]);
   if (!processType) throw new Error("Process type tidak ditemukan");
 
   const templateById = new Map(templates.map((t) => [t.id, t]));
   const templateByCode = new Map(templates.map((t) => [t.code, t]));
+  const rulesByComp = new Map<string, ComponentRuleLite[]>();
+  for (const r of rules) {
+    const arr = rulesByComp.get(r.wageComponentId) ?? [];
+    arr.push({
+      id: r.id, name: r.name, priority: r.priority, conditions: r.conditions,
+      actionType: r.actionType, amount: r.amount, active: r.active, createdAt: r.createdAt,
+    });
+    rulesByComp.set(r.wageComponentId, arr);
+  }
 
   // Assignment aktif semua karyawan (validTo null) + data employee.
   // T19: run TERMINATION (final settlement PHK) memproses karyawan yang BARU
@@ -108,10 +125,19 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       assignments: {
         ...(isTerminationRun ? {} : { where: { validTo: null } }),
         orderBy: { validFrom: "desc" },
-        include: { orgUnit: true, position: true },
+        include: {
+          orgUnit: { select: { code: true, name: true } },
+          position: { select: { code: true, title: true } },
+          // Task 32: kode entitas utk konteks rule diferensiasi besaran.
+          grade: { select: { code: true, name: true } },
+          companyOffice: { select: { code: true, name: true } },
+          workLocation: { select: { code: true, name: true } },
+        },
         take: 1,
       },
       payrollProfile: true,
+      positionLevel: { select: { code: true, name: true } },
+      company: { select: { code: true, name: true } },
     },
     orderBy: { employeeNo: "asc" },
   });
@@ -220,7 +246,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
         const c = components.find((x) => x.id === item.wageComponentId);
         if (!c || seen.has(c.code)) continue;
         seen.add(c.code);
-        compList.push({ comp: toEngineComponent(c) });
+        compList.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)) });
       }
     }
 
@@ -230,7 +256,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
         const c = components.find((x) => x.id === p.wageComponentId);
         if (!c || seen.has(c.code)) continue;
         seen.add(c.code);
-        compList.push({ comp: toEngineComponent(c), overrideAmount: p.amount });
+        compList.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)), overrideAmount: p.amount });
       }
     }
 
@@ -245,7 +271,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
         continue;
       }
       seen.add(c.code);
-      compList.push({ comp: toEngineComponent(c), overrideAmount: s.amount });
+      compList.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)), overrideAmount: s.amount });
     }
 
     // Karyawan tanpa komponen apa pun pada run suplemental → dilewati.
@@ -265,6 +291,14 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     // Konteks K-1 untuk run suplemental (dihitung sebelum loop, per karyawan).
     const ctx = ytdCtx.get(emp.id);
 
+    // Task 32: konteks parameter rule (kode entitas + atribut personal).
+    // ageYears/tenureYears dihitung terhadap AKHIR period (konsisten dgn run).
+    const periodEnd = new Date(period.endDate);
+    const yearsSince = (from: Date | null | undefined): number | null => {
+      if (!from) return null;
+      return (periodEnd.getTime() - new Date(from).getTime()) / (365.25 * 86_400_000);
+    };
+
     rows.push({
       employee: {
         id: emp.id,
@@ -278,6 +312,23 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
         taxStatus,
         dependents: profile?.dependents ?? 0,
         processMethod: profile?.processMethod ?? "GrossToNet",
+        // Task 32: parameter pekerjaan (kode entitas) + personal.
+        companyCode: emp.company?.code ?? null,
+        orgUnitCode: assignment.orgUnit?.code ?? null,
+        positionCode: assignment.position?.code ?? null,
+        gradeCode: assignment.grade?.code ?? null,
+        positionLevelCode: emp.positionLevel?.code ?? null,
+        officeCode: assignment.companyOffice?.code ?? null,
+        workLocationCode: assignment.workLocation?.code ?? null,
+        workShift: assignment.workShift ?? null,
+        employeeStatus: emp.status,
+        gender: emp.gender ?? null,
+        religion: emp.religion ?? null,
+        maritalStatus: emp.maritalStatus ?? null,
+        bloodType: emp.bloodType ?? null,
+        city: emp.city ?? null,
+        ageYears: yearsSince(emp.birthDate),
+        tenureYears: yearsSince(emp.joinDate),
       },
       components: compList,
       loans: loanDues,

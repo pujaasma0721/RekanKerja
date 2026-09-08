@@ -105,3 +105,4 @@ const leftovers = await one(SIM, `
     (SELECT COUNT(*)::int FROM "${MII}"."EmployeePayrollProfile" WHERE npwp IS NOT NULL AND npwp NOT LIKE 'enc:v1%') AS n`);
 console.log("plaintext tersisa di kolom terenkripsi (harus 0):", leftovers.n);
 console.log("\nSELESAI — simulasi upgrade remote sukses bila semua baris di atas sesuai.");
+export {};

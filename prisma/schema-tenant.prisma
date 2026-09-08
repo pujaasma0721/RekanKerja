@@ -548,6 +548,37 @@ model WageComponent {
   templateItems WageTemplateItem[]
   assignments   EmployeeComponentAssignment[]
   benefitTypes  BenefitType[]
+  rules         WageComponentRule[]
+}
+
+// Task 32 — ATURAN DIFERENSIASI BESARAN KOMPONEN UPAH.
+// Rule menilai kondisi parameter karyawan (pekerjaan & personal) lalu
+// mengubah besaran komponen utk karyawan yang cocok. Evaluasi: rule aktif
+// diurut priority ASC (tie-break createdAt) — rule PERTAMA yang cocok
+// menang; tanpa kecocokan → besaran dasar komponen. Presedensi penuh:
+// assignment spesifik karyawan (Specific/Periodic) > rule > besaran dasar.
+//   · conditions = JSON array [{ param, op, values }] — AND antar kondisi.
+//     param: orgUnit|position|grade|positionLevel|office|workLocation|company|
+//     employmentStatus|workShift|gender|religion|maritalStatus|bloodType|city|
+//     ageYears|tenureYears|taxStatus|dependents|hasNpwp|employeeStatus
+//     op: in|not_in|gt|gte|lt|lte|is_empty|not_empty
+//   · actionType: SetAmount (jadi X) | AddAmount (+/- X) | Multiply (× X).
+//     Rule diterapkan SEBELUM prorata & rounding (besaran rule = nominal penuh).
+model WageComponentRule {
+  id              String    @id @default(cuid())
+  wageComponentId String
+  name            String
+  priority        Int       @default(100)
+  conditions      String    @default("[]") // JSON array kondisi (AND)
+  actionType      String    @default("SetAmount") // SetAmount|AddAmount|Multiply
+  amount          Float     @default(0)
+  notes           String?
+  active          Boolean   @default(true)
+  validFrom       DateTime  @default(now())
+  validTo         DateTime?
+  createdAt       DateTime  @default(now())
+
+  wageComponent WageComponent @relation(fields: [wageComponentId], references: [id], onDelete: Cascade)
 }
 
 // ============ PAYROLL MODULE ============

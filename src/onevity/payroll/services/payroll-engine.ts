@@ -6,6 +6,16 @@
 // - NetToGross: gross-up iteratif (tax allowance) — catat actualNetTax
 // Formula evaluator: ekspresi dengan variabel (BASE_SALARY, JHT_BASE, rate regulasi,
 // dan kode komponen lain yang sudah dihitung).
+// Task 32: rule diferensiasi besaran komponen per parameter karyawan
+// (organisasi/posisi/office/lokasi/status/agama/dst.) — evaluasi INI di engine
+// supaya prorata & rounding tetap diterapkan SETELAH besaran rule ditentukan.
+
+import {
+  ComponentRuleLite,
+  RuleContext,
+  matchFirstRule,
+  applyRuleAmount,
+} from "@/onevity/payroll/services/component-rules";
 
 // ============ TIPE INPUT/OUTPUT ============
 
@@ -55,6 +65,9 @@ export interface EngineComponent {
   jamsostekBasis?: string | null; // JHT|JP|JKK|JKM|JPK
   roundingType: string; // RoundingUp|RoundingDown|Nearest
   roundingValue: number;
+  // Task 32: aturan diferensiasi besaran per parameter karyawan — evaluasi
+  // by engine (lihat component-rules.ts). Null/kosong = perilaku lama.
+  rules?: ComponentRuleLite[];
 }
 
 export interface EngineEmployee {
@@ -69,6 +82,25 @@ export interface EngineEmployee {
   taxStatus: string; // TK0..KI3
   dependents: number;
   processMethod: string; // GrossToNet|NetToGross
+  // Task 32: konteks parameter utk evaluasi rule komponen (kode entitas,
+  // atribut personal, angka tahun). Nilai dihitung payroll-service per
+  // karyawan terhadap AKHIR period. Lihat component-rules.ts RULE_PARAMS.
+  companyCode?: string | null;
+  orgUnitCode?: string | null;
+  positionCode?: string | null;
+  gradeCode?: string | null;
+  positionLevelCode?: string | null;
+  officeCode?: string | null;
+  workLocationCode?: string | null;
+  workShift?: string | null;
+  employeeStatus?: string | null;
+  gender?: string | null;
+  religion?: string | null;
+  maritalStatus?: string | null;
+  bloodType?: string | null;
+  city?: string | null;
+  ageYears?: number | null;
+  tenureYears?: number | null;
 }
 
 export interface EngineLoanDue {
@@ -271,6 +303,32 @@ function roundAmount(n: number, comp: EngineComponent): number {
   }
 }
 
+// Task 32: konteks rule dari EngineEmployee (key sesuai RULE_PARAMS).
+function ruleContextOf(emp: EngineEmployee): RuleContext {
+  return {
+    company: emp.companyCode ?? null,
+    orgUnit: emp.orgUnitCode ?? null,
+    position: emp.positionCode ?? null,
+    grade: emp.gradeCode ?? null,
+    positionLevel: emp.positionLevelCode ?? null,
+    office: emp.officeCode ?? null,
+    workLocation: emp.workLocationCode ?? null,
+    employmentStatus: emp.employmentStatus,
+    workShift: emp.workShift ?? null,
+    tenureYears: emp.tenureYears ?? null,
+    employeeStatus: emp.employeeStatus ?? null,
+    gender: emp.gender ?? null,
+    religion: emp.religion ?? null,
+    maritalStatus: emp.maritalStatus ?? null,
+    bloodType: emp.bloodType ?? null,
+    city: emp.city ?? null,
+    ageYears: emp.ageYears ?? null,
+    taxStatus: emp.taxStatus,
+    dependents: emp.dependents,
+    hasNpwp: emp.hasNpwp,
+  };
+}
+
 // ============ ENGINE UTAMA ============
 
 interface TaxComputation {
@@ -320,18 +378,29 @@ export function runPayroll(
     };
 
     // --- 2. Komponen upah (Fixed/Formula/Percentage; Tax dihitung belakangan) ---
+    // Task 32: presedensi besaran — assignment karyawan (overrideAmount) >
+    // rule parameter > besaran dasar. Rule dievaluasi engine INI (bukan di
+    // service) agar prorata & rounding tetap bekerja di atas hasil rule.
+    const ruleCtx = ruleContextOf(emp);
     const workingSet = row.components.filter((c) => c.comp.wageType !== "IncomeTax");
     let sortOrder = 0;
     for (const { comp, overrideAmount } of workingSet) {
       if (comp.calcMethod === "Tax") continue;
       let amount: number;
+      let ruleNote: string | null = null;
       if (overrideAmount != null) {
         amount = overrideAmount;
-      } else if (comp.calcMethod === "Fixed") {
-        amount = comp.amount;
       } else {
-        const env = { ...baseEnv, ...computedByCode };
-        amount = evalFormula(comp.formula ?? "0", env);
+        const base = comp.calcMethod === "Fixed"
+          ? comp.amount
+          : evalFormula(comp.formula ?? "0", { ...baseEnv, ...computedByCode });
+        const matched = (comp.rules?.length ?? 0) > 0 ? matchFirstRule(comp.rules ?? [], ruleCtx) : null;
+        if (matched) {
+          amount = applyRuleAmount(matched.rule.actionType, matched.rule.amount, base);
+          ruleNote = `Aturan: ${matched.rule.name}`;
+        } else {
+          amount = base;
+        }
       }
       if (comp.prorated && row.prorateFactor < 1) {
         amount *= row.prorateFactor;
@@ -341,7 +410,8 @@ export function runPayroll(
         code: comp.code, name: comp.name, wageType: comp.wageType, type: comp.type,
         incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
         jamsostekBasis: comp.jamsostekBasis ?? null,
-        note: comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null,
+        note: ruleNote
+          ?? (comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null),
       };
       items.push(item);
       computedByCode[comp.code] = amount;
