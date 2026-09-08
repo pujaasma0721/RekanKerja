@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { sendWaBatch, approverPhonesOf } from "@/onevity/shared/services/wa-service";
 
 // ================= GET =================
 export async function GET(req: Request) {
@@ -127,6 +128,15 @@ export async function POST(req: Request) {
       title: `Permintaan surat baru ${reqNo}`,
       body: `${fullName} meminta ${tpl.name}${purpose ? ` — keperluan ${purpose}` : ""}. Buka Template Surat → Permintaan Masuk.`,
       kind: "letters",
+    });
+
+    // Task 28-a — notifikasi WhatsApp ke Admin/HR (fire-and-forget, never-throw)
+    void sendWaBatch(db, {
+      event: "letter.requested",
+      recipients: (await approverPhonesOf(db)).map((phone) => ({
+        phone,
+        placeholders: { nama: fullName, jenisSurat: tpl.name, docNo: reqNo, keperluan: purpose ? ` — keperluan ${purpose}` : "" },
+      })),
     });
 
     return NextResponse.json({ reqNo: created.reqNo, status: created.status }, { status: 201 });

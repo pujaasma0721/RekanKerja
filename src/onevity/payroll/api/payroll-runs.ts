@@ -3,6 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
+import { sendWa } from "@/onevity/shared/services/wa-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { buildPayslipPdfByLineId, fmtRupiah } from "@/onevity/payroll/services/payslip-pdf";
@@ -275,7 +276,7 @@ async function handleSendSlips(
   const lines = await db.payrollRunLine.findMany({
     where: { runId: id },
     orderBy: { employeeNo: "asc" },
-    select: { id: true, employeeId: true, employeeNo: true, employeeName: true, net: true, employee: { select: { email: true, nationalId: true } } },
+    select: { id: true, employeeId: true, employeeNo: true, employeeName: true, net: true, employee: { select: { email: true, nationalId: true, phone: true } } },
   });
   if (lines.length === 0) {
     return NextResponse.json({ error: "Run tidak memiliki baris hasil" }, { status: 400 });
@@ -300,7 +301,17 @@ async function handleSendSlips(
       },
       attachment: { filename: built.filename, content: Buffer.from(built.bytes), contentType: "application/pdf" },
     });
-    if (status === "Sent") sent += 1;
+    if (status === "Sent") {
+      sent += 1;
+      // Task 28-a — notifikasi WhatsApp "slip terkirim" (fire-and-forget,
+      // never-throw) — hanya saat email benar-benar terkirim (pesan template
+      // menyebut pengiriman email).
+      void sendWa(db, {
+        event: "payslip.sent",
+        toPhone: line.employee?.phone ?? null,
+        placeholders: { nama: line.employeeName, periode: run.period.name, net: fmtRupiah(line.net), runNo: run.runNo },
+      });
+    }
     else if (status === "Failed") failed += 1;
     else if (status === "Disabled") disabled += 1;
     else skipped += 1;

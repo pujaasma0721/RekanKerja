@@ -3,6 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { dayStart, addDays, regenerateDaily } from "@/onevity/time-attendance/services/attendance-service";
 import { pushNotification } from "@/onevity/shared/services/notification-service";
+import { sendWa, employeePhoneOf } from "@/onevity/shared/services/wa-service";
 
 // Task 27-g — Tukar Shift: approval admin (diajukan ESS).
 // GET   /api/onevity/attendance/shift-swap?status=&date=&q= — daftar permintaan
@@ -314,6 +315,17 @@ export async function PATCH(req: NextRequest) {
           body: `Pada ${dateStr} jadwal Anda bertukar dengan ${row.requester.fullName} — Anda mengikuti ${s1?.name ?? "jadwal pasangan"}.${note ? ` Catatan admin: ${note}.` : ""}`,
         })),
       );
+
+      // Task 28-a — notifikasi WhatsApp kedua pihak (fire-and-forget, never-throw;
+      // lookup nomor di background agar PATCH tidak menunggu)
+      void (async () => {
+        const [p1, p2] = await Promise.all([
+          employeePhoneOf(m.db, row.requesterId),
+          employeePhoneOf(m.db, row.targetId),
+        ]);
+        void sendWa(m.db, { event: "shiftswap.approved", toPhone: p1, placeholders: { nama: row.requester.fullName, pasangan: row.target.fullName, docNo: row.code, tanggal: dateStr } });
+        void sendWa(m.db, { event: "shiftswap.approved", toPhone: p2, placeholders: { nama: row.target.fullName, pasangan: row.requester.fullName, docNo: row.code, tanggal: dateStr } });
+      })();
 
       await m.db.activityLog.create({
         data: {

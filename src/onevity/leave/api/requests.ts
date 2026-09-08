@@ -4,6 +4,7 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/onevity/leave/services/leave-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
+import { sendWaBatch, sendWa, approverPhonesOf, employeePhoneOf } from "@/onevity/shared/services/wa-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
@@ -78,6 +79,17 @@ export async function POST(req: NextRequest) {
             periode: `${input.dateFrom} → ${input.dateTo}`, jumlahHari: String(res.workingDays),
             alasan: input.reason || "-",
           },
+        });
+        // ===== Notifikasi WhatsApp (Task 28-a) — approver, fire-and-forget =====
+        void sendWaBatch(db, {
+          event: "leave.submitted",
+          recipients: (await approverPhonesOf(db, input.employeeId)).map((phone) => ({
+            phone,
+            placeholders: {
+              nama: emp?.fullName ?? "-", docNo: res.docNo, jenisCuti: type?.name ?? "-",
+              periode: `${input.dateFrom} → ${input.dateTo}`, jumlahHari: String(res.workingDays),
+            },
+          })),
         });
         // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
         await notifyEvent(db, {
@@ -163,6 +175,21 @@ export async function PATCH(req: NextRequest) {
             });
           }
           // ===== Notifikasi in-app (T11-NOTIF) — keputusan final → pengaju =====
+          // ===== Notifikasi WhatsApp (Task 28-a) — keputusan FINAL approve → pengaju
+          // (reject sengaja tanpa WA — template leave.rejected tidak dispesifikasi;
+          // kanal email + in-app tetap menutupi).
+          if (b.action === "approve" && lr) {
+            void sendWa(m.db, {
+              event: "leave.approved",
+              toPhone: await employeePhoneOf(m.db, lr.employeeId),
+              placeholders: {
+                nama: lr.employee?.fullName ?? "-", docNo: lr.docNo,
+                jenisCuti: lr.leaveType?.name ?? "-",
+                periode: `${new Date(lr.dateFrom).toISOString().slice(0, 10)} → ${new Date(lr.dateTo).toISOString().slice(0, 10)}`,
+                catatan: b.note ? String(b.note) : "-",
+              },
+            });
+          }
           if (lr) {
             await notifyEvent(m.db, {
               to: "employee", docType: "Leave", docNo: res.docNo, docId: String(b.id), employeeId: lr.employeeId,

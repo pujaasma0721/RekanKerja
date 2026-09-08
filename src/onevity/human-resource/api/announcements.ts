@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { pushNotification } from "@/onevity/shared/services/notification-service";
+import { sendWaBatch } from "@/onevity/shared/services/wa-service";
 
 // OneVity — Pengumuman Perusahaan (Task 27-f) ==============================
 // =====================================================================
@@ -43,6 +44,9 @@ function excerpt(body: string): string {
  * Fanout notifikasi in-app "Pengumuman: <judul>" ke setiap AppUser aktif
  * yang tertaut karyawan Active. NEVER-THROW (fire-and-forget) — mengembalikan
  * jumlah penerima yang berhasil dikirimi (utk ActivityLog & response).
+ * Task 28-a: + fanout WhatsApp batch ke karyawan Active yang punya nomor HP
+ * (CAP 20 penerima, config+template dicek sekali di sendWaBatch — anti spam
+ * log saat kanal mati).
  */
 async function fanoutAnnouncement(
   db: TenantDb,
@@ -51,9 +55,22 @@ async function fanoutAnnouncement(
   try {
     const activeEmps = await db.employee.findMany({
       where: { status: "Active" },
-      select: { id: true },
+      select: { id: true, phone: true },
     });
     if (activeEmps.length === 0) return 0;
+
+    // Task 28-a — WhatsApp: hanya karyawan DENGAN nomor HP, cap 20 (batch)
+    const withPhone = activeEmps.filter((e) => e.phone && e.phone.trim()).slice(0, 20);
+    if (withPhone.length > 0) {
+      void sendWaBatch(db, {
+        event: "announcement.published",
+        recipients: withPhone.map((e) => ({
+          phone: e.phone!,
+          placeholders: { judul: ann.title, ringkas: excerpt(ann.body) },
+        })),
+      });
+    }
+
     const users = await db.appUser.findMany({
       where: { active: true, employeeId: { in: activeEmps.map((e) => e.id) } },
       select: { id: true },

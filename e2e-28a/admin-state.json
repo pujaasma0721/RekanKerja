@@ -1,0 +1,32 @@
+{
+  "cookies": [
+    {
+      "name": "onevity_session",
+      "value": "eyJ1aWQiOiJjbXRyNjQ1bDYwMDAxcWlsaGpnNWFua3c0IiwidGlkIjpudWxsLCJleHAiOjE3ODk0MzI4MzAzNzAsInN2Ijo1fQ.7spNpShYoPhJjKRNrqsz0SQAuuNczYHBgdkBpo9il_A",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1789432830.372645,
+      "size": 157,
+      "httpOnly": true,
+      "secure": false,
+      "session": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "onevity:lang",
+          "value": "id"
+        },
+        {
+          "name": "onevity:pwa-dismissed",
+          "value": "1788828018716"
+        }
+      ],
+      "sessionStorage": []
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { issueLetter } from "@/onevity/shared/services/letter-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { sendWa, employeePhoneOf } from "@/onevity/shared/services/wa-service";
 
 // PERMINTAAN SURAT KARYAWAN (ESS → HR) — Task 26-a:
 //   · GET   /api/onevity/letter-requests?status= — daftar permintaan surat
@@ -186,6 +187,14 @@ export async function decideLetterRequest(req: NextRequest) {
       title: `Permintaan surat ${reqRow.reqNo} diterbitkan`,
       body: `Surat ${letter.refNo} siap diunduh pada menu Surat.`,
       kind: "letters",
+    });
+
+    // Task 28-a — notifikasi WhatsApp surat terbit → pengaju (fire-and-forget,
+    // never-throw; nomor kosong → Skipped tercatat saat kanal aktif)
+    void sendWa(db, {
+      event: "letter.issued",
+      toPhone: await employeePhoneOf(db, reqRow.employeeId),
+      placeholders: { nama: reqRow.employee.fullName, docNo: reqRow.reqNo, refNo: letter.refNo },
     });
 
     return NextResponse.json({ request: updated, letter: { ...letter, employeeName: reqRow.employee.fullName } });
