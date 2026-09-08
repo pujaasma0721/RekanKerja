@@ -123,7 +123,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <SlidersHorizontal className="h-4 w-4 ov-text-accent" />
@@ -189,8 +189,8 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                         {rules.map((r) => (
                           <TableRow key={r.id} className={cn("align-top hover:bg-stone-50 dark:hover:bg-stone-900/60", !r.active && "opacity-50")}>
                             <TableCell className="font-mono text-[11px] font-bold text-stone-400">{r.priority}</TableCell>
-                            <TableCell className="max-w-40 text-[12px] font-bold">{r.name}</TableCell>
-                            <TableCell className="max-w-64">
+                            <TableCell className="max-w-64 text-[12px] font-bold">{r.name}</TableCell>
+                            <TableCell className="max-w-80">
                               <div className="flex flex-col gap-1">
                                 {r.conditions.map((c, i) => (
                                   <span key={i} className="rounded-lg bg-stone-100 px-2 py-1 text-[10px] font-semibold leading-relaxed text-stone-600 dark:bg-stone-800 dark:text-stone-300">
@@ -290,7 +290,7 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
       </div>
       <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
         <CardContent className="p-0">
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
                 <TableRow>
@@ -308,17 +308,17 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
                   <TableRow key={r.employeeNo} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                     <TableCell className="font-mono text-[11px] font-bold text-stone-500">{r.employeeNo}</TableCell>
                     <TableCell className="text-[12px] font-bold">{r.fullName}</TableCell>
-                    <TableCell className="max-w-44 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <TableCell className="max-w-56 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
                       {r.positionName ?? "—"}<br />
                       {r.officeName ?? r.workLocationName ?? "—"} · {r.employmentStatus}
                     </TableCell>
-                    <TableCell className="max-w-40 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <TableCell className="max-w-48 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
                       {[r.religion, r.maritalStatus, r.tenureYears != null ? `${r.tenureYears} th` : null].filter(Boolean).join(" · ") || "—"}
                     </TableCell>
                     <TableCell className="text-right font-mono text-[11px] text-stone-500">{fmt(r.base)}</TableCell>
                     <TableCell>
                       {r.matchedRule ? (
-                        <Badge variant="outline" className="max-w-40 truncate text-[9px] font-bold text-emerald-600 dark:text-emerald-400" title={r.matchedRule.name}>
+                        <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-emerald-600 dark:text-emerald-400" title={r.matchedRule.name}>
                           {r.matchedRule.name}
                         </Badge>
                       ) : (
@@ -430,7 +430,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <SlidersHorizontal className="h-4 w-4 ov-text-accent" />
@@ -466,7 +466,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                 const pd = RULE_PARAMS.find((p) => p.key === c.param);
                 return (
                   <div key={i} className="rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900/60">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Select
                         value={c.param}
                         onValueChange={(v) => {
@@ -476,7 +476,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                           updateCond(i, { param: v, op: resetOp, values: [] });
                         }}
                       >
-                        <SelectTrigger className="h-8 w-52 flex-1 text-[11px] font-bold"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 min-w-44 flex-1 text-[11px] font-bold"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
                             <SelectLabel className="text-[10px] font-bold uppercase">{t("Pekerjaan", "Job")}</SelectLabel>
@@ -494,7 +494,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                       </Select>
 
                       <Select value={c.op} onValueChange={(v) => updateCond(i, { op: v as RuleCondition["op"], values: [] })}>
-                        <SelectTrigger className="h-8 w-44 flex-1 text-[11px]"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 min-w-40 flex-1 text-[11px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(RULE_OP_LABEL)
                             .filter(([opKey]) => pd?.kind === "number" || !RULE_OP_LABEL[opKey as RuleCondition["op"]].numericOnly)
@@ -505,7 +505,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                       </Select>
 
                       {form.conditions.length > 1 && (
-                        <button onClick={() => removeCond(i)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus kondisi", "Remove condition")}>
+                        <button onClick={() => removeCond(i)} className="shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus kondisi", "Remove condition")}>
                           <X className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -519,7 +519,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                             value={c.values[0] ?? ""}
                             onChange={(e) => updateCond(i, { values: [e.target.value] })}
                             placeholder={t("cth: 5", "e.g. 5")}
-                            className="h-8 w-40 font-mono text-[11px]"
+                            className="h-8 w-full max-w-64 font-mono text-[11px]"
                           />
                         ) : (
                           <ValueChips cond={c} def={pd} options={options} onToggle={(v) => toggleCondValue(i, v)} onChange={(values) => updateCond(i, { values })} />
@@ -627,7 +627,7 @@ function ValueChips({ cond, def, options, onToggle, onChange }: {
   }
 
   return (
-    <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-xl bg-white p-2 dark:bg-stone-900">
+    <div className="flex max-h-52 flex-wrap gap-1.5 overflow-y-auto rounded-xl bg-white p-2 dark:bg-stone-900">
       {opts.map((o) => {
         const active = cond.values.includes(o.value);
         return (
