@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/onevity/ess/api/ess-auth";
 import { listBalances, listRequests, submitRequest } from "@/onevity/leave/services/leave-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // GET — saldo cuti tahun berjalan + riwayat permintaan saya.
@@ -83,8 +84,28 @@ export async function POST(req: Request) {
       sessionTo: halfDay ? "AM" : "PM",
       reason,
       source: "ESS",
+      // Fix audit 40 §5 minor#2 — identitas pengaju ESS (AppUser→Employee.fullName
+      // dari sesi requireEss) diteruskan sebagai actorName → chain.createdBy +
+      // ActivityLog submit mencatat aktor NYATA (parity jalur admin
+      // leave/api/requests.ts POST yang mempassing m.actor.name).
       actorName: fullName,
     });
+
+    // Fix audit 40 §5 minor#2 — paritas jalur admin: approver jenjang PERTAMA
+    // dinotifikasi in-app saat cuti diajukan dari ESS (sebelumnya hanya webhook
+    // leave.submitted — approver tidak menerima notifikasi sama sekali). Link ke
+    // Persetujuan modul leave, bukan "actions:inbox" yang PA-only (audit M-8).
+    void (async () => {
+      try {
+        const type = await db.leaveType.findUnique({ where: { id: typeId }, select: { name: true } });
+        await notifyEvent(db, {
+          to: "nextApprover", docType: "Leave", docNo: res.docNo,
+          title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda`,
+          body: `${fullName} — ${type?.name ?? "cuti"} ${dateFrom} → ${dateTo} (${res.workingDays} hari kerja)`,
+          kind: "leave", link: "leave:leave-approval",
+        });
+      } catch { /* notifikasi tidak boleh mengganggu proses utama ESS */ }
+    })();
 
     // G5: ESS leave juga memicu webhook leave.submitted (konsistensi event lintas jalur)
     void dispatchWebhookEvent(db, null, "leave.submitted", {

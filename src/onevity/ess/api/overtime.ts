@@ -5,11 +5,12 @@
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
 import { submitOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 export async function POST(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-  const { db, employeeId } = m.actor;
+  const { db, employeeId, fullName } = m.actor;
 
   try {
     const b = await req.json().catch(() => ({}));
@@ -36,8 +37,26 @@ export async function POST(req: Request) {
       timeFrom: planStart,
       timeTo: planEnd,
       reason,
+      // Fix audit 40 minor #2 — aktor ESS (AppUser → Employee.fullName) dipass
+      // supaya chain/ActivityLog mencatat pengaju (parity jalur admin
+      // time-attendance/api/overtime.ts:94-123).
+      actorName: fullName,
     });
-    const order = res.order as { orderNo?: string } | null;
+    const order = res.order as
+      | { id: string; orderNo: string; employeeId: string; overtimeDate: Date; planMinutes: number; employee: { fullName: string } | null }
+      | null;
+
+    // Fix audit 40 minor #2 — notifikasi approver JENJANG PERTAMA (resolusi
+    // chain) kini terkirim dari ESS (dulu hanya jalur admin); link modul
+    // "attendance:overtime" (fix audit 40 M-8) — fire-and-forget, never-throw.
+    if (order) {
+      void notifyEvent(db, {
+        to: "nextApprover", docType: "Overtime", docNo: order.orderNo, docId: order.id,
+        title: `Perintah lembur ${order.orderNo} menunggu persetujuan Anda`,
+        body: `${order.employee?.fullName ?? fullName} — lembur ${date} (rencana ${order.planMinutes} menit)`,
+        kind: "attendance", link: "attendance:overtime",
+      });
+    }
 
     return NextResponse.json({ docNo: order?.orderNo ?? "", status: "Pending" }, { status: 201 });
   } catch (e) {

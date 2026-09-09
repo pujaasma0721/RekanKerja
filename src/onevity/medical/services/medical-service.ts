@@ -7,7 +7,7 @@
 // jenis CASH ditarik ke payroll (komponen UMC) → Paid saat run dikonfirmasi.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
-import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
+import { nextJournalNoInTx } from "@/onevity/shared/lib/journal-no";
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import type { Prisma } from "@/generated/tenant";
 // Task 33 — rule diferensiasi plafon per parameter karyawan.
@@ -357,7 +357,7 @@ export interface GenerateResult {
  *  benefitAmount boleh ditulis ulang; false = hanya isi jika kosong). */
 export async function generateBalances(
   db: TenantDb,
-  input: { year: number; typeId?: string; limitCorrection?: boolean; employeeIds?: string[] },
+  input: { year: number; typeId?: string; limitCorrection?: boolean; employeeIds?: string[]; actor?: MedActorRef },
 ): Promise<GenerateResult> {
   const year = Math.round(input.year);
   if (year < 2000 || year > 2100) throw new Error("Tahun tidak valid");
@@ -443,9 +443,11 @@ export async function generateBalances(
     }
   }
 
+  // Fix audit 40 M-05 — aktor generate saldo (appUserId) ikut tercatat
   await db.activityLog.create({
     data: {
       action: "Processed", entity: "MedicalBalance", entityId: String(year),
+      appUserId: input.actor?.appUserId ?? undefined,
       detail: `Generate saldo medis ${year}: ${created} baru, ${updated} dikoreksi, ${employees.length} karyawan × ${types.length} jenis`,
     },
   });
@@ -669,7 +671,19 @@ export interface SubmitClaimResult {
   firstApprover: string | null;
 }
 
-export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId: string): Promise<SubmitClaimResult> {
+/** Identitas aktor sesi utk jejak audit (fix audit 40 M-05) — opsional supaya
+ *  seeder/ESS path lama tetap kompatibel. */
+export interface MedActorRef {
+  appUserId?: string | null;
+  employeeId?: string | null;
+}
+
+export async function submitClaim(
+  db: TenantDb,
+  input: SubmitClaimInput,
+  actorId: string,
+  actor?: MedActorRef,
+): Promise<SubmitClaimResult> {
   const year = new Date(input.claimDate).getFullYear();
   const preview = await previewClaim(db, { employeeId: input.employeeId, typeId: input.typeId, year, forDependent: Boolean(input.forDependent) });
   if (input.lines.length === 0) throw new Error("Minimal satu baris perawatan");
@@ -816,9 +830,12 @@ export async function submitClaim(db: TenantDb, input: SubmitClaimInput, actorId
     },
   });
 
+  // Fix audit 40 M-05 — identitas aktor pengajuan (appUserId/employeeId) tercatat
   await db.activityLog.create({
     data: {
       action: "Created", entity: "MedicalClaim", entityId: claim.id,
+      appUserId: actor?.appUserId ?? undefined,
+      employeeId: actor?.employeeId ?? undefined,
       detail: `Klaim medis ${docNo} — ${preview.fullName} (${preview.typeCode}): approved ${totalApproved.toLocaleString("id-ID")}`,
     },
   });
@@ -941,20 +958,24 @@ interface JournalLineDraft {
   memo: string;
 }
 
+// Fix audit 40 K-1 — nested $transaction: Prisma tx tidak punya $transaction;
+// pakai nextJournalNoInTx + seluruh akses (baca klaim/jurnal/akun + insert jurnal)
+// via tx sehingga alokasi nomor jurnal + insert + mutasi settle atomik dalam
+// $transaction decideClaim (advisory lock jurnal ditahan sampai commit).
 async function generateSettleJournal(
-  db: TenantDb,
+  tx: Prisma.TransactionClient,
   claimId: string,
 ): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
-  const claim = await db.medicalClaim.findUnique({
+  const claim = await tx.medicalClaim.findUnique({
     where: { id: claimId },
     include: { lines: true, employee: { select: { fullName: true } }, type: { select: { code: true, name: true } } },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.journalNo) {
-    await db.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
+    await tx.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
   }
   const drafts: JournalLineDraft[] = [];
-  const acc = await db.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code } });
+  const acc = await tx.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code } });
   const accName = acc?.name ?? MEDICAL_EXPENSE_ACC.name;
   for (const l of claim.lines) {
     if (l.approvedAmount <= 0) continue;
@@ -972,11 +993,16 @@ async function generateSettleJournal(
     accountCode: CASH_ACC.code, accountName: CASH_ACC.name, position: "Credit",
     amount: total, memo: `${claim.docNo} — reimbursement medis ${claim.employee.fullName}`,
   });
-  const journalNo = await nextJournalNo(db);
+  // Fix audit 40 K-1: nomor jurnal dialokasikan DI DALAM tx (varian InTx) —
+  // pemanggilan nextJournalNo lama memicu tx.$transaction (tidak ada di
+  // TransactionClient) → TypeError "db.$transaction is not a function" →
+  // seluruh settle rollback (klaim stuck Approved, jurnal tak pernah lahir).
+  const journalNo = await nextJournalNoInTx(tx);
   const journalDate = new Date();
   // 28-c: total & baris jurnal disimpan TERENKRIPSI (enc:v1:n:…).
-  const tcJ = tenantCryptoForDb(db);
-  await db.payrollJournal.create({
+  // (client tx Prisma 6.11 tetap membaca brand schema → konteks crypto valid)
+  const tcJ = tenantCryptoForDb(tx);
+  await tx.payrollJournal.create({
     data: {
       journalNo, journalDate, runId: null, runNo: claim.docNo,
       description: `Klaim medis ${claim.docNo} — ${claim.employee.fullName} (${claim.type.name})`,
@@ -1164,9 +1190,10 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     // $transaction (backlog m-7 — murah dibungkus sekalian): jurnal + saldo +
     // klaim + activity log atomik — crash mid-flight tidak lagi meninggalkan
     // jurnal tanpa pemakaian saldo.
+    // Fix audit 40 K-1 — generateSettleJournal kini menerima tx langsung
+    // (semua mutasi settle di bawah memakai tx — lihat generateSettleJournal).
     await db.$transaction(async (tx) => {
-      const tdb = tx as unknown as TenantDb;
-      const j = await generateSettleJournal(tdb, claim.id);
+      const j = await generateSettleJournal(tx, claim.id);
       journalNo = j.journalNo || null;
       journalLines = j.lines;
       await tx.medicalBalance.update({
@@ -1186,9 +1213,12 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           decisionNote: input.note ?? claim.decisionNote,
         },
       });
+      // Fix audit 40 M-05 — aktor keputusan (appUserId/employeeId) ikut tercatat
       await tx.activityLog.create({
         data: {
           action: "Processed", entity: "MedicalClaim", entityId: claim.id,
+          appUserId: input.actor?.appUserId ?? undefined,
+          employeeId: input.actor?.employeeId ?? undefined,
           detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
         },
       });
@@ -1210,9 +1240,12 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       },
     });
 
+    // Fix audit 40 M-05 — aktor keputusan (appUserId/employeeId) ikut tercatat
     await db.activityLog.create({
       data: {
         action: "Updated", entity: "MedicalClaim", entityId: claim.id,
+        appUserId: input.actor?.appUserId ?? undefined,
+        employeeId: input.actor?.employeeId ?? undefined,
         detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
       },
     });
@@ -1348,11 +1381,18 @@ export interface MedTransferResult {
   removed: number;
 }
 
+/** Transfer UMC memakai identitas aktor sesi — fix audit 40 M-05 (appUserId di
+ *  ActivityLog) — opsional supaya seeder/script lama tetap kompatibel. */
+export interface MedTransferActor {
+  name?: string;
+  appUserId?: string | null;
+}
+
 /** Sisa saldo jenis unusedRule=CASH akhir tahun → komponen Specific UMC (Earning
  *  Compensation). Idempoten: assignment UMC period dibuang lalu ditulis ulang. */
 export async function transferUnusedToPayroll(
   db: TenantDb,
-  input: { periodId: string; year: number; processTypeCode?: string },
+  input: { periodId: string; year: number; processTypeCode?: string; actor?: MedTransferActor },
 ): Promise<MedTransferResult> {
   const period = await db.payrollPeriod.findUnique({ where: { id: input.periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
@@ -1364,6 +1404,21 @@ export async function transferUnusedToPayroll(
   if (!pt) throw new Error(`Process type ${ptCode} tidak ditemukan`);
   const comp = await db.wageComponent.findUnique({ where: { code: "UMC" } });
   if (!comp) throw new Error("Komponen upah UMC belum didefinisikan (hubungi admin)");
+
+  // Fix audit 40 M-7 (mirror guard travel transferClaimsToPayroll): period yang
+  // sudah punya run Confirmed/Paid utk processType target tidak boleh menerima
+  // transfer — saldo CASH sudah dikonsumsi + assignment UMC dibuat SETELAH run
+  // di-snapshot/dihitung → tidak pernah masuk run → saldo hangus diam-diam tanpa
+  // jalur recovery (M-08 lama; travel sudah fixed, medical kini menyusul).
+  const doneRuns = await db.payrollRun.count({
+    where: { periodId: period.id, processTypeId: pt.id, status: { in: ["Confirmed", "Paid"] } },
+  });
+  if (doneRuns > 0) {
+    throw new Error(
+      `Period ${period.name} sudah memiliki run payroll yang dikonfirmasi/dibayar — sisa saldo yang ditransfer ke sini tidak akan pernah dibayar. ` +
+      "Pilih period yang run-nya belum dikonfirmasi",
+    );
+  }
 
   const types = await db.medicalBenefitType.findMany({ where: { active: true, unusedRule: "CASH" } });
   if (types.length === 0) throw new Error("Tidak ada jenis benefit dengan kebijakan saldo CASH");
@@ -1443,9 +1498,11 @@ export async function transferUnusedToPayroll(
     });
   }
 
+  // Fix audit 40 M-05 — aktor transfer (appUserId) ikut tercatat di ActivityLog
   await db.activityLog.create({
     data: {
       action: "Processed", entity: "MedicalTransfer", entityId: period.id,
+      appUserId: input.actor?.appUserId ?? undefined,
       detail: `Transfer sisa saldo medis ${input.year} → ${period.name}: ${employees.size} karyawan, total ${total.toLocaleString("id-ID")}`,
     },
   });

@@ -453,8 +453,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // berubah (transaksi di atas sudah commit). Kegagalan settlement TIDAK
       // memblokir proses PA: error ditangkap + dicatat sebagai ActivityLog —
       // HR dapat mengulang perhitungan settlement manual.
+      // Fix audit 40 K-2(b) — settlement kini dibuat untuk SEMUA jenis PA
+      // pengakhiran: Termination (pesangon + UPMK + uang pisah + THR prorata +
+      // penggantian hak) DAN Resignation/Retirement (exitKind "resignation" —
+      // HANYA Penggantian Hak UU 13/2003 Ps.156(2)(c): uang cuti (rule-aware
+      // M-5) + pengurang pinjaman + PPh final; TANPA pesangon/uang pisah/THR).
+      // Upah bulan terakhir TIDAK masuk settlement (semua jenis) — dibayar via
+      // run SALARY bulan berjalan (fix K-2(a) payroll-service buildRunRows:
+      // leaver tetap masuk run dgn prorate s.d. lastDay).
       let settlement: Awaited<ReturnType<typeof applyTerminationSettlement>> | null = null;
-      if (action.type === "Termination") {
+      if (isTermination) {
         const settlementDate = detail.lastDay ? new Date(String(detail.lastDay)) : effectiveDate;
         try {
           settlement = await applyTerminationSettlement(db, {
@@ -464,6 +472,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
             paDocNo: action.docNo,
             paId: id,
             actor: { appUserId: actor.appUserId, name: actorLabel },
+            // Fix audit 40 K-2(b) — jenis pengakhiran: Resignation/Retirement →
+            // settlement Penggantian Hak (tanpa pesangon/UPMK/uang pisah/THR).
+            exitKind: action.type === "Termination" ? "termination" : "resignation",
           });
         } catch (se) {
           const msg = se instanceof Error ? se.message : "unknown";
@@ -472,7 +483,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
               data: {
                 action: "Error", entity: "PersonnelAction", entityId: id, personnelActionId: id,
                 employeeId: action.employeeId, appUserId: actor.appUserId ?? undefined,
-                detail: `Gagal membuat final settlement PHK untuk ${action.docNo} (best-effort — proses PA tetap berhasil): ${msg}`,
+                detail: `Gagal membuat settlement ${action.type === "Termination" ? "PHK" : "Penggantian Hak"} untuk ${action.docNo} (best-effort — proses PA tetap berhasil): ${msg}`,
               },
             });
           } catch { /* never */ }

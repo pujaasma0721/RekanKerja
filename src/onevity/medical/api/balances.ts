@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listBalances, generateBalances, listBenefitTypes } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/balances?year=&employeeId=&typeId= — saldo medis
@@ -38,10 +39,14 @@ export async function GET(req: NextRequest) {
 
 // POST — generate saldo medis per tahun (padanan GenerateMedicalBenefitInfo.jsp:
 // period + jenis opsional + Benefit Limit Correction + semua/spesifik karyawan).
-// Fix K-4: saldo baru initialUsed = 0 (tanpa auto-carry). requireMutator: VIEWER 403.
+// Fix K-4: saldo baru initialUsed = 0 (tanpa auto-carry).
+// Task 32-d / fix audit 40 §5: requireMutator longgar → requireMenuAction —
+// aksi "create" pada medical:medical-info (view Saldo Medis Karyawan tempat
+// tombol Generate berada; katalog op tidak punya entri generate — aksi dasar
+// create semantiknya memuat menambah data saldo; VIEWER tetap 403).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    const m = await requireMenuAction(req, "medical:medical-info", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const year = Number(b.year ?? 0);
@@ -51,6 +56,8 @@ export async function POST(req: NextRequest) {
       typeId: b.typeId ? String(b.typeId) : undefined,
       limitCorrection: Boolean(b.limitCorrection),
       employeeIds: Array.isArray(b.employeeIds) ? b.employeeIds.map(String) : undefined,
+      // Fix audit 40 M-05 — aktor generate tercatat di ActivityLog
+      actor: { appUserId: m.actor.appUserId },
     });
     return NextResponse.json(res, { status: 201 });
   } catch (e) {

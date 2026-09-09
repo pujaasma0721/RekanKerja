@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
 import { submitWorkoff } from "@/onevity/time-attendance/services/attendance-service";
+import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
 export async function POST(req: Request) {
   const m = await requireEss(req);
@@ -39,11 +40,28 @@ export async function POST(req: Request) {
       timeTo: halfDay ? "12:00" : null,
       paid,
       reason,
+      // Fix audit 40 minor #2 — aktor ESS dipass supaya chain/ActivityLog
+      // mencatat pengaju (parity jalur admin time-attendance/api/workoffs.ts).
       actorName: fullName,
     });
 
     // permit = baris WorkOffPermission yang baru dibuat (include docNo)
-    const permit = res.permit as { docNo?: string } | null;
+    const permit = res.permit as
+      | { id: string; docNo: string; employeeId: string; employee: { fullName: string } | null }
+      | null;
+
+    // Fix audit 40 minor #2 — notifikasi approver JENJANG PERTAMA (resolusi
+    // chain) kini terkirim dari ESS (dulu hanya jalur admin); link modul
+    // "attendance:workoff" (fix audit 40 M-8) — fire-and-forget, never-throw.
+    if (permit) {
+      void notifyEvent(db, {
+        to: "nextApprover", docType: "WorkOff", docNo: permit.docNo, docId: permit.id,
+        title: `Pengajuan izin ${permit.docNo} menunggu persetujuan Anda`,
+        body: `${permit.employee?.fullName ?? fullName} — izin tidak masuk ${dateFrom} → ${dateToRaw || dateFrom} (${halfDay ? "setengah hari" : "sehari penuh"})`,
+        kind: "attendance", link: "attendance:workoff",
+      });
+    }
+
     return NextResponse.json({ docNo: permit?.docNo ?? "", status: "Pending" }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

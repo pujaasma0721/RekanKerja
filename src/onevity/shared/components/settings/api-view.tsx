@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   KeyRound, Webhook, Plus, Ban, Pencil, Trash2, Send, Copy, Check, Eye, EyeOff,
-  RefreshCw, ShieldAlert, Zap, History,
+  RefreshCw, ShieldAlert, Zap, History, Clock3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -58,6 +58,10 @@ interface WebhookLogRow {
   status: string;
   responseStatus: number | null;
   error: string | null;
+  // Fix audit 40 M-14 — fields retry/backoff dari webhook-service.
+  attempts?: number;
+  nextRetryAt?: string | null;
+  lastError?: string | null;
   createdAt: string;
 }
 
@@ -539,10 +543,15 @@ function WebhooksPanel() {
                         <TableCell><Badge variant="secondary" className="rounded-full px-2 font-mono text-[9px] font-bold">{l.event}</Badge></TableCell>
                         <TableCell className="max-w-[200px] truncate font-mono text-[10px] text-stone-400" title={hook?.url ?? l.webhookId}>{hook?.url ?? l.webhookId}</TableCell>
                         <TableCell>
-                          {l.status === "Sent" ? (
-                            <Badge className="gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"><Check className="h-3 w-3" /> Sent</Badge>
+                          {/* Fix audit 40 M-14 — status log webhook kini granular:
+                              delivered / failed / dead (max retry) / pending retry /
+                              "Sent" (legacy pre-retry era). */}
+                          {l.status === "Sent" || l.status === "delivered" ? (
+                            <Badge className="gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"><Check className="h-3 w-3" /> {l.status === "delivered" ? "Delivered" : "Sent"}</Badge>
+                          ) : l.status === "failed" || l.status === "pending" ? (
+                            <Badge className="gap-1 rounded-full bg-amber-100 px-2 text-[10px] font-extrabold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"><Clock3 className="h-3 w-3" /> Retry {l.attempts ?? 1}/5</Badge>
                           ) : (
-                            <Badge className="gap-1 rounded-full bg-rose-100 px-2 text-[10px] font-extrabold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"><Ban className="h-3 w-3" /> Failed</Badge>
+                            <Badge className="gap-1 rounded-full bg-rose-100 px-2 text-[10px] font-extrabold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"><Ban className="h-3 w-3" /> Dead</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-xs font-mono text-stone-500">{l.responseStatus ?? "—"}</TableCell>

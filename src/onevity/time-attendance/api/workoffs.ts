@@ -92,7 +92,11 @@ export async function POST(req: NextRequest) {
         to: "nextApprover", docType: "WorkOff", docNo: permit.docNo, docId: permit.id,
         title: `Pengajuan izin ${permit.docNo} menunggu persetujuan Anda`,
         body: `${permit.employee?.fullName ?? "Karyawan"} — izin tidak masuk ${iso(permit.dateFrom)} → ${iso(permit.dateTo)} (${permit.allDay ? "sehari penuh" : "setengah hari"})`,
-        kind: "attendance", link: "actions:inbox",
+        // Fix audit 40 M-8 — link notifikasi approver ke view modul Work Off
+        // ("actions:inbox" hanya memuat dokumen PA — approver TA tidak bisa
+        // membuka izin dari sana; "attendance:workoff" = section:view valid
+        // yang dinavigasi bell).
+        kind: "attendance", link: "attendance:workoff",
       });
     }
 
@@ -126,7 +130,11 @@ export async function PATCH(req: NextRequest) {
         to: "nextApprover", docType: "WorkOff", docNo: permit?.docNo ?? String(b.id), docId: String(b.id),
         title: `Pengajuan izin ${permit?.docNo ?? "-"} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
         body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
-        kind: "attendance", link: "actions:inbox",
+        // Fix audit 40 M-8 — link notifikasi approver ke view modul Work Off
+        // ("actions:inbox" hanya memuat dokumen PA — approver TA tidak bisa
+        // membuka izin dari sana; "attendance:workoff" = section:view valid
+        // yang dinavigasi bell).
+        kind: "attendance", link: "attendance:workoff",
       });
     }
 

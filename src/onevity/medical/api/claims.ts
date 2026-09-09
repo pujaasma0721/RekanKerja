@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
 // T16-ATTACH — lampiran kwitansi klaim (draft-upload → rebind saat submit;
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
         reimburseAmount: Number(l.reimburseAmount ?? 0),
         approvedAmount: Number(l.approvedAmount ?? 0),
       })),
-    }, actorId).catch(async (e: unknown) => {
+    }, actorId, { appUserId: m.actor.appUserId, employeeId: m.actor.employeeId }).catch(async (e: unknown) => {
       // gagal submit → sapu draf lampiran yang dikirim (best-effort)
       if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(m.db, attachmentIds);
       throw e;
@@ -164,11 +165,25 @@ export async function POST(req: NextRequest) {
             },
           });
           // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
+          // Fix audit 40 M-8: link "actions:inbox" (kotak PA saja — approver medis
+          // tidak bisa membuka dokumen) → "medical:medical-approval" (view
+          // Persetujuan & Settlement di MEDICAL_NAV — dokumen klaim bisa dibuka).
           await notifyEvent(m.db, {
             to: "nextApprover", docType: "Medical", docNo: res.docNo,
             title: `Klaim medis ${res.docNo} menunggu persetujuan Anda`,
             body: `${emp?.fullName ?? "Karyawan"} — ${typ?.name ?? "klaim medis"}, total tagihan Rp ${total.toLocaleString("id-ID")}`,
-            kind: "medical", link: "actions:inbox",
+            kind: "medical", link: "medical:medical-approval",
+          });
+          // ===== Webhook (fix audit 40 M-14) — medical.claim.submitted,
+          // fire-and-forget, never-throw (mirror loans.ts). =====
+          await dispatchWebhookEvent(m.db, null, "medical.claim.submitted", {
+            docNo: res.docNo,
+            employeeId: String(b.employeeId),
+            employeeName: emp?.fullName,
+            typeName: typ?.name,
+            totalBill: total,
+            lineCount: Array.isArray(b.lines) ? b.lines.length : 0,
+            source: "app",
           });
         } catch { /* never */ }
       })();
@@ -226,7 +241,8 @@ export async function PATCH(req: NextRequest) {
       claimId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
-      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
+      // Fix audit 40 M-05: appUserId aktor sesi ikut — dipakai ActivityLog keputusan.
+      actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name, appUserId: m.actor.appUserId },
     }, actorId);
 
     // T16-ATTACH — klaim dibatalkan → sapu file+baris lampirannya (best-effort).
@@ -237,6 +253,8 @@ export async function PATCH(req: NextRequest) {
     // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
     // submit (Draft/Returned → Submitted) & approve parsial → approver jenjang
     // aktif chain klaim (fallback Admin/HR).
+    // Fix audit 40 M-8: link "actions:inbox" (PA-only) → "medical:medical-approval"
+    // (view Persetujuan & Settlement — approver medis bisa membuka dokumennya).
     if (b.action === "submit" || (b.action === "approve" && res.approval)) {
       void notifyEvent(m.db, {
         to: "nextApprover", docType: "Medical", docNo: res.docNo, docId: String(b.id),
@@ -246,7 +264,7 @@ export async function PATCH(req: NextRequest) {
         body: res.approval
           ? `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`
           : "Klaim baru masuk antrean persetujuan.",
-        kind: "medical", link: "actions:inbox",
+        kind: "medical", link: "medical:medical-approval",
       });
     }
 

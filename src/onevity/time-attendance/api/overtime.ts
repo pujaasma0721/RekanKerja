@@ -3,6 +3,7 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { attachChainSummaries, DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/onevity/time-attendance/services/attendance-service";
 import { overtimePayFor, getRule } from "@/onevity/time-attendance/services/attendance-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
@@ -104,7 +105,11 @@ export async function POST(req: NextRequest) {
         to: "nextApprover", docType: "Overtime", docNo: order.orderNo, docId: order.id,
         title: `Perintah lembur ${order.orderNo} menunggu persetujuan Anda`,
         body: `${order.employee?.fullName ?? "Karyawan"} — lembur ${new Date(order.overtimeDate).toISOString().slice(0, 10)} (rencana ${order.planMinutes} menit)`,
-        kind: "attendance", link: "actions:inbox",
+        // Fix audit 40 M-8 — link notifikasi approver ke view modul Lembur
+        // ("actions:inbox" hanya memuat dokumen PA — approver TA tidak bisa
+        // membuka dokumen lembur dari sana; "attendance:overtime" = section:view
+        // valid yang dinavigasi bell).
+        kind: "attendance", link: "attendance:overtime",
       });
       void (async () => {
         try {
@@ -156,7 +161,11 @@ export async function PATCH(req: NextRequest) {
         to: "nextApprover", docType: "Overtime", docNo: order?.orderNo ?? String(b.id), docId: String(b.id),
         title: `Perintah lembur ${order?.orderNo ?? "-"} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
         body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
-        kind: "attendance", link: "actions:inbox",
+        // Fix audit 40 M-8 — link notifikasi approver ke view modul Lembur
+        // ("actions:inbox" hanya memuat dokumen PA — approver TA tidak bisa
+        // membuka dokumen lembur dari sana; "attendance:overtime" = section:view
+        // valid yang dinavigasi bell).
+        kind: "attendance", link: "attendance:overtime",
       });
     }
 
@@ -172,6 +181,21 @@ export async function PATCH(req: NextRequest) {
           body: res.note,
           kind: "attendance", link: "attendance:overtime",
         });
+        // ===== Webhook (fix audit 40 M-14) — overtime.approved saat approve
+        // FINAL, fire-and-forget, never-throw (mirror loans.ts). =====
+        if (b.action === "approve") {
+          void (async () => {
+            try {
+              await dispatchWebhookEvent(m.db, null, "overtime.approved", {
+                docNo: order.orderNo,
+                employeeId: order.employeeId,
+                overtimeDate: new Date(order.overtimeDate).toISOString().slice(0, 10),
+                status: order.status,
+                source: "app",
+              });
+            } catch { /* webhook tidak boleh mengganggu proses utama */ }
+          })();
+        }
       }
     }
 

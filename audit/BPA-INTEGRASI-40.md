@@ -267,3 +267,62 @@
 #   SELECT status FROM AttendanceDaily WHERE workDate='2026-09-22':
 #   MII00002=WorkOff, MII00003=Absent  ← fiktif (hari belum terjadi)
 ```
+
+---
+
+## 12. STATUS PERBAIKAN — Task 41 (9 September 2026, pasca-audit)
+
+Mode: **FIX** (6 workstream paralel + wiring orchestrator + verifikasi E2E live).
+
+### KRITIS — semua FIXED & terverifikasi
+
+| # | Temuan | Status | Bukti verifikasi |
+|---|---|---|---|
+| K-1 | Settle klaim medis gagal (nested `$transaction`) | ✅ **FIXED** | `generateSettleJournal` kini menerima `Prisma.TransactionClient` + `nextJournalNoInTx` (lock advisory s.d. commit). **E2E live: MC-2026-011 → Settled, jurnal JV-2026-0001 (2 baris, Posted), saldo used +1,5jt, UI menampilkan "Disetujui & Dibayar · jurnal JV-2026-0001"** |
+| K-2 | Upah bulan terakhir karyawan keluar tidak dibayar | ✅ **FIXED** | buildRunRows memuat leaver (status keluar + assignment validTo ≥ periodStart) dengan prorate simetris joiner (basis hari kalender inklusif); keluar sebelum period tetap dikecualikan. **E2E in-process: leaver validTo 15 Sep → prorate 0,5; validTo 31 Agu → dikecualikan; branch TERMINATION tak berubah**. Settlement kini juga dibuat untuk PA Resignation/Retirement (Penggantian Hak Ps.156(2)(c) — uang cuti rule-aware + potongan + PPh final, tanpa pesangon) |
+| K-3 | Regen tanggal future menulis "Absent" fiktif | ✅ **FIXED** | Guard sentral di `regenerateDaily` (sebelum upsert): `start > today && status === "Absent"` → baris TIDAK ditulis + baris fiktif lama dihapus (deleteMany). OnLeave/WorkOff/Off future tetap ditulis. **E2E live: cancel WO-2026-001 → baris Absent fiktif MII00003 (22 Sep) terhapus; workoff future 2026-10-06 → MII00002=WorkOff, MII00003 tanpa baris Absent** |
+
+### MAJOR — semua FIXED
+
+| # | Temuan | Status | Ringkasan fix |
+|---|---|---|---|
+| M-1 | Regen future (= K-3) | ✅ | lihat K-3 |
+| M-2 | 7 endpoint master-data tanpa guard role | ✅ | Semua kini `requireMenuAction(menu, op)` (create/update) — VIEWER ditolak 403; GET tak dilonggarkan |
+| M-3 | Beban travel dobel 5105 + 2101 menumpuk | ✅ | UTRP pass-through di payroll-journal (D 2101, khusus wageCode UTRP — beban 5105 tepat 1× di jurnal klaim); jurnal klaim: C 2101 = b saja; kasbon c → D 2105 ditutup TRVSTLIN; jurnal advance retroaktif D 1101 saat Given (GAP-4 ikut tertutup). Matriks 8 skenario: 5105=R sekali, 2101/2105 net 0, D=C |
+| M-4 | Clamp c' ≠ c (jurnal vs TRVSTLIN) | ✅ | Kasbon jurnal = c penuh (payableCompany) — sumber nilai sama dengan assignment TRVSTLIN & tampilan settlement |
+| M-5 | Drift entitlement (mirror lokal pakai nilai dasar) | ✅ | Helper bersama `leave/services/entitlement.ts` (rule-aware, leaver-aware) dipakai: leave-service (availableForRequest), settlement (CUTI_CASH), attendance (annualAvailability guard workoff) |
+| M-6 | Cap lembur mingguan 18 jam tidak ada | ✅ | `WEEKLY_OT_CAP_MINUTES = 18×60` (konstanta statutory) — enforce di submit/approve/verify, jendela Senin–Minggu, sumber menit konsisten rekap. **E2E live: 4×4jam diterima, pengajuan ke-5 (20 jam) ditolak "PP 35/2021 Ps.26"** |
+| M-7 | Transfer UCT/UMC ke period pasca-confirm | ✅ | Guard mirror travel di leave (transferEncashment) & medical (transferUnusedToPayroll): period punya run Confirmed/Paid → tolak |
+| M-8 | Notifikasi approval link ke inbox PA-only | ✅ | Semua notifyEvent approver kini link ke view modul: `leave:leave-approval`, `attendance:overtime`, `attendance:workoff`, `travel:travel-approval`, `travel:travel-claim-approval`, `medical:medical-approval` |
+| M-9 | Data-access scope hanya modul HR | ⏸ **DEFERRED (disengaja)** | Risiko functional: approver dengan scope rules akan berhenti melihat dokumen yang harus ia putuskan. Perlu desain scope-aware (approver bypass) — lihat §13 |
+| M-10 | Scheduler multi-proses race | ✅ | Job mutex `pg_try_advisory_lock` per (job,tenant) + partial unique index `ActivityLog_dedu_reminder` + INSERT ON CONFLICT DO NOTHING. **Diterapkan 3/3 tenant (migrasi) + provisioning tenant baru**. Live: siklus scheduler 3/3 tenant OK |
+| M-11 | Encashment approved jadi Rp0 saat karyawan keluar | ✅ | Transfer pakai snapshot `enc.amount`; approval me-refresh & persist snapshot (L-07 ikut fixed); karyawan tanpa assignment aktif mempertahankan snapshot |
+| M-12 | PHK_POT_LOAN tak sinkron ke buku EmployeeLoan | ✅ | confirmRun TERMINATION: item PHK_POT_LOAN → update EmployeeLoan (rujukan letterNo via notes assignment → fallback oldest-first), paidAmount/outstanding/status PaidOff + angsuran Pending→Skipped, best-effort + ActivityLog |
+| M-13 | Terminasi senyap (PATCH endDate + scheduler) | ✅ | PATCH endDate non-kosong → 400 "harus melalui Personnel Action" (mengosongkan tetap boleh). **E2E live: setError 400 + clear null OK**. Scheduler resign job tetap PA-aware (endDate kini hanya bisa berasal dari PA) |
+| M-14 | Webhook tanpa retry + katalog timpang | ✅ | Kolom WebhookLog (attempts/nextRetryAt/lastError + index) di schema-tenant + tenant-ddl + migrasi 3/3 tenant; backoff [5m,30m,2h,6h,24h] maks 5 → dead; job scheduler `webhook-retry` (mutex-guarded, re-sign payload); katalog +4 event (travel.request.approved / medical.claim.submitted / overtime.approved / loan.created) — emission di loans.ts + travel requests + medical claims + overtime PATCH (final approve) |
+
+### Minor terpilih yang ikut diperbaiki
+
+- (1) decideRequest leave: pre-guard saldo+bentrok SEBELUM approval final (400 sebelum mutasi; revalidasi serializable tetap otoritatif).
+- (2) ESS submit overtime/workoff/cuti: actorName + notifikasi approver jenjang pertama kini terkirim.
+- (3) Validasi jam ketat HH:MM (00–23/00–59) — "25:99" ditolak.
+- (4) Verify lembur re-validasi cap kumulatif harian+mingguan (excludeOrderId).
+- (5) markEncashmentPaidForRun match periodCode run (window fallback hanya baris legacy).
+- (6) L-07: snapshot amount dipersist saat approval.
+- (11 travel) transferClaimsToPayroll kini `$transaction` (anti race); requests.ts PATCH mapping 409/403; label destinasi ditukar.
+- (12 HR) settlement tolak period Closed/Locked; Retirement→Resigned tetap (enum tanpa "Retired" — terdokumentasi).
+- (14 cross) appUserId di ActivityLog keputusan medical (5/7 call-site; 2 sisanya di luar jangkauan file); badge log webhook granular (Delivered/Retry n/5/Dead).
+- Fresh-seed: provisioning kini juga memasang index dedupe Reminder untuk tenant baru.
+
+### Verifikasi gabungan (Task 41)
+
+- `bun run lint` ✅ 0 error · `bunx tsc --noEmit` ✅ 0 error (dependency `@cantoo/pdf-lib` yang hilang dari sandbox ikut di-install).
+- E2E live (sandbox MII, server dev): login → 12/12 pemeriksaan PASS (settle+UI, regen future, guard endDate, render).
+- Browser (agent-browser): login form → pilih workspace → shell + modul Medical → detail klaim MC-2026-011 menampilkan jurnal — tanpa error konsol/hidrasi.
+- Migrasi DB: `migrate-scheduler-race.ts` + `migrate-webhook-retry.ts` → 3/3 tenant OK, idempoten; `tenant:ddl` + `db:generate` dijalankan.
+
+### Sisa yang tidak dikerjakan (disengaja / deferred)
+
+- **M-9** — scopeWhere di list modul transaksional (perlu desain approver-bypass, risiko tinggi bila asal diterapkan).
+- Inbox approval generik lintas docType (GAP-1), ESS ajukan klaim medis/travel (GAP-2) — fitur baru, bukan perbaikan bug.
+- Presisi sub-rupiah jurnal vs assignment TRVSTLIN (Math.round vs round2 — pre-existing, kini hanya selisih pembulatan).

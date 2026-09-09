@@ -379,12 +379,15 @@ export function TravelRequestsPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      {/* Fix audit 40 m-4 — label destinasi terbalik: semantik service
+                          (submitTravelRequest) dateFrom kaki = tanggal BERANGKAT,
+                          dateTo = tanggal DATANG; label lama tertukar. */}
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Datang", "Arrival Date")}</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Berangkat", "Departure Date")}</Label>
                         <Input type="date" value={d.dateFrom} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateFrom: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Berangkat", "Departure Date")}</Label>
+                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Datang", "Arrival Date")}</Label>
                         <Input type="date" value={d.dateTo} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateTo: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       {zones.find((z) => z.code === d.zoneCode)?.overseas && (

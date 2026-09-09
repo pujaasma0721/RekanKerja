@@ -2205,18 +2205,27 @@ model Webhook {
 
 // Riwayat pengiriman webhook — housekeeping: maks 500 baris per tenant
 // (terlama dihapus saat dispatch menulis baris baru melampaui batas).
+// T41-M14 (retry/backoff): status kini pending|delivered|failed|dead —
+// kegagalan kirim dijadwalkan ulang (nextRetryAt) dengan backoff
+// 5m→30m→2h→6h→24h maks 5 percobaan (percobaan ke-5 gagal → dead).
+// Baris lama pra-migrasi memakai nilai legacy Sent/Failed (tanpa retry —
+// nextRetryAt NULL tidak pernah diambil job webhook-retry).
 model WebhookLog {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   webhookId      String
   event          String
-  payload        String // body JSON persis yang dikirim (utk audit/verifikasi)
-  status         String // Sent | Failed
+  payload        String // body JSON persis yang dikirim (utk audit/verifikasi & retry)
+  status         String    @default("delivered") // delivered | failed | dead (+ pending, legacy Sent)
   responseStatus Int? // HTTP status penerima (null bila tak sampai/timeout)
   error          String?
-  createdAt      DateTime @default(now())
+  attempts       Int       @default(1) // total percobaan kirim (dispatch + retry), maks 5
+  nextRetryAt    DateTime? // jadwal retry berikutnya (null = tidak dijadwalkan)
+  lastError      String? // pesan galat percobaan terakhir (kolom error = percobaan pertama)
+  createdAt      DateTime  @default(now())
 
   webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
+  @@index([status, nextRetryAt])
   @@index([webhookId, createdAt])
 }
 

@@ -23,6 +23,18 @@
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { nextRunNo } from "@/onevity/payroll/services/payroll-service";
+// Fix audit 40 M-5 — uang pengganti cuti memakai entitlement EFEKTIF rule-aware
+// (LeaveTypeRule Task 33) via helper bersama modul leave (bukan entitlement dasar).
+import { effectiveEntitlement } from "@/onevity/leave/services/entitlement";
+
+// Fix audit 40 K-2(b) — jenis settlement: "termination" (PHK — pesangon +
+// UPMK + uang pisah + THR prorata + penggantian hak) vs "resignation"
+// (Resignation/Retirement — HANYA penggantian hak UU 13/2003 Ps.156(2)(c):
+// uang cuti (+ bonus pro-rata opsional) + pengurang pinjaman & PPh final;
+// TANPA pesangon/UPMK multiplier, TANPA uang pisah, TANPA THR — bukan PHK.
+// Upah bulan terakhir TIDAK termasuk settlement jenis apa pun — dibayar via
+// run SALARY (fix audit 40 K-2(a) di payroll-service buildRunRows).
+export type SettlementExitKind = "termination" | "resignation";
 
 // ============ tipe hasil ============
 
@@ -180,6 +192,8 @@ export function normalizeSettlementParams(input: Record<string, unknown> | null 
  * computeTerminationSettlement — kalkulasi MURNI (tanpa mutasi DB):
  * masa kerja, upah, pesangon + UPMK, uang pisah, cuti, THR prorata,
  * potongan pinjaman, PPh21 final, breakdown + grand net.
+ * exitKind "resignation" (fix audit 40 K-2(b)): mode Penggantian Hak utk PA
+ * Resignation/Retirement — tanpa pesangon/uang pisah/THR (lihat SettlementExitKind).
  */
 export async function computeTerminationSettlement(
   db: TenantDb,
@@ -187,7 +201,9 @@ export async function computeTerminationSettlement(
   effectiveDate: Date,
   params: SettlementParams,
   reason?: string | null,
+  exitKind: SettlementExitKind = "termination",
 ): Promise<SettlementResult> {
+  const isResignation = exitKind === "resignation";
   // 28-c: gaji pokok & komponen Periodic tersimpan terenkripsi — dekripsi
   // sebelum komputasi settlement (angka murni di dalam hasil).
   const tc = tenantCryptoForDb(db);
@@ -225,10 +241,18 @@ export async function computeTerminationSettlement(
   const notes: string[] = [];
 
   // --- (b)+(c) pesangon: bulan UPMK × upah × multiplier ---
+  // Fix audit 40 K-2(b) — mode "resignation" (Resignation/Retirement) TANPA
+  // pesangon: bukan PHK — UU 13/2003 Ps.156 hanya mewajibkan pesangon pada
+  // pemutusan hubungan kerja; hak karyawan resign/pensiun = penggantian hak
+  // Ps.156(2)(c) (uang cuti dsb.) dihitung blok (e)/(g) bawah.
   const pesangonMonths = pesangonMonthsFor(tenure.totalMonths);
   const multiplier = params.pesangonMultiplier;
-  const pesangon = Math.round(pesangonMonths * upah * multiplier);
-  if (pesangon > 0) {
+  const pesangon = isResignation ? 0 : Math.round(pesangonMonths * upah * multiplier);
+  if (isResignation) {
+    notes.push(
+      "Penggantian hak (UU 13/2003 Ps.156(2)(c)) utk Resignation/Retirement — tanpa pesangon/UPMK, tanpa uang pisah, tanpa THR prorata (bukan PHK); upah bulan terakhir dibayar terpisah via run SALARY",
+    );
+  } else if (pesangon > 0) {
     rows.push({
       code: "PESANGON",
       label: "Pesangon",
@@ -241,7 +265,8 @@ export async function computeTerminationSettlement(
   }
 
   // --- (d) uang pisah: % dari pesangon ---
-  const uangPisah = params.uangPisahPct > 0 ? Math.round(pesangon * params.uangPisahPct / 100) : 0;
+  // Fix audit 40 K-2(b) — tanpa uang pisah pada mode resignation (bukan PHK).
+  const uangPisah = !isResignation && params.uangPisahPct > 0 ? Math.round(pesangon * params.uangPisahPct / 100) : 0;
   if (uangPisah > 0) {
     rows.push({
       code: "UANG_PISAH",
@@ -253,10 +278,16 @@ export async function computeTerminationSettlement(
   }
 
   // --- (f) THR prorata: masa kerja tahun berjalan/12 × upah; ≥1 th → penuh ---
+  // Fix audit 40 K-2(b) — mode resignation TANPA THR (PMK 168/2023: THR
+  // proporsional hanya utk hubungan kerja yang masih berjalan saat tanggal
+  // pembayaran; Resignation/Retirement bukan PHK → di luar kelompok pesangon).
   const mWorked = monthsWorkedThisYear(employee.joinDate, effectiveDate);
   let thrAmount: number;
   let thrNote: string;
-  if (tenure.totalMonths >= 12) {
+  if (isResignation) {
+    thrAmount = 0;
+    thrNote = "Resignation/Retirement — tanpa THR prorata (PMK 168/2023)";
+  } else if (tenure.totalMonths >= 12) {
     thrAmount = Math.round(upah);
     thrNote = `Masa kerja ≥ 1 tahun → 1 × upah penuh (PMK 168/2023)`;
   } else if (tenure.totalMonths >= 3) {
@@ -276,6 +307,11 @@ export async function computeTerminationSettlement(
   // SETELAH status karyawan menjadi Terminated — listBalances memfilter hanya
   // karyawan Active. Semantik identik computeParts leave-service (CALENDAR),
   // dengan asOf = tanggal efektif PHK.
+  // Fix audit 40 M-5 — entitlement & prorata earned memakai entitlement
+  // EFEKTIF rule-aware (LeaveTypeRule Task 33) via helper bersama
+  // effectiveEntitlement (bukan bal.leaveType.entitlement dasar — drift lama:
+  // rule aktif mis. tenure≥5th→14 hari membuat settlement membayar terlalu
+  // kecil). asOf = tanggal efektif keluar (rule tenure dievaluasi saat itu).
   const dailyWage = upah / 25; // 25 hari kerja per bulan (pasal 155 UU 13/2003)
   const effYear = effectiveDate.getFullYear();
   let leaveDays = 0;
@@ -287,9 +323,10 @@ export async function computeTerminationSettlement(
     });
     if (bal) {
       const from = employee.joinDate > new Date(effYear, 0, 1) ? employee.joinDate : new Date(effYear, 0, 1);
+      const effEntitlement = await effectiveEntitlement(db, employeeId, bal.leaveTypeId, effYear, effectiveDate);
       const earned = bal.leaveType.prorateMonthly
-        ? (bal.leaveType.entitlement * earnedMonthsUntil(from, employee.joinDate, effectiveDate)) / 12
-        : bal.leaveType.entitlement;
+        ? (effEntitlement * earnedMonthsUntil(from, employee.joinDate, effectiveDate)) / 12
+        : effEntitlement;
       const reqs = await db.leaveRequest.findMany({
         where: { employeeId, leaveTypeId: bal.leaveTypeId, year: effYear, status: { in: ["Approved", "MassLeave"] } },
         select: { workingDays: true, dateTo: true },
@@ -305,7 +342,7 @@ export async function computeTerminationSettlement(
         else applied += r.workingDays;
       }
       leaveDays = Math.round((bal.carriedOver + earned + bal.adjustment - bal.cashed - taken - applied) * 100) / 100;
-      leaveNote = `saldo ${bal.carriedOver} bawa + ${Math.round(earned * 100) / 100} earned − ${taken + applied} terpakai`;
+      leaveNote = `saldo ${bal.carriedOver} bawa + ${Math.round(earned * 100) / 100} earned (entitlement efektif ${effEntitlement}) − ${taken + applied} terpakai`;
     } else {
       leaveNote = `tidak ada baris saldo CT-THN ${effYear}`;
     }
@@ -459,16 +496,22 @@ export async function ensureSettlementWageComponents(db: TenantDb): Promise<Map<
 
 // ============ penerapan (assignment Specific × TERMINATION) ============
 
-/** Period payroll berjalan: jendela memuat tanggal efektif, fallback terbaru non-Locked. */
+/** Period payroll berjalan: jendela memuat tanggal efektif, fallback terbaru
+ *  non-Locked/non-Closed. Fix audit 40 minor HR #12 — settlement tidak boleh
+ *  memilih period Closed (mirror guard payroll-runs/bonus-massal/rapel): period
+ *  Closed/Locked tidak dapat menerima run baru → assignment settlement yang
+ *  dijadwalkan ke sana tidak akan pernah dibayar. */
 async function currentPeriodFor(db: TenantDb, effectiveDate: Date) {
+  // Fix audit 40 minor HR #12 — period Closed/Locked dikecualikan dari kedua
+  // jalur seleksi (dulu hanya Locked di fallback — period Closed lolos).
   const containing = await db.payrollPeriod.findFirst({
-    where: { startDate: { lte: effectiveDate }, endDate: { gte: effectiveDate } },
+    where: { startDate: { lte: effectiveDate }, endDate: { gte: effectiveDate }, status: { notIn: ["Locked", "Closed"] } },
     orderBy: { startDate: "desc" },
     select: { id: true, code: true, name: true, status: true },
   });
   if (containing) return containing;
   const latest = await db.payrollPeriod.findFirst({
-    where: { status: { not: "Locked" } },
+    where: { status: { notIn: ["Locked", "Closed"] } },
     orderBy: { endDate: "desc" },
     select: { id: true, code: true, name: true, status: true },
   });
@@ -481,6 +524,10 @@ async function currentPeriodFor(db: TenantDb, effectiveDate: Date) {
  * TERMINATION Draft (terbayar saat HR klik Hitung di UI runs — pola alur runs existing).
  * Idempoten per karyawan: assignment yang sudah ada di-update nilainya (bukan diduplikasi).
  * Dipanggil dari proses PA Termination (best-effort — pemanggil wajib try/catch).
+ * Fix audit 40 K-2(b) — exitKind "resignation": PA Resignation/Retirement membuat
+ * settlement PENGANTINAN HAK (tanpa pesangon/UPMK/uang pisah/THR — lihat
+ * SettlementExitKind); label ActivityLog/notes/run dibedakan supaya jejak
+ * dokumen membedakan jenis settlement (PHK vs penggantian hak).
  */
 export async function applyTerminationSettlement(
   db: TenantDb,
@@ -492,15 +539,19 @@ export async function applyTerminationSettlement(
     /** link ActivityLog ke dokumen PA (muncul di jejak aktivitas PA) */
     paId?: string;
     actor?: { appUserId: string | null; name: string };
+    /** Fix audit 40 K-2(b) — jenis pengakhiran (default termination/PHK). */
+    exitKind?: SettlementExitKind;
   },
 ): Promise<SettlementApplyResult> {
+  const exitKind: SettlementExitKind = input.exitKind ?? "termination";
+  const exitLabel = exitKind === "resignation" ? "Penggantian Hak (Resignation/Retirement)" : "Final settlement PHK";
   const params = input.params as SettlementParams & Record<string, unknown>;
   const norm: SettlementParams = "pesangonMultiplier" in params && "uangPisahPct" in params
     ? { pesangonMultiplier: params.pesangonMultiplier, uangPisahPct: params.uangPisahPct, includeBonusProRata: !!params.includeBonusProRata }
     : normalizeSettlementParams(params as Record<string, unknown>);
 
   // komputasi MURNI dulu — gagal hitung = tidak menulis apa pun
-  const result = await computeTerminationSettlement(db, input.employeeId, input.effectiveDate, norm);
+  const result = await computeTerminationSettlement(db, input.employeeId, input.effectiveDate, norm, null, exitKind);
   // 28-c: konteks enkripsi utk penulisan komponen settlement (per-tenant).
   const tc = tenantCryptoForDb(db);
 
@@ -517,13 +568,20 @@ export async function applyTerminationSettlement(
   if (!period) {
     throw new Error("Tidak ada period payroll — settlement tidak dapat dijadwalkan ke run TERMINATION");
   }
+  // Fix audit 40 minor HR #12 — tolak period Closed/Locked (mirror guard
+  // payroll-runs; seleksi currentPeriodFor sudah memfilter — guard defensif).
+  if (period.status === "Closed" || period.status === "Locked") {
+    throw new Error(
+      `Period payroll ${period.name} sudah ${period.status === "Closed" ? "ditutup" : "terkunci"} — settlement tidak dapat dijadwalkan ke period tersebut (pilih period yang masih terbuka)`,
+    );
+  }
 
   const comps = await ensureSettlementWageComponents(db);
 
   // tulis assignment — idempoten: (employee × component × period × TERMINATION)
   let created = 0;
   let updated = 0;
-  const notePrefix = `Final settlement PHK${input.paDocNo ? ` — PA ${input.paDocNo}` : ""} (${result.masaKerja.label}, efektif ${result.effectiveDate})`;
+  const notePrefix = `${exitLabel}${input.paDocNo ? ` — PA ${input.paDocNo}` : ""} (${result.masaKerja.label}, efektif ${result.effectiveDate})`;
   for (const row of result.rows) {
     if (row.amount <= 0) continue;
     const wageComponentId = comps.get(row.code);
@@ -566,7 +624,7 @@ export async function applyTerminationSettlement(
       data: {
         runNo, periodId: period.id, processTypeId: processType.id,
         calculateTax: true, allEmployee: true,
-        notes: `Final settlement PHK — ${result.employee.fullName} (${result.employee.employeeNo})${input.paDocNo ? ` — PA ${input.paDocNo}` : ""}`,
+        notes: `${exitLabel} — ${result.employee.fullName} (${result.employee.employeeNo})${input.paDocNo ? ` — PA ${input.paDocNo}` : ""}`,
       },
       select: { id: true, runNo: true },
     });
@@ -575,7 +633,7 @@ export async function applyTerminationSettlement(
       data: {
         action: "Created", entity: "PayrollRun", entityId: run.id,
         appUserId: input.actor?.appUserId ?? undefined,
-        detail: `Run settlement PHK ${runNo} dibuat (${period.name} × ${processType.name}) — siap dihitung dari menu Proses & Hasil`,
+        detail: `Run settlement ${exitLabel.toLowerCase()} ${runNo} dibuat (${period.name} × ${processType.name}) — siap dihitung dari menu Proses & Hasil`,
       },
     });
   } else {
@@ -594,7 +652,7 @@ export async function applyTerminationSettlement(
       appUserId: input.actor?.appUserId ?? undefined,
       personnelActionId: input.paId ?? undefined,
       detail:
-        `Final settlement PHK ${result.employee.fullName} (${result.employee.employeeNo}) — PA ${input.paDocNo ?? "-"}, efektif ${result.effectiveDate}, masa kerja ${result.masaKerja.label}, upah ${fmtRp(result.upah.total)}\n` +
+        `${exitLabel} ${result.employee.fullName} (${result.employee.employeeNo}) — PA ${input.paDocNo ?? "-"}, efektif ${result.effectiveDate}, masa kerja ${result.masaKerja.label}, upah ${fmtRp(result.upah.total)}\n` +
         `${breakdownText}\n` +
         `  Bruto ${fmtRp(result.gross)} − potongan ${fmtRp(result.deductions)} − PPh21 final ${fmtRp(result.tax)} = NET ${fmtRp(result.net)}\n` +
         `${created} komponen dibuat, ${updated} diperbarui → ${period.name} × ${processType.name}${runNo ? ` (run ${runNo})` : ""}`,

@@ -193,11 +193,30 @@ export async function PATCH(req: NextRequest) {
 
     const b = await req.json();
 
+    // Fix audit 40 M-13 — jalur terminasi senyap: PATCH endDate bebas dulu +
+    // scheduler memutus status karyawan tanpa PA → "Resigned" tanpa
+    // offboarding / settlement / penutupan assignment (bypass seluruh proses
+    // pengakhiran). SET nilai endDate kini DITOLAK — pengakhiran kepegawaian
+    // wajib melalui Personnel Action (Termination/Resignation/Retirement) yang
+    // mengelola assignment, offboarding & settlement secara utuh.
+    // MENGKOSONGKAN endDate tetap DIIZINKAN (b.endDate null/"") — koreksi typo
+    // data lama; pengosongan tidak mengubah status karyawan.
+    if (b.endDate !== undefined && b.endDate !== null && String(b.endDate).trim() !== "") {
+      return NextResponse.json(
+        {
+          error:
+            "Pengakhiran kepegawaian harus melalui Personnel Action (Termination/Resignation/Retirement) — perubahan endDate langsung dinonaktifkan (fix audit 40 M-13)",
+        },
+        { status: 400 },
+      );
+    }
+
     const data: Record<string, unknown> = {};
     for (const f of PERSONAL_FIELDS) if (b[f] !== undefined) data[f] = b[f];
     if (b.birthDate !== undefined) data.birthDate = b.birthDate ? new Date(b.birthDate) : null;
     if (b.joinDate !== undefined) data.joinDate = b.joinDate ? new Date(b.joinDate) : undefined;
-    if (b.endDate !== undefined) data.endDate = b.endDate ? new Date(b.endDate) : null;
+    // Fix audit 40 M-13 — hanya jalur pengosongan (null/"") yang lolos guard di atas.
+    if (b.endDate !== undefined) data.endDate = null;
 
     // 26-b P0 — PKWT PP 35/2021: tanggal kontrak & jumlah perpanjangan.
     // Konsistensi: konversi ke Permanent → jejak PKWT dikosongkan (PKS tak

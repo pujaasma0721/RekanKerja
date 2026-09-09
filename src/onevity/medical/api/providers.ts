@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listProviders, upsertProvider } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/providers — master rumah sakit & asuransi
@@ -16,11 +17,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — buat/ubah provider (kind HOSPITAL | INSURANCE).
-// requireMutator (fix audit aktor/role): VIEWER 403.
+// Task 32-d / fix audit 40 §5: requireMutator longgar → requireMenuAction —
+// master RS/asuransi = medical:medical-providers (view Rumah Sakit & Asuransi;
+// aksi dasar create (baru) / update (ubah) per pengguna; VIEWER tetap 403).
+// Body dibaca SEKALI sebelum guard (b.id menentukan create vs update).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     if (!b.name || (!b.id && !b.code)) {
       return NextResponse.json({ error: "code & name wajib" }, { status: 400 });
@@ -28,6 +30,8 @@ export async function POST(req: NextRequest) {
     if (!["HOSPITAL", "INSURANCE"].includes(String(b.kind ?? ""))) {
       return NextResponse.json({ error: "kind harus HOSPITAL atau INSURANCE" }, { status: 400 });
     }
+    const m = await requireMenuAction(req, "medical:medical-providers", b.id ? "update" : "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const id = await upsertProvider(m.db, {
       id: b.id ? String(b.id) : undefined,
       code: String(b.code ?? ""),

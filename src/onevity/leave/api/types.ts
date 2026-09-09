@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // GET /api/onevity/leave/types — master jenis cuti + daftar karyawan aktif
 // (padanan LeaveType + QueryEmpLeaveInfo; employees utk picker form permintaan).
@@ -34,10 +35,13 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — jenis cuti baru
+// T41-M2: guard hak AKSI menu leave:leave-type (Baru) — sebelumnya
+// requireTenant saja (VIEWER bisa mutasi master yang menggerakkan saldo cuti).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "leave:leave-type", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const code = String(b.code ?? "").trim().toUpperCase();
     const name = String(b.name ?? "").trim();
@@ -69,10 +73,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — perbarui / nonaktifkan
+// T41-M2: guard hak AKSI menu leave:leave-type (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "leave:leave-type", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const existing = await db.leaveType.findUnique({ where: { id: b.id } });

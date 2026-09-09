@@ -55,6 +55,14 @@ export async function provisionTenantSchema(schemaName: string): Promise<void> {
       await c.query(`CREATE SCHEMA "${schemaName}"`);
       // satu sesi: SET search_path lalu seluruh DDL (simple query protocol)
       await c.query(`SET search_path TO "${schemaName}";\n${ddl}`);
+      // Fix audit 40 M-10 — partial unique index dedupe Reminder (tidak
+      // ter-express di Prisma schema → tidak ikut tenant-ddl.sql). Tenant BARU
+      // harus punya index yang sama dengan tenant existing (migrate-scheduler-race.ts)
+      // supaya INSERT ... ON CONFLICT DO NOTHING scheduler bekerja lintas proses.
+      await c.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_dedu_reminder"
+        ON "ActivityLog"("action","entity","entityId")
+        WHERE "entityId" IS NOT NULL AND "action" = 'Reminder'`);
     }
   } catch (e) {
     await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => {});

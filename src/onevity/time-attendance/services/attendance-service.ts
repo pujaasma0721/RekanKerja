@@ -9,6 +9,9 @@ import {
   startApprovalChain, decideApprovalChain, getApprovalChain, cancelApprovalChain,
   type DecideActor,
 } from "@/onevity/shared/services/approval-engine";
+// Fix audit 40 M-5 — entitlement efektif bersama (rule-aware); file murni
+// (tidak meng-import service TA → bebas dependensi melingkar).
+import { effectiveEntitlement } from "@/onevity/leave/services/entitlement";
 
 // ============ utilitas waktu (semua Date = waktu lokal) ============
 
@@ -343,6 +346,10 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
   const start = dayStart(date);
   const winEnd = addDays(start, 2); // window clock: [00:00 tgl, 00:00 tgl+2)
   const dayEnd = addDays(start, 1);
+  // Fix audit 40 K-3 — patokan "hari ini" utk guard tanggal masa depan (lihat
+  // sebelum upsert di bawah): hari yang BELUM terjadi tidak boleh menghasilkan
+  // baris "Absent" (tanpa data clock karena hari belum berjalan).
+  const today = dayStart(new Date());
 
   const employees = await db.employee.findMany({
     where: { status: "Active", ...(employeeId ? { id: employeeId } : {}) },
@@ -523,6 +530,24 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
     // lembur terverifikasi hari ini (status Approved / Paid)
     const ot = otByEmp.get(emp.id) ?? [];
     const overtimeMinutes = ot.reduce((s, o) => s + (o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes), 0);
+
+    // Fix audit 40 K-3 — tanggal masa depan tanpa clock tidak boleh Absent (hari
+    // belum terjadi; potongan TABS fiktif). Guard ditempatkan SEBELUM upsert
+    // supaya mencakup semua jalur penghasil status (branch !checkIn/!checkOutRaw
+    // dkk) dan menutup SEMUA call-site regen future: decideWorkoff
+    // regenerateRange full range (:1850/:1876/:1920), decideOvertimeOrder
+    // (:1282-1345), approve leave, dsb. — approve izin tanggal future tidak lagi
+    // menulis "Absent" bagi karyawan lain di hari yang belum terjadi.
+    // SEKALIGUS membersihkan baris fiktif sisa bug sebelumnya. Status
+    // OnLeave/WorkOff/Off/Late/Present tanggal future TETAP ditulis (kalender
+    // jadwal future perlu tampil) — hanya "Absent" yang dilarang. Tidak
+    // menulis baris → tidak dihitung sebagai row regen (skip count).
+    if (start > today && status === "Absent") {
+      await db.attendanceDaily.deleteMany({
+        where: { employeeId: emp.id, workDate: start, status: "Absent" },
+      });
+      continue;
+    }
 
     await db.attendanceDaily.upsert({
       where: { employeeId_workDate: { employeeId: emp.id, workDate: start } },
@@ -1012,6 +1037,16 @@ const OT_INCLUDE = {
 /** Batas lembur default bila kolom AttendanceRule belum termigrasi (PP 35/2021: 4 jam/hari). */
 const DEFAULT_MAX_OVERTIME_HOURS = 4;
 
+/**
+ * Fix audit 40 M-6 — cap lembur MINGGUAN statutory: PP 35/2021 Pasal 26
+ * (perubahan atas UU 13/2003 Ps.79) = maksimum 18 jam lembur per minggu
+ * (jendela Senin 00:00 – Minggu 24:00). Konstanta di KODE, bukan kolom
+ * AttendanceRule — regulasi wajib berlaku seragam di semua tenant tanpa
+ * migrasi schema; cap harian (default 4 jam) & cap bulanan opsional tetap
+ * dibaca dari AttendanceRule.
+ */
+const WEEKLY_OT_CAP_MINUTES = 18 * 60;
+
 /** Menit efektif sebuah order terhadap cap (Pending = rencana, sudah diputus = jam dibayar). */
 function otEffectiveMinutes(o: { status: string; planMinutes: number; verifiedMinutes: number; actualMinutes: number }): number {
   return o.status === "Pending" ? o.planMinutes : o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes;
@@ -1048,6 +1083,38 @@ async function activeOvertimeMinutesOnDate(db: TenantDb, employeeId: string, dat
   return rows.reduce((s, o) => s + otEffectiveMinutes(o), 0);
 }
 
+/**
+ * Fix audit 40 M-6 — Senin 00:00 lokal dari tanggal tsb (awal minggu
+ * Senin–Minggu yang MEMUAT tanggal tsb — patokan jendela cap mingguan).
+ */
+function weekStartMonday(d: Date): Date {
+  const s = dayStart(d);
+  const diff = (s.getDay() + 6) % 7; // Senin=0, Selasa=1, …, Minggu=6
+  return addDays(s, -diff);
+}
+
+/**
+ * Fix audit 40 M-6 — total menit lembur AKTIF (Pending/Approved/Paid) karyawan
+ * sepanjang minggu (Senin 00:00 s/d Minggu 24:00) yang memuat tanggal tsb.
+ * Menit efektif per order = otEffectiveMinutes (Pending → rencana/planMinutes,
+ * sudah diputus → verifiedMinutes bila >0, else actualMinutes) — konsisten
+ * dengan rekap uang recapPeriod/transferToPayroll dan helper cap harian/bulanan.
+ */
+async function activeOvertimeMinutesInWeek(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+  const weekFrom = weekStartMonday(date);
+  const weekTo = addDays(weekFrom, 7);
+  const rows = await db.overtimeOrder.findMany({
+    where: {
+      employeeId,
+      overtimeDate: { gte: weekFrom, lt: weekTo },
+      status: { in: ["Pending", "Approved", "Paid"] },
+      ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
+    },
+    select: { status: true, planMinutes: true, verifiedMinutes: true, actualMinutes: true },
+  });
+  return rows.reduce((s, o) => s + otEffectiveMinutes(o), 0);
+}
+
 /** Total menit lembur AKTIF karyawan sepanjang bulan tanggal tsb. */
 async function activeOvertimeMinutesInMonth(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
   const monthStart = dayStart(new Date(date.getFullYear(), date.getMonth(), 1));
@@ -1064,9 +1131,12 @@ async function activeOvertimeMinutesInMonth(db: TenantDb, employeeId: string, da
   return rows.reduce((s, o) => s + otEffectiveMinutes(o), 0);
 }
 
-/** Validasi cap lembur harian + bulanan — ramah (400 di route), BUKAN sekadar warning.
- *  Dipakai saat SUBMIT dan di-REVALIDASI saat APPROVE (sebelum chain diputus
- *  supaya kegagalan meninggalkan order + chain utuh — pola T5 saldo workoff). */
+/** Validasi cap lembur harian + MINGGUAN statutory + bulanan — ramah (400 di
+ *  route), BUKAN sekadar warning. Dipakai saat SUBMIT dan di-REVALIDASI saat
+ *  APPROVE/VERIFY (sebelum chain diputus supaya kegagalan meninggalkan order
+ *  + chain utuh — pola T5 saldo workoff). HANYA dipanggil di titik keputusan
+ *  manusia (submit/approve/verify) — bukan saat regen rekap, agar order yang
+ *  sudah approved tidak ikut ditolak oleh proses otomatis (konsistensi M-6). */
 async function assertOvertimeCaps(
   db: TenantDb,
   employeeId: string,
@@ -1092,6 +1162,15 @@ async function assertOvertimeCaps(
         `sudah terdaftar ${Math.round(othersToday / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
     );
   }
+  // Fix audit 40 M-6 — cap MINGGUAN statutory 18 jam (PP 35/2021 Ps.26): jendela
+  // Senin 00:00 s/d Minggu 24:00 yang memuat tanggal order; total kumulatif
+  // lintas hari (tanpa ini 6 hari × 4 jam = 24 jam/minggu lolos cap harian).
+  const othersWeek = await activeOvertimeMinutesInWeek(db, employeeId, overtimeDate, opts.excludeOrderId);
+  if (othersWeek + payable > WEEKLY_OT_CAP_MINUTES) {
+    throw new Error(
+      `PP 35/2021 Ps.26: maksimum 18 jam lembur per minggu — minggu ini sudah terdaftar ${Math.round(othersWeek / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+    );
+  }
   if (monthlyHours != null) {
     const othersMonth = await activeOvertimeMinutesInMonth(db, employeeId, overtimeDate, opts.excludeOrderId);
     if (othersMonth + payable > monthlyHours * 60) {
@@ -1112,6 +1191,19 @@ export interface OvertimeSubmitResult {
   firstApprover: string | null;
 }
 
+/**
+ * Fix audit 40 minor #3 — validasi ketat jam "HH:MM": jam 00–23, menit 00–59.
+ * Dulu hanya regex `^\d{2}:\d{2}$` → "25:99" lolos dari jalur admin → Date
+ * Invalid/NaN tersbar ke perhitungan plan/aktual (error 500 saat submit).
+ * (Jalur ESS sudah validasi ketat di route — ini menutup jalur admin/service.)
+ */
+function isValidTimeStr(s: string): boolean {
+  if (!/^\d{2}:\d{2}$/.test(s)) return false;
+  const h = parseInt(s.slice(0, 2), 10);
+  const m = parseInt(s.slice(3, 5), 10);
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
 export async function submitOvertimeOrder(
   db: TenantDb,
   input: {
@@ -1122,7 +1214,10 @@ export async function submitOvertimeOrder(
 ): Promise<OvertimeSubmitResult> {
   if (!input.employeeId) throw new Error("Karyawan wajib dipilih");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.overtimeDate)) throw new Error("Tanggal lembur tidak valid (YYYY-MM-DD)");
-  if (!/^\d{2}:\d{2}$/.test(input.timeFrom) || !/^\d{2}:\d{2}$/.test(input.timeTo)) throw new Error("Jam mulai/selesai harus format HH:MM");
+  // Fix audit 40 minor #3 — "25:99" dkk ditolak ketat (jam 00–23, menit 00–59)
+  if (!isValidTimeStr(input.timeFrom) || !isValidTimeStr(input.timeTo)) {
+    throw new Error("Jam mulai/selesai harus format HH:MM dengan jam 00–23 dan menit 00–59");
+  }
 
   const date = new Date(`${input.overtimeDate}T00:00:00`);
   const tFrom = new Date(`${input.overtimeDate}T${input.timeFrom}:00`);
@@ -1133,7 +1228,8 @@ export async function submitOvertimeOrder(
     : Math.max(30, minutesBetween(tFrom, tTo));
 
   // T15-CHAIN-EXT: cap lembur PP 35/2021 — TOLAK pengajuan yang melampaui
-  // (maks {maxOvertimeHours} jam/hari + cap bulanan opsional dari AttendanceRule).
+  // (maks {maxOvertimeHours} jam/hari + MINGGUAN 18 jam Ps.26 [fix audit 40 M-6]
+  // + cap bulanan opsional dari AttendanceRule).
   await assertOvertimeCaps(db, input.employeeId, date, plan);
 
   // day type & kategori utk multiplier
@@ -1318,11 +1414,15 @@ export async function decideOvertimeOrder(
   if (action === "verify") {
     if (order.status !== "Approved") throw new Error("Verifikasi hanya untuk perintah yang sudah disetujui");
     const verified = Math.max(0, Math.round(opts.verifiedMinutes ?? order.actualMinutes));
-    // T15-CHAIN-EXT: jam terverifikasi tetap dibatasi cap harian (PP 35/2021)
-    const { dailyHours } = await overtimeCaps(db);
-    if (verified > dailyHours * 60) {
-      throw new Error(`Jam terverifikasi ${Math.ceil(verified / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (PP 35/2021) — kurangi jam dibayar`);
-    }
+    // Fix audit 40 minor #4 + M-6 — verify/actualisasi kini RE-VALIDASI cap
+    // KUMULATIF via assertOvertimeCaps: harian 4 jam TERMASUK order lembur lain
+    // di tanggal sama + MINGGUAN 18 jam (PP 35/2021 Ps.26) + bulanan bila di-set.
+    // Dulu hanya membandingkan jam order ini vs cap harian tunggal → order lain
+    // hari/minggu yang sama tidak dihitung (total bisa menembus cap).
+    await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, {
+      excludeOrderId: id,
+      verifiedMinutes: verified,
+    });
     const updated = await db.overtimeOrder.update({
       where: { id },
       data: { verifiedMinutes: verified, decisionNote: opts.note?.trim() || `Jam diverifikasi: ${verified} menit` },
@@ -1465,7 +1565,12 @@ async function annualAvailability(
   // (b) earned — prorate bulanan opsional (mirror computeParts)
   const winFrom = new Date(year, 0, 1);
   const from = emp.joinDate > winFrom ? emp.joinDate : winFrom;
-  const earned = type.prorateMonthly ? (type.entitlement * mirrorEarnedMonths(from, emp.joinDate, asOf)) / 12 : type.entitlement;
+  // Fix audit 40 M-5 — entitlement efektif rule-aware: pakai helper bersama
+  // (leave/services/entitlement.ts) supaya guard izin workoff tidak drift dari
+  // leave-service (rule aktif mis. tenure ≥ 5 th → 14 hari kini dihormati di
+  // sini juga). Tidak import leave-service (melingkar) — helper murni shared.
+  const effectiveEntl = await effectiveEntitlement(db, employeeId, type.id, year, asOf);
+  const earned = type.prorateMonthly ? (effectiveEntl * mirrorEarnedMonths(from, emp.joinDate, asOf)) / 12 : effectiveEntl;
   // (d) carry-over hangus setelah 31-12 periode
   const forfeitDate = new Date(year, 11, 31, 23, 59, 59);
   const forfeited = balance.carriedOver > 0 && asOf > forfeitDate ? balance.carriedOver : 0;

@@ -11,9 +11,13 @@ import {
   type ChainSummary, type DecideActor,
 } from "@/onevity/shared/services/approval-engine";
 // Task 33 — rule diferensiasi entitlement per parameter karyawan.
+// Fix audit 40 M-5 — kalkulasi rule-aware kini tinggal di modul bersama
+// leave/services/entitlement.ts (leaveTypeRules + entitlementFor dipindah ke
+// sana; leave-service import supaya semua call-site internal tetap satu logika
+// — dipakai juga settlement PHK/resignation utk uang cuti).
 import {
-  EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue,
-} from "@/onevity/shared/lib/parameter-rules";
+  effectiveEntitlement, leaveTypeRules, entitlementFor,
+} from "@/onevity/leave/services/entitlement";
 import { ruleContextMap, ruleContextForEmployee } from "@/onevity/shared/services/employee-rule-context";
 
 // ============ util ============
@@ -122,35 +126,10 @@ interface TypeLite {
 }
 
 // ============ Task 33 — rule diferensiasi entitlement ============
-
-/** Muat rule entitlement semua jenis cuti terlibat (map typeId → lite). */
-async function leaveTypeRules(
-  db: Pick<TenantDb, "leaveTypeRule">,
-  typeIds: string[],
-): Promise<Map<string, EntityRuleLite[]>> {
-  const map = new Map<string, EntityRuleLite[]>();
-  if (typeIds.length === 0) return map;
-  const rows = await db.leaveTypeRule.findMany({
-    where: { leaveTypeId: { in: typeIds }, active: true },
-  });
-  for (const r of rows) {
-    const arr = map.get(r.leaveTypeId) ?? [];
-    arr.push({ id: r.id, name: r.name, priority: r.priority, conditions: r.conditions, actionType: r.actionType, value: r.days, active: r.active, createdAt: r.createdAt });
-    map.set(r.leaveTypeId, arr);
-  }
-  return map;
-}
-
-/** Entitlement efektif karyawan: rule cocok pertama menang, tanpa rule/konteks → dasar. */
-function entitlementFor(
-  base: number,
-  rules: EntityRuleLite[] | undefined,
-  ctx: RuleContext | undefined | null,
-): number {
-  if (!rules || rules.length === 0 || !ctx) return base;
-  const matched = matchFirstRule(rules, ctx);
-  return matched ? applyRuleValue(matched.rule.actionType, matched.rule.value, base) : base;
-}
+// Fix audit 40 M-5 — leaveTypeRules & entitlementFor DIPINDAH ke modul bersama
+// leave/services/entitlement.ts (diekspor dari sana — satu sumber kebenaran
+// bersama settlement PHK & guard workoff); definisi lokal dihapus, semua
+// call-site di file ini tetap memanggil nama yang sama via import di atas.
 
 /** Hitung bagian dinamis saldo: earned/taken/applied/forfeited/remaining.
  * Task 33: `entitlementOverride` = entitlement hasil rule parameter karyawan
@@ -322,12 +301,11 @@ async function availableForRequest(
     where: { employeeId, leaveTypeId: type.id, year, status: { in: ["Approved", "MassLeave"] } },
     select: { workingDays: true, dateTo: true },
   });
-  // Task 33 — entitlement efektif via rule parameter karyawan.
-  const [ctx, typeRules] = await Promise.all([
-    ruleContextForEmployee(db, employeeId, asOf),
-    leaveTypeRules(db, [type.id]),
-  ]);
-  const eff = entitlementFor(type.entitlement, typeRules.get(type.id), ctx);
+  // Fix audit 40 M-5 — entitlement efektif via helper BERSAMA
+  // leave/services/entitlement.ts::effectiveEntitlement (rule-aware — rule
+  // LeaveTypeRule cocok pertama menang; dipakai juga settlement PHK/resign
+  // utk uang cuti, supaya tidak ada drift entitlement dasar vs rule).
+  const eff = await effectiveEntitlement(db, employeeId, type.id, year, asOf);
   const parts = computeParts(balance, type, emp, used, asOf, eff);
   const pending = await db.leaveRequest.findMany({
     where: {
@@ -821,6 +799,39 @@ export async function decideRequest(
   }
   if (chain.status === "InProgress") {
     const actor: DecideActor = input.actor ?? { role: "ADMIN", employeeId: null, name: input.actorId ?? "Sistem" };
+    // Fix audit 40 §5 minor#1 (mirror pola pre-validasi decideWorkoff di TA) —
+    // approve yang akan MEMFINALISASI chain (tidak ada jenjang berikutnya — kondisi
+    // `final` pada decideApprovalChain: steps tanpa levelNo > currentLevel)
+    // memvalidasi saldo + bentrok SEBELUM chain diputus. Tanpa ini chain menjadi
+    // final lebih dulu, lalu revalidasi serializable di bawah melempar "saldo tidak
+    // cukup" → state inkonsisten (chain Approved + dokumen masih Submitted; approve
+    // ulang hanya bisa lewat jalur fallback yang melewati otorisasi approver).
+    // Guard cepat BEST-EFFORT di luar tx reservasi (hanya baca — availableForRequest
+    // murni kalkulasi saldo, tidak memotong apa pun → tidak ada double-decrement);
+    // revalidasi serializable di bawah TETAP otoritatif untuk race approve paralel.
+    // Jenis allowAdvance (mis. CT-THN) tetap boleh minus sesuai desain — mirror
+    // blok validasi 875-906 (jenis event/non-tahunan tidak dicek saldonya).
+    const hasNextLevel = chain.steps.some((s) => s.levelNo > chain.currentLevel);
+    if (input.action === "approve" && !hasNextLevel && !type.allowAdvance) {
+      const avail = await availableForRequest(db, req.employeeId, type, req.year, new Date(), req.id);
+      if (round2(avail.available - req.workingDays) < 0) {
+        throw new Error(
+          `Saldo tidak cukup saat persetujuan: tersedia ${avail.available} hari` +
+            (avail.pendingDays > 0 ? ` (saldo ${avail.current}, terpotong ${avail.pendingDays} hari permintaan lain yang menunggu)` : "") +
+            ` — permintaan ini ${req.workingDays} hari. Tolak/batalkan permintaan lain atau lakukan penyesuaian saldo`,
+        );
+      }
+      const overlapPre = await db.leaveRequest.findFirst({
+        where: {
+          employeeId: req.employeeId, id: { not: req.id },
+          status: { in: ["Approved", "MassLeave"] },
+          dateFrom: { lte: dayStart(req.dateTo) }, dateTo: { gte: dayStart(req.dateFrom) },
+        },
+      });
+      if (overlapPre) {
+        throw new Error(`Bentrok dengan ${overlapPre.docNo} yang sudah disetujui (${fmtDate(overlapPre.dateFrom)} – ${fmtDate(overlapPre.dateTo)})`);
+      }
+    }
     const res = await decideApprovalChain(db, {
       docType: "Leave", docId: input.id, action: input.action, note: input.note, actor,
     });
@@ -1181,6 +1192,17 @@ export async function decideEncashment(
   };
 
   if (status === "Approved") {
+    // Fix audit 40 M-11/L-07 — amount encashment = snapshot approval, bukan hitung
+    // ulang gaji aktif (karyawan keluar → Rp0). Approval adalah momen nilai menjadi
+    // final: amount dihitung ulang dari gaji BERJALAN (nilai submit bisa basi bila
+    // gaji berubah) lalu DIPERSIST ke enc.amount — snapshot inilah yang nanti
+    // ditransfer ke payroll (transferEncashment tidak lagi menghitung ulang;
+    // L-07: hasil hitung ulang HARUS tersimpan supaya payslip = record encashment).
+    // Karyawan TANPA assignment aktif (sudah keluar → gaji 0) mempertahankan
+    // snapshot submit — hak uang cuti yang sudah disetujui tidak hangus Rp0 hanya
+    // karena karyawan berhenti (settlement PHK pun meng-exclude hari yang cashed).
+    const salary = await activeSalary(db, enc.employeeId);
+    const amountApproved = salary > 0 ? Math.round((enc.days * salary) / 25) : enc.amount;
     // L-02 (KRITIS): re-check remaining dalam transaksi serializable sebelum cashed
     // bertambah — tanpa ini encashment paralel / encash+cuti paralel melampaui
     // entitlement (cashed > entitlement → overpay UCT).
@@ -1219,7 +1241,8 @@ export async function decideEncashment(
       }
       const upd = await tx.leaveEncashment.updateMany({
         where: { id: input.id, status: "Submitted" },
-        data: { status: "Approved", ...decided },
+        // amount dipersist saat approve (L-07) — nilai snapshot yang otoritatif
+        data: { status: "Approved", amount: amountApproved, ...decided },
       });
       if (upd.count === 0) throw new Error("Encashment sudah diproses oleh pengguna lain — muat ulang daftar");
       // saldo cashed bertambah (kolom e) — atomic dengan status Approved
@@ -1301,6 +1324,23 @@ export async function transferEncashment(
   const comp = await db.wageComponent.findUnique({ where: { code: "UCT" } });
   if (!comp) throw new Error("Komponen upah UCT belum didefinisikan (hubungi admin)");
 
+  // Fix audit 40 M-7 (sisa temuan M-08 lama di jalur leave — travel sudah fixed):
+  // mirror guard travel transferClaimsToPayroll — period dengan run
+  // Confirmed/Paid utk processType target TIDAK boleh menerima transfer.
+  // Assignment UCT yang dibuat SETELAH run dihitung/dibayar tidak akan pernah
+  // dimuat run → saldo cashed sudah terkonsumsi saat approve + encashment
+  // ditandai Transferred, tapi uangnya tidak pernah dibayar (hangus diam-diam,
+  // tanpa jalur recovery — kasus terjebak period pasca-confirm). Ditolak SEBELUM
+  // pembuatan assignment / penandaan Transferred (mutasi pertama di bawah).
+  const doneRuns = await db.payrollRun.count({
+    where: { periodId: period.id, processTypeId: pt.id, status: { in: ["Confirmed", "Paid"] } },
+  });
+  if (doneRuns > 0) {
+    throw new Error(
+      `Period ${period.name} sudah memiliki run payroll yang dikonfirmasi/dibayar — encashment yang ditransfer ke sini tidak akan pernah dibayar. Pilih period yang run-nya belum dikonfirmasi`,
+    );
+  }
+
   const start = dayStart(period.startDate);
   const end = dayStart(addDays(period.endDate, 1));
   const encs = await db.leaveEncashment.findMany({
@@ -1325,14 +1365,21 @@ export async function transferEncashment(
   // 28-c: nilai komponen encashment disimpan TERENKRIPSI (enc:v1:n:…).
   const tcE = tenantCryptoForDb(db);
   for (const e of encs) {
-    const salary = await activeSalary(db, e.employeeId);
-    const amount = Math.round((e.days * salary) / 25);
+    // Fix audit 40 M-11/L-07 — amount encashment = snapshot approval, bukan hitung
+    // ulang gaji aktif (karyawan keluar → Rp0): karyawan tanpa assignment aktif
+    // punya activeSalary = 0, padahal encashment sudah Approved dengan amount
+    // tersimpan (snapshot dipersist saat decideEncashment) — menghitung ulang di
+    // sini membuat hak uang cuti hilang total (settlement PHK juga meng-exclude
+    // hari yang sudah cashed, jadi tidak ada jalur pengganti). Nilai yang
+    // ditransfer = nilai yang di-approve; re-transfer ke period sama tetap
+    // idempoten karena amount snapshot stabil (assignment ditulis identik).
+    const amount = e.amount;
     await db.employeeComponentAssignment.create({
       data: {
         employeeId: e.employeeId, wageComponentId: comp.id,
         kind: "Specific", amount: tcE.encryptMoney(amount),
         periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
-        notes: `Uang pengganti cuti ${e.docNo} — ${e.days} hari × upah harian`,
+        notes: `Uang pengganti cuti ${e.docNo} — ${e.days} hari (snapshot approval)`,
         active: true,
       },
     });
@@ -1363,9 +1410,18 @@ export async function markEncashmentPaidForRun(db: TenantDb, runId: string): Pro
   const res = await db.leaveEncashment.updateMany({
     where: {
       status: "Transferred",
+      // Fix audit 40 §5 minor#5 — filter WAJIB mencocokkan periodCode run: baris
+      // encashment ditandai periodCode saat transferEncashment, jadi run period A
+      // hanya boleh menandai baris milik period A. Tanpa ini dua period yang
+      // rentang tanggalnya overlap (mis. Weekly/BiWeekly) saling menandai baris
+      // period lain → Paid via run yang UCT-nya tidak termuat (double-mark lintas
+      // period; assignment period asli tidak pernah dibayar). Legacy pra-periodCode
+      // (null) tetap lewat fallback window tanggal — hanya baris null yang boleh,
+      // dan status Transferred→Paid membuat penandaan cuma sekali.
       OR: [
-        { paymentDate: { gte: run.period.startDate, lte: run.period.endDate } },
-        { paymentDate: null, requestDate: { gte: run.period.startDate, lte: run.period.endDate } },
+        { periodCode: run.period.code },
+        { periodCode: null, paymentDate: { gte: run.period.startDate, lte: run.period.endDate } },
+        { periodCode: null, paymentDate: null, requestDate: { gte: run.period.startDate, lte: run.period.endDate } },
       ],
     },
     data: { status: "Paid", transferredRunNo: run.runNo },

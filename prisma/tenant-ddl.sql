@@ -386,6 +386,24 @@ CREATE TABLE "WageComponent" (
 );
 
 -- CreateTable
+CREATE TABLE "WageComponentRule" (
+    "id" TEXT NOT NULL,
+    "wageComponentId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" TEXT NOT NULL DEFAULT '[]',
+    "actionType" TEXT NOT NULL DEFAULT 'SetAmount',
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WageComponentRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PayrollPeriod" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -729,6 +747,24 @@ CREATE TABLE "BenefitType" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "BenefitType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BenefitTypeRule" (
+    "id" TEXT NOT NULL,
+    "benefitTypeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" TEXT NOT NULL DEFAULT '[]',
+    "actionType" TEXT NOT NULL DEFAULT 'SetLimit',
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BenefitTypeRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1239,6 +1275,24 @@ CREATE TABLE "LeaveType" (
 );
 
 -- CreateTable
+CREATE TABLE "LeaveTypeRule" (
+    "id" TEXT NOT NULL,
+    "leaveTypeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" TEXT NOT NULL DEFAULT '[]',
+    "actionType" TEXT NOT NULL DEFAULT 'SetDays',
+    "days" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LeaveTypeRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "LeaveBalance" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
@@ -1376,6 +1430,24 @@ CREATE TABLE "TravelExpenseType" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TravelExpenseType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TravelExpenseTypeRule" (
+    "id" TEXT NOT NULL,
+    "travelExpenseTypeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" TEXT NOT NULL DEFAULT '[]',
+    "actionType" TEXT NOT NULL DEFAULT 'SetLimit',
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TravelExpenseTypeRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1536,6 +1608,24 @@ CREATE TABLE "MedicalBenefitType" (
 );
 
 -- CreateTable
+CREATE TABLE "MedicalBenefitTypeRule" (
+    "id" TEXT NOT NULL,
+    "medicalBenefitTypeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+    "conditions" TEXT NOT NULL DEFAULT '[]',
+    "actionType" TEXT NOT NULL DEFAULT 'SetLimit',
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MedicalBenefitTypeRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "MedicalProvider" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -1677,9 +1767,12 @@ CREATE TABLE "WebhookLog" (
     "webhookId" TEXT NOT NULL,
     "event" TEXT NOT NULL,
     "payload" TEXT NOT NULL,
-    "status" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'delivered',
     "responseStatus" INTEGER,
     "error" TEXT,
+    "attempts" INTEGER NOT NULL DEFAULT 1,
+    "nextRetryAt" TIMESTAMP(3),
+    "lastError" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
@@ -2214,6 +2307,9 @@ CREATE INDEX "MedicalAdjustment_state_idx" ON "MedicalAdjustment"("state");
 CREATE UNIQUE INDEX "ApiKey_keyHash_key" ON "ApiKey"("keyHash");
 
 -- CreateIndex
+CREATE INDEX "WebhookLog_status_nextRetryAt_idx" ON "WebhookLog"("status", "nextRetryAt");
+
+-- CreateIndex
 CREATE INDEX "WebhookLog_webhookId_createdAt_idx" ON "WebhookLog"("webhookId", "createdAt");
 
 -- CreateIndex
@@ -2433,6 +2529,9 @@ ALTER TABLE "ApprovalStep" ADD CONSTRAINT "ApprovalStep_chainId_fkey" FOREIGN KE
 ALTER TABLE "ApprovalStep" ADD CONSTRAINT "ApprovalStep_approverEmployeeId_fkey" FOREIGN KEY ("approverEmployeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "WageComponentRule" ADD CONSTRAINT "WageComponentRule_wageComponentId_fkey" FOREIGN KEY ("wageComponentId") REFERENCES "WageComponent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "WageTemplateItem" ADD CONSTRAINT "WageTemplateItem_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2488,6 +2587,9 @@ ALTER TABLE "Account" ADD CONSTRAINT "Account_accountGroupId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "BenefitType" ADD CONSTRAINT "BenefitType_wageComponentId_fkey" FOREIGN KEY ("wageComponentId") REFERENCES "WageComponent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BenefitTypeRule" ADD CONSTRAINT "BenefitTypeRule_benefitTypeId_fkey" FOREIGN KEY ("benefitTypeId") REFERENCES "BenefitType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BenefitClaim" ADD CONSTRAINT "BenefitClaim_benefitTypeId_fkey" FOREIGN KEY ("benefitTypeId") REFERENCES "BenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -2592,6 +2694,9 @@ ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_employeeId_fke
 ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_dayTypeId_fkey" FOREIGN KEY ("dayTypeId") REFERENCES "WorkDayType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "LeaveTypeRule" ADD CONSTRAINT "LeaveTypeRule_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "LeaveBalance" ADD CONSTRAINT "LeaveBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2611,6 +2716,9 @@ ALTER TABLE "LeaveEncashment" ADD CONSTRAINT "LeaveEncashment_leaveTypeId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "MassLeave" ADD CONSTRAINT "MassLeave_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TravelExpenseTypeRule" ADD CONSTRAINT "TravelExpenseTypeRule_travelExpenseTypeId_fkey" FOREIGN KEY ("travelExpenseTypeId") REFERENCES "TravelExpenseType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TravelBudgetItem" ADD CONSTRAINT "TravelBudgetItem_budgetId_fkey" FOREIGN KEY ("budgetId") REFERENCES "TravelBudget"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2641,6 +2749,9 @@ ALTER TABLE "TravelClaim" ADD CONSTRAINT "TravelClaim_templateId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "TravelClaimExpense" ADD CONSTRAINT "TravelClaimExpense_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "TravelClaim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalBenefitTypeRule" ADD CONSTRAINT "MedicalBenefitTypeRule_medicalBenefitTypeId_fkey" FOREIGN KEY ("medicalBenefitTypeId") REFERENCES "MedicalBenefitType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MedicalBalance" ADD CONSTRAINT "MedicalBalance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;

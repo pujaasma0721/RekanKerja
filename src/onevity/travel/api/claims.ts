@@ -161,11 +161,15 @@ export async function POST(req: NextRequest) {
             periode: b.claimDate ? String(b.claimDate) : "-",
           },
         });
+        // ===== Notifikasi in-app (T15-CHAIN-EXT) — submit → approver jenjang pertama =====
+        // Fix audit 40 M-8: link "actions:inbox" (kotak PA saja — approver klaim travel
+        // tidak bisa membuka dokumen) → "travel:travel-claim-approval" (view Approval
+        // Klaim & Transfer di TRAVEL_NAV — dokumen klaim bisa dibuka dari notifikasi).
         await notifyEvent(db, {
           to: "nextApprover", docType: "TravelClaim", docNo: res.docNo,
           title: `Klaim settlement ${res.docNo} menunggu persetujuan Anda`,
           body: `${emp?.fullName ?? "Karyawan"} — klaim travel Rp ${res.totalSettlement.toLocaleString("id-ID")}${res.approvalLevels > 1 ? ` — approval ${res.approvalLevels} jenjang` : ""}`,
-          kind: "travel", link: "actions:inbox",
+          kind: "travel", link: "travel:travel-claim-approval",
         });
       } catch { /* never */ }
     })();
@@ -207,12 +211,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     // ===== Notifikasi in-app (T15-CHAIN-EXT) — approve parsial → approver jenjang berikut =====
+    // Fix audit 40 M-8: link "actions:inbox" (PA-only) → "travel:travel-claim-approval"
+    // (view Approval Klaim & Transfer di TRAVEL_NAV).
     if (b.action === "approve" && res.approval) {
       void notifyEvent(m.db, {
         to: "nextApprover", docType: "TravelClaim", docNo: res.docNo, docId: String(b.id),
         title: `Klaim settlement ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
         body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
-        kind: "travel", link: "actions:inbox",
+        kind: "travel", link: "travel:travel-claim-approval",
       });
     }
 

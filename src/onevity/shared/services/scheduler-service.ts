@@ -10,11 +10,17 @@
 // Guard:
 // - hanya runtime nodejs; tidak saat `next build` (phase-production-build)
 // - matikan via env SCHEDULER=off
-// - anti-tumpang-tindih: flag `running` (disimpan di globalThis agar tahan
-//   terhadap reload modul dev)
+// - anti-tumpang-tindih INTRA-proses: flag `running` (di globalThis, tahan
+//   reload modul dev)
+// - T41-M10 anti-tumpang-tindih ANTAR-proses (PM2 cluster / beberapa dev
+//   server): tiap job per tenant dipagari pg_try_advisory_lock dengan key
+//   deterministik hash(jobId, schema) — proses yang kalah SKIP job itu
+//   siklus ini; plus dedupe Reminder atomik ON CONFLICT (partial unique
+//   index ActivityLog, DDL scripts/migrate-scheduler-race.ts) sehingga
+//   notifikasi/email pengingat tidak dobel.
 // - timer setInterval/setTimeout di-unref() → tidak menahan proses exit
 //
-// Enam job (semua fire-and-forget, idempoten, defensif — tabel opsional
+// Delapan job (semua fire-and-forget, idempoten, defensif — tabel opsional
 // yang belum termigrasi di tenant → catch & skip senyap):
 //   a. resign-terjadwal : Employee Active + endDate < hari ini → status
 //      Terminated/Resigned (PA-aware) + ActivityLog (fix audit HR: resign
@@ -30,6 +36,9 @@
 //   e. payroll D-3     : PayrollPeriod aktif payday ≤ 3 hari tanpa run
 //      Confirmed → notifikasi + email Admin/HR. Dedupe per hari.
 //   f. housekeeping    : Notification lebih tua dari 180 hari dihapus.
+//   g. webhook-retry    : T41-M14 — WebhookLog status 'failed' & jatuh tempo
+//      (backoff 5m/30m/2h/6h/24h, maks 5 percobaan) dikirim ulang; sukses →
+//      delivered, percobaan ke-5 gagal → dead.
 //
 // Setiap siklus menulis SATU baris ringkasan ActivityLog per tenant
 // (action "Scheduled", entity "Scheduler", detail "n job, n notifikasi")
@@ -37,11 +46,13 @@
 // menjadi penanda dedupe.
 // =====================================================================
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/onevity/shared/services/email-defaults";
 import { notifyEmailEvent, type EmailRecipient } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { retryFailedWebhookDeliveries } from "@/onevity/shared/services/webhook-service";
 
 // ---------- konstanta & env flag ----------
 
@@ -100,6 +111,67 @@ const schedulerState: SchedulerGlobalState =
   globalForScheduler.__onevitySchedulerState ?? { running: false };
 globalForScheduler.__onevitySchedulerState = schedulerState;
 
+// ---------- T41-M10: mutex antar-proses per (job, tenant) ----------
+// Flag `running` hanya menghalangi tumpang tindih dalam SATU proses; di PM2
+// cluster / multi-server semua worker menjalankan siklus bersamaan. Tiap job
+// per tenant kini dipagari advisory lock PostgreSQL (pg_try_advisory_lock)
+// dengan key BIGINT deterministik = FNV-1a 32-bit dari `${jobId}:${schema}`
+// — proses yang kalah race mendapat false → SKIP job itu siklus ini (pekerja
+// lain sedang menjalankannya). Pola advisory lock merujuk journal-no.ts;
+// di sini memakai pg Client DEDICATED + unlock eksplisit karena job tidak
+// berjalan dalam satu transaksi tunggal. Koneksi selalu ditutup di finally.
+
+const SCHEDULER_DB_URL = () =>
+  process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";
+
+/** Hash FNV-1a 32-bit → string desimal (key advisory lock deterministik). */
+function fnv1a32(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return String(h >>> 0);
+}
+
+/**
+ * Jalankan `fn` hanya bila advisory lock (jobId, schema) berhasil direbut;
+ * mengembalikan { ran: false } bila proses lain sedang memegangnya (skip).
+ * Galat membuka kunci (pg tak terjangkau dsb.) → degradasi ke perilaku lama:
+ * job tetap dijalankan TANPA mutex (dedupe Reminder ON CONFLICT tetap
+ * menahan baris ganda). Error dari `fn` sendiri dibiarkan propagate —
+ * dibungkus safe() try/catch per job seperti sebelumnya (never-throw).
+ */
+async function withJobMutex(schema: string, jobId: string, fn: () => Promise<void>): Promise<{ ran: boolean }> {
+  const key = fnv1a32(`${jobId}:${schema}`);
+  let client: Client | null = null;
+  let acquired = false;
+  let skip = false;
+  try {
+    client = new Client({ connectionString: SCHEDULER_DB_URL() });
+    await client.connect();
+    const r = await client.query<{ ok: boolean }>(
+      "SELECT pg_try_advisory_lock($1::bigint) AS ok",
+      [key],
+    );
+    acquired = r.rows[0]?.ok === true;
+    if (!acquired) skip = true; // proses lain sedang menjalankan job ini
+  } catch {
+    // tanpa kunci → jalankan tanpa mutex (jangan matikan scheduler)
+  }
+  try {
+    if (!skip) await fn();
+  } finally {
+    if (client) {
+      try {
+        if (acquired) await client.query("SELECT pg_advisory_unlock($1::bigint)", [key]);
+      } catch { /* best-effort unlock */ }
+      try { await client.end(); } catch { /* ignore */ }
+    }
+  }
+  return { ran: !skip };
+}
+
 // ---------- util kecil ----------
 
 function startOfDay(d: Date): Date {
@@ -151,25 +223,42 @@ async function writeActivity(
 }
 
 /**
- * KLAIM pengingat secara atomik (INSERT … WHERE NOT EXISTS — satu statement):
- * mengembalikan true bila kunci dedupe BELUM pernah diklaim (pemanggil boleh
- * mengirim), false bila sudah ada / gagal insert. Klaim dibuat SEBELUM kirim
- * supaya dua proses scheduler yang berjalan bersamaan (interval dev server +
- * skrip manual) tidak dobel-kirim — jendela race hanya mikrodetik.
+ * KLAIM pengingat secara atomik (INSERT … ON CONFLICT DO NOTHING — satu
+ * statement): mengembalikan true bila kunci dedupe BARU ditanam (pemanggil
+ * boleh mengirim), false bila sudah diklaim / gagal insert.
+ * T41-M10: race antar-proses (PM2 cluster / dev server + skrip manual) kini
+ * ditahan DATABASE — partial unique index "ActivityLog_dedu_reminder"
+ * ON ("action","entity","entityId") WHERE "entityId" IS NOT NULL AND
+ * "action" = 'Reminder' (DDL: scripts/migrate-scheduler-race.ts; tenant baru
+ * via provisioning — index partial TIDAK bisa diekspresikan di Prisma).
+ * Index hanya menahan baris Reminder — ActivityLog bisnis lain (mis.
+ * "Employee/Updated" berulang) tidak terpengaruh. Bila index belum ada di
+ * tenant (pra-migrasi) → fallback jalur lama WHERE NOT EXISTS (best-effort).
  * Baris klaim sekaligus jejak audit "Reminder" (entity "Scheduler").
  */
 async function claimReminder(db: TenantDb, key: string, detail: string): Promise<boolean> {
+  const id = randomUUID();
   try {
-    const id = randomUUID();
     const n = await db.$executeRaw`
       INSERT INTO "ActivityLog" ("id","actorType","action","entity","entityId","employeeId","personnelActionId","detail","createdAt")
       SELECT ${id}, 'system', 'Reminder', 'Scheduler', ${key}, NULL, NULL, ${detail}, now()
-      WHERE NOT EXISTS (
-        SELECT 1 FROM "ActivityLog" WHERE action = 'Reminder' AND entity = 'Scheduler' AND "entityId" = ${key}
-      )`;
+      ON CONFLICT ("action","entity","entityId") WHERE "entityId" IS NOT NULL AND "action" = 'Reminder'
+      DO NOTHING`;
     return n === 1;
   } catch {
-    return false; // tabel/kolom belum termigrasi → anggap sudah diklaim (skip)
+    // Partial index belum terpasang di schema tenant ini → jalur lama
+    // (race jendela mikrodetik — tetap lebih baik daripada tidak mengingatkan).
+    try {
+      const n = await db.$executeRaw`
+        INSERT INTO "ActivityLog" ("id","actorType","action","entity","entityId","employeeId","personnelActionId","detail","createdAt")
+        SELECT ${id}, 'system', 'Reminder', 'Scheduler', ${key}, NULL, NULL, ${detail}, now()
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "ActivityLog" WHERE action = 'Reminder' AND entity = 'Scheduler' AND "entityId" = ${key}
+        )`;
+      return n === 1;
+    } catch {
+      return false; // tabel/kolom belum termigrasi → anggap sudah diklaim (skip)
+    }
   }
 }
 
@@ -795,6 +884,8 @@ export interface SchedulerJobCounts {
   slaReminders: number;
   payrollReminders: number;
   notificationsPruned: number;
+  /** T41-M14 — baris webhook yang dikirim ulang job webhook-retry. */
+  webhookRetried: number;
 }
 
 export interface SchedulerRunResult {
@@ -802,6 +893,8 @@ export interface SchedulerRunResult {
   jobs: SchedulerJobCounts;
   notificationsSent: number;
   templatesSeeded: number;
+  /** job yang dilewati karena advisory lock dipegang proses lain (T41-M10). */
+  mutexSkipped: number;
   errors: string[];
 }
 
@@ -810,12 +903,17 @@ export interface SchedulerRunResult {
  * diekspor juga untuk pengujian manual scripts/t14-test-scheduler.ts).
  * Setiap job dibungkus try/catch — kegagalan satu job tidak menghentikan
  * job lain, dan satu baris ringkasan ActivityLog ditulis per siklus.
+ * T41-M10: tiap job juga dipagari advisory lock per (jobId, schema) — bila
+ * proses lain sedang menjalankan job yang sama untuk tenant ini, job
+ * dilewati siklus ini (mutexSkipped++). `opts.schema` (schemaName) dipakai
+ * kunci lock; bila tidak diberikan (skrip uji lama) fallback ke label tenant.
  */
 export async function runAllJobs(
   db: TenantDb,
-  opts: { tenant?: string } = {},
+  opts: { tenant?: string; schema?: string } = {},
 ): Promise<SchedulerRunResult> {
   const tenant = opts.tenant ?? "tenant";
+  const schema = opts.schema ?? tenant; // kunci advisory lock per (job, schema)
   const errors: string[] = [];
   const jobs: SchedulerJobCounts = {
     resignTerminated: 0,
@@ -825,9 +923,11 @@ export async function runAllJobs(
     slaReminders: 0,
     payrollReminders: 0,
     notificationsPruned: 0,
+    webhookRetried: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
+  let mutexSkipped = 0;
 
   const safe = async (name: string, fn: () => Promise<void>): Promise<void> => {
     try {
@@ -836,35 +936,49 @@ export async function runAllJobs(
       errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
+  /** safe + mutex: lewati (dan catat) bila proses lain memegang job ini. */
+  const guarded = async (name: string, fn: () => Promise<void>): Promise<void> => {
+    await safe(name, async () => {
+      const r = await withJobMutex(schema, name, fn);
+      if (!r.ran) mutexSkipped++;
+    });
+  };
 
-  await safe("templates", async () => {
+  await guarded("templates", async () => {
     templatesSeeded = await ensureSchedulerTemplates(db);
   });
-  await safe("resign-terjadwal", async () => {
+  await guarded("resign-terjadwal", async () => {
     jobs.resignTerminated = await jobScheduledResignations(db);
   });
-  await safe("kontrak-probation", async () => {
+  await guarded("kontrak-probation", async () => {
     const r = await jobContractReminders(db);
     jobs.contractReminders = r.contract;
     jobs.probationReminders = r.probation;
     notificationsSent += r.notif;
   });
-  await safe("dokumen-kedaluwarsa", async () => {
+  await guarded("dokumen-kedaluwarsa", async () => {
     const r = await jobDocumentExpiryReminders(db);
     jobs.docReminders = r.docs;
     notificationsSent += r.notif;
   });
-  await safe("sla-approval", async () => {
+  await guarded("sla-approval", async () => {
     const r = await jobApprovalSlaReminders(db);
     jobs.slaReminders = r.chains;
     notificationsSent += r.notif;
   });
-  await safe("payroll-d3", async () => {
+  await guarded("payroll-d3", async () => {
     const r = await jobPayrollReminders(db);
     jobs.payrollReminders = r.periods;
     notificationsSent += r.notif;
   });
-  await safe("housekeeping", async () => {
+  await guarded("webhook-retry", async () => {
+    // T41-M14 — kirim ulang webhook gagal yang jatuh tempo (backoff) —
+    // processor NEVER-THROW di webhook-service; kolom baru WebhookLog yang
+    // belum termigrasi di tenant → skip senyap dari dalam processor.
+    const r = await retryFailedWebhookDeliveries(db);
+    jobs.webhookRetried = r.retried;
+  });
+  await guarded("housekeeping", async () => {
     jobs.notificationsPruned = await jobNotificationHousekeeping(db);
   });
 
@@ -875,14 +989,17 @@ export async function runAllJobs(
     jobs.docReminders +
     jobs.slaReminders +
     jobs.payrollReminders +
-    jobs.notificationsPruned;
+    jobs.notificationsPruned +
+    jobs.webhookRetried;
   const detail =
     `${totalJobs} job, ${notificationsSent} notifikasi` +
     (templatesSeeded > 0 ? `, ${templatesSeeded} template baru` : "") +
+    (jobs.webhookRetried > 0 ? `, ${jobs.webhookRetried} webhook retry` : "") +
+    (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });
 
-  return { tenant, jobs, notificationsSent, templatesSeeded, errors };
+  return { tenant, jobs, notificationsSent, templatesSeeded, mutexSkipped, errors };
 }
 
 // ---------- orkestrasi lintas tenant + timer ----------
@@ -896,8 +1013,10 @@ export interface SchedulerCycleResult {
 
 /**
  * SATU siklus scheduler: semua Tenant ACTIVE → runAllJobs per tenant.
- * Anti-tumpang-tindih: bila siklus sebelumnya masih berjalan → skip.
- * Gagal satu tenant (DB/schema belum siap) tidak menghentikan tenant lain.
+ * Anti-tumpang-tindih intra-proses: bila siklus sebelumnya masih berjalan →
+ * skip. AntAR-proses (PM2 cluster): advisory lock per (job, tenant) di
+ * dalam runAllJobs (T41-M10). Gagal satu tenant (DB/schema belum siap)
+ * tidak menghentikan tenant lain.
  */
 export async function runAllTenants(): Promise<SchedulerCycleResult> {
   if (schedulerState.running) return { skipped: true, tenants: 0, ok: 0, failed: 0 };
@@ -915,7 +1034,7 @@ export async function runAllTenants(): Promise<SchedulerCycleResult> {
     for (const t of tenants) {
       try {
         const db = getTenantClient(t.schemaName);
-        const res = await runAllJobs(db, { tenant: t.slug });
+        const res = await runAllJobs(db, { tenant: t.slug, schema: t.schemaName });
         if (res.errors.length > 0) {
           console.warn(`[scheduler] tenant ${t.slug} — job bermasalah: ${res.errors.join(" | ")}`);
         }
@@ -926,7 +1045,8 @@ export async function runAllTenants(): Promise<SchedulerCycleResult> {
           res.jobs.docReminders +
           res.jobs.slaReminders +
           res.jobs.payrollReminders +
-          res.jobs.notificationsPruned;
+          res.jobs.notificationsPruned +
+          res.jobs.webhookRetried;
         notifCount += res.notificationsSent;
         ok++;
       } catch (e) {

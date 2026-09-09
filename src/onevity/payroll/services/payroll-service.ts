@@ -116,14 +116,33 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   // T19: run TERMINATION (final settlement PHK) memproses karyawan yang BARU
   // KELUAR (status Termination/Resignation sudah diterapkan PA) — assignment
   // TERAKHIR dipakai sebagai snapshot penempatan (termasuk yang validTo-nya
-  // sudah ditutup oleh PA). Jenis run lain (SALARY/THR/BONUS/…) tetap hanya
-  // karyawan Active dengan assignment aktif — perilaku lama tidak berubah.
+  // sudah ditutup oleh PA). Jenis run lain (SALARY/THR/BONUS/…) memuat
+  // karyawan Active dengan assignment aktif — DAN sejak fix K-2 juga leaver.
+  // Fix audit 40 K-2 — leaver (validTo dalam period) tetap masuk run SALARY
+  // dengan prorate s.d. hari terakhir: dulu karyawan berstatus keluar
+  // (Resigned/Terminated) LANGSUNG dikecualikan begitu PA diproses (assignment
+  // ditutup validTo = lastDay, filter where validTo:null + status Active) —
+  // termasuk hari kerjanya s.d. lastDay → upah bulan terakhir tidak dibayar
+  // siapa pun (underpayment sistemik semua jalur keluar; upah terakhir TIDAK
+  // masuk settlement PHK by design). Sekarang: assignment yang masih menyentuh
+  // period (validTo null ATAU validTo >= periodStart — validTo = lastDay
+  // INKLUSIF hari terakhir masuk kerja) tetap dimuat + prorate leaver di bawah.
+  // Karyawan yang keluar SEBELUM period (validTo/endDate < periodStart) tetap
+  // dikecualikan; branch TERMINATION tidak berubah (item settlement, bukan upah).
   const isTerminationRun = processType.code === "TERMINATION";
+  const leaverAssignmentFilter = {
+    OR: [{ validTo: null }, { validTo: { gte: period.startDate } }],
+  };
   const activeEmployees = await db.employee.findMany({
-    where: { status: isTerminationRun ? { in: ["Active", "Resigned", "Terminated"] } : "Active" },
+    where: isTerminationRun
+      ? { status: { in: ["Active", "Resigned", "Terminated"] } }
+      : {
+          status: { in: ["Active", "Resigned", "Terminated"] },
+          assignments: { some: leaverAssignmentFilter },
+        },
     include: {
       assignments: {
-        ...(isTerminationRun ? {} : { where: { validTo: null } }),
+        ...(isTerminationRun ? {} : { where: leaverAssignmentFilter }),
         orderBy: { validFrom: "desc" },
         include: {
           orgUnit: { select: { code: true, name: true } },
@@ -215,9 +234,38 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     }
   }
 
+  // Fix audit 40 K-2 — batas period dinormalisasi ke HARI (inklusif) utk
+  // kalkulasi prorate joiner/leaver (pola sama dgn validFrom di bawah).
+  const periodStartDay = new Date(period.startDate);
+  periodStartDay.setHours(0, 0, 0, 0);
+  const periodEndDay = new Date(period.endDate);
+  periodEndDay.setHours(0, 0, 0, 0);
+
   for (const emp of activeEmployees) {
     const assignment = emp.assignments[0];
     if (!assignment) continue; // tidak punya penempatan aktif → dilewati
+
+    // Fix audit 40 K-2 — hari terakhir kerja EFEKTIF utk run non-TERMINATION:
+    // assignment.validTo (PA menutup assignment pada lastDay — INKLUSIF hari
+    // terakhir masuk kerja) → fallback Employee.endDate (residu jalur senyap
+    // M-13: karyawan keluar tanpa penutupan assignment). null = bekerja s.d.
+    // akhir period (karyawan biasa / leaver dgn validTo >= akhir period).
+    let lastWorkDay: Date | null = null;
+    if (!isTerminationRun) {
+      const validToDay = assignment.validTo ? new Date(assignment.validTo) : null;
+      if (validToDay) validToDay.setHours(0, 0, 0, 0);
+      const endDay = emp.endDate ? new Date(emp.endDate) : null;
+      if (endDay) endDay.setHours(0, 0, 0, 0);
+      if (validToDay) {
+        if (validToDay < periodStartDay) continue; // keluar sebelum period → tanpa upah period ini
+        lastWorkDay = validToDay;
+      } else if (emp.status !== "Active") {
+        // karyawan keluar tapi assignment belum tertutup (data residu) — endDate dipakai
+        if (!endDay || endDay < periodStartDay) continue;
+        lastWorkDay = endDay;
+      }
+    }
+
     const profile = emp.payrollProfile;
     const taxStatus = profile?.taxStatus ?? "TK0";
     // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk engine (number).
@@ -231,6 +279,22 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       const totalDays = (new Date(period.endDate).getTime() - new Date(period.startDate).getTime()) / 86_400_000 + 1;
       const worked = (new Date(period.endDate).getTime() - validFrom.getTime()) / 86_400_000 + 1;
       prorateFactor = Math.max(0, Math.min(1, worked / Math.max(1, totalDays)));
+      if (prorateFactor >= 0.999) prorateFactor = 1;
+    }
+
+    // Fix audit 40 K-2 — prorate leaver, SIMETRIS dgn prorate joiner di atas
+    // (basis HARI KALENDER period inklusif, bukan hari kerja — pola yang sama
+    // persis supaya konsisten): hari efektif = max(validFrom, periodStart) s.d.
+    // lastWorkDay (inklusif) / jumlah hari period. Intersection dgn prorate
+    // joiner (min) bila karyawan masuk & keluar di period yang sama. Contoh:
+    // period Sep (30 hari), lastDay 15 Sep → 15/30 = 50%; lastDay >= 30 Sep →
+    // 100% (tidak dipotong); masuk 6 Sep & keluar 15 Sep → 10/30 ≈ 33,3%.
+    if (lastWorkDay && lastWorkDay < periodEndDay) {
+      const totalDays = (periodEndDay.getTime() - periodStartDay.getTime()) / 86_400_000 + 1;
+      const from = validFrom > periodStartDay ? validFrom : periodStartDay;
+      const worked = (lastWorkDay.getTime() - from.getTime()) / 86_400_000 + 1;
+      const leaverFactor = Math.max(0, Math.min(1, worked / Math.max(1, totalDays)));
+      prorateFactor = Math.min(prorateFactor, leaverFactor);
       if (prorateFactor >= 0.999) prorateFactor = 1;
     }
 
@@ -480,6 +544,8 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   });
   if (!run) throw new Error("Run payroll tidak ditemukan");
   if (run.status !== "Calculated") throw new Error("Run harus berstatus Calculated sebelum dikonfirmasi");
+  // 28-c: konteks dekripsi per-tenant — item run tersimpan terenkripsi.
+  const tc = tenantCryptoForDb(db);
 
   // Apply angsuran pinjaman: item LOAN pada tiap line → tandai installment Deducted.
   for (const line of run.lines) {
@@ -506,6 +572,102 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
         where: { id: loan.id },
         data: { paidAmount: paid, outstanding, status: outstanding <= 0 ? "PaidOff" : "Active" },
       });
+    }
+  }
+
+  // Fix audit 40 M-12 — sinkron potongan settlement PHK_POT_LOAN ke BUKU
+  // EmployeeLoan saat run TERMINATION dikonfirmasi. Item PHK_POT_LOAN
+  // (wageType Deduction — dibuat settlement-service dari sisa outstanding
+  // pinjaman saat PA diproses, settlement-service.ts:363) dulu TIDAK pernah
+  // menyentuh EmployeeLoan (bukan wageType "Loan") → piutang pinjaman tetap
+  // outstanding meski uangnya sudah dipotong dari settlement → piutang
+  // overstated. Identifikasi: referensi EKSPLISIT = letterNo pinjaman pada
+  // notes EmployeeComponentAssignment settlement (period × processType run
+  // ini — pola sama item LOAN "name includes letterNo"); bila tidak ada,
+  // di-apply ke pinjaman outstanding karyawan OLDEST-FIRST sampai habis.
+  // Nilai EmployeeLoan.paidAmount/outstanding adalah Float polos (bukan
+  // terenkripsi — 28-c hanya gaji/komponen). Best-effort non-fatal (style
+  // callback confirmRun lain) + ActivityLog.
+  if (run.processType.code === "TERMINATION") {
+    try {
+      const phkLoanComp = await db.wageComponent.findUnique({ where: { code: "PHK_POT_LOAN" } });
+      if (phkLoanComp) {
+        for (const line of run.lines) {
+          const items = line.items.filter((i) => i.code === "PHK_POT_LOAN" && i.wageType === "Deduction");
+          if (items.length === 0) continue;
+          // notes assignment settlement memuat daftar letterNo pinjaman yang dipotong
+          const settlementAssignment = await db.employeeComponentAssignment.findFirst({
+            where: {
+              employeeId: line.employeeId, wageComponentId: phkLoanComp.id, kind: "Specific",
+              periodId: run.periodId, processTypeId: run.processTypeId, active: true,
+            },
+            select: { notes: true },
+          });
+          const loans = await db.employeeLoan.findMany({
+            where: { employeeId: line.employeeId, status: "Active" },
+            orderBy: [{ loanDate: "asc" }, { letterNo: "asc" }],
+          });
+          if (loans.length === 0) continue;
+          for (const item of items) {
+            const amount = tc.decryptMoney(item.amount) ?? 0;
+            if (amount <= 0) continue;
+            const note = settlementAssignment?.notes ?? "";
+            // pinjaman yang DIRUJUK note didahulukan (eksplisit), sisanya oldest-first
+            const referenced = loans.filter((l) => l.letterNo && note.includes(l.letterNo));
+            const ordered = [...new Map([...referenced, ...loans].map((l) => [l.id, l])).values()];
+            let remaining = amount;
+            const applied: string[] = [];
+            for (const loan of ordered) {
+              if (remaining <= 0.005) break;
+              // baca ulang buku pinjaman (amankan terhadap mutasi paralel)
+              const cur = await db.employeeLoan.findUnique({
+                where: { id: loan.id },
+                select: { paidAmount: true, outstanding: true },
+              });
+              const outstanding = Math.max(0, cur?.outstanding ?? 0);
+              if (outstanding <= 0) continue;
+              const pay = Math.min(remaining, outstanding);
+              const paidAmount = (cur?.paidAmount ?? 0) + pay;
+              const newOutstanding = Math.max(0, outstanding - pay);
+              await db.employeeLoan.update({
+                where: { id: loan.id },
+                data: { paidAmount, outstanding: newOutstanding, status: newOutstanding <= 0 ? "PaidOff" : "Active" },
+              });
+              if (newOutstanding <= 0) {
+                // angsuran Pending tidak akan pernah ditagih lagi → Skipped + jejak run
+                await db.loanInstallment.updateMany({
+                  where: { loanId: loan.id, status: "Pending" },
+                  data: { status: "Skipped", periodCode: run.period.code, deductedRunNo: run.runNo },
+                });
+              }
+              remaining -= pay;
+              applied.push(`${loan.letterNo} Rp ${Math.round(pay).toLocaleString("id-ID")}`);
+            }
+            if (applied.length > 0) {
+              await db.activityLog.create({
+                data: {
+                  action: "Updated", entity: "EmployeeLoan", entityId: line.employeeId, employeeId: line.employeeId,
+                  detail:
+                    `Sinkron potongan settlement ${run.runNo} (PHK_POT_LOAN) ke buku pinjaman: ${applied.join(", ")}` +
+                    (remaining > 0.005
+                      ? ` — sisa Rp ${Math.round(remaining).toLocaleString("id-ID")} tidak dapat diaplikasikan (outstanding pinjaman lebih kecil dari potongan settlement)`
+                      : ""),
+                },
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // non-fatal: konfirmasi run tetap sah; penyesuaian buku pinjaman manual
+      try {
+        await db.activityLog.create({
+          data: {
+            action: "Error", entity: "PayrollRun", entityId: runId,
+            detail: `Gagal sinkron PHK_POT_LOAN ke buku EmployeeLoan (fix audit 40 M-12): ${e instanceof Error ? e.message : "unknown"}`,
+          },
+        });
+      } catch { /* never */ }
     }
   }
 

@@ -878,20 +878,26 @@ const CASH_ACC = { code: "1101", name: "Kas & Bank" };
 // C-04 (24-FIX-TRAVEL): akun kliring payroll — penamaan selaras JOURNAL_ACCOUNTS.clearing
 // di payroll/services/payroll-journal.ts (2101 Hutang Gaji).
 const SALARY_PAYABLE_ACC = { code: "2101", name: "Hutang Gaji" };
+// Fix audit 40 M-3/M-4 — akun utang klaim kasbon — penamaan selaras
+// JOURNAL_ACCOUNTS.otherDed di payroll-journal.ts (2105 Potongan Lain-lain);
+// kredit 2105 TRVSTLIN di jurnal run menutup debit kasbon ini.
+const CLAIM_PAYABLE_ACC = { code: "2105", name: "Potongan Lain-lain" };
 
 /** Approve klaim → generate jurnal: Debit akun beban per baris + rugi kurs (5105).
  *  (a) biaya dibayar pihak lain TIDAK di-Debit sbg beban & TIDAK masuk arus kas /
  *  karyawan (fix B2 + g-2 audit) — dicatat sbg baris KONTRA Kredit 5105, sehingga
  *  beban bersih perusahaan = totalSettlement (gross settlement).
- *  C-04 (24-FIX-TRAVEL): sisi kredit dipecah per arus uang — porsi settlement yang
- *  mengalir lewat payroll ((b) payableEmployee via UTRP + (c) potongan TRVSTLIN)
- *  dikredit ke 2101 Hutang Gaji, HANYA porsi tunai ke 1101 Kas. Mencatat seluruhnya
- *  ke Kas membuat beban+kas tercatat 2× karena jurnal run payroll juga memposting
- *  beban/kas saat komponen UTRP dibayar di gaji (bukti CL-2026-001 + UTRP 900rb).
+ *  Fix audit 40 M-3 — model posting final (residu C-04 beban dobel + 2101 menumpuk
+ *  + 2105 phantom ditutup): D 5105 R (beban SEKALI); C 2101 HANYA b (porsi yang
+ *  memang dibayar payroll via UTRP — run membalas dgn pass-through D 2101, bukan
+ *  D 5105 lagi); kasbon c = DEBIT 2105 (utang klaim karyawan) yang ditutup kredit
+ *  2105 TRVSTLIN di jurnal run (2101 & 2105 bersih lintas klaim↔run); C 1101 tunai
+ *  = avail + kasbon − b (= advance a — kas advance "Given" memang tak pernah
+ *  dijurnal, GAP-4, baru tercatat di sini).
+ *  Fix audit 40 M-4 — kasbon jurnal = c PENUH (tanpa clamp min(c,R)), sama persis
+ *  dgn assignment TRVSTLIN & tampilan settlement (sumber: claim.payableCompany).
  *  T3-TRAVEL: konsistensi dgn formula baru — b/c = max(0, R − advance)/max(0,
- *  advance − R) dgn R = expenses + loss − (a); porsi payroll dibatasi maksimal R:
- *  bila kasbon > realisasi ((c) melebihi R), kelebihan pengembalian uang muka
- *  menunggu siklus hidup advance (baris tetap non-negatif & D=C).
+ *  advance − R) dgn R = expenses + loss − (a).
  *  Idempoten: jurnal lama klaim (runNo = docNo klaim) dibuang lalu dibuat ulang. */
 export async function generateClaimJournal(db: TenantDb, claimId: string): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
   const claim = await db.travelClaim.findUnique({
@@ -924,17 +930,42 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
   }
   // total Debit = Σ rincian + rugi kurs (beban bruto realisasi perusahaan)
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
-  if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
 
   // T3-TRAVEL: (a) biaya dibayar pihak lain = baris KONTRA kredit 5105 (dibatasi
   // total beban) — bukan beban/arus kas/karyawan. Beban bersih = total − contra = R.
   const contraA = Math.min(Math.max(0, round2(claim.otherCompanyExp)), total);
   const avail = round2(total - contraA); // = totalReimbursement (R)
-  // C-04: pecah kredit — payroll portion (b+c) → 2101 Hutang Gaji, sisa porsi
-  // tunai → 1101 Kas (dibatasi R agar semua baris non-negatif & D=C).
+  // ==== Fix audit 40 M-3 — model posting akhir (semua loop tertutup, D=C) ====
+  //   JURNAL KLAIM (di sini):  D 5105 R            → beban TEPAT SEKALI
+  //                             C 2101 b            → porsi payroll (UTRP)
+  //                             C 1101 tunai        → tunai = avail + kasbon − b
+  //                             D 2105 kasbon       → utang klaim karyawan (a−R)
+  //   JURNAL RUN (payroll-journal.ts):
+  //     UTRP pass-through:       D 2101 b / C 2101 b (thpEarnings) → net 0 di run;
+  //                             debit 2101 b menutup kredit 2101 b jurnal klaim.
+  //     TRVSTLIN (standard):    D 2101 c / C 2105 c → kredit 2105 c menutup debit
+  //                             kasbon jurnal klaim; net pay turun c (potongan).
+  //   → lintas klaim+run: 5105 = R sekali; 2101 net 0; 2105 net 0; 1101 = tunai +
+  //   net pay (b masuk THP). Porsi tunai = avail + kasbon − b — tepat sebesar
+  //   advance a (kas advance saat "Given" memang tidak pernah dijurnal, GAP-4
+  //   audit 40 §6.4 — baru tercatat di sini; jadi buku 1101 akhirnya = bank).
+  // Fix audit 40 M-4 — nilai kasbon konsisten jurnal ↔ potongan TRVSTLIN: kasbon
+  // = c PENUH (claim.payableCompany — sumber nilai yang SAMA dengan assignment
+  // TRVSTLIN di transferClaimsToPayroll & tampilan settlement), TANPA clamp
+  // min(c, R). Clamp lama membuat buku mencatat utang < potongan aktual
+  // karyawan. Baris tetap non-negatif & D=C: kasbon ≥ 0 dan bPayroll ≤ avail
+  // (cap) → tunai = avail + kasbon − bPayroll ≥ 0 selalu.
   const bPayroll = Math.min(Math.max(0, round2(claim.payableEmployee)), avail);
-  const cPayroll = Math.min(Math.max(0, round2(claim.payableCompany)), round2(avail - bPayroll));
-  const cashPortion = round2(avail - bPayroll - cPayroll);
+  const kasbon = Math.max(0, round2(claim.payableCompany));
+  const cashPortion = round2(avail + kasbon - bPayroll);
+  // Klaim tanpa beban riil (R=0) & tanpa kasbon → tidak ada jurnal. Fix audit 40
+  // M-3 edge: R=0 tapi ada kasbon (advance a > 0 tidak terpakai sama sekali) →
+  // jurnal tetap dibuat (D 2105 kasbon / C 1101 advance) supaya kas advance yang
+  // belum terjurnal + piutang kasbon tercatat; baris beban nilai-0 dibuang.
+  if (total <= 0) {
+    if (kasbon <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
+    drafts.length = 0; // buang baris beban nol (R=0)
+  }
   if (contraA > 0) {
     drafts.push({
       accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name,
@@ -942,26 +973,43 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
       memo: `${claim.docNo} — kontra biaya dibayar pihak lain (bukan beban/arus kas perusahaan)`, wageCode: null,
     });
   }
+  // C-04 + M-3: kredit 2101 HANYA sebesar b — porsi yang memang akan dibayar
+  // payroll via UTRP (dibersihkan pass-through D 2101 di jurnal run). Kasbon
+  // TIDAK lagi menggantung di 2101 (menumpuk kredit — temuan audit M-3).
   if (bPayroll > 0) {
     drafts.push({
       accountCode: SALARY_PAYABLE_ACC.code, accountName: SALARY_PAYABLE_ACC.name,
       position: "Credit", amount: bPayroll,
-      memo: `${claim.docNo} — porsi dibayar via payroll (UTRP)`, wageCode: null,
+      memo: `${claim.docNo} — porsi dibayar via payroll (UTRP pass-through; beban sudah dibukukan di jurnal ini)`, wageCode: "UTRP",
     });
   }
-  if (cPayroll > 0) {
+  // Fix audit 40 M-3/M-4 — kasbon c penuh sbg DEBIT 2105 (utang klaim karyawan,
+  // kelebihan uang muka a−R): ditutup kredit 2105 dari jurnal run TRVSTLIN
+  // (D 2101/C 2105) → 2105 net 0; sebelum klaim ditransfer, 2105 membawa saldo
+  // DEBIT sebesar c = piutang kasbon karyawan (representasi benar).
+  if (kasbon > 0) {
     drafts.push({
-      accountCode: SALARY_PAYABLE_ACC.code, accountName: SALARY_PAYABLE_ACC.name,
-      position: "Credit", amount: cPayroll,
-      memo: `${claim.docNo} — porsi potongan payroll (TRVSTLIN, kelebihan uang muka)`, wageCode: null,
+      accountCode: CLAIM_PAYABLE_ACC.code, accountName: CLAIM_PAYABLE_ACC.name,
+      position: "Debit", amount: kasbon,
+      memo: `${claim.docNo} — kasbon kelebihan uang muka (dipulihkan via potongan TRVSTLIN di payroll)`, wageCode: "TRVSTLIN",
     });
   }
   if (cashPortion > 0) {
     drafts.push({
       accountCode: CASH_ACC.code, accountName: CASH_ACC.name,
       position: "Credit", amount: cashPortion,
-      memo: `${claim.docNo} — settlement ${claim.settlementMethod} (porsi tunai)`, wageCode: null,
+      memo: `${claim.docNo} — settlement ${claim.settlementMethod} (porsi tunai + kas advance yang belum terjurnal)`, wageCode: null,
     });
+  }
+
+  // Fix audit 40 M-3(i) — invarian D=C per jurnal (baris kasbon menambah sisi
+  // Debit): total jurnal = total beban bruto + kasbon. Cek defensif gagal-loud
+  // (pola payroll-journal.ts) supaya approval tidak membukukan jurnal miring.
+  const journalTotal = round2(total + kasbon);
+  const sumD = round2(drafts.filter((d) => d.position === "Debit").reduce((s, d) => s + d.amount, 0));
+  const sumC = round2(drafts.filter((d) => d.position === "Credit").reduce((s, d) => s + d.amount, 0));
+  if (Math.abs(sumD - sumC) > 0.005) {
+    throw new Error(`Jurnal klaim ${claim.docNo} tidak balance: D ${sumD} vs C ${sumC}`);
   }
 
   const journalNo = await nextJournalNo(db);
@@ -972,7 +1020,7 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
     data: {
       journalNo, journalDate, runId: null, runNo: claim.docNo,
       description: `Klaim perjalanan dinas ${claim.docNo} — ${claim.employee.fullName}`,
-      totalDebit: tcJ.encryptMoney(total), totalCredit: tcJ.encryptMoney(total), status: "Posted",
+      totalDebit: tcJ.encryptMoney(journalTotal), totalCredit: tcJ.encryptMoney(journalTotal), status: "Posted",
       lines: {
         create: drafts.map((d, i) => ({
           sequence: i + 1, accountCode: d.accountCode, accountName: d.accountName,
@@ -981,7 +1029,7 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
       },
     },
   });
-  return { journalNo, journalDate, lines: drafts.length, total };
+  return { journalNo, journalDate, lines: drafts.length, total: journalTotal };
 }
 
 // ============ approval klaim (padanan TravelClaimToApprove + Operation + Transfer) ============
@@ -1117,7 +1165,9 @@ export interface TravelTransferResult {
  *  lalu ditulis ulang (dibatasi per docNo klaim di notes); klaim Transferred ke period
  *  LAIN atau sudah Paid tidak disentuh → transfer ulang ke period sama idempoten dan
  *  klaim batch sebelumnya tidak lagi hilang komponennya (dulu: ditandai "Paid tanpa
- *  dibayar" saat run period dikonfirmasi). */
+ *  dibayar" saat run period dikonfirmasi).
+ *  Minor audit 40 §5-11: hapus+buat ulang + penandaan klaim kini ATOMIK dalam satu
+ *  db.$transaction (anti race duplikat assignment lintas request paralel). */
 export async function transferClaimsToPayroll(
   db: TenantDb,
   input: { periodId: string; processTypeCode?: string; actor?: { name: string; appUserId: string | null } },
@@ -1158,54 +1208,65 @@ export async function transferClaimsToPayroll(
   });
   if (claims.length === 0) throw new Error("Tidak ada klaim berstatus Approved yang siap ditransfer");
 
-  // idempoten: buang assignment lama HANYA milik klaim yang akan ditulis ulang
-  // (period × processType ini × komponen UTRP/TRVSTLIN × docNo klaim di notes) —
-  // assignment klaim period lain / klaim Paid / assignment manual HR tidak tersapu.
-  const removed = await db.employeeComponentAssignment.deleteMany({
-    where: {
-      kind: "Specific", periodId: period.id, processTypeId: pt.id,
-      wageComponentId: { in: [compUtrp.id, compDed.id] },
-      OR: claims.map((c) => ({ notes: { contains: c.docNo } })),
-    },
-  });
-
+  // Minor audit 40 §5-11 — transferClaimsToPayroll transaksional: hapus+buat
+  // ulang assignment + penandaan klaim dibungkus SATU db.$transaction (sebelumnya
+  // berurutan tanpa atomikitas → race dua request transfer paralel ke period sama
+  // melipatgandakan assignment UTRP/TRVSTLIN; tanpa unique constraint, duplikat
+  // tidak tertahan DB). Tidak ada nextJournalNo di dalam tx → bukan nested
+  // $transaction (aman dari pola bug K-1 medical).
   const employees = new Set<string>();
   let earningTotal = 0;
   let deductionTotal = 0;
+  let removedCount = 0;
   // 28-c: nilai komponen khusus disimpan TERENKRIPSI (enc:v1:n:…).
   const tcC = tenantCryptoForDb(db);
-  for (const c of claims) {
-    if (c.payableEmployee > 0) {
-      await db.employeeComponentAssignment.create({
-        data: {
-          employeeId: c.employeeId, wageComponentId: compUtrp.id,
-          kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableEmployee)),
-          periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
-          notes: `Kompensasi perjalanan dinas ${c.docNo} — ${c.employee.fullName}`,
-          active: true,
-        },
-      });
-      employees.add(c.employeeId);
-      earningTotal += Math.round(c.payableEmployee);
-    }
-    if (c.payableCompany > 0) {
-      await db.employeeComponentAssignment.create({
-        data: {
-          employeeId: c.employeeId, wageComponentId: compDed.id,
-          kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableCompany)),
-          periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
-          notes: `Potongan settlement travel ${c.docNo} — kelebihan uang muka`,
-          active: true,
-        },
-      });
-      employees.add(c.employeeId);
-      deductionTotal += Math.round(c.payableCompany);
-    }
-    await db.travelClaim.update({
-      where: { id: c.id },
-      data: { status: "Transferred", periodCode: period.code },
+  await db.$transaction(async (tx) => {
+    // idempoten: buang assignment lama HANYA milik klaim yang akan ditulis ulang
+    // (period × processType ini × komponen UTRP/TRVSTLIN × docNo klaim di notes) —
+    // assignment klaim period lain / klaim Paid / assignment manual HR tidak tersapu.
+    const removed = await tx.employeeComponentAssignment.deleteMany({
+      where: {
+        kind: "Specific", periodId: period.id, processTypeId: pt.id,
+        wageComponentId: { in: [compUtrp.id, compDed.id] },
+        OR: claims.map((c) => ({ notes: { contains: c.docNo } })),
+      },
     });
-  }
+    removedCount = removed.count;
+    for (const c of claims) {
+      if (c.payableEmployee > 0) {
+        await tx.employeeComponentAssignment.create({
+          data: {
+            employeeId: c.employeeId, wageComponentId: compUtrp.id,
+            kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableEmployee)),
+            periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
+            notes: `Kompensasi perjalanan dinas ${c.docNo} — ${c.employee.fullName}`,
+            active: true,
+          },
+        });
+        employees.add(c.employeeId);
+        earningTotal += Math.round(c.payableEmployee);
+      }
+      // Fix audit 40 M-4 — jumlah potongan TRVSTLIN = payableCompany (c penuh,
+      // sumber yang sama dengan kasbon D 2105 di generateClaimJournal).
+      if (c.payableCompany > 0) {
+        await tx.employeeComponentAssignment.create({
+          data: {
+            employeeId: c.employeeId, wageComponentId: compDed.id,
+            kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableCompany)),
+            periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
+            notes: `Potongan settlement travel ${c.docNo} — kelebihan uang muka`,
+            active: true,
+          },
+        });
+        employees.add(c.employeeId);
+        deductionTotal += Math.round(c.payableCompany);
+      }
+      await tx.travelClaim.update({
+        where: { id: c.id },
+        data: { status: "Transferred", periodCode: period.code },
+      });
+    }
+  });
 
   await db.activityLog.create({
     data: {
@@ -1216,7 +1277,7 @@ export async function transferClaimsToPayroll(
   });
   return {
     periodName: period.name, claims: claims.length, employees: employees.size,
-    earningTotal, deductionTotal, removed: removed.count,
+    earningTotal, deductionTotal, removed: removedCount,
   };
 }
 

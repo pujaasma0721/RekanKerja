@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listTemplates, listExpenseTypes, listZones, upsertTemplate, upsertExpenseType } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/templates — master: template + jenis biaya + zona
@@ -26,11 +27,15 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ubah/buat master: kind=template | expense.
+// T41-M2: guard hak AKSI menu travel:travel-templates — UPSERT, aksi
+// mengikuti body (b.id → Ubah, tanpa id → Baru); sebelumnya requireTenant
+// saja (VIEWER bisa mengubah template/limit biaya yang dipakai validasi klaim).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const b = await req.json();
+    const b = await req.json(); // dibaca SEKALI sebelum guard (aksi tergantung body)
+    const m = await requireMenuAction(req, "travel:travel-templates", b.id ? "update" : "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const kind = String(b.kind ?? "");
     if (kind === "template") {
       const code = String(b.code ?? "").trim().toUpperCase();

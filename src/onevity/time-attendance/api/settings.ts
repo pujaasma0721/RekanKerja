@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { getRule } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/settings — aturan singleton (padanan Overtime
@@ -26,10 +27,14 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH — perbarui aturan
+// T41-M2: guard hak AKSI menu attendance:templates-schedule (Ubah) — aturan
+// presensi (cap lembur/geofence/pembulatan) menggerakkan payroll & lembur;
+// sebelumnya requireTenant saja (VIEWER bisa mengubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "attendance:templates-schedule", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const existing = await getRule(db);
 

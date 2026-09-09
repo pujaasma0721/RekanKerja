@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listTravelRequests, submitTravelRequest, decideTravelRequest } from "@/onevity/travel/services/travel-service";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
 
@@ -86,11 +88,14 @@ export async function POST(req: NextRequest) {
           },
         });
         // ===== Notifikasi in-app (T11-NOTIF) — submit → approver jenjang pertama =====
+        // Fix audit 40 M-8: link "actions:inbox" (kotak PA saja — approver travel tidak
+        // bisa membuka dokumen) → "travel:travel-approval" (view Persetujuan di
+        // TRAVEL_NAV — dokumen permintaan travel bisa dibuka dari notifikasi).
         await notifyEvent(db, {
           to: "nextApprover", docType: "Travel", docNo: res.docNo,
           title: `Pengajuan travel ${res.docNo} menunggu persetujuan Anda`,
           body: `${emp?.fullName ?? "Karyawan"} — ${cities || "-"}, ${String(b.dateFrom ?? "-")} → ${String(b.dateTo ?? "-")}`,
-          kind: "travel", link: "actions:inbox",
+          kind: "travel", link: "travel:travel-approval",
         });
       } catch { /* never */ }
     })();
@@ -128,12 +133,14 @@ export async function PATCH(req: NextRequest) {
 
     // ===== Notifikasi in-app (T11-NOTIF) — fire-and-forget =====
     // approve parsial (masih ada jenjang berikutnya) → approver jenjang berikut
+    // Fix audit 40 M-8: link "actions:inbox" (PA-only) → "travel:travel-approval"
+    // (view Persetujuan di TRAVEL_NAV).
     if (b.action === "approve" && res.approval) {
       void notifyEvent(m.db, {
         to: "nextApprover", docType: "Travel", docNo: res.docNo, docId: String(b.id),
         title: `Pengajuan travel ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
         body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
-        kind: "travel", link: "actions:inbox",
+        kind: "travel", link: "travel:travel-approval",
       });
     }
 
@@ -170,8 +177,38 @@ export async function PATCH(req: NextRequest) {
       })();
     }
 
+    // ===== Webhook (fix audit 40 M-14) — travel.request.approved saat APPROVE
+    // FINAL (jenjang teruntas), fire-and-forget, never-throw (mirror loans.ts). =====
+    if (b.action === "approve" && !res.approval) {
+      void (async () => {
+        try {
+          const tr = await m.db.travelRequest.findUnique({
+            where: { id: String(b.id) },
+            select: { docNo: true, status: true, employeeId: true, employee: { select: { fullName: true, employeeNo: true } }, destinations: { select: { city: true } } },
+          });
+          if (tr) {
+            await dispatchWebhookEvent(m.db, null, "travel.request.approved", {
+              docNo: tr.docNo, status: tr.status,
+              employeeId: tr.employeeId, employeeName: tr.employee?.fullName, employeeNo: tr.employee?.employeeNo,
+              destinations: tr.destinations.map((d) => d.city),
+              source: "app",
+            });
+          }
+        } catch { /* webhook tidak boleh mengganggu proses utama */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
+    // Minor audit 40 §5-11 (mirror claims.ts:249-254): race double-decide → 409
+    // ramah; aktor bukan approver jenjang (dan bukan delegate) → 403 — bukan 400
+    // generik (pola leave/claims).
+    if (e instanceof DecisionConflictError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
+    if (e instanceof DecisionForbiddenError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

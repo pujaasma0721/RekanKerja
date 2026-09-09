@@ -4,6 +4,8 @@
 //
 // Struktur jurnal (selalu balance):
 //   1. D Beban komponen THP (5101/5102, atau akun komponen)   / C 2101 Hutang Gaji
+//      — kecuali UTRP (Fix audit 40 M-3): pass-through D 2101 (beban travel
+//        sudah dibukukan jurnal klaim, bukan run — cegah beban dobel 5105)
 //   2. D 5103 BPJS Perusahaan (iuran perush.)                 / C 2103 Hutang BPJS
 //   3. D 2101 Hutang Gaji (tiap potongan)                     / C 2102/2103/2104/2105
 //   4. D 2101 Hutang Gaji (net / pembulatan)                  / C 1101 Kas & Bank
@@ -117,8 +119,22 @@ export async function generateJournalForRun(db: TenantDb, runId: string) {
       seq += 2;
     } else {
       thpEarnings += amount;
-      const acc = debitAccountFor(c.code, c.wageType, mapping?.accountDebitCode ?? null);
-      drafts.push({ accountCode: acc.code, accountName: acc.name, position: "Debit", amount, memo: `${c.name} (${run.employeeCount} karyawan)`, wageCode: c.code });
+      // Fix audit 40 M-3 — UTRP pass-through: beban 5105 sudah dibukukan jurnal klaim travel
+      // (D 5105 R saat klaim disetujui); run hanya memindahkan clearing 2101 → debit 2101
+      // (bukan accountDebitCode komponen 5105) supaya beban tidak tercatat 2× dan kredit
+      // 2101 (b) dari jurnal klaim tertutup. Bersama agregat kredit 2101 THP (memuat b),
+      // net 2101 run = debit b — pas dibersihkan oleh kredit b jurnal klaim (2101 net 0).
+      const isUtrpPassThrough = c.code === "UTRP";
+      const acc = isUtrpPassThrough
+        ? JOURNAL_ACCOUNTS.clearing
+        : debitAccountFor(c.code, c.wageType, mapping?.accountDebitCode ?? null);
+      drafts.push({
+        accountCode: acc.code, accountName: acc.name, position: "Debit", amount,
+        memo: isUtrpPassThrough
+          ? `${c.name} — kliring pass-through (beban 5105 dibukukan jurnal klaim travel)`
+          : `${c.name} (${run.employeeCount} karyawan)`,
+        wageCode: c.code,
+      });
       seq += 1;
     }
   }

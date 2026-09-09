@@ -96,7 +96,11 @@ export async function POST(req: NextRequest) {
           to: "nextApprover", docType: "Leave", docNo: res.docNo,
           title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda`,
           body: `${emp?.fullName ?? "Karyawan"} — ${type?.name ?? "cuti"} ${input.dateFrom} → ${input.dateTo} (${res.workingDays} hari kerja)`,
-          kind: "leave", link: "actions:inbox",
+          // Fix audit 40 M-8 — link notifikasi approver ke view Persetujuan modul
+          // leave ("actions:inbox" hanya memuat dokumen PA — approver cuti tidak
+          // bisa membuka dokumen dari sana; "leave:leave-approval" = section:view
+          // valid yang dinavigasi bell, item LEAVE_NAV id "leave-approval").
+          kind: "leave", link: "leave:leave-approval",
         });
         // ===== Webhook (T18-API) — leave.submitted, fire-and-forget =====
         await dispatchWebhookEvent(db, null, "leave.submitted", {
@@ -146,7 +150,8 @@ export async function PATCH(req: NextRequest) {
         to: "nextApprover", docType: "Leave", docNo: res.docNo, docId: String(b.id),
         title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
         body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
-        kind: "leave", link: "actions:inbox",
+        // Fix audit 40 M-8 — link ke Persetujuan leave (bukan inbox PA-only).
+        kind: "leave", link: "leave:leave-approval",
       });
     }
 

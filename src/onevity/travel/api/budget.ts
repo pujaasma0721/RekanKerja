@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listBudgets, upsertBudget } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/budget — daftar budget tahunan + terpakai
@@ -16,11 +17,15 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — buat/ubah budget (items = rincian per cost center).
+// T41-M2: guard hak AKSI menu travel:travel-budget — endpoint ini UPSERT,
+// jadi aksi mengikuti body (b.id → Ubah, tanpa id → Baru); sebelumnya
+// requireTenant saja (VIEWER bisa mengubah anggaran travel).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-    const b = await req.json();
+    const b = await req.json(); // dibaca SEKALI sebelum guard (aksi tergantung body)
+    const m = await requireMenuAction(req, "travel:travel-budget", b.id ? "update" : "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const year = parseInt(b.year, 10);
     if (!Number.isFinite(year)) return NextResponse.json({ error: "Tahun wajib valid" }, { status: 400 });
     const res = await upsertBudget(db, {

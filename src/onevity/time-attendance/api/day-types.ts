@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // GET /api/onevity/attendance/day-types — master tipe hari (padanan DayType.jsp)
 export async function GET(req: NextRequest) {
@@ -16,10 +17,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — buat tipe hari baru
+// T41-M2: guard hak AKSI menu attendance:templates-schedule (Baru).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "attendance:templates-schedule", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const code = String(b.code ?? "").trim().toUpperCase();
     const name = String(b.name ?? "").trim();
@@ -56,10 +59,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — perbarui / nonaktifkan
+// T41-M2: guard hak AKSI menu attendance:templates-schedule (Ubah).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "attendance:templates-schedule", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
     const existing = await db.workDayType.findUnique({ where: { id: b.id } });

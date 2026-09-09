@@ -3,6 +3,7 @@ import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/share
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary,
 } from "@/onevity/shared/services/approval-engine";
+import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // ============ LOAN (Pinjaman Karyawan) — approval berjenjang (Task 25) ============
 // POST   : buat pengajuan pinjaman (status Submitted) + jalur approval berjenjang
@@ -110,6 +111,28 @@ export async function POST(req: NextRequest) {
         detail: `Pengajuan pinjaman ${loan.letterNo} (${employee.fullName}): Rp ${amount.toLocaleString("id-ID")} × ${installmentCount}x — approval berjenjang ${chain.totalLevels} level (menunggu ${chain.steps[0]?.approverLabel ?? "approver"})`,
       },
     });
+
+    // ===== Webhook (T41-M14) — loan.created, fire-and-forget, never-throw =====
+    void (async () => {
+      try {
+        await dispatchWebhookEvent(db, null, "loan.created", {
+          docNo: loan.letterNo,
+          employeeId: loan.employeeId,
+          employeeName: employee.fullName,
+          employeeNo: employee.employeeNo,
+          amount,
+          installmentCount,
+          installmentAmount: per,
+          interestRate,
+          startPaymentDate: startPayment.toISOString().slice(0, 10),
+          purpose: loan.purpose,
+          status: loan.status,
+          approvalLevels: chain.totalLevels,
+          source: "app",
+        });
+      } catch { /* webhook tidak boleh mengganggu proses utama */ }
+    })();
+
     return NextResponse.json({ loan, approval: { levels: chain.totalLevels, firstApprover: chain.steps[0]?.approverLabel ?? null } }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
