@@ -3,18 +3,20 @@
 // POST /api/onevity/attachments        — upload (multipart: file,
 //        entityType, entityId) → { id, fileName, sizeBytes, mimeType }
 // GET  /api/onevity/attachments?entityType=&entityId= — metadata lampiran
+//        (K-1 audit 42: guard menu/kepemilikan — dulu hanya requireTenant).
 //
 // entityType whitelist + peta menu terkait (guard ringan per aksi create):
 //   TravelClaim → travel:travel-claim · MedicalClaim → medical:medical-claim
 //   EmployeeDocument → hr:directory
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction, resolveMenuPerms } from "@/onevity/shared/services/menu-access";
+import type { MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import {
-  saveAttachment, listAttachmentsByEntity, sweepDraftAttachments,
+  saveAttachment, listAttachmentsByEntity, sweepDraftAttachments, DRAFT_ENTITY_PREFIX,
 } from "@/onevity/shared/services/attachment-service";
 
 /** entityType yang diizinkan + menu pemiliknya (guard upload = aksi create menu itu). */
@@ -23,6 +25,83 @@ export const ATTACHMENT_ENTITY_MENUS: Record<string, string> = {
   MedicalClaim: "medical:medical-claim",
   EmployeeDocument: "hr:directory",
 };
+
+/** Aktor minimal untuk cek izin baca lampiran (subset MenuActor). */
+interface AttachmentReadActor {
+  userId: string;
+  appUserId: string | null;
+  employeeId: string | null;
+}
+
+/** Konteks resolusi menu (bentuk hasil resolveMenuPerms). */
+export interface AttachmentReadCtx {
+  db: TenantDb;
+  actor: AttachmentReadActor;
+  isSuperAdmin: boolean;
+  all: boolean;
+  perms: MenusMap;
+}
+
+/** Pesan 403 baca lampiran (gaya DELETE di attachments-id.ts). */
+export const ATTACHMENT_READ_FORBIDDEN_MSG =
+  "Akses ditolak: hanya pengunggah, pemilik proses, atau pemegang akses LIHAT menu terkait yang dapat membuka lampiran ini";
+
+/**
+ * K-1 (audit 42) — izin BACA lampiran (dipakai GET stream by id & GET list by
+ * entity, mirror 4-level guard DELETE di attachments-id.ts):
+ *   1. super admin / mode ALL;
+ *   2. aksi LIHAT menu entitas (ATTACHMENT_ENTITY_MENUS — HR);
+ *   3. pengunggahnya sendiri (uploadedBy = appUserId/userId aktor);
+ *   4. pemilik proses: karyawan pemilik TravelClaim/MedicalClaim, ATAU
+ *      karyawan pemilik EmployeeDocument (ESS unduh dokumennya sendiri).
+ * Lampiran draf (entityId "draft:") hanya boleh diakses pengunggahnya (2/3)
+ * — pemilik proses belum ada sebelum submit.
+ */
+export async function attachmentReadAllowed(
+  ctx: AttachmentReadCtx,
+  att: { entityType: string; entityId: string; uploadedBy: string | null },
+): Promise<boolean> {
+  // 1) super admin (AppUser.role Admin / platform OWNER|ADMIN) / mode ALL eksplisit
+  if (ctx.isSuperAdmin || ctx.all) return true;
+
+  // 2) aksi LIHAT menu terkait entityType (per pengguna — CUSTOM)
+  const menuKey = ATTACHMENT_ENTITY_MENUS[att.entityType];
+  if (menuKey && ctx.perms[menuKey]?.view) return true;
+
+  // 3) pengunggah (AppUser tenant — fallback platform userId)
+  if (
+    att.uploadedBy &&
+    (att.uploadedBy === ctx.actor.appUserId || att.uploadedBy === ctx.actor.userId)
+  ) {
+    return true;
+  }
+
+  // 4) pemilik proses (ESS: kwitansi klaim sendiri / dokumen karyawan sendiri)
+  if (!att.entityId.startsWith(DRAFT_ENTITY_PREFIX) && ctx.actor.employeeId) {
+    if (att.entityType === "TravelClaim") {
+      const claim = await ctx.db.travelClaim.findUnique({
+        where: { id: att.entityId },
+        select: { employeeId: true },
+      });
+      return claim?.employeeId === ctx.actor.employeeId;
+    }
+    if (att.entityType === "MedicalClaim") {
+      const claim = await ctx.db.medicalClaim.findUnique({
+        where: { id: att.entityId },
+        select: { employeeId: true },
+      });
+      return claim?.employeeId === ctx.actor.employeeId;
+    }
+    if (att.entityType === "EmployeeDocument") {
+      const doc = await ctx.db.employeeDocument.findUnique({
+        where: { id: att.entityId },
+        select: { employeeId: true },
+      });
+      return doc?.employeeId === ctx.actor.employeeId;
+    }
+  }
+  return false;
+}
 
 /** Slug tenant sesi (utk root folder penyimpanan uploads/{slug}/…). */
 export async function tenantSlugOfSession(req: Request): Promise<string | null> {
@@ -108,11 +187,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — metadata lampiran sebuah entitas (autorisasi: user login tenant sama).
+// GET — metadata lampiran sebuah entitas. Guard K-1 (audit 42): aksi LIHAT
+// menu entitas / pengunggah / pemilik proses (dulu: user login tenant sama
+// bisa mengenumerasi metadata lampiran entitas manapun).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const resolved = await resolveMenuPerms(req);
+    if (!resolved) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     const sp = req.nextUrl.searchParams;
     const entityType = sp.get("entityType") ?? "";
     const entityId = sp.get("entityId") ?? "";
@@ -122,7 +203,11 @@ export async function GET(req: NextRequest) {
     if (!entityId.trim()) {
       return NextResponse.json({ error: "entityId wajib diisi" }, { status: 400 });
     }
-    const attachments = await listAttachmentsByEntity(db, entityType, entityId);
+    const allowed = await attachmentReadAllowed(resolved, { entityType, entityId, uploadedBy: null });
+    if (!allowed) {
+      return NextResponse.json({ error: ATTACHMENT_READ_FORBIDDEN_MSG }, { status: 403 });
+    }
+    const attachments = await listAttachmentsByEntity(resolved.db, entityType, entityId);
     return NextResponse.json({ attachments });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

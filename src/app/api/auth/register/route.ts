@@ -6,6 +6,21 @@ import {
 import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/onevity/shared/lib/provisioning";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
+import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
+
+// M-3 (audit 42) — rate limit pendaftaran self-service (anti spam tenant):
+// 5 percobaan / 15 menit per IP klien + 3 / jam per email. In-memory per
+// instance (lihat catatan kapasitas di shared/lib/rate-limit.ts).
+const REGISTER_IP_LIMIT = 5;
+const REGISTER_IP_WINDOW_MS = 15 * 60 * 1000;
+const REGISTER_EMAIL_LIMIT = 3;
+const REGISTER_EMAIL_WINDOW_MS = 60 * 60 * 1000;
+
+/** IP klien: nilai PERTAMAA x-forwarded-for (proxy/load balancer menempatkannya), fallback "unknown". */
+function clientIp(req: NextRequest): string {
+  const first = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return first || "unknown";
+}
 
 // POST /api/auth/register — daftar + BUAT WORKSPACE BARU (self-service SaaS):
 // validasi → slug unik → provision schema PostgreSQL tenant_<slug> (DDL + seed referensi)
@@ -19,6 +34,27 @@ export async function POST(req: NextRequest) {
     const fullName = String(b.fullName ?? "").trim();
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
+
+    // M-3: pembatasan paling awal — SEMUA percobaan dihitung (termasuk payload
+    // tidak valid) supaya probing/abuse terhenti sebelum menyentuh kebijakan
+    // sandi, query DB, atau DDL schema. Cek IP dulu (broadcast), lalu per-email.
+    const ip = clientIp(req);
+    const ipHit = hitRateLimit(`register:ip:${ip}`, REGISTER_IP_LIMIT, REGISTER_IP_WINDOW_MS);
+    if (!ipHit.allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan pendaftaran dari jaringan ini. Coba lagi nanti." },
+        { status: 429, headers: { "Retry-After": String(ipHit.retryAfterSec) } },
+      );
+    }
+    if (email) {
+      const emailHit = hitRateLimit(`register:email:${email}`, REGISTER_EMAIL_LIMIT, REGISTER_EMAIL_WINDOW_MS);
+      if (!emailHit.allowed) {
+        return NextResponse.json(
+          { error: "Pendaftaran dengan email ini terlalu sering. Coba lagi nanti atau gunakan email lain." },
+          { status: 429, headers: { "Retry-After": String(emailHit.retryAfterSec) } },
+        );
+      }
+    }
 
     if (workspaceName.length < 3) return NextResponse.json({ error: "Nama workspace minimal 3 karakter" }, { status: 400 });
     if (fullName.length < 2) return NextResponse.json({ error: "Nama lengkap wajib diisi" }, { status: 400 });

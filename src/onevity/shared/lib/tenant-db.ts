@@ -53,11 +53,44 @@ function tenantBaseUrl(): string {
   return base;
 }
 
+// =========================================================================
+// M-19 (audit 42) — MATEMATIKA POOL KONEKSI vs PostgreSQL max_connections.
+// =========================================================================
+// Setiap schema tenant mendapat SATU client Prisma di-cache selama proses
+// hidup (Map globalThis di atas — client idle TIDAK PERNAH ditutup).
+// Anggaran koneksi (default embedded-PG max_connections=100):
+//   · platform client (src/lib/db, schema public, tanpa connection_limit
+//     eksplisit → default Prisma ~ num_cpus×2+1, ± 5-9 koneksi);
+//   · N tenant × TENANT_CONNECTION_LIMIT koneksi per client;
+//   · + koneksi administratif postgres itu sendiri + skrip/worker paralel.
+// Dengan limit 5/client → (100 − ~10) / 5 ≈ **± 19 schema tenant per node**
+// sebelum pool habis (error pool_timeout / koneksi ditolak). Dengan limit 3
+// (default sejak fix ini) → ± 30 schema per node. Demo 44-karyawan memakai
+// 3 tenant = 9 koneksi tenant — jauh di bawah batas.
+// CATATAN PENTING long-lived process: cache client TIDAK menutup client yang
+// idle — node yang melayani BANYAK tenant menumpuk koneksi secara permanen
+// (tenant tidak pernah "keluar"). Mitigasi bila jumlah tenant tumbuh:
+//   1. naikkan max_connections PostgreSQL; ATAU
+//   2. letakkan PgBouncer (transaction pooling) di depan & arahkan
+//      TENANT_DB_BASE_URL ke-nya (Prisma + pgbouncer: disable prepared
+//      statements / pgbouncer di transaction mode);
+//   3. skala horizontal: bagi tenant lintas node (registry schemaName tetap
+//      satu sumber kebenaran);
+//   4. tuning per-deploy lewat env TENANT_DB_CONNECTION_LIMIT (1..20).
+// Dipilih 3 (turun dari 5) + env override: beban request per-tenant demo/
+// SMB sekuensial dan pendek (query ms-level, pool_timeout 10s menampung
+// antrean Promise.all seperti employee-options 6-query paralel).
+// =========================================================================
+const TENANT_CONNECTION_LIMIT = (() => {
+  const raw = Number(process.env.TENANT_DB_CONNECTION_LIMIT);
+  return Number.isFinite(raw) && raw >= 1 && raw <= 20 ? Math.floor(raw) : 3;
+})();
+
 /** Ambil (dan cache) client Prisma untuk schema tenant tertentu. */
 export function getTenantClient(schemaName: string): TenantDb {
   let client = tenantClients.get(schemaName);
   if (!client) {
-    const url = `${tenantBaseUrl()}?schema=${schemaName}&connection_limit=5&pool_timeout=10`;
+    const url = `${tenantBaseUrl()}?schema=${schemaName}&connection_limit=${TENANT_CONNECTION_LIMIT}&pool_timeout=10`;
     client = new TenantPrismaClient({ datasources: { db: { url } } });
     // 28-c: brand schema pada instance — sumber konteks kunci enkripsi field
     // (tenantCryptoForDb). Non-enumerable supaya tidak ikut ke JSON log.

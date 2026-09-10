@@ -4,6 +4,7 @@
 //   3. hitung ulang rekap kehadiran Agu–Sep (status OnLeave masuk)
 // Idempoten: saldo 2026 sudah ada → skip.
 // Jalankan: bun run scripts/migrate-leave.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { seedLeaveDemoData } from "@/onevity/leave/services/leave-seed";
 import { regenerateRange } from "@/onevity/time-attendance/services/attendance-service";

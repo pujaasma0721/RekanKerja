@@ -63,29 +63,49 @@ export async function POST(req: NextRequest) {
     const processType = await db.processType.findUnique({ where: { id: b.processTypeId } });
     if (!processType) return NextResponse.json({ error: "Jenis proses tidak ditemukan" }, { status: 404 });
 
-    // Cegah run ganda: period+type aktif (Draft/Calculated/Confirmed/Paid)
+    // M-20 (audit 42): cegah run ganda — period+type aktif (Draft/Calculated/
+    // Confirmed/Paid). Pre-check friendly 409 (pesan utk user); jaring pengaman
+    // terakhir tetap partial unique index DB "uniq_payrollrun_active"
+    // (scripts/migrate-task43-indexes.ts) yang menutup race dua POST paralel —
+    // konflik DB dipetakan ke 409 di catch create di bawah.
     const existing = await db.payrollRun.findFirst({
       where: { periodId: b.periodId, processTypeId: b.processTypeId, status: { not: "Cancelled" } },
     });
     if (existing) {
       return NextResponse.json(
-        { error: `Run ${existing.runNo} (${existing.status}) sudah ada untuk ${period.name} × ${processType.name}` },
-        { status: 400 }
+        {
+          error:
+            `Run aktif untuk period+jenis sudah ada: run ${existing.runNo} (${existing.status}) ` +
+            `untuk ${period.name} × ${processType.name} — batalkan run tersebut lebih dulu bila ingin membuat ulang`,
+        },
+        { status: 409 }
       );
     }
 
     const runNo = await nextRunNo(db, period.code, processType.code);
-    const run = await db.payrollRun.create({
-      data: {
-        runNo,
-        periodId: b.periodId,
-        processTypeId: b.processTypeId,
-        calculateTax: b.calculateTax ?? processType.calculateTax,
-        allEmployee: b.allEmployee ?? true,
-        notes: b.notes ?? null,
-      },
-      include: { period: true, processType: true },
-    });
+    let run;
+    try {
+      run = await db.payrollRun.create({
+        data: {
+          runNo,
+          periodId: b.periodId,
+          processTypeId: b.processTypeId,
+          calculateTax: b.calculateTax ?? processType.calculateTax,
+          allEmployee: b.allEmployee ?? true,
+          notes: b.notes ?? null,
+        },
+        include: { period: true, processType: true },
+      });
+    } catch (e) {
+      // P2002 = pelanggaran unique (race paralel lewat pre-check — uniq_payrollrun_active)
+      if (e instanceof Error && /P2002|unique/i.test(e.message)) {
+        return NextResponse.json(
+          { error: `Run aktif untuk period+jenis sudah ada (${period.name} × ${processType.name}) — konflik terdeteksi, muat ulang daftar run` },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
     await db.activityLog.create({ data: { action: "Created", entity: "PayrollRun", entityId: run.id, detail: `Run payroll ${runNo} dibuat (${period.name} × ${processType.name})` } });
     return NextResponse.json({ run }, { status: 201 });
   } catch (e) {
@@ -297,35 +317,76 @@ async function handleSendSlips(
   let skipped = 0;
   let failed = 0;
   let disabled = 0;
-  for (const line of linesDec) {
-    // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
-    const slipPwd = protect ? (line.employeeNik?.trim() || line.employeeNo) : null;
-    const built = await buildPayslipPdfByLineId(db, line.id, { password: slipPwd });
-    if (!built) { skipped += 1; continue; }
-    const status = await sendPayslipEmail(db, {
-      to: { email: line.employee?.email ?? "", name: line.employeeName },
-      data: {
-        nama: line.employeeName,
-        periode: run.period.name,
-        net: fmtRupiah(line.net),
-        runNo: run.runNo,
-      },
-      attachment: { filename: built.filename, content: Buffer.from(built.bytes), contentType: "application/pdf" },
-    });
-    if (status === "Sent") {
-      sent += 1;
-      // Task 28-a — notifikasi WhatsApp "slip terkirim" (fire-and-forget,
-      // never-throw) — hanya saat email benar-benar terkirim (pesan template
-      // menyebut pengiriman email).
-      void sendWa(db, {
-        event: "payslip.sent",
-        toPhone: line.employee?.phone ?? null,
-        placeholders: { nama: line.employeeName, periode: run.period.name, net: fmtRupiah(line.net), runNo: run.runNo },
+  // M-18 (audit 42) — kirim massal TIDAK LAGI STRICTLY-SERIAL per karyawan
+  // (500 karyawan × [build PDF + SMTP] di satu request HTTP → menit-menit →
+  // gateway timeout tanpa umpan balik parsial). Fix pragmatis TAHAP 1 (tanpa
+  // mengubah semantik/shape respons):
+  //   1. PARALEL per BATCH 10 baris (Promise.all per slice, slice berurutan) —
+  //      build PDF (CPU-ish, pdf-lib murni JS) + SMTP (IO) aman dijalankan
+  //      10-sekaligus; pool koneksi Prisma per-tenant (limit 3) mengantrekan
+  //      kueri sisanya.
+  //   2. TIMEOUT per kirim 25 detik (Promise.race) → SMTP yang menggantung
+  //      dihitung "failed" dan TIDAK memblokir sisa batch.
+  //   3. Kegagalan build PDF tetap dihitung "skipped" (perilaku lama).
+  // Counter (sent/skipped/failed/disabled) increment konkuren aman (JS
+  // single-threaded); ActivityLog & respons { ok, total, sent, skipped,
+  // failed, disabled, protected } TIDAK berubah.
+  //
+  // ==== TAHAP 2 (DEFERRED — Task 44): desain queue penuh ====
+  // Arsitektur target: tabel job (PayrollEmailJob) + worker background
+  // (PM2/scheduler) yang mengirim per batch dgn retry + backoff, progres
+  // dipolling frontend (bar "120/500 terkirim"), dan request HTTP hanya
+  // MENGANTRE job (respons instan { queued: n }). Termasuk: resume job
+  // terputus, dedupe per run, dan penguncian advisory per run. Menunggu
+  // migrasi schema — jangan implement di fix batch ini.
+  const SEND_SLIP_BATCH = 10;
+  const SEND_SLIP_TIMEOUT_MS = 25_000;
+  for (let i = 0; i < linesDec.length; i += SEND_SLIP_BATCH) {
+    const batch = linesDec.slice(i, i + SEND_SLIP_BATCH);
+    await Promise.all(batch.map(async (line) => {
+      // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
+      const slipPwd = protect ? (line.employeeNik?.trim() || line.employeeNo) : null;
+      const built = await buildPayslipPdfByLineId(db, line.id, { password: slipPwd });
+      if (!built) { skipped += 1; return; }
+      const sendTask = sendPayslipEmail(db, {
+        to: { email: line.employee?.email ?? "", name: line.employeeName },
+        data: {
+          nama: line.employeeName,
+          periode: run.period.name,
+          net: fmtRupiah(line.net),
+          runNo: run.runNo,
+        },
+        attachment: { filename: built.filename, content: Buffer.from(built.bytes), contentType: "application/pdf" },
       });
-    }
-    else if (status === "Failed") failed += 1;
-    else if (status === "Disabled") disabled += 1;
-    else skipped += 1;
+      // M-18: race 25s — SMTP lambat/hang dihitung failed; promise yang
+      // kalah tetap berjalan (EmailLog-nya tetap tercatat belakangan) dan
+      // rejection-nya di-swallow supaya tidak jadi unhandled rejection.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<"Timeout">((resolve) => {
+        timer = setTimeout(() => resolve("Timeout"), SEND_SLIP_TIMEOUT_MS);
+      });
+      let status: Awaited<ReturnType<typeof sendPayslipEmail>> | "Timeout";
+      try {
+        status = await Promise.race([sendTask, timeout]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      sendTask.catch(() => undefined); // kalah race & reject belakangan → swallow
+      if (status === "Sent") {
+        sent += 1;
+        // Task 28-a — notifikasi WhatsApp "slip terkirim" (fire-and-forget,
+        // never-throw) — hanya saat email benar-benar terkirim (pesan template
+        // menyebut pengiriman email).
+        void sendWa(db, {
+          event: "payslip.sent",
+          toPhone: line.employee?.phone ?? null,
+          placeholders: { nama: line.employeeName, periode: run.period.name, net: fmtRupiah(line.net), runNo: run.runNo },
+        });
+      }
+      else if (status === "Failed" || status === "Timeout") failed += 1;
+      else if (status === "Disabled") disabled += 1;
+      else skipped += 1;
+    }));
   }
 
   await db.activityLog.create({

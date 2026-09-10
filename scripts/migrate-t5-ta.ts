@@ -3,6 +3,7 @@
 //   izin berbayar/tidak yang eksplisit (mengganti notes.includes("tidak dibayar")
 //   di recapPeriod; baris lama fallback ke notes).
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-t5-ta.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

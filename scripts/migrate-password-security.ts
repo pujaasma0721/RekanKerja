@@ -8,6 +8,7 @@
 //   5. riwayat awal akun demo MII (hrd@ + agus@, sandi onevity123) — sehingga
 //      RESET ke sandi yang sama DITOLAK (aturan riwayat hidup di demo)
 // Jalankan: bun run scripts/migrate-password-security.ts (idempoten)
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 import { randomBytes, scryptSync } from "node:crypto";
 

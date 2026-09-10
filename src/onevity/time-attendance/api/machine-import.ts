@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as ExcelJS from "exceljs";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { dayStart, addDays, regenerateDaily } from "@/onevity/time-attendance/services/attendance-service";
 
@@ -184,17 +185,26 @@ interface Classified {
 /** Resolve karyawan (employeeNo ATAU NIK, Active saja) + dedupe window bulk. */
 async function classifyRows({ db, rows }: ClassifyInput): Promise<Classified> {
   // --- resolve karyawan ---
+  // 28-c (follow-up 43-b): NIK tersimpan TERENKRIPSI (enc:v1:t:…, IV acak) —
+  // SQL `nationalId IN (plaintext)` tidak akan pernah cocok dengan baris
+  // terenkripsi (karyawan yang di-tulis/patch pasca 43-b). Kandidat diambil
+  // luas (employeeNo cocok ATAU punya NIK — tabel Employee per tenant kecil,
+  // satuan-ribuan baris), lalu NIK dicocokkan via dekripsi di JS (pola nikSet
+  // dedupe import Excel, employees.ts; decryptText meloloskan plaintext
+  // legacy apa adanya).
   const ids = [...new Set(rows.map((r) => r.rawId).filter(Boolean))];
   const employees = ids.length
     ? await db.employee.findMany({
-        where: { status: "Active", OR: [{ employeeNo: { in: ids } }, { nationalId: { in: ids } }] },
+        where: { status: "Active", OR: [{ employeeNo: { in: ids } }, { nationalId: { not: null } }] },
         select: { id: true, employeeNo: true, fullName: true, nationalId: true },
       })
     : [];
+  const tc = tenantCryptoForDb(db);
   const byKey = new Map<string, { id: string; employeeNo: string; fullName: string }>();
-  for (const e of employees) byKey.set(e.employeeNo, e);
   for (const e of employees) {
-    if (e.nationalId && !byKey.has(e.nationalId)) byKey.set(e.nationalId, e);
+    byKey.set(e.employeeNo, { id: e.id, employeeNo: e.employeeNo, fullName: e.fullName });
+    const nik = e.nationalId ? tc.decryptText(e.nationalId) : null;
+    if (nik && !byKey.has(nik)) byKey.set(nik, { id: e.id, employeeNo: e.employeeNo, fullName: e.fullName });
   }
 
   // --- dedupe: satu query bulk untuk window tanggal seluruh baris ---
@@ -207,7 +217,8 @@ async function classifyRows({ db, rows }: ClassifyInput): Promise<Classified> {
     if (!maxDate || ts > maxDate) maxDate = ts;
   }
   const dbKeys = new Set<string>();
-  const empIds = [...new Set(employees.map((e) => e.id))];
+  // hanya karyawan yang benar-benar cocok (bukan seluruh kandidat ber-NIK)
+  const empIds = [...new Set([...byKey.values()].map((e) => e.id))];
   if (minDate && maxDate && empIds.length) {
     const existing = await db.attendanceClockLog.findMany({
       where: {

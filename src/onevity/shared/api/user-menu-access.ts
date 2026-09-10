@@ -4,28 +4,33 @@ import { getTenantClient, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { SUPER_ADMIN_APP_ROLES, SUPER_ADMIN_PLATFORM_ROLES } from "@/onevity/shared/services/access-scope";
+import { publicMenuPerms, warnNoMenuConfig } from "@/onevity/shared/services/menu-access";
 import { normalizeMenusJson, sanitizeMenusInput, viewListOf, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 
 // ============ HAK AKSI MENU PER PENGGUNA (Task 31 + 32) =================
 // =====================================================================
 // Hak akses MENU secara INDIVIDUAL, turun ke level AKSI (Task 32):
-//   • mode ALL    → semua menu & seluruh aksi (default bila tanpa baris)
+//   • mode ALL    → semua menu & seluruh aksi (dipilih eksplisit di editor)
 //   • mode CUSTOM → hanya menu pada menusJson, tiap menu membawa
 //     { view, create, update, delete, ops: { approve, calculate, … } }
 //   • Super Admin (AppUser.role Admin / platform OWNER|ADMIN) otomatis
 //     semua menu, data, & aksi — TANPA perlu diatur di sini.
+//   • M-7 (audit 42): TANPA baris konfigurasi → default DENY + allowlist
+//     menu publik eksplisit (mirror resolveMenuPerms — UI & API konsisten).
 // Endpoints:
 //   GET  ?action=me            → konfigurasi pengguna sesi (AppShell)
 //   GET  (default)             → daftar pengguna + konfigurasi (admin)
 //   POST { appUserId, mode, menus } → upsert; menus bisa string[] lama
 //        (izin penuh) ATAU object { key: {create,update,delete,ops} }
-//   DELETE ?userId=            → hapus konfigurasi (kembali default)
+//   DELETE ?userId=            → hapus konfigurasi (M-7: tanpa baris =
+//        default DENY — hanya menu publik eksplisit yang terbuka)
 // =====================================================================
 
 interface MeResolution {
   db: TenantDb;
   appUserId: string | null;
   appUserRole: string | null;
+  appUsername: string | null;
   isSuperAdmin: boolean;
 }
 
@@ -43,10 +48,10 @@ async function resolveMe(req: Request): Promise<MeResolution | null> {
 
   const db = getTenantClient(membership.tenant.schemaName);
 
-  let appUser: { id: string; role: string } | null = null;
+  let appUser: { id: string; role: string; username: string | null } | null = null;
   try {
     appUser = membership.user.email
-      ? await db.appUser.findFirst({ where: { email: membership.user.email }, select: { id: true, role: true } })
+      ? await db.appUser.findFirst({ where: { email: membership.user.email }, select: { id: true, role: true, username: true } })
       : null;
   } catch {
     appUser = null; // schema tanpa tabel AppUser
@@ -56,7 +61,7 @@ async function resolveMe(req: Request): Promise<MeResolution | null> {
     (appUser != null && SUPER_ADMIN_APP_ROLES.includes(appUser.role)) ||
     SUPER_ADMIN_PLATFORM_ROLES.includes(membership.role);
 
-  return { db, appUserId: appUser?.id ?? null, appUserRole: appUser?.role ?? null, isSuperAdmin };
+  return { db, appUserId: appUser?.id ?? null, appUserRole: appUser?.role ?? null, appUsername: appUser?.username ?? null, isSuperAdmin };
 }
 
 /** Baca menusJson aman → MenusMap (legacy string[] → izin penuh). */
@@ -85,13 +90,25 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ all: false, menus: [], perms: {}, isSuperAdmin: false });
       }
       let row: { mode: string; menusJson: string } | null = null;
+      let tableMissing = false;
       try {
         row = await me.db.userMenuAccess.findUnique({ where: { appUserId: me.appUserId }, select: { mode: true, menusJson: true } });
       } catch {
-        row = null; // tabel belum termigrasi → default semua
+        row = null;
+        tableMissing = true; // tabel belum termigrasi → fail-closed (M-7)
       }
-      if (!row || row.mode === "ALL") {
+      // Mode ALL EKSPLISIT (dipilih admin di editor Hak Akses) → semua menu.
+      if (row?.mode === "ALL") {
         return NextResponse.json({ all: true, menus: [], perms: {}, isSuperAdmin: false });
+      }
+      // M-7 (audit 42) — default DENY (mirror resolveMenuPerms di
+      // services/menu-access.ts): tanpa konfigurasi hanya menu publik
+      // eksplisit; shell tidak lagi mengiklankan semua menu ke pengguna
+      // yang belum diatur. Guard API memakai aturan yang sama.
+      if (!row) {
+        warnNoMenuConfig(me.appUserId, me.appUsername, tableMissing);
+        const perms = publicMenuPerms();
+        return NextResponse.json({ all: false, menus: viewListOf(perms), perms, isSuperAdmin: false });
       }
       const perms = parseMenusMap(row.menusJson);
       return NextResponse.json({ all: false, menus: viewListOf(perms), perms, isSuperAdmin: false });
@@ -246,7 +263,7 @@ export async function DELETE(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return NextResponse.json({ error: "userId wajib" }, { status: 400 });
     const cur = await db.userMenuAccess.findUnique({ where: { appUserId: userId } });
-    if (!cur) return NextResponse.json({ error: "Konfigurasi tidak ditemukan (pengguna sudah default semua menu)" }, { status: 404 });
+    if (!cur) return NextResponse.json({ error: "Konfigurasi tidak ditemukan (pengguna sudah tanpa konfigurasi — default DENY, M-7)" }, { status: 404 });
 
     await db.userMenuAccess.delete({ where: { appUserId: userId } });
     const user = await db.appUser.findUnique({ where: { id: userId }, select: { username: true, fullName: true } });
@@ -255,7 +272,7 @@ export async function DELETE(req: NextRequest) {
         action: "Deleted",
         entity: "UserMenuAccess",
         entityId: userId,
-        detail: `Batasan menu ${user?.fullName ?? userId} dihapus — kembali ke default semua menu`,
+        detail: `Batasan menu ${user?.fullName ?? userId} dihapus — kembali ke default DENY: menu tak terdaftar ditolak hingga diatur ulang (M-7)`,
       },
     });
     return NextResponse.json({ ok: true });

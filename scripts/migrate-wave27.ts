@@ -15,6 +15,7 @@
 // Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
 // (main() tanpa efek samping modul) ATAU dijalankan CLI:
 //   bun run scripts/migrate-wave27.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

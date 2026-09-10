@@ -120,25 +120,40 @@ async function assignmentFor(db: TenantDb, employeeId: string, date: Date) {
   return list[0] ?? null;
 }
 
+// ============ M-13 (audit 42): resolusi day type dari CACHE PREFETCH ============
+// regenerateDaily dulu memanggil resolveDayType/workoffFor/leaveFor PER
+// KARYAWAN di dalam loop (N+1: 42 karyawan → ±170 kueri per hari regen, × jumlah
+// hari di regenerateRange). Inti resolusi kini dipisah jadi fungsi murni di atas
+// cache (Map) sehingga jalur tunggal (resolveDayType) dan jalur batch
+// (regenerateDaily) MEMAKAI SEMANGTIK YANG SAMA — satu sumber kebenaran.
+
+/** Baris assignment lengkap hasil assignmentFor / findMany include schedule. */
+type AssignmentRow = NonNullable<Awaited<ReturnType<typeof assignmentFor>>>;
+
+/** Subset field WorkDayType yang dipakai resolusi (full row Prisma lolos). */
+interface DayTypeCacheRow {
+  id: string; active: boolean; code: string; name: string; color: string; category: string;
+  timeIn: string | null; timeOut: string | null; nextDay: boolean; breakMinutes: number;
+  normalMinutes: number; toleranceLateMinutes: number; toleranceEarlyMinutes: number;
+  flexible: boolean;
+}
+
 /**
- * Resolusi day type efektif karyawan pada tanggal — padanan "Employee Clocking:
- * resolve day type efektif". Cycle di-anchor ke anchorMonday/anchorSequence.
- * Tidak ada assignment / sequence tidak terdaftar → null (hari tanpa jadwal).
- *
- * T9-HOLIDAY — overlay kalender libur: tanggal yang terdaftar di HolidayDate
- * MENANG atas cycle jadwal → day type efektif kategori "Holiday" (multiplier
- * lembur PP 35: 2×/3×/4×; hari kerja cuti melewati hari libur). Jam standar
- * kantor (08:00-17:00/480') dipakai acuan durasi bila lembur menutup hari.
+ * Inti resolusi day type efektif dari data prefetch (M-13). Semantik identik
+ * dgn resolveDayType lama: holiday overlay menang atas cycle; tanpa assignment
+ * → tanpa jadwal; sequence di-anchor ke anchorMonday/anchorSequence; day type
+ * tak aktif/tidak dikenal → null.
  */
-export async function resolveDayType(db: TenantDb, employeeId: string, date: Date): Promise<ResolvedSchedule> {
+function resolveDayTypeFromCache(
+  a: AssignmentRow | null,
+  dtById: Map<string, DayTypeCacheRow>,
+  date: Date,
+  holiday: HolidayInfo | null,
+): ResolvedSchedule {
   // 1) overlay libur — cek DULU, prioritas di atas jadwal
-  const holiday = await holidayOn(db, date);
   if (holiday) {
-    const a = await assignmentFor(db, employeeId, date);
     return {
-      assignment: a
-        ? { id: a.id, clockingRequired: a.clockingRequired, scheduleId: a.scheduleId }
-        : { id: "", clockingRequired: true, scheduleId: "" },
+      assignment: a ?? { id: "", clockingRequired: true, scheduleId: "" },
       dayType: {
         // id sintetis "HOLIDAY" — BUKAN baris WorkDayType (jangan ditulis ke
         // AttendanceDaily.dayTypeId; consumers membaca holiday utk identitas).
@@ -160,7 +175,6 @@ export async function resolveDayType(db: TenantDb, employeeId: string, date: Dat
     };
   }
 
-  const a = await assignmentFor(db, employeeId, date);
   if (!a) return { assignment: { id: "", clockingRequired: true, scheduleId: "" }, dayType: null, holiday: null };
 
   const cycle = a.schedule.days;
@@ -173,7 +187,7 @@ export async function resolveDayType(db: TenantDb, employeeId: string, date: Dat
   const day = cycle.find((d) => d.sequence === seq) ?? cycle.find((d) => d.sequence === idx + 1);
   if (!day) return { assignment: a, dayType: null, holiday: null };
 
-  const dt = await db.workDayType.findUnique({ where: { id: day.dayTypeId } });
+  const dt = dtById.get(day.dayTypeId);
   if (!dt || !dt.active) return { assignment: a, dayType: null, holiday: null };
   return {
     assignment: a,
@@ -186,6 +200,41 @@ export async function resolveDayType(db: TenantDb, employeeId: string, date: Dat
     },
     holiday: null,
   };
+}
+
+/**
+ * Resolusi day type efektif karyawan pada tanggal — padanan "Employee Clocking:
+ * resolve day type efektif". Cycle di-anchor ke anchorMonday/anchorSequence.
+ * Tidak ada assignment / sequence tidak terdaftar → null (hari tanpa jadwal).
+ *
+ * T9-HOLIDAY — overlay kalender libur: tanggal yang terdaftar di HolidayDate
+ * MENANG atas cycle jadwal → day type efektif kategori "Holiday" (multiplier
+ * lembur PP 35: 2×/3×/4×; hari kerja cuti melewati hari libur). Jam standar
+ * kantor (08:00-17:00/480') dipakai acuan durasi bila lembur menutup hari.
+ *
+ * K-5 (audit 42): parameter `holiday` opsional — hasil holidayOn(date) yang
+ * sudah di-cache pemanggil (regenerateDaily mengambil SEKALI per hari, bukan
+ * per karyawan). undefined = cari sendiri (perilaku pemanggil lama tak berubah).
+ */
+export async function resolveDayType(
+  db: TenantDb,
+  employeeId: string,
+  date: Date,
+  holiday?: HolidayInfo | null,
+): Promise<ResolvedSchedule> {
+  // 1) overlay libur — cek DULU, prioritas di atas jadwal
+  const dayHoliday = holiday !== undefined ? holiday : await holidayOn(db, date);
+  const a = await assignmentFor(db, employeeId, date);
+  if (dayHoliday) return resolveDayTypeFromCache(a, new Map(), date, dayHoliday);
+  if (!a) return resolveDayTypeFromCache(null, new Map(), date, null);
+
+  // day type yang dirujuk cycle — satu findMany in [...] (M-13: pengganti
+  // findUnique per karyawan; jalur tunggal ini jumlah kuerinya sama dulu).
+  const dayTypeIds = [...new Set(a.schedule.days.map((d) => d.dayTypeId))];
+  const dts = dayTypeIds.length > 0
+    ? await db.workDayType.findMany({ where: { id: { in: dayTypeIds } } })
+    : [];
+  return resolveDayTypeFromCache(a, new Map(dts.map((d) => [d.id, d as DayTypeCacheRow])), date, null);
 }
 
 // ============ aturan singleton (padanan Overtime Specified + Rounding) ============
@@ -204,63 +253,22 @@ export async function getRule(db: TenantDb) {
 
 // ============ rekap harian (padanan "Refresh Clocking" → Employee Clocking) ============
 
+// Izin tidak masuk (work off) efektif pada tanggal — hasil loop regenerateDaily
+// (M-13: kini batch findMany in [...] + Map "baris pertama per karyawan" dgn
+// orderBy dateFrom desc — padanan workoffFor per karyawan yang lama).
 interface WorkoffCoverage {
   paid: boolean | null; // null = tidak ada izin
   half: boolean; // setengah hari
 }
 
-async function workoffFor(db: TenantDb, employeeId: string, date: Date): Promise<WorkoffCoverage> {
-  const start = dayStart(date);
-  const end = addDays(start, 1);
-  const rows = await db.workOffPermission.findMany({
-    where: {
-      employeeId,
-      status: "Approved",
-      dateFrom: { lt: end },
-      dateTo: { gte: start },
-    },
-    orderBy: { dateFrom: "desc" },
-  });
-  const w = rows[0];
-  if (!w) return { paid: null, half: false };
-  return { paid: w.paid, half: !w.allDay };
-}
-
 // Cuti efektif pada tanggal (modul Leave): request Approved/MassLeave menutup hari —
 // padanan Absence Code per jenis cuti. Setengah hari: sesi PM di tanggal mulai
-// atau sesi AM di tanggal selesai.
+// atau sesi AM di tanggal selesai. (M-13: batch di regenerateDaily — padanan
+// leaveFor per karyawan yang lama, orderBy status asc + dateFrom desc.)
 interface LeaveCoverage {
   typeName: string;
   paid: boolean;
   half: boolean;
-}
-
-async function leaveFor(db: TenantDb, employeeId: string, date: Date): Promise<LeaveCoverage | null> {
-  const start = dayStart(date);
-  const end = addDays(start, 1);
-  const rows = await db.leaveRequest.findMany({
-    where: {
-      employeeId,
-      status: { in: ["Approved", "MassLeave"] },
-      // T5-TA-FIX (WorkOff.deductLeave): request potongan OTOMATIS dari izin
-      // tidak masuk (source "WorkOff") tidak dihitung sebagai cuti di rekap
-      // harian — hari tsb tetap ditutup oleh WorkOffPermission (status WorkOff)
-      // supaya regen konsisten (audit 1c).
-      source: { not: "WorkOff" },
-      dateFrom: { lt: end },
-      dateTo: { gte: start },
-    },
-    orderBy: [{ status: "asc" }, { dateFrom: "desc" }],
-    include: { leaveType: { select: { name: true, paid: true } } },
-  });
-  const r = rows[0];
-  if (!r) return null;
-  const isFrom = r.dateFrom.getTime() === start.getTime();
-  const isTo = r.dateTo.getTime() === start.getTime();
-  let half = false;
-  if (isFrom && r.sessionFrom === "PM") half = true;
-  if (isTo && r.sessionTo === "AM") half = true;
-  return { typeName: r.leaveType.name, paid: r.leaveType.paid, half };
 }
 
 export interface DailyRow {
@@ -382,8 +390,76 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
   }
 
   let count = 0;
+  // K-5 (audit 42): resolusi holiday SEKALI per tanggal (identik utk semua
+  // karyawan) — dulu resolveDayType meng-query HolidayDate per karyawan per
+  // hari (42 karyawan → 42× query libur yang sama tiap hari regen).
+  const dayHoliday = await holidayOn(db, date);
+
+  // ==== M-13 (audit 42): PREFETCH BATCH seluruh lookup per-karyawan ====
+  // Dulu loop di bawah memanggil resolveDayType + workoffFor + leaveFor per
+  // karyawan → N+1 (42 karyawan × 4 kueri ≈ 170 kueri/hari; regenerateRange
+  // mengalikan per hari). Kini SEMUA baca dikumpulkan di atas (assignment +
+  // day type + izin + cuti, 4 kueri total per hari) lalu di-loop dari Map —
+  // semantik per baris identik dgn versi per-karyawan (pemilihan "baris
+  // pertama per karyawan" mengikuti orderBy yang sama: validFrom desc /
+  // dateFrom desc / status asc+dateFrom desc).
+  const empIds = employees.map((e) => e.id);
+  const assignments = await db.scheduleAssignment.findMany({
+    where: {
+      employeeId: { in: empIds },
+      validFrom: { lte: start },
+      OR: [{ validTo: null }, { validTo: { gte: start } }],
+    },
+    include: { schedule: { include: { days: true } } },
+    orderBy: { validFrom: "desc" },
+  });
+  // assignment aktif terakhir per karyawan (padanan assignmentFor take:1)
+  const assignmentByEmp = new Map<string, AssignmentRow>();
+  for (const a of assignments) {
+    const cur = assignmentByEmp.get(a.employeeId);
+    if (!cur || a.validFrom > cur.validFrom) assignmentByEmp.set(a.employeeId, a);
+  }
+  // day type yang dirujuk seluruh cycle (sekali, in [...])
+  const dayTypeIds = new Set<string>();
+  for (const a of assignments) for (const d of a.schedule.days) dayTypeIds.add(d.dayTypeId);
+  const dayTypeRows = dayTypeIds.size > 0
+    ? await db.workDayType.findMany({ where: { id: { in: [...dayTypeIds] } } })
+    : [];
+  const dtById = new Map<string, DayTypeCacheRow>(dayTypeRows.map((d) => [d.id, d as DayTypeCacheRow]));
+
+  // izin tidak masuk (work off) hari tsb — per karyawan, padanan workoffFor
+  const workoffs = await db.workOffPermission.findMany({
+    where: { employeeId: { in: empIds }, status: "Approved", dateFrom: { lt: dayEnd }, dateTo: { gte: start } },
+    orderBy: { dateFrom: "desc" },
+  });
+  const workoffByEmp = new Map<string, (typeof workoffs)[number]>();
+  for (const w of workoffs) if (!workoffByEmp.has(w.employeeId)) workoffByEmp.set(w.employeeId, w);
+
+  // cuti efektif hari tsb — per karyawan, padanan leaveFor (rows[0] setelah
+  // orderBy status asc, dateFrom desc; setengah hari dari sesi PM/AM).
+  const leaves = await db.leaveRequest.findMany({
+    where: {
+      employeeId: { in: empIds },
+      status: { in: ["Approved", "MassLeave"] },
+      // T5-TA-FIX (WorkOff.deductLeave): request potongan OTOMATIS dari izin
+      // tidak masuk (source "WorkOff") tidak dihitung sebagai cuti di rekap
+      // harian — hari tsb tetap ditutup oleh WorkOffPermission (status WorkOff)
+      // supaya regen konsisten (audit 1c).
+      source: { not: "WorkOff" },
+      dateFrom: { lt: dayEnd },
+      dateTo: { gte: start },
+    },
+    orderBy: [{ status: "asc" }, { dateFrom: "desc" }],
+    include: { leaveType: { select: { name: true, paid: true } } },
+  });
+  const leaveByEmp = new Map<string, (typeof leaves)[number]>();
+  for (const l of leaves) if (!leaveByEmp.has(l.employeeId)) leaveByEmp.set(l.employeeId, l);
+
   for (const emp of employees) {
-    const { assignment, dayType, holiday } = await resolveDayType(db, emp.id, date);
+    // M-13: resolusi dari cache (semantik resolveDayType — lihat fungsi murni)
+    const { assignment, dayType, holiday } = resolveDayTypeFromCache(
+      assignmentByEmp.get(emp.id) ?? null, dtById, date, dayHoliday,
+    );
     // Fix K-2: clock-in tetap dibatasi hari tsb (nextDay: hingga D+1), namun clock-out
     // kini sah hingga 10 jam SETELAH jam pulang jadwal — menangkap clock-out lewat
     // tengah malam pada tipe hari non-lintas-hari (dulu dibuang → karyawan dianggap
@@ -404,8 +480,19 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
       ? [...empLogs].reverse().find((l) => l.direction === "OUT" && l.timestamp > checkIn && l.timestamp <= outLimit)?.timestamp ?? null
       : null;
 
-    const wo = await workoffFor(db, emp.id, date);
-    const lv = await leaveFor(db, emp.id, date);
+    // M-13: work off + cuti dari cache batch (padanan workoffFor/leaveFor)
+    const wRow = workoffByEmp.get(emp.id);
+    const wo: WorkoffCoverage = wRow ? { paid: wRow.paid, half: !wRow.allDay } : { paid: null, half: false };
+    const lRow = leaveByEmp.get(emp.id);
+    let lv: LeaveCoverage | null = null;
+    if (lRow) {
+      const isFrom = lRow.dateFrom.getTime() === start.getTime();
+      const isTo = lRow.dateTo.getTime() === start.getTime();
+      let half = false;
+      if (isFrom && lRow.sessionFrom === "PM") half = true;
+      if (isTo && lRow.sessionTo === "AM") half = true;
+      lv = { typeName: lRow.leaveType.name, paid: lRow.leaveType.paid, half };
+    }
     const target = dayType?.normalMinutes ?? 0;
     // T9-HOLIDAY: kategori "Holiday" (overlay kalender libur) = hari TIDAK kerja —
     // konsisten dgn isWorkday (hitungan hari cuti melewati hari libur nasional);
@@ -573,10 +660,18 @@ export async function regenerateDaily(db: TenantDb, date: Date, employeeId?: str
   return count;
 }
 
-export async function regenerateRange(db: TenantDb, from: Date, to: Date): Promise<number> {
+/**
+ * Hitung ulang rekap rentang tanggal (loop regenerateDaily per hari).
+ * K-5 (audit 42): `employeeId` opsional — scope regen ke SATU karyawan saja.
+ * Default (tanpa parameter) tetap seluruh karyawan aktif — pemanggil lama
+ * (approve izin/workoff:1850/1876/1920) tidak berubah. ESS GET attendance
+ * memakai scope ini supaya halaman pribadi karyawan tidak memicu regen
+ * O(perusahaan × hari) per page-view.
+ */
+export async function regenerateRange(db: TenantDb, from: Date, to: Date, employeeId?: string): Promise<number> {
   let total = 0;
   for (let d = dayStart(from); d <= dayStart(to); d = addDays(d, 1)) {
-    total += await regenerateDaily(db, d);
+    total += await regenerateDaily(db, d, employeeId);
   }
   return total;
 }
@@ -873,69 +968,81 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
 
   const recap = await recapPeriod(db, from, to);
 
-  // assignment Specific lama periode ini utk komponen absensi → dibuang (idempoten)
-  const removed = await db.employeeComponentAssignment.deleteMany({
-    where: {
-      kind: "Specific", periodId: period.id, processTypeId: pt.id, active: true,
-      wageComponentId: { in: comps.map((c) => c.id) },
-    },
-  });
-
+  // M-17 (audit 42): seluruh TULISAN transfer kini atomik dalam $transaction —
+  // dulu deleteMany assignment lama → create per karyawan → payrollPeriod.update
+  // berjalan berurutan TANPA transaction: kegagalan di tengah (error create /
+  // koneksi putus) meninggalkan state parsial (assignment lama SUDAH dibuang,
+  // nilai baru belum/tidak semua tertulis, window period tidak tercatat) →
+  // payroll berikutnya menghitung dari data setengah transfer.
+  // 28-c + aturan known-bug: client tx Prisma TIDAK membawa brand schema →
+  // konteks crypto DITANGKAP dari client luar SEBELUM $transaction (pola
+  // travel-service.ts transferToPayroll).
+  const tcRec = tenantCryptoForDb(db);
   const agg = new Map<string, { compId: string; code: string; name: string; employees: number; amount: number }>();
   let employees = 0;
+  const removedCount = await db.$transaction(async (tx) => {
+    // assignment Specific lama periode ini utk komponen absensi → dibuang (idempoten)
+    const removed = await tx.employeeComponentAssignment.deleteMany({
+      where: {
+        kind: "Specific", periodId: period.id, processTypeId: pt.id, active: true,
+        wageComponentId: { in: comps.map((c) => c.id) },
+      },
+    });
 
-  for (const r of recap) {
-    const amounts: [string, number, string][] = [
-      [rule.overtimeComponentCode, includeOvertime ? r.overtimePay : 0, `Lembur ${Math.round(r.overtimeMinutes / 60)} jam`],
-      [rule.lateDeductionComponentCode, includeLate ? r.lateDeduction : 0, `Telat ${r.lateCount}× (${Math.round(r.lateMinutes)} menit)`],
-      [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${r.workoffUnpaidDays + r.leaveUnpaidDays} hari`],
-      [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
-    ];
-    let any = false;
-    // 28-c: nilai komponen rekap kehadiran disimpan TERENKRIPSI (enc:v1:n:…).
-    const tcRec = tenantCryptoForDb(db);
-    for (const [code, amount, note] of amounts) {
-      if (amount <= 0) continue;
-      const comp = compByCode.get(code);
-      if (!comp) continue;
-      any = true;
-      await db.employeeComponentAssignment.create({
-        data: {
-          employeeId: r.employeeId, wageComponentId: comp.id,
-          kind: "Specific", amount: tcRec.encryptMoney(Math.round(amount)),
-          periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
-          notes: `${note} · window ${fmtDate(from)}–${fmtDate(to)}`,
-          active: true,
-        },
-      });
-      const cur = agg.get(code) ?? { compId: comp.id, code, name: comp.name, employees: 0, amount: 0 };
-      cur.employees++;
-      cur.amount += Math.round(amount);
-      agg.set(code, cur);
+    for (const r of recap) {
+      const amounts: [string, number, string][] = [
+        [rule.overtimeComponentCode, includeOvertime ? r.overtimePay : 0, `Lembur ${Math.round(r.overtimeMinutes / 60)} jam`],
+        [rule.lateDeductionComponentCode, includeLate ? r.lateDeduction : 0, `Telat ${r.lateCount}× (${Math.round(r.lateMinutes)} menit)`],
+        [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${r.workoffUnpaidDays + r.leaveUnpaidDays} hari`],
+        [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
+      ];
+      let any = false;
+      // 28-c: nilai komponen rekap kehadiran disimpan TERENKRIPSI (enc:v1:n:…).
+      for (const [code, amount, note] of amounts) {
+        if (amount <= 0) continue;
+        const comp = compByCode.get(code);
+        if (!comp) continue;
+        any = true;
+        await tx.employeeComponentAssignment.create({
+          data: {
+            employeeId: r.employeeId, wageComponentId: comp.id,
+            kind: "Specific", amount: tcRec.encryptMoney(Math.round(amount)),
+            periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
+            notes: `${note} · window ${fmtDate(from)}–${fmtDate(to)}`,
+            active: true,
+          },
+        });
+        const cur = agg.get(code) ?? { compId: comp.id, code, name: comp.name, employees: 0, amount: 0 };
+        cur.employees++;
+        cur.amount += Math.round(amount);
+        agg.set(code, cur);
+      }
+      if (any) employees++;
     }
-    if (any) employees++;
-  }
 
-  // simpan window terakhir yang ditransfer — penanda utk markOvertimePaidForRun (K-3)
-  // dan guard overlap transfer berikutnya (M-4)
-  await db.payrollPeriod.update({
-    where: { id: period.id },
-    data: { taStartDate: from, taEndDate: to },
-  });
+    // simpan window terakhir yang ditransfer — penanda utk markOvertimePaidForRun (K-3)
+    // dan guard overlap transfer berikutnya (M-4)
+    await tx.payrollPeriod.update({
+      where: { id: period.id },
+      data: { taStartDate: from, taEndDate: to },
+    });
 
-  await db.activityLog.create({
-    data: {
-      action: "Processed", entity: "AttendanceTransfer", entityId: period.id,
-      appUserId: input.actor?.appUserId ?? null,
-      detail: `Transfer absensi → payroll ${period.name} (${ptCode})${input.actor ? ` oleh ${input.actor.name}` : ""}: ${employees} karyawan, ${[...agg.values()].reduce((s, c) => s + c.employees, 0)} komponen, window ${fmtDate(from)}–${fmtDate(to)}`,
-    },
+    await tx.activityLog.create({
+      data: {
+        action: "Processed", entity: "AttendanceTransfer", entityId: period.id,
+        appUserId: input.actor?.appUserId ?? null,
+        detail: `Transfer absensi → payroll ${period.name} (${ptCode})${input.actor ? ` oleh ${input.actor.name}` : ""}: ${employees} karyawan, ${[...agg.values()].reduce((s, c) => s + c.employees, 0)} komponen, window ${fmtDate(from)}–${fmtDate(to)}`,
+      },
+    });
+
+    return removed.count;
   });
 
   return {
     employees,
     window: { from: fmtDate(from), to: fmtDate(to) },
     components: [...agg.values()].sort((a, b) => a.code.localeCompare(b.code)),
-    removed: removed.count,
+    removed: removedCount,
   };
 }
 

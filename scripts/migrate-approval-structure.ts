@@ -7,6 +7,7 @@
 //      d. struktur approval default bermakna (kriteria + jenjang + tier nominal)
 //      e. backfill ApprovalChain untuk dokumen leave/travel/medical/loan
 // Jalankan: bun run scripts/migrate-approval-structure.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";

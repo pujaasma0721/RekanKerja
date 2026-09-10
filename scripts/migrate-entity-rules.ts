@@ -7,6 +7,7 @@
 //      positionLevel, usia, status pernikahan.
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI:
 //   bun run scripts/migrate-entity-rules.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

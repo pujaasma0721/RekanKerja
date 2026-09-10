@@ -385,6 +385,19 @@ export async function generateBalances(
   const prevBalances = await db.medicalBalance.findMany({ where: { year: year - 1 } });
   const prevByKey = new Map(prevBalances.map((b) => [`${b.employeeId}:${b.typeId}`, b]));
 
+  // M-14b (audit 42): saldo tahun `year` utk seluruh karyawan×jenis diambil
+  // SEKALI (findMany in [...employeeIds] + Map) — dulu findUnique per pasangan
+  // di dalam loop (42 karyawan × 8 jenis = 336 kueri; N+1). Semantik create /
+  // update-koreksi per pasangan TIDAK berubah (tetap kondisional & terpisah).
+  const existingRows = await db.medicalBalance.findMany({
+    where: {
+      year,
+      ...(input.typeId ? { typeId: input.typeId } : {}),
+      ...(input.employeeIds?.length ? { employeeId: { in: input.employeeIds } } : {}),
+    },
+  });
+  const existingByKey = new Map(existingRows.map((b) => [`${b.employeeId}:${b.typeId}`, b]));
+
   let created = 0;
   let updated = 0;
   // 28-c: baseSalary terenkripsi — dekripsi utk kalkulasi plafon.
@@ -421,9 +434,7 @@ export async function generateBalances(
       const depBenefit =
         t.dependentEnabled && t.depLimitRule !== "SHARED" ? limit : 0;
 
-      const existing = await db.medicalBalance.findUnique({
-        where: { employeeId_typeId_year: { employeeId: emp.id, typeId: t.id, year } },
-      });
+      const existing = existingByKey.get(`${emp.id}:${t.id}`);
       if (!existing) {
         await db.medicalBalance.create({
           data: {

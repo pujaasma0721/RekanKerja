@@ -12,6 +12,7 @@
 //      TravelClaim Submitted → chain baru (amount = totalSettlement); final
 //        (Approved/Transferred/Paid/Rejected/Cancelled) → chain + difinalkan
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-t15-ot-claim.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";

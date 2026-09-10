@@ -13,8 +13,18 @@ const db = new PrismaClient({
 });
 // 28-c: nilai uang payroll (baseSalary/amount komponen) dienkripsi saat seed —
 // kunci per-tenant schema (SEED_TENANT_SCHEMA, fallback tenant_seed).
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
-const tc = tenantCrypto(process.env.SEED_TENANT_SCHEMA ?? "tenant_seed");
+import { tenantCrypto, TENANT_SCHEMA_BRAND } from "../src/onevity/shared/lib/field-crypto";
+const SEED_SCHEMA = process.env.SEED_TENANT_SCHEMA ?? "tenant_seed";
+const tc = tenantCrypto(SEED_SCHEMA);
+// Brand schema pada instance seed (mirror getTenantClient) supaya service
+// (mis. benefit-service syncClaimComponent → tenantCryptoForDb) bisa resolve
+// konteks kunci enkripsi dari client ini juga.
+Object.defineProperty(db, TENANT_SCHEMA_BRAND, {
+  value: SEED_SCHEMA,
+  enumerable: false,
+  configurable: true,
+  writable: true,
+});
 
 // deterministic pseudo-random
 let seed = 42;

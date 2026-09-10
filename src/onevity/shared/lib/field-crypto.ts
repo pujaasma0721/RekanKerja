@@ -10,9 +10,13 @@
 //
 // SKEMA KUNCI:
 //   master key  = ONEVITY_ENCRYPTION_KEY (env) — PRODUKSI WAJIB DI-SET.
-//                 Bila kosong → fallback dev DETERMINISTIK:
-//                 sha256("onevity-dev-fallback:" + TENANT_DB_BASE_URL ?? "local")
-//                 + console.warn sekali (instance sandbox/dev saja).
+//                 Bila kosong:
+//                 · NODE_ENV=production → THROW pada penggunaan pertama
+//                   (fix audit 42 M-10 — fallback deterministik tidak boleh
+//                   dipakai di produksi: kunci bisa ditebak → data mudah dibuka).
+//                 · dev/test → fallback DETERMINISTIK:
+//                   sha256("onevity-dev-fallback:" + TENANT_DB_BASE_URL ?? "local")
+//                   + console.warn sekali (instance sandbox/dev saja).
 //   tenant key  = HMAC-SHA256(masterKey, "field-crypto:" + schema) — 32 byte,
 //                 satu sub-kunci unik per schema tenant (domain-separated).
 //                 Rotasi master key MEMBATALKAN data lama (dekripsi gagal).
@@ -60,6 +64,16 @@ function masterKey(): Buffer {
   if (env && env.trim().length > 0) {
     // Kunci dipakai apa adanya (disarankan ≥ 32 karakter acak).
     return createHash("sha256").update(env.trim()).digest();
+  }
+  // fix audit 42 M-10 — fail-fast PRODUCTION: tanpa kunci env, fallback dev
+  // deterministik TIDAK diizinkan. Throw saat PENGGUNAAN PERTAMA (bukan saat
+  // import) — boot tetap jalan, tapi operasi crypto pertama gagal dengan
+  // pesan yang jelas alih-alih "terenkripsi" dengan kunci tebakan.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[field-crypto] ONEVITY_ENCRYPTION_KEY wajib di-set di production — kunci fallback deterministik dev tidak diizinkan (data tidak aman). " +
+        "Set variabel lingkungan ONEVITY_ENCRYPTION_KEY (disarankan ≥ 32 karakter acak) lalu restart.",
+    );
   }
   if (!warnedFallback) {
     warnedFallback = true;

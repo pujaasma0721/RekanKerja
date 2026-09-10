@@ -1,31 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction, resolveMenuPerms } from "@/onevity/shared/services/menu-access";
 import { listBalances, generateBalances, listBenefitTypes } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/balances?year=&employeeId=&typeId= — saldo medis
 // karyawan per jenis (padanan Employee Medical Information / My Medical Information)
 // + jenis & karyawan utk filter form.
+// M-21 (audit 42): dulu katalog saldo SELURUH karyawan dikirim ke siapa pun
+// yang login. Kini: pemegang akses LIHAT menu medis (medical:medical-info /
+// medical:medical-claim — HR) tetap dapat daftar penuh; pengguna lain hanya
+// saldo MILIKNYA (scope actor.employeeId — padanan My Medical Information).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const resolved = await resolveMenuPerms(req);
+    if (!resolved) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const db = resolved.db;
     const sp = req.nextUrl.searchParams;
     const year = Number(sp.get("year") ?? new Date().getFullYear());
+
+    const canViewAll =
+      resolved.isSuperAdmin ||
+      resolved.all ||
+      resolved.perms["medical:medical-info"]?.view === true ||
+      resolved.perms["medical:medical-claim"]?.view === true;
+    const selfEmployeeId = resolved.actor.employeeId;
+    if (!canViewAll && !selfEmployeeId) {
+      return NextResponse.json(
+        { error: "Akses ditolak: hanya pemegang akses LIHAT menu medis atau pemilik saldo yang dapat melihat saldo medis" },
+        { status: 403 },
+      );
+    }
+    // filter employeeId dari klien hanya dihormati utk pemegang menu medis;
+    // pengguna lain DIPAKSA scope ke employeeId-nya sendiri.
+    const employeeId = canViewAll ? sp.get("employeeId") ?? undefined : selfEmployeeId!;
+
     const [balances, types, employees] = await Promise.all([
       listBalances(db, {
         year,
-        employeeId: sp.get("employeeId") ?? undefined,
+        employeeId,
         typeId: sp.get("typeId") ?? undefined,
       }),
       listBenefitTypes(db),
       db.employee.findMany({
-        where: { status: "Active" },
+        where: canViewAll ? { status: "Active" } : { id: selfEmployeeId! },
         select: { id: true, employeeNo: true, fullName: true },
         orderBy: { employeeNo: "asc" },
       }),
     ]);
     const years = await db.medicalBalance.findMany({
+      where: canViewAll ? undefined : { employeeId: selfEmployeeId! },
       select: { year: true }, distinct: ["year"], orderBy: { year: "desc" },
     });
     return NextResponse.json({

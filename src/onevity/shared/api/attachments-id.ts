@@ -1,7 +1,11 @@
 // OneVity — API lampiran per-id (T16-ATTACH). ==============================
 // =====================================================================
 // GET    /api/onevity/attachments/[id]            — stream file (inline;
-//        ?download=1 → attachment) — otorisasi: user login tenant sama.
+//        ?download=1 → attachment) — otorisasi (K-1 audit 42): aksi LIHAT
+//        menu entitas terkait, pengunggah, pemilik proses (klaim/dokumen
+//        karyawan), atau super admin — pola 4-level guard DELETE di bawah.
+//        (Dulu: hanya requireTenant — anggota tenant apapun bisa membaca
+//        lampiran manapun by id: bukti payroll, kwitansi medis, surat resign.)
 // DELETE /api/onevity/attachments/[id]            — hapus file+baris.
 //        Diizinkan bagi: pengunggah, super admin, pemilik proses (karyawan
 //        pemilik klaim utk TravelClaim/MedicalClaim), atau pemegang aksi
@@ -9,24 +13,32 @@
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
 import {
-  requireTenant, UNAUTHORIZED_MSG, VIEWER_FORBIDDEN_MSG,
+  UNAUTHORIZED_MSG, VIEWER_FORBIDDEN_MSG,
 } from "@/onevity/shared/lib/tenant-db";
 import { resolveMenuPerms } from "@/onevity/shared/services/menu-access";
 import { actionAllowed } from "@/onevity/shared/lib/menu-perms";
 import {
   getAttachmentById, readAttachmentFile, deleteAttachmentByRow, DRAFT_ENTITY_PREFIX,
 } from "@/onevity/shared/services/attachment-service";
-import { ATTACHMENT_ENTITY_MENUS } from "@/onevity/shared/api/attachments";
+import { ATTACHMENT_ENTITY_MENUS, attachmentReadAllowed, ATTACHMENT_READ_FORBIDDEN_MSG } from "@/onevity/shared/api/attachments";
 
 // GET — stream isi file lampiran.
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // K-1 (audit 42): resolusi izin menu + aktor (bukan hanya tenant).
+    const resolved = await resolveMenuPerms(req);
+    if (!resolved) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
-    const row = await getAttachmentById(db, id);
+    const row = await getAttachmentById(resolved.db, id);
     if (!row) return NextResponse.json({ error: "Lampiran tidak ditemukan" }, { status: 404 });
+
+    // Guard baca: menu LIHAT entitas / pengunggah / pemilik proses / super admin.
+    // (ESS tetap bisa mengunduh kwitansi klaim & dokumen sendiri via jalur 4.)
+    const allowed = await attachmentReadAllowed(resolved, row);
+    if (!allowed) {
+      return NextResponse.json({ error: ATTACHMENT_READ_FORBIDDEN_MSG }, { status: 403 });
+    }
 
     let bytes: Buffer;
     try {

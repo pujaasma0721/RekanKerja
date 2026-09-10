@@ -4,6 +4,7 @@
 //   2. seedLetterTemplates — default template surat (idempoten per key;
 //      TIDAK menimpa template yang sudah diedit user)
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-letters-offboarding.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";

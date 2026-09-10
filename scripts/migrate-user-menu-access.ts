@@ -11,6 +11,7 @@
 //      langsung dengan login akun tersebut.
 // Super admin (AppUser role Admin / platform OWNER|ADMIN) & atasan langsung
 // otomatis — tanpa konfigurasi. Jalankan: bun run scripts/migrate-user-menu-access.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 import { randomBytes, scryptSync } from "node:crypto";
 

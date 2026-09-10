@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { type Employee, Prisma } from "@/generated/tenant";
 import * as ExcelJS from "exceljs";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, resolveMenuPerms } from "@/onevity/shared/services/menu-access";
 import { requireScoped, scopeWhere, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
@@ -138,12 +138,53 @@ export async function createEmployeeWithAssignment(
 // Multi-tenant: db = schema tenant dari session cookie (isolasi per workspace).
 // Skema akses data (Task 30): hasil query dibatasi cakupan akses efektif
 // pengguna (super admin semua, atasan langsung bawahan, rule parametrik).
+// M-11 (audit 42): + gerbang MENU LIHAT — daftar karyawan memuat kolom PII
+// (NIK/NPWP/rekening/alamat/telp — didekripsi di batas serializer), jadi hanya
+// pemegang LIHAT menu halaman KONSUMEN endpoint ini yang mendapat query
+// ter-scope penuh; anggota tenant tanpa menu dipaksa self-scope (lihat guard
+// di dalam GET — satu-satunya konsumen non-menu adalah pencarian global shell
+// admin-mode, yang bagi karyawan cukup menemukan DIRINYA sendiri).
+const EMPLOYEE_LIST_MENUS = [
+  "hr:directory", // Direktori Karyawan (employee-directory.tsx) — konsumen utama
+  "hr:tree", // Unit Organisasi — daftar karyawan per unit (org-module.tsx)
+  "settings:security", // Keamanan & Akses — pilih karyawan (user-security-view.tsx)
+  "settings:audit", // Log Aktivitas — filter karyawan (activity-log-view.tsx)
+  "payroll:runs", // dialog Bonus Massal di halaman run (bonus-massal-dialog.tsx)
+] as const;
+
 export async function GET(req: NextRequest) {
   try {
     const s = await requireScoped(req);
     if (!s.ok) return NextResponse.json({ error: s.error }, { status: s.status });
     const db = s.db;
-    const scopeCond = scopeWhere(s.scope);
+
+    // ==== M-11 (audit 42): gerbang menu + self-scope fallback ====
+    // • super admin / mode ALL / CUSTOM dgn LIHAT di salah satu menu konsumen
+    //   → perilaku lama (query ter-scope skema akses).
+    // • TANPA menu → self-scope SAJA (actor.employeeId) — bentuk respons
+    //   dipertahankan (subset; konsumen ESS-satunya = pencarian global shell).
+    // • TANPA menu & tanpa employeeId → 403 (pola pesan 43-a).
+    // Field-selection PII per role (audit M-9 / desain 42-e) tetap di Task 44.
+    const menu = await resolveMenuPerms(req);
+    const hasListMenu = Boolean(
+      menu && (menu.all || EMPLOYEE_LIST_MENUS.some((k) => menu.perms[k]?.view === true)),
+    );
+    const selfEmployeeId = s.scope.selfEmployeeId;
+    if (!hasListMenu && !selfEmployeeId) {
+      return NextResponse.json(
+        {
+          error:
+            `Akses ditolak: Anda tidak memiliki aksi "Lihat" pada menu ${EMPLOYEE_LIST_MENUS.join(" / ")}. ` +
+            "Hak aksi diatur per pengguna — hubungi admin bila memerlukan akses.",
+        },
+        { status: 403 },
+      );
+    }
+    // self-scope bagi non-menu: cakupan akses efektif di-narrow ke diri sendiri
+    // (atasan/rule akses tidak lagi melihat PII bawahan lewat endpoint ini).
+    const scopeCond = hasListMenu
+      ? scopeWhere(s.scope)
+      : { id: selfEmployeeId! };
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const status = sp.get("status") ?? undefined;
@@ -1032,8 +1073,24 @@ export async function employeesImportPost(req: NextRequest): Promise<NextRespons
               batchCreated.push({ row: p.row, employeeNo: employee.employeeNo, fullName: employee.fullName });
             } catch (e) {
               failed.push({ row: p.row, error: friendlyImportError(e) });
-              // bersihkan sisa parsial baris ini (mis. employee terbuat tapi assignment gagal)
-              try { await tx.employee.deleteMany({ where: { nationalId: p.nik } }); } catch { /* noop */ }
+              // bersihkan sisa parsial baris ini (mis. employee terbuat tapi assignment gagal).
+              // 28-c (follow-up 43-b): nationalId baris baru TERENKRIPSI —
+              // deleteMany WHERE nationalId=plaintext tidak akan pernah match;
+              // cari id kandidat via decrypt-then-match (tcImport dari client
+              // luar transaksi) lalu hapus by id IN. NIK sudah divalidasi unik
+              // pra-import → hanya sisa parsial baris ini yang cocok.
+              try {
+                if (p.nik) {
+                  const cand = await tx.employee.findMany({
+                    where: { nationalId: { not: null } },
+                    select: { id: true, nationalId: true },
+                  });
+                  const stale = cand
+                    .filter((c) => tcImport.decryptText(c.nationalId) === p.nik)
+                    .map((c) => c.id);
+                  if (stale.length > 0) await tx.employee.deleteMany({ where: { id: { in: stale } } });
+                }
+              } catch { /* noop */ }
             }
           }
         });

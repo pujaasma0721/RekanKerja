@@ -18,12 +18,21 @@
 //
 // Token default di bawah HANYA untuk repo privat + keperluan demo (endpoint
 // idempoten; salah token → 401). Override via env DEMO_SEED_TOKEN di server.
+//
+// M-2 (audit 42) — gating produksi: data/akun demo (kredensial yang diketahui
+// publik dari repo) TIDAK boleh otomatis tercipta di production. Jalur demo
+// (auto-seed fresh-install + token default) hanya aktif saat NODE_ENV ≠
+// production; production harus set ONEVITY_ALLOW_DEMO_SEED=1 secara eksplisit
+// (operator sadar risiko). Jalur PARITY-ONLY (upgrade migrasi schema tenant
+// yang sudah ada) TETAP diizinkan di production — itu jalur pemulihan/deploy
+// yang sah, bukan seed data demo. Register self-service (/api/auth/register)
+// tidak menyentuh modul ini sama sekali.
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { Client } from "pg";
 import { parityRunnerStatus, runParityPipeline } from "@/onevity/shared/lib/parity-runner";
 
-const DEFAULT_TOKEN = "ovseed_58ee69daad5e4e915d55ecf2";
+const DEFAULT_TOKEN = "ovseed_58ee69daad5e4e915d55ecf2"; // DEV SAJA — lihat demoSeedToken()
 const SCRIPT = "scripts/restore-demo.ts";
 const MAX_LOG = 4000;
 
@@ -33,8 +42,26 @@ let lastLog = "";
 let lastExit: number | null = null;
 let startedAt: number | null = null;
 
+/** M-2: jalur seed demo boleh jalan? (non-production, atau opt-in eksplisit) */
+export function demoSeedAllowed(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  const flag = process.env.ONEVITY_ALLOW_DEMO_SEED;
+  return flag === "1" || flag === "true";
+}
+
 export function demoSeedToken(): string {
-  return process.env.DEMO_SEED_TOKEN || DEFAULT_TOKEN;
+  const fromEnv = process.env.DEMO_SEED_TOKEN;
+  if (fromEnv) return fromEnv;
+  // M-2: production TANPA DEMO_SEED_TOKEN → token default repo tidak diterima
+  // ("" takkan pernah cocok — endpoint seed-demo selalu 401 sampai env diset).
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[demo-seed] DEMO_SEED_TOKEN belum diset — token default repo NONAKTIF di production; " +
+      "POST /api/admin/seed-demo akan menolak semua token.",
+    );
+    return "";
+  }
+  return DEFAULT_TOKEN;
 }
 
 function appendLog(chunk: Buffer | string) {
@@ -69,6 +96,20 @@ export type SeedSpawnResult = {
  *        instrumentation saat tenant sudah ada: hanya upgrade migrasi).
  */
 export function startDemoSeed(opts: { parityOnly?: boolean } = {}): SeedSpawnResult {
+  // M-2: jalur DEMO (fresh-install + data demo) digerbang produksi — parityOnly
+  // (migrasi upgrade tenant yang sudah ada) tetap diizinkan.
+  if (!opts.parityOnly && !demoSeedAllowed()) {
+    console.warn(
+      "[demo-seed] DITOLAK: seed data demo tidak jalan di production " +
+      "(NODE_ENV=production tanpa ONEVITY_ALLOW_DEMO_SEED=1). " +
+      "Provisioning tenant asli tetap tersedia via /api/auth/register.",
+    );
+    return {
+      ok: false,
+      running: false,
+      note: "Seed data demo dinonaktifkan di production — set ONEVITY_ALLOW_DEMO_SEED=1 bila memang disengaja.",
+    };
+  }
   const childRunning = !!child && child.exitCode === null && !child.killed;
   if (busy || childRunning || parityRunnerStatus().running) {
     return { ok: false, running: true, note: "Seed demo masih berjalan — tunggu hingga selesai." };

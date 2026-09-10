@@ -274,8 +274,15 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
   const resetMenu = async () => {
     if (!selected) return;
     try {
-      await apiSend(`/api/onevity/user-menu-access?userId=${selected.id}`, "DELETE");
-      toast.success(t("Batasan menu {name} dihapus — kembali ke default semua menu & seluruh aksi", "Menu restrictions for {name} removed — back to the default of all menus & all actions", { name: selected.fullName }));
+      // M-7 (audit 42): "Kembalikan ke Default" kini menyimpan mode ALL
+      // EKSPLISIT (bukan menghapus baris — menghapus konfigurasi berarti
+      // default DENY sejak M-7). Tombol tetap berarti apa labelnya.
+      await apiSend("/api/onevity/user-menu-access", "POST", {
+        appUserId: selected.id,
+        mode: "ALL",
+        menus: [],
+      });
+      toast.success(t("Hak akses {name} dikembalikan ke semua menu & seluruh aksi", "Access for {name} restored to all menus & all actions", { name: selected.fullName }));
       setDraftMode("ALL");
       setDraftPerms({});
       setDirty(false);
@@ -517,7 +524,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
                           {([
-                            { v: "ALL", label: t("Semua Menu (default)", "All Menus (default)") },
+                            { v: "ALL", label: t("Semua Menu", "All Menus") },
                             { v: "CUSTOM", label: t("Batasi — pilih menu", "Restrict — select menus") },
                           ] as const).map((m) => (
                             <button
@@ -642,7 +649,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           onClick={resetMenu}
                           disabled={selected.menuMode !== "CUSTOM" || savingMenu}
                           className="h-9 gap-2 rounded-xl"
-                          title={t("Hapus konfigurasi — kembali ke default semua menu", "Remove the configuration — back to the all-menus default")}
+                          title={t("Kembalikan ke mode Semua Menu (eksplisit — semua aksi diizinkan)", "Restore to the All Menus mode (explicit — all actions allowed)")}
                         >
                           <RotateCcw className="h-3.5 w-3.5" /> {t("Kembalikan ke Default", "Restore Default")}
                         </Button>

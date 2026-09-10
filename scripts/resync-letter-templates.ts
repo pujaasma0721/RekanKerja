@@ -2,6 +2,7 @@
 // pengguna (26-a): template baru dibuat bila belum ada; template lama hanya
 // diperbarui bila belum pernah diedit lewat UI (updatedAt masih ≈ createdAt
 // sejak seeding). Baris yang sudah diedit admin dibiarkan apa adanya.
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
 

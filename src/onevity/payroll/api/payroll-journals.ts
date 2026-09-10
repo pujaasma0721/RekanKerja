@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
@@ -7,10 +6,15 @@ import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journa
 // GET /api/onevity/payroll-journals            → daftar jurnal + run yang belum diposting
 // GET /api/onevity/payroll-journals?id=        → detail jurnal (dengan lines)
 // GET /api/onevity/payroll-journals?export=csv&id= → CSV jurnal
+// fix audit 42 K-2 (KRITIS): jurnal memuat nominal TERDEKRIPTI — dulu GET
+// hanya requireTenant (POST sudah berguard). Guard hak AKSI menu
+// payroll:journals view (key nav "Jurnal Payroll" — menu halaman ini
+// sendiri; read-only, ekspor CSV sebangun view).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:journals", "view");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     // 28-c: nominal jurnal tersimpan terenkripsi — dekripsi di batas serializer.
     const tc = tenantCryptoForDb(db);
     const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;

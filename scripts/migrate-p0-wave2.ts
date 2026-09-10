@@ -12,6 +12,7 @@
 //      kasus durasi total > 5 tahun (uji guard konversi PKS) dan sebaran
 //      tanggal berakhir ≤7/≤21/≤45/≤75 hari + 1 lewat (uji filter directory).
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-p0-wave2.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

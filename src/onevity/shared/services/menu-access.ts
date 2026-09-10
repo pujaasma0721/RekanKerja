@@ -35,6 +35,50 @@ export type MenuActionResult =
   | { ok: true; db: TenantDb; actor: MenuActor }
   | { ok: false; status: number; error: string };
 
+// ---------- M-7 (audit 42): default-DENY utk menu tak terdaftar ----------
+
+/**
+ * Menu yang SENGAJA terbuka untuk semua pengguna AppUser tanpa konfigurasi
+ * (escape hatch default-deny M-7). Saat ini KOSONG oleh desain:
+ * • Portal Karyawan (/ess) memakai endpoint /api/onevity/ess/* yang TIDAK
+ *   melalui guard menu (requireEss — self-scope per employeeId);
+ * • notifikasi, dashboard KPI, dan profil admin shell juga tanpa guard menu
+ *   (requireAppUser / requireScoped — self-scope);
+ * • unduhan slip gaji & lampiran milik sendiri lolos lewat cek KEPEMILIKAN
+ *   (payslip.ts, attachments-id.ts) — bukan lewat menu.
+ * Tambahkan key menu di sini (view-only) bila kelak ada menu yang memang
+ * publik bagi semua role.
+ */
+export const PUBLIC_MENU_KEYS: readonly string[] = [];
+
+/** Izin efektif pengguna tanpa konfigurasi: hanya menu publik, view-only. */
+export function publicMenuPerms(): MenusMap {
+  const map: MenusMap = {};
+  for (const k of PUBLIC_MENU_KEYS) {
+    map[k] = { view: true, create: false, update: false, delete: false, ops: {} };
+  }
+  return map;
+}
+
+/** AppUser yang sudah diperingatkan (console.warn sekali per proses). */
+const warnedNoMenuConfig = new Set<string>();
+
+/**
+ * Peringatan sekali per AppUser: konfigurasi UserMenuAccess tidak ada
+ * (belum diatur / tabel belum termigrasi) → izin default DENY (M-7).
+ * Admin harus mengatur Hak Akses (mode Semua Menu / CUSTOM) di
+ * Pengaturan → Keamanan & Akses untuk membuka menu.
+ */
+export function warnNoMenuConfig(appUserId: string, appUsername: string | null, tableMissing: boolean): void {
+  if (warnedNoMenuConfig.has(appUserId)) return;
+  warnedNoMenuConfig.add(appUserId);
+  console.warn(
+    `[menu-access] AppUser ${appUsername ?? appUserId} tanpa konfigurasi UserMenuAccess` +
+      (tableMissing ? " (tabel belum termigrasi)" : "") +
+      " → izin default DENY (M-7). Atur Hak Akses di Pengaturan → Keamanan & Akses.",
+  );
+}
+
 /** Aksi CRUD atau operasi khusus ("op:approve" dst.). */
 export type MenuActionRef = MenuAction | `op:${string}`;
 
@@ -120,17 +164,62 @@ export async function resolveMenuPerms(
   }
 
   let row: { mode: string; menusJson: string } | null = null;
+  let tableMissing = false;
   try {
     row = await db.userMenuAccess.findUnique({
       where: { appUserId: appUser.id },
       select: { mode: true, menusJson: true },
     });
   } catch {
-    row = null; // tabel belum termigrasi → default semua
+    row = null;
+    tableMissing = true; // tabel belum termigrasi → fail-closed (M-7)
   }
 
-  if (!row || row.mode === "ALL") return { db, actor, isSuperAdmin, all: true, perms: {} };
+  // Mode ALL EKSPLISIT (dipilih admin di editor Hak Akses) → semua menu & aksi.
+  if (row?.mode === "ALL") return { db, actor, isSuperAdmin, all: true, perms: {} };
+  // M-7 (audit 42) — default DENY: pengguna TANPA baris konfigurasi tidak
+  // lagi otomatis mendapat semua menu (dulu: all:true fail-open). Hanya menu
+  // publik eksplisit (PUBLIC_MENU_KEYS) yang terbuka; selain itu menu tak
+  // terdaftar → tolak. ESS/notifikasi/dashboard tidak terdampak (tanpa guard
+  // menu — lihat komentar PUBLIC_MENU_KEYS).
+  if (!row) {
+    warnNoMenuConfig(appUser.id, appUser.username, tableMissing);
+    return { db, actor, isSuperAdmin, all: false, perms: publicMenuPerms() };
+  }
   return { db, actor, isSuperAdmin, all: false, perms: normalizeMenusJson(row.menusJson) };
+}
+
+/** Pesan 403 bila tidak punya LIHAT pada salah satu menu (multi-menu). */
+function viewAnyForbiddenMsg(menuKeys: string[]): string {
+  return (
+    `Akses ditolak: Anda tidak memiliki aksi "Lihat" pada menu ${menuKeys.join(" / ")}. ` +
+    "Hak aksi diatur per pengguna — hubungi admin bila memerlukan akses."
+  );
+}
+
+/**
+ * Guard BACA untuk endpoint list/detail yang melayani BEBERAPA menu sekaligus
+ * (mis. daftar klaim dipakai halaman Klaim Medis DAN Persetujuan & Settlement).
+ * Lolos bila pengguna punya aksi "view" pada SALAH SATU menuKey.
+ * Semantik sama dengan requireMenuAction: 401 sesi invalid, VIEWER 403,
+ * super admin / mode ALL lolos, CUSTOM → cek view per menu (M-6 audit 42).
+ */
+export async function requireMenuViewAny(
+  req: NextRequest | Request,
+  menuKeys: string[],
+): Promise<MenuActionResult> {
+  const resolved = await resolveMenuPerms(req);
+  if (!resolved) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+  if (resolved.actor.role === "VIEWER") {
+    return { ok: false, status: 403, error: VIEWER_FORBIDDEN_MSG };
+  }
+  if (!resolved.all) {
+    const allowed = menuKeys.some((k) => resolved.perms[k]?.view === true);
+    if (!allowed) {
+      return { ok: false, status: 403, error: viewAnyForbiddenMsg(menuKeys) };
+    }
+  }
+  return { ok: true, db: resolved.db, actor: resolved.actor };
 }
 
 /**

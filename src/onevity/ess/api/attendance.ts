@@ -41,8 +41,12 @@ export async function GET(req: Request) {
 
     let rows = await query();
     if (rows.length === 0 && isCurrentMonth) {
-      // bulan berjalan belum direkap → hitung ulang s.d. hari ini (idempoten)
-      await regenerateRange(db, from, now);
+      // bulan berjalan belum direkap → hitung ulang s.d. hari ini (idempoten).
+      // K-5 (audit 42): regen HANYA karyawan yang meminta (scope employeeId) —
+      // dulu GET ESS memicu regenerateRange SELURUH PERUSAHAAN per page-view
+      // (O(karyawan × hari) kerja berat per request); pelanggan 42+ karyawan
+      // membuat halaman pribadi ini membebani DB lintas tenant.
+      await regenerateRange(db, from, now, employeeId);
       rows = await query();
     }
 

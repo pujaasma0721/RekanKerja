@@ -3,6 +3,7 @@
 //   2. indeks (entityType,entityId) / employeeId / expiresAt
 //   3. FK EmployeeDocument → Employee (Cascade) & → Attachment (SetNull)
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-attachments.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

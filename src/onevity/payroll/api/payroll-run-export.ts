@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 // GET /api/onevity/payroll-run-export?id=&bank=umum|bca|mandiri|bni
@@ -13,8 +13,14 @@ const BANKS: Record<string, { label: string; match: (bank: string) => boolean }>
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // fix audit 42 K-2 (KRITIS): file transfer bank memuat NO. REKENING
+    // TERDEKRIPTI + nominal seluruh run — dulu hanya requireTenant sehingga
+    // anggota tenant tanpa hak payroll pun bisa menariknya. Guard hak AKSI
+    // menu payroll:runs op:export ("Mengekspor slip & hasil" — op yang sama
+    // dipakai send-slips payroll-runs.ts; CUSTOM tanpa op export → 403).
+    const m = await requireMenuAction(req, "payroll:runs", "op:export");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id");
     const bankKey = (req.nextUrl.searchParams.get("bank") ?? "umum").toLowerCase();

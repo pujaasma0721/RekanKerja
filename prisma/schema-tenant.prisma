@@ -755,7 +755,20 @@ model PayrollRun {
   period      PayrollPeriod    @relation(fields: [periodId], references: [id])
   processType ProcessType      @relation(fields: [processTypeId], references: [id])
   lines       PayrollRunLine[]
+
+  // M-15 (audit 42): index period×processType — query terberat: dup-check run
+  // aktif (payroll-runs.ts POST), GET runs?periodId=, markOvertimePaidForRun,
+  // component-assignments POST (run final period+type) — dulu Seq Scan.
+  @@index([periodId, processTypeId])
 }
+
+// M-20 (audit 42): keunikan run AKTIF per (period × jenis proses) —
+// "partial unique index" PostgreSQL, TIDAK ter-ekspresi di Prisma schema:
+//   CREATE UNIQUE INDEX uniq_payrollrun_active
+//   ON "PayrollRun"("processTypeId","periodId") WHERE "status" <> 'Cancelled'
+// DDL hidup di scripts/migrate-task43-indexes.ts (tenant existing) +
+// provisioning.ts (tenant baru). Setelah cancel (status=Cancelled) run baru
+// period+type sama boleh dibuat — index partial tidak menghalanginya.
 
 // Header hasil per karyawan per run — snapshot (seperti "Wage Transaction"):
 // PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
@@ -862,6 +875,12 @@ model EmployeeComponentAssignment {
   wageComponent WageComponent  @relation(fields: [wageComponentId], references: [id])
   period        PayrollPeriod? @relation(fields: [periodId], references: [id])
   processType   ProcessType?   @relation(fields: [processTypeId], references: [id])
+
+  // M-15 (audit 42): composite dipilih dari query TERBERAT — buildRunRows
+  // (payroll-service: active+kind Specific+periodId+processTypeId, tiap
+  // kalkulasi run) dan transferToPayroll/leave/medical/travel deleteMany
+  // (kind+periodId+processTypeId[+wageComponentId]) — dulu Seq Scan penuh.
+  @@index([periodId, processTypeId, kind])
 }
 
 // ============ PAYROLL JURNAL (P4 — Posting Otomatis) ============
@@ -2123,6 +2142,9 @@ model MedicalClaim {
 
   @@index([state])
   @@index([year, typeId])
+  // M-15 (audit 42): daftar klaim per karyawan (ESS claims, claimPoolAvailability,
+  // generateSettleJournal) — dulu Seq Scan.
+  @@index([employeeId])
 }
 
 // Baris perawatan — padanan tab "Claim Information" + wizard ESS:
@@ -2146,6 +2168,11 @@ model MedicalClaimLine {
   currency           String    @default("IDR")
 
   claim MedicalClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  // M-15 (audit 42): dedupe kwitansi lintas klaim saat submit klaim medis
+  // (medical-service.ts: findMany receiptNo IN [...] + claim.employeeId) —
+  // dulu Seq Scan seluruh baris perawatan.
+  @@index([receiptNo])
 }
 
 // Penyesuaian saldo — padanan "Medical Adjustment" (MedicalBenefitAdjustment.jsp):

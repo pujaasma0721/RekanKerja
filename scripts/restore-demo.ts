@@ -4,6 +4,7 @@
 // 3. Sentra Logistik Prima: provision + seed referensi + owner bambang@sentra.co.id
 // Idempotent: tenant yang sudah ada di-skip (data tidak dihapus).
 // Jalankan: bun run scripts/restore-demo.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { spawnSync } from "node:child_process";
 import { db as platform } from "@/lib/db";
 import { hashPassword } from "@/onevity/shared/lib/auth";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { recapPeriod } from "@/onevity/time-attendance/services/attendance-service";
 import { toCsv, csvResponse, exportFilename } from "@/onevity/shared/lib/export";
 
@@ -9,10 +9,13 @@ import { toCsv, csvResponse, exportFilename } from "@/onevity/shared/lib/export"
 // agen paralel T5 — logika inti TIDAK diduplikasi di sini): handler ini
 // memanggil service recapPeriod() READ-ONLY, tanpa regenerasi/transfer.
 // CSV: BOM UTF-8 + delimiter ";" (pola shared/lib/export.ts) + baris TOTAL.
+// M-6 (audit 42): guard view menu attendance:absence — CSV memuat gaji pokok,
+// upah lembur & potongan seluruh karyawan (dulu hanya requireTenant).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:absence"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const now = new Date();
     const fromParam = req.nextUrl.searchParams.get("from");

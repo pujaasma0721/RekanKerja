@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { buildAnnualSpt, buildEsptA1Csv } from "@/onevity/payroll/services/payroll-spt";
 
@@ -9,10 +9,16 @@ import { buildAnnualSpt, buildEsptA1Csv } from "@/onevity/payroll/services/payro
 //                                                        (39 kolom template impor e-Bupot
 //                                                        21/26 sheet A1 — siap tempel/upload)
 // GET /api/onevity/payroll-spt?periodId=..&export=coretax → CSV bukti potong bulanan (Coretax)
+//
+// fix audit 42 K-2 (KRITIS): seluruh mode (JSON/CSV/e-SPT/Coretax) memuat
+// NPWP + PPh21 TERDEKRIPTI — dulu hanya requireTenant. Guard hak AKSI menu
+// payroll:spt view (key nav "SPT & Pajak (1721-A1)" — menu halaman ini
+// sendiri; read-only: laporan SPT adalah tampilan, tanpa mutasi data).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "payroll:spt", "view");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const sp = req.nextUrl.searchParams;
     const exportMode = sp.get("export");
@@ -105,7 +111,7 @@ export async function GET(req: NextRequest) {
     // --- CSV e-SPT 1721-A1 format resmi DJP (27-c) ---
     // 39 kolom Template Impor Excel TAHUNAN sheet A1 e-Bupot 21/26 v1.4 —
     // struktur sama dgn isian BP A1 Coretax. Guard mengikuti endpoint SPT
-    // existing (requireTenant — sesi valid), activity log tercatat.
+    // (payroll:spt view — fix K-2), activity log tercatat.
     if (exportMode === "espt") {
       const company = await db.company.findFirst({ select: { code: true, name: true, taxId: true } });
       const csv = buildEsptA1Csv(report, {

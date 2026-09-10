@@ -132,14 +132,88 @@ export function renderTemplate(text: string, data: Record<string, string>): stri
   });
 }
 
+// ---------- redaksi salinan LOG (fix audit 42 K-4) ----------
+
+/** Masker seragam nilai rahasia/nominal pada SALINAN LOG email. */
+const REDACTED = "••••••";
+
+/** Baris berlabel kredensial (ID/EN, case-insensitive) — nilai disamarkan. */
+const SECRET_LINE_RE = /password|kata\s*sandi|\bsandi\b|passphrase|passcode|kredensial|credential|\bpin\b|secret/i;
+
+/** Baris nilai uang THP/klaim/total (ID/EN, case-insensitive) — angka disamarkan. */
+const MONEY_LINE_RE = /take\s*home|takehome|dibayar|gaji\s*bersih|\bnet\b|\bnetto\b|\bthp\b|\btotal\b|\bjumlah\b|\bbiaya\b|\bbruto\b/i;
+
+/** Kunci placeholder data template yang memuat nilai rahasia (→ secrets eksplisit). */
+const SECRET_DATA_KEY_RE = /pass|sandi|pin|token|secret|kredensial|credential/i;
+
+/** Angka uang: diawali Rp/IDR ATAU memakai pemisah ribuan (mis. 23.678.526 / 1,250,000). */
+const MONEY_TOKEN_RE = /(?:\bRp\.?|\bIDR)\s*\d[\d.,]*|\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?/g;
+
+/** Nilai rahasia dari data placeholder (kunci password/sandi/token/…) — dipakai redaksi eksplisit. */
+function secretsOfData(data: Record<string, string>): string[] {
+  return Object.entries(data)
+    .filter(([k, v]) => SECRET_DATA_KEY_RE.test(k) && typeof v === "string" && v.trim().length >= 4)
+    .map(([, v]) => v);
+}
+
+/** Samarkan nilai setelah ":"/"=" terakhir pada baris kredensial. */
+function maskSecretLineValue(line: string): string {
+  const cut = Math.max(line.lastIndexOf(":"), line.lastIndexOf("="));
+  if (cut < 0) return line;
+  if (line.slice(cut + 1).trim() === "") return line;
+  return `${line.slice(0, cut + 1)} ${REDACTED}`;
+}
+
+/** Samarkan angka uang pada baris nominal (Rp/IDR + pemisah ribuan). */
+function maskMoneyInLine(line: string): string {
+  return line.replace(MONEY_TOKEN_RE, (m) => m.replace(/\d[\d.,]*/, REDACTED));
+}
+
+/**
+ * Redaksi SALINAN LOG body email (fix audit 42 K-4): email yang DIKIRIM (SMTP)
+ * tetap membawa nilai asli — hanya EmailLog.body yang disamarkan, agar pembaca
+ * DB/log tidak melihat kata sandi sementara ({{password}}) / THP ({{net}}).
+ *  a. secrets eksplisit (mis. kata sandi dari app-users.ts via data template)
+ *     → semua kemunculan diganti masker;
+ *  b. baris berlabel kredensial (password/kata sandi/… ID & EN) → nilai
+ *     setelah ":"/"=" disamarkan;
+ *  c. baris THP/nominal (take home/dibayarkan/net/gaji bersih/THP/total/
+ *     jumlah/biaya/bruto) → angka uang disamarkan.
+ */
+export function redactEmailBody(body: string, secrets?: (string | null | undefined)[]): string {
+  let out = body;
+  for (const s of secrets ?? []) {
+    if (typeof s === "string" && s.trim().length >= 4) out = out.split(s).join(REDACTED);
+  }
+  return out
+    .split("\n")
+    .map((line) => {
+      if (SECRET_LINE_RE.test(line)) line = maskSecretLineValue(line);
+      if (MONEY_LINE_RE.test(line)) line = maskMoneyInLine(line);
+      return line;
+    })
+    .join("\n");
+}
+
 // ---------- kirim & log ----------
 
-async function writeLog(db: TenantDb, entry: { event: string; toEmail: string; subject: string; status: string; error?: string; body?: string }) {
+async function writeLog(
+  db: TenantDb,
+  entry: {
+    event: string; toEmail: string; subject: string; status: string;
+    error?: string; body?: string;
+    /** Nilai rahasia eksplisit utk redaksi SALINAN LOG (fix K-4). */
+    secrets?: (string | null | undefined)[];
+  },
+) {
   try {
     await db.emailLog.create({
       data: {
         event: entry.event, toEmail: entry.toEmail, subject: entry.subject,
-        status: entry.status, error: entry.error ?? null, body: entry.body ?? null,
+        status: entry.status, error: entry.error ?? null,
+        // fix K-4: hanya SALINAN LOG yang di-redaksi (email terkirim tetap
+        // membawa kata sandi/THP asli utk penerima).
+        body: entry.body != null ? redactEmailBody(entry.body, entry.secrets) : null,
       },
     });
   } catch {
@@ -228,14 +302,17 @@ async function dispatch(db: TenantDb, input: NotifyInput): Promise<void> {
       tpl?.body ?? `Notifikasi sistem OneVity HRIS.\n\n{{event}}\n\n{{detail}}`,
       { ...input.data, event: input.event, detail: Object.entries(input.data).map(([k, v]) => `- ${k}: ${v}`).join("\n") },
     );
+    // fix K-4: nilai rahasia pada data placeholder (mis. {{password}} dari
+    // app-users.ts user.created) → redaksi eksplisit + pattern pada salinan LOG.
+    const secrets = secretsOfData(input.data);
 
     for (const t of input.to) {
       if (!t.email || !t.email.includes("@")) continue;
       try {
         await smtpSend(cfg, t, subject, body);
-        await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Sent", body });
+        await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Sent", body, secrets });
       } catch (e) {
-        await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Failed", error: (e instanceof Error ? e.message : "unknown").slice(0, 500), body });
+        await writeLog(db, { event: input.event, toEmail: t.email, subject, status: "Failed", error: (e instanceof Error ? e.message : "unknown").slice(0, 500), body, secrets });
       }
     }
   } catch {

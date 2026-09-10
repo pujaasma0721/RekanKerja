@@ -20,6 +20,7 @@
 //      didekripsi dulu sebelum uji konsistensi (tanpa ini, jurnal dianggap
 //      selalu tidak-konsisten & diregenerasi tiap rerun).
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-travel-settlement-fix.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";

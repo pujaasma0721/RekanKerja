@@ -128,7 +128,12 @@ export async function bumpSessionVersion(userId: string): Promise<number> {
 export function sessionCookieOptions() {
   return {
     httpOnly: true,
+    // M-1 (audit 42): SameSite=Lax eksplisit (API same-origin; navigasi normal
+    // tetap jalan, cookie TIDAK dikirim pada cross-site POST) + Secure hanya di
+    // production — cookie sesi tidak pernah bocor lewat HTTP plain-text di prod.
+    // Dev (NODE_ENV=development) tetap tanpa Secure agar curl/http://localhost roundtrip.
     sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_MAX_AGE,
   };

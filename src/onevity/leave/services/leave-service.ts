@@ -402,6 +402,19 @@ export async function generateLeaveInfo(
     ruleContextMap(db, new Date(prevYear, 11, 31, 23, 59, 59)),
   ]);
 
+  // M-14a (audit 42): saldo tahun input utk seluruh karyawan×jenis diambil
+  // SEKALI (findMany in [...employeeIds] + Map) — dulu findUnique per pasangan
+  // di dalam loop (42 karyawan × 12 jenis = 504 kueri; N+1). Semantik update/
+  // create per pasangan TIDAK berubah (tetap kondisional & terpisah).
+  const existingRows = await db.leaveBalance.findMany({
+    where: {
+      year: input.year,
+      ...(input.leaveTypeId ? { leaveTypeId: input.leaveTypeId } : {}),
+      ...(input.employeeIds?.length ? { employeeId: { in: input.employeeIds } } : {}),
+    },
+  });
+  const existingMap = new Map(existingRows.map((b) => [`${b.employeeId}|${b.leaveTypeId}`, b]));
+
   for (const emp of employees) {
     for (const type of types) {
       // jenis non-tahunan (waiting/event-based) tetap digenerate — saldo seragam
@@ -417,9 +430,7 @@ export async function generateLeaveInfo(
         );
         carry = Math.max(0, Math.min(parts.remaining, type.carryOverMax));
       }
-      const existing = await db.leaveBalance.findUnique({
-        where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: type.id, year: input.year } },
-      });
+      const existing = existingMap.get(`${emp.id}|${type.id}`);
       if (existing) {
         if (existing.carriedOver !== carry) {
           await db.leaveBalance.update({

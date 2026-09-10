@@ -164,6 +164,8 @@ Aplikasi adalah PWA (`public/sw.js`): HTML = network-first, `/_next/static/*` = 
 | Halaman error / blank setelah restart | Env var hilang saat restart | Pastikan `PLATFORM_DB_URL` & `TENANT_DB_BASE_URL` terdefinisi di env PM2; restart dengan `--update-env` |
 | "Belum ada jurnal payroll" | Bukan bug — jurnal tercreate saat run payroll dikonfirmasi | Konfirmasi run di Payroll → Proses & Hasil |
 | Login demo gagal setelah DB reseed | Seed belum tuntas / migrasi password belum jalan | `bun scripts/restore-demo.ts` lalu `bun scripts/migrate-password-security.ts` |
+| `curl /api/health` → **503** | Platform DB tidak bisa diakses (DB mati / kredensial / network) | App tetap hidup — cek DB itu sendiri; detail penyebab hanya di **log server** (`[health] platform DB tidak siap …`), respons klien sengaja generik (tanpa DSN/host) |
+| Skrip migrasi (`bun scripts/migrate-*.ts`) koneksi ke DB dev / gagal saat cron-systemd | Env tidak diekspor di konteks cron/systemd | Sejak Task 43-e skrip otomatis memuat `.env` root sebagai **fallback** (env proses/PM2 tetap menang) — pastikan `.env` di folder project berisi URL produksi, atau ekspor env di unit cron/systemd |
 
 ---
 
@@ -185,6 +187,45 @@ Aplikasi adalah PWA (`public/sw.js`): HTML = network-first, `/_next/static/*` = 
     `hrd@mii.co.id/onevity123` · `ayu@cahaya.id/cahaya12345` · `bambang@sentra.co.id/sentra12345`.
 - **Jangan jalankan `db:push` sembarangan di production** kecuali yakin — auto-parity di atas
   biasanya sudah cukup untuk upgrade kode.
+
+### 5.1 Env var produksi (WAJIB / opsional)
+
+| Env var | Status | Fungsi |
+|---|---|---|
+| `PLATFORM_DB_URL` | **WAJIB** | Koneksi DB platform (registry Tenant/User/UserTenant). |
+| `TENANT_DB_BASE_URL` | **WAJIB** | Base URL DB domain HRIS (schema per tenant, client di-append `?schema=tenant_x`). |
+| `ONEVITY_ENCRYPTION_KEY` | **WAJIB di production** (43-b / M-10) | Kunci master enkripsi field PII & uang (`enc:v1:…`: NIK, NPWP, rekening, nominal payroll). Di `NODE_ENV=production` **tanpa** key ini, operasi baca/tulis field terenkripsi **throw saat pertama dipakai** (fail-fast — aplikasi boot tapi modul keuangan/karyawan error jelas). Dev pakai fallback deterministik. PERINGATAN: mengganti key = data lama terenkripsi tidak terbaca lagi. |
+| `ONEVITY_ALLOW_DEMO_SEED` | opsional (43-c / M-2) | `1`/`true` → izinkan seed **data demo** di production (auto-seed fresh-install + token seed). Default: **ditolak** di production. Jalur parity-only (upgrade migrasi tenant existing) tetap jalan tanpa env ini. |
+| `DEMO_SEED_TOKEN` | opsional (43-c / M-2) | Token guard `POST/GET /api/admin/seed-demo`. Di production **tanpa** env ini token default repo NONAKTIF → endpoint selalu 401 sampai env diset. Dev memakai token default repo. |
+
+Catatan perilaku ops (43-c / M-3): `/api/auth/register` dibatasi **5 permintaan/15 menit/IP** + **3/jam/email** (429 + header `Retry-After`). Limiter in-memory per-instance — cukup untuk single node PM2; state reset saat restart; pindah ke store bersama (mis. Redis) bila multi-instance.
+
+Semua skrip CLI `scripts/migrate-*.ts` + `restore-demo.ts` sejak Task 43-e otomatis memuat `.env` dari root project **hanya untuk key yang belum ada di env proses** (env PM2/systemd/`KEY=x bun …` selalu menang) — skrip aman dijalankan dari cron/systemd tanpa env diekspor selama `.env` berisi URL produksi.
+
+### 5.2 Daftar langkah parity (`PARITY_STEPS` — src/onevity/shared/lib/parity-runner.ts)
+
+Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau manual via `POST /api/admin/seed-demo`. Urutan append-only kronologis; tiap langkah idempoten dan never-throw. Langkah **BARU (Task 43-e, K-6)** — sebelumnya hanya skrip manual (fresh deploy prod melewatkannya, panel Webhook 500):
+
+| # | key | Isi |
+|---|---|---|
+| 1–17 | `p0-wave1` … `entity-rules` | Migrasi gelombang lama: DDL kolom Employee, approval berjenjang, ESS+Notification, kalender libur, lembur/klaim, ApiKey/Webhook(+Log), Attachment, template surat/offboarding, UMP/UMK, email-config, wave27/28, template WA, demo tukar shift, enkripsi 16 kolom uang/PII, settlement travel, WageComponentRule (T32), entity-rules (T33) |
+| 18 | `scheduler-race` (**BARU**) | Task 41 — partial unique index dedupe `ActivityLog` baris Reminder (scheduler race-safe; TIDAK ada di tenant-ddl.sql Prisma) |
+| 19 | `webhook-retry` (**BARU**) | Task 41 — kolom retry `WebhookLog` (attempts/nextRetryAt/lastError) + index status,nextRetryAt + DEFAULT status='delivered' — **dibutuhkan panel Webhook** |
+| 20 | `task43-indexes` (**BARU**) | Task 43 — 4 index payroll/klaim (M-15) + partial unique run payroll aktif (M-20) |
+
+### 5.3 Health endpoint `/api/health` (Task 43-e)
+
+Untuk load balancer / uptime monitor (Caddy health check, k8s probe, UptimeRobot):
+
+- **200** `{"status":"ok","db":"ok",…}` = aplikasi hidup DAN platform DB menjawab `SELECT 1`.
+- **503** `{"status":"error","db":{"error":"unreachable"|"timeout"},…}` = app hidup tapi DB tidak siap → LB boleh mencabut instance.
+- Selalu cepat (<500ms; cek DB dibatasi race-timeout 800ms — tidak pernah menggantung walau DB black-hole).
+- TANPA autentikasi (LB tidak punya session) dan TANPA kebocoran (tidak ada nama schema/DSN/host — kategori error generik; detail hanya di log server `[health]`).
+- `db:"timeout"` vs `"unreachable"`: timeout = DB menerima koneksi tapi tidak menjawab / jaringan lambat; unreachable = koneksi ditolak.
+
+```bash
+curl -s -w "\n%{http_code}\n" https://onevity.sayone.my.id/api/health   # 200 = sehat
+```
 
 ---
 
@@ -245,7 +286,35 @@ rm -rf .next && npm run build && pm2 restart onevity --update-env
 pm2 logs onevity --lines 20
 
 # VERIFIKASI
+curl -s -w "\n%{http_code}\n" https://onevity.sayone.my.id/api/health   # 200 + db:"ok" = app + DB sehat
 curl -s https://onevity.sayone.my.id/ | grep -oE 'chunks/[^"]+\.css'
 grep -rl "sm:max-w-4xl" .next/static/chunks/ | head -3
 # lalu browser: Leave → Permintaan Cuti → Ajukan Cuti → lebar dialog harus 672px
 ```
+
+---
+
+## 9. Log & rotasi (logrotate)
+
+Aplikasi menulis log ke file via `tee` (lihat script `dev`/`start` di `package.json`):
+
+- **dev**: `next dev … | tee dev.log` → `dev.log` di folder project (mesin dev/sandbox).
+- **prod**: `start` = `… | tee server.log` → `server.log` di folder project. Bila stdout juga ditangkap PM2, file di `~/.pm2/logs/` ikut bertumbuh.
+
+Tanpa rotasi, file ini tumbuh tanpa batas (log kompilasi + query + modul bisa puluhan MB/hari). Pasang logrotate — **`copytruncate` WAJIB** karena `tee` terus memegang inode file yang sama (rotasi rename saja membuat `tee` terus menulis ke inode lama yang terhapus):
+
+```bash
+# /etc/logrotate.d/onevity  (ganti <folder-project> dengan cwd PM2 — §2 langkah 1)
+<folder-project>/dev.log <folder-project>/server.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}
+```
+
+Alternatif bila seluruh log lewat PM2: `pm2 install pm2-logrotate` (atur `max_size 50M`).
+Verifikasi: `logrotate -d /etc/logrotate.d/onevity` (dry-run) → `ls -lh dev.log server.log` keesokan hari.

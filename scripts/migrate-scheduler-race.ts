@@ -27,6 +27,7 @@
 // Tenant dienumerasi dari registry platform (public."Tenant" status ACTIVE,
 // query platform DB) — fallback ke 3 schema sandbox bila registry tak
 // terbaca. Jalankan: bun scripts/migrate-scheduler-race.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const PLATFORM_URL =

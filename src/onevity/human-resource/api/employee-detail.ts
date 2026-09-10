@@ -211,8 +211,20 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // fix audit 42 K-3 (KRITIS): write-path PATCH kini ikut skema 28-c —
+    // NIK/NPWP/no. rekening DIENKRIPSI sebelum persist (dulu tersimpan
+    // plaintext sementara read-path GET men-dekripsi — data PII bocor di DB).
+    // Pola: payroll-profiles.ts PATCH (encryptText; null → null, "" → "",
+    // plaintext legacy di-re-encrypt saat tulis berikutnya).
+    // NOTE: jalur tulis lain (wizard POST /employees + import Excel) sudah
+    // terenkripsi via createEmployeeWithAssignment (employees.ts).
+    const tcW = tenantCryptoForDb(db);
+    const ENCRYPTED_PERSONAL: ReadonlySet<string> = new Set(["nationalId", "taxId", "bankAccount"]);
     const data: Record<string, unknown> = {};
-    for (const f of PERSONAL_FIELDS) if (b[f] !== undefined) data[f] = b[f];
+    for (const f of PERSONAL_FIELDS) {
+      if (b[f] === undefined) continue;
+      data[f] = ENCRYPTED_PERSONAL.has(f) ? tcW.encryptText(b[f] as string | null) : b[f];
+    }
     if (b.birthDate !== undefined) data.birthDate = b.birthDate ? new Date(b.birthDate) : null;
     if (b.joinDate !== undefined) data.joinDate = b.joinDate ? new Date(b.joinDate) : undefined;
     // Fix audit 40 M-13 — hanya jalur pengosongan (null/"") yang lolos guard di atas.
@@ -259,7 +271,16 @@ export async function PATCH(req: NextRequest) {
     await db.activityLog.create({
       data: { action: "Updated", entity: "Employee", entityId: id, employeeId: id, detail: `Data ${employee.fullName} diperbarui${historyNote}` },
     });
-    return NextResponse.json({ employee });
+    // fix K-3: response memakai bentuk read-path (GET) — NIK/NPWP/rekening
+    // di-dekripsi (decryptText meloloskan plaintext legacy), bukan ciphertext.
+    return NextResponse.json({
+      employee: {
+        ...employee,
+        nationalId: tcW.decryptText(employee.nationalId),
+        taxId: tcW.decryptText(employee.taxId),
+        bankAccount: tcW.decryptText(employee.bankAccount),
+      },
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

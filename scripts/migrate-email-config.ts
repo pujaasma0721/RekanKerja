@@ -3,6 +3,7 @@
 //   2. seed config default (satu baris aktif bila belum ada)
 //   3. seed template default per event (bila belum ada — idempoten)
 // Jalankan: bun run scripts/migrate-email-config.ts (idempoten)
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

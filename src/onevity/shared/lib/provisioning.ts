@@ -63,6 +63,15 @@ export async function provisionTenantSchema(schemaName: string): Promise<void> {
         CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_dedu_reminder"
         ON "ActivityLog"("action","entity","entityId")
         WHERE "entityId" IS NOT NULL AND "action" = 'Reminder'`);
+      // Fix audit 42 M-20 — partial unique index run payroll AKTIF per (period ×
+      // jenis proses): dua run aktif (status <> 'Cancelled') period+jenis sama
+      // mustahil di level DB (anti gaji dobel). Partial index tak ter-express di
+      // Prisma schema → tidak ikut tenant-ddl.sql; tenant existing menerima DDL
+      // yang sama via scripts/migrate-task43-indexes.ts.
+      await c.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "uniq_payrollrun_active"
+        ON "PayrollRun"("processTypeId","periodId")
+        WHERE "status" <> 'Cancelled'`);
     }
   } catch (e) {
     await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => {});

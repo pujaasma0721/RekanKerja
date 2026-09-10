@@ -5,6 +5,7 @@
 //   2. Tidak menimpa template surat — seed template EMP_* dilakukan oleh
 //      scripts/resync-letter-templates.ts setelah letter-defaults.ts diperluas.
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-p0-wave1.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";

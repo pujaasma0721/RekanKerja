@@ -30,6 +30,23 @@ const ALLOWED_MIME: Record<string, string> = {
 /** Ukuran maksimum per file (byte). */
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Magic-number minimum per MIME whitelist — fix audit 42 M-5: validasi kini
+ * memeriksa ISI file, bukan hanya Content-Type/ekstensi yang dideklarasikan
+ * klien (mis. .exe dinamai .pdf ditolak di sini). Buffer upload sudah di
+ * memori (SaveAttachmentInput.file). ZIP-based (docx/xlsx) tidak ada di
+ * whitelist sehingga prefix PK tidak diperlukan.
+ */
+const MAGIC_SIGNATURES: Record<string, (b: Buffer) => boolean> = {
+  "image/png": (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  "image/jpeg": (b) => b.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+  "image/webp": (b) =>
+    b.length >= 12 &&
+    b.subarray(0, 4).toString("latin1") === "RIFF" &&
+    b.subarray(8, 12).toString("latin1") === "WEBP",
+  "application/pdf": (b) => b.subarray(0, 4).toString("latin1") === "%PDF",
+};
+
 /** Prefiks entityId sementara pra-submit (di-rebind route submit klaim). */
 export const DRAFT_ENTITY_PREFIX = "draft:";
 
@@ -64,6 +81,14 @@ function validate(file: Buffer, fileName: string, mimeType: string): string {
     );
   }
   if (file.length === 0) throw new Error("Berkas kosong — pilih file lain");
+  // M-5: sniff magic-number — isi file harus cocok dgn MIME yang dideklarasikan
+  // (tipe/ekstensi dari klien tidak dipercaya; kegagalan → 400 ramah di route).
+  const sniff = MAGIC_SIGNATURES[mimeType];
+  if (sniff && !sniff(file)) {
+    throw new Error(
+      `Tipe berkas tidak sesuai isi file — ${mimeType} dideklarasikan tetapi isi file tidak berformat tersebut. File mungkin salah dinamai/berbahaya.`,
+    );
+  }
   if (file.length > MAX_ATTACHMENT_BYTES) {
     throw new Error(
       `Ukuran file melebihi 5 MB (${(file.length / (1024 * 1024)).toFixed(1)} MB) — kecilkan atau kompres file`,

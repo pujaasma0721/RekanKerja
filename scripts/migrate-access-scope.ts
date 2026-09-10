@@ -7,6 +7,7 @@
 // (super admin role Admin & workspace OWNER/ADMIN, atasan langsung, dan
 //  data diri sendiri otomatis — tanpa rule, diterapkan mesin akses.)
 // Jalankan: bun run scripts/migrate-access-scope.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

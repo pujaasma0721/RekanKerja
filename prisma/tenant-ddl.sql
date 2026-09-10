@@ -2100,6 +2100,9 @@ CREATE UNIQUE INDEX "MinimumWage_year_companyOfficeId_key" ON "MinimumWage"("yea
 CREATE UNIQUE INDEX "PayrollRun_runNo_key" ON "PayrollRun"("runNo");
 
 -- CreateIndex
+CREATE INDEX "PayrollRun_periodId_processTypeId_idx" ON "PayrollRun"("periodId", "processTypeId");
+
+-- CreateIndex
 CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
 
 -- CreateIndex
@@ -2107,6 +2110,9 @@ CREATE UNIQUE INDEX "PayrollRunLine_runId_employeeId_key" ON "PayrollRunLine"("r
 
 -- CreateIndex
 CREATE UNIQUE INDEX "EmployeeLoan_letterNo_key" ON "EmployeeLoan"("letterNo");
+
+-- CreateIndex
+CREATE INDEX "EmployeeComponentAssignment_periodId_processTypeId_kind_idx" ON "EmployeeComponentAssignment"("periodId", "processTypeId", "kind");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollJournal_journalNo_key" ON "PayrollJournal"("journalNo");
@@ -2296,6 +2302,12 @@ CREATE INDEX "MedicalClaim_state_idx" ON "MedicalClaim"("state");
 
 -- CreateIndex
 CREATE INDEX "MedicalClaim_year_typeId_idx" ON "MedicalClaim"("year", "typeId");
+
+-- CreateIndex
+CREATE INDEX "MedicalClaim_employeeId_idx" ON "MedicalClaim"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "MedicalClaimLine_receiptNo_idx" ON "MedicalClaimLine"("receiptNo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MedicalAdjustment_docNo_key" ON "MedicalAdjustment"("docNo");

@@ -6,6 +6,7 @@
 //   3. Seed notifikasi demo (3 baris) utk AppUser MII hrd & agus — hanya bila
 //      pengguna tsb belum punya notifikasi (idempoten)
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-ess.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { pushNotification } from "@/onevity/shared/services/notification-service";

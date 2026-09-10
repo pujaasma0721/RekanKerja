@@ -4,6 +4,7 @@
 //   2. tanpa seed — kunci & webhook dibuat admin via menu Pengaturan →
 //      API & Integrasi (atau REST /api/onevity/api-keys & /api/onevity/webhooks).
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-api-webhook.ts (idempoten)
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

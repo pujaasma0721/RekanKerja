@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
@@ -16,10 +15,15 @@ import {
 // &employeeId&typeId — daftar klaim (padanan MedicalBenefitClaim.jsp /
 // MedicalBenefitClaimToApprove.jsp); preview=1 → snapshot saldo sebelum ajukan
 // (forDependent=1 → pool plafon yang benar utk klaim dependent — fix K-3).
+// M-6 (audit 42): guard view menu — dulu hanya requireTenant (anggota tenant
+// apapun bisa mengenumerasi seluruh klaim + rincian kwitansi). Endpoint ini
+// melayani DUA halaman: Klaim Medis (medical:medical-claim) DAN Persetujuan
+// & Settlement (medical:medical-approval) → salah satu menu cukup.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["medical:medical-claim", "medical:medical-approval"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     if (sp.get("preview") === "1") {
       const employeeId = sp.get("employeeId");

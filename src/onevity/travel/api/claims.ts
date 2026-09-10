@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
@@ -16,10 +15,14 @@ import {
 // (padanan TravelClaim.jsp / TravelClaimToApprove.jsp).
 // GET ?requestId= — preview form klaim untuk request Approved.
 // GET ?id= — detail klaim (rincian biaya).
+// M-6 (audit 42): guard view menu — dulu hanya requireTenant. Endpoint ini
+// melayani DUA halaman: Klaim & Settlement (travel:travel-claim) DAN Approval
+// Klaim & Transfer (travel:travel-claim-approval) → salah satu menu cukup.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["travel:travel-claim", "travel:travel-claim-approval"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     const requestId = sp.get("requestId");
     if (requestId) {

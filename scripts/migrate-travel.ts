@@ -4,6 +4,7 @@
 //      komponen upah UTRP/TRVSTLIN, budget 2026)
 //   3. seedTravelDemoData MII (request + destinasi + advance + klaim + klaim Transferred)
 // Jalankan: bun run scripts/migrate-travel.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";

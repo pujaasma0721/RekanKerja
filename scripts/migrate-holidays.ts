@@ -3,6 +3,7 @@
 //   SEED: kalender hari libur Indonesia 2025 + 2026 (nasional + cuti bersama),
 //        INSERT … ON CONFLICT ("date","name") DO NOTHING — aman dijalankan ulang.
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-holidays.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 
 const SCHEMAS = [

@@ -4,6 +4,7 @@
 //      komponen UMC)
 //   3. seedMedicalDemoData MII (generate saldo + klaim + penyesuaian)
 // Jalankan: bun run scripts/migrate-medical.ts
+import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";

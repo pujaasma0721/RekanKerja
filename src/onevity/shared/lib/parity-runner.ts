@@ -49,6 +49,16 @@ type Step = { key: string; label: string; run: (schemas: string[]) => Promise<vo
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** Adapter skrip migrasi task-41/43: main() mereka menerima
+ *  {slug, schemaName}[] (hasil query registry), sedangkan runner bekerja
+ *  dengan string[] schemaName — slug hanya untuk label log (derivation sama
+ *  dengan fallback skrip). */
+const withSlugs = (schemas: string[]) =>
+  schemas.map((schemaName) => ({
+    slug: schemaName.replace(/^tenant_/, "").replace(/_/g, "-"),
+    schemaName,
+  }));
+
 /** Registry tenant → daftar schemaName (urut nama schema agar log stabil). */
 export async function tenantSchemas(): Promise<string[]> {
   const tenants = await platform.tenant.findMany({ select: { schemaName: true } });
@@ -143,6 +153,12 @@ const STEPS: Step[] = [
   { key: "travel-settlement", label: "Fix settlement travel (pasca-enkripsi)", run: (s) => import("../../../../scripts/migrate-travel-settlement-fix").then((m) => m.main(s)) },
   { key: "component-rules", label: "Task 32 — tabel WageComponentRule + aturan diferensiasi besaran", run: (s) => import("../../../../scripts/migrate-component-rules").then((m) => m.main(s)) },
   { key: "entity-rules", label: "Task 33 — 4 tabel rule leave/medical/travel/benefit + aturan demo", run: (s) => import("../../../../scripts/migrate-entity-rules").then((m) => m.main(s)) },
+  // K-6 (audit 42): migrasi task 41 + task 43 sebelumnya HANYA skrip manual —
+  // fresh deploy prod melewatkannya (panel Webhook 500: kolom retry WebhookLog
+  // tidak ada). Ditambahkan append-only (urutan kronologis commit).
+  { key: "scheduler-race", label: "Task 41 — index dedupe Reminder ActivityLog (scheduler race-safe)", run: (s) => import("../../../../scripts/migrate-scheduler-race").then((m) => m.main(withSlugs(s))) },
+  { key: "webhook-retry", label: "Task 41 — kolom retry WebhookLog (attempts/nextRetryAt/lastError)", run: (s) => import("../../../../scripts/migrate-webhook-retry").then((m) => m.main(withSlugs(s))) },
+  { key: "task43-indexes", label: "Task 43 — index payroll/klaim + unique run aktif (M-15+M-20)", run: (s) => import("../../../../scripts/migrate-task43-indexes").then((m) => m.main(withSlugs(s))) },
 ];
 
 // ============ deteksi gap (murah — 2 query information_schema) ============
