@@ -170,6 +170,10 @@ const STEPS: Step[] = [
   // 49: PTKP otomatis dari data keluarga — kolom ptkpSource (auto|manual);
   // sinkronisasi data (bukan DDL) terjadi via API/scheduler, bukan di sini.
   { key: "ptkp-auto", label: "Task 49 — kolom EmployeePayrollProfile.ptkpSource (PTKP otomatis dari keluarga)", run: (s) => import("../../../../scripts/migrate-ptkp-auto").then((m) => m.main(s)) },
+  // fix NaN: nilai uang terenkripsi non-finite ("NaN"/"Infinity" — sisa bug
+  // encryptMoney pra-Task 50) ditulis ulang → 0; tanpa ini SATU baris buruk
+  // membuat step travel-settlement gagal & parity.ok=false di tenant tsb.
+  { key: "fix-nan-money", label: "Task 50-fix — perbaiki nilai uang terenkripsi non-finite (NaN → 0)", run: (s) => import("../../../../scripts/migrate-fix-nan-money").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
