@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 
 // GET /api/onevity/component-assignments?kind=&employeeId=
 export async function GET(req: NextRequest) {
@@ -24,7 +26,9 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
     // 28-c: dekripsi amount di batas serializer (angka utk frontend).
-    return NextResponse.json({ assignments: tenantCryptoForDb(db).decryptJson(assignments) });
+    // 45-b: gate vault (requireTenant → resolve via sesi; masked → null).
+    const mv = await moneyViewForReq(req, db);
+    return NextResponse.json({ assignments: mv.json(assignments) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -82,7 +86,9 @@ export async function POST(req: NextRequest) {
       data: { action: "Created", entity: "EmployeeComponentAssignment", entityId: assignment.id, employeeId: b.employeeId, detail: `Komponen ${comp.name} (${kind}) ${assignment.employee.fullName}` },
     });
     // 28-c: dekripsi amount di batas serializer.
-    return NextResponse.json({ assignment: tenantCryptoForDb(db).decryptJson(assignment) }, { status: 201 });
+    // 45-b: gate vault (aktor requireMutator); tulis amount tetap raw di atas.
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    return NextResponse.json({ assignment: mv.json(assignment) }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

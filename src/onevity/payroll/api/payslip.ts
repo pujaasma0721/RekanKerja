@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveMenuPerms } from "@/onevity/shared/services/menu-access";
 import { UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { buildPayslipPdfByLineId } from "@/onevity/payroll/services/payslip-pdf";
 
 const FORBIDDEN_OWN_MSG = "Slip gaji ini bukan milik Anda";
@@ -25,7 +26,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ lineId: str
     const { lineId } = await ctx.params;
     if (!lineId) return NextResponse.json({ error: "lineId wajib" }, { status: 400 });
 
-    const built = await buildPayslipPdfByLineId(db, lineId);
+    // 45-b: gerbang vault uang — aktor sesi (userId+role platform); masked →
+    // nilai uang PDF dirender "—" (identitas/tanggal tetap utuh).
+    const mv = await getMoneyView(db, { userId: actor.userId, membershipRole: actor.role });
+    const built = await buildPayslipPdfByLineId(db, lineId, mv);
     if (!built) return NextResponse.json({ error: "Slip gaji tidak ditemukan" }, { status: 404 });
 
     if (!canViewAll) {

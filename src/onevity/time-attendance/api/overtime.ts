@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { attachChainSummaries, DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
@@ -37,6 +38,9 @@ export async function GET(req: NextRequest) {
     // + approver menunggu) — satu query batch (pola workoffs).
     const chainMap = await attachChainSummaries(db, "Overtime", orders.map((o) => ({ id: o.id })));
 
+    // 45-b: gerbang vault uang — baseSalary & estPay DISPLAY digate (masked →
+    // null); perhitungan estPay tetap atas gaji RAW (konsisten rekap/transfer).
+    const mv = await moneyViewForReq(req, db);
     const all = orders.map((o) => {
       // 28-c: baseSalary terenkripsi — dekripsi utk perhitungan uang lembur.
       const baseSalary = tenantCryptoForDb(db).decryptMoney(o.employee.assignments[0]?.baseSalary) ?? 0;
@@ -52,9 +56,9 @@ export async function GET(req: NextRequest) {
         : 0;
       return {
         ...o,
-        baseSalary,
+        baseSalary: mv.canSee ? baseSalary : null,
         orgUnitName: o.employee.assignments[0]?.orgUnit?.name ?? null,
-        estPay,
+        estPay: mv.canSee ? estPay : null,
         effectiveMinutes: minutes,
         approval: chainMap.get(o.id) ?? null,
       };
@@ -67,7 +71,8 @@ export async function GET(req: NextRequest) {
       paid: all.filter((o) => o.status === "Paid").length,
       rejected: all.filter((o) => o.status === "Rejected").length,
       paidMinutes: all.filter((o) => o.status === "Paid").reduce((s, o) => s + o.verifiedMinutes, 0),
-      approvedPay: all.filter((o) => o.status === "Approved").reduce((s, o) => s + o.estPay, 0),
+      // 45-b: estPay nullable saat masked — sum ?? 0 (bebas NaN).
+      approvedPay: all.filter((o) => o.status === "Approved").reduce((s, o) => s + (o.estPay ?? 0), 0),
     };
     return NextResponse.json({ orders: all, stats });
   } catch (e) {

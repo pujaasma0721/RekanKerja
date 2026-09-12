@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
 
 // GET /api/onevity/payroll-journals            → daftar jurnal + run yang belum diposting
@@ -16,8 +16,10 @@ export async function GET(req: NextRequest) {
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     // 28-c: nominal jurnal tersimpan terenkripsi — dekripsi di batas serializer.
-    const tc = tenantCryptoForDb(db);
-    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+    // 45-b: gate vault — generateJurnal (POST) & dm CSV memakai raw tc saat
+    // menulis; display (JSON/CSV) via mv (masked → null/0).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    const dm = (v: string | null) => mv.dec0(v);
 
     const exportCsv = req.nextUrl.searchParams.get("export");
     const id = req.nextUrl.searchParams.get("id");
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
           },
         });
       }
-      return NextResponse.json({ journal: tc.decryptJson(journal) });
+      return NextResponse.json({ journal: mv.json(journal) });
     }
 
     const journals = await db.payrollJournal.findMany({
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
       .filter((r) => !journalRunIds.has(r.id))
       .map((r) => ({ id: r.id, runNo: r.runNo, periodName: r.period.name, typeName: r.processType.name, status: r.status }));
 
-    return NextResponse.json({ journals: tc.decryptJson(journals), missingRuns });
+    return NextResponse.json({ journals: mv.json(journals), missingRuns });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -82,7 +84,9 @@ export async function POST(req: NextRequest) {
     if (!b.runId) return NextResponse.json({ error: "runId wajib" }, { status: 400 });
     const journal = await generateJournalForRun(db, b.runId);
     // 28-c: dekripsi nominal di batas serializer (angka utk frontend).
-    return NextResponse.json({ journal: tenantCryptoForDb(db).decryptJson(journal) });
+    // 45-b: gate vault (aktor requireMenuAction).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    return NextResponse.json({ journal: mv.json(journal) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

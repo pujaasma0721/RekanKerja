@@ -7,6 +7,7 @@ import { requireScoped, scopeWhere, resolveAccessScope } from "@/onevity/shared/
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { CURRENT_ASSIGNMENT_INCLUDE, flattenEmployee, syncEmployeePlacementSnapshot, decryptBaseSalary, type DbOrTx } from "@/onevity/human-resource/services/assignment";
 import { validateSalaryAgainstGrade, PATargetError } from "@/onevity/human-resource/services/pa-targets";
 import { toXlsxMulti, xlsxResponse, exportFilename, type ExportColumn } from "@/onevity/shared/lib/export";
@@ -310,6 +311,9 @@ export async function GET(req: NextRequest) {
 
     // 28-c: dekripsi identitas sensitif + gaji pokok di batas serializer
     // (konteks tc dipakai ulang oleh masking M-9 di bawah).
+    // 45-b: gerbang vault uang (requireScoped → resolve via sesi) — gaji pokok
+    // → null saat masked (pola M-9: field tetap ada, nilai null).
+    const moneyViewG = await moneyViewForReq(req, db);
     const tcList = tenantCryptoForDb(db);
     const employees = employeesRaw.map((e) => {
       const flat = flattenEmployee(e, tcList);
@@ -321,6 +325,8 @@ export async function GET(req: NextRequest) {
       // seragam utk semua baris dalam cakupan (profil SENDIRI tetap full via
       // employee-detail / ESS; tidak ada pengecualian per-baris).
       if (piiScope === "limited") maskEmployeePii(rest, tcList);
+      // 45-b: vault uang tertutup / tanpa hak → gaji pokok disembunyikan.
+      if (!moneyViewG.canSee) rest.baseSalary = null;
       return rest;
     });
 
@@ -1233,7 +1239,9 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
     });
     // 28-c: pass tc — NIK/NPWP/rekening + gaji pokok terdekripsi di batas serializer.
     const flat = employees.map((e) => flattenEmployee(e, tenantCryptoForDb(db)));
-    const includeWage = scope.all; // upah hanya untuk scope penuh
+    // 45-b: gerbang vault uang — kolom upah hilang saat masked (pola includeWage
+    // limited M-9; aktor requireMenuAction userId+role).
+    const includeWage = scope.all && (await moneyViewForReq(req, db)).canSee; // upah hanya untuk scope penuh
     // M-9 / 42-e: kolom PII hanya utk scope penuh — pemanggil limited (menu
     // LIHAT + cakupan CUSTOM) mendapat XLSX identitas operasional (no karyawan
     // + nama cukup sebagai identitas baris) tanpa PII & tanpa upah.

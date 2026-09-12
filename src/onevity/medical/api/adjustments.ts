@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { listAdjustments, submitAdjustment, decideAdjustment } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/adjustments?state=&year= — penyesuaian saldo
@@ -10,11 +11,13 @@ export async function GET(req: NextRequest) {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     const sp = req.nextUrl.searchParams;
+    // 45-b: gerbang vault uang (requireTenant → resolve via sesi).
+    const mv = await moneyViewForReq(req, db);
     const [adjustments, employees] = await Promise.all([
       listAdjustments(db, {
         state: sp.get("state") ?? "all",
         year: sp.get("year") ? Number(sp.get("year")) : undefined,
-      }),
+      }, mv),
       db.employee.findMany({
         where: { status: "Active" },
         select: { id: true, employeeNo: true, fullName: true },

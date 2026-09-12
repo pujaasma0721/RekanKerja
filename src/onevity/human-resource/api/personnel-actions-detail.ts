@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
@@ -95,14 +96,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const canAct = !!actor && action.status === "Submitted" && !!pending && layerAuthz.allowed;
 
     // flatten assignment aktif → bentuk lama (employmentStatus/baseSalary/workShift/position/…)
+    // 45-b: baseSalary display digate vault (masked → null); resolve via sesi
+    // (route ini requireTenant; requireMutator berikut hanya informasional).
     const emp = action.employee as typeof action.employee & { assignments?: unknown[] };
     const cur = (emp.assignments as { employmentStatus: string; workShift: string; baseSalary: string | null; position: unknown; orgUnit: unknown; grade: unknown }[] | undefined)?.[0];
     const { assignments: _a, ...empRest } = emp as Record<string, unknown>;
+    const mv = await moneyViewForReq(req, db);
     const employee = {
       ...empRest,
       employmentStatus: cur?.employmentStatus ?? "—",
-      // 28-c: baseSalary terenkripsi — dekripsi di batas serializer.
-      baseSalary: cur ? (tenantCryptoForDb(db).decryptMoney(cur.baseSalary) ?? 0) : 0,
+      // 28-c: baseSalary terenkripsi — dekripsi di batas serializer (gate 45-b).
+      baseSalary: cur ? (mv.canSee ? (mv.dec(cur.baseSalary) ?? 0) : null) : 0,
       workShift: cur?.workShift ?? "—",
       position: cur?.position ?? null,
       orgUnit: cur?.orgUnit ?? null,

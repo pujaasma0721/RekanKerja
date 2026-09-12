@@ -21,6 +21,7 @@
 // catalog, CRUD laporan tersimpan — model CustomReport RPT-KUSTOM-%04d).
 import type { TenantDb } from "../lib/tenant-db";
 import { tenantCryptoForDb, isEncrypted } from "../lib/field-crypto";
+import type { MoneyView } from "../lib/money-view";
 import { exportFilename, toCsv, toXlsx, type ExportCell, type ExportColumn } from "../lib/export";
 
 // ================= TIPE DASAR =================
@@ -567,9 +568,12 @@ export interface RunResult {
   inAppFiltered?: boolean;
 }
 
+/** 45-b: mv (MoneyView) WAJIB — gerbang vault uang: field terenkripsi (uang)
+ *  → null saat masked; angka polos & tanggal tetap lewat (pola dm lama). */
 export async function runReport(
   db: TenantDb,
   input: { entity?: unknown; fields?: unknown; filters?: unknown; page?: unknown },
+  mv: MoneyView,
 ): Promise<RunResult> {
   const { entity: ent, fields, filters } = validateSpec(input);
   const page = Math.max(1, Math.trunc(Number(input.page ?? 1)) || 1);
@@ -584,7 +588,12 @@ export async function runReport(
   const { sql: orderBy, appSortKey } = orderByOf(ent, fields);
   const dl = delegateOf(db, ent.model);
   const tc = tenantCryptoForDb(db);
-  const dm = (v: unknown): unknown => (v == null ? null : isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v));
+  // 45-b: enc:v1:n saat masked → null (vault uang); plaintext/angka tetap.
+  const dm = (v: unknown): unknown => {
+    if (v == null) return null;
+    if (!mv.canSee && isEncrypted(String(v))) return null;
+    return isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v);
+  };
 
   if (!inApp) {
     const [rawRows, total] = await Promise.all([
@@ -683,6 +692,7 @@ const widthOf = (f: ReportFieldDef): number =>
 export async function buildReportFile(
   db: TenantDb,
   input: { entity?: unknown; fields?: unknown; filters?: unknown; format?: unknown; name?: string },
+  mv: MoneyView,
 ): Promise<ExportFile> {
   const { entity: ent, fields, filters } = validateSpec(input);
   const format = input.format === "xlsx" ? "xlsx" : input.format === "csv" ? "csv" : null;
@@ -698,8 +708,13 @@ export async function buildReportFile(
     where, select, orderBy, take: LIMITS.exportRows,
   } as never);
   // 28-c: dekripsi field uang terenkripsi → number (sebelum masuk sel ekspor).
+  // 45-b: enc:v1:n saat masked → null (sel CSV/XLSX kosong — vault uang).
   const tc = tenantCryptoForDb(db);
-  const dm = (v: unknown): unknown => (v == null ? null : isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v));
+  const dm = (v: unknown): unknown => {
+    if (v == null) return null;
+    if (!mv.canSee && isEncrypted(String(v))) return null;
+    return isEncrypted(String(v)) ? tc.decryptMoney(String(v)) : Number(v);
+  };
   const decRows = rawRows.map((r) => {
     const o: Record<string, unknown> = {};
     for (const f of fields) o[f.key] = f.encrypted ? dm(readPath(r, f.path)) : readPath(r, f.path);

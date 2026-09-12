@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 
 
 
@@ -67,13 +68,19 @@ export async function GET(req: NextRequest) {
     for (const a of activeActions) actCount.set(a.employeeId, (actCount.get(a.employeeId) ?? 0) + 1);
 
     // ---- people (active only — current org, data dari assignment aktif) ----
+    // 45-b: gerbang vault uang — baseSalary display digate (masked → null);
+    // sort unit-head + monthlyCost tetap dihitung dari nilai RAW (compute).
+    const mv = await moneyViewForReq(req, db);
+    const tc = tenantCryptoForDb(db);
     const active = employees.map((e) => {
       const cur = e.assignments[0] ?? null;
+      const salaryRaw = cur ? (tc.decryptMoney(cur.baseSalary) ?? 0) : 0;
       return {
         id: e.id, employeeNo: e.employeeNo, fullName: e.fullName, gender: e.gender, status: e.status, joinDate: e.joinDate,
         employmentStatus: cur?.employmentStatus ?? "—",
-        // 28-c: baseSalary terenkripsi — dekripsi di batas serializer.
-        baseSalary: cur ? (tenantCryptoForDb(db).decryptMoney(cur.baseSalary) ?? 0) : 0,
+        // 28-c: baseSalary terenkripsi — dekripsi di batas serializer (gate 45-b).
+        baseSalary: cur ? (mv.canSee ? salaryRaw : null) : 0,
+        salaryRaw,
         positionId: cur?.positionId ?? null,
         position: cur?.position ?? null,
         grade: cur?.grade ?? null,
@@ -110,7 +117,7 @@ export async function GET(req: NextRequest) {
       const sorted = [...members].sort(
         (a, b) =>
           gradeRank(b.grade?.code) - gradeRank(a.grade?.code) ||
-          b.baseSalary - a.baseSalary ||
+          b.salaryRaw - a.salaryRaw ||
           a.employeeNo.localeCompare(b.employeeNo)
       );
       unitHead.set(u.id, sorted[0]!.id);
@@ -148,7 +155,7 @@ export async function GET(req: NextRequest) {
       if (p.managerId) reportCounts.set(p.managerId, (reportCounts.get(p.managerId) ?? 0) + 1);
     }
     const managers = [...reportCounts.values()].filter((n) => n > 0);
-    const monthlyCost = people.reduce((acc, p) => acc + p.baseSalary, 0);
+    const monthlyCost = people.reduce((acc, p) => acc + (p.baseSalary ?? 0), 0);
     const totalSlots = positions.reduce((acc, p) => acc + p.headcount, 0);
     const totalFilled = positions.reduce((acc, p) => acc + Math.min(p.headcount, activeByPos.get(p.id) ?? 0), 0);
 

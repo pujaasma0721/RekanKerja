@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { listEncashments, submitEncashment, decideEncashment } from "@/onevity/leave/services/leave-service";
 
 // GET /api/onevity/leave/encashment?status= — uang pengganti cuti
@@ -10,7 +11,8 @@ export async function GET(req: NextRequest) {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
     const status = req.nextUrl.searchParams.get("status") ?? "all";
-    const rows = await listEncashments(db, { status });
+    // 45-b: gerbang vault uang (requireTenant → resolve via sesi).
+    const rows = await listEncashments(db, { status }, await moneyViewForReq(req, db));
     const stats = {
       total: rows.length,
       submitted: rows.filter((r) => r.status === "Submitted").length,
@@ -18,7 +20,8 @@ export async function GET(req: NextRequest) {
       transferred: rows.filter((r) => r.status === "Transferred").length,
       paid: rows.filter((r) => r.status === "Paid").length,
       totalDays: Math.round(rows.filter((r) => ["Approved", "Transferred", "Paid"].includes(r.status)).reduce((s, r) => s + r.days, 0) * 100) / 100,
-      totalAmount: rows.filter((r) => ["Approved", "Transferred", "Paid"].includes(r.status)).reduce((s, r) => s + r.amount, 0),
+      // 45-b: amount nullable saat masked — sum ?? 0 (bebas NaN).
+      totalAmount: rows.filter((r) => ["Approved", "Transferred", "Paid"].includes(r.status)).reduce((s, r) => s + (r.amount ?? 0), 0),
     };
     return NextResponse.json({ encashments: rows, stats });
   } catch (e) {

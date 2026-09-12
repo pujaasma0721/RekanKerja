@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
     const m = await requireMenuViewAny(req, ["travel:travel-claim", "travel:travel-claim-approval"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
+    // 45-b: gerbang vault uang — aktor requireMenuViewAny (userId+role).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
     const sp = req.nextUrl.searchParams;
     const requestId = sp.get("requestId");
     if (requestId) {
@@ -42,12 +45,13 @@ export async function GET(req: NextRequest) {
       // 44-d (M-8): detail = row mentah Prisma (klaim/expense/advance uangnya
       // terenkripsi) → dekripsi di batas serializer (bentuk angka utk frontend
       // TIDAK berubah — walker generik enc:v1:n → number).
-      return NextResponse.json({ detail: tenantCryptoForDb(db).decryptJson(detail) });
+      // 45-b: gate vault — walker mv (masked → enc:v1:n: → null, PII tetap).
+      return NextResponse.json({ detail: mv.json(detail) });
     }
     const claims = await listTravelClaims(db, {
       status: sp.get("status") ?? "all",
       employeeId: sp.get("employeeId") ?? undefined,
-    });
+    }, mv);
     // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
     const attachMap = await attachmentsByEntityIds(db, "TravelClaim", claims.map((c) => c.id));
     const claimsWithAttachments = claims.map((c) => ({
@@ -63,9 +67,10 @@ export async function GET(req: NextRequest) {
       paid: claims.filter((c) => c.status === "Paid").length,
       rejected: claims.filter((c) => c.status === "Rejected").length,
       cancelled: claims.filter((c) => c.status === "Cancelled").length,
-      totalSettlement: claims.reduce((s, c) => s + c.totalSettlement, 0),
-      payableEmployee: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + c.payableEmployee, 0),
-      payableCompany: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + c.payableCompany, 0),
+      // 45-b: kolom uang DTO nullable saat masked — sum ?? 0 (bebas NaN).
+      totalSettlement: claims.reduce((s, c) => s + (c.totalSettlement ?? 0), 0),
+      payableEmployee: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (c.payableEmployee ?? 0), 0),
+      payableCompany: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (c.payableCompany ?? 0), 0),
     };
     return NextResponse.json({ claims: claimsWithAttachments, stats });
   } catch (e) {

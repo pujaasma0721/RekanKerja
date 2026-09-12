@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { resolveMenuPerms } from "@/onevity/shared/services/menu-access";
 import { flattenEmployee } from "@/onevity/human-resource/services/assignment";
 
@@ -58,10 +59,14 @@ export async function GET(req: NextRequest) {
     // kirim konteks crypto agar flattenEmployee men-dekripsi di batas serializer
     // (decryptText meloloskan plaintext legacy; tanpa tc, karyawan yang pernah
     // di-PATCH pasca-enkripsi mengembalikan ciphertext enc:v1:… ke klien).
+    // 45-b: gerbang vault uang (requireTenant → resolve via sesi) — gaji pokok
+    // managers → null saat masked (PII tetap terdekripsi — vault hanya uang).
     const tc = tenantCryptoForDb(db);
+    const mv = await moneyViewForReq(req, db);
     const employees = employeesRaw.map((e) => {
       const flat = flattenEmployee(e, tc);
       const { assignments, ...rest } = flat as Record<string, unknown>;
+      if (!mv.canSee) rest.baseSalary = null;
       return rest;
     });
 

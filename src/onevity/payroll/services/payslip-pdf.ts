@@ -8,12 +8,18 @@
 //   - GET /api/onevity/payslip/[lineId]?download=1|0  (unduh / inline)
 //   - aksi send-slips run payroll (lampiran email massal)
 //
+// 45-b (MONEY VAULT): RENDER PDF = tampilan uang pengguna — gate MoneyView
+// ditthread (loadPayslipSlip(db, lineId, mv)): vault tertutup / tanpa hak →
+// nilai uang null → PDF merender "—" (PII tetap terbaca — vault hanya uang).
+// GENERASI run payroll tetap raw (engine payroll-service).
+//
 // Struktur data dipelajari dari PaySlipDialog (payroll-run-detail.tsx) &
 // payroll-spt.ts: items.type Earning|Deduction|Informational, kode _C =
 // iuran perusahaan (di luar bruto/THP), PPH21 termasuk dalam potongan.
 // =====================================================================
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
 
 // ---------- tipe data snapshot ----------
@@ -23,7 +29,8 @@ interface SlipItem {
   name: string;
   wageType: string;
   type: string; // Earning|Deduction|Informational
-  amount: number;
+  /** 45-b: null = masked vault (dirender "—"). */
+  amount: number | null;
   note: string | null;
 }
 
@@ -44,23 +51,27 @@ export interface PayslipSlip {
   ptkpStatus: string;
   ptkpValue: number;
   npwp: string | null;
-  bruto: number;
-  deduction: number;
-  taxRegular: number;
-  taxIrregular: number;
-  net: number;
+  /** 45-b: null = masked vault (dirender "—"). */
+  bruto: number | null;
+  deduction: number | null;
+  taxRegular: number | null;
+  taxIrregular: number | null;
+  net: number | null;
   actualNetTax: number | null;
   notes: string | null;
   items: SlipItem[];
   company: { name: string; address: string | null; city: string | null; phone: string | null; email: string | null } | null;
 }
 
-/** Ambil seluruh data slip untuk satu PayrollRunLine (null bila tak ada). */
-export async function loadPayslipSlip(db: TenantDb, lineId: string): Promise<PayslipSlip | null> {
+/** Ambil seluruh data slip untuk satu PayrollRunLine (null bila tak ada).
+ *  45-b: mv (MoneyView) WAJIB — gerbang vault uang: masked → kolom uang null. */
+export async function loadPayslipSlip(db: TenantDb, lineId: string, mv: MoneyView): Promise<PayslipSlip | null> {
   // 28-c: nilai uang & identitas tersimpan terenkripsi — dekripsi di sini;
   // PDF/kontrak PayslipSlip tetap memakai angka & teks polos.
+  // 45-b: dm via mv — legacy/open identik jalur lama (dec ?? 0); masked → null.
+  // PII (NPWP) tetap jalur env tc — vault hanya menyembunyikan UANG.
   const tc = tenantCryptoForDb(db);
-  const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+  const dm = (v: string | null) => (mv.canSee ? (mv.dec(v) ?? 0) : null);
   const line = await db.payrollRunLine.findUnique({
     where: { id: lineId },
     include: {
@@ -99,7 +110,7 @@ export async function loadPayslipSlip(db: TenantDb, lineId: string): Promise<Pay
     taxRegular: dm(line.taxRegular),
     taxIrregular: dm(line.taxIrregular),
     net: dm(line.net),
-    actualNetTax: tc.decryptMoney(line.actualNetTax),
+    actualNetTax: mv.canSee ? mv.dec(line.actualNetTax) : null,
     notes: line.notes,
     items: line.items.map((i) => ({
       code: i.code, name: i.name, wageType: i.wageType, type: i.type,
@@ -114,6 +125,11 @@ export async function loadPayslipSlip(db: TenantDb, lineId: string): Promise<Pay
 /** Rupiah Indonesia: 23678526 → "Rp 23.678.526". */
 export function fmtRupiah(n: number): string {
   return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+}
+
+/** 45-b (vault): nilai uang null (masked) → "—" di PDF. */
+function fmtAmount(n: number | null): string {
+  return n == null ? "—" : fmtRupiah(n);
 }
 
 /** Tanggal panjang Indonesia: "31 Agustus 2026". */
@@ -278,7 +294,7 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   const deductions = slip.items.filter((i) => i.type === "Deduction");
   const infos = slip.items.filter((i) => i.type === "Informational");
 
-  const drawTableSection = (title: string, rows: SlipItem[], subtotalLabel: string, subtotalValue: number, opts: { amountColor: ReturnType<typeof rgb>; alt: ReturnType<typeof rgb> }) => {
+  const drawTableSection = (title: string, rows: SlipItem[], subtotalLabel: string, subtotalValue: number | null, opts: { amountColor: ReturnType<typeof rgb>; alt: ReturnType<typeof rgb> }) => {
     ensure(34 + rows.length * 13 + 30);
     txt(title, MARGIN, y, { size: 9, font: bold, color: opts.amountColor });
     y -= 5;
@@ -298,14 +314,14 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
       const isCo = it.code.endsWith("_C");
       const label = it.name + (isCo ? "  (iuran perusahaan)" : "") + (it.note ? `  — ${it.note}` : "");
       txt(label, MARGIN + 8, y - 9, { size: 8.5, font: isCo ? oblique : regular, color: isCo ? INK_SOFT : INK });
-      txt(fmtRupiah(it.amount), MARGIN + CONTENT_W - 8, y - 9, { size: 8.5, font: isCo ? regular : bold, color: isCo ? INK_SOFT : opts.amountColor, align: "right" });
+      txt(fmtAmount(it.amount), MARGIN + CONTENT_W - 8, y - 9, { size: 8.5, font: isCo ? regular : bold, color: isCo ? INK_SOFT : opts.amountColor, align: "right" });
       y -= 13;
     });
 
     // subtotal
     page.drawRectangle({ x: MARGIN, y: y - 13.5, width: CONTENT_W, height: 14, color: RULE });
     txt(subtotalLabel, MARGIN + 8, y - 10, { size: 8, font: bold, color: INK });
-    txt(fmtRupiah(subtotalValue), MARGIN + CONTENT_W - 8, y - 10, { size: 9, font: bold, color: opts.amountColor, align: "right" });
+    txt(fmtAmount(subtotalValue), MARGIN + CONTENT_W - 8, y - 10, { size: 9, font: bold, color: opts.amountColor, align: "right" });
     y -= 24;
   };
 
@@ -313,7 +329,8 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   drawTableSection("POTONGAN", deductions, "JUMLAH POTONGAN", slip.deduction, { amountColor: RED, alt: ROW_ALT });
 
   // catatan: PPh21 termasuk potongan + net-to-gross
-  const taxTotal = slip.taxRegular + slip.taxIrregular;
+  // 45-b: nilai null (masked) dijumlahkan sebagai 0 → catatan PPh21 dilewati.
+  const taxTotal = (slip.taxRegular ?? 0) + (slip.taxIrregular ?? 0);
   const notes: string[] = [];
   if (taxTotal > 0) notes.push(`Termasuk PPh21 sebesar ${fmtRupiah(taxTotal)} (PPh Pasal 21).`);
   if (slip.actualNetTax != null) notes.push("PPh21 ditanggung penuh perusahaan (metode Net-to-Gross).");
@@ -330,7 +347,7 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   // item informational (bila ada)
   if (infos.length > 0) {
     ensure(14);
-    const infoLine = infos.map((i) => `${i.name}: ${i.code.match(/[^0-9]/) ? fmtRupiah(i.amount) : String(i.amount)}`).join("   |   ");
+    const infoLine = infos.map((i) => `${i.name}: ${i.code.match(/[^0-9]/) ? fmtAmount(i.amount) : i.amount == null ? "—" : String(i.amount)}`).join("   |   ");
     const trimmed = infoLine.length > 110 ? `${infoLine.slice(0, 107)}...` : infoLine;
     txt(`Informasi: ${trimmed}`, MARGIN, y, { size: 7.5, color: INK_FAINT });
     y -= 16;
@@ -343,7 +360,7 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   page.drawRectangle({ x: MARGIN, y: bandTop - bandH, width: CONTENT_W, height: bandH, color: ACCENT });
   const bandMid = bandTop - bandH / 2;
   txt("TAKE HOME PAY", MARGIN + 12, bandMid - 4, { size: 11, font: bold, color: WHITE });
-  txt(fmtRupiah(slip.net), MARGIN + CONTENT_W - 12, bandMid - 5.5, { size: 16, font: bold, color: WHITE, align: "right" });
+  txt(fmtAmount(slip.net), MARGIN + CONTENT_W - 12, bandMid - 5.5, { size: 16, font: bold, color: WHITE, align: "right" });
   y -= bandH + 10;
 
   // ================= FOOTER =================
@@ -403,13 +420,15 @@ function ownerSecret(): string {
   return Array.from(rnd, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Muat data + bangun PDF satu line (gabungan praktis untuk route & email). */
+/** Muat data + bangun PDF satu line (gabungan praktis untuk route & email).
+ *  45-b: mv WAJIB — thread dari aktor route (payslip.ts / send-slips). */
 export async function buildPayslipPdfByLineId(
   db: TenantDb,
   lineId: string,
+  mv: MoneyView,
   opts: PayslipPdfOptions = {},
 ): Promise<PayslipPdfResult & { slip: PayslipSlip } | null> {
-  const slip = await loadPayslipSlip(db, lineId);
+  const slip = await loadPayslipSlip(db, lineId, mv);
   if (!slip) return null;
   return { ...(await buildPayslipPdf(slip, opts)), slip };
 }

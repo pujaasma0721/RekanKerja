@@ -145,6 +145,75 @@ export function tenantCryptoForDb(db: object): FieldCrypto {
   return tenantCrypto(schema);
 }
 
+// ============ HELPER KUNCI EKSPLISIT (Task 45-a — money vault) ============
+// Dipakai money-vault.ts / money-view.ts: kunci data tenant 32 byte yang
+// SAMA dengan yang dipakai konteks env (tenantCrypto) — vault hanya
+// membungkus (wrap) kunci ini dengan KEK hasil PBKDF2 sandi admin.
+
+/** Kunci data tenant (32 byte) = HMAC-SHA256(master, "field-crypto:"+schema).
+ *  Sumber tunggal deriveTenantKey — dipakai money-vault utk men-wrap DEK. */
+export function tenantDataKey(schema: string): Buffer {
+  return deriveTenantKey(schema);
+}
+
+/** Dekripsi enc:v1 generik dengan kunci EKSPLISIT (bukan dari env) —
+ *  walker raw pemakaan vault (DEK hasil unwrap). Mirror perilaku konteks
+ *  (malformat/auth-tag gagal → throw; kind salah → throw). */
+function rawDecryptWithKey(stored: string, key: Buffer): { kind: "t" | "n"; value: string } {
+  const parts = stored.split(":");
+  if (parts.length !== 6 || parts[0] !== "enc" || parts[1] !== "v1") {
+    throw new Error(`[field-crypto] nilai enc:v1 malformat (${stored.slice(0, 24)}…)`);
+  }
+  const kind = parts[2];
+  if (kind !== "t" && kind !== "n") {
+    throw new Error(`[field-crypto] jenis nilai tidak dikenal: ${kind}`);
+  }
+  try {
+    const iv = Buffer.from(parts[3]!, "base64");
+    const tag = Buffer.from(parts[4]!, "base64");
+    const ct = Buffer.from(parts[5]!, "base64");
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    const pt = Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+    return { kind, value: pt };
+  } catch {
+    throw new Error(
+      `[field-crypto] gagal dekripsi (auth tag tidak cocok — kunci salah atau data lintas-tenant?). Awalan nilai: ${stored.slice(0, 24)}…`,
+    );
+  }
+}
+
+/** Dekripsi TEKS enc:v1:t:… dengan kunci eksplisit (vault open / DEK).
+ *  Legacy plaintext (tanpa prefix) diteruskan apa adanya — sama decryptText. */
+export function decryptTextWithKey(stored: string | null | undefined, key: Buffer): string | null {
+  if (stored == null) return null;
+  if (!isEncrypted(stored)) return stored; // legacy plaintext — diteruskan
+  const { kind, value } = rawDecryptWithKey(stored, key);
+  if (kind !== "t") {
+    throw new Error("[field-crypto] field teks berisi nilai angka terenkripsi");
+  }
+  return value;
+}
+
+/** Dekripsi ANGKA enc:v1:n:… dengan kunci eksplisit (vault open / DEK).
+ *  null → null; plaintext numerik legacy di-parse — sama decryptMoney. */
+export function decryptMoneyWithKey(stored: string | null | undefined, key: Buffer): number | null {
+  if (stored == null) return null;
+  if (!isEncrypted(stored)) {
+    const legacy = parseFloat(stored);
+    return Number.isFinite(legacy) ? legacy : null; // plaintext numerik pra-migrasi
+  }
+  const { kind, value } = rawDecryptWithKey(stored, key);
+  if (kind !== "n") {
+    throw new Error("[field-crypto] field uang berisi nilai teks terenkripsi");
+  }
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) {
+    throw new Error(`[field-crypto] nilai uang terenkripsi bukan angka: ${value}`);
+  }
+  return n;
+}
+
 // ============ IMPLEMENTASI ============
 
 function makeContext(schema: string): FieldCrypto {

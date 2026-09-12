@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/export";
 
@@ -123,7 +125,7 @@ type MemberEmployee = {
   assignments: { employmentStatus: string; baseSalary: string | null }[];
 };
 
-const toMemberRow = (tc: FieldCrypto, employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
+const toMemberRow = (tc: FieldCrypto, mv: MoneyView, employeeNo: string, emp: MemberEmployee, positionFallback: string | null): BpjsMemberRow => ({
   employeeNo,
   // 28-c: NIK & gaji pokok tersimpan terenkripsi — dekripsi (format upload
   // BPJS memuat KTP & GAJI riil).
@@ -139,7 +141,9 @@ const toMemberRow = (tc: FieldCrypto, employeeNo: string, emp: MemberEmployee, p
   joinDate: emp.joinDate,
   employmentStatus: emp.assignments[0]?.employmentStatus ?? "Permanent",
   positionName: positionFallback ?? emp.position?.title ?? null,
-  baseSalary: Math.round(tc.decryptMoney(emp.assignments[0]?.baseSalary) ?? 0),
+  // 45-b: gaji pokok lewat gerbang MoneyView — vault tertutup/tanpa grant
+  // → kolom GAJI file upload BPJS ter-mask (0); NIK tetap per aturan PII M-9.
+  baseSalary: Math.round(mv.dec0(emp.assignments[0]?.baseSalary)),
 });
 
 /**
@@ -215,6 +219,9 @@ export async function GET(req: NextRequest) {
     const runId = sp.get("runId");
     // 28-c: konteks dekripsi per-tenant (NIK, gaji pokok, item iuran run).
     const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang MoneyView — vault uang tertutup/tanpa grant → GAJI &
+    // rekap iuran ter-mask (0). Admin membuka vault utk file upload riil.
+    const mv = await moneyViewForReq(req, db);
 
     // ===== 27-c — format upload resmi BPJS (CSV) =====
     // runId OPSIONAL di sini: dgn runId → populasi pegawai run tsb yang
@@ -247,7 +254,7 @@ export async function GET(req: NextRequest) {
         scope = run.runNo;
         members = run.lines
           .filter((l) => (isTk ? l.employee?.bpjsEmpSkill : l.employee?.bpjsHealth))
-          .map((l) => toMemberRow(tc, l.employeeNo, l.employee as MemberEmployee, l.positionName));
+          .map((l) => toMemberRow(tc, mv, l.employeeNo, l.employee as MemberEmployee, l.positionName));
       } else {
         const emps = await db.employee.findMany({
           where: isTk
@@ -256,7 +263,7 @@ export async function GET(req: NextRequest) {
           orderBy: { employeeNo: "asc" },
           select: { employeeNo: true, ...memberSelect },
         });
-        members = emps.map((e) => toMemberRow(tc, e.employeeNo, e as MemberEmployee, null));
+        members = emps.map((e) => toMemberRow(tc, mv, e.employeeNo, e as MemberEmployee, null));
       }
 
       const csv = isTk ? buildBpjsTkCsv(members) : buildBpjsJknCsv(members);
@@ -311,7 +318,7 @@ export async function GET(req: NextRequest) {
           : basis === "JKK" ? "jkk"
           : basis === "JKM" ? "jkm"
           : isCompany ? "jknC" : "jknE";
-        b[key] += tc.decryptMoney(item.amount) ?? 0; // 28-c: iuran terenkripsi
+        b[key] += mv.dec0(item.amount); // 28-c: iuran terenkripsi · 45-b: gated vault
       }
       return {
         employeeId: l.employeeId,

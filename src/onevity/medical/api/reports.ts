@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { claimReport, medicalStats } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/reports?from=&to=&employeeId=&year= — laporan klaim
@@ -12,13 +13,15 @@ export async function GET(req: NextRequest) {
     const year = Number(sp.get("year") ?? new Date().getFullYear());
     const from = sp.get("from") ?? `${year}-01-01`;
     const to = sp.get("to") ?? `${year}-12-31`;
+    // 45-b: gerbang vault uang (requireTenant → resolve via sesi; sekali utk kedua builder).
+    const mv = await moneyViewForReq(req, db);
     const [rows, stats, employees] = await Promise.all([
       claimReport(db, {
         from,
         to,
         employeeId: sp.get("employeeId") ?? undefined,
-      }),
-      medicalStats(db, year),
+      }, mv),
+      medicalStats(db, year, mv),
       db.employee.findMany({
         where: { status: "Active" },
         select: { id: true, employeeNo: true, fullName: true },

@@ -16,6 +16,7 @@
 // siap DITEMPEL (paste) ke template resmi tanpa re-format manual.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import { progressiveTax, EngineBracket } from "@/onevity/payroll/services/payroll-engine";
 import { getBrackets, getActiveRegulation } from "@/onevity/payroll/services/payroll-service";
 
@@ -124,7 +125,7 @@ function esptBucketOf(item: RunItemLike): "gaji" | "tunjPph" | "tunjLain" | "pre
   return "tunjLain"; // tunjangan reguler/lembur/imbalan lain
 }
 
-export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptReport> {
+export async function buildAnnualSpt(db: TenantDb, year: number, mv?: MoneyView): Promise<SptReport> {
   // 28-c: konteks dekripsi per-tenant — field uang & identitas tersimpan
   // terenkripsi; dipetakan ke tipe terdekripsi SEBELUM komputasi rekap.
   const tc = tenantCryptoForDb(db);
@@ -164,7 +165,9 @@ export async function buildAnnualSpt(db: TenantDb, year: number): Promise<SptRep
       payrollProfile: { npwp: string | null; hasNpwp: boolean } | null;
     } | null;
   }
-  const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+  // 45-b: bila route meneruskan MoneyView (vault uang), nilai uang rekap
+  // lewat gerbang — vault tertutup/tanpa grant → 0. Tanpa mv = perilaku lama.
+  const dm = (v: string | null) => (mv ? mv.dec0(v) : tc.decryptMoney(v) ?? 0);
   const runs: { month: number; lines: SptLine[] }[] = runsRaw.map((run) => ({
     month: run.period?.sptMonth ?? 12,
     lines: run.lines.map((line) => ({

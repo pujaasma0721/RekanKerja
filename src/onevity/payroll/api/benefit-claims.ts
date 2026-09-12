@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
@@ -37,9 +38,10 @@ export async function GET(req: NextRequest) {
     // M-8: amount klaim tersimpan TERENKRIPSI — statistik dihitung dari nilai
     // terdekripsi per baris (fetch rows + reduce in-memory; agregasi SQL pada
     // kolom terenkripsi dilarang).
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gate vault — stats via dec0 (masked → 0, bebas NaN); rows via walker.
+    const mv = await moneyViewForReq(req, db);
     const all = (await db.benefitClaim.findMany({ select: { status: true, amount: true, claimDate: true } }))
-      .map((c) => ({ ...c, amount: tc.decryptMoney(c.amount) ?? 0 }));
+      .map((c) => ({ ...c, amount: mv.dec0(c.amount) }));
     const year = new Date().getFullYear();
     const stats = {
       total: all.length,
@@ -55,8 +57,8 @@ export async function GET(req: NextRequest) {
     };
     // M-8: rows klaim di-dekripsi di batas serializer (decryptJson) — bentuk
     // JSON frontend TIDAK berubah (amount/approvedAmount/limitUsed/
-    // limitRemaining tetap angka).
-    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ claims, stats }));
+    // limitRemaining tetap angka). 45-b: mv.json — masked → uang → null.
+    return NextResponse.json(mv.json({ claims, stats }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -80,7 +82,9 @@ export async function POST(req: NextRequest) {
       documentsNote: b.documentsNote,
     });
     // M-8: klaim tersimpan terenkripsi — dekripsi di batas respons.
-    return NextResponse.json(tenantCryptoForDb(db).decryptJson(res), { status: 201 });
+    // 45-b: gate vault (aktor requireMenuAction).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    return NextResponse.json(mv.json(res), { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -129,7 +133,10 @@ export async function PATCH(req: NextRequest) {
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
     }
-    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ claim }));
+    return NextResponse.json(
+      // 45-b: gate vault (aktor requireMenuAction — dipilih sesuai aksi).
+      (await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role })).json({ claim }),
+    );
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }

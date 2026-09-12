@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { limitSnapshot } from "@/onevity/payroll/services/benefit-service";
+import { limitSnapshot, type LimitSnapshot } from "@/onevity/payroll/services/benefit-service";
 
 const RESET = ["None", "Monthly", "Quarterly", "Yearly"];
+
+/** 45-b: salinan DISPLAY limitSnapshot — field uang → null saat vault masked
+ *  (snapshot asli tetap raw: dipakai utk VALIDASI submit klaim benefit). */
+function maskUsageForDisplay(u: LimitSnapshot, mv: { canSee: boolean }): LimitSnapshot {
+  if (mv.canSee) return u;
+  return { ...u, used: 0, limit: null, remaining: null };
+}
 
 // GET /api/onevity/benefit-types[?employeeId=] — master + statistik klaim;
 // employeeId menambahkan snapshot pemakaian limit (untuk form pengajuan).
@@ -27,8 +34,10 @@ export async function GET(req: NextRequest) {
       select: { benefitTypeId: true, status: true, amount: true, claimDate: true },
     });
     // M-8: amount klaim terenkripsi — dekripsi utk statistik in-memory.
-    const tc = tenantCryptoForDb(db);
-    const claimsDec = claims.map((c) => ({ ...c, amount: tc.decryptMoney(c.amount) ?? 0 }));
+    // 45-b: gate vault (requireTenant → resolve via sesi) — stats via dec0
+    // (masked → 0); limitSnapshot tetap raw (dipakai validasi submit klaim).
+    const mv = await moneyViewForReq(req, db);
+    const claimsDec = claims.map((c) => ({ ...c, amount: mv.dec0(c.amount) }));
     const now = new Date();
     const year = now.getFullYear();
     const result = await Promise.all(types.map(async (t) => {
@@ -43,7 +52,9 @@ export async function GET(req: NextRequest) {
         activeClaimCount: active.length,
         totalApprovedAmount: active.reduce((s, c) => s + c.amount, 0),
         ytdAmount: active.filter((c) => c.claimDate.getFullYear() === year).reduce((s, c) => s + c.amount, 0),
-        usage,
+        // 45-b: snapshot limit = kalkulasi validasi (raw); tampilannya di-mask
+        // di batas route saat vault tertutup (field uang → null, shape tetap).
+        usage: usage ? maskUsageForDisplay(usage, mv) : null,
       };
     }));
     return NextResponse.json({ types: result });

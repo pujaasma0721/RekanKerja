@@ -10,6 +10,7 @@
 // CSV/XLSX dibangun shared/lib/export.ts (angka numerik, tanggal dd MMM yyyy).
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import {
   buildReportFile, ReportSpecError, serializeSaved, type ExportFormat,
 } from "@/onevity/shared/services/report-builder";
@@ -47,7 +48,9 @@ export async function POST(req: NextRequest) {
     const spec = b.id
       ? await specOfSaved(m.db, String(b.id))
       : { entity: b.entity, fields: b.fields, filters: b.filters, name: b.name };
-    const file = await buildReportFile(m.db, { ...spec, format });
+    // 45-b: gerbang vault uang — aktor requireMenuAction (userId+role).
+    const file = await buildReportFile(m.db, { ...spec, format },
+      await getMoneyView(m.db, { userId: m.actor.userId, membershipRole: m.actor.role }));
     await m.db.activityLog.create({
       data: {
         appUserId: m.actor.appUserId,
@@ -74,7 +77,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Parameter format harus csv atau xlsx" }, { status: 400 });
     }
     const spec = await specOfSaved(m.db, id);
-    const file = await buildReportFile(m.db, { ...spec, format: format as ExportFormat });
+    // 45-b: gerbang vault uang — aktor requireMenuAction (userId+role).
+    const file = await buildReportFile(m.db, { ...spec, format: format as ExportFormat },
+      await getMoneyView(m.db, { userId: m.actor.userId, membershipRole: m.actor.role }));
     await m.db.activityLog.create({
       data: {
         appUserId: m.actor.appUserId,

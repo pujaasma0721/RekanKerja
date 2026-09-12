@@ -13,6 +13,7 @@ import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
 import { NotificationBell } from "@/onevity/shared/components/shell/notification-bell";
+import { MoneyVaultButton } from "@/onevity/shared/components/shell/money-vault";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -920,6 +921,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* money vault — kata sandi enkripsi uang (Task 45-c) */}
+            <MoneyVaultButton />
 
             {/* notifications — feed nyata per AppUser (T11-NOTIF) */}
             <NotificationBell />

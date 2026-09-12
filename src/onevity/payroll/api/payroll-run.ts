@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 
 // GET /api/onevity/payroll-run?id= — detail run + lines + items
 export async function GET(req: NextRequest) {
@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
 
     // 28-c: dekripsi di batas serializer — response tetap berbentuk angka
     // (enc:v1:n:… → number, enc:v1:t:… → teks) sehingga frontend tidak berubah.
-    const tc = tenantCryptoForDb(db);
-    const dec = tc.decryptJson(run);
+    // 45-b: gate vault uang — masked → enc:v1:n: → null (frontend render "—").
+    const dec = (await moneyViewForReq(req, db)).json(run);
 
     // Overview payroll ringan: agregat komponen utama (utk kartu ringkasan).
     // (decryptJson mengembalikan number saat runtime; Number() = koersi tipe

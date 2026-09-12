@@ -3,6 +3,7 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/shared/services/access-scope";
 import { applyAssignmentChange, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/onevity/human-resource/services/assignment";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { computePkwtInfo } from "@/onevity/human-resource/services/pkwt";
 import { maskEmployeePii, type PiiScope } from "@/onevity/human-resource/api/employees";
 
@@ -88,6 +89,9 @@ export async function GET(req: NextRequest) {
     const cur = employee.assignments[0] ?? null;
     // 28-c: konteks dekripsi per-tenant utk identitas + gaji di batas serializer.
     const tcD = tenantCryptoForDb(db);
+    // 45-b: gerbang vault uang (requireScoped → resolve via sesi; aktor kosong
+    // saat race revokasi → fail-closed masked bila vault terkonfigurasi).
+    const mv = await moneyViewForReq(req, db);
     // manager aktif + posisinya (nested: manager → assignment aktifnya)
     let manager: { id: string; fullName: string; employeeNo: string; photoUrl: string | null; position: { title: string | null } | null } | null = null;
     if (cur?.managerId) {
@@ -145,7 +149,8 @@ export async function GET(req: NextRequest) {
       employmentStatus: cur?.employmentStatus ?? "—",
       workShift: cur?.workShift ?? "—",
       // M-9 / 42-e: gaji pokok hanya utk full/self — limited → null.
-      baseSalary: cur ? (piiScope === "limited" ? null : decryptBaseSalary(tcD, cur.baseSalary)) : 0,
+      // 45-b: gerbang vault (requireScoped → resolve via sesi) — masked → null.
+      baseSalary: cur ? (piiScope === "limited" || !mv.canSee ? null : decryptBaseSalary(tcD, cur.baseSalary)) : 0,
       orgUnit: cur?.orgUnit ?? null,
       position: cur?.position ?? null,
       grade: cur?.grade ?? null,
@@ -165,7 +170,8 @@ export async function GET(req: NextRequest) {
         employmentStatus: a.employmentStatus,
         workShift: a.workShift,
         // M-9 / 42-e: riwayat gaji hanya utk full/self — limited → null.
-        baseSalary: piiScope === "limited" ? null : decryptBaseSalary(tcD, a.baseSalary),
+        // 45-b: gerbang vault — masked → null.
+        baseSalary: (piiScope === "limited" || !mv.canSee) ? null : decryptBaseSalary(tcD, a.baseSalary),
         orgUnit: a.orgUnit ? { name: a.orgUnit.name, code: a.orgUnit.code } : null,
         position: a.position ? { title: a.position.title, code: a.position.code } : null,
         grade: a.grade ? { code: a.grade.code, name: a.grade.name } : null,

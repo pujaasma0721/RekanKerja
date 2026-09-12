@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary,
 } from "@/onevity/shared/services/approval-engine";
@@ -38,8 +40,11 @@ export async function GET(req: NextRequest) {
     const chainMap = await attachChainSummaries(db, "Loan", loans.map((l) => ({ id: l.id })));
     // M-8: kolom uang loan/cicilan (amount/installmentAmount/paidAmount/
     // outstanding + LoanInstallment.amount) tersimpan TERENKRIPSI — dekripsi
-    // di batas serializer (decryptJson) supaya bentuk JSON tetap ANGKA.
-    return NextResponse.json(tenantCryptoForDb(db).decryptJson({
+    // di batas serializer supaya bentuk JSON tetap ANGKA.
+    // 45-b: gerbang vault uang — requireTenant tanpa aktor → resolve via sesi
+    // (legacy = perilaku lama; vault terkunci / tanpa grant → uang → null).
+    const mv = await moneyViewForReq(req, db);
+    return NextResponse.json(mv.json({
       loans: loans.map((l) => ({
         id: l.id, employeeId: l.employeeId, letterNo: l.letterNo, loanDate: l.loanDate,
         amount: l.amount, installmentCount: l.installmentCount, installmentAmount: l.installmentAmount,
@@ -143,7 +148,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       // M-8: respons di-dekripsi di batas serializer (angka utk frontend).
-      tenantCryptoForDb(db).decryptJson({ loan, approval: { levels: chain.totalLevels, firstApprover: chain.steps[0]?.approverLabel ?? null } }),
+      // 45-b: gate vault — aktor dari requireMutator (userId+role platform).
+      (await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role })).json(
+        { loan, approval: { levels: chain.totalLevels, firstApprover: chain.steps[0]?.approverLabel ?? null } },
+      ),
       { status: 201 },
     );
   } catch (e) {
@@ -186,7 +194,9 @@ export async function PATCH(req: NextRequest) {
         await db.activityLog.create({
           data: { action: to, entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo} → ${to} di jenjang ${chain.currentLevel}${b.note ? ` — ${b.note}` : ""}` },
         });
-        return NextResponse.json(tenantCryptoForDb(db).decryptJson({ loan: updated }));
+        // 45-b: gate vault (aktor requireMutator).
+        const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+        return NextResponse.json(mv.json({ loan: updated }));
       }
 
       if (!res.final) {
@@ -195,8 +205,10 @@ export async function PATCH(req: NextRequest) {
         await db.activityLog.create({
           data: { action: "Approved", entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"}` },
         });
+        // 45-b: gate vault (aktor requireMutator).
+        const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
         return NextResponse.json(
-          tenantCryptoForDb(db).decryptJson({
+          mv.json({
             loan,
             approval: { currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels, currentApprover: currentStep?.approverLabel ?? null },
           }),
@@ -226,8 +238,11 @@ export async function PATCH(req: NextRequest) {
       await db.activityLog.create({
         data: { action: "Approved", entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo} disetujui penuh (${chain.totalLevels} jenjang) — skedul ${months}x cicilan dibuat` },
       });
+      // 45-b: gate vault (aktor requireMutator) — cicilan tetap ditulis
+      // terenkripsi di atas (tulis TIDAK pernah digated).
+      const mvR = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
       return NextResponse.json(
-        tenantCryptoForDb(db).decryptJson({ loan: updated, approval: { final: true, totalLevels: chain.totalLevels } }),
+        mvR.json({ loan: updated, approval: { final: true, totalLevels: chain.totalLevels } }),
       );
     }
 
@@ -242,7 +257,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Tidak bisa membatalkan — sudah ada cicilan terpotong payroll" }, { status: 400 });
     }
     const updated = await db.employeeLoan.update({ where: { id: b.id }, data: { status: b.status } });
-    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ loan: updated }));
+    // 45-b: gate vault (aktor requireMutator).
+    const mvM = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    return NextResponse.json(mvM.json({ loan: updated }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
@@ -30,7 +32,8 @@ export async function GET(req: NextRequest) {
       orderBy: [{ createdAt: "desc" }],
     });
     // 28-c: dekripsi total uang run di batas serializer (angka utk frontend).
-    return NextResponse.json({ runs: tenantCryptoForDb(db).decryptJson(runs) });
+    // 45-b: gate vault (requireTenant → resolve via sesi; masked → null).
+    return NextResponse.json({ runs: (await moneyViewForReq(req, db)).json(runs) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -269,9 +272,11 @@ export async function PATCH(req: NextRequest) {
 // 26-b P0 — slipPassword=true: PDF dienkripsi AES-256, userPassword = NIK
 // karyawan (fallback employeeNo) — kirim massal slip tanpa risiko dibaca
 // pihak lain di mailbox; flag dipersist ke run untuk kirim berikutnya.
+// 45-b: aktor penuh (userId+role) — gerbang vault utk tampilan uang (net di
+// email/WA + PDF via mv; NIK utk kata sandi tetap raw — PII bukan uang).
 async function handleSendSlips(
   db: TenantDb,
-  actor: { appUserId: string | null; name: string },
+  actor: { appUserId: string | null; name: string; userId: string; role: string },
   runId: unknown,
   slipPassword?: unknown,
 ): Promise<NextResponse> {
@@ -306,10 +311,14 @@ async function handleSendSlips(
 
   // 28-c: net + NIK tersimpan terenkripsi — dekripsi utk email & kata sandi slip
   // (password slip = NIK karyawan; nilai TERDEKRIPSI tidak pernah masuk log).
+  // 45-b: NIK tetap jalur env (PII — bukan uang); net via mv (masked → null →
+  // "—" di email/WA; kirim massal tetap berjalan — bisnis tidak putus).
   const tc = tenantCryptoForDb(db);
+  const mv = await getMoneyView(db, { userId: actor.userId, membershipRole: actor.role });
+  const fmtRupiahDash = (n: number | null) => (n == null ? "—" : fmtRupiah(n));
   const linesDec = lines.map((l) => ({
     ...l,
-    net: tc.decryptMoney(l.net) ?? 0,
+    net: mv.canSee ? (mv.dec(l.net) ?? 0) : null,
     employeeNik: tc.decryptText(l.employee?.nationalId),
   }));
 
@@ -346,14 +355,14 @@ async function handleSendSlips(
     await Promise.all(batch.map(async (line) => {
       // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
       const slipPwd = protect ? (line.employeeNik?.trim() || line.employeeNo) : null;
-      const built = await buildPayslipPdfByLineId(db, line.id, { password: slipPwd });
+      const built = await buildPayslipPdfByLineId(db, line.id, mv, { password: slipPwd });
       if (!built) { skipped += 1; return; }
       const sendTask = sendPayslipEmail(db, {
         to: { email: line.employee?.email ?? "", name: line.employeeName },
         data: {
           nama: line.employeeName,
           periode: run.period.name,
-          net: fmtRupiah(line.net),
+          net: fmtRupiahDash(line.net),
           runNo: run.runNo,
         },
         attachment: { filename: built.filename, content: Buffer.from(built.bytes), contentType: "application/pdf" },
@@ -380,7 +389,7 @@ async function handleSendSlips(
         void sendWa(db, {
           event: "payslip.sent",
           toPhone: line.employee?.phone ?? null,
-          placeholders: { nama: line.employeeName, periode: run.period.name, net: fmtRupiah(line.net), runNo: run.runNo },
+          placeholders: { nama: line.employeeName, periode: run.period.name, net: fmtRupiahDash(line.net), runNo: run.runNo },
         });
       }
       else if (status === "Failed" || status === "Timeout") failed += 1;

@@ -162,6 +162,10 @@ const STEPS: Step[] = [
   { key: "scheduler-race", label: "Task 41 — index dedupe Reminder ActivityLog (scheduler race-safe)", run: (s) => import("../../../../scripts/migrate-scheduler-race").then((m) => m.main(withSlugs(s))) },
   { key: "webhook-retry", label: "Task 41 — kolom retry WebhookLog (attempts/nextRetryAt/lastError)", run: (s) => import("../../../../scripts/migrate-webhook-retry").then((m) => m.main(withSlugs(s))) },
   { key: "task43-indexes", label: "Task 43 — index payroll/klaim + unique run aktif (M-15+M-20)", run: (s) => import("../../../../scripts/migrate-task43-indexes").then((m) => m.main(withSlugs(s))) },
+  // 45-a: Money Vault — tabel MoneyVault + MoneyViewGrant (gerbang visibilitas
+  // nilai uang terenkripsi per tenant; setup vault sendiri via API admin).
+  // Append-only kronologis (urutan commit).
+  { key: "money-vault", label: "Task 45-a — tabel MoneyVault + MoneyViewGrant (gerbang uang)", run: (s) => import("../../../../scripts/migrate-money-vault").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 2 query information_schema) ============

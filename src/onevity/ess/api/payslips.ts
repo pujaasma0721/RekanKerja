@@ -2,12 +2,12 @@
 // terbaru dulu) — kontrak T8-ESS-FRONTEND.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-  const { db, employeeId } = m.actor;
+  const { db, employeeId, platformUserId, platformRole } = m.actor;
 
   try {
     const lines = await db.payrollRunLine.findMany({
@@ -22,14 +22,15 @@ export async function GET(req: Request) {
     });
 
     // 28-c: bruto/net terenkripsi di DB — dekripsi di batas serializer.
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang vault uang (aktor ESS) — masked → null (frontend "—").
+    const mv = await getMoneyView(db, { userId: platformUserId, membershipRole: platformRole });
     return NextResponse.json({
       slips: lines.map((l) => ({
         lineId: l.id,
         periodName: l.run.period.name,
         status: l.run.status,
-        gross: tc.decryptMoney(l.bruto),
-        net: tc.decryptMoney(l.net),
+        gross: mv.dec(l.bruto),
+        net: mv.dec(l.net),
         paidAt: l.run.paidAt,
       })),
     });

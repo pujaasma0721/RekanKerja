@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import {
   RULE_PARAMS, EntityRuleLite, parseConditions, parseMatchMode, parseRuleSpec, matchFirstRule, applyRuleValue,
   validateConditions, isEmptyConditions, RuleValidationError,
@@ -195,7 +195,9 @@ export async function GET(req: NextRequest) {
       include: EMPLOYEE_RULE_INCLUDE,
       orderBy: { employeeNo: "asc" },
     });
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang MoneyView — vault uang tertutup/tanpa grant → batas
+    // medis berbasis gaji ter-mask (0) di pratinjau; aturan tetap bisa disimpan.
+    const mv = await moneyViewForReq(req, db);
     const ruleLite = ruleRows.toLite();
 
     const preview = employees.flatMap((empRec) => {
@@ -210,7 +212,7 @@ export async function GET(req: NextRequest) {
         const ent = entity as { limitRule: string; limitValue: number };
         if (ent.limitRule === "UNLIMITED") empBase = null;
         else {
-          const salary = tc.decryptMoney(assignment.baseSalary) ?? 0;
+          const salary = mv.dec0(assignment.baseSalary);
           empBase = benefitLimitFor({ limitRule: ent.limitRule, limitValue: ent.limitValue }, salary);
         }
       }

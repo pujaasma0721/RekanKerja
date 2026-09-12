@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction, resolveMenuPerms } from "@/onevity/shared/services/menu-access";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { listBalances, generateBalances, listBenefitTypes } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/balances?year=&employeeId=&typeId= — saldo medis
@@ -34,12 +35,14 @@ export async function GET(req: NextRequest) {
     // pengguna lain DIPAKSA scope ke employeeId-nya sendiri.
     const employeeId = canViewAll ? sp.get("employeeId") ?? undefined : selfEmployeeId!;
 
+    // 45-b: gerbang vault uang — aktor resolveMenuPerms (userId+role).
+    const mv = await getMoneyView(db, { userId: resolved.actor.userId, membershipRole: resolved.actor.role });
     const [balances, types, employees] = await Promise.all([
       listBalances(db, {
         year,
         employeeId,
         typeId: sp.get("typeId") ?? undefined,
-      }),
+      }, mv),
       listBenefitTypes(db),
       db.employee.findMany({
         where: canViewAll ? { status: "Active" } : { id: selfEmployeeId! },

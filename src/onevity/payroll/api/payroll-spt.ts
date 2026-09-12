@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { buildAnnualSpt, buildEsptA1Csv } from "@/onevity/payroll/services/payroll-spt";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 
 // GET /api/onevity/payroll-spt?year=2026                → laporan tahunan per karyawan
 // GET /api/onevity/payroll-spt?year=2026&export=a1      → CSV rekap 1721-A1
@@ -22,6 +23,9 @@ export async function GET(req: NextRequest) {
 
     const sp = req.nextUrl.searchParams;
     const exportMode = sp.get("export");
+    // 45-b: gerbang MoneyView — vault uang tertutup/tanpa grant → bukti potong
+    // & rekap tahunan ter-mask (0). NPWP (teks) tidak digerbang vault (PII M-9).
+    const mv = await moneyViewForReq(req, db);
 
     // --- Bukti potong PPh21 bulanan (siap upload Coretax) ---
     if (exportMode === "coretax") {
@@ -36,7 +40,7 @@ export async function GET(req: NextRequest) {
       });
       // 28-c: uang line + NPWP tersimpan terenkripsi — dekripsi utk bukti potong.
       const tc = tenantCryptoForDb(db);
-      const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+      const dm = (v: string | null) => mv.dec0(v);
       // Jumlahkan lintas run (gaji + THR + rapel) per karyawan utk bukti potong 1 masa pajak.
       const byEmp = new Map<string, { employeeNo: string; name: string; npwp: string | null; bruto: number; tax: number; net: number }>();
       for (const run of runs) {
@@ -73,7 +77,7 @@ export async function GET(req: NextRequest) {
     }
 
     const year = parseInt(sp.get("year") ?? String(new Date().getFullYear()), 10);
-    const report = await buildAnnualSpt(db, year);
+    const report = await buildAnnualSpt(db, year, mv);
 
     // --- CSV rekap tahunan (format ringkas 1721-A1) ---
     if (exportMode === "a1") {

@@ -4,12 +4,12 @@
 // (type Earning|Deduction|Informational — wageType mapping payroll engine).
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-  const { db, employeeId } = m.actor;
+  const { db, employeeId, platformUserId, platformRole } = m.actor;
 
   try {
     const lineId = new URL(req.url).searchParams.get("lineId") ?? "";
@@ -28,7 +28,8 @@ export async function GET(req: Request) {
     }
 
     // 28-c: nilai uang terenkripsi di DB — dekripsi di batas serializer.
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang vault uang (aktor ESS) — masked → null (frontend "—").
+    const mv = await getMoneyView(db, { userId: platformUserId, membershipRole: platformRole });
     return NextResponse.json({
       periodName: line.run.period.name,
       runStatus: line.run.status,
@@ -36,11 +37,11 @@ export async function GET(req: Request) {
       items: line.items.map((it) => ({
         name: it.name,
         kind: it.type === "Deduction" ? "deduction" : "income",
-        amount: tc.decryptMoney(it.amount),
+        amount: mv.dec(it.amount),
       })),
-      gross: tc.decryptMoney(line.bruto),
-      totalDeductions: tc.decryptMoney(line.deduction),
-      net: tc.decryptMoney(line.net),
+      gross: mv.dec(line.bruto),
+      totalDeductions: mv.dec(line.deduction),
+      net: mv.dec(line.net),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

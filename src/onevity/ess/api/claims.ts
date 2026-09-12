@@ -3,12 +3,12 @@
 // terkait (status tidak Void), klaim mandiri = 0.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
   if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-  const { db, employeeId } = m.actor;
+  const { db, employeeId, platformUserId, platformRole } = m.actor;
 
   try {
     const [medicals, travels] = await Promise.all([
@@ -35,9 +35,11 @@ export async function GET(req: Request) {
     // 44-d (M-8): nilai uang klaim/advance travel TERENKRIPSI — dekripsi di
     // batas serializer (advance WAJIB per-baris dulu: reduce atas string akan
     // concat, bukan jumlah). Walker decryptJson juga menutupi field medis.
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang vault uang — aktor ESS (platformUserId+platformRole);
+    // masked → uang → null/0 (advance/settlement stats → dec0 → 0).
+    const mv = await getMoneyView(db, { userId: platformUserId, membershipRole: platformRole });
     return NextResponse.json(
-      tc.decryptJson({
+      mv.json({
         medical: medicals.map((c) => ({
           docNo: c.docNo,
           typeName: c.type.name,
@@ -52,8 +54,8 @@ export async function GET(req: Request) {
           status: c.status,
           advance: (c.request?.advances ?? [])
             .filter((a) => a.status !== "Void")
-            .reduce((s, a) => s + (tc.decryptMoney(a.amount) ?? 0), 0),
-          settlement: tc.decryptMoney(c.totalSettlement) ?? 0,
+            .reduce((s, a) => s + mv.dec0(a.amount), 0),
+          settlement: mv.dec0(c.totalSettlement),
         })),
       }),
     );

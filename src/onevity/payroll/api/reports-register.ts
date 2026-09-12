@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/export";
 
@@ -13,6 +13,8 @@ import { toXlsx, xlsxResponse, exportFilename } from "@/onevity/shared/lib/expor
 //   ?export=xlsx → stream XLSX (pola payroll-run-export.ts); tanpa param =
 //     preview JSON. Guard: requireMenuAction payroll:runs view.
 const r0 = (n: number) => Math.round(n);
+/** 45-b: pembulatan nullable (vault masked → null → XLSX/JSON "—"/null). */
+const r0n = (n: number | null) => (n == null ? null : Math.round(n));
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,12 +42,14 @@ export async function GET(req: NextRequest) {
     }
 
     // 28-c: uang line/total run tersimpan terenkripsi — dekripsi di sini.
-    const tc = tenantCryptoForDb(db);
-    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+    // 45-b: gate vault (aktor requireMenuAction) — register = tampilan/ekspor
+    // internal: baris → null (frontend/ekspor "—"), subtotal/total → 0.
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    const dm = (v: string | null) => mv.dec(v);
 
     // kelompokkan per unit kerja (null → "Tanpa Unit")
     const unitOf = (u: string | null) => u?.trim() || "Tanpa Unit";
-    const groups = new Map<string, { unit: string; employees: { employeeId: string; employeeNo: string; fullName: string; gross: number; deduction: number; net: number }[] }>();
+    const groups = new Map<string, { unit: string; employees: { employeeId: string; employeeNo: string; fullName: string; gross: number | null; deduction: number | null; net: number | null }[] }>();
     for (const l of run.lines) {
       const unit = unitOf(l.orgUnitName);
       const g = groups.get(unit) ?? { unit, employees: [] };
@@ -53,16 +57,17 @@ export async function GET(req: NextRequest) {
         employeeId: l.employeeId,
         employeeNo: l.employeeNo,
         fullName: l.employeeName,
-        gross: r0(dm(l.bruto)),
-        deduction: r0(dm(l.deduction)),
-        net: r0(dm(l.net)),
+        gross: r0n(dm(l.bruto)),
+        deduction: r0n(dm(l.deduction)),
+        net: r0n(dm(l.net)),
       });
       groups.set(unit, g);
     }
 
     const byUnit = [...groups.values()]
       .map((g) => {
-        const sum = (f: (e: (typeof g.employees)[number]) => number) => g.employees.reduce((s, e) => s + f(e), 0);
+        const sum = (f: (e: (typeof g.employees)[number]) => number | null) =>
+          g.employees.reduce<number>((s, e) => s + (f(e) ?? 0), 0);
         return {
           unit: g.unit,
           employees: g.employees.length,
@@ -84,10 +89,10 @@ export async function GET(req: NextRequest) {
     };
     const totals = {
       employees: run.lines.length,
-      totalGross: r0(dm(run.totalBruto)),
-      totalDeduction: r0(dm(run.totalDeduction)),
-      totalTax: r0(dm(run.totalTax)),
-      totalNet: r0(dm(run.totalNet)),
+      totalGross: r0(dm(run.totalBruto) ?? 0),
+      totalDeduction: r0(dm(run.totalDeduction) ?? 0),
+      totalTax: r0(dm(run.totalTax) ?? 0),
+      totalNet: r0(dm(run.totalNet) ?? 0),
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
@@ -107,7 +112,7 @@ export async function GET(req: NextRequest) {
         body.push([g.unit, "", "", `${g.employees} karyawan`, g.totalGross, g.totalDeduction, g.totalNet]);
         for (const e of g.rows) {
           no += 1;
-          body.push([g.unit, no, e.employeeNo, e.fullName, e.gross, e.deduction, e.net]);
+          body.push([g.unit, no, e.employeeNo, e.fullName, e.gross ?? "—", e.deduction ?? "—", e.net ?? "—"]);
         }
         body.push([`Subtotal ${g.unit}`, "", "", "", g.totalGross, g.totalDeduction, g.totalNet]);
       }

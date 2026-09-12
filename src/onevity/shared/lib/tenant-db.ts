@@ -39,13 +39,16 @@ export type { TenantPrismaClient };
 // EmployeeComponentAssignment.amount, PayrollJournal[Line]) — DMMF lama
 // (pra-W28, tipe Float) tidak boleh dipakai ulang. Instance juga kini
 // membawa brand symbol schema (TENANT_SCHEMA_BRAND) utk field-crypto.
+// TASK 45-A: versi dinaikkan lagi (T45A) — model MoneyVault + MoneyViewGrant
+// (gerbang visibilitas uang terenkripsi) masuk client hasil generate; instance
+// lama (pra-T45A, DMMF tanpa db.moneyVault/moneyViewGrant) tidak dipakai ulang.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsW28: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsT45A: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsW28 ?? new Map();
-globalForTenants.onevityTenantClientsW28 = tenantClients;
+  globalForTenants.onevityTenantClientsT45A ?? new Map();
+globalForTenants.onevityTenantClientsT45A = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

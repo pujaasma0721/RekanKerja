@@ -2540,6 +2540,35 @@ model WaLog {
   @@index([event])
 }
 
+// ---- 45-a: MONEY VAULT — gerbang visibilitas nilai uang terenkripsi ----
+// Kata sandi vault HANYA dipegang admin workspace: PBKDF2(salt) → KEK untuk
+// men-WRAP kunci data tenant (32 byte, key yang sama dengan field-crypto).
+// Status "open" yang otoritatif ada di MEMORI proses (money-vault.ts —
+// openKeys per schema); kolom openUntil/openByUserId di sini hanya
+// INFORMATIF (diagnostik/audit — restart server = vault terkunci otomatis).
+// SATU baris per schema (dijaga di kode: findFirst; >1 baris → pakai pertama).
+model MoneyVault {
+  id           String    @id @default(cuid())
+  salt         String // hex 32 karakter (16 byte) — input PBKDF2
+  verifier     String // "vrf:v1:<hex>" = HMAC(verifierKey, "onevity-money-vault")
+  wrappedKey   String // "vlt:v1:<ivB64>:<tagB64>:<ctB64>" = AES-256-GCM(KEK, kunci data tenant)
+  openUntil    DateTime? // INFORMATIF saja — status open sebenarnya di memori
+  openByUserId String? // platform user id pembuka terakhir (informatif)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Hak LIHAT nilai uang TANPA tahu sandi vault — diberikan/ditarik admin
+// (sandi vault tidak pernah menyebar). AKTIF saat revokedAt IS NULL.
+// userId = PLATFORM user id (User.id milik membership workspace ini).
+model MoneyViewGrant {
+  id        String    @id @default(cuid())
+  userId    String    @unique // platform user id (unique per schema tenant)
+  grantedBy String // platform user id pemberi hak
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime? // null = AKTIF
+}
+
 // ---- 28-b P2: report builder kustom ----
 // Definisi laporan tersimpan: entity (katalog whitelisted server-side),
 // field terpilih + filter. Dijalankan ulang kapan pun + ekspor CSV/XLSX.

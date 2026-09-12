@@ -5,6 +5,7 @@
 //   berstatus Approved/MassLeave, forfeited dari tanggal kadaluarsa carry-over.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import { dayStart, addDays, diffDays, resolveDayType } from "@/onevity/time-attendance/services/attendance-service";
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries,
@@ -1287,13 +1288,17 @@ export async function decideEncashment(
   return { docNo: enc.docNo, status };
 }
 
+/** List encashment (DTO tampilan). 45-b: mv (MoneyView) WAJIB — gerbang vault
+ *  uang: amount → null saat masked; validasi/approve/transfer (kalkulasi)
+ *  TIDAK lewat fungsi ini. */
 export async function listEncashments(
   db: TenantDb,
   filter: { status?: string } = {},
+  mv: MoneyView,
 ): Promise<
   {
     id: string; docNo: string; employeeNo: string; fullName: string; leaveTypeName: string;
-    year: number; requestDate: Date; paymentDate: Date | null; days: number; amount: number;
+    year: number; requestDate: Date; paymentDate: Date | null; days: number; amount: number | null;
     status: string; periodCode: string | null; transferredRunNo: string | null; note: string | null;
     decisionNote: string | null;
   }[]
@@ -1308,11 +1313,12 @@ export async function listEncashments(
     take: 300,
   });
   // 44-d (M-8): amount TERENKRIPSI — dekripsi utk DTO (angka utk frontend).
+  // 45-b: gate vault — masked → null.
   const tc = tenantCryptoForDb(db);
   return rows.map((e) => ({
     id: e.id, docNo: e.docNo, employeeNo: e.employee.employeeNo, fullName: e.employee.fullName,
     leaveTypeName: e.leaveType.name, year: e.year, requestDate: e.requestDate, paymentDate: e.paymentDate,
-    days: e.days, amount: tc.decryptMoney(e.amount) ?? 0, status: e.status, periodCode: e.periodCode,
+    days: e.days, amount: mv.canSee ? (tc.decryptMoney(e.amount) ?? 0) : null, status: e.status, periodCode: e.periodCode,
     transferredRunNo: e.transferredRunNo, note: e.note, decisionNote: e.decisionNote,
   }));
 }

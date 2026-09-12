@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { calculateAndSaveRun, nextRunNo, getBrackets, getActiveRegulation } from "@/onevity/payroll/services/payroll-service";
 import { ptkpValueOf, progressiveTax } from "@/onevity/payroll/services/payroll-engine";
 
@@ -301,6 +302,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 45-b: gate vault — total run via mv (masked → null). Kalkulasi bonus &
+    // tulis assignment di atas tetap raw tc — bisnis berjalan saat vault tertutup.
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
     return NextResponse.json(
       {
         ...previewPayload,
@@ -310,10 +314,10 @@ export async function POST(req: NextRequest) {
         skipped: skipped.map((s) => ({ employeeNo: s.employeeNo, fullName: s.fullName })),
         run: run ? {
           id: run.id, runNo: run.runNo, status: run.status, employeeCount: run.employeeCount,
-          // 28-c: total run terenkripsi — dekripsi utk response.
-          totalBruto: tc.decryptMoney(run.totalBruto) ?? 0,
-          totalTax: tc.decryptMoney(run.totalTax) ?? 0,
-          totalNet: tc.decryptMoney(run.totalNet) ?? 0,
+          // 28-c: total run terenkripsi — dekripsi utk response (gate 45-b).
+          totalBruto: mv.canSee ? (mv.dec(run.totalBruto) ?? 0) : null,
+          totalTax: mv.canSee ? (mv.dec(run.totalTax) ?? 0) : null,
+          totalNet: mv.canSee ? (mv.dec(run.totalNet) ?? 0) : null,
         } : null,
         calculated,
       },

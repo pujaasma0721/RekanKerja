@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
     const q = req.nextUrl.searchParams.get("q")?.trim();
+    // 45-b: resolve gerbang vault SEKALI di luar .map (getMoneyView async).
+    const moneyViewG = await moneyViewForReq(req, db);
     const employees = await db.employee.findMany({
       where: {
         status: "Active",
@@ -30,7 +33,10 @@ export async function GET(req: NextRequest) {
       const a = e.assignments[0];
       const p = e.payrollProfile;
       // 28-c: konteks dekripsi per-tenant di batas serializer.
+      // 45-b: baseSalary via gerbang vault (masked → null; legacy/open = angka).
+      // npwp/rekening = PII — tetap jalur env (vault hanya menyembunyikan uang).
       const tc = tenantCryptoForDb(db);
+      const mv = moneyViewG;
       return {
         employeeId: e.id,
         employeeNo: e.employeeNo,
@@ -39,7 +45,7 @@ export async function GET(req: NextRequest) {
         positionName: a?.position?.title ?? null,
         gradeName: a?.grade?.name ?? null,
         // 28-c: baseSalary + npwp/rekening terenkripsi — dekripsi di batas serializer.
-        baseSalary: a ? (tc.decryptMoney(a.baseSalary) ?? 0) : 0,
+        baseSalary: a ? (mv.canSee ? (mv.dec(a.baseSalary) ?? 0) : null) : 0,
         profile: p
           ? {
               id: p.id,

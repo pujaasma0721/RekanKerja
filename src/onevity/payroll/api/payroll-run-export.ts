@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 
 // GET /api/onevity/payroll-run-export?id=&bank=umum|bca|mandiri|bni
 // File transfer bank (pattern "Transfer Bank Payment": file per bank).
@@ -44,7 +45,11 @@ export async function GET(req: NextRequest) {
     // 28-c: uang line/total run + no. rekening tersimpan terenkripsi — dekripsi
     // di sini (file transfer bank butuh nilai riil).
     const tc = tenantCryptoForDb(db);
-    const dm = (v: string | null) => tc.decryptMoney(v) ?? 0;
+    // 45-b: gerbang MoneyView — file transfer bank memuat nominal; saat vault
+    // uang TERTUTUP/tanpa grant nilai ter-mask (0) — admin membuka vault dulu
+    // sebelum menarik file transfer riil. No. rekening (teks) per aturan PII.
+    const mv = await moneyViewForReq(req, db);
+    const dm = (v: string | null) => mv.dec0(v);
     const lines = run.lines.map((l) => ({
       ...l,
       bruto: dm(l.bruto),

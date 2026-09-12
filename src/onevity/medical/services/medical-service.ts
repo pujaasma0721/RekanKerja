@@ -7,6 +7,7 @@
 // jenis CASH ditarik ke payroll (komponen UMC) → Paid saat run dikonfirmasi.
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import { nextJournalNoInTx } from "@/onevity/shared/lib/journal-no";
 import { startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import type { Prisma } from "@/generated/tenant";
@@ -491,28 +492,32 @@ export interface BalanceRow {
   employeeNo: string;
   fullName: string;
   orgUnitName: string | null;
-  baseSalary: number;
+  /** 45-b: null = vault uang masked (frontend render "—"). */
+  baseSalary: number | null;
   typeCode: string;
   typeName: string;
   year: number;
   limitRule: string;
-  benefitAmount: number;
-  adjustmentAmount: number;
-  carriedOver: number;
-  initialUsed: number;
-  usedAmount: number;
-  remaining: number;
-  depBenefitAmount: number;
-  depAdjustment: number;
-  depUsed: number;
-  depRemaining: number;
-  totalRemaining: number;
+  benefitAmount: number | null;
+  adjustmentAmount: number | null;
+  carriedOver: number | null;
+  initialUsed: number | null;
+  usedAmount: number | null;
+  remaining: number | null;
+  depBenefitAmount: number | null;
+  depAdjustment: number | null;
+  depUsed: number | null;
+  depRemaining: number | null;
+  totalRemaining: number | null;
   claimCount: number;
 }
 
+/** 45-b: mv (MoneyView) WAJIB — gerbang vault uang pada DTO saldo (tampilan).
+ *  Kalkulasi saldo (generate/settle/transfer) TIDAK lewat fungsi ini. */
 export async function listBalances(
   db: TenantDb,
   input: { year: number; employeeId?: string; typeId?: string },
+  mv: MoneyView,
 ): Promise<BalanceRow[]> {
   const rows = await db.medicalBalance.findMany({
     where: {
@@ -535,7 +540,10 @@ export async function listBalances(
   // jenis UNLIMITED tidak masuk agregat nominal (menampilkan ∞ per baris)
   // 28-c: baseSalary karyawan terenkripsi — dekripsi utk kolom saldo.
   // 44-c (M-8): 8 kolom uang saldo TERENKRIPSI — dekripsi utk DTO (angka).
+  // 45-b: kalkulasi remaining tetap atas nilai RAW (benar saat vault tertutup);
+  // kolom display digate mv (masked → null).
   const tcBal = tenantCryptoForDb(db);
+  const g = (n: number) => (mv.canSee ? n : null);
   return rows.filter((b) => b.type.limitRule !== "UNLIMITED").map((b) => {
     const benefitAmount = decMoney(tcBal, b.benefitAmount);
     const adjustmentAmount = decMoney(tcBal, b.adjustmentAmount);
@@ -553,14 +561,14 @@ export async function listBalances(
       id: b.id, employeeId: b.employeeId, employeeNo: b.employee.employeeNo,
       fullName: b.employee.fullName,
       orgUnitName: b.employee.assignments[0]?.orgUnit?.name ?? null,
-      baseSalary: b.employee.assignments[0] ? tcBal.decryptMoney(b.employee.assignments[0].baseSalary) ?? 0 : 0,
+      baseSalary: g(b.employee.assignments[0] ? tcBal.decryptMoney(b.employee.assignments[0].baseSalary) ?? 0 : 0),
       typeCode: b.type.code, typeName: b.type.name, year: b.year, limitRule: b.type.limitRule,
-      benefitAmount, adjustmentAmount,
-      carriedOver, initialUsed, usedAmount,
-      remaining,
-      depBenefitAmount, depAdjustment,
-      depUsed, depRemaining,
-      totalRemaining: round2(remaining + (b.type.limitRule !== "" ? depRemaining : 0)),
+      benefitAmount: g(benefitAmount), adjustmentAmount: g(adjustmentAmount),
+      carriedOver: g(carriedOver), initialUsed: g(initialUsed), usedAmount: g(usedAmount),
+      remaining: g(remaining),
+      depBenefitAmount: g(depBenefitAmount), depAdjustment: g(depAdjustment),
+      depUsed: g(depUsed), depRemaining: g(depRemaining),
+      totalRemaining: g(round2(remaining + (b.type.limitRule !== "" ? depRemaining : 0))),
       claimCount: 0,
     };
   });
@@ -599,16 +607,17 @@ export interface SubmitClaimInput {
 export interface ClaimPreview {
   employeeNo: string;
   fullName: string;
-  baseSalary: number;
+  /** 45-b: nullable saat vault uang masked (salinan display di route). */
+  baseSalary: number | null;
   typeName: string;
   typeCode: string;
   limitRule: string;
-  benefitAmount: number;
-  adjustmentAmount: number;
-  carriedOver: number;
-  initialUsed: number;
-  usedAmount: number;
-  remaining: number;
+  benefitAmount: number | null;
+  adjustmentAmount: number | null;
+  carriedOver: number | null;
+  initialUsed: number | null;
+  usedAmount: number | null;
+  remaining: number | null;
   claimCountYear: number;
   freqUnlimited: boolean;
   freqValue: number;
@@ -618,11 +627,11 @@ export interface ClaimPreview {
   providers: { id: string; name: string; kind: string }[];
   // ---- tambahan (fix audit, additive — kontrak lama utuh) ----
   joinDate: Date | null; // validasi tanggal M-2
-  depRemaining: number; // sisa plafon dependent terpisah (K-3)
+  depRemaining: number | null; // sisa plafon dependent terpisah (K-3)
   claimPool: "employee" | "dependent"; // pool yang dipotong klaim (K-3)
   /** sisa pool yang benar SETELAH reservasi klaim menunggu (K-1/K-2). */
-  remainingForClaim: number;
-  pendingReserved: number;
+  remainingForClaim: number | null;
+  pendingReserved: number | null;
   poolNote: string | null;
 }
 
@@ -930,25 +939,29 @@ export interface ClaimRow {
   orgUnitName: string | null;
   typeCode: string; typeName: string; year: number;
   claimDate: Date; letterNo: string | null; state: string; forDependent: boolean;
-  maxBenefitAt: number; usedAt: number;
-  totalBill: number; totalReimburse: number; totalApproved: number; totalNonRe: number;
+  /** 45-b: null = vault uang masked (frontend render "—"). */
+  maxBenefitAt: number | null; usedAt: number | null;
+  totalBill: number | null; totalReimburse: number | null; totalApproved: number | null; totalNonRe: number | null;
   settleDate: Date | null; journalNo: string | null; periodCode: string | null; paidRunNo: string | null;
   decisionNote: string | null;
   lineCount: number;
   lines?: {
     treatedName: string; treatment: string | null; treatmentDate: Date | null;
     receiptNo: string | null; physician: string | null; hospital: string | null;
-    occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
-    approvedAmount: number; nonReAmount: number; note: string | null;
+    occupationalInjury: boolean; billAmount: number | null; reimburseAmount: number | null;
+    approvedAmount: number | null; nonReAmount: number | null; note: string | null;
   }[];
   statusLog: StatusEntry[];
   /** ringkasan jalur approval berjenjang (Task 25) */
   approval: ChainSummary | null;
 }
 
+/** 45-b: mv (MoneyView) WAJIB — gerbang vault uang pada DTO klaim (tampilan).
+ *  submitClaim/decideClaim (kalkulasi plafon/jurnal) TIDAK lewat fungsi ini. */
 export async function listClaims(
   db: TenantDb,
   input: { state?: string; year?: number; employeeId?: string; typeId?: string; includeLines?: boolean },
+  mv: MoneyView,
 ): Promise<ClaimRow[]> {
   const rows = await db.medicalClaim.findMany({
     where: {
@@ -973,8 +986,9 @@ export async function listClaims(
   const chainMap = await attachChainSummaries(db, "Medical", rows.map((r) => ({ id: r.id })));
   // 44-c (M-8): kolom uang header + baris TERENKRIPSI — dekripsi utk DTO (angka,
   // bentuk respons frontend tidak berubah).
+  // 45-b: gate vault — masked → kolom uang null (shape tetap).
   const tcList = tenantCryptoForDb(db);
-  const dec = (v: string | null) => decMoney(tcList, v);
+  const dec = (v: string | null) => (mv.canSee ? decMoney(tcList, v) : null);
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, employeeId: c.employeeId,
     employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
@@ -1448,7 +1462,8 @@ export async function decideAdjustment(
   return { docNo: adj.docNo, state: input.action === "approve" ? "Approved" : input.action === "reject" ? "Rejected" : "Cancelled" };
 }
 
-export async function listAdjustments(db: TenantDb, input: { state?: string; year?: number }) {
+/** List penyesuaian saldo (DTO tampilan). 45-b: mv WAJIB — amount digate. */
+export async function listAdjustments(db: TenantDb, input: { state?: string; year?: number }, mv: MoneyView) {
   const rows = await db.medicalAdjustment.findMany({
     where: {
       ...(input.state && input.state !== "all" ? { state: input.state } : {}),
@@ -1462,11 +1477,12 @@ export async function listAdjustments(db: TenantDb, input: { state?: string; yea
     take: 300,
   });
   // 44-c (M-8): amount TERENKRIPSI — dekripsi utk DTO (angka).
+  // 45-b: gate vault — masked → null.
   const tcAdjL = tenantCryptoForDb(db);
   return rows.map((a) => ({
     id: a.id, docNo: a.docNo, employeeNo: a.employee.employeeNo, fullName: a.employee.fullName,
     typeCode: a.type.code, typeName: a.type.name, year: a.year, forDependent: a.forDependent,
-    amount: decMoney(tcAdjL, a.amount), adjustmentDate: a.adjustmentDate, note: a.note, state: a.state,
+    amount: mv.canSee ? decMoney(tcAdjL, a.amount) : null, adjustmentDate: a.adjustmentDate, note: a.note, state: a.state,
     decisionNote: a.decisionNote,
   }));
 }
@@ -1675,7 +1691,9 @@ export async function markMedicalPaidForRun(db: TenantDb, runId: string): Promis
 
 // ============ KPI & laporan ============
 
-export async function medicalStats(db: TenantDb, year: number) {
+/** KPI medis (display). 45-b: mv WAJIB — agregat uang via dec0 (masked → 0,
+ *  bebas NaN; hitungan tetap in-memory atas nilai terdekripsi jalur raw). */
+export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
   const [totalBalances, totalClaims, pendingClaims, settledClaims, adjustments, types] = await Promise.all([
     db.medicalBalance.count({ where: { year } }),
     db.medicalClaim.count({ where: { year } }),
@@ -1687,13 +1705,14 @@ export async function medicalStats(db: TenantDb, year: number) {
   // 44-c (M-8): totalApproved/totalBill TERENKRIPSI — agregasi SQL (_sum/
   // groupBy) atas ciphertext DILARANG → findMany + reduce in-memory atas
   // nilai terdekripsi (pola 44-d travelStats / 44-b benefit).
-  const tcStats = tenantCryptoForDb(db);
+  // 45-b: dec0 via mv — legacy/open = jalur lama; masked → 0.
+  const md = (v: string | null) => mv.dec0(v);
   const settledRows = await db.medicalClaim.findMany({
     where: { year, state: "Settled" },
     select: { typeId: true, totalApproved: true, totalBill: true },
   });
-  const settledApproved = round2(settledRows.reduce((s, r) => s + decMoney(tcStats, r.totalApproved), 0));
-  const settledBill = round2(settledRows.reduce((s, r) => s + decMoney(tcStats, r.totalBill), 0));
+  const settledApproved = round2(settledRows.reduce((s, r) => s + md(r.totalApproved), 0));
+  const settledBill = round2(settledRows.reduce((s, r) => s + md(r.totalBill), 0));
   const balances = await db.medicalBalance.findMany({
     where: { year },
     include: { type: { select: { limitRule: true } } },
@@ -1702,14 +1721,14 @@ export async function medicalStats(db: TenantDb, year: number) {
   const remaining = round2(
     balances
       .filter((b) => b.type.limitRule !== "UNLIMITED")
-      .reduce((s, b) => s + decMoney(tcStats, b.benefitAmount) + decMoney(tcStats, b.adjustmentAmount) + decMoney(tcStats, b.carriedOver) - decMoney(tcStats, b.usedAmount) - decMoney(tcStats, b.initialUsed), 0),
+      .reduce((s, b) => s + md(b.benefitAmount) + md(b.adjustmentAmount) + md(b.carriedOver) - md(b.usedAmount) - md(b.initialUsed), 0),
   );
   // groupBy per jenis (in-memory atas nilai terdekripsi):
   const byTypeMap = new Map<string, { claimCount: number; approvedAmount: number }>();
   for (const r of settledRows) {
     const cur = byTypeMap.get(r.typeId) ?? { claimCount: 0, approvedAmount: 0 };
     cur.claimCount++;
-    cur.approvedAmount = round2(cur.approvedAmount + decMoney(tcStats, r.totalApproved));
+    cur.approvedAmount = round2(cur.approvedAmount + md(r.totalApproved));
     byTypeMap.set(r.typeId, cur);
   }
   const typeRows = await db.medicalBenefitType.findMany({ select: { id: true, code: true, name: true } });
@@ -1728,9 +1747,11 @@ export async function medicalStats(db: TenantDb, year: number) {
   };
 }
 
+/** Laporan klaim per rentang (display). 45-b: mv WAJIB — uang digate. */
 export async function claimReport(
   db: TenantDb,
   input: { from: string; to: string; employeeId?: string },
+  mv: MoneyView,
 ) {
   const start = dayStart(input.from);
   const end = dayStart(new Date(new Date(input.to).getTime() + 86400000));
@@ -1747,11 +1768,14 @@ export async function claimReport(
     take: 500,
   });
   // 44-c (M-8): totalBill/totalApproved TERENKRIPSI — dekripsi utk DTO (angka).
+  // 45-b: gate vault — masked → null.
   const tcRep = tenantCryptoForDb(db);
   return rows.map((c) => ({
     docNo: c.docNo, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     typeCode: c.type.code, typeName: c.type.name, claimDate: c.claimDate, state: c.state,
-    forDependent: c.forDependent, totalBill: decMoney(tcRep, c.totalBill), totalApproved: decMoney(tcRep, c.totalApproved),
+    forDependent: c.forDependent,
+    totalBill: mv.canSee ? decMoney(tcRep, c.totalBill) : null,
+    totalApproved: mv.canSee ? decMoney(tcRep, c.totalApproved) : null,
     journalNo: c.journalNo, settleDate: c.settleDate,
   }));
 }

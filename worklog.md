@@ -533,3 +533,350 @@ Stage Summary:
 - tsc 0 error, lint bersih, E2E hijau penuh, worklog lengkap (44-0,44-b,44-c,44-d,44-e,44-f,44-FINAL).
 - Audit 42 kini TUNTAS 100%: 7/7 K + 21/21 M (M-4 bukan-bug, M-8+M-9 selesai di 44) + G-04.
 - Commit TANPA push (menunggu instruksi "push" user).
+
+---
+Task ID: 45-a
+Agent: full-stack-developer
+Task: Money Vault backend core (schema, DDL, kripto, API, audit) — gerbang
+      visibilitas nilai uang terenkripsi per tenant.
+
+Work Log:
+- Baca worklog (44-0/44-b..44-z) + file acuan: field-crypto.ts (format
+  enc:v1 + deriveTenantKey + brand schema), migrate-encrypt-money.ts (pola
+  SCHEMAS + pg Client + SET search_path + CLI guard), parity-runner.ts
+  (STEPS append-only), tenant-db.ts (requireTenant/requireMutator + cache
+  key versi), access-scope.ts (SUPER_ADMIN_PLATFORM_ROLES), notifications
+  (pola route tipis → modul shared/api), wa-config (konvensi error + audit
+  inline ActivityLog).
+- prisma/schema-tenant.prisma: 2 model baru MoneyVault (salt/verifier/
+  wrappedKey/openUntil?/openByUserId? — openUntil/openByUserId INFORMATIF,
+  status open otoritatif di memori) + MoneyViewGrant (userId @unique =
+  PLATFORM user id, grantedBy, revokedAt? — aktif saat null). Satu baris
+  vault per schema dijaga kode (findFirst orderBy createdAt; >1 → pakai
+  pertama). `bun run db:generate` → src/generated/tenant kini mengetik
+  db.moneyVault / db.moneyViewGrant (terverifikasi grep index.d.ts).
+- tenant-db.ts: cache key globalThis dinaikkan W28→T45A (instance client
+  lama tanpa model vault tidak dipakai ulang pasca-regenerasi — pola T7/T15/
+  W27/28-c).
+- scripts/migrate-money-vault.ts (BARU): DDL idempoten CREATE TABLE IF NOT
+  EXISTS "MoneyVault" + "MoneyViewGrant" + unique index userId, kolom persis
+  model Prisma (TEXT/TIMESTAMP(3), PK cuid, default CURRENT_TIMESTAMP),
+  verifikasi information_schema per schema, CLI guard /scripts/, import
+  ./lib/env. Dijalankan utk 3 tenant → OK; rerun + in-process import (jalur
+  parity) = 0 perubahan (idempoten).
+- parity-runner.ts: langkah { key: "money-vault" } didaftarkan SETELAH
+  task43-indexes (append-only kronologis).
+- field-crypto.ts (BACKWARD COMPAT — semua export lama utuh): +3 export
+  tenantDataKey(schema) (deriveTenantKey alias), decryptTextWithKey(stored,
+  key), decryptMoneyWithKey(stored, key) — dekripsi AES-256-GCM 6-segmen
+  kind t/n dengan kunci EKSPLISIT (legacy plaintext dioper sama perilaku
+  konteks; malformat/auth-tag/kind-salah → throw).
+- src/onevity/shared/lib/money-vault.ts (BARU): PBKDF2_ITERATIONS=210_000
+  (sha256 keylen 64; 32 pertama KEK, 32 akhir verifierKey), VAULT_TTL_MS=8j,
+  LOCKOUT 5×/15m, MIN_PASSWORD_LEN=8. State symbol-keyed globalThis
+  (Symbol.for "onevity.moneyVault.state" — selamat HMR): openKeys
+  (Map<schema,{dek,openUntil,openBy}>), configCache (TTL 60s, invalidasi
+  setup/change-password), grantCache (TTL 60s, invalidasi grant/revoke),
+  fails (lockout). Verifier "vrf:v1:"+HMAC-SHA256(vk,"onevity-money-vault")
+  hex; wrappedKey "vlt:v1:iv:tag:ct"=AES-256-GCM(KEK, tenantDataKey(schema)).
+  API: vaultInfo, setupVault (409 ALREADY_CONFIGURED/400 WEAK, langsung
+  open), unlockVault (verifier timing-safe; fails→429; unwrap DEK; sync kolom
+  informatif best-effort; param actor opsional utk openBy), lockVault
+  (idempoten), changeVaultPassword (409 VAULT_LOCKED bila tak open → 403
+  current salah → 400 lemah; re-wrap DEK sama, salt/verifier baru, TETAP
+  open), setGrant (insert/aktifkan-ulang/cabut — idempoten DB), grantUserIds
+  (Set aktif, cache), memberList(db, tenantId) (platform User+UserTenant
+  join, urut nama, flag granted; P2021→legacy-safe null/kosong).
+  VaultError {code,status} + peta status/pesan Bahasa Indonesia.
+  KEPUTUSAN DESAIN: memberList menerima tenantId EKSPLISIT dari route (route
+  sudah resolve dari sesi — lebih bersih daripada reverse-map schema→tenant).
+- src/onevity/shared/lib/money-view.ts (BARU, OPT-IN — belum ada call site,
+  45-b yang men-thread): MoneyViewReason legacy|open-admin|open-granted|
+  vault-closed|no-grant; getMoneyView(db,actor) → dec/dec0/json. canSee:
+  tanpa row vault → legacy (jalur env tenantCryptoForDb — perilaku lama);
+  vault open + role OWNER/ADMIN (SUPER_ADMIN_PLATFORM_ROLES di-IMPORT dari
+  access-scope — satu sumber) ATAU userId ∈ grantUserIds → true (dekripsi
+  DEK via decryptMoneyWithKey/decryptTextWithKey); selain itu masked.
+  Walker json: open → n=angka/t=teks via DEK (mirror decryptJson); masked →
+  n=null, t tetap didekripsi jalur env (PII tidak dipengaruhi vault — DEK
+  memang kunci data tenant itu, hasil identik); Date/number/boolean/null
+  lewat; array+objek baru (deep).
+- src/onevity/shared/api/money-vault.ts + route tipis: GET/POST
+  /api/onevity/money-vault + GET /api/onevity/money-vault/members.
+  Resolusi sesi TANPA menu key (requireVaultSession: readVerifiedSession →
+  membership → getTenantClient + appUserId via email match). GET status
+  {configured,open,openUntil,openBy,canManage,myView,grantsCount,
+  lockoutUntil,serverNow}; myView = unconfigured → canManage?"admin":"legacy"
+  (semua tetap legacy-visible), configured → "admin"|"granted"|"none".
+  POST {action}: setup/unlock/lock/change-password/grant/revoke — semua
+  canManage (403 NOT_ADMIN); grant/revoke validasi member (404 NOT_MEMBER);
+  unknown action 400. VaultError → status + {error,code}. Audit ActivityLog
+  best-effort: MoneyVault VaultSetup/VaultUnlock/VaultLock/
+  VaultPasswordChange + MoneyViewGrant VaultGrant/VaultRevoke (entityId=
+  userId sasaran) — unlock/lock hanya saat status benar-benar berubah; sandi
+  tidak pernah masuk log; appUserId disertakan.
+- VERIFIKASI: bunx tsc --noEmit 0 error; bun run lint exit 0; migrasi 3
+  schema (tabel+index terverifikasi pg information_schema); E2E curl
+  (hrd@mii.co.id OWNER, MII — dev server sempat mati dibunuh OOM-reaper,
+  dibangkitkan ulang setsid nohup): 401 tanpa sesi; status awal
+  {configured:false,canManage:true,myView:"admin"}; setup sandi lemah 400
+  WEAK_PASSWORD; setup "vault-demo-123" 200 → status open:true myView:admin
+  (openUntil +8j); setup ulang 409; lock 200 → open:false; unlock salah 403
+  INVALID_PASSWORD; unlock benar 200 (bug unwrapKey format 5-segmen
+  ditemukan-di-sini lalu DIPERBAIKI — parse vlt/v1/iv/tag/ct); change-
+  password: current salah 403, terkunci 409 VAULT_LOCKED, benar 200 (tetap
+  open; sandi lama ditolak setelahnya); unlock sandi baru 200; members 200
+  (Tri OWNER + Yusuf HR, urut nama); unknown action 400; grant Yusuf 200 →
+  members granted:true + grantsCount:1; grant non-member 404; sesi Yusuf
+  (HR): GET status myView:"granted" (canManage:false), members 403
+  NOT_ADMIN, POST unlock 403 NOT_ADMIN; saat vault locked myView:"none";
+  revoke → granted:false/myView "none"; lockout: 4×403 → percobaan ke-5 429
+  LOCKOUT, sandi benar pun 429, status memuat lockoutUntil (+15m); GET
+  /api/onevity/loans 200 (angka murni — serializer BELUM digated, tugas
+  45-b); unlock tanpa konfigurasi 409 NOT_CONFIGURED.
+- Sanity money-view (skrip /tmp, proses terpisah → memori vault kosong):
+  19/19 PASS — masked: canSee false reason vault-closed, dec()=null/dec0()=0,
+  walker n→null + t→"3176363464506" (PII tetap terbaca) + plain/number/
+  boolean/array/nested lewat; unlock in-proses → admin open-admin dec()
+  12345678.5 + walker n→angka/t→teks + legacy plaintext "0"→0; HR tanpa
+  grant saat open → no-grant dec() null; HR dengan grant (Yusuf) saat open
+  → open-granted dec() 12345678.5; tenant Cahaya (tanpa vault) → legacy
+  dec()=999. RESTART-SAFETY terbukti: proses baru dengan baris vault ada +
+  kolom openUntil terisi → open:false (memori satu-satunya sumber open).
+- Catatan lingkungan: 1 respons 500 sesaat (bug unwrapKey) sebelum
+  perbaikan; dev server restart 2× oleh OOM-reaper sandbox (log ter-truncate
+  oleh tee — log akhir bersih 0×500); pengguna browser (preview panel) aktif
+  paralel sesi hrd (terlihat login + app-shell + 2 eksekusi grant/revoke
+  tambahan dari sesi itu — semua idempoten di DB, log audit vaultnya ikut
+  dibersihkan).
+- CLEANUP: baris uji dihapus — MoneyVault=0, MoneyViewGrant=0, ActivityLog
+  entity vault=0 (MII kembali legacy-visible configured:false — pasca-TTL
+  cache 60s GET status "configured":false diverifikasi); tmp skrip dihapus;
+  tidak ada file uji tertinggal di repo.
+
+Stage Summary:
+- FILE BARU: scripts/migrate-money-vault.ts, src/onevity/shared/lib/
+  money-vault.ts, src/onevity/shared/lib/money-view.ts, src/onevity/shared/
+  api/money-vault.ts, src/app/api/onevity/money-vault/route.ts, src/app/api/
+  onevity/money-vault/members/route.ts. FILE DIUBAH: prisma/
+  schema-tenant.prisma (+2 model), src/onevity/shared/lib/tenant-db.ts
+  (cache key T45A), src/onevity/shared/lib/field-crypto.ts (+3 export raw-key,
+  backward compat), src/onevity/shared/lib/parity-runner.ts (langkah
+  "money-vault"), (client regen src/generated/tenant).
+- KONTRAK API (implementasi): GET /api/onevity/money-vault → {configured,
+  open, openUntil, openBy, canManage, myView: "admin"|"granted"|"none"|
+  "legacy", grantsCount, lockoutUntil, serverNow}; POST {action:setup|
+  unlock|lock|change-password|grant|revoke, password/currentPassword/
+  newPassword/userId} → {ok:true[,openUntil]} / {error,code} (400 WEAK_
+  PASSWORD/UNKNOWN_ACTION/INVALID_BODY, 403 INVALID_PASSWORD/NOT_ADMIN, 404
+  NOT_MEMBER, 409 ALREADY_CONFIGURED/VAULT_LOCKED/NOT_CONFIGURED, 429
+  LOCKOUT); GET /members (canManage saja) → {members:[{userId,name,email,
+  role,granted}]} urut nama.
+- DEVIASI KECIL dari spesifikasi (terdokumentasi): (1) NOT_CONFIGURED →
+  409 (peta status eksplisit menang atas komentar "400" di unlockVault);
+  (2) unlockVault punya param actor OPSIONAL (openByUserId akurat);
+  (3) memberList(db, tenantId) — tenantId eksplisit dari route; (4) t-kind
+  pada mode masked didekripsi via jalur env (identik hasil decryptTextWithKey
+  (dek) karena DEK = kunci data tenant); (5) audit unlock/lock diputuskan di
+  route (tahu status sebelum/sesudah).
+- CATATAN UNTUK 45-b (frontend + serializer): getMoneyView(db, {userId,
+  membershipRole}) OPT-IN — panggil di batas serializer respons uang (ganti
+  decryptJson/decryptMoney), .json(payload) walker siap pakai (legacy =
+  perilaku lama persis); server-side service/payroll engine TIDAK usah
+  diganti (tetap tenantCryptoForDb); agregasi tetap in-memory atas nilai
+  terdekripsi; vault status frontend: poll GET /api/onevity/money-vault
+  (serverNow utk sinkronisasi TTL); kata sandi uji demo: vault-demo-123 →
+  diganti vault-demo-456 saat E2E lalu barisnya dihapus (MII kembali
+  unconfigured). myView union final "admin"|"granted"|"none"|"legacy".
+- 45-c (bila ada UI grant): GET /members sudah tersedia (admin-only); grant
+  aktif = revokedAt null; grant tidak pernah menyebar sandi.
+
+---
+Task ID: 45-c
+Agent: frontend-styling-expert
+Task: Money Vault frontend (header button + dialog + assign grants UI)
+
+Work Log:
+- Studi pola: notification-bell.tsx (polling interval + refetch saat dropdown
+  dibuka + toast sonner), language-switcher.tsx (tombol topbar aria-label/
+  tooltip), change-password-dialog.tsx (PasswordInput bersama + dialog
+  sm:max-w-xl + inline error box), header app-shell (WorkspaceMenu → search
+  → quick-create → NotificationBell → LanguageSwitcher → ThemeToggle;
+  seluruh shell dibungkus TooltipProvider delayDuration 200), session-store
+  (status "ready" = tenant terpilih; ESS shell terpisah di ess-shell.tsx),
+  useApi/apiSend (fetch relative), i18n-core BASE_EN (tidak perlu tambahan —
+  semua string baru dirender oleh komponen baru, bukan app-shell).
+- BARU src/onevity/shared/components/shell/money-vault.tsx (756 baris,
+  "use client"): export MoneyVaultButton — tombol ikon Vault h-10 w-10 (hit
+  area 40px, mobile & desktop share topbar) + titik status + Tooltip +
+  Dialog sm:max-w-2xl (house rule) + Tabs terkontrol 3 tab (Status / Kata
+  Sandi / Hak Akses). GET status via fetch manual (bukan useApi) supaya kode
+  HTTP bisa dibedakan: 404 → state "missing" (tombol abu-abu tooltip "Tidak
+  tersedia", dialog alert amber "Fitur belum tersedia", TANPA crash); POST
+  via helper vaultMutate yang SELALU return {ok,error} (0 unhandled
+  rejection). Poll: mount (hanya session ready) + 60 dtk saat tab visible +
+  tiap dialog dibuka + pasca-setiap mutasi. serverNow → skewRef (jam server)
+  utk countdown openUntil/lockoutUntil; detak 30 dtk selama dialog terbuka.
+- Tab Status: Alert amber (unconfigured) / emerald (TERBUKA + "Berlaku hingga
+  {fmtDateTime} · sisa {n} menit/jam" + "Dibuka oleh {openBy}") / destructive
+  (TERTUTUP, "Semua nilai uang disembunyikan (—)"); baris "Hak lihat uang
+  Anda: Penuh (Admin)/Diberikan/Tidak ada/Belum dikonfigurasi" + grantsCount
+  (saat configured); lockoutUntil future → Alert terkunci + tombol Buka
+  disabled; canManage&&open → "Kunci Brankas" konfirmasi 2-klik (label "Klik
+  lagi untuk konfirmasi", auto-batal 5 dtk) + Segarkan; canManage&&closed →
+  PasswordInput + "Buka Brankas"; canManage&&unconfigured → tombol lompat ke
+  tab Kata Sandi.
+- Tab Kata Sandi (canManage; non-admin Alert "Hanya Admin"): setup form
+  (password+confirm, helper "Minimal 8 karakter", validasi inline min-8 &
+  match, toast sukses) saat unconfigured; configured&&closed → Alert "Buka
+  brankas dulu (tab Status)" + SEMUA field disabled (aturan inti
+  change-password hanya saat OPEN); configured&&open → form ganti lengkap
+  aktif. Toast per kode: INVALID_PASSWORD "Kata sandi saat ini salah",
+  WEAK_PASSWORD, VAULT_LOCKED, LOCKOUT (+pesan retryAfterSeconds server
+  di-append), ALREADY_CONFIGURED, NOT_MEMBER; fallback pesan server/HTTP.
+- Tab Hak Akses (canManage; non-admin Alert + status diri): explainer Alert
+  "…dapat melihat nilai uang TANPA mengetahui kata sandi enkripsi — kata
+  sandi tetap hanya milik Anda"; Table anggota (Nama, Email hidden sm:,
+  Peran Badge, Akses Uang) — OWNER/ADMIN → teks "OTOMATIS" (implicit, tanpa
+  switch), lainnya Switch per baris (optimistik + refetch members & status +
+  toast; gagal → refetch mengembalikan baris, 404 ditangani); skeleton saat
+  loading; wrapper max-h-96 overflow-y-auto (house rule).
+- app-shell.tsx: +2 baris — import MoneyVaultButton + <MoneyVaultButton />
+  SEBELUM <NotificationBell /> di topbar; header/sticky footer/bottom-nav
+  tidak direstrukturisasi. Render null bila session ≠ "ready"; ESS otomatis
+  terkecuali (shell terpisah). i18n: ~90 pasang inline t("ID","EN") di
+  komponen; BASE_EN tidak diubah.
+- VERIFIKASI: bunx tsc --noEmit → 0 error; bun run lint → exit 0; dev server
+  (restart setsid nohup karena reaper) GET / 200, dev.log 0 compile error.
+- E2E agent-browser (backend 45-a ternyata SUDAH live saat tes — kontrak cocok
+  100% dengan GET status & GET members):
+  · Login hrd MII → tombol "Brankas Uang" sebelum Notifikasi; state live
+    berputar sesuai uji paralel 45-a: unconfigured → amber animate-pulse +
+    dialog setup form (validasi "Kata sandi minimal 8 karakter" &
+    "Konfirmasi… tidak sama" teruji + tombol lompat tab); configured+closed →
+    rose + alert TERTUTUP + form Buka Brankas (disabled saat kosong) + tab
+    Kata Sandi "Buka brankas dulu" semua field disabled.
+  · grant/revoke round-trip NET-ZERO: toggle Yusuf (HR) ON → toast "Hak lihat
+    uang diberikan kepada Yusuf Rahayu" + switch checked + refetch (grants
+    count ikut); OFF → toast "dicabut" + grantsCount balik 0 (cek curl).
+    OWNER row → "OTOMATIS" tanpa switch.
+  · State OPEN + LOCKOUT via network mock (tanpa menyentuh DB): titik
+    emerald, alert TERBUKA + "Berlaku hingga 12 Sep 2026, 04.34 · sisa 2 jam
+    15 menit" + "Dibuka oleh Tri Handayani", form ganti sandi aktif (submit
+    disabled saat kosong/mismatch); 2-klik "Kunci Brankas" → toast "Brankas
+    uang ditutup"; lockout → Alert "…dinonaktifkan sementara hingga 12 Sep
+    2026, 02.50" + tombol Buka disabled; myView none → "Tidak ada".
+  · Degradasi 404 (VAULT_BASE sementara diarahkan ke path tak-ada, lalu
+    dikembalikan): titik stone + tooltip "Tidak tersedia" + dialog alert
+    "Fitur belum tersedia…" — 0 page error; kembalikan URL → state pulih
+    otomatis via polling. Bonus: 200 body invalid → diperlakukan unconfigured
+    anggun (mock --body tanpa status).
+  · EN toggle: "Money Vault / Status / Password / Access Rights / Money vault
+    CLOSED / Your money view rights: Full (Admin) / Open Vault / …" semua
+    bilingual. Mobile 390px: dialog konten 320px full-width, tablist 1 baris,
+    tombol 40px; overflow 408px @390 terbukti PRE-EXISTING (div dekoratif
+    pointer-events-none absolute -right-16 DI LUAR dialog, tetap ada setelah
+    dialog ditutup — bukan komponen baru, kelas masalah sama spt catatan
+    44-f). Console & page error 0. Screenshots /tmp/45c-{header,dialog-
+    desktop,mobile-dialog,lockout,unconfigured}.png.
+
+Stage Summary:
+- 2 file: src/onevity/shared/components/shell/money-vault.tsx (BARU 756
+  baris), app-shell.tsx (+2 baris). 0 file backend disentuh; BASE_EN tak
+  diubah; 0 file test; tidak commit/push.
+- Matriks state tertangani (configured×open×canManage×myView): unconfigured+
+  admin (amber pulse + setup), unconfigured+non-admin (stone, read-only),
+  closed+admin (rose + unlock form + change-password DISABLED), closed+
+  granted-viewer (rose), closed+none-viewer (stone read-only), open (emerald
+  + countdown skew-server + lock 2-klik + change aktif), lockout (alert +
+  unlock disabled), endpoint-404 (stone "Tidak tersedia"), 200-body-invalid
+  (unconfigured anggun), network error (retain-last / alert gagal muat).
+- Asumsi kontrak: openBy = string nama (render mentah bila non-null); role
+  OWNER/ADMIN = akses implicit ("OTOMATIS"); error code di key "code" +
+  fallback pesan server; LOCKOUT retryAfterSeconds ikut pesan server;
+  grantsCount disembunyikan saat unconfigured (belum relevan).
+- tsc 0 error, lint exit 0, E2E hijau (state live paralel 45-a + mock OPEN/
+  LOCKOUT + degradasi 404 + EN + 390px). DB bersih: hanya round-trip grant→
+  revoke (net-zero); kata sandi vault TIDAK disentuh (milik pengujian 45-a).
+  Alur password penuh (setup/unlock/lock/change sukses-gagal) defer ke 45-d.
+
+---
+Task ID: 45-b (dilanjutkan + ditutup orchestrator)
+Agent: full-stack-developer (timed-out) + Z.ai orchestrator (penyelesaian)
+Task: Thread gerbang MoneyView ke seluruh serializer uang (25+ titik) — compute tetap raw
+
+Work Log:
+- Subagent full-stack mengconvert 43 file (Pattern A route-level decryptJson → mv.json via
+  moneyViewForReq/actor; Pattern B service DTO → param mv wajib): payroll api (loans,
+  payroll-run/runs, journals, component-assignments, benefit-claims/types, rapel, profiles,
+  spt, bonus-massal, reports-register), medical api+service (claims/overview/balances/
+  adjustments/reports), travel api+service, leave api+service (encashment), ESS api (claims,
+  payslips, payslips-detail, dashboard), HR api (employees, employee-detail/options, org-map,
+  personnel-actions-detail), TA overtime, shared dashboard, payslip-pdf, report-builder,
+  custom-reports run/export. Timeout sebelum worklog + 5 file terakhir + cleanup.
+- Orchestrator menyelesaikan 5 file tersisa: payroll-spt.ts route (dm → mv.dec0 + hoist),
+  payroll-run-export.ts (file transfer bank gated — admin buka vault dulu utk nilai riil),
+  reports-bpjs.ts (toMemberRow +mv param; GAJI kolom upload CSV + rekap iuran gated),
+  wage-component-rules.ts + entity-rules.ts (preview gaji dasar gated), plus service
+  payroll-spt.ts buildAnnualSpt(db, year, mv?) — rekap SPT/CSV e-SPT ikut tergerbang.
+- Helper baru src/onevity/shared/lib/money-view-req.ts (pola sesi persis tenant-db.ts;
+  fail-closed; role tak pernah di-invent). Import rusak di payroll-run-export diperbaiki
+  (tc.decryptText rekening tetap perlu field-crypto).
+- Klasifikasi inti dipertahankan: ENGINE/COMPUTE TIDAK digerbang (payroll-service, benefit-
+  service, settlement, payroll-journal, assignment validation, seeds, semua encryptMoney
+  write path) — bisnis tetap jalan saat vault TERTUTUP; hanya tampilan/ekspor uang user-
+  facing yang ter-mask (null → fmtIDR "—").
+- Verifikasi: tsc 0 error, lint bersih. E2E curl (hrd OWNER MII): legacy visible (12jt/11jt)
+  → setup → open visible → LOCK → loans {amount:null, outstanding:null, status utuh} →
+  compute-path proof (bun -e tenantCrypto().decryptMoney = 12000000/11000000 saat LOCKED) →
+  unlock → visible. Change-password: locked → 409 VAULT_LOCKED; wrong current → 403.
+  Grant/revoke round-trip grantsCount 1↔0.
+
+Stage Summary:
+- Semua jalur tampilan uang user-facing kini lewat MoneyView (vault uang). Rollout behavior-
+  neutral: tanpa baris vault (legacy) perilaku = sebelum 45-b persis.
+- 51 file berubah total (43 subagent + 8 orchestrator); 0 test file; audit Aman utuh.
+
+---
+Task ID: 45-d (45-final)
+Agent: orchestrator (Z.ai)
+Task: E2E browser Money Vault + perbaikan openBy + reset demo + worklog + commit
+
+Work Log:
+- openBy fix: GET /api/onevity/money-vault kini resolve user id → nama (platformDb.user
+  findUnique, fallback email) — "Dibuka oleh Tri Handayani" (sebelumnya id mentah).
+- E2E agent-browser (hrd MII, dev.log 0×500, console/page error 0):
+  * Tombol "Brankas Uang" di header sebelum NotificationBell (desktop+mobile), dot status:
+    amber=belum-konfigurasi, hijau=TERBUKA, merah=TERTUTUP; dialog sm:max-w-2xl, 390px →
+    dialog 363px (fit), header/footer/bottom-nav utuh.
+  * Dialog 3 tab: Status (alert state + countdown server-skew "Berlaku hingga … sisa 7 jam
+    59 menit" + Kunci Brankas 2-klik konfirmasi 5s + Segarkan), Kata Sandi (setup min-8 +
+    match inline; ganti kata sandi DISABLED saat tertutup dengan alert "Buka brankas dulu —
+    kata sandi enkripsi hanya dapat diganti saat brankas TERBUKA" = ATURAN INTI USER),
+    Hak Akses (tabel anggota + Switch per user; OWNER/ADMIN "OTOMATIS"; alert "Anggota yang
+    ditugaskan dapat melihat nilai uang TANPA mengetahui kata sandi").
+  * Golden path penuh: loans Rp 12.000.000/OUTSTANDING Rp 11.000.000 saat TERBUKA →
+    Kunci → reload → "Pokok — · cicilan — · OUTSTANDING —" (non-uang utuh) → Buka via dialog
+    (kata sandi) → uang kembali → GANTI KATA SANDI via UI (toast "berhasil diganti") →
+    kunci → buka dgn KATA SANDI BARU (vault-demo-999) sukses.
+  * User ber-grant (yusuf HR, uji): ESS Slip Gaji Gross Rp 8.545.000/NET Rp 7.074.508 saat
+    open+grant → LOCK (via curl hrd) → reload → "Gross — · NET —" → unlock + REVOKE → tetap
+    "—" walau TERBUKA (assign = satu-satunya jalur lihat uang bagi non-admin). Dialog yusuf
+    read-only (canManage false, "Hak lihat uang Anda: Tidak ada").
+  * Catatan tooling: sesi agent-browser pertama mengalami konteks eval basi (klik no-op) —
+    bukan bug aplikasi (keyboard + sesi baru bersih); tab/lock/unlock/ubah-sandi semua
+    bekerja via klik nyata setelah restart browser.
+- Reset demo: MoneyVault+MoneyViewGrant+audit vault MII dihapus (2 grant/1 vault/20 log),
+  user uji yusuf@mii.co.id + agus45b@mii.co.id dihapus (sisa hrd/ayu/bambang), 3 schema
+  diverifikasi vault:0 grants:0, status configured:false, loans legacy visible. Tombol
+  kembali amber "Atur kata sandi enkripsi uang" (entry point fitur utk admin demo).
+- tsc 0 error · lint exit 0 · dev.log 0×500.
+
+Stage Summary:
+- Task 45 TUNTAS: M-VAULT UI lengkap — input/modify (hanya saat open)/assign hak view uang
+  tanpa sebar kata sandi + masking "—" saat tertutup/tanpa grant + compute/write tetap jalan.
+- Kontrak: GET /api/onevity/money-vault (status+serverNow+openBy nama), POST {action:
+  setup|unlock|lock|change-password|grant|revoke}, GET .../members. Vault aktif hanya di
+  memori server (restart → tertutup, admin buka ulang) — by design.
+- Vault demo DIKOSONGKAN (legacy visible) — admin mengatur kata sandi via tombol header saat
+  ingin mengaktifkan; TTL open 8 jam, lockout 5 salah/15 menit, PBKDF2 210k.

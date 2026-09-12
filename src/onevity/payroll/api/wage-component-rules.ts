@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import {
   RULE_PARAMS, parseConditions, parseMatchMode, parseRuleSpec, matchFirstRule, applyRuleAmount,
   validateConditions, isEmptyConditions, RuleValidationError, ComponentRuleLite, EntityRuleLite,
@@ -90,7 +90,9 @@ export async function GET(req: NextRequest) {
     if (!wantPreview) return NextResponse.json(base);
 
     // ---- simulasi per karyawan: besaran dasar → rule cocok → besaran final ----
-    const tc = tenantCryptoForDb(db);
+    // 45-b: gerbang MoneyView — vault uang tertutup/tanpa grant → nilai gaji
+    // dasar ter-mask (0) di pratinjau; tulis/validasi aturan tetap jalan.
+    const mv = await moneyViewForReq(req, db);
     const [profiles, activeEmployees, regulation] = await Promise.all([
       db.employeePayrollProfile.findMany({ where: { active: true }, select: { employeeId: true, hasNpwp: true, taxStatus: true, dependents: true } }),
       db.employee.findMany({
@@ -152,7 +154,7 @@ export async function GET(req: NextRequest) {
       const assignment = emp.assignments[0];
       if (!assignment) return [];
       const profile = profileByEmp.get(emp.id);
-      const baseSalary = tc.decryptMoney(assignment.baseSalary) ?? 0;
+      const baseSalary = mv.dec0(assignment.baseSalary);
       const yearsSince = (from: Date | null | undefined) =>
         from ? (now.getTime() - new Date(from).getTime()) / (365.25 * 86_400_000) : null;
 

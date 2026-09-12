@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/tenant";
 import { requireMutator } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { calculateAndSaveRun, nextRunNo } from "@/onevity/payroll/services/payroll-service";
 
 type RapelRun = Prisma.PayrollRunGetPayload<{ include: { period: true; processType: true } }>;
@@ -219,10 +220,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 45-b: gate vault (aktor requireMutator) — hanya DTO assignment/run;
+    // breakdown/totalDiff = output kalkulasi bisnis (tc raw, tulis tetap benar).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
     return NextResponse.json({
       // 28-c: dekripsi di batas serializer — amount komponen & total run.
-      assignment: tc.decryptJson(assignment),
-      run: run ? tc.decryptJson(run) : null,
+      assignment: mv.json(assignment),
+      run: run ? mv.json(run) : null,
       breakdown,
       totalDiff,
       periods: breakdown.length,

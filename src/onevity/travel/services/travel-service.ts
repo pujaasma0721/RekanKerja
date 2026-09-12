@@ -11,6 +11,7 @@
 import { startApprovalChain, decideApprovalChain, cancelApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
+import type { MoneyView } from "@/onevity/shared/lib/money-view";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 // Task 33 — rule diferensiasi limit jenis biaya per parameter karyawan.
 import { EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue } from "@/onevity/shared/lib/parameter-rules";
@@ -809,13 +810,14 @@ export interface TravelClaimRow {
   employeeNo: string; fullName: string; orgUnitName: string | null;
   claimDate: Date; templateCode: string; templateName: string; costCenter: string | null;
   purpose: string | null; remark: string | null; status: string;
-  otherCompanyExp: number; exchangeLoss: number; payableEmployee: number; payableCompany: number;
-  totalSettlement: number; settlementMethod: string; voucherNo: string | null;
+  /** 45-b: null = vault uang masked (frontend render "—"). */
+  otherCompanyExp: number | null; exchangeLoss: number | null; payableEmployee: number | null; payableCompany: number | null;
+  totalSettlement: number | null; settlementMethod: string; voucherNo: string | null;
   journalNo: string | null; journalDate: Date | null; periodCode: string | null;
   transferredRunNo: string | null; paidRunNo: string | null;
   decidedAt: Date | null; decisionNote: string | null;
-  advanceAmount: number;
-  totalExpenses: number;
+  advanceAmount: number | null;
+  totalExpenses: number | null;
   expenseLines: number;
   overLimitLines: number;
   expenseKinds: string[];
@@ -823,7 +825,11 @@ export interface TravelClaimRow {
   approval?: ChainSummary | null;
 }
 
-export async function listTravelClaims(db: TenantDb, opts: { status?: string; employeeId?: string } = {}): Promise<TravelClaimRow[]> {
+/** List klaim travel (DTO tampilan).
+ *  45-b: mv (MoneyView) WAJIB — gerbang vault uang: kolom uang → null saat
+ *  masked; kalkulasi internal (formula settlement/validasi/jurnal) TIDAK lewat
+ *  sini — tetap raw tc di service lain. */
+export async function listTravelClaims(db: TenantDb, opts: { status?: string; employeeId?: string } = {}, mv: MoneyView): Promise<TravelClaimRow[]> {
   const where: { status?: string; employeeId?: string } = {};
   if (opts.status && opts.status !== "all") where.status = opts.status;
   if (opts.employeeId) where.employeeId = opts.employeeId;
@@ -840,21 +846,24 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
   // T15-CHAIN-EXT: ringkasan approval berjenjang per klaim (satu query batch).
   const chainMap = await attachChainSummaries(db, "TravelClaim", rows.map((c) => ({ id: c.id })));
   // 44-d (M-8): nilai uang klaim/expense terenkripsi — dekripsi utk DTO (angka).
+  // 45-b: dekripsi raw utk memastikan nilai, lalu gate tampilan via mv
+  // (g = null saat masked — kalkulasi line di bawah tetap atas angka raw).
   const tc = tenantCryptoForDb(db);
+  const g = (n: number) => (mv.canSee ? n : null);
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, requestDocNo: c.request?.docNo ?? null,
     employeeId: c.employeeId, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     orgUnitName: c.employee.assignments[0]?.orgUnit?.name ?? null,
     claimDate: c.claimDate, templateCode: c.template.code, templateName: c.template.name,
     costCenter: c.costCenter, purpose: c.purpose, remark: c.remark, status: c.status,
-    otherCompanyExp: tc.decryptMoney(c.otherCompanyExp) ?? 0, exchangeLoss: tc.decryptMoney(c.exchangeLoss) ?? 0,
-    payableEmployee: tc.decryptMoney(c.payableEmployee) ?? 0, payableCompany: tc.decryptMoney(c.payableCompany) ?? 0,
-    totalSettlement: tc.decryptMoney(c.totalSettlement) ?? 0, settlementMethod: c.settlementMethod,
+    otherCompanyExp: g(tc.decryptMoney(c.otherCompanyExp) ?? 0), exchangeLoss: g(tc.decryptMoney(c.exchangeLoss) ?? 0),
+    payableEmployee: g(tc.decryptMoney(c.payableEmployee) ?? 0), payableCompany: g(tc.decryptMoney(c.payableCompany) ?? 0),
+    totalSettlement: g(tc.decryptMoney(c.totalSettlement) ?? 0), settlementMethod: c.settlementMethod,
     voucherNo: c.voucherNo, journalNo: c.journalNo, journalDate: c.journalDate,
     periodCode: c.periodCode, transferredRunNo: c.transferredRunNo, paidRunNo: c.paidRunNo,
     decidedAt: c.decidedAt, decisionNote: c.decisionNote,
-    advanceAmount: c.request ? sumActiveAdvances(tc, c.request.advances) : 0,
-    totalExpenses: round2(c.expenses.reduce((s, e) => s + (tc.decryptMoney(e.amount) ?? 0), 0)),
+    advanceAmount: g(c.request ? sumActiveAdvances(tc, c.request.advances) : 0),
+    totalExpenses: g(round2(c.expenses.reduce((s, e) => s + (tc.decryptMoney(e.amount) ?? 0), 0))),
     expenseLines: c.expenses.length,
     overLimitLines: c.expenses.filter((e) => e.overLimit).length,
     expenseKinds: [...new Set(c.expenses.map((e) => e.kind))],

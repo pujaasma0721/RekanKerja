@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
-import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
+import { getMoneyView, type MoneyView } from "@/onevity/shared/lib/money-view";
+import { listClaims, submitClaim, decideClaim, previewClaim, type ClaimPreview } from "@/onevity/medical/services/medical-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
@@ -20,12 +21,34 @@ import {
 // apapun bisa mengenumerasi seluruh klaim + rincian kwitansi). Endpoint ini
 // melayani DUA halaman: Klaim Medis (medical:medical-claim) DAN Persetujuan
 // & Settlement (medical:medical-approval) → salah satu menu cukup.
+
+/** 45-b: salinan DISPLAY previewClaim — field uang → null saat vault masked
+ *  (previewClaim asli tetap raw: hasilnya dipakai utk VALIDASI submit). */
+function maskPreviewForDisplay(p: ClaimPreview, mv: MoneyView): ClaimPreview {
+  if (mv.canSee) return p;
+  return {
+    ...p,
+    baseSalary: null,
+    benefitAmount: null,
+    adjustmentAmount: null,
+    carriedOver: null,
+    initialUsed: null,
+    usedAmount: null,
+    remaining: null,
+    depRemaining: null,
+    remainingForClaim: null,
+    pendingReserved: null,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const m = await requireMenuViewAny(req, ["medical:medical-claim", "medical:medical-approval"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const sp = req.nextUrl.searchParams;
+    // 45-b: gerbang vault uang — aktor requireMenuViewAny (userId+role).
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
     if (sp.get("preview") === "1") {
       const employeeId = sp.get("employeeId");
       const typeId = sp.get("typeId");
@@ -39,7 +62,10 @@ export async function GET(req: NextRequest) {
       // employeeId lintas-tenant/stale sempat 500 "Karyawan tidak ditemukan".
       try {
         const preview = await previewClaim(db, { employeeId, typeId, year, forDependent });
-        return NextResponse.json({ preview });
+        // 45-b: previewClaim tetap RAW (dipakai submitClaim utk VALIDASI plafon
+        // K-1/K-2 — tidak boleh melihat nilai masked). Salinan DISPLAY di-mask
+        // di batas route (field uang → null; shape tetap).
+        return NextResponse.json({ preview: maskPreviewForDisplay(preview, mv) });
       } catch (e) {
         return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
       }
@@ -51,7 +77,7 @@ export async function GET(req: NextRequest) {
       employeeId: sp.get("employeeId") ?? undefined,
       typeId: sp.get("typeId") ?? undefined,
       includeLines,
-    });
+    }, mv);
     // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
     const attachMap = await attachmentsByEntityIds(db, "MedicalClaim", claims.map((c) => c.id));
     const claimsWithAttachments = claims.map((c) => ({
@@ -67,10 +93,11 @@ export async function GET(req: NextRequest) {
       settled: claims.filter((c) => c.state === "Settled").length,
       rejected: claims.filter((c) => c.state === "Rejected").length,
       cancelled: claims.filter((c) => c.state === "Cancelled").length,
+      // 45-b: totalApproved nullable saat masked — sum ?? 0 (bebas NaN).
       pendingAmount: claims
         .filter((c) => c.state === "Submitted" || c.state === "Approved")
-        .reduce((s, c) => s + c.totalApproved, 0),
-      settledAmount: claims.filter((c) => c.state === "Settled").reduce((s, c) => s + c.totalApproved, 0),
+        .reduce((s, c) => s + (c.totalApproved ?? 0), 0),
+      settledAmount: claims.filter((c) => c.state === "Settled").reduce((s, c) => s + (c.totalApproved ?? 0), 0),
     };
     return NextResponse.json({ claims: claimsWithAttachments, stats });
   } catch (e) {

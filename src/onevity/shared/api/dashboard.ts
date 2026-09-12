@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
 import type { Prisma } from "@/generated/tenant";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 
 // GET /api/onevity/dashboard — KPI ringkasan HR.
 // T1-SECURITY:
@@ -64,6 +65,9 @@ export async function GET(req: NextRequest) {
 
     // agregasi pekerjaan (status/unit/gaji/grade) dihitung dari assignment aktif
     // 28-c: baseSalary aktif TERENKRIPSI (String) — dekripsi sebelum agregasi.
+    // 45-b: gerbang vault — avgSalary masked → 0 (aggregate stat); hitungan
+    // tetap in-memory atas nilai terdekripsi jalur raw.
+    const mv = await moneyViewForReq(req, db);
     const tcAgg = tenantCryptoForDb(db);
     const cur = activeWithAssignments
       .map((e) => e.assignments[0])
@@ -80,6 +84,8 @@ export async function GET(req: NextRequest) {
       salarySum += a.baseSalary;
     }
     const avgSalary = cur.length > 0 ? Math.round(salarySum / cur.length) : 0;
+    // 45-b: vault uang masked → avgSalary disembunyikan (0; shape tetap angka).
+    const avgSalaryOut = mv.canSee ? avgSalary : 0;
 
     // headcount per division (top org units level 3)
     const divisions = await db.orgUnit.findMany({
@@ -133,7 +139,7 @@ export async function GET(req: NextRequest) {
       positions,
       newHiresThisYear,
       exitsYTD,
-      avgSalary,
+      avgSalary: avgSalaryOut,
       recentActions: actions,
       activities,
       genderSplit: genderAgg.map((g) => ({ gender: g.gender, count: g._count })),
