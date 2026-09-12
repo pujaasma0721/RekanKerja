@@ -936,3 +936,27 @@ Stage Summary:
 - Trade-off yang disadari (didokumentasikan runbook §5.2.2): penyerang dengan akses FULL DB dapat membaca dataKey — model ini dipilih pemilik produk ("simpan password di db"); tingkat perlindungan = at-rest + pasca-rotasi.
 - Kontrak API berubah backward-compat: envKeyMissing dihapus, reEncrypted ditambah, error code baru REKEY_IN_PROGRESS 409; prisma tenant client versi T47A.
 - Jalur deploy: cukup deploy + restart (tanpa env var, tanpa urutan khusus) — parity self-heal menambah kolom dataKey; admin mengatur sandi via UI kapan pun.
+
+---
+Task ID: 48
+Agent: orchestrator (Z.ai)
+Task: Verifikasi final Task 47 pasca-lanjutan sesi + PUSH ke origin (instruksi baru user: "selalu push setelah perbaikan") + penetapan aturan git permanen.
+
+Work Log:
+- Instruksi baru user: setiap perbaikan selesai → selalu push (menggantikan aturan lama "push hanya bila diminta").
+- State awal sesi lanjutan: HEAD lokal = abed114 (Task 47, ter-commit), origin = 9be121e (Task 46) → 1 commit belum ter-push; worktree bersih.
+- Verifikasi ulang menyeluruh Task 47 (golden path penuh, login hrd MII):
+  * GET /api/onevity/money-vault → {configured:false, tanpa envKeyMissing} — kontrak Task 47 aktif.
+  * POST setup "verify-t47-a" → {ok:true, reEncrypted:{tables:59, rows:5280, skipped:0}}.
+  * POST change-password SAAT VAULT TERBUKA → ok (re-encrypt 5280).
+  * POST lock → ok; change-password SAAT TERTUTUP → ok (re-encrypt 5280) — fitur inti "ganti kapan pun" terbukti.
+  * unlock dengan sandi LAMA → 403 INVALID_PASSWORD; sandi BARU → 200 open (bukti re-key total ke kunci baru).
+  * GET /api/onevity/loans?limit=1 saat open → amount 12000000/outstanding 11000000 (dekripsi kunci baru OK); setelah lock → amount:null/outstanding:null (masking bekerja).
+  * Catatan: rute benar /api/onevity/loans (bukan /api/onevity/payroll/loans — perbaiki smoke test).
+- Reset demo state: bun run scripts/reset-vault-demo.ts → 5280 nilai v2→v1 legacy, 1 baris vault + 8 log audit dihapus; restart dev server (double-fork anti-reaper, watchdog pulihkan port conflict sesaat) → status akhir {configured:false, myView:"admin"} + data legacy terbaca (12jt) — tombol amber "Atur kata sandi".
+- Kesehatan: dev.log 0×500 seluruh E2E · bun run lint exit 0.
+- PUSH: abed114 (Task 47) + commit worklog ini → origin/main.
+
+Stage Summary:
+- Task 47 TERVERIFIKASI LULUS dan TERPUSH ke origin — refaktor kata sandi enkripsi perusahaan (DB, per-company, bebas diganti, re-encrypt total) live di remote.
+- ATURAN GIT BARU PERMANEN: setelah setiap perbaikan selesai → commit + push otomatis (tidak lagi menunggu perintah "push" eksplisit).
