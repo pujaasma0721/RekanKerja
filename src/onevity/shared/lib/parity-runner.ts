@@ -168,11 +168,14 @@ const STEPS: Step[] = [
   { key: "money-vault", label: "Task 45-a — tabel MoneyVault + MoneyViewGrant (gerbang uang)", run: (s) => import("../../../../scripts/migrate-money-vault").then((m) => m.main(s)) },
 ];
 
-// ============ deteksi gap (murah — 2 query information_schema) ============
+// ============ deteksi gap (murah — 3 query information_schema) ============
 
 /**
  * Gap parity terdeteksi bila ada tenant yang belum punya tabel "Announcement"
- * (wave 27) ATAU kolom PayrollRunLine.bruto belum TEXT (wave 28-c enkripsi).
+ * (wave 27) ATAU kolom PayrollRunLine.bruto belum TEXT (wave 28-c enkripsi)
+ * ATAU tabel "MoneyVault" belum ada (Task 45-a — FIX Task 46: restore-demo/
+ * seed fresh + tenant-ddl.sql lama tidak memuat tabel vault → setup kata
+ * sandi enkripsi uang 500 "table does not exist").
  * Dipakai instrumentation saat boot — false positif hanya menyebabkan rerun
  * migrasi idempoten (aman).
  */
@@ -184,7 +187,7 @@ export async function checkParityGap(): Promise<ParityGap> {
   const c = new Client({ connectionString: TENANT_URL() });
   await c.connect();
   try {
-    const [ann, bruto] = await Promise.all([
+    const [ann, bruto, vault] = await Promise.all([
       c.query<{ n: number }>(
         `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
          WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
@@ -196,13 +199,20 @@ export async function checkParityGap(): Promise<ParityGap> {
            AND table_schema = ANY($1::text[])`,
         [schemas],
       ),
+      c.query<{ n: number }>(
+        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+         WHERE table_name = 'MoneyVault' AND table_schema = ANY($1::text[])`,
+        [schemas],
+      ),
     ]);
     const annOk = ann.rows[0]?.n ?? 0;
     const encOk = bruto.rows[0]?.n ?? 0;
+    const vaultOk = vault.rows[0]?.n ?? 0;
     const reasons: string[] = [];
     if (annOk < schemas.length) reasons.push(`${schemas.length - annOk} tenant tanpa tabel Announcement (wave 27)`);
     if (encOk < schemas.length) reasons.push(`${schemas.length - encOk} tenant tanpa enkripsi kolom uang (wave 28-c)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk) };
+    if (vaultOk < schemas.length) reasons.push(`${schemas.length - vaultOk} tenant tanpa tabel MoneyVault (Task 45-a)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk) };
   } finally {
     await c.end();
   }

@@ -45,6 +45,9 @@ interface VaultStatus {
   grantsCount: number;
   lockoutUntil: string | null;
   serverNow: string | null;
+  /** Task 46: true bila server production TANPA ONEVITY_ENCRYPTION_KEY — setup
+   *  kata sandi akan gagal (M-10); form pengaturan dinonaktifkan + alert. */
+  envKeyMissing?: boolean;
   error?: string;
 }
 
@@ -191,6 +194,8 @@ export function MoneyVaultButton() {
 
   // Anggota hanya dimuat saat dialog terbuka & pengguna admin (canManage).
   const canManage = st?.canManage === true;
+  // Task 46: kunci enkripsi server belum diatur (production tanpa env key).
+  const envKeyBlocked = st?.envKeyMissing === true;
   useEffect(() => {
     if (open && canManage) void fetchMembers();
   }, [open, canManage, fetchMembers]);
@@ -466,6 +471,18 @@ export function MoneyVaultButton() {
 
               {/* ============ TAB STATUS (semua peran) ============ */}
               <TabsContent value="status" className="space-y-3.5">
+                {envKeyBlocked && canManage && (
+                  <Alert variant="destructive">
+                    <TriangleAlert aria-hidden />
+                    <AlertTitle>{t("Kunci enkripsi server belum diatur", "Server encryption key is not set")}</AlertTitle>
+                    <AlertDescription>
+                      {t(
+                        "Server berjalan mode production tanpa variabel lingkungan ONEVITY_ENCRYPTION_KEY — operasi enkripsi uang (termasuk menyimpan kata sandi enkripsi) akan gagal. Set ONEVITY_ENCRYPTION_KEY (disarankan ≥ 32 karakter acak) di environment server (mis. file .env atau konfigurasi PM2/systemd) lalu restart aplikasi.",
+                        "The server runs in production mode without the ONEVITY_ENCRYPTION_KEY environment variable — money encryption operations (including saving the encryption password) will fail. Set ONEVITY_ENCRYPTION_KEY (≥ 32 random characters recommended) in the server environment (e.g. the .env file or PM2/systemd config), then restart the app.",
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {!st.configured ? (
                   <Alert className="border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                     <LockKeyholeOpen className="text-amber-600 dark:text-amber-400" aria-hidden />
@@ -597,26 +614,40 @@ export function MoneyVaultButton() {
                     </AlertDescription>
                   </Alert>
                 ) : !st.configured ? (
-                  <form
-                    className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
-                    onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
-                  >
-                    <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
-                      <PasswordInput value={setupPw} onChange={setSetupPw} disabled={busy !== null} />
-                      <p className="text-[10px] text-stone-400">{t("Minimal 8 karakter", "Minimum 8 characters")}</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi", "Confirm Password")} *</p>
-                      <PasswordInput value={setupPw2} onChange={setSetupPw2} disabled={busy !== null} />
-                    </div>
-                    {setupErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{setupErr}</p>}
-                    <Button type="submit" disabled={busy !== null || !setupPw || !setupPw2} className="gap-2 rounded-xl font-bold">
-                      {busy === "setup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                      {busy === "setup" ? t("Menyimpan…", "Saving…") : t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}
-                    </Button>
-                  </form>
+                  <>
+                    {envKeyBlocked && (
+                      <Alert variant="destructive">
+                        <TriangleAlert aria-hidden />
+                        <AlertTitle>{t("Kunci enkripsi server belum diatur", "Server encryption key is not set")}</AlertTitle>
+                        <AlertDescription>
+                          {t(
+                            "Atur variabel lingkungan ONEVITY_ENCRYPTION_KEY (disarankan ≥ 32 karakter acak) di server lalu restart aplikasi — setelah itu form ini dapat dipakai. (Lihat tab Status.)",
+                            "Set the ONEVITY_ENCRYPTION_KEY environment variable (≥ 32 random characters recommended) on the server and restart the app — after that this form can be used. (See the Status tab.)",
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <form
+                      className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
+                      onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
+                    >
+                      <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
+                        <PasswordInput value={setupPw} onChange={setSetupPw} disabled={busy !== null || envKeyBlocked} />
+                        <p className="text-[10px] text-stone-400">{t("Minimal 8 karakter", "Minimum 8 characters")}</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi", "Confirm Password")} *</p>
+                        <PasswordInput value={setupPw2} onChange={setSetupPw2} disabled={busy !== null || envKeyBlocked} />
+                      </div>
+                      {setupErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{setupErr}</p>}
+                      <Button type="submit" disabled={busy !== null || envKeyBlocked || !setupPw || !setupPw2} className="gap-2 rounded-xl font-bold">
+                        {busy === "setup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                        {busy === "setup" ? t("Menyimpan…", "Saving…") : t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}
+                      </Button>
+                    </form>
+                  </>
                 ) : (
                   <>
                     {!st.open && (

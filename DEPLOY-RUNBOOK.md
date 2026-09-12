@@ -221,6 +221,14 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - Laporan XLSX modul terkait menampilkan nilai terdekripsi (report-builder flag `encrypted`).
 - PII scope-aware list karyawan (M-9): akun dengan data-scope CUSTOM menerima field PII di-mask (`piiScope:"limited"` di respons; export tanpa kolom PII).
 
+### 5.2.2 Money Vault (Brankas Uang, Task 45/46) — env key & precheck UI
+
+- **PRASYARUT**: mengatur kata sandi enkripsi uang (tombol vault di header) memanggil `tenantDataKey()` → **`ONEVITY_ENCRYPTION_KEY` WAJIB sudah di-set** sebelum admin menekan "Atur Kata Sandi Enkripsi". Tanpa itu, production melempar error fail-fast M-10 (`[field-crypto] ONEVITY_ENCRYPTION_KEY wajib di-set di production…`).
+- **Sejak Task 46** status `GET /api/onevity/money-vault` mengembalikan `envKeyMissing:true` untuk kondisi tsb — dialog vault menampilkan alert merah **sebelum** admin mengetik sandi, dan form pengaturan dinonaktifkan (tidak ada lagi 500 setelah submit).
+- **Urutan benar fresh-install production**: (1) set `ONEVITY_ENCRYPTION_KEY` (≥ 32 karakter acak, simpan di password manager — **rotasi = data terenkripsi lama tidak terbaca**), (2) restart app, (3) admin atur kata sandi vault, (4) assign hak lihat uang ke anggota.
+- Operasi vault yang **tidak** butuh env key: unlock (verifier PBKDF2 lokal), lock, ganti kata sandi (DEK dari memori saat open), grant/revoke (baris DB). Hanya **setup** dan dekripsi jalur env (legacy/masked-PII) yang bergantung master key.
+- Status "open" vault hanya di **memori proses** (TTL 8 jam; restart PM2 = terkunci kembali — by design). Kolom `openUntil`/`openByUserId` di DB bersifat informatif saja.
+
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 
 Untuk load balancer / uptime monitor (Caddy health check, k8s probe, UptimeRobot):

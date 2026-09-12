@@ -33,6 +33,7 @@ import {
   vaultInfo,
   type VaultActor,
 } from "@/onevity/shared/lib/money-vault";
+import { encryptionEnvKeyMissing } from "@/onevity/shared/lib/field-crypto";
 
 // Role workspace yang boleh mengelola vault (mirror access-scope:
 // SUPER_ADMIN_PLATFORM_ROLES — OWNER/ADMIN).
@@ -164,6 +165,9 @@ export async function GET(req: Request) {
       grantsCount: grants.size,
       lockoutUntil: info.lockoutUntil,
       serverNow: new Date().toISOString(),
+      // Task 46: production tanpa ONEVITY_ENCRYPTION_KEY → setup akan gagal
+      // (masterKey throw, M-10) — UI menampilkan penghalang SEBELUM submit.
+      envKeyMissing: encryptionEnvKeyMissing(),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

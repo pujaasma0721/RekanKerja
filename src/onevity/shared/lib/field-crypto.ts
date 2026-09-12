@@ -87,6 +87,17 @@ function masterKey(): Buffer {
   return createHash("sha256").update(`onevity-dev-fallback:${base}`).digest();
 }
 
+/**
+ * Precheck (UI/ops): true bila PRODUCTION tanpa ONEVITY_ENCRYPTION_KEY — kondisi
+ * persis yang membuat masterKey() throw (audit 42 M-10). Dipakai status
+ * money-vault (Task 46) agar admin melihat penghalang SEBELUM mengetik kata
+ * sandi, bukan error 500 setelah submit. Tidak pernah throw sendiri.
+ */
+export function encryptionEnvKeyMissing(): boolean {
+  const env = process.env.ONEVITY_ENCRYPTION_KEY;
+  return process.env.NODE_ENV === "production" && !(env != null && env.trim().length > 0);
+}
+
 // ============ KONTEKS PER-TENANT ============
 
 const contextCache = new Map<string, FieldCrypto>();

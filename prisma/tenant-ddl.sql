@@ -2006,6 +2006,31 @@ CREATE TABLE "WaLog" (
 );
 
 -- CreateTable
+CREATE TABLE "MoneyVault" (
+    "id" TEXT NOT NULL,
+    "salt" TEXT NOT NULL,
+    "verifier" TEXT NOT NULL,
+    "wrappedKey" TEXT NOT NULL,
+    "openUntil" TIMESTAMP(3),
+    "openByUserId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MoneyVault_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MoneyViewGrant" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "grantedBy" TEXT NOT NULL,
+    "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "MoneyViewGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "CustomReport" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -2404,6 +2429,9 @@ CREATE INDEX "WaLog_createdAt_idx" ON "WaLog"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "WaLog_event_idx" ON "WaLog"("event");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MoneyViewGrant_userId_key" ON "MoneyViewGrant"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomReport_code_key" ON "CustomReport"("code");

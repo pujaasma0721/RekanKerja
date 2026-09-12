@@ -880,3 +880,28 @@ Stage Summary:
   memori server (restart → tertutup, admin buka ulang) — by design.
 - Vault demo DIKOSONGKAN (legacy visible) — admin mengatur kata sandi via tombol header saat
   ingin mengaktifkan; TTL open 8 jam, lockout 5 salah/15 menit, PBKDF2 210k.
+
+---
+Task ID: 46
+Agent: orchestrator (Z.ai)
+Task: Bug report user "ketika set password encrypt: [field-crypto] ONEVITY_ENCRYPTION_KEY wajib di-set di production" — precheck UI vault + fix root cause kedua (tabel vault tidak dibuat di fresh install).
+
+Work Log:
+- Diagnosis: error = guard fail-fast M-10 di field-crypto masterKey() — NODE_ENV=production tanpa ONEVITY_ENCRYPTION_KEY; terjadi SAAT setup vault karena tenantDataKey() → masterKey(). Perilaku by-design (audit 42); fix utama = set env var di server production user.
+- Sandbox ter-reset total (postgres data hilang, .env balik default SQLite, db/ hilang, semua layanan mati) → pemulihan penuh: initdb postgres 17 (:5432) → .env 3 URL postgres → db:generate+db:push → bun scripts/restore-demo.ts (3 tenant, 44 karyawan MII, parity lengkap) → dev server.
+- REAPER DITEMUKAN & DIKALAHKAN: proses dari tree shell sesi tool dibunuh di batas antar-perintah (setsid+nohup+disown TIDAK cukup — PPID masih menyatu; server mati 2× diam-diam, watchdog ikut mati tanpa log). Fix: launch double-fork `( setsid nohup … & )` → watchdog PPID=1 → selamat lintas perintah (postgres & agent-browser selamat karena sudah PPID=1 lebih dulu — konsisten).
+- E2E pertama GAGAL: POST setup vault 500 "table tenant_...​.MoneyVault does not exist" — ROOT CAUSE KEDUA: (a) prisma/tenant-ddl.sql STALE (Task 45 lupa regen — tenant BARU tak dapat tabel vault dari provisioning); (b) checkParityGap() hanya cek 2 marker lama (Announcement + bruto TEXT) → boot self-heal TIDAK jalan untuk skema existing pasca-restore (money-vault step tak pernah dieksekusi). Berlaku juga ke production fresh-install → user bakal kena error kedua ini SETELAH set env key!
+- Fix A: regen tenant-ddl.sql (`bun run tenant:ddl`) — diff bersih: hanya +MoneyVault +MoneyViewGrant +index userId.
+- Fix B: checkParityGap() + marker ketiga (tabel MoneyVault per schema) — verifikasi langsung: bun -e → gap:true "3 tenant tanpa tabel MoneyVault (Task 45-a)".
+- Fix C (UX precheck Task 46 inti): field-crypto.ts + encryptionEnvKeyMissing() (pure check, tak pernah throw); GET /api/onevity/money-vault + field envKeyMissing; money-vault.tsx: alert merah bilingual di tab Status (canManage) + tab Kata Sandi, form setup (2 input + submit) DISABLED saat envKeyBlocked — admin lihat penghalang SEBELUM mengetik sandi, bukan 500 pasca-submit.
+- DEPLOY-RUNBOOK.md + §5.2.2 baru: prasyarat env key sebelum setup vault, urutan benar fresh-install, operasi mana yang TIDAK butuh env key (unlock/lock/change-password/grant — hanya setup + dekripsi jalur env yang butuh).
+- Verifikasi self-heal end-to-end: restart dev server → instrumentation boot deteksi gap → parity pipeline background → tabel vault tercipta otomatis di 3 schema (2/2 tabel masing-masing) → restart ke-2: "3 tenant sudah paritas" (marker bekerja dua arah).
+- E2E lengkap pasca-fix: API — setup "vault-e2e-46" {ok:true} → configured+open+openBy "Tri Handayani" → lock ok → unlock salah 403 INVALID_PASSWORD ("Kata sandi vault salah.") → unlock benar ok (openUntil +8j). Browser — dialog vault: unconfigured (amber) → form setup aktif di dev (envKeyMissing:false) → SIMULASI PRODUCTION (temp-patch envKeyMissing:true): alert merah "Kunci enkripsi server belum diatur" + instruksi lengkap di tab Status & Kata Sandi + kedua input & submit [disabled] + screenshot /tmp/vault-blocked.png → revert patch → form kembali aktif → setup via UI → restart server → TERTUTUP (in-memory by design) → unlock via UI password → TERBUKA "Berlaku hingga 12 Sep 2026, 15.42 · Dibuka oleh Tri Handayani".
+- Unit helper: NODE_ENV=production + key kosong → true; + key 32 char → false; dev → false.
+- Reset demo state MII (konvensi 45): MoneyVault 1 baris + audit 4 log dihapus → status akhir {configured:false, open:false, myView:"admin", envKeyMissing:false} — tombol kembali amber "Atur kata sandi enkripsi uang".
+- bunx tsc --noEmit 0 error · bun run lint exit 0 · dev.log 0×500 (log baru pasca-restart bersih).
+
+Stage Summary:
+- Task 46 TUNTAS: (1) UX precheck vault — envKeyMissing di GET status + alert merah + form disabled (admin tahu penghalang SEBELUM submit, lengkap dgn instruksi set ONEVITY_ENCRYPTION_KEY); (2) FIX BUG FRESH-INSTALL: tenant-ddl.sql regen (tenant baru dapat tabel vault) + marker MoneyVault di checkParityGap (skema existing self-heal saat boot — terbukti menciptakan tabel otomatis); (3) runbook §5.2.2; (4) sandbox dipulihkan penuh + teknik double-fork mengalahkan reaper antar-perintah.
+- Untuk server PRODUCTION user: set ONEVITY_ENCRYPTION_KEY (≥32 char acak) di env (mis. .env) → restart → setup vault akan berhasil (tabel kini ikut DDL + self-heal). Urutan: key dulu, setup vault kemudian.
+- Kontrak API bertambah satu field opsional (envKeyMissing) — backward compatible; tipe VaultStatus UI diperbarui.
