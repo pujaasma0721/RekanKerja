@@ -867,13 +867,17 @@ async function jobPayrollReminders(db: TenantDb): Promise<{ periods: number; not
 // ---------- JOB g: refresh tahunan PTKP dari data keluarga (Task 49) ----------
 
 /**
- * Refresh PTKP TAHUNAN per 1 Januari (permintaan pemilik produk; UU PPh
- * Pasal 7 — status PTKP diperbarui tiap awal tahun pajak):
+ * Refresh PTKP TAHUNAN per 1 Januari (Task 49 + kebijakan snapshot Task 50;
+ * UU PPh Pasal 7 — status PTKP diperbarui tiap awal tahun pajak):
  *   1. marker ActivityLog per tahun (action "Scheduled", entity "PtkpSync",
  *      entityId "annual-<tahun>") — bila sudah ada → skip sisa tahun;
  *   2. syncAllPtkpAuto(db) — recompute SELURUH profil bersumber "auto" dari
  *      data keluarga terkini (profil "manual" termasuk K/I tidak disentuh);
  *   3. tulis marker + ActivityLog ringkasan hasil.
+ * Kebijakan Task 50: PTKP efektif = SNAPSHOT hasil refresh ini — perubahan
+ * keluarga (tambah/hapus pasangan/tanggungan) DI TENGAH TAHUN tidak
+ * mengubah PTKP payroll; akumulasi perubahan tersebut diterapkan pada
+ * siklus refresh pertama setelah 1 Januari tahun berikutnya (job ini).
  * Job dipagari advisory lock "ptkp-tahunan" per schema (guarded) — race
  * antar-proses aman; jendela mikrodetik antara cek-marker dan tulis-marker
  * hanya menyebabkan sync idempoten berjalan ganda (tanpa efek samping).
@@ -896,7 +900,7 @@ async function jobAnnualPtkpRefresh(db: TenantDb): Promise<number> {
     action: "Scheduled",
     entity: "PtkpSync",
     entityId: markerId,
-    detail: `Refresh PTKP tahunan ${year} dari data keluarga — ${r.employees} profil auto diperiksa, ${r.changed} berubah status`,
+    detail: `Refresh PTKP tahunan ${year} dari data keluarga — ${r.employees} profil auto diperiksa, ${r.changed} berubah status (perubahan keluarga tahun sebelumnya kini berlaku; perubahan tahun berjalan menunggu refresh 1 Jan ${year + 1})`,
   });
   return r.employees;
 }
@@ -1022,9 +1026,11 @@ export async function runAllJobs(
   await guarded("housekeeping", async () => {
     jobs.notificationsPruned = await jobNotificationHousekeeping(db);
   });
-  // T49: refresh tahunan PTKP dari data keluarga — berjalan pada siklus
+  // T49/T50: refresh tahunan PTKP dari data keluarga — berjalan pada siklus
   // pertama setelah 1 Januari (marker ActivityLog per tahun pajak), lalu
-  // dilewati sisa tahun (idempoten lintas restart/proses).
+  // dilewati sisa tahun (idempoten lintas restart/proses). Inilah SATU-SATUNYA
+  // jalur otomatis yang mengubah PTKP efektif (snapshot tahunan) — mutasi
+  // keluarga tengah tahun hanya menunggu refresh tahun berikutnya.
   await guarded("ptkp-tahunan", async () => {
     jobs.ptkpYearlySynced = await jobAnnualPtkpRefresh(db);
   });

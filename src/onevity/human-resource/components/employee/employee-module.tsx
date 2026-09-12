@@ -424,7 +424,21 @@ function EmployeeDetail() {
               title: f.name,
               subtitle: `${f.relation} · ${f.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")}${f.birthDate ? ` · ${fmtDate(f.birthDate)}` : ""}`,
               right: [f.occupation ?? "", f.isDependent ? t("Dependen", "Dependent") : t("Non-dependen", "Non-dependent")].filter(Boolean).join(" · ") || "—",
-              onDelete: async () => { await apiSend(`/api/onevity/family?id=${f.id}`, "DELETE"); toast.success(t("Anggota keluarga dihapus", "Family member deleted")); refresh(); },
+              onDelete: async () => {
+                // Task 50: hapus keluarga TIDAK mengubah PTKP efektif — saran
+                // baru berlaku 1 Jan tahun depan (ptkpPending, tanpa tulis DB).
+                const r = (await apiSend(`/api/onevity/family?id=${f.id}`, "DELETE")) as { ptkpPending?: { current: string; next: string; nextYear: number } | null };
+                if (r?.ptkpPending && r.ptkpPending.next !== r.ptkpPending.current) {
+                  toast.success(t(
+                    "Anggota keluarga dihapus — PTKP akan menjadi {s} pada 1 Jan {y} (perubahan berlaku tahun depan)",
+                    "Family member deleted — PTKP will become {s} on Jan 1, {y} (change takes effect next year)",
+                    { s: r.ptkpPending.next, y: r.ptkpPending.nextYear },
+                  ));
+                } else {
+                  toast.success(t("Anggota keluarga dihapus", "Family member deleted"));
+                }
+                refresh();
+              },
             }))}
             renderAdd={(close) => <AddFamilyDialog employeeId={e.id} onSaved={() => { close(); refresh(); }} />}
           />
@@ -772,11 +786,16 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
     if (!name.trim()) { toast.error(t("Nama wajib diisi", "Name is required")); return; }
     setBusy(true);
     try {
-      // Task 49: respons membawa ptkpSync bila profil PTKP karyawan bersumber
-      // "auto" dan statusnya berubah mengikuti data keluarga.
-      const r = (await apiSend("/api/onevity/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null })) as { ptkpSync?: { changed: boolean; from: string; to: string } | null };
-      if (r?.ptkpSync?.changed) {
-        toast.success(t("Anggota keluarga ditambahkan — status PTKP {from} → {to} (otomatis dari keluarga)", "Family member added — PTKP status {from} → {to} (auto from family)", { from: r.ptkpSync.from, to: r.ptkpSync.to }));
+      // Task 50: respons membawa ptkpPending (profil bersumber "auto") —
+      // saran dari data keluarga BARU, TANPA menulis PTKP efektif: perubahan
+      // berlaku pada refresh 1 Januari tahun berikutnya.
+      const r = (await apiSend("/api/onevity/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null })) as { ptkpPending?: { current: string; next: string; nextYear: number } | null };
+      if (r?.ptkpPending && r.ptkpPending.next !== r.ptkpPending.current) {
+        toast.success(t(
+          "Anggota keluarga ditambahkan — PTKP akan menjadi {s} pada 1 Jan {y} (perubahan berlaku tahun depan)",
+          "Family member added — PTKP will become {s} on Jan 1, {y} (change takes effect next year)",
+          { s: r.ptkpPending.next, y: r.ptkpPending.nextYear },
+        ));
       } else {
         toast.success(t("Anggota keluarga ditambahkan", "Family member added"));
       }

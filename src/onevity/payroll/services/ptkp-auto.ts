@@ -19,18 +19,21 @@
 //   · K/I (kawin, penghasilan pasangan digabung — huruf c, +Rp 54jt utk
 //     pasangan) TIDAK dapat diturunkan otomatis: bergantung pilihan
 //     penggabungan penghasilan pasangan → profil K/I tetap "manual".
-//   · UU PPh Pasal 7 ayat (2): perubahan status kawin/tanggungan berlaku
-//     untuk pemotongan bulanan sejak bulan BERIKUTNYA setelah perubahan.
-//     Sinkronisasi di HRIS memperbarui profil segera saat data keluarga
-//     berubah; pemotongan pajak memakai status profil saat payroll run
-//     berjalan (admin menjaga cut-off data).
-//   · REFRESH TAHUNAN (permintaan pemilik produk): seluruh profil "auto"
-//     dihitung ulang setiap awal tahun pajak (1 Januari) oleh job
-//     scheduler "ptkp-tahunan" (marker ActivityLog per tahun).
+//   · KEBIJAKAN SNAPSHOT TAHUNAN (Task 50, keputusan pemilik produk):
+//     PTKP yang BERLAKU di payroll = hasil refresh tahunan (snapshot).
+//     Penambahan/pengurangan pasangan atau tanggungan DI TENGAH TAHUN
+//     TIDAK mengubah PTKP efektif — perubahan tersebut hanya diterapkan
+//     pada refresh 1 Januari TAHUN BERIKUTNYA. Mutasi data keluarga
+//     (family CRUD) karenanya TIDAK menulis taxStatus; ia hanya memperbarui
+//     *saran* (dihitung on-the-fly saat GET). PTKP efektif hanya berubah
+//     lewat: (1) refresh tahunan scheduler, (2) koreksi eksplisit admin
+//     (tombol sinkron massal / PATCH manual), atau (3) pengisian awal saat
+//     profil dibuat/diaktifkan ke mode "auto".
 //
-// SUMBER: profile.ptkpSource — "auto" (turunan data keluarga; disinkronkan
-// saat family CRUD + refresh 1 Januari + sinkronisasi manual admin) atau
-// "manual" (ditetapkan admin; tidak pernah disentuh sinkronisasi).
+// SUMBER: profile.ptkpSource — "auto" (snapshot data keluarga saat refresh
+// 1 Januari / aktivasi; saran keluarga dihitung ulang tiap GET untuk
+// pratinjau tahun berikutnya) atau "manual" (ditetapkan admin; tidak
+// pernah disentuh sinkronisasi).
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 
 /** Bentuk minimal record EmployeeFamily yang dipakai derivasi. */
@@ -87,50 +90,42 @@ export interface PtkpSyncResult {
   to: string;
 }
 
+/** Info perubahan PTKP TERTUNDA untuk satu karyawan (Task 50).
+ *  Dihitung TANPA menulis DB — dipakai respons family API agar UI
+ *  memberi tahu "berlaku 1 Jan tahun depan" saat keluarga berubah. */
+export interface PtkpPendingInfo {
+  source: "auto"; // hanya profil bersumber auto yang punya saran tertunda
+  current: string; // PTKP efektif saat ini (snapshot — dipakai payroll)
+  next: string; // saran data keluarga terkini (berlaku 1 Jan tahun depan)
+  dependents: number; // tanggungan hasil derivasi (0..3)
+  nextYear: number; // tahun pajak berikutnya (refresh 1 Jan)
+}
+
 /**
- * Sinkronkan SATU karyawan (profil bersumber "auto" saja): hitung ulang
- * taxStatus + dependents dari data keluarga terkini, tulis bila berubah
- * (+ ActivityLog jejak audit). Profil "manual" / belum ada → null (tidak
- * disentuh). Kembalikan hasil untuk respons API / toast UI.
+ * Hitung saran PTKP tertunda satu karyawan TANPA menulis DB (Task 50:
+ * mutasi keluarga tidak mengubah PTKP efektif — perubahan berlaku pada
+ * refresh 1 Januari tahun berikutnya). Profil "manual" / belum ada → null
+ * (tidak ada saran tertunda). `next === current` berarti tidak ada
+ * perubahan yang menunggu tahun depan.
  */
-export async function syncEmployeePtkpAuto(
+export async function ptkpPendingForEmployee(
   db: TenantDb,
   employeeId: string,
-): Promise<PtkpSyncResult | null> {
-  const profile = await db.employeePayrollProfile.findUnique({ where: { employeeId } });
+): Promise<PtkpPendingInfo | null> {
+  const profile = await db.employeePayrollProfile.findUnique({
+    where: { employeeId },
+  });
   if (!profile || profile.ptkpSource !== "auto") return null;
 
   const suggestion = await suggestPtkpForEmployee(db, employeeId);
   if (!suggestion) return null;
 
-  const changed =
-    profile.taxStatus !== suggestion.taxStatus || profile.dependents !== suggestion.dependents;
-  if (changed) {
-    await db.employeePayrollProfile.update({
-      where: { employeeId },
-      data: { taxStatus: suggestion.taxStatus, dependents: suggestion.dependents },
-    });
-    await db.activityLog.create({
-      data: {
-        actorType: "system",
-        action: "Updated",
-        entity: "EmployeePayrollProfile",
-        entityId: profile.id,
-        employeeId,
-        detail: `PTKP otomatis dari data keluarga: ${profile.taxStatus} → ${suggestion.taxStatus} (pasangan: ${suggestion.spouse ? "ya" : "tidak"}, tanggungan: ${suggestion.tanggungan})`,
-      },
-    });
-  }
-  const emp = await db.employee.findUnique({
-    where: { id: employeeId },
-    select: { fullName: true },
-  });
   return {
-    employeeId,
-    employeeName: emp?.fullName ?? employeeId,
-    changed,
-    from: profile.taxStatus,
-    to: suggestion.taxStatus,
+    source: "auto",
+    current: profile.taxStatus,
+    next: suggestion.taxStatus,
+    dependents: suggestion.dependents,
+    nextYear: new Date().getFullYear() + 1,
   };
 }
 
@@ -140,8 +135,9 @@ export interface PtkpBulkResult {
   changes: PtkpSyncResult[]; // hanya yang berubah
 }
 
-/** Sinkronkan SEMUA profil "auto" karyawan aktif (dipakai refresh tahunan
- *  + tombol sinkron admin). Membaca ulang data keluarga terkini. */
+/** Sinkronkan SEMUA profil "auto" karyawan aktif — dipakai refresh tahunan
+ * 1 Januari (scheduler) + koreksi eksplisit admin. Membaca ulang data
+ * keluarga terkini dan menulis PTKP efektif baru (snapshot tahun ini). */
 export async function syncAllPtkpAuto(db: TenantDb): Promise<PtkpBulkResult> {
   const employees = await db.employee.findMany({
     where: { status: "Active" },

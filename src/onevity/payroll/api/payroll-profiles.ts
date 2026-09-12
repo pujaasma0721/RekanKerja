@@ -85,6 +85,10 @@ export async function GET(req: NextRequest) {
 // Task 49: body.ptkpSource "auto" → taxStatus/dependents diturunkan dari data
 // keluarga (payload taxStatus diabaikan); "manual"/tidak dikirim + taxStatus
 // eksplisit → manual (override admin menang, sumber dialihkan otomatis).
+// Task 50: profil yang SUDAH "auto" = SNAPSHOT hasil refresh tahunan —
+// taxStatus DIPERTAHANKAN saat PATCH (perubahan keluarga berlaku 1 Jan
+// tahun berikutnya, bukan saat dialog disimpan). Derivasi keluarga hanya
+// dilakukan untuk pengisian awal: profil baru atau aktivasi manual→auto.
 export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "payroll:profiles", "update");
@@ -110,8 +114,14 @@ export async function PATCH(req: NextRequest) {
     const ptkpSource =
       b.ptkpSource != null ? b.ptkpSource : taxStatus ? "manual" : undefined;
 
+    const existing = await db.employeePayrollProfile.findUnique({ where: { employeeId: b.employeeId } });
+
+    // Task 50: pengisian awal hanya bila profil BARU atau aktivasi manual→auto.
+    // Profil yang sudah "auto" → snapshot refresh tahunan, dipertahankan.
+    const initialAutoFill = wantAuto && existing?.ptkpSource !== "auto";
+
     let derived: { taxStatus: string; dependents: number } | null = null;
-    if (wantAuto) {
+    if (initialAutoFill) {
       const emp = await db.employee.findUnique({
         where: { id: b.employeeId },
         select: { maritalStatus: true, family: { select: { relation: true, isDependent: true } } },
@@ -129,27 +139,37 @@ export async function PATCH(req: NextRequest) {
       processMethod: b.processMethod,
       paymentFrequency: b.paymentFrequency,
       wageTemplateId: b.wageTemplateId === "" ? null : b.wageTemplateId,
-      // Task 49: auto → nilai derivasi keluarga; manual → payload admin.
-      taxStatus: wantAuto ? derived!.taxStatus : taxStatus,
-      dependents: wantAuto
+      // Task 49/50: pengisian awal auto → derivasi keluarga; profil yang
+      // sudah auto → snapshot dipertahankan (perubahan keluarga berlaku
+      // 1 Jan tahun berikutnya); manual → payload admin.
+      taxStatus: initialAutoFill
+        ? derived!.taxStatus
+        : wantAuto
+          ? existing!.taxStatus
+          : taxStatus,
+      dependents: initialAutoFill
         ? derived!.dependents
-        : b.dependents != null
-          ? Math.max(0, Math.min(3, Number(b.dependents)))
-          : undefined,
+        : wantAuto
+          ? existing!.dependents
+          : b.dependents != null
+            ? Math.max(0, Math.min(3, Number(b.dependents)))
+            : undefined,
       ptkpSource,
       bankName: b.bankName,
       bankAccount: b.bankAccount != null ? tcW.encryptText(String(b.bankAccount)) : undefined,
     };
 
-    const existing = await db.employeePayrollProfile.findUnique({ where: { employeeId: b.employeeId } });
     const profile = existing
       ? await db.employeePayrollProfile.update({ where: { employeeId: b.employeeId }, data, include: { wageTemplate: true } })
       : await db.employeePayrollProfile.create({ data: { ...data, employeeId: b.employeeId }, include: { wageTemplate: true } });
 
-    // Task 49: jejak audit — sumber PTKP + perubahan status bila relevan.
+    // Task 49/50: jejak audit — sumber PTKP + snapshot vs pengisian awal.
+    const nextYear = new Date().getFullYear() + 1;
     const ptkpNote =
       profile.ptkpSource === "auto"
-        ? `PTKP ${profile.taxStatus} (otomatis dari data keluarga)`
+        ? initialAutoFill
+          ? `PTKP ${profile.taxStatus} (pengisian awal otomatis dari data keluarga)`
+          : `PTKP ${profile.taxStatus} (snapshot refresh tahunan — perubahan keluarga berlaku 1 Jan ${nextYear})`
         : `PTKP ${profile.taxStatus} (manual)`;
     await db.activityLog.create({
       data: { action: "Updated", entity: "EmployeePayrollProfile", entityId: profile.id, employeeId: b.employeeId, detail: `Data payroll karyawan diperbarui (${ptkpNote}, ${profile.processMethod})` },

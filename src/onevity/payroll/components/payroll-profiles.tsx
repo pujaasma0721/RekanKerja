@@ -2,6 +2,9 @@
 // OneVity Payroll — Data Gaji Karyawan: NPWP, PTKP, metode proses, template upah per karyawan
 // Task 49: PTKP bisa "auto" — diturunkan dari data keluarga (pasangan → K,
 // tanggungan Child/Parent maks 3) + sinkronisasi massal + refresh tahunan 1 Jan.
+// Task 50: PTKP efektif = SNAPSHOT hasil refresh tahunan — perubahan keluarga
+// tengah tahun (tambah/hapus dependen) TIDAK mengubah payroll; hanya berlaku
+// pada refresh 1 Januari tahun berikutnya (hint "→ {s} pada 1 Jan {yr+1}").
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/onevity/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -77,7 +80,11 @@ export function PayrollProfilesPage() {
                 <TableBody>
                   {rows.map((r) => {
                     const auto = r.profile?.ptkpSource === "auto";
+                    // T50: auto + beda saran → perubahan TERTUNDA (berlaku 1 Jan
+                    // tahun depan) — bukan perubahan hari ini.
+                    const pending = auto && !!r.profile && r.ptkpSuggestion.taxStatus !== r.profile!.taxStatus;
                     const mismatch = !auto && r.profile && r.ptkpSuggestion.taxStatus !== r.profile.taxStatus;
+                    const nextYear = new Date().getFullYear() + 1;
                     return (
                       <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                         <TableCell>
@@ -114,6 +121,11 @@ export function PayrollProfilesPage() {
                             {mismatch && (
                               <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
                                 {t("Saran keluarga: {s}", "Family suggests: {s}", { s: r.ptkpSuggestion.taxStatus })}
+                              </span>
+                            )}
+                            {pending && (
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                {t("→ {s} pada 1 Jan {y}", "→ {s} on Jan 1, {y}", { s: r.ptkpSuggestion.taxStatus, y: nextYear })}
                               </span>
                             )}
                           </div>
@@ -181,8 +193,8 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
     try {
       const r = (await apiSend("/api/onevity/payroll-profiles", "POST", { action: "sync-ptkp", dryRun: false })) as PtkpSyncResponse;
       toast.success(t(
-        "PTKP disinkronkan — {changed} dari {total} karyawan mengikuti data keluarga",
-        "PTKP synced — {changed} of {total} employees now follow family data",
+        "PTKP disinkronkan (koreksi admin) — {changed} dari {total} karyawan mengikuti data keluarga terkini",
+        "PTKP synced (admin correction) — {changed} of {total} employees now follow current family data",
         { changed: r.changed, total: r.employees },
       ));
       onClose();
@@ -242,8 +254,8 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
               <Info className="mt-0.5 h-3 w-3 shrink-0" />
               <p>
                 {t(
-                  "Sumber otomatis menghitung PTKP dari data keluarga (relasi Pasangan → menikah; anak/ortu tanggungan maks 3). Perubahan data keluarga langsung memperbarui PTKP; pemotongan bulanan berlaku mulai bulan berikutnya (UU PPh Ps. 7). Seluruh profil auto di-refresh ulang setiap 1 Januari.",
-                  "Automatic source derives PTKP from family data (Spouse relation → married; dependent children/parents max 3). Family data changes update PTKP immediately; monthly withholding applies from the following month (Income Tax Art. 7). All automatic profiles refresh every January 1st.",
+                  "Sumber otomatis menghitung PTKP dari data keluarga (relasi Pasangan → menikah; anak/ortu tanggungan maks 3). Perubahan data keluarga TIDAK langsung mengubah PTKP payroll — PTKP efektif adalah snapshot hasil refresh 1 Januari; penambahan/pengurangan dependen di tengah tahun berlaku tahun berikutnya. Tombol ini menerapkan sinkronisasi segera sebagai koreksi manual admin (mis. data keluarga baru saja dikoreksi).",
+                  "Automatic source derives PTKP from family data (Spouse relation → married; dependent children/parents max 3). Family data changes do NOT immediately change payroll PTKP — the effective PTKP is a snapshot refreshed every January 1st; mid-year dependent additions/reductions take effect the following year. This button applies the sync immediately as an admin correction (e.g. family data was just fixed).",
                 )}
               </p>
             </div>
@@ -313,8 +325,15 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
   if (!row) return null;
   const selectedPtkp = TAX_STATUS_OPTIONS.find((o) => o.value === taxStatus);
   const suggestion = row.ptkpSuggestion;
-  const suggestedPtkp = TAX_STATUS_OPTIONS.find((o) => o.value === suggestion.taxStatus);
   const isKi = /^KI[0-3]$/.test(taxStatus);
+  // T50: PTKP efektif yang ditampilkan = snapshot (profil sudah auto) atau
+  // saran (aktivasi manual→auto — server mengisi awal saat disimpan).
+  const alreadyAuto = row.profile?.ptkpSource === "auto";
+  const frozenStatus = alreadyAuto ? (row.profile?.taxStatus ?? taxStatus) : suggestion.taxStatus;
+  const frozenPtkp = TAX_STATUS_OPTIONS.find((o) => o.value === frozenStatus);
+  const curYear = new Date().getFullYear();
+  const nextYear = curYear + 1;
+  const pending = alreadyAuto && frozenStatus !== suggestion.taxStatus;
 
   return (
     <Dialog open={!!row} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -351,7 +370,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
                 aria-pressed={ptkpSource === "auto"}
               >
                 <p className="flex items-center gap-1 text-[11px] font-bold"><Users className="h-3 w-3" /> {t("Otomatis dari keluarga", "Automatic from family")}</p>
-                <p className="mt-0.5 text-[10px] leading-snug text-stone-500 dark:text-stone-400">{t("Mengikuti data keluarga + refresh 1 Januari", "Follows family data + refresh every Jan 1")}</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-stone-500 dark:text-stone-400">{t("Snapshot data keluarga — refresh otomatis 1 Januari", "Family data snapshot — auto-refreshed every Jan 1")}</p>
               </button>
               <button
                 type="button"
@@ -372,26 +391,37 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
           {ptkpSource === "auto" ? (
             <div className="grid gap-2">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{t("Dihitung dari data keluarga", "Derived from family data")}</p>
-                <p className="mt-1 text-xs">
-                  {t("Pasangan: {spouse} · Tanggungan: {n}", "Spouse: {spouse} · Dependents: {n}", {
-                    spouse: suggestion.spouse ? t("ada", "yes") : t("tidak ada", "none"),
-                    n: `${suggestion.dependents}${suggestion.tanggungan > 3 ? ` (${t("dibatasi 3", "capped at 3")})` : ""}`,
-                  })}
+                <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{t("PTKP efektif — dipakai payroll tahun ini", "Effective PTKP — used by this year's payroll")}</p>
+                <p className="mt-1 text-[13px] font-bold ov-text-accent">
+                  {t("Status: {s}", "Status: {s}", { s: frozenStatus })} — {fmtIDR(frozenPtkp?.ptkp ?? 0)}/{t("thn", "yr")}
                 </p>
-                <p className="mt-1.5 text-[13px] font-bold ov-text-accent">
-                  {t("Status: {s}", "Status: {s}", { s: suggestion.taxStatus })} — {fmtIDR(suggestedPtkp?.ptkp ?? 0)}/{t("thn", "yr")}
-                </p>
+                {pending ? (
+                  <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                    {t(
+                      "Data keluarga terkini: pasangan {spouse}, tanggungan {n} → {s} — berlaku 1 Jan {y} (perubahan tengah tahun menunggu refresh tahunan).",
+                      "Current family data: spouse {spouse}, dependents {n} → {s} — effective Jan 1, {y} (mid-year changes wait for the annual refresh).",
+                      { spouse: suggestion.spouse ? t("ada", "yes") : t("tidak ada", "none"), n: suggestion.dependents, s: suggestion.taxStatus, y: nextYear },
+                    )}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[10px] leading-snug text-emerald-700/80 dark:text-emerald-400/80">
+                    {t(
+                      "Sesuai data keluarga (pasangan {spouse}, tanggungan {n}) — tidak ada perubahan tertunda.",
+                      "Matches family data (spouse {spouse}, dependents {n}) — no pending changes.",
+                      { spouse: suggestion.spouse ? t("ada", "yes") : t("tidak ada", "none"), n: suggestion.dependents },
+                    )}
+                  </p>
+                )}
                 <p className="mt-1 text-[10px] text-stone-500 dark:text-stone-400">
-                  {t("Berubah otomatis saat data keluarga diperbarui; refresh ulang setiap 1 Januari.", "Updates automatically when family data changes; refreshed every January 1st.")}
+                  {t("Snapshot hasil refresh 1 Januari — penambahan/pengurangan dependen di tengah tahun berlaku tahun berikutnya.", "Snapshot from the January 1st refresh — mid-year dependent additions/reductions take effect next year.")}
                 </p>
               </div>
               <div>
-                <Label className="text-xs">{t("Status PTKP (dari keluarga)", "PTKP Status (from family)")}</Label>
-                <Select value={suggestion.taxStatus} disabled>
+                <Label className="text-xs">{t("Status PTKP efektif", "Effective PTKP Status")}</Label>
+                <Select value={frozenStatus} disabled>
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={suggestion.taxStatus}>{suggestion.taxStatus} — {fmtIDR(suggestedPtkp?.ptkp ?? 0)}/{t("thn", "yr")}</SelectItem>
+                    <SelectItem value={frozenStatus}>{frozenStatus} — {fmtIDR(frozenPtkp?.ptkp ?? 0)}/{t("thn", "yr")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

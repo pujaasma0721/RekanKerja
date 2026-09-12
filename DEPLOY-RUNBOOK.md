@@ -236,16 +236,17 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - Lupa kata sandi: data tetap terbaca server (dekripsi transparan) — hanya status open yang tidak bisa dibuka; hubungi ops dengan akses DB (baris berisi `dataKey`) untuk reset manual (`scripts/migrate-rekey-vault.ts <schema> <sandi-baru>`).
 - Skrip ops: `scripts/reset-vault-demo.ts <schema>` mengembalikan schema demo ke pra-vault (v2 → v1 + hapus baris) — **restart server setelahnya** (cache kunci in-memory).
 
-### 5.2.3 PTKP otomatis dari data keluarga (Task 49)
+### 5.2.3 PTKP otomatis dari data keluarga (Task 49 + 50)
 
 **Status PTKP** (`EmployeePayrollProfile.taxStatus` — TK0..KI3) kini bisa diturunkan otomatis dari **data keluarga karyawan** (`EmployeeFamily`):
 
-- **Kolom baru** `ptkpSource`: `auto` (mengikuti data keluarga) atau `manual` (ditetapkan admin). Default `manual` → **upgrade tidak mengubah payroll yang sudah jalan**; admin mengaktifkan via UI "Data Gaji Karyawan" (per karyawan: pilihan sumber; massal: tombol **Sinkronkan PTKP dari Keluarga** dengan pratinjau perubahan sebelum diterapkan).
+- **Kolom baru** `ptkpSource`: `auto` (snapshot data keluarga) atau `manual` (ditetapkan admin). Default `manual` → **upgrade tidak mengubah payroll yang sudah jalan**; admin mengaktifkan via UI "Data Gaji Karyawan" (per karyawan: pilihan sumber; massal: tombol **Sinkronkan PTKP dari Keluarga** dengan pratinjau perubahan sebelum diterapkan).
 - **Aturan derivasi (UU PPh Ps. 7 + PMK 168/2023)**: ada relasi `Spouse` (atau `maritalStatus` = Menikah) → menikah (K); tanggungan = relasi `Child`/`Parent` dengan `isDependent=true`, maks 3 (garis keturunan lurus — `Sibling` tidak dihitung). Hasil: `TK/0..3` atau `K/0..3`.
 - **K/I TIDAK otomatis**: penggabungan penghasilan pasangan adalah pilihan pemotongan — tidak terdapat di data keluarga → profil `KI*` selalu `manual`; tombol sinkron massal sengaja membiarkannya.
-- **Pemicu sinkronisasi**: (1) data keluarga berubah (tambah/hapus anggota — hook API `family`); (2) **refresh tahunan otomatis tiap 1 Januari** (job scheduler `ptkp-tahunan`, marker `ActivityLog` entity `PtkpSync` per tahun — idempoten); (3) admin (PATCH/sinkron massal). Perubahan bulanan berlaku mulai bulan berikutnya (UU PPh Ps. 7 ayat 2) — admin menjaga cut-off data.
-- **Audit**: setiap perubahan status otomatis menulis `ActivityLog` ("PTKP otomatis dari data keluarga: TK0 → K1 (…)"), entity `EmployeePayrollProfile`.
-- API: `GET /api/onevity/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource`.
+- **KEBIJAKAN SNAPSHOT TAHUNAN (Task 50 — keputusan pemilik produk)**: PTKP yang **berlaku di payroll** = snapshot hasil **refresh tahunan 1 Januari** (job scheduler `ptkp-tahunan`, marker `ActivityLog` entity `PtkpSync` `annual-<tahun>` — idempoten lintas restart). Penambahan/pengurangan pasangan/tanggungan **di tengah tahun TIDAK mengubah PTKP efektif** — mutasi data keluarga hanya memperbarui *saran* (dihitung on-the-fly saat GET, tanpa tulis DB; respons API `family` mengembalikan `ptkpPending` `{current,next,dependents,nextYear}`) dan hanya diterapkan pada **refresh 1 Januari tahun berikutnya**. UI menandainya: hint amber "→ K3 pada 1 Jan 2027" di tabel, kartu tertunda di dialog edit, toast "PTKP akan menjadi … pada 1 Jan …" saat mutasi keluarga.
+- **PTKP efektif hanya berubah lewat**: (1) refresh tahunan 1 Januari (otomatis); (2) koreksi eksplisit admin — sinkron massal atau PATCH manual; (3) **pengisian awal** saat profil baru dibuat / dialihkan `manual`→`auto` (PATCH profil yang SUDAH `auto` mempertahankan snapshot — payload `taxStatus` diabaikan).
+- **Audit**: setiap perubahan status otomatis menulis `ActivityLog` ("PTKP otomatis dari data keluarga: TK0 → K1 (…)"), entity `EmployeePayrollProfile`; marker tahunan mencatat ringkasan + catatan kebijakan tahun berikutnya.
+- API: `GET /api/onevity/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource` (freeze bila profil sudah auto); API `family` POST/DELETE mengembalikan `ptkpPending` tanpa menulis.
 
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 
