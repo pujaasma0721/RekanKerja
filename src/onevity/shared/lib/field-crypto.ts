@@ -221,6 +221,12 @@ export interface FieldCrypto {
    * berubah. Date/number/boolean/null tidak tersentuh.
    */
   decryptJson<T>(value: T): T;
+  /**
+   * Uji kenormalan nilai tersimpan TANPA melempar error: diteruskan bila
+   * plaintext angka finite (atau legacy numerik / null). Dipakai migrasi
+   * diagnostik (migrate-fix-nan-money) utk menemukan baris uang NaN lama.
+   */
+  isMoneySane(stored: string | null | undefined): boolean;
 }
 
 /** Konteks crypto untuk satu schema tenant (di-cache per schema per proses). */
@@ -313,7 +319,9 @@ export function decryptMoneyWithKey(stored: string | null | undefined, key: Buff
   }
   const n = parseFloat(value);
   if (!Number.isFinite(n)) {
-    throw new Error(`[field-crypto] nilai uang terenkripsi bukan angka: ${value}`);
+    // Nilai NaN/+/-Infinity lama (bug encryptMoney pra-fix) → baca 0 (lihat decryptMoney).
+    console.warn(`[field-crypto] nilai uang terenkripsi non-finite ("${value}") — dibaca sebagai 0 (jalankan migrate-fix-nan-money utk perbaiki nilai tersimpan)`);
+    return 0;
   }
   return n;
 }
@@ -402,7 +410,11 @@ function makeContext(schema: string): FieldCrypto {
     },
     encryptMoney(n) {
       if (n == null) return null;
-      return encrypt("n", String(n));
+      // Guard NaN/Infinity: String(NaN)="NaN" tersimpan terenkripsi lalu THROW
+      // selamanya saat dibaca (decryptMoney/decryptJson menolak non-finite).
+      // Uang non-finite bukan nilai sah → simpan 0 (consistent dgn fallback "0").
+      const num = typeof n === "number" && !Number.isFinite(n) ? 0 : n;
+      return encrypt("n", String(num));
     },
     decryptMoney(stored) {
       if (stored == null) return null;
@@ -416,7 +428,11 @@ function makeContext(schema: string): FieldCrypto {
       }
       const n = parseFloat(value);
       if (!Number.isFinite(n)) {
-        throw new Error(`[field-crypto:${schema}] nilai uang terenkripsi bukan angka: ${value}`);
+        // Nilai NaN/+/-Infinity lama (bug encryptMoney pra-fix) → jangan blokir
+        // pembacaan seluruh tenant; baca 0 + log agar migrasi repair
+        // (scripts/migrate-fix-nan-money.ts) dapat menulis ulang nilai tersimpan.
+        console.warn(`[field-crypto:${schema}] nilai uang terenkripsi non-finite ("${value}") — dibaca sebagai 0 (jalankan migrate-fix-nan-money utk perbaiki nilai tersimpan)`);
+        return 0;
       }
       return n;
     },
@@ -440,7 +456,10 @@ function makeContext(schema: string): FieldCrypto {
           if (kind === "n") {
             const n = parseFloat(pt);
             if (!Number.isFinite(n)) {
-              throw new Error(`[field-crypto:${schema}] nilai uang terenkripsi bukan angka: ${pt}`);
+              // Nilai NaN/+/-Infinity lama (bug encryptMoney pra-fix) → baca 0
+              // (jangan blokir pembacaan seluruh payload; lihat decryptMoney).
+              console.warn(`[field-crypto:${schema}] nilai uang terenkripsi non-finite ("${pt}") — dibaca sebagai 0 (jalankan migrate-fix-nan-money utk perbaiki nilai tersimpan)`);
+              return 0;
             }
             return n;
           }
@@ -457,6 +476,20 @@ function makeContext(schema: string): FieldCrypto {
         return v;
       };
       return walk(value) as T;
+    },
+    isMoneySane(stored) {
+      if (stored == null) return true; // null/undefined sah
+      if (!isEncrypted(stored)) {
+        const legacy = parseFloat(stored);
+        return Number.isFinite(legacy); // plaintext legacy numerik sah, lainnya tidak
+      }
+      try {
+        const { kind, value } = decrypt(stored);
+        if (kind !== "n") return false; // uang berisi teks terenkripsi = tidak normal
+        return Number.isFinite(parseFloat(value));
+      } catch {
+        return false; // dekripsi gagal (malformat/kunci salah) = tidak normal
+      }
     },
   };
   return ctx;
