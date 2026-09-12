@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import {
   startApprovalChain, decideApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary,
 } from "@/onevity/shared/services/approval-engine";
@@ -35,7 +36,10 @@ export async function GET(req: NextRequest) {
       orderBy: { loanDate: "desc" },
     });
     const chainMap = await attachChainSummaries(db, "Loan", loans.map((l) => ({ id: l.id })));
-    return NextResponse.json({
+    // M-8: kolom uang loan/cicilan (amount/installmentAmount/paidAmount/
+    // outstanding + LoanInstallment.amount) tersimpan TERENKRIPSI — dekripsi
+    // di batas serializer (decryptJson) supaya bentuk JSON tetap ANGKA.
+    return NextResponse.json(tenantCryptoForDb(db).decryptJson({
       loans: loans.map((l) => ({
         id: l.id, employeeId: l.employeeId, letterNo: l.letterNo, loanDate: l.loanDate,
         amount: l.amount, installmentCount: l.installmentCount, installmentAmount: l.installmentAmount,
@@ -46,7 +50,7 @@ export async function GET(req: NextRequest) {
         installments: l.installments,
         approval: chainMap.get(l.id) ?? null,
       })),
-    });
+    }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -81,20 +85,24 @@ export async function POST(req: NextRequest) {
     const per = Math.round(totalDue / months);
 
     // status Submitted — menunggu seluruh jenjang approval; cicilan dibuat saat approved.
+    // M-8: kolom uang pinjaman NOT NULL (String) — encryptMoney non-null
+    // (null → 0 terenkripsi; fallback "0" legacy tak pernah terpakai).
+    const tcW = tenantCryptoForDb(db);
+    const encL = (n: number | null | undefined): string => tcW.encryptMoney(n ?? 0) ?? "0";
     const loan = await db.employeeLoan.create({
       data: {
         employeeId: b.employeeId,
         letterNo: b.letterNo,
         loanDate: b.loanDate ? new Date(b.loanDate) : new Date(),
-        amount,
+        amount: encL(amount),
         installmentCount,
-        installmentAmount: per,
+        installmentAmount: encL(per),
         interestRate,
         startPaymentDate: startPayment,
         purpose: b.purpose ?? null,
         status: "Submitted",
-        paidAmount: 0,
-        outstanding: totalDue,
+        paidAmount: encL(0),
+        outstanding: encL(totalDue),
         wageComponentCode: "LOAN",
       },
     });
@@ -133,7 +141,11 @@ export async function POST(req: NextRequest) {
       } catch { /* webhook tidak boleh mengganggu proses utama */ }
     })();
 
-    return NextResponse.json({ loan, approval: { levels: chain.totalLevels, firstApprover: chain.steps[0]?.approverLabel ?? null } }, { status: 201 });
+    return NextResponse.json(
+      // M-8: respons di-dekripsi di batas serializer (angka utk frontend).
+      tenantCryptoForDb(db).decryptJson({ loan, approval: { levels: chain.totalLevels, firstApprover: chain.steps[0]?.approverLabel ?? null } }),
+      { status: 201 },
+    );
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -159,7 +171,9 @@ export async function PATCH(req: NextRequest) {
       }
       let chain = await getApprovalChain(db, "Loan", loan.id);
       if (!chain) {
-        chain = await startApprovalChain(db, { docType: "Loan", docId: loan.id, employeeId: loan.employeeId, amount: loan.amount, createdBy: "legacy-backfill" });
+        // M-8: loan.amount tersimpan terenkripsi — dekripsi utk nominal jenjang
+        // approval (ApprovalChain.amount tetap Float polos — konfigurasi routing).
+        chain = await startApprovalChain(db, { docType: "Loan", docId: loan.id, employeeId: loan.employeeId, amount: tenantCryptoForDb(db).decryptMoney(loan.amount) ?? 0, createdBy: "legacy-backfill" });
       }
       const res = await decideApprovalChain(db, {
         docType: "Loan", docId: loan.id, action: b.action, note: b.note,
@@ -172,7 +186,7 @@ export async function PATCH(req: NextRequest) {
         await db.activityLog.create({
           data: { action: to, entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo} → ${to} di jenjang ${chain.currentLevel}${b.note ? ` — ${b.note}` : ""}` },
         });
-        return NextResponse.json({ loan: updated });
+        return NextResponse.json(tenantCryptoForDb(db).decryptJson({ loan: updated }));
       }
 
       if (!res.final) {
@@ -181,20 +195,28 @@ export async function PATCH(req: NextRequest) {
         await db.activityLog.create({
           data: { action: "Approved", entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"}` },
         });
-        return NextResponse.json({
-          loan,
-          approval: { currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels, currentApprover: currentStep?.approverLabel ?? null },
-        });
+        return NextResponse.json(
+          tenantCryptoForDb(db).decryptJson({
+            loan,
+            approval: { currentLevel: res.chain.currentLevel, totalLevels: res.chain.totalLevels, currentApprover: currentStep?.approverLabel ?? null },
+          }),
+        );
       }
 
       // jenjang terakhir → generate skedul cicilan + status Active
+      // M-8: nilai pinjaman terenkripsi — dekripsi utk menghitung cicilan,
+      // lalu tiap LoanInstallment.amount dienkripsi saat create.
+      const tcP = tenantCryptoForDb(db);
+      const principal = tcP.decryptMoney(loan.amount) ?? 0;
       const months = loan.installmentCount;
-      const totalDue = loan.amount + loan.amount * (loan.interestRate / 100) * (months / 12);
+      const totalDue = principal + principal * (loan.interestRate / 100) * (months / 12);
       const per = Math.round(totalDue / months);
       const installments = Array.from({ length: months }, (_, i) => {
         const due = new Date(loan.startPaymentDate);
         due.setMonth(due.getMonth() + i);
-        return { sequence: i + 1, dueDate: due, amount: i === months - 1 ? totalDue - per * (months - 1) : per };
+        const amt = i === months - 1 ? totalDue - per * (months - 1) : per;
+        // M-8: LoanInstallment.amount NOT NULL — encrypted non-null.
+        return { sequence: i + 1, dueDate: due, amount: tcP.encryptMoney(amt) ?? "0" };
       });
       const updated = await db.employeeLoan.update({
         where: { id: loan.id },
@@ -204,7 +226,9 @@ export async function PATCH(req: NextRequest) {
       await db.activityLog.create({
         data: { action: "Approved", entity: "EmployeeLoan", entityId: loan.id, employeeId: loan.employeeId, detail: `Pinjaman ${loan.letterNo} disetujui penuh (${chain.totalLevels} jenjang) — skedul ${months}x cicilan dibuat` },
       });
-      return NextResponse.json({ loan: updated, approval: { final: true, totalLevels: chain.totalLevels } });
+      return NextResponse.json(
+        tenantCryptoForDb(db).decryptJson({ loan: updated, approval: { final: true, totalLevels: chain.totalLevels } }),
+      );
     }
 
     // ==== status manual pinjaman Active (PaidOff / Cancelled) ====
@@ -218,7 +242,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Tidak bisa membatalkan — sudah ada cicilan terpotong payroll" }, { status: 400 });
     }
     const updated = await db.employeeLoan.update({ where: { id: b.id }, data: { status: b.status } });
-    return NextResponse.json({ loan: updated });
+    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ loan: updated }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

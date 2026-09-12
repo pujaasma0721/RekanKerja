@@ -5,6 +5,7 @@
 // status akhir Transferred/Paid. Idempoten-guarded: bila sudah ada travel request,
 // seed dilewati (return skipped).
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { ensureTravelReference } from "@/onevity/shared/lib/provisioning";
 import { decideClaim } from "./travel-service";
 
@@ -34,16 +35,18 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
   const tplByCode = new Map(tpl.map((t) => [t.code, t.id]));
 
   // ---- budget 2026 (padanan TravelPeriod + Budget Per Cost Center MII)
+  // 44-d (M-8): totalBudget + amount item disimpan TERENKRIPSI (enc:v1:n:…).
+  const tc = tenantCryptoForDb(db);
   await db.travelBudget.create({
     data: {
       year: 2026, startDate: new Date(2026, 0, 1), endDate: new Date(2026, 11, 31),
-      totalBudget: 250_000_000, note: "Budget travel MII 2026 — dibagi per cost center",
+      totalBudget: tc.encryptMoney(250_000_000) ?? "0", note: "Budget travel MII 2026 — dibagi per cost center",
       items: {
         create: [
-          { costCenter: "OP", amount: 100_000_000, note: "Operasional" },
-          { costCenter: "A", amount: 80_000_000, note: "Produksi" },
-          { costCenter: "FIN", amount: 40_000_000, note: "Finance & audit" },
-          { costCenter: "HRD", amount: 30_000_000, note: "Rekrutmen & pelatihan" },
+          { costCenter: "OP", amount: tc.encryptMoney(100_000_000) ?? "0", note: "Operasional" },
+          { costCenter: "A", amount: tc.encryptMoney(80_000_000) ?? "0", note: "Produksi" },
+          { costCenter: "FIN", amount: tc.encryptMoney(40_000_000) ?? "0", note: "Finance & audit" },
+          { costCenter: "HRD", amount: tc.encryptMoney(30_000_000) ?? "0", note: "Rekrutmen & pelatihan" },
         ],
       },
     },
@@ -145,7 +148,7 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
         ...(r.advance ? {
           advances: {
             create: {
-              amount: r.advance, note: r.advanceNote ?? null,
+              amount: tc.encryptMoney(r.advance) ?? "0", note: r.advanceNote ?? null,
               // M-3/B5 (T3-TRAVEL): lifecycle — hanya request Approved yang uang
               // mukanya "Given" (givenAt terisi); Submitted = Requested (belum cair).
               status: r.status === "Approved" ? "Given" : "Requested",
@@ -257,9 +260,10 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
         purpose: c.purpose ?? reqRow?.purpose ?? null,
         remark: c.remark ?? null,
         status: "Submitted",
-        otherCompanyExp: a, exchangeLoss: loss,
-        payableEmployee: c.payableEmployee, payableCompany: c.payableCompany,
-        totalSettlement: total,
+        // 44-d (M-8): nilai uang klaim TERENKRIPSI (enc:v1:n:…).
+        otherCompanyExp: tc.encryptMoney(a) ?? "0", exchangeLoss: tc.encryptMoney(loss) ?? "0",
+        payableEmployee: tc.encryptMoney(c.payableEmployee) ?? "0", payableCompany: tc.encryptMoney(c.payableCompany) ?? "0",
+        totalSettlement: tc.encryptMoney(total) ?? "0",
         settlementMethod: "Kas",
         voucherNo: c.voucher ?? null,
         expenses: {
@@ -267,7 +271,7 @@ export async function seedTravelDemoData(db: TenantDb): Promise<SeedResult> {
             expenseCode: e.code,
             expenseDate: e.date ? new Date(`${e.date}T00:00:00`) : null,
             description: e.desc ?? null,
-            amount: e.amount, qty: e.qty ?? 1,
+            amount: tc.encryptMoney(e.amount) ?? "0", qty: e.qty ?? 1,
             guestName: e.guest ?? null,
           })),
         },

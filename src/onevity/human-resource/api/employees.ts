@@ -152,6 +152,54 @@ const EMPLOYEE_LIST_MENUS = [
   "payroll:runs", // dialog Bonus Massal di halaman run (bonus-massal-dialog.tsx)
 ] as const;
 
+// ==== M-9 (audit 42 / desain 42-e): seleksi field PII per cakupan akses ====
+// · FULL    — scope ALL (super admin / rule akses penuh): semua field
+//   (perilaku lama — termasuk NIK/NPWP/rekening terdekripsi).
+// · LIMITED — pemegang menu LIHAT dengan cakupan data CUSTOM (koordinator
+//   unit/team: rule parametrik / atasan langsung — scopeWhere non-all):
+//   field OPERASIONAL tetap (employeeNo, fullName, gender, email & foto
+//   kantor, joinDate, status, penempatan orgUnit/position/grade/level/
+//   manager/office/location, employmentStatus, workShift, kontrak
+//   contractStart/contractEnd/renewalCount); field PII SENSITIF dinolkan /
+//   disamarkan (address, city, phone, birthPlace, birthDate, maritalStatus,
+//   religion, bloodType, NIK→maskNik, NPWP→maskNpwp, bankName, bankAccount,
+//   bpjsHealth, bpjsEmpSkill, baseSalary). Penilaian desain: kebutuhan
+//   manajemen koordinator = identitas + penempatan — bukan data pribadi /
+//   keuangan lengkap. Kontak darurat tidak ada di model Employee (EmployeeFamily
+//   hanya relation/name/gender/birthDate/occupation — tanpa no. telepon) dan
+//   memang tidak di-return endpoint list ini.
+// · SELF    — pemanggil non-menu (selfEmployeeId): profil sendiri → FULL
+//   (hak melihat data sendiri; perilaku M-11 tetap).
+// BYPASS approval InProgress (desain 42-e — keputusan pragmatis): endpoint ini
+// TIDAK memblokir alur approval; pemanggil limited yang sedang menjadi
+// approver chain aktif (ApprovalStep Pending utk karyawan terkait) tetap
+// mendapat field yang cukup utk keputusan (nama, no karyawan, unit, posisi,
+// joinDate — memang TIDAK di-mask), TANPA query chain per-baris di sini.
+export type PiiScope = "full" | "limited" | "self";
+
+/** Field PII identitas pribadi/keuangan → null utk pemanggil LIMITED. */
+const PII_REDACT_FIELDS: readonly string[] = [
+  "address", "city", "phone", "birthPlace", "birthDate", "maritalStatus",
+  "religion", "bloodType", "bankName", "bankAccount", "bpjsHealth",
+  "bpjsEmpSkill", "baseSalary",
+];
+
+/**
+ * Masking PII baris karyawan TER-FLATTEN (M-9 audit 42 / desain 42-e).
+ * Dipanggil di LAPISAN API SETELAH flattenEmployee/decrypt (komposisi —
+ * tanda tangan service bersama assignment.ts tidak diubah): NIK/NPWP
+ * disamarkan (maskNik/maskNpwp — 2 digit awal+2 akhir / 4 digit akhir),
+ * seluruh PII_REDACT_FIELDS dinolkan. Bentuk respons TIDAK berubah:
+ * field tetap ada, nilainya null/masked (frontend aman). Mutasi in-place.
+ * Dipakai juga employee-detail.ts (pola sama) dan menghaluskan export XLSX
+ * lewat seleksi kolom di employeesExportGet.
+ */
+export function maskEmployeePii(row: Record<string, unknown>, tc: FieldCrypto): void {
+  for (const f of PII_REDACT_FIELDS) row[f] = null;
+  row.nationalId = row.nationalId != null ? tc.maskNik(String(row.nationalId)) : null;
+  row.taxId = row.taxId != null ? tc.maskNpwp(String(row.taxId)) : null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const s = await requireScoped(req);
@@ -164,7 +212,8 @@ export async function GET(req: NextRequest) {
     // • TANPA menu → self-scope SAJA (actor.employeeId) — bentuk respons
     //   dipertahankan (subset; konsumen ESS-satunya = pencarian global shell).
     // • TANPA menu & tanpa employeeId → 403 (pola pesan 43-a).
-    // Field-selection PII per role (audit M-9 / desain 42-e) tetap di Task 44.
+    // Field-selection PII per cakupan (audit M-9 / desain 42-e) —
+    // DIIMPLEMENTASIKAN di bawah (piiScope + maskEmployeePii, Task 44-e).
     const menu = await resolveMenuPerms(req);
     const hasListMenu = Boolean(
       menu && (menu.all || EMPLOYEE_LIST_MENUS.some((k) => menu.perms[k]?.view === true)),
@@ -185,6 +234,11 @@ export async function GET(req: NextRequest) {
     const scopeCond = hasListMenu
       ? scopeWhere(s.scope)
       : { id: selfEmployeeId! };
+    // M-9 / desain 42-e: klasifikasi cakupan PII pemanggil — full (scope ALL) |
+    // limited (menu LIHAT + cakupan CUSTOM: rule parametrik / atasan langsung) |
+    // self (non-menu → profil sendiri, full). Masking diterapkan di bawah
+    // SETELAH flattenEmployee+decrypt (komposisi lapisan API).
+    const piiScope: PiiScope = !hasListMenu ? "self" : s.scope.all ? "full" : "limited";
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q")?.trim() ?? "";
     const status = sp.get("status") ?? undefined;
@@ -254,11 +308,19 @@ export async function GET(req: NextRequest) {
       contractBandCount(90).catch(() => 0),
     ]);
 
+    // 28-c: dekripsi identitas sensitif + gaji pokok di batas serializer
+    // (konteks tc dipakai ulang oleh masking M-9 di bawah).
+    const tcList = tenantCryptoForDb(db);
     const employees = employeesRaw.map((e) => {
-      // 28-c: dekripsi identitas sensitif + gaji pokok di batas serializer.
-      const flat = flattenEmployee(e, tenantCryptoForDb(db));
+      const flat = flattenEmployee(e, tcList);
       // strip array dari response agar payload ramping
       const { assignments, ...rest } = flat as Record<string, unknown>;
+      // M-9 (audit 42 / desain 42-e): pemanggil LIMITED → PII sensitif
+      // dinolkan/disamarkan SETELAH decrypt, sebelum respons — field tetap
+      // ada (bentuk respons tidak berubah), nilainya null/mask. Nilai masked
+      // seragam utk semua baris dalam cakupan (profil SENDIRI tetap full via
+      // employee-detail / ESS; tidak ada pengecualian per-baris).
+      if (piiScope === "limited") maskEmployeePii(rest, tcList);
       return rest;
     });
 
@@ -270,6 +332,9 @@ export async function GET(req: NextRequest) {
       total,
       limit,
       offset,
+      // M-9 / 42-e: flag cakupan PII pemanggil (full|limited|self) — properti
+      // baru opsional di payload root; frontend lama mengabaikannya (kompatibel).
+      piiScope,
       stats: {
         total,
         active: statusCount("Active"),
@@ -1131,12 +1196,21 @@ export async function employeesImportPost(req: NextRequest): Promise<NextRespons
 
 // ============ export direktori (pola scope T1) ============
 
+/** Kolom export XLSX yang dihilangkan utk pemanggil LIMITED (M-9 / 42-e). */
+const PII_EXPORT_KEYS: ReadonlySet<string> = new Set([
+  "nik", "phone", "marital", "religion", "bloodType", "taxId",
+  "address", "bankName", "bankAccount",
+]);
+
 /**
  * GET /api/onevity/employees/export — XLSX seluruh karyawan AKTIF dalam
  * cakupan akses efektif pengguna (resolveAccessScope + scopeWhere — pola
  * dashboard/reports). Kolom identitas + pekerjaan; kolom upah (Gaji Pokok)
  * hanya bila scope akses penuh (scope.all — akses terbatas → identitas +
- * pekerjaan tanpa upah). Guard: hr:directory view.
+ * pekerjaan tanpa upah). M-9 (audit 42 / desain 42-e): kolom PII (NIK/NPWP/
+ * telepon/alamat/agama/status pernikahan/golongan darah/bank) juga
+ * DIHILANGKAN utk pemanggil limited (cakupan CUSTOM) — PII yang di-mask di
+ * list tidak boleh bocor lewat jalur unduhan XLSX. Guard: hr:directory view.
  */
 export async function employeesExportGet(req: NextRequest): Promise<NextResponse> {
   try {
@@ -1160,6 +1234,10 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
     // 28-c: pass tc — NIK/NPWP/rekening + gaji pokok terdekripsi di batas serializer.
     const flat = employees.map((e) => flattenEmployee(e, tenantCryptoForDb(db)));
     const includeWage = scope.all; // upah hanya untuk scope penuh
+    // M-9 / 42-e: kolom PII hanya utk scope penuh — pemanggil limited (menu
+    // LIHAT + cakupan CUSTOM) mendapat XLSX identitas operasional (no karyawan
+    // + nama cukup sebagai identitas baris) tanpa PII & tanpa upah.
+    const includePii = scope.all;
 
     const columns: (ExportColumn & { key: string })[] = [
       { header: "No Karyawan", key: "employeeNo", width: 15 },
@@ -1186,7 +1264,11 @@ export async function employeesExportGet(req: NextRequest): Promise<NextResponse
       { header: "Status Kepegawaian", key: "employmentStatus", width: 20 },
       { header: "Gaji Pokok", key: "baseSalary", width: 16 },
       { header: "Status Kerja", key: "status", width: 14 },
-    ].filter((c) => includeWage || c.key !== "baseSalary") as (ExportColumn & { key: string })[];
+    ].filter(
+      (c) =>
+        (includeWage || c.key !== "baseSalary") &&
+        (includePii || !PII_EXPORT_KEYS.has(c.key)),
+    ) as (ExportColumn & { key: string })[];
 
     const rows = flat.map((e) => {
       const g = String(e.gender ?? "M");

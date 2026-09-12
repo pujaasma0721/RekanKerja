@@ -2215,3 +2215,198 @@ function summarize(rows: { status: string; lateMinutes: number; absenceMinutes: 
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+// ============ G-04 (audit 42 / Task 44-f): coverage kualitas data presensi ============
+// Gap: bila regenerasi AttendanceDaily belum/tidak lengkap, KPI dashboard
+// presensi tetap menunjukkan angka seolah lengkap → keputusan payroll/kehadiran
+// bisa salah tanpa peringatan. attendanceCoverage membandingkan populasi
+// HARAPAN vs baris yang ADA supaya UI bisa menampilkan indikator peringatan.
+//
+// Definisi populasi (SENGAJA identik dgn engine regen — satu sumber kebenaran):
+// · Karyawan: Employee.status === "Active" (sama dgn regenerateDaily).
+// · Hari: [awal bulan, min(akhir bulan, HARI INI)] — hari masa depan tak dihitung
+//   (K-3: engine pun tidak menulis Absent future).
+// · Hari kerja terjadwal: resolusi resolveDayTypeFromCache per (karyawan, hari)
+//   menghasilkan day type kategori BUKAN "Off"/"Holiday" + karyawan punya
+//   assignment jadwal sah pada hari tsb (padanan assignmentFor). Hari tanpa
+//   assignment / hari libur (overlay HolidayDate) / akhir pekan non-kerja
+//   dikecualikan — persis definisi isOffDay engine.
+// · Aktual: baris AttendanceDaily yang ADA utk kombinasi tsb — dihitung via 2
+//   query groupBy (per tanggal & per karyawan) BUKAN fetch baris per
+//   karyawan-per-hari. Baris regen menyimpan dayTypeId hasil resolusi → baris
+//   hari-kerja = dayTypeId berkategori "Workday" (baris Off/libur/tanpa jadwal
+//   otomatis terkecualikan); baris karyawan non-aktif dikecualikan via relasi.
+// · Baris STALE (assignment berubah tanpa regen ulang) bisa membuat actual >
+//   expected pada suatu hari → missing di-clamp 0 (baris lama tetap "ada",
+//   tapi indikator tetap memandu regen pada hari yang benar).
+
+export interface AttendanceCoverageMissingDay {
+  /** YYYY-MM-DD (lokal) */
+  date: string;
+  missing: number;
+}
+
+export interface AttendanceCoverageMissingEmployee {
+  employeeId: string;
+  employeeNo: string;
+  fullName: string;
+  missing: number;
+}
+
+export interface AttendanceCoverageResult {
+  /** populasi harapan: karyawan aktif × hari kerja terjadwal s.d. hari ini */
+  expected: number;
+  /** baris AttendanceDaily yang ada utk populasi tsb (≤ expected) */
+  actual: number;
+  /** expected − actual (≥ 0) */
+  missing: number;
+  /** 0–100 (expected 0 → 100: tidak ada yang diharapkan/regenerate) */
+  coveragePct: number;
+  /** YYYY-MM-DD batas hitung (min(akhir bulan, hari ini)) */
+  asOf: string;
+  /** hari terburuk (missing terbesar) — maks 10 entri */
+  missingByDay: AttendanceCoverageMissingDay[];
+  /** karyawan terburuk — maks 10 entri */
+  missingByEmployee: AttendanceCoverageMissingEmployee[];
+}
+
+/** "YYYY-MM-DD" dari Date LOKAL (bukan toISOString — hindari shift timezone). */
+function isoLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Coverage data presensi bulan (monthFrom..monthTo, dibatasi hari ini).
+ * Ringan: 5 query kecil (karyawan aktif, assignment overlap, master day type,
+ * holiday rentang, 2× groupBy count) + loop N-karyawan × maks 31 hari in-memory.
+ */
+export async function attendanceCoverage(db: TenantDb, monthFrom: Date, monthTo: Date): Promise<AttendanceCoverageResult> {
+  const today = dayStart(new Date());
+  const from = dayStart(monthFrom);
+  const last = dayStart(monthTo);
+  const end = last < today ? last : today; // min(akhir bulan, hari ini) — future tak dihitung
+
+  if (from > end) {
+    // bulan sepenuhnya di masa depan → tidak ada populasi harapan
+    return { expected: 0, actual: 0, missing: 0, coveragePct: 100, asOf: isoLocal(end), missingByDay: [], missingByEmployee: [] };
+  }
+
+  // — populasi harapan: karyawan aktif (definisi engine regen) —
+  const employees = await db.employee.findMany({
+    where: { status: "Active" },
+    select: { id: true, employeeNo: true, fullName: true },
+    orderBy: { employeeNo: "asc" },
+  });
+
+  // assignment yang overlap rentang — semantik prefetch M-13 regenerateDaily
+  // (validFrom ≤ tanggal, validTo null/≥ tanggal; pilihan terbaru per karyawan).
+  const empIds = employees.map((e) => e.id);
+  const assignments = empIds.length > 0
+    ? await db.scheduleAssignment.findMany({
+        where: {
+          employeeId: { in: empIds },
+          validFrom: { lte: end },
+          OR: [{ validTo: null }, { validTo: { gte: from } }],
+        },
+        include: { schedule: { include: { days: true } } },
+        orderBy: { validFrom: "desc" },
+      })
+    : [];
+  const assignmentsByEmp = new Map<string, AssignmentRow[]>();
+  for (const a of assignments) {
+    const arr = assignmentsByEmp.get(a.employeeId) ?? [];
+    arr.push(a);
+    assignmentsByEmp.set(a.employeeId, arr);
+  }
+
+  // master day type (tabel kecil — dipakai resolusi semua karyawan × hari)
+  const dayTypeRows = await db.workDayType.findMany();
+  const dtById = new Map<string, DayTypeCacheRow>(dayTypeRows.map((d) => [d.id, d as DayTypeCacheRow]));
+  // day type kategori Workday → filter populasi aktual (baris regen menyimpan
+  // dayTypeId hasil resolusi; baris Off/libur/tanpa jadwal tidak dihitung).
+  const workdayTypeIds = dayTypeRows.filter((d) => d.category === "Workday").map((d) => d.id);
+
+  // overlay libur rentang — prioritas sama dgn holidayOn (kind desc: National dulu)
+  const holidayByDate = new Map<string, HolidayInfo>();
+  try {
+    const holidays = await db.holidayDate.findMany({
+      where: { date: { gte: from, lt: addDays(end, 1) } },
+      orderBy: [{ kind: "desc" }, { name: "asc" }],
+    });
+    for (const h of holidays) {
+      const key = isoLocal(dayStart(h.date));
+      if (!holidayByDate.has(key)) {
+        holidayByDate.set(key, { id: h.id, date: key, name: h.name, kind: h.kind });
+      }
+    }
+  } catch {
+    // schema tenant belum termigrasi — overlay libur mati anggun (padanan holidayOn)
+  }
+
+  // — hitung expected per hari & per karyawan (in-memory, tanpa query per sel) —
+  const expectedByDay = new Map<string, number>();
+  const expectedByEmp = new Map<string, number>();
+  let expected = 0;
+  for (let d = from; d <= end; d = addDays(d, 1)) {
+    const key = isoLocal(d);
+    const holiday = holidayByDate.get(key) ?? null;
+    for (const emp of employees) {
+      const list = assignmentsByEmp.get(emp.id) ?? [];
+      // padanan assignmentFor: validFrom ≤ d, validTo null/≥ d, ambil terbaru
+      const a = list.find((x) => x.validFrom <= d && (x.validTo === null || x.validTo >= d)) ?? null;
+      const { dayType } = resolveDayTypeFromCache(a, dtById, d, holiday);
+      // hari kerja terjadwal = dayType ada + kategori bukan Off/Holiday (isOffDay engine)
+      if (dayType && dayType.category !== "Off" && dayType.category !== "Holiday") {
+        expected++;
+        expectedByDay.set(key, (expectedByDay.get(key) ?? 0) + 1);
+        expectedByEmp.set(emp.id, (expectedByEmp.get(emp.id) ?? 0) + 1);
+      }
+    }
+  }
+
+  // — populasi aktual: 2 groupBy count (per tanggal, per karyawan) —
+  const actualByDay = new Map<string, number>();
+  const actualByEmp = new Map<string, number>();
+  if (workdayTypeIds.length > 0 && empIds.length > 0) {
+    const actualFilter = {
+      workDate: { gte: from, lt: addDays(end, 1) },
+      dayTypeId: { in: workdayTypeIds },
+      employee: { status: "Active" },
+    };
+    const [byDay, byEmp] = await Promise.all([
+      db.attendanceDaily.groupBy({ by: ["workDate"], where: actualFilter, _count: true }),
+      db.attendanceDaily.groupBy({ by: ["employeeId"], where: actualFilter, _count: true }),
+    ]);
+    for (const r of byDay) actualByDay.set(isoLocal(dayStart(r.workDate)), r._count);
+    for (const r of byEmp) actualByEmp.set(r.employeeId, r._count);
+  }
+
+  // — ringkas: missing per hari (clamp 0 utk baris stale) + top-10 —
+  let missing = 0;
+  const missingDays: AttendanceCoverageMissingDay[] = [];
+  for (let d = from; d <= end; d = addDays(d, 1)) {
+    const key = isoLocal(d);
+    const miss = Math.max(0, (expectedByDay.get(key) ?? 0) - (actualByDay.get(key) ?? 0));
+    if (miss > 0) {
+      missing += miss;
+      missingDays.push({ date: key, missing: miss });
+    }
+  }
+  const actual = expected - missing;
+  const coveragePct = expected > 0 ? Math.round((actual / expected) * 1000) / 10 : 100;
+
+  missingDays.sort((x, y) => y.missing - x.missing || x.date.localeCompare(y.date));
+  const missingByDay = missingDays.slice(0, 10);
+
+  const missingEmps: AttendanceCoverageMissingEmployee[] = [];
+  for (const emp of employees) {
+    const miss = Math.max(0, (expectedByEmp.get(emp.id) ?? 0) - (actualByEmp.get(emp.id) ?? 0));
+    if (miss > 0) {
+      missingEmps.push({ employeeId: emp.id, employeeNo: emp.employeeNo, fullName: emp.fullName, missing: miss });
+    }
+  }
+  missingEmps.sort((x, y) => y.missing - x.missing || x.employeeNo.localeCompare(y.employeeNo));
+  const missingByEmployee = missingEmps.slice(0, 10);
+
+  return { expected, actual, missing, coveragePct, asOf: isoLocal(end), missingByDay, missingByEmployee };
+}

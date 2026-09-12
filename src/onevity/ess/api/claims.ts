@@ -3,6 +3,7 @@
 // terkait (status tidak Void), klaim mandiri = 0.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/onevity/ess/api/ess-auth";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 export async function GET(req: Request) {
   const m = await requireEss(req);
@@ -31,25 +32,31 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    return NextResponse.json({
-      medical: medicals.map((c) => ({
-        docNo: c.docNo,
-        typeName: c.type.name,
-        bill: c.totalBill,
-        approved: c.totalApproved,
-        status: c.state,
-        submittedAt: c.createdAt,
-      })),
-      travel: travels.map((c) => ({
-        docNo: c.docNo,
-        purpose: c.purpose,
-        status: c.status,
-        advance: (c.request?.advances ?? [])
-          .filter((a) => a.status !== "Void")
-          .reduce((s, a) => s + a.amount, 0),
-        settlement: c.totalSettlement,
-      })),
-    });
+    // 44-d (M-8): nilai uang klaim/advance travel TERENKRIPSI — dekripsi di
+    // batas serializer (advance WAJIB per-baris dulu: reduce atas string akan
+    // concat, bukan jumlah). Walker decryptJson juga menutupi field medis.
+    const tc = tenantCryptoForDb(db);
+    return NextResponse.json(
+      tc.decryptJson({
+        medical: medicals.map((c) => ({
+          docNo: c.docNo,
+          typeName: c.type.name,
+          bill: c.totalBill,
+          approved: c.totalApproved,
+          status: c.state,
+          submittedAt: c.createdAt,
+        })),
+        travel: travels.map((c) => ({
+          docNo: c.docNo,
+          purpose: c.purpose,
+          status: c.status,
+          advance: (c.request?.advances ?? [])
+            .filter((a) => a.status !== "Void")
+            .reduce((s, a) => s + (tc.decryptMoney(a.amount) ?? 0), 0),
+          settlement: tc.decryptMoney(c.totalSettlement) ?? 0,
+        })),
+      }),
+    );
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

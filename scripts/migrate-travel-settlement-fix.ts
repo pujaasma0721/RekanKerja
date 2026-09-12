@@ -19,6 +19,9 @@
 //      (b) amount jurnal PayrollJournalLine kini TERENKRIPSI (wave 28-c) →
 //      didekripsi dulu sebelum uji konsistensi (tanpa ini, jurnal dianggap
 //      selalu tidak-konsisten & diregenerasi tiap rerun).
+// FIX (44-d M-8): kolom uang TravelClaim/TravelClaimExpense/TravelAdvance kini
+//      TERENKRIPSI (enc:v1:n) → semua baca didekripsi (tc) & semua tulis
+//      dienkripsi — TIDAK ADA plaintext number yang ditulis ke kolom String.
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-travel-settlement-fix.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
@@ -139,13 +142,25 @@ async function migrateSchema(schemaName: string) {
   }
 
   // ---- 3+4+5. rekomputasi klaim + jurnal + assignment ----
-  const claims = await db.travelClaim.findMany({
+  // 44-d (M-8): kolom uang klaim (b/c/totalSettlement/loss/(a)) + amount expense
+  // TERENKRIPSI → dekripsi ke angka sebelum komputasi; tulis balik TERENKRIPSI.
+  const claimRaw = await db.travelClaim.findMany({
     include: { expenses: { select: { amount: true } } },
     orderBy: { docNo: "asc" },
-  }) as unknown as ClaimRow[];
+  });
+  const claims: ClaimRow[] = claimRaw.map((cl) => ({
+    id: cl.id, docNo: cl.docNo, status: cl.status, requestId: cl.requestId, journalNo: cl.journalNo,
+    otherCompanyExp: tc.decryptMoney(cl.otherCompanyExp) ?? 0,
+    exchangeLoss: tc.decryptMoney(cl.exchangeLoss) ?? 0,
+    payableEmployee: tc.decryptMoney(cl.payableEmployee) ?? 0,
+    payableCompany: tc.decryptMoney(cl.payableCompany) ?? 0,
+    totalSettlement: tc.decryptMoney(cl.totalSettlement) ?? 0,
+    expenses: cl.expenses.map((e) => ({ amount: tc.decryptMoney(e.amount) ?? 0 })),
+  }));
   const advancesByRequest = new Map<string, AdvanceRow[]>();
   for (const adv of advances) {
-    const row: AdvanceRow = { id: adv.id, requestId: adv.requestId, status: adv.status, givenAt: adv.givenAt, amount: adv.amount };
+    // 44-d (M-8): amount advance TERENKRIPSI — dekripsi.
+    const row: AdvanceRow = { id: adv.id, requestId: adv.requestId, status: adv.status, givenAt: adv.givenAt, amount: tc.decryptMoney(adv.amount) ?? 0 };
     const cur = advancesByRequest.get(adv.requestId) ?? [];
     cur.push(row);
     advancesByRequest.set(adv.requestId, cur);
@@ -168,7 +183,8 @@ async function migrateSchema(schemaName: string) {
     ) {
       await db.travelClaim.update({
         where: { id: claim.id },
-        data: { payableEmployee: b, payableCompany: c, totalSettlement: R },
+        // 44-d (M-8): tulis balik TERENKRIPSI (enc:v1:n:…).
+        data: { payableEmployee: tc.encryptMoney(b) ?? "0", payableCompany: tc.encryptMoney(c) ?? "0", totalSettlement: tc.encryptMoney(R) ?? "0" },
       });
       recalculated++;
       changedClaims.push({ claim, b, c, ts: R });

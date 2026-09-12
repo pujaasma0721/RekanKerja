@@ -5,6 +5,17 @@
 > ditunda ke Task 44); minor terpilih + follow-up ikut fixed. Rincian bukti &
 > lokasi per-item: lihat worklog.md entry 43-a s.d. 43-FINAL. Commit ini
 > (belum di-push).
+>
+> **STATUS LANJUTAN (Task 44 — selesai, semua sisa audit 42 tuntas):**
+> M-8 gelombang enkripsi kedua SELESAI (38 kolom uang modul claim
+> loan/benefit/encashment/medical/travel → `enc:v1:n` di rest; migrasi
+> `scripts/migrate-encrypt-money.ts` + parity step `encrypt-money`;
+> agregasi SQL dipindah in-memory; bentuk respons API/frontend tetap).
+> M-9 PII scope-aware list SELESAI (`piiScope` full/limited/self di
+> employees list+detail+export; koordinator limited: PII null/masked).
+> G-04 warning coverage absensi SELESAI (badge kualitas data di dashboard
+> presensi: expected/actual/missing + missingByDay/ByEmployee).
+> Rincian: worklog.md entry 44-0 s.d. 44-FINAL.
 
 > Status: temuan diverifikasi read-only oleh 6 subagent paralel (42-a..42-f) di atas
 > task 41 (06082dc). Laporan asli hilang pada rollback snapshot (tidak ter-commit);

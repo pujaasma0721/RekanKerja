@@ -212,6 +212,14 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 | 18 | `scheduler-race` (**BARU**) | Task 41 — partial unique index dedupe `ActivityLog` baris Reminder (scheduler race-safe; TIDAK ada di tenant-ddl.sql Prisma) |
 | 19 | `webhook-retry` (**BARU**) | Task 41 — kolom retry `WebhookLog` (attempts/nextRetryAt/lastError) + index status,nextRetryAt + DEFAULT status='delivered' — **dibutuhkan panel Webhook** |
 | 20 | `task43-indexes` (**BARU**) | Task 43 — 4 index payroll/klaim (M-15) + partial unique run payroll aktif (M-20) |
+| 21 | `encrypt-money` (**BARU**) | Task 44 (audit 42 M-8) — gelombang enkripsi kedua: 38 kolom uang modul claim (EmployeeLoan/LoanInstallment, BenefitClaim, LeaveEncashment.amount, MedicalBalance/Claim/ClaimLine/Adjustment, TravelClaim/Expense/Advance/Budget/BudgetItem) Float→TEXT + encrypt-in-place `enc:v1:n`. Skrip `scripts/migrate-encrypt-money.ts` (idempoten, skip baris sudah terenkripsi). Kunci = SAMA `ONEVITY_ENCRYPTION_KEY`. Catatan: agregasi SQL (`_sum`/`groupBy`) pada kolom ini sudah dipindah in-memory di kode — JANGAN menambah query SQL agregat ke kolom terenkripsi. |
+
+### 5.2.1 Enkripsi uang modul claim — catatan perilaku (Task 44 / M-8)
+
+- 38 kolom uang klaim (loan/benefit/encashment/medical/travel) kini `enc:v1:n:…` di rest; dekripsi di batas serializer (`decryptJson`) → **bentuk respons API dan frontend TIDAK berubah** (angka tetap angka).
+- Nilai legacy plaintext numerik pra-migrasi tetap terbaca (`decryptMoney` parse passthrough) — migrasi mengonversi bertahap; rerun aman.
+- Laporan XLSX modul terkait menampilkan nilai terdekripsi (report-builder flag `encrypted`).
+- PII scope-aware list karyawan (M-9): akun dengan data-scope CUSTOM menerima field PII di-mask (`piiScope:"limited"` di respons; export tanpa kolom PII).
 
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 

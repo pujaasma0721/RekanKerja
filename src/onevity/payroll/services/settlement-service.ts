@@ -394,14 +394,17 @@ export async function computeTerminationSettlement(
     where: { employeeId, status: "Active" },
     select: { letterNo: true, outstanding: true },
   });
-  const loanOutstanding = loans.reduce((s, l) => s + l.outstanding, 0);
+  // M-8: outstanding pinjaman tersimpan TERENKRIPSI (enc:v1:n) — dekripsi
+  // utk komputasi settlement (reduce in-memory, bukan agregasi SQL).
+  const loansDec = loans.map((l) => ({ letterNo: l.letterNo, outstanding: tc.decryptMoney(l.outstanding) ?? 0 }));
+  const loanOutstanding = loansDec.reduce((s, l) => s + l.outstanding, 0);
   if (loanOutstanding > 0) {
     rows.push({
       code: "PHK_POT_LOAN",
       label: "Potongan Sisa Pinjaman",
       kind: "Deduction",
       amount: Math.round(loanOutstanding),
-      note: `Sisa outstanding pinjaman ${loans.map((l) => `${l.letterNo} ${fmtRp(l.outstanding)}`).join(", ")}`,
+      note: `Sisa outstanding pinjaman ${loansDec.map((l) => `${l.letterNo} ${fmtRp(l.outstanding)}`).join(", ")}`,
     });
   }
 

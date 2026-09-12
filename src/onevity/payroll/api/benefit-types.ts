@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { limitSnapshot } from "@/onevity/payroll/services/benefit-service";
 
@@ -25,10 +26,13 @@ export async function GET(req: NextRequest) {
     const claims = await db.benefitClaim.findMany({
       select: { benefitTypeId: true, status: true, amount: true, claimDate: true },
     });
+    // M-8: amount klaim terenkripsi — dekripsi utk statistik in-memory.
+    const tc = tenantCryptoForDb(db);
+    const claimsDec = claims.map((c) => ({ ...c, amount: tc.decryptMoney(c.amount) ?? 0 }));
     const now = new Date();
     const year = now.getFullYear();
     const result = await Promise.all(types.map(async (t) => {
-      const of = claims.filter((c) => c.benefitTypeId === t.id);
+      const of = claimsDec.filter((c) => c.benefitTypeId === t.id);
       const active = of.filter((c) => ["Approved", "Scheduled", "Paid"].includes(c.status));
       const usage = employeeId ? await limitSnapshot(db, t, employeeId, now) : null;
       const { _count, ...rest } = t;

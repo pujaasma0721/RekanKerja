@@ -10,7 +10,7 @@
 // (a) biaya dibayar pihak lain TIDAK dibayar ke karyawan — jurnal: baris KONTRA.
 import { startApprovalChain, decideApprovalChain, cancelApprovalChain, getApprovalChain, attachChainSummaries, type ChainSummary, type DecideActor } from "@/onevity/shared/services/approval-engine";
 import { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { tenantCryptoForDb, type FieldCrypto } from "@/onevity/shared/lib/field-crypto";
 import { nextJournalNo } from "@/onevity/shared/lib/journal-no";
 // Task 33 — rule diferensiasi limit jenis biaya per parameter karyawan.
 import { EntityRuleLite, RuleContext, matchFirstRule, applyRuleValue } from "@/onevity/shared/lib/parameter-rules";
@@ -77,9 +77,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmtIDRLog = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
 /** Jumlahkan uang muka AKTIF (status ≠ Void) — baris Void (request ditolak/
- * dibatalkan) tidak lagi dihitung sbg uang muka beredar (M-3/B5 T3-TRAVEL). */
-const sumActiveAdvances = (advances: { amount: number; status?: string | null }[]) =>
-  round2(advances.filter((x) => (x.status ?? "Given") !== "Void").reduce((s, x) => s + x.amount, 0));
+ * dibatalkan) tidak lagi dihitung sbg uang muka beredar (M-3/B5 T3-TRAVEL).
+ * 44-d (M-8): TravelAdvance.amount TERENKRIPSI (enc:v1:n) — dekripsi per baris
+ * dulu (decryptMoney mem-parse plaintext numerik legacy apa adanya). */
+const sumActiveAdvances = (tc: FieldCrypto, advances: { amount: string | null; status?: string | null }[]) =>
+  round2(advances.filter((x) => (x.status ?? "Given") !== "Void").reduce((s, x) => s + (tc.decryptMoney(x.amount) ?? 0), 0));
 
 /** Parse tanggal (string|Date) → awal hari; tolak bila bukan tanggal valid (M-5). */
 const parseDay = (v: string | Date, label: string): Date => {
@@ -316,8 +318,9 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
     // M-3/B5 (T3-TRAVEL): advance baru "Requested" (belum dicairkan) — givenAt
     // baru diisi saat request disetujui final; bukan pinjaman karyawan (TRVLOAN
     // tidak pernah diimplementasikan — jurnal/jumlah mengikuti klaim settlement).
+    // 44-d (M-8): amount advance disimpan TERENKRIPSI (enc:v1:n:…).
     await db.travelAdvance.create({
-      data: { requestId: req.id, amount: advanceAmount, status: "Requested", givenAt: null, note: input.advanceNote?.trim() || null },
+      data: { requestId: req.id, amount: tenantCryptoForDb(db).encryptMoney(advanceAmount) ?? "0", status: "Requested", givenAt: null, note: input.advanceNote?.trim() || null },
     });
   }
 
@@ -381,8 +384,10 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
     },
   });
   const chainMap = await attachChainSummaries(db, "Travel", rows.map((r) => ({ id: r.id })));
+  // 44-d (M-8): advance terenkripsi — dekripsi sebelum dijumlahkan.
+  const tcReq = tenantCryptoForDb(db);
   return rows.map((r) => {
-    const advanceAmount = sumActiveAdvances(r.advances);
+    const advanceAmount = sumActiveAdvances(tcReq, r.advances);
     const activeClaim = r.claims.find((c) => c.status !== "Rejected" && c.status !== "Cancelled") ?? null;
     const due = new Date(r.dateTo);
     due.setDate(due.getDate() + r.template.settlementDay);
@@ -424,6 +429,7 @@ export async function decideTravelRequest(
 ): Promise<DecideResult> {
   const req = await db.travelRequest.findUnique({ where: { id: input.id }, include: { template: true, advances: true } });
   if (!req) throw new Error("Permintaan travel tidak ditemukan");
+  const tcDec = tenantCryptoForDb(db); // 44-d (M-8): advance terenkripsi
 
   const map: Record<string, { to: string; from: string[]; log: string }> = {
     approve: { to: "Approved", from: ["Submitted"], log: "Disetujui" },
@@ -437,7 +443,7 @@ export async function decideTravelRequest(
   // ==== Approval berjenjang (Task 25) — nominal = uang muka ====
   let chain = await getApprovalChain(db, "Travel", input.id);
   if (!chain) {
-    const advanceAmount = sumActiveAdvances(req.advances);
+    const advanceAmount = sumActiveAdvances(tcDec, req.advances);
     chain = await startApprovalChain(db, {
       docType: "Travel", docId: input.id, employeeId: req.employeeId,
       amount: advanceAmount > 0 ? advanceAmount : null, createdBy: "legacy-backfill",
@@ -521,7 +527,7 @@ export async function decideTravelRequest(
       data: { status: "Given", givenAt: new Date() },
     });
     if (given.count > 0) {
-      const advanceAmount = sumActiveAdvances(req.advances);
+      const advanceAmount = sumActiveAdvances(tcDec, req.advances);
       await db.activityLog.create({
         data: {
           action: "Processed", entity: "TravelAdvance", entityId: req.docNo,
@@ -573,7 +579,7 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
     throw new Error(`Permintaan ${req.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — satu permintaan hanya boleh satu klaim aktif`);
   }
   const expenseTypes = await listExpenseTypes(db);
-  const advanceAmount = sumActiveAdvances(req.advances);
+  const advanceAmount = sumActiveAdvances(tenantCryptoForDb(db), req.advances);
   return {
     requestId: req.id,
     docNo: req.docNo,
@@ -641,6 +647,9 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
   const template = await db.travelTemplate.findFirst({ where: { code: input.templateCode, active: true } });
   if (!template) throw new Error(`Template ${input.templateCode} tidak ditemukan / tidak aktif`);
   if (!input.expenses?.length) throw new Error("Klaim wajib memuat minimal 1 baris biaya");
+  // 44-d (M-8): konteks crypto — tangkap dari client LUAR (dipakai lintas
+  // create claim/expense di bawah, semua tulisan uang terenkripsi).
+  const tc = tenantCryptoForDb(db);
 
   // validasi jenis biaya + limit (padanan Expense Definition Rules — warning, tetap boleh)
   const types = await db.travelExpenseType.findMany();
@@ -683,7 +692,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     if (activeClaim) {
       throw new Error(`Permintaan ${reqRow.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — batalkan/tolak klaim lama sebelum mengajukan klaim baru`);
     }
-    advanceAmount = sumActiveAdvances(reqRow.advances);
+    advanceAmount = sumActiveAdvances(tc, reqRow.advances);
 
     // M-5 (24-FIX-TRAVEL): tanggal baris biaya harus dalam rentang trip;
     // claimDate tidak boleh sebelum tanggal kembali.
@@ -742,8 +751,11 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
       purpose: input.purpose?.trim() || req?.purpose || null,
       remark: input.remark?.trim() || null,
       status: "Submitted",
-      otherCompanyExp: a, exchangeLoss: loss, payableEmployee: b, payableCompany: c,
-      totalSettlement,
+      // 44-d (M-8): lima nilai uang klaim disimpan TERENKRIPSI (enc:v1:n:…);
+      // input selalu angka → ?? "0" hanya menetralkan tipe (tak pernah null).
+      otherCompanyExp: tc.encryptMoney(a) ?? "0", exchangeLoss: tc.encryptMoney(loss) ?? "0",
+      payableEmployee: tc.encryptMoney(b) ?? "0", payableCompany: tc.encryptMoney(c) ?? "0",
+      totalSettlement: tc.encryptMoney(totalSettlement) ?? "0",
       settlementMethod: input.settlementMethod || template.settlementMethod,
       voucherNo: input.voucherNo?.trim() || null,
     },
@@ -758,7 +770,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
         claimId: claim.id, expenseCode: e.expenseCode, kind: t.kind,
         expenseDate: e.expenseDate ? dayStart(e.expenseDate) : null,
         description: e.description?.trim() || null,
-        amount, qty: e.qty && e.qty > 0 ? e.qty : 1,
+        amount: tc.encryptMoney(amount) ?? "0", qty: e.qty && e.qty > 0 ? e.qty : 1,
         guestName: e.guestName?.trim() || null,
         overLimit: !t.unlimited && effLimit > 0 && amount > effLimit,
       };
@@ -827,20 +839,22 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
   });
   // T15-CHAIN-EXT: ringkasan approval berjenjang per klaim (satu query batch).
   const chainMap = await attachChainSummaries(db, "TravelClaim", rows.map((c) => ({ id: c.id })));
+  // 44-d (M-8): nilai uang klaim/expense terenkripsi — dekripsi utk DTO (angka).
+  const tc = tenantCryptoForDb(db);
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, requestDocNo: c.request?.docNo ?? null,
     employeeId: c.employeeId, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     orgUnitName: c.employee.assignments[0]?.orgUnit?.name ?? null,
     claimDate: c.claimDate, templateCode: c.template.code, templateName: c.template.name,
     costCenter: c.costCenter, purpose: c.purpose, remark: c.remark, status: c.status,
-    otherCompanyExp: c.otherCompanyExp, exchangeLoss: c.exchangeLoss,
-    payableEmployee: c.payableEmployee, payableCompany: c.payableCompany,
-    totalSettlement: c.totalSettlement, settlementMethod: c.settlementMethod,
+    otherCompanyExp: tc.decryptMoney(c.otherCompanyExp) ?? 0, exchangeLoss: tc.decryptMoney(c.exchangeLoss) ?? 0,
+    payableEmployee: tc.decryptMoney(c.payableEmployee) ?? 0, payableCompany: tc.decryptMoney(c.payableCompany) ?? 0,
+    totalSettlement: tc.decryptMoney(c.totalSettlement) ?? 0, settlementMethod: c.settlementMethod,
     voucherNo: c.voucherNo, journalNo: c.journalNo, journalDate: c.journalDate,
     periodCode: c.periodCode, transferredRunNo: c.transferredRunNo, paidRunNo: c.paidRunNo,
     decidedAt: c.decidedAt, decisionNote: c.decisionNote,
-    advanceAmount: c.request ? sumActiveAdvances(c.request.advances) : 0,
-    totalExpenses: round2(c.expenses.reduce((s, e) => s + e.amount, 0)),
+    advanceAmount: c.request ? sumActiveAdvances(tc, c.request.advances) : 0,
+    totalExpenses: round2(c.expenses.reduce((s, e) => s + (tc.decryptMoney(e.amount) ?? 0), 0)),
     expenseLines: c.expenses.length,
     overLimitLines: c.expenses.filter((e) => e.overLimit).length,
     expenseKinds: [...new Set(c.expenses.map((e) => e.kind))],
@@ -905,6 +919,11 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
     include: { expenses: true, employee: { select: { fullName: true } } },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
+  // 44-d (M-8): nilai klaim/expense TERENKRIPSI — dekripsi utk komputasi jurnal
+  // (baris jurnal ditulis balik terenkripsi — wave-1 28-c, tcJ di bawah, jangan
+  // dobel-enkripsi: drafts tetap angka murni di memori).
+  const tc = tenantCryptoForDb(db);
+  const dec = (v: string | null) => tc.decryptMoney(v) ?? 0;
 
   // buang jurnal lama klaim ini (regenerate)
   if (claim.journalNo) {
@@ -920,20 +939,21 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
     drafts.push({
       accountCode: t?.debitAccount || TRAVEL_EXPENSE_ACC.code,
       accountName: t ? `${t.name} (beban)` : TRAVEL_EXPENSE_ACC.name,
-      position: "Debit", amount: e.amount,
+      position: "Debit", amount: dec(e.amount),
       memo: `${claim.docNo} — ${t?.name ?? e.expenseCode}${e.guestName ? ` (tamu: ${e.guestName})` : ""}`,
       wageCode: t?.compWageCode ?? e.expenseCode,
     });
   }
-  if (claim.exchangeLoss > 0) {
-    drafts.push({ accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name, position: "Debit", amount: claim.exchangeLoss, memo: `${claim.docNo} — rugi selisih kurs`, wageCode: null });
+  const lossAmt = dec(claim.exchangeLoss);
+  if (lossAmt > 0) {
+    drafts.push({ accountCode: TRAVEL_EXPENSE_ACC.code, accountName: TRAVEL_EXPENSE_ACC.name, position: "Debit", amount: lossAmt, memo: `${claim.docNo} — rugi selisih kurs`, wageCode: null });
   }
   // total Debit = Σ rincian + rugi kurs (beban bruto realisasi perusahaan)
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
 
   // T3-TRAVEL: (a) biaya dibayar pihak lain = baris KONTRA kredit 5105 (dibatasi
   // total beban) — bukan beban/arus kas/karyawan. Beban bersih = total − contra = R.
-  const contraA = Math.min(Math.max(0, round2(claim.otherCompanyExp)), total);
+  const contraA = Math.min(Math.max(0, round2(dec(claim.otherCompanyExp))), total);
   const avail = round2(total - contraA); // = totalReimbursement (R)
   // ==== Fix audit 40 M-3 — model posting akhir (semua loop tertutup, D=C) ====
   //   JURNAL KLAIM (di sini):  D 5105 R            → beban TEPAT SEKALI
@@ -955,8 +975,8 @@ export async function generateClaimJournal(db: TenantDb, claimId: string): Promi
   // min(c, R). Clamp lama membuat buku mencatat utang < potongan aktual
   // karyawan. Baris tetap non-negatif & D=C: kasbon ≥ 0 dan bPayroll ≤ avail
   // (cap) → tunai = avail + kasbon − bPayroll ≥ 0 selalu.
-  const bPayroll = Math.min(Math.max(0, round2(claim.payableEmployee)), avail);
-  const kasbon = Math.max(0, round2(claim.payableCompany));
+  const bPayroll = Math.min(Math.max(0, round2(dec(claim.payableEmployee))), avail);
+  const kasbon = Math.max(0, round2(dec(claim.payableCompany)));
   const cashPortion = round2(avail + kasbon - bPayroll);
   // Klaim tanpa beban riil (R=0) & tanpa kasbon → tidak ada jurnal. Fix audit 40
   // M-3 edge: R=0 tapi ada kasbon (advance a > 0 tidak terpakai sama sekali) →
@@ -1068,7 +1088,8 @@ export async function decideClaim(
   if (!chain && claim.status === "Submitted") {
     chain = await startApprovalChain(db, {
       docType: "TravelClaim", docId: input.id, employeeId: claim.employeeId,
-      amount: claim.totalSettlement, createdBy: "legacy-backfill",
+      // 44-d (M-8): totalSettlement terenkripsi — dekripsi utk nominal chain.
+      amount: tenantCryptoForDb(db).decryptMoney(claim.totalSettlement) ?? 0, createdBy: "legacy-backfill",
     });
   }
   const actor: DecideActor =
@@ -1084,7 +1105,7 @@ export async function decideClaim(
       await db.activityLog.create({
         data: {
           action: "Approved", entity: "TravelClaim", entityId: claim.docNo,
-          detail: `${claim.docNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui oleh ${actor.name} — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"} (total settlement ${claim.totalSettlement})`,
+          detail: `${claim.docNo}: jenjang ${chain.currentLevel}/${chain.totalLevels} disetujui oleh ${actor.name} — menunggu ${currentStep?.approverLabel ?? "jenjang berikutnya"} (total settlement ${tenantCryptoForDb(db).decryptMoney(claim.totalSettlement) ?? 0})`,
         },
       });
       return {
@@ -1219,6 +1240,9 @@ export async function transferClaimsToPayroll(
   let deductionTotal = 0;
   let removedCount = 0;
   // 28-c: nilai komponen khusus disimpan TERENKRIPSI (enc:v1:n:…).
+  // 44-d (M-8): payableEmployee/payableCompany klaim juga terenkripsi →
+  // dekripsi (tcC) sebelum komputasi; tcC ditangkap dari client LUAR sebelum
+  // $transaction (client transaksi tidak membawa brand schema).
   const tcC = tenantCryptoForDb(db);
   await db.$transaction(async (tx) => {
     // idempoten: buang assignment lama HANYA milik klaim yang akan ditulis ulang
@@ -1233,33 +1257,35 @@ export async function transferClaimsToPayroll(
     });
     removedCount = removed.count;
     for (const c of claims) {
-      if (c.payableEmployee > 0) {
+      const bVal = tcC.decryptMoney(c.payableEmployee) ?? 0;
+      const cVal = tcC.decryptMoney(c.payableCompany) ?? 0;
+      if (bVal > 0) {
         await tx.employeeComponentAssignment.create({
           data: {
             employeeId: c.employeeId, wageComponentId: compUtrp.id,
-            kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableEmployee)),
+            kind: "Specific", amount: tcC.encryptMoney(Math.round(bVal)),
             periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
             notes: `Kompensasi perjalanan dinas ${c.docNo} — ${c.employee.fullName}`,
             active: true,
           },
         });
         employees.add(c.employeeId);
-        earningTotal += Math.round(c.payableEmployee);
+        earningTotal += Math.round(bVal);
       }
       // Fix audit 40 M-4 — jumlah potongan TRVSTLIN = payableCompany (c penuh,
       // sumber yang sama dengan kasbon D 2105 di generateClaimJournal).
-      if (c.payableCompany > 0) {
+      if (cVal > 0) {
         await tx.employeeComponentAssignment.create({
           data: {
             employeeId: c.employeeId, wageComponentId: compDed.id,
-            kind: "Specific", amount: tcC.encryptMoney(Math.round(c.payableCompany)),
+            kind: "Specific", amount: tcC.encryptMoney(Math.round(cVal)),
             periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
             notes: `Potongan settlement travel ${c.docNo} — kelebihan uang muka`,
             active: true,
           },
         });
         employees.add(c.employeeId);
-        deductionTotal += Math.round(c.payableCompany);
+        deductionTotal += Math.round(cVal);
       }
       await tx.travelClaim.update({
         where: { id: c.id },
@@ -1310,8 +1336,12 @@ export async function markTravelPaidForRun(db: TenantDb, runId: string): Promise
     select: { id: true, docNo: true, employeeId: true, payableEmployee: true, payableCompany: true },
     orderBy: { docNo: "asc" },
   });
+  // 44-d (M-8): b/c terenkripsi — dekripsi utk pengecekan klaim nol-komponen.
+  const tcPaid = tenantCryptoForDb(db);
   const toPaid = transferred.filter(
-    (c) => paidEmployees.has(c.employeeId) || (c.payableEmployee <= 0 && c.payableCompany <= 0),
+    (c) =>
+      paidEmployees.has(c.employeeId) ||
+      ((tcPaid.decryptMoney(c.payableEmployee) ?? 0) <= 0 && (tcPaid.decryptMoney(c.payableCompany) ?? 0) <= 0),
   );
   const skipped = transferred.filter((c) => !toPaid.includes(c));
 
@@ -1357,14 +1387,18 @@ export async function listBudgets(db: TenantDb): Promise<BudgetRow[]> {
     where: { status: { in: ["Transferred", "Paid"] } },
     select: { claimDate: true, totalSettlement: true },
   });
+  // 44-d (M-8): budget/item/totalSettlement terenkripsi — dekripsi (reduce
+  // in-memory atas nilai terdekripsi; totalSettlement dipakai sbg angka).
+  const tc = tenantCryptoForDb(db);
   return budgets.map((b) => {
     const inWindow = claims.filter((c) => c.claimDate >= b.startDate && c.claimDate <= b.endDate);
-    const used = round2(inWindow.reduce((s, c) => s + c.totalSettlement, 0));
+    const used = round2(inWindow.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
+    const totalBudget = tc.decryptMoney(b.totalBudget) ?? 0;
     return {
       id: b.id, year: b.year, startDate: b.startDate, endDate: b.endDate, currency: b.currency,
-      totalBudget: b.totalBudget, note: b.note,
-      items: b.items.map((i) => ({ costCenter: i.costCenter, amount: i.amount, note: i.note })),
-      used, remaining: round2(b.totalBudget - used), claimCount: inWindow.length,
+      totalBudget, note: b.note,
+      items: b.items.map((i) => ({ costCenter: i.costCenter, amount: tc.decryptMoney(i.amount) ?? 0, note: i.note })),
+      used, remaining: round2(totalBudget - used), claimCount: inWindow.length,
     };
   });
 }
@@ -1377,11 +1411,13 @@ export async function upsertBudget(
   if (year < 2000 || year > 2100) throw new Error("Tahun tidak valid");
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year, 11, 31);
+  // 44-d (M-8): totalBudget + amount item disimpan TERENKRIPSI (enc:v1:n:…).
+  const tc = tenantCryptoForDb(db);
   let budgetId = input.id;
   if (input.id) {
     await db.travelBudget.update({
       where: { id: input.id },
-      data: { totalBudget: Math.max(0, input.totalBudget), note: input.note?.trim() || null },
+      data: { totalBudget: tc.encryptMoney(Math.max(0, input.totalBudget)) ?? "0", note: input.note?.trim() || null },
     });
     if (input.items) {
       await db.travelBudgetItem.deleteMany({ where: { budgetId: input.id } });
@@ -1390,7 +1426,7 @@ export async function upsertBudget(
     const exists = await db.travelBudget.findUnique({ where: { year } });
     if (exists) throw new Error(`Budget tahun ${year} sudah ada — gunakan tombol ubah`);
     const b = await db.travelBudget.create({
-      data: { year, startDate, endDate, totalBudget: Math.max(0, input.totalBudget), note: input.note?.trim() || null },
+      data: { year, startDate, endDate, totalBudget: tc.encryptMoney(Math.max(0, input.totalBudget)) ?? "0", note: input.note?.trim() || null },
     });
     budgetId = b.id;
   }
@@ -1398,7 +1434,7 @@ export async function upsertBudget(
     await db.travelBudgetItem.createMany({
       data: input.items
         .filter((i) => i.costCenter?.trim())
-        .map((i) => ({ budgetId: budgetId!, costCenter: i.costCenter.trim(), amount: Math.max(0, i.amount), note: i.note?.trim() || null })),
+        .map((i) => ({ budgetId: budgetId!, costCenter: i.costCenter.trim(), amount: tc.encryptMoney(Math.max(0, i.amount)) ?? "0", note: i.note?.trim() || null })),
     });
   }
   await db.activityLog.create({
@@ -1433,7 +1469,7 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const [requests, claims, budgets, claimsYtdRaw, expenseAgg, advanceRows, requestsApprovedYtd] = await Promise.all([
+  const [requests, claims, budgets, claimsYtdRaw, expenseRows, advanceRows, requestsApprovedYtd] = await Promise.all([
     db.travelRequest.findMany({ where: { requestDate: { gte: monthStart } }, select: { status: true } }),
     db.travelClaim.findMany({ where: { status: "Submitted" }, select: { id: true } }),
     db.travelBudget.findFirst({ where: { year: now.getFullYear() } }),
@@ -1441,10 +1477,11 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
       where: { claimDate: { gte: yearStart } },
       select: { status: true, totalSettlement: true, payableEmployee: true, payableCompany: true },
     }),
-    db.travelClaimExpense.groupBy({
-      by: ["kind"],
+    // 44-d (M-8): groupBy/_sum.amount DILARANG (amount terenkripsi, ciphertext
+    // acak per baris) → fetch rows + agregasi IN-MEMORY setelah dekripsi.
+    db.travelClaimExpense.findMany({
       where: { claim: { claimDate: { gte: yearStart }, status: { in: ["Approved", "Transferred", "Paid"] } } },
-      _sum: { amount: true },
+      select: { kind: true, amount: true },
     }),
     // M-3/B5 (T3-TRAVEL): SEMUA advance belum lunas — status Given (sudah dicairkan)
     // DAN request belum punya klaim Paid (klaim Submitted/Approved/Transferred =
@@ -1457,15 +1494,21 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
   ]);
 
   const requestsSubmitted = await db.travelRequest.count({ where: { status: "Submitted" } });
+  // 44-d (M-8): nilai uang terenkripsi — dekripsi semua reduce in-memory.
+  const tc = tenantCryptoForDb(db);
   const used = claimsYtdRaw
     .filter((c) => c.status === "Transferred" || c.status === "Paid")
-    .reduce((s, c) => s + c.totalSettlement, 0);
+    .reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0);
 
   const kindLabel: Record<string, string> = {
     GENERAL: "General Expense", ALLOWANCE: "Allowance (Uang Saku)", MILEAGE: "Mileage (BBM/Jarak)", ENTERTAINMENT: "Entertainment",
   };
-  const topExpenseKinds = expenseAgg
-    .map((g) => ({ kind: kindLabel[g.kind] ?? g.kind, amount: round2(g._sum.amount ?? 0) }))
+  const kindAgg = new Map<string, number>();
+  for (const e of expenseRows) {
+    kindAgg.set(e.kind, round2((kindAgg.get(e.kind) ?? 0) + (tc.decryptMoney(e.amount) ?? 0)));
+  }
+  const topExpenseKinds = [...kindAgg.entries()]
+    .map(([kind, amount]) => ({ kind: kindLabel[kind] ?? kind, amount }))
     .sort((x, y) => y.amount - x.amount);
 
   return {
@@ -1474,13 +1517,13 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
     pendingRequestApprovals: requestsSubmitted,
     pendingClaimApprovals: claims.length,
     claimsYtd: claimsYtdRaw.length,
-    claimsYtdAmount: round2(claimsYtdRaw.reduce((s, c) => s + c.totalSettlement, 0)),
+    claimsYtdAmount: round2(claimsYtdRaw.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0)),
     transferredCount: claimsYtdRaw.filter((c) => c.status === "Transferred").length,
     paidCount: claimsYtdRaw.filter((c) => c.status === "Paid").length,
     budgetYear: budgets?.year ?? null,
-    budgetTotal: budgets?.totalBudget ?? 0,
+    budgetTotal: budgets ? tc.decryptMoney(budgets.totalBudget) ?? 0 : 0,
     budgetUsed: round2(used),
-    advanceOutstanding: round2(advanceRows.filter((x) => x.request.claims.length === 0).reduce((s, x) => s + x.amount, 0)),
+    advanceOutstanding: round2(advanceRows.filter((x) => x.request.claims.length === 0).reduce((s, x) => s + (tc.decryptMoney(x.amount) ?? 0), 0)),
     topExpenseKinds,
   };
 }
@@ -1510,16 +1553,18 @@ export async function claimReport(db: TenantDb, opts: { from: Date; to: Date; em
       expenses: { orderBy: [{ expenseDate: "asc" }, { expenseCode: "asc" }] },
     },
   });
+  // 44-d (M-8): semua nilai uang TERENKRIPSI — dekripsi utk laporan (angka).
+  const tcR = tenantCryptoForDb(db);
   return claims.map((c) => ({
     docNo: c.docNo, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     claimDate: c.claimDate, templateName: c.template.name, costCenter: c.costCenter, status: c.status,
-    totalExpenses: round2(c.expenses.reduce((s, e) => s + e.amount, 0)),
-    otherCompanyExp: c.otherCompanyExp, exchangeLoss: c.exchangeLoss,
-    payableEmployee: c.payableEmployee, payableCompany: c.payableCompany,
-    totalSettlement: c.totalSettlement, journalNo: c.journalNo, periodCode: c.periodCode,
+    totalExpenses: round2(c.expenses.reduce((s, e) => s + (tcR.decryptMoney(e.amount) ?? 0), 0)),
+    otherCompanyExp: tcR.decryptMoney(c.otherCompanyExp) ?? 0, exchangeLoss: tcR.decryptMoney(c.exchangeLoss) ?? 0,
+    payableEmployee: tcR.decryptMoney(c.payableEmployee) ?? 0, payableCompany: tcR.decryptMoney(c.payableCompany) ?? 0,
+    totalSettlement: tcR.decryptMoney(c.totalSettlement) ?? 0, journalNo: c.journalNo, periodCode: c.periodCode,
     expenses: c.expenses.map((e) => ({
       expenseCode: e.expenseCode, kind: e.kind, description: e.description,
-      amount: e.amount, qty: e.qty, guestName: e.guestName, overLimit: e.overLimit,
+      amount: tcR.decryptMoney(e.amount) ?? 0, qty: e.qty, guestName: e.guestName, overLimit: e.overLimit,
     })),
   }));
 }

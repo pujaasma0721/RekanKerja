@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { DecisionConflictError, DecisionForbiddenError } from "@/onevity/shared/services/approval-engine";
 import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/onevity/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
@@ -38,7 +39,10 @@ export async function GET(req: NextRequest) {
     const id = sp.get("id");
     if (id) {
       const detail = await getClaimDetail(db, id);
-      return NextResponse.json({ detail });
+      // 44-d (M-8): detail = row mentah Prisma (klaim/expense/advance uangnya
+      // terenkripsi) → dekripsi di batas serializer (bentuk angka utk frontend
+      // TIDAK berubah — walker generik enc:v1:n → number).
+      return NextResponse.json({ detail: tenantCryptoForDb(db).decryptJson(detail) });
     }
     const claims = await listTravelClaims(db, {
       status: sp.get("status") ?? "all",
@@ -241,7 +245,9 @@ export async function PATCH(req: NextRequest) {
               to: [{ email: cl.employee.email, name: cl.employee.fullName }],
               data: {
                 nama: cl.employee.fullName, docNo: cl.docNo,
-                jumlah: `Rp ${(cl.totalSettlement ?? 0).toLocaleString("id-ID")}`,
+                // 44-d (M-8): totalSettlement terenkripsi — dekripsi sebelum
+                // render template email {{amount}} (jangan kirim ciphertext).
+                jumlah: `Rp ${(tenantCryptoForDb(m.db).decryptMoney(cl.totalSettlement) ?? 0).toLocaleString("id-ID")}`,
                 periode: cl.claimDate ? new Date(cl.claimDate).toISOString().slice(0, 10) : "-",
                 catatan: b.note ? String(b.note) : "-",
               },

@@ -141,7 +141,7 @@ export async function seedLeaveDemoData(db: TenantDb): Promise<{ skipped: boolea
         employeeId: emp.id, leaveTypeId: ltByCode["CT-THN"]!, year: 2026,
         requestDate: new Date(2026, 7, 15),
         paymentDate: e.paymentDate ? new Date(`${e.paymentDate}T00:00:00`) : null,
-        days: e.days, amount,
+        days: e.days, amount: tenantCryptoForDb(db).encryptMoney(amount) ?? "0", // 44-d (M-8): amount TERENKRIPSI
         status: e.status, periodCode: e.periodCode ?? null,
         transferredRunNo: e.runNo ?? null,
         decidedAt: e.status !== "Submitted" ? new Date(2026, 7, 18) : null,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { listClaims, submitClaim, decideClaim, previewClaim } from "@/onevity/medical/services/medical-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/onevity/shared/services/email-service";
@@ -281,6 +282,12 @@ export async function PATCH(req: NextRequest) {
             select: { docNo: true, totalApproved: true, totalBill: true, employeeId: true, type: { select: { name: true } } },
           });
           const emp = cl ? await employeeEmailOf(m.db, cl.employeeId) : null;
+          // 44-c (M-8): totalApproved/totalBill TERENKRIPSI — dekripsi utk nilai
+          // email/notifikasi ({{amount}} angka murni, bukan ciphertext).
+          const tcEm = tenantCryptoForDb(m.db);
+          const amountVal = cl
+            ? (tcEm.decryptMoney(cl.totalApproved) ?? tcEm.decryptMoney(cl.totalBill) ?? 0)
+            : 0;
           if (cl && emp) {
             const event = b.action === "settle" ? "medical.claim.settled"
               : b.action === "approve" ? "medical.claim.approved"
@@ -291,7 +298,7 @@ export async function PATCH(req: NextRequest) {
               data: {
                 nama: emp.name ?? "-", docNo: cl.docNo,
                 jenis: cl.type?.name ?? "-",
-                jumlah: `Rp ${(cl.totalApproved ?? cl.totalBill ?? 0).toLocaleString("id-ID")}`,
+                jumlah: `Rp ${amountVal.toLocaleString("id-ID")}`,
                 catatan: b.note ? String(b.note) : "-",
               },
             });
@@ -303,7 +310,7 @@ export async function PATCH(req: NextRequest) {
               title: b.action === "settle" ? `Klaim medis ${res.docNo} di-settle`
                 : b.action === "approve" ? `Klaim medis ${res.docNo} disetujui`
                 : `Klaim medis ${res.docNo} ditolak`,
-              body: `${cl.type?.name ?? "Klaim medis"} — Rp ${(cl.totalApproved ?? cl.totalBill ?? 0).toLocaleString("id-ID")}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
+              body: `${cl.type?.name ?? "Klaim medis"} — Rp ${amountVal.toLocaleString("id-ID")}${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
               kind: "medical", link: "medical:claims",
             });
           }

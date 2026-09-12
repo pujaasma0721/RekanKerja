@@ -1163,12 +1163,14 @@ export async function submitEncashment(
   const salary = await activeSalary(db, input.employeeId);
   const amount = Math.round((input.days * salary) / 25); // upah harian = gpokok/25
   const docNo = await nextDocNo(db, "LE");
+  // 44-d (M-8): amount encashment disimpan TERENKRIPSI (enc:v1:n:…);
+  // estimasi membaca baseSalary TERENKRIPSI wave-1 — activeSalary sudah dekripsi.
   await db.leaveEncashment.create({
     data: {
       docNo, employeeId: input.employeeId, leaveTypeId: type.id, year: input.year,
       requestDate: new Date(),
       paymentDate: input.paymentDate ? new Date(input.paymentDate) : null,
-      days: input.days, amount,
+      days: input.days, amount: tenantCryptoForDb(db).encryptMoney(amount) ?? "0",
       status: "Submitted", note: input.note?.trim() || null,
     },
   });
@@ -1213,7 +1215,11 @@ export async function decideEncashment(
     // snapshot submit — hak uang cuti yang sudah disetujui tidak hangus Rp0 hanya
     // karena karyawan berhenti (settlement PHK pun meng-exclude hari yang cashed).
     const salary = await activeSalary(db, enc.employeeId);
-    const amountApproved = salary > 0 ? Math.round((enc.days * salary) / 25) : enc.amount;
+    // 44-d (M-8): amount TERENKRIPSI — dekripsi snapshot submit (fallback bila
+    // karyawan tanpa assignment aktif). tc ditangkap dari client LUAR sebelum
+    // runTx (client transaksi tidak membawa brand schema).
+    const tc = tenantCryptoForDb(db);
+    const amountApproved = salary > 0 ? Math.round((enc.days * salary) / 25) : tc.decryptMoney(enc.amount) ?? 0;
     // L-02 (KRITIS): re-check remaining dalam transaksi serializable sebelum cashed
     // bertambah — tanpa ini encashment paralel / encash+cuti paralel melampaui
     // entitlement (cashed > entitlement → overpay UCT).
@@ -1253,7 +1259,8 @@ export async function decideEncashment(
       const upd = await tx.leaveEncashment.updateMany({
         where: { id: input.id, status: "Submitted" },
         // amount dipersist saat approve (L-07) — nilai snapshot yang otoritatif
-        data: { status: "Approved", amount: amountApproved, ...decided },
+        // 44-d (M-8): nilai snapshot disimpan TERENKRIPSI (tc dari client luar).
+        data: { status: "Approved", amount: tc.encryptMoney(amountApproved) ?? "0", ...decided },
       });
       if (upd.count === 0) throw new Error("Encashment sudah diproses oleh pengguna lain — muat ulang daftar");
       // saldo cashed bertambah (kolom e) — atomic dengan status Approved
@@ -1300,10 +1307,12 @@ export async function listEncashments(
     orderBy: { requestDate: "desc" },
     take: 300,
   });
+  // 44-d (M-8): amount TERENKRIPSI — dekripsi utk DTO (angka utk frontend).
+  const tc = tenantCryptoForDb(db);
   return rows.map((e) => ({
     id: e.id, docNo: e.docNo, employeeNo: e.employee.employeeNo, fullName: e.employee.fullName,
     leaveTypeName: e.leaveType.name, year: e.year, requestDate: e.requestDate, paymentDate: e.paymentDate,
-    days: e.days, amount: e.amount, status: e.status, periodCode: e.periodCode,
+    days: e.days, amount: tc.decryptMoney(e.amount) ?? 0, status: e.status, periodCode: e.periodCode,
     transferredRunNo: e.transferredRunNo, note: e.note, decisionNote: e.decisionNote,
   }));
 }
@@ -1384,7 +1393,8 @@ export async function transferEncashment(
     // hari yang sudah cashed, jadi tidak ada jalur pengganti). Nilai yang
     // ditransfer = nilai yang di-approve; re-transfer ke period sama tetap
     // idempoten karena amount snapshot stabil (assignment ditulis identik).
-    const amount = e.amount;
+    // 44-d (M-8): amount TERENKRIPSI — dekripsi snapshot (tcE dari client luar).
+    const amount = tcE.decryptMoney(e.amount) ?? 0;
     await db.employeeComponentAssignment.create({
       data: {
         employeeId: e.employeeId, wageComponentId: comp.id,

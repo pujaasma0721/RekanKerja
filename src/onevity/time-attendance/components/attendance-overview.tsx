@@ -5,12 +5,14 @@ import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { apiSend } from "@/onevity/shared/lib/api";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
   CalendarCheck2, Clock, XCircle, CheckCircle2, Users, CalendarClock,
   CalendarDays, RefreshCw, Timer, BadgeCheck, TrendingUp,
+  ShieldCheck, ShieldAlert, TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,20 @@ interface OverviewData {
   /** T9-HOLIDAY: jumlah hari libur tahun berjalan + libur terdekat */
   holidaysThisYear: number;
   nextHoliday: { date: string; name: string; kind: string } | null;
+  /** G-04 (audit 42): coverage kualitas data — populasi harapan vs baris
+   *  AttendanceDaily yang ada (opsional: payload lama tanpa coverage tetap
+   *  di-render tanpa indikator). */
+  coverage?: CoverageData;
+}
+
+interface CoverageData {
+  expected: number;
+  actual: number;
+  missing: number;
+  coveragePct: number;
+  asOf: string;
+  missingByDay: { date: string; missing: number }[];
+  missingByEmployee: { employeeId: string; employeeNo: string; fullName: string; missing: number }[];
 }
 
 export function AttendanceOverview() {
@@ -116,6 +132,10 @@ export function AttendanceOverview() {
             })}
           </div>
 
+          {/* G-04 (audit 42): indikator coverage kualitas data presensi —
+              peringatan bila regenerasi belum/tidak lengkap */}
+          {data?.coverage ? <CoverageAlert cov={data.coverage} onOpenClocking={() => navigate("attendance", "clocking")} /> : null}
+
           <div className="grid gap-4 lg:grid-cols-2">
             {/* bulan berjalan */}
             <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
@@ -186,6 +206,78 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone: 
     <div className="rounded-xl border border-stone-200/70 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
       <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
       <p className={`text-sm font-extrabold ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+/**
+ * G-04 (audit 42): indikator coverage data presensi bulan berjalan.
+ * ≥98% hijau (data lengkap) · 90–98% kuning · <90% merah + detail + hint regen.
+ * Badge shadcn (variant outline + warna) — responsif (flex-wrap di mobile).
+ */
+function CoverageAlert({ cov, onOpenClocking }: { cov: CoverageData; onOpenClocking: () => void }) {
+  const { t, locale } = useI18n();
+  const pct = cov.coveragePct;
+  const pctLabel = pct.toLocaleString(locale, { maximumFractionDigits: 1 });
+  const asOfLabel = new Date(`${cov.asOf}T00:00:00`).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
+
+  // ambang: hijau ≥98 · kuning 90–<98 · merah <90 (merah = keputusan payroll berisiko)
+  const good = pct >= 98;
+  const warn = !good && pct >= 90;
+  const Icon = good ? ShieldCheck : warn ? TriangleAlert : ShieldAlert;
+  const box = good
+    ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/25 dark:bg-emerald-500/10"
+    : warn
+      ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10"
+      : "border-rose-200 bg-rose-50/70 dark:border-rose-500/25 dark:bg-rose-500/10";
+  const iconTone = good
+    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+    : warn
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+      : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400";
+  const badge = good
+    ? "border-emerald-200 bg-white text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:bg-transparent dark:text-emerald-400"
+    : warn
+      ? "border-amber-300 bg-white text-[10px] font-bold text-amber-700 dark:border-amber-500/40 dark:bg-transparent dark:text-amber-400"
+      : "border-rose-300 bg-white text-[10px] font-bold text-rose-700 dark:border-rose-500/40 dark:bg-transparent dark:text-rose-400";
+
+  const badgeText = good
+    ? t("Data Lengkap", "Complete Data")
+    : warn
+      ? t("Data Belum Lengkap ({p}%)", "Data Incomplete ({p}%)", { p: pctLabel })
+      : t("Data Tidak Lengkap ({p}%)", "Data Incomplete ({p}%)", { p: pctLabel });
+
+  const worstDay = cov.missingByDay[0];
+  const worstEmps = cov.missingByEmployee.slice(0, 3)
+    .map((e) => t("{no} ({n})", "{no} ({n})", { no: e.employeeNo, n: e.missing }))
+    .join(", ");
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 shadow-sm", box)}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", iconTone)}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{t("Kualitas Data Presensi", "Attendance Data Quality")}</p>
+          <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">
+            {t("{a}/{b} kombinasi karyawan-hari terhitung · s.d. {d}", "{a}/{b} employee-day combinations recorded · as of {d}", { a: cov.actual.toLocaleString(locale), b: cov.expected.toLocaleString(locale), d: asOfLabel })}
+          </p>
+        </div>
+      </div>
+      <Badge variant="outline" className={cn("shrink-0", badge)}>{badgeText}</Badge>
+      {!good ? (
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+          <p className="text-[11px] font-medium text-stone-600 dark:text-stone-300">
+            {t("{n} kombinasi hilang", "{n} combinations missing", { n: cov.missing.toLocaleString(locale) })}
+            {worstDay ? t(" · terburuk {d} ({n})", " · worst {d} ({n})", { d: worstDay.date, n: worstDay.missing }) : ""}
+            {worstEmps ? t(" · karyawan: {list}", " · employees: {list}", { list: worstEmps }) : ""}
+          </p>
+          <Button size="sm" variant="outline" className="h-7 gap-1 border-stone-300/80 px-2.5 text-[11px] font-bold" onClick={onOpenClocking}>
+            {t("Jalankan Regenerasi Presensi", "Run Attendance Regeneration")}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

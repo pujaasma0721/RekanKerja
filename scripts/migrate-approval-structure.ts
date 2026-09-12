@@ -13,6 +13,7 @@ import path from "node:path";
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { startApprovalChain } from "@/onevity/shared/services/approval-engine";
 
 const SCHEMAS = [
@@ -361,27 +362,36 @@ async function backfillChains(db: TenantDb): Promise<{ created: number; finalize
   const travels = await db.travelRequest.findMany({
     select: { id: true, employeeId: true, status: true, advances: { select: { amount: true } } },
   });
+  // 44-d (M-8): amount advance TERENKRIPSI — dekripsi per baris (reduce atas
+  // string akan concat, bukan jumlah).
+  const tcTravel = tenantCryptoForDb(db);
   for (const r of travels) {
-    const amount = r.advances.reduce((s, a) => s + a.amount, 0);
+    const amount = r.advances.reduce((s, a) => s + (tcTravel.decryptMoney(a.amount) ?? 0), 0);
     const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "Travel", docId: r.id } } });
     if (!before) { await startApprovalChain(db, { docType: "Travel", docId: r.id, employeeId: r.employeeId, amount: amount > 0 ? amount : null, createdBy: "backfill" }); created++; }
     if (r.status !== "Submitted") await finalize("Travel", r.id, r.status);
   }
 
   // Medical (nominal = total tagihan; Draft belum diajukan → skip)
+  // 44-c (M-8): totalBill TERENKRIPSI — dekripsi utk nominal chain
+  // (ApprovalChain.amount TETAP Float — config routing, tidak diubah).
   const meds = await db.medicalClaim.findMany({ select: { id: true, employeeId: true, state: true, totalBill: true } });
+  const tcMed = tenantCryptoForDb(db);
   for (const r of meds) {
     if (r.state === "Draft") continue;
     const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "Medical", docId: r.id } } });
-    if (!before) { await startApprovalChain(db, { docType: "Medical", docId: r.id, employeeId: r.employeeId, amount: r.totalBill, createdBy: "backfill" }); created++; }
+    if (!before) { await startApprovalChain(db, { docType: "Medical", docId: r.id, employeeId: r.employeeId, amount: tcMed.decryptMoney(r.totalBill) ?? 0, createdBy: "backfill" }); created++; }
     if (r.state !== "Submitted" && r.state !== "Returned") await finalize("Medical", r.id, r.state);
   }
 
   // Loan (nominal = jumlah pinjaman; Active/PaidOff historis → dianggap approved)
+  // M-8: EmployeeLoan.amount tersimpan TERENKRIPSI — dekripsi utk nominal chain.
   const loans = await db.employeeLoan.findMany({ select: { id: true, employeeId: true, status: true, amount: true } });
+  const tcLoan = tenantCryptoForDb(db);
   for (const r of loans) {
+    const loanAmount = tcLoan.decryptMoney(r.amount) ?? 0;
     const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "Loan", docId: r.id } } });
-    if (!before) { await startApprovalChain(db, { docType: "Loan", docId: r.id, employeeId: r.employeeId, amount: r.amount, createdBy: "backfill" }); created++; }
+    if (!before) { await startApprovalChain(db, { docType: "Loan", docId: r.id, employeeId: r.employeeId, amount: loanAmount, createdBy: "backfill" }); created++; }
     if (r.status !== "Submitted") await finalize("Loan", r.id, r.status === "Active" || r.status === "PaidOff" ? "Approved" : r.status);
   }
 

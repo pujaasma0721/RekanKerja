@@ -93,6 +93,15 @@ function logEntry(state: string, by: string, note?: string): StatusEntry {
 
 const fmtRp = (n: number) => n.toLocaleString("id-ID");
 
+// ==== M-8 (gelombang 44-c): kolom uang MedicalBalance/Claim/Line/Adjustment ====
+// TERENKRIPSI (String enc:v1:n:…) — decrypt utk kalkulasi, encrypt saat tulis.
+
+/** Dekripsi kolom uang (plaintext legacy numerik di-parse jadi angka). */
+const decMoney = (tc: FieldCrypto, v: string | null | undefined): number => tc.decryptMoney(v) ?? 0;
+
+/** Encrypt kolom uang NOT-NULL String (fallback "0" = legacy 0). */
+const encMoney = (tc: FieldCrypto, n: number): string => tc.encryptMoney(n) ?? "0";
+
 /** Status klaim yang masih "hidup" (uang belum selesai) — dipakai dedupe kwitansi (M-8). */
 const ACTIVE_CLAIM_STATES = ["Draft", "Submitted", "Returned", "Approved", "Settled"];
 /** Status klaim yang masih MENAHAN plafon (belum diputuskan/dibayar) — dipakai
@@ -149,17 +158,19 @@ async function claimPoolAvailability(
   // fallback bila saldo tahun itu belum digenerate (backlog m-5: submit masih
   // memakai limit on-the-fly; settle kini MENOLAK tanpa saldo — lihat decideClaim)
   // 28-c: baseSalary terenkripsi — dekripsi utk kalkulasi plafon.
-  const salary = emp?.assignments[0] ? tenantCryptoForDb(db).decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
+  // 44-c (M-8): kolom saldo MedicalBalance TERENKRIPSI — dekripsi per field.
+  const tc = tenantCryptoForDb(db);
+  const salary = emp?.assignments[0] ? tc.decryptMoney(emp.assignments[0].baseSalary) ?? 0 : 0;
   // Task 33 — fallback plafon on-the-fly ikut rule parameter karyawan.
   const poolRules = await medicalTypeRules(db, [input.typeId]);
   const poolCtx = emp ? buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date()) : null;
   const fallbackLimit = limitWithRules(benefitLimitFor(t, salary), poolRules.get(input.typeId), poolCtx);
-  const limit = bal?.benefitAmount ?? fallbackLimit;
+  const limit = bal ? decMoney(tc, bal.benefitAmount) : fallbackLimit;
   const empRemaining = bal
-    ? round2(bal.benefitAmount + bal.adjustmentAmount + bal.carriedOver - bal.usedAmount - bal.initialUsed)
+    ? round2(decMoney(tc, bal.benefitAmount) + decMoney(tc, bal.adjustmentAmount) + decMoney(tc, bal.carriedOver) - decMoney(tc, bal.usedAmount) - decMoney(tc, bal.initialUsed))
     : round2(limit);
   const depRemaining = bal
-    ? round2(bal.depBenefitAmount + bal.depAdjustment - bal.depUsed)
+    ? round2(decMoney(tc, bal.depBenefitAmount) + decMoney(tc, bal.depAdjustment) - decMoney(tc, bal.depUsed))
     : round2(depPoolSeparate(t) ? limit : 0);
   const pool: "employee" | "dependent" = input.forDependent && depPoolSeparate(t) ? "dependent" : "employee";
   const poolRemaining = pool === "dependent" ? depRemaining : empRemaining;
@@ -177,8 +188,11 @@ async function claimPoolAvailability(
   for (const o of others) {
     const oPool = o.forDependent && depPoolSeparate(t) ? "dependent" : "employee";
     if (oPool === pool) {
-      pendingOthers = round2(pendingOthers + o.totalApproved);
-      otherClaims.push({ docNo: o.docNo, totalApproved: o.totalApproved });
+      // 44-c (M-8): totalApproved klaim TERENKRIPSI — dekripsi per baris
+      // (aritmetika atas string = concat, bukan jumlah).
+      const oApproved = decMoney(tc, o.totalApproved);
+      pendingOthers = round2(pendingOthers + oApproved);
+      otherClaims.push({ docNo: o.docNo, totalApproved: oApproved });
     }
   }
   return {
@@ -186,9 +200,9 @@ async function claimPoolAvailability(
     available: round2(poolRemaining - pendingOthers),
     empRemaining, depRemaining,
     poolBenefit: pool === "dependent"
-      ? round2((bal?.depBenefitAmount ?? (depPoolSeparate(t) ? limit : 0)) + (bal?.depAdjustment ?? 0))
-      : round2((bal ? bal.benefitAmount : limit) + (bal?.adjustmentAmount ?? 0) + (bal?.carriedOver ?? 0)),
-    poolUsed: pool === "dependent" ? (bal?.depUsed ?? 0) : round2((bal?.usedAmount ?? 0) + (bal?.initialUsed ?? 0)),
+      ? round2((bal ? decMoney(tc, bal.depBenefitAmount) : (depPoolSeparate(t) ? limit : 0)) + (bal ? decMoney(tc, bal.depAdjustment) : 0))
+      : round2((bal ? decMoney(tc, bal.benefitAmount) : limit) + (bal ? decMoney(tc, bal.adjustmentAmount) : 0) + (bal ? decMoney(tc, bal.carriedOver) : 0)),
+    poolUsed: pool === "dependent" ? (bal ? decMoney(tc, bal.depUsed) : 0) : round2((bal ? decMoney(tc, bal.usedAmount) : 0) + (bal ? decMoney(tc, bal.initialUsed) : 0)),
   };
 }
 
@@ -409,12 +423,14 @@ export async function generateBalances(
       const limit = limitWithRules(benefitLimitFor(t, salary), medRules.get(t.id), empCtx);
       const prev = prevByKey.get(`${emp.id}:${t.id}`);
       // carry-over: kebijakan CARRY → sisa tahun lalu (max maxCarryOver) dibawa
+      // 44-c (M-8): kolom saldo tahun lalu TERENKRIPSI — dekripsi sebelum
+      // menghitung sisa (aritmetika atas string = concat).
       const carried = t.unusedRule === "CARRY" && prev
         ? Math.min(
             Math.max(
               round2(
-                prev.benefitAmount + prev.adjustmentAmount + prev.carriedOver
-                - prev.usedAmount - prev.initialUsed,
+                decMoney(tcGen, prev.benefitAmount) + decMoney(tcGen, prev.adjustmentAmount) + decMoney(tcGen, prev.carriedOver)
+                - decMoney(tcGen, prev.usedAmount) - decMoney(tcGen, prev.initialUsed),
               ),
               0,
             ),
@@ -439,15 +455,19 @@ export async function generateBalances(
         await db.medicalBalance.create({
           data: {
             employeeId: emp.id, typeId: t.id, year,
-            benefitAmount: limit, depBenefitAmount: depBenefit,
-            carriedOver: carried, initialUsed,
+            // 44-c (M-8): 8 kolom uang saldo disimpan TERENKRIPSI (termasuk
+            // nilai 0 — konsisten invariant "semua tulisan uang = ciphertext").
+            benefitAmount: encMoney(tcGen, limit), adjustmentAmount: encMoney(tcGen, 0),
+            initialUsed: encMoney(tcGen, initialUsed), usedAmount: encMoney(tcGen, 0),
+            depBenefitAmount: encMoney(tcGen, depBenefit), depAdjustment: encMoney(tcGen, 0),
+            depUsed: encMoney(tcGen, 0), carriedOver: encMoney(tcGen, carried),
           },
         });
         created++;
       } else if (input.limitCorrection) {
         await db.medicalBalance.update({
           where: { id: existing.id },
-          data: { benefitAmount: limit, depBenefitAmount: depBenefit },
+          data: { benefitAmount: encMoney(tcGen, limit), depBenefitAmount: encMoney(tcGen, depBenefit) },
         });
         updated++;
       }
@@ -514,23 +534,32 @@ export async function listBalances(
   });
   // jenis UNLIMITED tidak masuk agregat nominal (menampilkan ∞ per baris)
   // 28-c: baseSalary karyawan terenkripsi — dekripsi utk kolom saldo.
+  // 44-c (M-8): 8 kolom uang saldo TERENKRIPSI — dekripsi utk DTO (angka).
   const tcBal = tenantCryptoForDb(db);
   return rows.filter((b) => b.type.limitRule !== "UNLIMITED").map((b) => {
+    const benefitAmount = decMoney(tcBal, b.benefitAmount);
+    const adjustmentAmount = decMoney(tcBal, b.adjustmentAmount);
+    const carriedOver = decMoney(tcBal, b.carriedOver);
+    const usedAmount = decMoney(tcBal, b.usedAmount);
+    const initialUsed = decMoney(tcBal, b.initialUsed);
+    const depBenefitAmount = decMoney(tcBal, b.depBenefitAmount);
+    const depAdjustment = decMoney(tcBal, b.depAdjustment);
+    const depUsed = decMoney(tcBal, b.depUsed);
     const remaining = round2(
-      b.benefitAmount + b.adjustmentAmount + b.carriedOver - b.usedAmount - b.initialUsed,
+      benefitAmount + adjustmentAmount + carriedOver - usedAmount - initialUsed,
     );
-    const depRemaining = round2(b.depBenefitAmount + b.depAdjustment - b.depUsed);
+    const depRemaining = round2(depBenefitAmount + depAdjustment - depUsed);
     return {
       id: b.id, employeeId: b.employeeId, employeeNo: b.employee.employeeNo,
       fullName: b.employee.fullName,
       orgUnitName: b.employee.assignments[0]?.orgUnit?.name ?? null,
       baseSalary: b.employee.assignments[0] ? tcBal.decryptMoney(b.employee.assignments[0].baseSalary) ?? 0 : 0,
       typeCode: b.type.code, typeName: b.type.name, year: b.year, limitRule: b.type.limitRule,
-      benefitAmount: b.benefitAmount, adjustmentAmount: b.adjustmentAmount,
-      carriedOver: b.carriedOver, initialUsed: b.initialUsed, usedAmount: b.usedAmount,
+      benefitAmount, adjustmentAmount,
+      carriedOver, initialUsed, usedAmount,
       remaining,
-      depBenefitAmount: b.depBenefitAmount, depAdjustment: b.depAdjustment,
-      depUsed: b.depUsed, depRemaining,
+      depBenefitAmount, depAdjustment,
+      depUsed, depRemaining,
       totalRemaining: round2(remaining + (b.type.limitRule !== "" ? depRemaining : 0)),
       claimCount: 0,
     };
@@ -626,8 +655,13 @@ export async function previewClaim(
   // Task 33 — fallback plafon ikut rule parameter karyawan.
   const wizRules = await medicalTypeRules(db, [input.typeId]);
   const wizCtx = buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date());
-  const limit = bal?.benefitAmount ?? limitWithRules(benefitLimitFor(t, salary), wizRules.get(input.typeId), wizCtx);
-  const used = (bal?.usedAmount ?? 0) + (bal?.initialUsed ?? 0);
+  // 44-c (M-8): kolom saldo TERENKRIPSI — dekripsi utk preview (angka).
+  const tcWiz = tenantCryptoForDb(db);
+  const limit = bal ? decMoney(tcWiz, bal.benefitAmount) : limitWithRules(benefitLimitFor(t, salary), wizRules.get(input.typeId), wizCtx);
+  const balAdj = bal ? decMoney(tcWiz, bal.adjustmentAmount) : 0;
+  const balCarry = bal ? decMoney(tcWiz, bal.carriedOver) : 0;
+  const balInitialUsed = bal ? decMoney(tcWiz, bal.initialUsed) : 0;
+  const used = (bal ? decMoney(tcWiz, bal.usedAmount) : 0) + balInitialUsed;
   const claimCountYear = await db.medicalClaim.count({
     where: {
       employeeId: input.employeeId, typeId: input.typeId, year: input.year,
@@ -651,11 +685,11 @@ export async function previewClaim(
     employeeNo: emp.employeeNo, fullName: emp.fullName, baseSalary: salary,
     typeName: t.name, typeCode: t.code, limitRule: t.limitRule,
     benefitAmount: limit,
-    adjustmentAmount: bal?.adjustmentAmount ?? 0,
-    carriedOver: bal?.carriedOver ?? 0,
-    initialUsed: bal?.initialUsed ?? 0,
+    adjustmentAmount: balAdj,
+    carriedOver: balCarry,
+    initialUsed: balInitialUsed,
     usedAmount: used,
-    remaining: round2(limit + (bal?.adjustmentAmount ?? 0) + (bal?.carriedOver ?? 0) - used),
+    remaining: round2(limit + balAdj + balCarry - used),
     claimCountYear,
     freqUnlimited: t.freqUnlimited, freqValue: t.freqValue, freqPeriod: t.freqPeriod,
     needReceipt: t.needReceipt, dependentEnabled: t.dependentEnabled,
@@ -822,6 +856,8 @@ export async function submitClaim(
   const docNo = await nextDocNo(db, "MC");
   const state = input.submit === false ? "Draft" : "Submitted";
   const log = [logEntry("Draft", actorId, "Dibuat"), ...(state === "Submitted" ? [logEntry("Submitted", actorId, input.note || "Diajukan")] : [])];
+  // 44-c (M-8): 6 kolom uang header + 4 kolom uang baris klaim TERENKRIPSI.
+  const tcSub = tenantCryptoForDb(db);
 
   const claim = await db.medicalClaim.create({
     data: {
@@ -832,12 +868,30 @@ export async function submitClaim(
       state,
       // snapshot pool yang BENAR (K-3): dep pool terpisah → depBenefit/depUsed;
       // SHARED-dependent & klaim karyawan → pool utama (benefit+adj+carry/used).
-      maxBenefitAt: avail.poolBenefit,
-      usedAt: avail.poolUsed,
-      totalBill, totalReimburse: totalRe, totalApproved, totalNonRe: round2(totalBill - totalApproved),
+      maxBenefitAt: encMoney(tcSub, avail.poolBenefit),
+      usedAt: encMoney(tcSub, avail.poolUsed),
+      totalBill: encMoney(tcSub, totalBill),
+      totalReimburse: encMoney(tcSub, totalRe),
+      totalApproved: encMoney(tcSub, totalApproved),
+      totalNonRe: encMoney(tcSub, round2(totalBill - totalApproved)),
       // statusLog ditulis sebagai array Json (bukan string — riwayat utuh)
       statusLog: log as unknown as Prisma.InputJsonValue,
-      lines: { create: lines },
+      lines: {
+        create: lines.map((l) => ({
+          treatedName: l.treatedName,
+          treatment: l.treatment,
+          treatmentDate: l.treatmentDate,
+          receiptNo: l.receiptNo,
+          physician: l.physician,
+          hospital: l.hospital,
+          note: l.note,
+          occupationalInjury: l.occupationalInjury,
+          billAmount: encMoney(tcSub, l.billAmount),
+          reimburseAmount: encMoney(tcSub, l.reimburseAmount),
+          approvedAmount: encMoney(tcSub, l.approvedAmount),
+          nonReAmount: encMoney(tcSub, l.nonReAmount),
+        })),
+      },
     },
   });
 
@@ -917,26 +971,38 @@ export async function listClaims(
     take: 500,
   });
   const chainMap = await attachChainSummaries(db, "Medical", rows.map((r) => ({ id: r.id })));
+  // 44-c (M-8): kolom uang header + baris TERENKRIPSI — dekripsi utk DTO (angka,
+  // bentuk respons frontend tidak berubah).
+  const tcList = tenantCryptoForDb(db);
+  const dec = (v: string | null) => decMoney(tcList, v);
   return rows.map((c) => ({
     id: c.id, docNo: c.docNo, employeeId: c.employeeId,
     employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     orgUnitName: c.employee.assignments[0]?.orgUnit?.name ?? null,
     typeCode: c.type.code, typeName: c.type.name, year: c.year,
     claimDate: c.claimDate, letterNo: c.letterNo, state: c.state, forDependent: c.forDependent,
-    maxBenefitAt: c.maxBenefitAt, usedAt: c.usedAt,
-    totalBill: c.totalBill, totalReimburse: c.totalReimburse,
-    totalApproved: c.totalApproved, totalNonRe: c.totalNonRe,
+    maxBenefitAt: dec(c.maxBenefitAt), usedAt: dec(c.usedAt),
+    totalBill: dec(c.totalBill), totalReimburse: dec(c.totalReimburse),
+    totalApproved: dec(c.totalApproved), totalNonRe: dec(c.totalNonRe),
     settleDate: c.settleDate, journalNo: c.journalNo,
     periodCode: c.periodCode, paidRunNo: c.paidRunNo, decisionNote: c.decisionNote,
-    lineCount: input.includeLines ? (c as { lines: unknown[] }).lines.length : 0,
+    lineCount: input.includeLines ? c.lines.length : 0,
     ...(input.includeLines
       ? {
-          lines: (c as { lines: {
-            treatedName: string; treatment: string | null; treatmentDate: Date | null;
-            receiptNo: string | null; physician: string | null; hospital: string | null;
-            occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
-            approvedAmount: number; nonReAmount: number; note: string | null;
-          }[] }).lines.map((l) => ({ ...l })),
+          lines: c.lines.map((l) => ({
+            treatedName: l.treatedName,
+            treatment: l.treatment,
+            treatmentDate: l.treatmentDate,
+            receiptNo: l.receiptNo,
+            physician: l.physician,
+            hospital: l.hospital,
+            note: l.note,
+            occupationalInjury: l.occupationalInjury,
+            billAmount: dec(l.billAmount),
+            reimburseAmount: dec(l.reimburseAmount),
+            approvedAmount: dec(l.approvedAmount),
+            nonReAmount: dec(l.nonReAmount),
+          })),
         }
       : {}),
     statusLog: parseStatusLog(c.statusLog),
@@ -976,6 +1042,9 @@ interface JournalLineDraft {
 async function generateSettleJournal(
   tx: Prisma.TransactionClient,
   claimId: string,
+  /** 44-c: konteks crypto ditangkap dari client LUAR (client transaksi Prisma
+   *  tidak membawa brand schema — pola 44-d leave-service decideEncashment). */
+  tc: FieldCrypto,
 ): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
   const claim = await tx.medicalClaim.findUnique({
     where: { id: claimId },
@@ -988,13 +1057,16 @@ async function generateSettleJournal(
   const drafts: JournalLineDraft[] = [];
   const acc = await tx.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code } });
   const accName = acc?.name ?? MEDICAL_EXPENSE_ACC.name;
+  // 44-c (M-8): approvedAmount baris TERENKRIPSI — dekripsi utk draft jurnal
+  // (jurnal tetap ditulis terenkripsi wave-1 via tcJ di bawah — tidak dobel).
   for (const l of claim.lines) {
-    if (l.approvedAmount <= 0) continue;
+    const approved = decMoney(tc, l.approvedAmount);
+    if (approved <= 0) continue;
     drafts.push({
       accountCode: MEDICAL_EXPENSE_ACC.code,
       accountName: accName,
       position: "Debit",
-      amount: l.approvedAmount,
+      amount: approved,
       memo: `${claim.docNo} — ${claim.type.name}${l.treatedName !== claim.employee.fullName ? ` (${l.treatedName})` : ""}`,
     });
   }
@@ -1011,8 +1083,8 @@ async function generateSettleJournal(
   const journalNo = await nextJournalNoInTx(tx);
   const journalDate = new Date();
   // 28-c: total & baris jurnal disimpan TERENKRIPSI (enc:v1:n:…).
-  // (client tx Prisma 6.11 tetap membaca brand schema → konteks crypto valid)
-  const tcJ = tenantCryptoForDb(tx);
+  // 44-c: konteks = tc dari client LUAR (tx tidak membawa brand schema).
+  const tcJ = tc;
   await tx.payrollJournal.create({
     data: {
       journalNo, journalDate, runId: null, runNo: claim.docNo,
@@ -1070,6 +1142,13 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
+  // 44-c (M-8): 6 kolom uang klaim TERENKRIPSI — dekripsi sekali utk seluruh
+  // alur keputusan (re-check plafon, approval chain, settle, saldo).
+  const tc = tenantCryptoForDb(db);
+  const claimTotalApproved = decMoney(tc, claim.totalApproved);
+  const claimTotalBill = decMoney(tc, claim.totalBill);
+  const claimMaxBenefitAt = decMoney(tc, claim.maxBenefitAt);
+  const claimUsedAt = decMoney(tc, claim.usedAt);
 
   // statusLog historis ditulis sebagai STRING JSON oleh kode lama — parse kedua
   // bentuk supaya riwayat transisi tidak hilang saat operasi berikutnya.
@@ -1099,7 +1178,8 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   if (input.action === "submit") {
     await startApprovalChain(db, {
       docType: "Medical", docId: claim.id, employeeId: claim.employeeId,
-      amount: claim.totalBill, createdBy: actorId,
+      // 44-c (M-8): nominal chain = total tagihan TERDEKRIPSI (angka).
+      amount: claimTotalBill, createdBy: actorId,
     });
   }
   let chainInfo: { currentLevel: number; totalLevels: number; currentApprover: string | null } | undefined;
@@ -1108,7 +1188,7 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     if (!chain) {
       chain = await startApprovalChain(db, {
         docType: "Medical", docId: claim.id, employeeId: claim.employeeId,
-        amount: claim.totalBill, createdBy: "legacy-backfill",
+        amount: claimTotalBill, createdBy: "legacy-backfill",
       });
     }
     if (chain.status === "InProgress" && ["Submitted", "Returned"].includes(claim.state)) {
@@ -1148,10 +1228,10 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       forDependent: claim.forDependent, excludeClaimId: claim.id,
     });
     poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
-    if (!input.allowOverLimit && claim.totalApproved > avail.available) {
+    if (!input.allowOverLimit && claimTotalApproved > avail.available) {
       throw new Error(
-        `Approve ditolak: total approved Rp ${fmtRp(claim.totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
-        ` — saldo berubah sejak pengajuan (snapshot sisa saat ajukan Rp ${fmtRp(round2(claim.maxBenefitAt - claim.usedAt))}` +
+        `Approve ditolak: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
+        ` — saldo berubah sejak pengajuan (snapshot sisa saat ajukan Rp ${fmtRp(round2(claimMaxBenefitAt - claimUsedAt))}` +
         (avail.pendingOthers > 0 ? `, klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)}` : "") +
         "). Selesaikan/putuskan klaim lain atau ajukan penyesuaian saldo terlebih dahulu",
       );
@@ -1176,9 +1256,9 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       forDependent: claim.forDependent, excludeClaimId: claim.id,
     });
     poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
-    if (!input.allowOverLimit && claim.totalApproved > avail.available) {
+    if (!input.allowOverLimit && claimTotalApproved > avail.available) {
       throw new Error(
-        `Settle ditolak — jurnal TIDAK dibuat: total approved Rp ${fmtRp(claim.totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
+        `Settle ditolak — jurnal TIDAK dibuat: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
         (avail.pendingOthers > 0 ? ` (klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)})` : "") +
         " — saldo berubah sejak pengajuan (dipakai klaim lain / ditransfer ke payroll UMC / adjustment). Sesuaikan klaim atau ajukan penyesuaian saldo",
       );
@@ -1196,22 +1276,24 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     // (depBenefit 0 → depUsed tidak pernah mengurangi plafon bersama); pool
     // dependent terpisah (EACH/TOTAL) tetap memotong depUsed.
     useDepPool = claim.forDependent && depPoolSeparate(claim.type);
-    usedAdded = claim.totalApproved;
+    usedAdded = claimTotalApproved;
     const settleDate = new Date();
     // $transaction (backlog m-7 — murah dibungkus sekalian): jurnal + saldo +
     // klaim + activity log atomik — crash mid-flight tidak lagi meninggalkan
     // jurnal tanpa pemakaian saldo.
     // Fix audit 40 K-1 — generateSettleJournal kini menerima tx langsung
     // (semua mutasi settle di bawah memakai tx — lihat generateSettleJournal).
+    // 44-c (M-8): tc ditangkap dari client LUAR (tx tanpa brand); saldo lama
+    // didekripsi → aritmetika TS → re-encrypt saat tulis balik.
     await db.$transaction(async (tx) => {
-      const j = await generateSettleJournal(tx, claim.id);
+      const j = await generateSettleJournal(tx, claim.id, tc);
       journalNo = j.journalNo || null;
       journalLines = j.lines;
       await tx.medicalBalance.update({
         where: { id: bal.id },
         data: useDepPool
-          ? { depUsed: round2(bal.depUsed + usedAdded) }
-          : { usedAmount: round2(bal.usedAmount + usedAdded) },
+          ? { depUsed: encMoney(tc, round2(decMoney(tc, bal.depUsed) + usedAdded)) }
+          : { usedAmount: encMoney(tc, round2(decMoney(tc, bal.usedAmount) + usedAdded)) },
       });
       await tx.medicalClaim.update({
         where: { id: claim.id },
@@ -1268,8 +1350,8 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   });
   const remaining = balAfter
     ? (useDepPool
-        ? round2(balAfter.depBenefitAmount + balAfter.depAdjustment - balAfter.depUsed)
-        : round2(balAfter.benefitAmount + balAfter.adjustmentAmount + balAfter.carriedOver - balAfter.usedAmount - balAfter.initialUsed))
+        ? round2(decMoney(tc, balAfter.depBenefitAmount) + decMoney(tc, balAfter.depAdjustment) - decMoney(tc, balAfter.depUsed))
+        : round2(decMoney(tc, balAfter.benefitAmount) + decMoney(tc, balAfter.adjustmentAmount) + decMoney(tc, balAfter.carriedOver) - decMoney(tc, balAfter.usedAmount) - decMoney(tc, balAfter.initialUsed)))
     : 0;
   return { docNo: claim.docNo, state: newState, journalNo, journalLines, usedAdded, remaining, usedPool: useDepPool ? "dependent" : "employee" };
 }
@@ -1303,11 +1385,12 @@ export async function submitAdjustment(db: TenantDb, input: AdjustmentInput, act
   });
   if (!bal) throw new Error("Saldo medis karyawan belum digenerate untuk tahun ini");
   const docNo = await nextDocNo(db, "MA");
+  // 44-c (M-8): amount penyesuaian disimpan TERENKRIPSI (enc:v1:n:…).
   const adj = await db.medicalAdjustment.create({
     data: {
       docNo, employeeId: input.employeeId, typeId: input.typeId, year: input.year,
       forDependent: Boolean(input.forDependent),
-      amount: round2(input.amount),
+      amount: encMoney(tenantCryptoForDb(db), round2(input.amount)),
       adjustmentDate: dayStart(input.adjustmentDate),
       note: input.note?.trim() || null,
       state: "Submitted",
@@ -1344,11 +1427,15 @@ export async function decideAdjustment(
     // pool dependent terpisah (EACH/TOTAL_SEPARATE) — konsisten dengan settle
     // klaim (useDepPool = forDependent && depPoolSeparate).
     const useDepPool = adj.forDependent && depPoolSeparate(adj.type);
+    // 44-c (M-8): adj.amount + kolom saldo TERENKRIPSI — dekripsi → aritmetika
+    // TS → re-encrypt saat tulis balik (masking M-12 task 43 tetap utk tampilan).
+    const tcAdj = tenantCryptoForDb(db);
+    const adjAmount = decMoney(tcAdj, adj.amount);
     await db.medicalBalance.update({
       where: { id: bal.id },
       data: useDepPool
-        ? { depAdjustment: round2(bal.depAdjustment + adj.amount) }
-        : { adjustmentAmount: round2(bal.adjustmentAmount + adj.amount) },
+        ? { depAdjustment: encMoney(tcAdj, round2(decMoney(tcAdj, bal.depAdjustment) + adjAmount)) }
+        : { adjustmentAmount: encMoney(tcAdj, round2(decMoney(tcAdj, bal.adjustmentAmount) + adjAmount)) },
     });
   }
   await db.medicalAdjustment.update({
@@ -1374,10 +1461,12 @@ export async function listAdjustments(db: TenantDb, input: { state?: string; yea
     orderBy: { adjustmentDate: "desc" },
     take: 300,
   });
+  // 44-c (M-8): amount TERENKRIPSI — dekripsi utk DTO (angka).
+  const tcAdjL = tenantCryptoForDb(db);
   return rows.map((a) => ({
     id: a.id, docNo: a.docNo, employeeNo: a.employee.employeeNo, fullName: a.employee.fullName,
     typeCode: a.type.code, typeName: a.type.name, year: a.year, forDependent: a.forDependent,
-    amount: a.amount, adjustmentDate: a.adjustmentDate, note: a.note, state: a.state,
+    amount: decMoney(tcAdjL, a.amount), adjustmentDate: a.adjustmentDate, note: a.note, state: a.state,
     decisionNote: a.decisionNote,
   }));
 }
@@ -1456,6 +1545,9 @@ export async function transferUnusedToPayroll(
     where: { year: input.year, typeId: { in: typeIds } },
     include: { employee: { select: { id: true, employeeNo: true, fullName: true, status: true } } },
   });
+  // 44-c (M-8): kolom saldo TERENKRIPSI — dekripsi utk sisa (angka; filter
+  // remaining > 0 atas nilai terdekripsi, bukan string).
+  const tcTr = tenantCryptoForDb(db);
   const rows = balances
     .map((b) => ({
       balanceId: b.id,
@@ -1464,7 +1556,10 @@ export async function transferUnusedToPayroll(
       fullName: b.employee.fullName,
       status: b.employee.status,
       typeName: types.find((t) => t.id === b.typeId)?.name ?? "",
-      remaining: round2(b.benefitAmount + b.adjustmentAmount + b.carriedOver - b.usedAmount - b.initialUsed),
+      remaining: round2(
+        decMoney(tcTr, b.benefitAmount) + decMoney(tcTr, b.adjustmentAmount) + decMoney(tcTr, b.carriedOver)
+        - decMoney(tcTr, b.usedAmount) - decMoney(tcTr, b.initialUsed),
+      ),
     }))
     .filter((r) => r.status === "Active" && r.remaining > 0);
   if (rows.length === 0) throw new Error(`Tidak ada sisa saldo CASH pada tahun ${input.year}`);
@@ -1488,7 +1583,7 @@ export async function transferUnusedToPayroll(
       data: {
         employeeId: empId, wageComponentId: comp.id,
         // 28-c: nilai komponen disimpan TERENKRIPSI (enc:v1:n:…).
-        kind: "Specific", amount: tenantCryptoForDb(db).encryptMoney(v.amount),
+        kind: "Specific", amount: tcTr.encryptMoney(v.amount),
         periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
         notes: `Uang sisa saldo medis ${input.year}: ${v.detail.join(", ")}`,
         active: true,
@@ -1500,12 +1595,13 @@ export async function transferUnusedToPayroll(
 
   // saldo CASH dikonsumsi saat ditransfer (used bertambah) — mencegah transfer
   // ganda ke period lain (padanan: saldo hangus saat dibayar tunai).
+  // 44-c (M-8): usedAmount lama didekripsi → aritmetika TS → re-encrypt.
   for (const r of rows) {
     const bal = balances.find((b) => b.id === r.balanceId);
     if (!bal) continue;
     await db.medicalBalance.update({
       where: { id: r.balanceId },
-      data: { usedAmount: round2(bal.usedAmount + r.remaining) },
+      data: { usedAmount: encMoney(tcTr, round2(decMoney(tcTr, bal.usedAmount) + r.remaining)) },
     });
   }
 
@@ -1588,10 +1684,16 @@ export async function medicalStats(db: TenantDb, year: number) {
     db.medicalAdjustment.count({ where: { year } }),
     db.medicalBenefitType.count({ where: { active: true } }),
   ]);
-  const settledAgg = await db.medicalClaim.aggregate({
+  // 44-c (M-8): totalApproved/totalBill TERENKRIPSI — agregasi SQL (_sum/
+  // groupBy) atas ciphertext DILARANG → findMany + reduce in-memory atas
+  // nilai terdekripsi (pola 44-d travelStats / 44-b benefit).
+  const tcStats = tenantCryptoForDb(db);
+  const settledRows = await db.medicalClaim.findMany({
     where: { year, state: "Settled" },
-    _sum: { totalApproved: true, totalBill: true },
+    select: { typeId: true, totalApproved: true, totalBill: true },
   });
+  const settledApproved = round2(settledRows.reduce((s, r) => s + decMoney(tcStats, r.totalApproved), 0));
+  const settledBill = round2(settledRows.reduce((s, r) => s + decMoney(tcStats, r.totalBill), 0));
   const balances = await db.medicalBalance.findMany({
     where: { year },
     include: { type: { select: { limitRule: true } } },
@@ -1600,26 +1702,28 @@ export async function medicalStats(db: TenantDb, year: number) {
   const remaining = round2(
     balances
       .filter((b) => b.type.limitRule !== "UNLIMITED")
-      .reduce((s, b) => s + b.benefitAmount + b.adjustmentAmount + b.carriedOver - b.usedAmount - b.initialUsed, 0),
+      .reduce((s, b) => s + decMoney(tcStats, b.benefitAmount) + decMoney(tcStats, b.adjustmentAmount) + decMoney(tcStats, b.carriedOver) - decMoney(tcStats, b.usedAmount) - decMoney(tcStats, b.initialUsed), 0),
   );
-  const byTypeAgg = await db.medicalClaim.groupBy({
-    by: ["typeId"],
-    where: { year, state: "Settled" },
-    _sum: { totalApproved: true },
-    _count: { _all: true },
-  });
+  // groupBy per jenis (in-memory atas nilai terdekripsi):
+  const byTypeMap = new Map<string, { claimCount: number; approvedAmount: number }>();
+  for (const r of settledRows) {
+    const cur = byTypeMap.get(r.typeId) ?? { claimCount: 0, approvedAmount: 0 };
+    cur.claimCount++;
+    cur.approvedAmount = round2(cur.approvedAmount + decMoney(tcStats, r.totalApproved));
+    byTypeMap.set(r.typeId, cur);
+  }
   const typeRows = await db.medicalBenefitType.findMany({ select: { id: true, code: true, name: true } });
-  const byType = byTypeAgg.map((g) => {
-    const t = typeRows.find((x) => x.id === g.typeId);
+  const byType = [...byTypeMap.entries()].map(([typeId, v]) => {
+    const t = typeRows.find((x) => x.id === typeId);
     return {
       typeCode: t?.code ?? "?", typeName: t?.name ?? "?",
-      claimCount: g._count._all, approvedAmount: g._sum.totalApproved ?? 0,
+      claimCount: v.claimCount, approvedAmount: v.approvedAmount,
     };
   }).sort((a, b) => b.approvedAmount - a.approvedAmount);
   return {
     year, totalBalances, totalClaims, pendingClaims, settledClaims, adjustments, types,
-    settledApproved: settledAgg._sum.totalApproved ?? 0,
-    settledBill: settledAgg._sum.totalBill ?? 0,
+    settledApproved,
+    settledBill,
     remaining, byType,
   };
 }
@@ -1642,10 +1746,12 @@ export async function claimReport(
     orderBy: { claimDate: "desc" },
     take: 500,
   });
+  // 44-c (M-8): totalBill/totalApproved TERENKRIPSI — dekripsi utk DTO (angka).
+  const tcRep = tenantCryptoForDb(db);
   return rows.map((c) => ({
     docNo: c.docNo, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     typeCode: c.type.code, typeName: c.type.name, claimDate: c.claimDate, state: c.state,
-    forDependent: c.forDependent, totalBill: c.totalBill, totalApproved: c.totalApproved,
+    forDependent: c.forDependent, totalBill: decMoney(tcRep, c.totalBill), totalApproved: decMoney(tcRep, c.totalApproved),
     journalNo: c.journalNo, settleDate: c.settleDate,
   }));
 }

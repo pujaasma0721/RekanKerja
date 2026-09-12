@@ -16,6 +16,7 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { startApprovalChain } from "@/onevity/shared/services/approval-engine";
 
 const SCHEMAS = [
@@ -131,12 +132,14 @@ async function backfillChains(db: TenantDb): Promise<{ created: number; finalize
 
   // TravelClaim (nominal = totalSettlement)
   const claims = await db.travelClaim.findMany({ select: { id: true, employeeId: true, status: true, totalSettlement: true } });
+  // 44-d (M-8): totalSettlement TERENKRIPSI — dekripsi utk nominal chain (angka).
+  const tc = tenantCryptoForDb(db);
   for (const cl of claims) {
     const before = await db.approvalChain.findUnique({ where: { docType_docId: { docType: "TravelClaim", docId: cl.id } } });
     if (!before) {
       await startApprovalChain(db, {
         docType: "TravelClaim", docId: cl.id, employeeId: cl.employeeId,
-        amount: cl.totalSettlement, createdBy: "backfill",
+        amount: tc.decryptMoney(cl.totalSettlement) ?? 0, createdBy: "backfill",
       });
       created++;
     }

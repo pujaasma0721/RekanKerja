@@ -16,6 +16,8 @@ const db = new PrismaClient({
 import { tenantCrypto, TENANT_SCHEMA_BRAND } from "../src/onevity/shared/lib/field-crypto";
 const SEED_SCHEMA = process.env.SEED_TENANT_SCHEMA ?? "tenant_seed";
 const tc = tenantCrypto(SEED_SCHEMA);
+// M-8 (44): wrapper non-null utk kolom uang NOT-NULL String (input selalu number).
+const encM = (n: number): string => tc.encryptMoney(n) ?? "0";
 // Brand schema pada instance seed (mirror getTenantClient) supaya service
 // (mis. benefit-service syncClaimComponent → tenantCryptoForDb) bisa resolve
 // konteks kunci enkripsi dari client ini juga.
@@ -778,14 +780,14 @@ async function main() {
     const per = Math.round(totalDue / count);
     await db.employeeLoan.create({
       data: {
-        employeeId, letterNo, loanDate: new Date(2026, 6, 10), amount, installmentCount: count,
-        installmentAmount: per, interestRate, startPaymentDate: startPayment,
-        purpose, status: "Active", paidAmount: 0, outstanding: totalDue, wageComponentCode: "LOAN",
+        employeeId, letterNo, loanDate: new Date(2026, 6, 10), amount: encM(amount), installmentCount: count,
+        installmentAmount: encM(per), interestRate, startPaymentDate: startPayment,
+        purpose, status: "Active", paidAmount: encM(0), outstanding: encM(totalDue), wageComponentCode: "LOAN",
         installments: {
           create: Array.from({ length: count }, (_, i) => {
             const due = new Date(startPayment);
             due.setMonth(due.getMonth() + i);
-            return { sequence: i + 1, dueDate: due, amount: i === count - 1 ? totalDue - per * (count - 1) : per };
+            return { sequence: i + 1, dueDate: due, amount: encM(i === count - 1 ? totalDue - per * (count - 1) : per) };
           }),
         },
       },
@@ -857,24 +859,24 @@ async function main() {
     documentsNote: "Kwitansi klinik Sehat Selalu #RCP-1042, resep obat" });
   const sriOver = await db.benefitClaim.create({ data: {
     claimNo: await nextClaimNo(db), benefitTypeId: btMedical.id, employeeId: empIds[1],
-    claimDate: new Date(2026, 8, 6), amount: 2_100_000,
+    claimDate: new Date(2026, 8, 6), amount: encM(2_100_000),
     description: "Medical check-up lengkap + vaksin", documentsNote: "Invoice MCU MediLab #INV-8871",
-    status: "Pending", limitUsed: 800_000, limitRemaining: 1_200_000, inLimit: false,
+    status: "Pending", limitUsed: encM(800_000), limitRemaining: encM(1_200_000), inLimit: false,
   } });
   await rejectClaim(db, sriOver.id, "Melebihi sisa limit September (Rp 1.200.000) — kuitansi tidak lengkap; ajukan ulang bulan depan atau via kas");
   // Dewi: kacamata 1,35jt — menunggu approval manual.
   await db.benefitClaim.create({ data: {
     claimNo: await nextClaimNo(db), benefitTypeId: btGlasses.id, employeeId: empIds[7],
-    claimDate: new Date(2026, 8, 8), amount: 1_350_000,
+    claimDate: new Date(2026, 8, 8), amount: encM(1_350_000),
     description: "Kacamata baru minus naik + pemeriksaan mata", documentsNote: "Faktur Optik Melati #FM-332, resep dokter mata",
-    status: "Pending", limitUsed: 0, limitRemaining: 1_500_000, inLimit: true,
+    status: "Pending", limitUsed: encM(0), limitRemaining: encM(1_500_000), inLimit: true,
   } });
   // Tri: bantuan pernikahan 2,5jt — Pending (dibayar kas langsung setelah approve).
   await db.benefitClaim.create({ data: {
     claimNo: await nextClaimNo(db), benefitTypeId: btWedding.id, employeeId: empIds[3],
-    claimDate: new Date(2026, 8, 10), amount: 2_500_000,
+    claimDate: new Date(2026, 8, 10), amount: encM(2_500_000),
     description: "Pernikahan pertama — 8 November 2026", documentsNote: "Fotokopi undangan & akta nikah (menyusul)",
-    status: "Pending", limitUsed: 0, limitRemaining: 2_500_000, inLimit: true,
+    status: "Pending", limitUsed: encM(0), limitRemaining: encM(2_500_000), inLimit: true,
   } });
   // Wahyu: gym 800rb — overlimit diizinkan → Pending approval manual.
   await submitClaim(db, { employeeId: empIds[20], benefitTypeId: btSport.id, amount: 800_000,
@@ -882,9 +884,9 @@ async function main() {
   // Dedi: pernikahan 2,5jt (historis — approve → lunas via kas).
   const dediClaim = await db.benefitClaim.create({ data: {
     claimNo: await nextClaimNo(db), benefitTypeId: btWedding.id, employeeId: empIds[8],
-    claimDate: new Date(2026, 4, 15), amount: 2_500_000,
+    claimDate: new Date(2026, 4, 15), amount: encM(2_500_000),
     description: "Pernikahan pertama — 23 Mei 2026", documentsNote: "Akta nikah + undangan",
-    status: "Pending", limitUsed: 0, limitRemaining: 2_500_000, inLimit: true,
+    status: "Pending", limitUsed: encM(0), limitRemaining: encM(2_500_000), inLimit: true,
   } });
   await approveClaim(db, dediClaim.id, "Ratna Sari (HR Manager)");
   await markClaimPaidCash(db, dediClaim.id);

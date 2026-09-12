@@ -348,7 +348,9 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
             (i) => i.status === "Pending" && new Date(i.dueDate) <= new Date(period.endDate)
           );
           if (!due) return [];
-          return [{ loanId: l.id, letterNo: l.letterNo, installmentId: due.id, sequence: due.sequence, amount: due.amount }];
+          // M-8: LoanInstallment.amount tersimpan terenkripsi (enc:v1:n) —
+          // dekripsi utk nilai potongan engine (number).
+          return [{ loanId: l.id, letterNo: l.letterNo, installmentId: due.id, sequence: due.sequence, amount: tc.decryptMoney(due.amount) ?? 0 }];
         })
       : [];
 
@@ -546,6 +548,8 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   if (run.status !== "Calculated") throw new Error("Run harus berstatus Calculated sebelum dikonfirmasi");
   // 28-c: konteks dekripsi per-tenant — item run tersimpan terenkripsi.
   const tc = tenantCryptoForDb(db);
+  // M-8: kolom buku pinjaman NOT NULL (String) — encryptMoney non-null.
+  const encLoan = (n: number | null | undefined): string => tc.encryptMoney(n ?? 0) ?? "0";
 
   // Apply angsuran pinjaman: item LOAN pada tiap line → tandai installment Deducted.
   for (const line of run.lines) {
@@ -566,11 +570,18 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
         where: { id: inst.id },
         data: { status: "Deducted", periodCode: run.period.code, deductedRunNo: run.runNo },
       });
-      const paid = loan.paidAmount + inst.amount;
-      const outstanding = Math.max(0, loan.outstanding - inst.amount);
+      // M-8: buku pinjaman (paidAmount/outstanding) + angsuran tersimpan
+      // TERENKRIPSI — dekripsi utk aritmetika, re-encrypt saat menulis balik.
+      const instAmount = tc.decryptMoney(inst.amount) ?? 0;
+      const paid = (tc.decryptMoney(loan.paidAmount) ?? 0) + instAmount;
+      const outstanding = Math.max(0, (tc.decryptMoney(loan.outstanding) ?? 0) - instAmount);
       await db.employeeLoan.update({
         where: { id: loan.id },
-        data: { paidAmount: paid, outstanding, status: outstanding <= 0 ? "PaidOff" : "Active" },
+        data: {
+          paidAmount: encLoan(paid),
+          outstanding: encLoan(outstanding),
+          status: outstanding <= 0 ? "PaidOff" : "Active",
+        },
       });
     }
   }
@@ -585,9 +596,9 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   // notes EmployeeComponentAssignment settlement (period × processType run
   // ini — pola sama item LOAN "name includes letterNo"); bila tidak ada,
   // di-apply ke pinjaman outstanding karyawan OLDEST-FIRST sampai habis.
-  // Nilai EmployeeLoan.paidAmount/outstanding adalah Float polos (bukan
-  // terenkripsi — 28-c hanya gaji/komponen). Best-effort non-fatal (style
-  // callback confirmRun lain) + ActivityLog.
+  // Nilai EmployeeLoan.paidAmount/outstanding tersimpan TERENKRIPSI (M-8) —
+  // dibaca via tc.decryptMoney sebelum aritmetika, ditulis balik terenkripsi.
+  // Best-effort non-fatal (style callback confirmRun lain) + ActivityLog.
   if (run.processType.code === "TERMINATION") {
     try {
       const phkLoanComp = await db.wageComponent.findUnique({ where: { code: "PHK_POT_LOAN" } });
@@ -619,19 +630,24 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
             const applied: string[] = [];
             for (const loan of ordered) {
               if (remaining <= 0.005) break;
-              // baca ulang buku pinjaman (amankan terhadap mutasi paralel)
+              // M-8: baca ulang buku pinjaman (amankan terhadap mutasi paralel) —
+              // nilai terenkripsi → decryptMoney sebelum aritmetika.
               const cur = await db.employeeLoan.findUnique({
                 where: { id: loan.id },
                 select: { paidAmount: true, outstanding: true },
               });
-              const outstanding = Math.max(0, cur?.outstanding ?? 0);
+              const outstanding = Math.max(0, tc.decryptMoney(cur?.outstanding) ?? 0);
               if (outstanding <= 0) continue;
               const pay = Math.min(remaining, outstanding);
-              const paidAmount = (cur?.paidAmount ?? 0) + pay;
+              const paidAmount = (tc.decryptMoney(cur?.paidAmount) ?? 0) + pay;
               const newOutstanding = Math.max(0, outstanding - pay);
               await db.employeeLoan.update({
                 where: { id: loan.id },
-                data: { paidAmount, outstanding: newOutstanding, status: newOutstanding <= 0 ? "PaidOff" : "Active" },
+                data: {
+                  paidAmount: encLoan(paidAmount),
+                  outstanding: encLoan(newOutstanding),
+                  status: newOutstanding <= 0 ? "PaidOff" : "Active",
+                },
               });
               if (newOutstanding <= 0) {
                 // angsuran Pending tidak akan pernah ditagih lagi → Skipped + jejak run

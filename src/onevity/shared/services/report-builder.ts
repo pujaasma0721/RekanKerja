@@ -244,9 +244,11 @@ export const REPORT_ENTITIES: ReportEntityDef[] = [
       F("claimDate", "Tanggal Klaim", "Claim Date", "date", "claimDate", "Dokumen"),
       F("employeeNo", "NIK", "Employee No", "string", "employee.employeeNo", "Karyawan"),
       F("employeeName", "Nama Karyawan", "Employee Name", "string", "employee.fullName", "Karyawan"),
-      F("totalSettlement", "Total Settlement", "Total Settlement", "number", "totalSettlement", "Nilai"),
-      F("payableEmployee", "Dibayar ke Karyawan", "Payable to Employee", "number", "payableEmployee", "Nilai"),
-      F("payableCompany", "Kembali ke Perusahaan", "Payable to Company", "number", "payableCompany", "Nilai"),
+      // 44-d (M-8): nilai uang TravelClaim TERENKRIPSI — flag encrypted supaya
+      // sel XLSX/CSV + filter memakai nilai TERDEKRIPSI (bukan ciphertext).
+      F("totalSettlement", "Total Settlement", "Total Settlement", "number", "totalSettlement", "Nilai", true, true),
+      F("payableEmployee", "Dibayar ke Karyawan", "Payable to Employee", "number", "payableEmployee", "Nilai", true, true),
+      F("payableCompany", "Kembali ke Perusahaan", "Payable to Company", "number", "payableCompany", "Nilai", true, true),
     ],
   },
   {
@@ -266,9 +268,11 @@ export const REPORT_ENTITIES: ReportEntityDef[] = [
       F("employeeNo", "NIK", "Employee No", "string", "employee.employeeNo", "Karyawan"),
       F("employeeName", "Nama Karyawan", "Employee Name", "string", "employee.fullName", "Karyawan"),
       F("typeName", "Jenis Manfaat", "Benefit Type", "string", "type.name", "Klaim"),
-      F("totalBill", "Total Tagihan", "Total Bill", "number", "totalBill", "Nilai"),
-      F("totalReimburse", "Total Reimburse", "Total Reimbursement", "number", "totalReimburse", "Nilai"),
-      F("totalApproved", "Total Disetujui", "Total Approved", "number", "totalApproved", "Nilai"),
+      // 44-c (M-8): nilai uang MedicalClaim TERENKRIPSI — flag encrypted supaya
+      // sel XLSX/CSV + filter memakai nilai TERDEKRIPSI (bukan ciphertext).
+      F("totalBill", "Total Tagihan", "Total Bill", "number", "totalBill", "Nilai", true, true),
+      F("totalReimburse", "Total Reimburse", "Total Reimbursement", "number", "totalReimburse", "Nilai", true, true),
+      F("totalApproved", "Total Disetujui", "Total Approved", "number", "totalApproved", "Nilai", true, true),
     ],
   },
 ];

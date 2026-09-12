@@ -93,7 +93,10 @@ export async function limitSnapshot(
     },
     select: { amount: true },
   });
-  const used = rows.reduce((s, r) => s + r.amount, 0);
+  // M-8: amount klaim tersimpan terenkripsi (enc:v1:n) — fetch rows lalu
+  // reduce in-memory atas nilai terdekripsi (agregasi SQL dilarang).
+  const tc = tenantCryptoForDb(db);
+  const used = rows.reduce((s, r) => s + (tc.decryptMoney(r.amount) ?? 0), 0);
   const remaining = Math.max(0, effective - used);
   const inLimit = used + extraAmount <= effective;
   return { used, limit: effective, remaining, inLimit, windowLabel: w.label };
@@ -142,7 +145,9 @@ export async function syncClaimComponent(
     select: { claimNo: true, amount: true },
     orderBy: { claimNo: "asc" },
   });
-  const total = scheduled.reduce((s, c) => s + c.amount, 0);
+  // M-8: amount klaim terenkripsi — dekripsi utk total komponen upah (angka).
+  const tc = tenantCryptoForDb(db);
+  const total = scheduled.reduce((s, c) => s + (tc.decryptMoney(c.amount) ?? 0), 0);
   const notes = scheduled.map((c) => c.claimNo).join(", ");
 
   const existing = await db.employeeComponentAssignment.findFirst({
@@ -217,19 +222,22 @@ export async function submitClaim(db: TenantDb, input: {
 
   const autoApproved = type.autoApproveInLimit && snap.inLimit;
   const claimNo = await nextClaimNo(db);
+  // M-8: kolom uang klaim (amount/approvedAmount/limitUsed/limitRemaining)
+  // disimpan TERENKRIPSI (enc:v1:n) — enkripsi sebelum create.
+  const tc = tenantCryptoForDb(db);
   const claim = await db.benefitClaim.create({
     data: {
       claimNo,
       benefitTypeId,
       employeeId,
       claimDate,
-      amount,
-      approvedAmount: autoApproved ? amount : 0,
+      amount: encMoney(tc, amount),
+      approvedAmount: encMoney(tc, autoApproved ? amount : 0),
       description: input.description?.trim() || null,
       documentsNote: input.documentsNote?.trim() || null,
       status: autoApproved ? "Approved" : "Pending",
-      limitUsed: snap.used,
-      limitRemaining: snap.remaining ?? 0,
+      limitUsed: encMoney(tc, snap.used),
+      limitRemaining: encMoney(tc, snap.remaining ?? 0),
       inLimit: snap.inLimit,
       approvedBy: autoApproved ? "Sistem (auto-approve dalam limit)" : null,
       approvedAt: autoApproved ? new Date() : null,
@@ -253,6 +261,9 @@ export async function approveClaim(db: TenantDb, id: string, approvedBy?: string
   // Re-check limit terhadap klaim lain yang mungkin sudah disetujui sejak pengajuan.
   const type = await db.benefitType.findUnique({ where: { id: claim.benefitTypeId } });
   if (!type) throw new Error("Jenis benefit tidak ditemukan");
+  // M-8: nilai klaim terenkripsi — dekripsi utk cek limit & tulis approvedAmount.
+  const tc = tenantCryptoForDb(db);
+  const amount = tc.decryptMoney(claim.amount) ?? 0;
   if (!type.unlimited && type.maxClaimAmount > 0) {
     const w = resetWindow(type.resetPeriod, claim.claimDate);
     const others = await db.benefitClaim.findMany({
@@ -263,15 +274,15 @@ export async function approveClaim(db: TenantDb, id: string, approvedBy?: string
       },
       select: { amount: true },
     });
-    const used = others.reduce((s, c) => s + c.amount, 0);
-    if (used + claim.amount > type.maxClaimAmount && !type.allowOverlimit) {
-      throw new Error(`Tidak dapat disetujui: total ${fmt(used + claim.amount)} melebihi limit ${fmt(type.maxClaimAmount)} (${w.label}) & overlimit tidak diizinkan`);
+    const used = others.reduce((s, c) => s + (tc.decryptMoney(c.amount) ?? 0), 0);
+    if (used + amount > type.maxClaimAmount && !type.allowOverlimit) {
+      throw new Error(`Tidak dapat disetujui: total ${fmt(used + amount)} melebihi limit ${fmt(type.maxClaimAmount)} (${w.label}) & overlimit tidak diizinkan`);
     }
   }
   const updated = await db.benefitClaim.update({
     where: { id },
     data: {
-      status: "Approved", approvedAmount: claim.amount,
+      status: "Approved", approvedAmount: encMoney(tc, amount),
       approvedBy: approvedBy?.trim() || "Admin Payroll", approvedAt: new Date(),
     },
     include: CLAIM_INCLUDE,
@@ -376,4 +387,10 @@ export async function markClaimsPaidForRun(db: TenantDb, runId: string): Promise
 
 function fmt(n: number): string {
   return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+}
+
+// M-8: kolom uang BenefitClaim NOT NULL (String) — encryptMoney non-null
+// (input null/undefined → 0 terenkripsi; fallback "0" legacy tak pernah terpakai).
+function encMoney(tc: ReturnType<typeof tenantCryptoForDb>, n: number | null | undefined): string {
+  return tc.encryptMoney(n ?? 0) ?? "0";
 }

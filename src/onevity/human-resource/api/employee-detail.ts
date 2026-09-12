@@ -4,6 +4,7 @@ import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/
 import { applyAssignmentChange, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/onevity/human-resource/services/assignment";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { computePkwtInfo } from "@/onevity/human-resource/services/pkwt";
+import { maskEmployeePii, type PiiScope } from "@/onevity/human-resource/api/employees";
 
 // GET /api/onevity/employee-detail?id=
 // Response: employee (data personal + pekerjaan saat ini hasil flatten assignment aktif)
@@ -58,6 +59,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // M-9 (audit 42 / desain 42-e): cakupan PII detail — FULL utk scope ALL
+    // (super admin / rule akses penuh) dan utk profil SENDIRI (self — hak
+    // melihat data sendiri); pemanggil scoped lainnya yang LOLOS guard di atas
+    // (atasan langsung / rule parametrik — koordinator limited yang memang
+    // dapat mengakses detail bawahannya) → LIMITED: PII sensitif di-mask
+    // (pola sama dgn list /employees — maskEmployeePii + seksi personal
+    // lanjutan dikosongkan; field operasional/penempatan tetap utk kebutuhan
+    // keputusan approval: nama, no, unit, posisi, joinDate).
+    const piiScope: PiiScope = s.scope.all
+      ? "full"
+      : employee.id === s.scope.selfEmployeeId
+        ? "self"
+        : "limited";
+
     // riwayat lengkap (semua periode, terbaru dulu)
     const assignments = await db.employeeAssignment.findMany({
       where: { employeeId: id },
@@ -96,6 +111,20 @@ export async function GET(req: NextRequest) {
     personal.nationalId = tcD.decryptText(personal.nationalId);
     personal.taxId = tcD.decryptText(personal.taxId);
     personal.bankAccount = tcD.decryptText(personal.bankAccount);
+    // M-9 / 42-e: pemanggil LIMITED → PII sensitif di-mask (pola sama dgn
+    // list /employees) + seksi personal lanjutan dikosongkan: keluarga = PII
+    // pihak ketiga/dependen (nama + tanggal lahir); pendidikan/pengalaman/
+    // disiplin = data personal lanjutan & dokumen kepegawaian — bukan
+    // kebutuhan koordinator. actions (dok PA: no/tipe/status/tgl efektif),
+    // directReports, manager, pkwt & riwayat penempatan tetap (operasional);
+    // baseSalary di-null per baris (kompensasi — selaras gating export).
+    if (piiScope === "limited") {
+      maskEmployeePii(personal as unknown as Record<string, unknown>, tcD);
+      personal.family = [];
+      personal.education = [];
+      personal.experiences = [];
+      personal.disciplinary = [];
+    }
     // 26-b P0 — guard PKWT PP 35/2021 (total durasi kontrak > 5 tahun → wajib
     // konversi ke PKS) + sisa masa kontrak; dihitung server agar UI profil &
     // banner memakai logika satu sumber.
@@ -115,7 +144,8 @@ export async function GET(req: NextRequest) {
       managerId: cur?.managerId ?? null,
       employmentStatus: cur?.employmentStatus ?? "—",
       workShift: cur?.workShift ?? "—",
-      baseSalary: cur ? decryptBaseSalary(tcD, cur.baseSalary) : 0,
+      // M-9 / 42-e: gaji pokok hanya utk full/self — limited → null.
+      baseSalary: cur ? (piiScope === "limited" ? null : decryptBaseSalary(tcD, cur.baseSalary)) : 0,
       orgUnit: cur?.orgUnit ?? null,
       position: cur?.position ?? null,
       grade: cur?.grade ?? null,
@@ -134,7 +164,8 @@ export async function GET(req: NextRequest) {
         notes: a.notes,
         employmentStatus: a.employmentStatus,
         workShift: a.workShift,
-        baseSalary: decryptBaseSalary(tcD, a.baseSalary),
+        // M-9 / 42-e: riwayat gaji hanya utk full/self — limited → null.
+        baseSalary: piiScope === "limited" ? null : decryptBaseSalary(tcD, a.baseSalary),
         orgUnit: a.orgUnit ? { name: a.orgUnit.name, code: a.orgUnit.code } : null,
         position: a.position ? { title: a.position.title, code: a.position.code } : null,
         grade: a.grade ? { code: a.grade.code, name: a.grade.name } : null,
@@ -143,7 +174,9 @@ export async function GET(req: NextRequest) {
       pkwt,
     };
 
-    return NextResponse.json({ employee: flat });
+    // M-9 / 42-e: flag cakupan PII (full|self|limited) di payload root —
+    // properti baru opsional; frontend lama mengabaikannya (kompatibel).
+    return NextResponse.json({ employee: flat, piiScope });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

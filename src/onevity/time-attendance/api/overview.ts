@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { attendanceStats } from "@/onevity/time-attendance/services/attendance-service";
+import { attendanceStats, attendanceCoverage } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/overview — KPI dashboard modul attendance
 // (hari ini + bulan berjalan + approval menunggu).
+// G-04 (audit 42): properti baru `coverage` — populasi harapan vs baris
+// AttendanceDaily yang ada (indikator kualitas data; konsumen lama tak rusak).
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -15,8 +17,11 @@ export async function GET(req: NextRequest) {
     const monthFrom = new Date(date.getFullYear(), date.getMonth(), 1);
     const monthTo = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    const stats = await attendanceStats(db, date, monthFrom, monthTo);
-    return NextResponse.json(stats);
+    const [stats, coverage] = await Promise.all([
+      attendanceStats(db, date, monthFrom, monthTo),
+      attendanceCoverage(db, monthFrom, monthTo),
+    ]);
+    return NextResponse.json({ ...stats, coverage });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

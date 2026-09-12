@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import {
   submitClaim, approveClaim, rejectClaim, scheduleClaim, markClaimPaidCash, cancelClaim,
@@ -33,7 +34,12 @@ export async function GET(req: NextRequest) {
       include: CLAIM_INCLUDE,
       orderBy: [{ claimDate: "desc" }, { claimNo: "desc" }],
     });
-    const all = await db.benefitClaim.findMany({ select: { status: true, amount: true, claimDate: true } });
+    // M-8: amount klaim tersimpan TERENKRIPSI — statistik dihitung dari nilai
+    // terdekripsi per baris (fetch rows + reduce in-memory; agregasi SQL pada
+    // kolom terenkripsi dilarang).
+    const tc = tenantCryptoForDb(db);
+    const all = (await db.benefitClaim.findMany({ select: { status: true, amount: true, claimDate: true } }))
+      .map((c) => ({ ...c, amount: tc.decryptMoney(c.amount) ?? 0 }));
     const year = new Date().getFullYear();
     const stats = {
       total: all.length,
@@ -47,7 +53,10 @@ export async function GET(req: NextRequest) {
       rejectedCount: all.filter((c) => c.status === "Rejected").length,
       ytdAmount: all.filter((c) => c.status === "Paid" && c.claimDate.getFullYear() === year).reduce((s, c) => s + c.amount, 0),
     };
-    return NextResponse.json({ claims, stats });
+    // M-8: rows klaim di-dekripsi di batas serializer (decryptJson) — bentuk
+    // JSON frontend TIDAK berubah (amount/approvedAmount/limitUsed/
+    // limitRemaining tetap angka).
+    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ claims, stats }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -70,7 +79,8 @@ export async function POST(req: NextRequest) {
       description: b.description,
       documentsNote: b.documentsNote,
     });
-    return NextResponse.json(res, { status: 201 });
+    // M-8: klaim tersimpan terenkripsi — dekripsi di batas respons.
+    return NextResponse.json(tenantCryptoForDb(db).decryptJson(res), { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -119,7 +129,7 @@ export async function PATCH(req: NextRequest) {
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
     }
-    return NextResponse.json({ claim });
+    return NextResponse.json(tenantCryptoForDb(db).decryptJson({ claim }));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
