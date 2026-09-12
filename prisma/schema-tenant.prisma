@@ -827,15 +827,15 @@ model EmployeeLoan {
   employeeId        String
   letterNo          String   @unique
   loanDate          DateTime @default(now())
-  amount            Float
+  amount            String // M-8 (44): uang terenkripsi enc:v1:n di rest
   installmentCount  Int
-  installmentAmount Float    @default(0)
+  installmentAmount String   @default("0") // M-8
   interestRate      Float    @default(0) // % per tahun (flat)
   startPaymentDate  DateTime
   purpose           String?
   status            String   @default("Active") // Active|PaidOff|Cancelled
-  paidAmount        Float    @default(0)
-  outstanding       Float    @default(0)
+  paidAmount        String   @default("0") // M-8
+  outstanding       String   @default("0") // M-8
   wageComponentCode String? // komponen potongan di payslip
 
   employee     Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -848,7 +848,7 @@ model LoanInstallment {
   sequence      Int
   periodCode    String? // kode PayrollPeriod saat ditagih
   dueDate       DateTime
-  amount        Float
+  amount        String // M-8
   status        String   @default("Pending") // Pending|Deducted|Skipped
   deductedRunNo String?
 
@@ -1007,13 +1007,13 @@ model BenefitClaim {
   benefitTypeId  String
   employeeId     String
   claimDate      DateTime  @default(now())
-  amount         Float // nilai diklaim
-  approvedAmount Float     @default(0) // nilai disetujui (= amount saat approve)
+  amount         String // nilai diklaim (M-8)
+  approvedAmount String    @default("0") // nilai disetujui (= amount saat approve) (M-8)
   description    String?
   documentsNote  String? // daftar dokumen pendukung (bila needDocuments)
   status         String    @default("Pending") // Pending|Approved|Rejected|Scheduled|Paid|Cancelled
-  limitUsed      Float     @default(0)
-  limitRemaining Float     @default(0)
+  limitUsed      String    @default("0") // M-8
+  limitRemaining String    @default("0") // M-8
   inLimit        Boolean   @default(true)
   periodId       String? // period payroll saat dibayar (pay-in-payroll)
   paidRunNo      String?
@@ -1730,7 +1730,7 @@ model LeaveEncashment {
   requestDate      DateTime  @default(now())
   paymentDate      DateTime?
   days             Float     @default(0) // hari diuangkan
-  amount           Float     @default(0) // estimasi upah (hari × upah harian)
+  amount           String    @default("0") // estimasi upah (hari × upah harian) (M-8)
   status           String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled|Transferred|Paid
   periodCode       String? // period payroll target ( saat transfer)
   transferredRunNo String?
@@ -1856,7 +1856,7 @@ model TravelBudget {
   startDate   DateTime
   endDate     DateTime
   currency    String   @default("IDR")
-  totalBudget Float    @default(0)
+  totalBudget String   @default("0") // M-8
   note        String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1869,7 +1869,7 @@ model TravelBudgetItem {
   id         String  @id @default(cuid())
   budgetId   String
   costCenter String
-  amount     Float   @default(0)
+  amount     String  @default("0") // M-8
   note       String?
 
   budget TravelBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
@@ -1927,7 +1927,7 @@ model TravelDestination {
 model TravelAdvance {
   id        String    @id @default(cuid())
   requestId String
-  amount    Float     @default(0)
+  amount    String    @default("0") // M-8
   note      String?
   // M-3/B5 (T3-TRAVEL) lifecycle advance: Requested (request diajukan, belum
   // dicairkan) → Given (request disetujui final, givenAt terisi) → Void
@@ -1956,11 +1956,11 @@ model TravelClaim {
   purpose          String?
   remark           String?
   status           String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled|Transferred|Paid
-  otherCompanyExp  Float     @default(0) // (a) biaya dibayar pihak lain (kontra — tidak dibayar ke karyawan)
-  exchangeLoss     Float     @default(0) // (a) rugi selisih kurs
-  payableEmployee  Float     @default(0) // (b) dibayar ke karyawan
-  payableCompany   Float     @default(0) // (c) dikembalikan ke perusahaan
-  totalSettlement  Float     @default(0) // gross settlement = rincian + rugi kurs − (a)
+  otherCompanyExp  String    @default("0") // (a) biaya dibayar pihak lain (kontra — tidak dibayar ke karyawan) (M-8)
+  exchangeLoss     String    @default("0") // (a) rugi selisih kurs (M-8)
+  payableEmployee  String    @default("0") // (b) dibayar ke karyawan (M-8)
+  payableCompany   String    @default("0") // (c) dikembalikan ke perusahaan (M-8)
+  totalSettlement  String    @default("0") // gross settlement = rincian + rugi kurs − (a) (M-8)
   settlementMethod String    @default("Kas")
   voucherNo        String?
   journalNo        String? // terisi saat approve → posting jurnal
@@ -1989,7 +1989,7 @@ model TravelClaimExpense {
   kind        String    @default("GENERAL")
   expenseDate DateTime?
   description String?
-  amount      Float     @default(0)
+  amount      String    @default("0") // M-8
   qty         Float     @default(1) // unit (hari utk allowance, km utk mileage)
   guestName   String? // Entertainment Guest — nama tamu/relasi
   overLimit   Boolean   @default(false) // amount > limit jenis (warning, tetap boleh)
@@ -2085,14 +2085,14 @@ model MedicalBalance {
   employeeId       String
   typeId           String
   year             Int
-  benefitAmount    Float    @default(0) // limit karyawan (dari kebijakan jenis)
-  adjustmentAmount Float    @default(0) // penyesuaian karyawan (±)
-  initialUsed      Float    @default(0) // used dibawa dari period lalu (Initial)
-  usedAmount       Float    @default(0) // klaim karyawan settled
-  depBenefitAmount Float    @default(0) // limit dependent (SHARED → 0)
-  depAdjustment    Float    @default(0)
-  depUsed          Float    @default(0)
-  carriedOver      Float    @default(0) // sisa tahun lalu (kebijakan CARRY)
+  benefitAmount    String   @default("0") // limit karyawan (dari kebijakan jenis) (M-8)
+  adjustmentAmount String   @default("0") // penyesuaian karyawan (±) (M-8)
+  initialUsed      String   @default("0") // used dibawa dari period lalu (Initial) (M-8)
+  usedAmount       String   @default("0") // klaim karyawan settled (M-8)
+  depBenefitAmount String   @default("0") // limit dependent (SHARED → 0) (M-8)
+  depAdjustment    String   @default("0") // M-8
+  depUsed          String   @default("0") // M-8
+  carriedOver      String   @default("0") // sisa tahun lalu (kebijakan CARRY) (M-8)
   generatedAt      DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -2117,12 +2117,12 @@ model MedicalClaim {
   letterNo       String? // surat rujukan dokter
   state          String    @default("Draft") // Draft|Submitted|Approved|Rejected|Cancelled|Settled
   forDependent   Boolean   @default(false) // klaim untuk anggota keluarga
-  maxBenefitAt   Float     @default(0) // snapshot limit saat ajukan
-  usedAt         Float     @default(0) // snapshot used saat ajukan
-  totalBill      Float     @default(0) // Total Amount on Bill
-  totalReimburse Float     @default(0) // Total Reimbursement Amount
-  totalApproved  Float     @default(0) // Total Approved Amount
-  totalNonRe     Float     @default(0) // Total Non Reimbursement
+  maxBenefitAt   String    @default("0") // snapshot limit saat ajukan (M-8)
+  usedAt         String    @default("0") // snapshot used saat ajukan (M-8)
+  totalBill      String    @default("0") // Total Amount on Bill (M-8)
+  totalReimburse String    @default("0") // Total Reimbursement Amount (M-8)
+  totalApproved  String    @default("0") // Total Approved Amount (M-8)
+  totalNonRe     String    @default("0") // Total Non Reimbursement (M-8)
   statusLog      Json      @default("[]") // [{state,at,by,note}] — padanan Status Log
   settleDate     DateTime?
   journalNo      String? // jurnal settlement (posting saat Settle)
@@ -2161,10 +2161,10 @@ model MedicalClaimLine {
   hospital           String?
   note               String?
   occupationalInjury Boolean   @default(false) // kecelakaan/penyakit kerja
-  billAmount         Float     @default(0)
-  reimburseAmount    Float     @default(0)
-  approvedAmount     Float     @default(0)
-  nonReAmount        Float     @default(0)
+  billAmount         String    @default("0") // M-8
+  reimburseAmount    String    @default("0") // M-8
+  approvedAmount     String    @default("0") // M-8
+  nonReAmount        String    @default("0") // M-8
   currency           String    @default("IDR")
 
   claim MedicalClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
@@ -2184,7 +2184,7 @@ model MedicalAdjustment {
   typeId         String
   year           Int
   forDependent   Boolean   @default(false)
-  amount         Float // + tambah / − kurangi
+  amount         String // + tambah / − kurangi (M-8)
   adjustmentDate DateTime  @default(now())
   note           String?
   state          String    @default("Submitted") // Submitted|Approved|Rejected|Cancelled

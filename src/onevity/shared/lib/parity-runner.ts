@@ -150,6 +150,9 @@ const STEPS: Step[] = [
   { key: "wa-templates", label: "Template WhatsApp default", run: (s) => seedWaTemplates(s) },
   { key: "swap-demo", label: "Demo tukar shift (TSK-0001 Pending)", run: (s) => seedSwapDemo(s) },
   { key: "encrypt", label: "Enkripsi NIK/NPWP/rekening + nilai uang payroll (16 kolom)", run: (s) => import("../../../../scripts/migrate-encrypt").then((m) => m.main(s)) },
+  // M-8 (audit 42 / Task 44): gelombang enkripsi kedua — 38 kolom uang modul
+  // claim (loan/benefit/leave-encashment/medical/travel). Append-only kronologis.
+  { key: "encrypt-money", label: "M-8 — enkripsi uang claim: loan/benefit/encashment/medical/travel (38 kolom)", run: (s) => import("../../../../scripts/migrate-encrypt-money").then((m) => m.main(s)) },
   { key: "travel-settlement", label: "Fix settlement travel (pasca-enkripsi)", run: (s) => import("../../../../scripts/migrate-travel-settlement-fix").then((m) => m.main(s)) },
   { key: "component-rules", label: "Task 32 — tabel WageComponentRule + aturan diferensiasi besaran", run: (s) => import("../../../../scripts/migrate-component-rules").then((m) => m.main(s)) },
   { key: "entity-rules", label: "Task 33 — 4 tabel rule leave/medical/travel/benefit + aturan demo", run: (s) => import("../../../../scripts/migrate-entity-rules").then((m) => m.main(s)) },
