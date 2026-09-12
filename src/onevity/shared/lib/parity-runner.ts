@@ -164,8 +164,9 @@ const STEPS: Step[] = [
   { key: "task43-indexes", label: "Task 43 — index payroll/klaim + unique run aktif (M-15+M-20)", run: (s) => import("../../../../scripts/migrate-task43-indexes").then((m) => m.main(withSlugs(s))) },
   // 45-a: Money Vault — tabel MoneyVault + MoneyViewGrant (gerbang visibilitas
   // nilai uang terenkripsi per tenant; setup vault sendiri via API admin).
+  // Task 47: ALTER ADD COLUMN dataKey (kunci enkripsi kata sandi perusahaan).
   // Append-only kronologis (urutan commit).
-  { key: "money-vault", label: "Task 45-a — tabel MoneyVault + MoneyViewGrant (gerbang uang)", run: (s) => import("../../../../scripts/migrate-money-vault").then((m) => m.main(s)) },
+  { key: "money-vault", label: "Task 45-a/47 — tabel MoneyVault (+kolom dataKey) + MoneyViewGrant", run: (s) => import("../../../../scripts/migrate-money-vault").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -175,7 +176,9 @@ const STEPS: Step[] = [
  * (wave 27) ATAU kolom PayrollRunLine.bruto belum TEXT (wave 28-c enkripsi)
  * ATAU tabel "MoneyVault" belum ada (Task 45-a — FIX Task 46: restore-demo/
  * seed fresh + tenant-ddl.sql lama tidak memuat tabel vault → setup kata
- * sandi enkripsi uang 500 "table does not exist").
+ * sandi enkripsi uang 500 "table does not exist")
+ * ATAU kolom MoneyVault.dataKey belum ada (Task 47 — kunci enkripsi kata
+ * sandi perusahaan; instalasi pra-47 tanpa kolom → setup/ganti sandi gagal).
  * Dipakai instrumentation saat boot — false positif hanya menyebabkan rerun
  * migrasi idempoten (aman).
  */
@@ -187,7 +190,7 @@ export async function checkParityGap(): Promise<ParityGap> {
   const c = new Client({ connectionString: TENANT_URL() });
   await c.connect();
   try {
-    const [ann, bruto, vault] = await Promise.all([
+    const [ann, bruto, vault, vaultKey] = await Promise.all([
       c.query<{ n: number }>(
         `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
          WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
@@ -204,15 +207,22 @@ export async function checkParityGap(): Promise<ParityGap> {
          WHERE table_name = 'MoneyVault' AND table_schema = ANY($1::text[])`,
         [schemas],
       ),
+      c.query<{ n: number }>(
+        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+         WHERE table_name = 'MoneyVault' AND column_name = 'dataKey' AND table_schema = ANY($1::text[])`,
+        [schemas],
+      ),
     ]);
     const annOk = ann.rows[0]?.n ?? 0;
     const encOk = bruto.rows[0]?.n ?? 0;
     const vaultOk = vault.rows[0]?.n ?? 0;
+    const vaultKeyOk = vaultKey.rows[0]?.n ?? 0;
     const reasons: string[] = [];
     if (annOk < schemas.length) reasons.push(`${schemas.length - annOk} tenant tanpa tabel Announcement (wave 27)`);
     if (encOk < schemas.length) reasons.push(`${schemas.length - encOk} tenant tanpa enkripsi kolom uang (wave 28-c)`);
     if (vaultOk < schemas.length) reasons.push(`${schemas.length - vaultOk} tenant tanpa tabel MoneyVault (Task 45-a)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk) };
+    if (vaultKeyOk < schemas.length) reasons.push(`${schemas.length - vaultKeyOk} tenant tanpa kolom MoneyVault.dataKey (Task 47)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk) };
   } finally {
     await c.end();
   }
@@ -245,6 +255,13 @@ export async function runParityPipeline(log: (line: string) => void = (l) => con
       return report;
     }
     log(`mulai: ${schemas.length} tenant → ${schemas.join(", ")}`);
+    // Task 47: muat dataKey vault (kunci kata sandi perusahaan) tiap schema
+    // SEBELUM langkah enkripsi — skrip migrate-encrypt* menulis nilai baru
+    // dengan kunci aktif (v2 vault bila sudah dikonfigurasi, else v1).
+    const { primeTenantCrypto } = await import("./field-crypto");
+    for (const schema of schemas) {
+      await primeTenantCrypto(schema).catch(() => {});
+    }
     const steps: ParityStepResult[] = [];
     for (const step of STEPS) {
       const t0 = Date.now();

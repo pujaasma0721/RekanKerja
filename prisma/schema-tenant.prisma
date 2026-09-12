@@ -2551,7 +2551,8 @@ model MoneyVault {
   id           String    @id @default(cuid())
   salt         String // hex 32 karakter (16 byte) — input PBKDF2
   verifier     String // "vrf:v1:<hex>" = HMAC(verifierKey, "onevity-money-vault")
-  wrappedKey   String // "vlt:v1:<ivB64>:<tagB64>:<ctB64>" = AES-256-GCM(KEK, kunci data tenant)
+  wrappedKey   String // "vlt:v1:…" = AES-256-GCM(kek, dataKey) — SALINAN PEMULIHAN
+  dataKey      String? // hex 64 — kunci enkripsi data perusahaan (enc:v2); null = baris pra-Task 47
   openUntil    DateTime? // INFORMATIF saja — status open sebenarnya di memori
   openByUserId String? // platform user id pembuka terakhir (informatif)
   createdAt    DateTime  @default(now())

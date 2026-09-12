@@ -1,17 +1,20 @@
 "use client";
-// OneVity — Money Vault / Brankas Uang (Task 45-c) ============================
-// Tombol topbar (ikon Vault + titik status) + dialog pengelolaan kata sandi
-// enkripsi uang per workspace. Kontrak API (backend 45-a, dibangun paralel):
+// OneVity — Money Vault / Brankas Uang (Task 45-c · rev 47) ==================
+// Tombol topbar (ikon Vault + titik status) + dialog pengelolaan KATA SANDI
+// ENKRIPSI PERUSAHAAN per workspace. Kontrak API (backend 45-a/47):
 //   · GET  /api/onevity/money-vault         → { configured, open, openUntil,
 //     openBy, canManage, myView, grantsCount, lockoutUntil, serverNow }
 //   · POST /api/onevity/money-vault         → {action: setup|unlock|lock|
-//     change-password|grant|revoke, ...} → {ok:true} | {error, code}
+//     change-password|grant|revoke, ...} → {ok:true, reEncrypted?{tables,rows}}
+//     — setup & change-password me-re-enkripsi SELURUH data sensitif (PII +
+//     uang) dengan kunci kata sandi; tidak ada env var server.
 //   · GET  /api/onevity/money-vault/members → {members:[{userId,name,email,
 //     role,granted}]} (admin only)
 // Ketahanan: endpoint belum ada (404) → tombol abu-abu tooltip "Tidak
 // tersedia", dialog menampilkan alert — tanpa crash / rejection liar.
-// Aturan inti: ganti kata sandi HANYA saat status "open" (VAULT_LOCKED 409);
-// pengguna yang di-grant melihat nilai uang TANPA mengetahui kata sandi.
+// Aturan inti (47): ganti kata sandi KAPAN PUN (verifikasi sandi saat ini
+// adalah gerbangnya — status brankas dipertahankan); pengguna yang di-grant
+// melihat nilai uang TANPA mengetahui kata sandi.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Vault, KeyRound, Users, ShieldCheck, LockKeyhole, LockKeyholeOpen, TriangleAlert, Info, Loader2, RefreshCw } from "lucide-react";
@@ -45,9 +48,6 @@ interface VaultStatus {
   grantsCount: number;
   lockoutUntil: string | null;
   serverNow: string | null;
-  /** Task 46: true bila server production TANPA ONEVITY_ENCRYPTION_KEY — setup
-   *  kata sandi akan gagal (M-10); form pengaturan dinonaktifkan + alert. */
-  envKeyMissing?: boolean;
   error?: string;
 }
 
@@ -66,17 +66,24 @@ interface VaultError {
   message: string | null;
 }
 
-/** POST aksi vault — tidak pernah melempar (rejection liar) — selalu {ok,error}. */
-async function vaultMutate(body: Record<string, unknown>): Promise<{ ok: boolean; error: VaultError | null }> {
+/** POST aksi vault — tidak pernah melempar (rejection liar) — selalu
+ *  {ok, error, reEncrypted?} (setup/change membawa jumlah re-enkripsi). */
+interface VaultMutateResult {
+  ok: boolean;
+  error: VaultError | null;
+  reEncrypted?: { tables: number; rows: number; skipped: number };
+}
+
+async function vaultMutate(body: Record<string, unknown>): Promise<VaultMutateResult> {
   try {
     const res = await fetch(VAULT_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const json = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    const json = (await res.json().catch(() => ({}))) as { error?: string; code?: string; reEncrypted?: VaultMutateResult["reEncrypted"] };
     if (!res.ok) return { ok: false, error: { status: res.status, code: json.code ?? null, message: json.error ?? null } };
-    return { ok: true, error: null };
+    return { ok: true, error: null, reEncrypted: json.reEncrypted };
   } catch {
     return { ok: false, error: { status: 0, code: null, message: null } };
   }
@@ -194,8 +201,6 @@ export function MoneyVaultButton() {
 
   // Anggota hanya dimuat saat dialog terbuka & pengguna admin (canManage).
   const canManage = st?.canManage === true;
-  // Task 46: kunci enkripsi server belum diatur (production tanpa env key).
-  const envKeyBlocked = st?.envKeyMissing === true;
   useEffect(() => {
     if (open && canManage) void fetchMembers();
   }, [open, canManage, fetchMembers]);
@@ -257,11 +262,12 @@ export function MoneyVaultButton() {
     if (!e) return t("Terjadi kesalahan jaringan", "A network error occurred");
     const map: Record<string, string> = {
       ALREADY_CONFIGURED: t("Kata sandi enkripsi sudah diatur", "Encryption password is already set"),
-      WEAK_PASSWORD: t("Kata sandi terlalu lemah — minimal 8 karakter", "Password is too weak — minimum 8 characters"),
+      WEAK_PASSWORD: t("Kata sandi terlalu lemah — minimal 6 karakter", "Password is too weak — minimum 6 characters"),
       INVALID_PASSWORD: t("Kata sandi saat ini salah", "Current password is wrong"),
       LOCKOUT: t("Terlalu banyak percobaan gagal — coba lagi nanti", "Too many failed attempts — try again later"),
       VAULT_LOCKED: t("Brankas terkunci — buka brankas dulu sebelum mengganti kata sandi", "Vault is locked — open the vault before changing the password"),
       NOT_MEMBER: t("Pengguna tidak ditemukan di workspace ini", "User not found in this workspace"),
+      REKEY_IN_PROGRESS: t("Proses re-enkripsi data sedang berjalan — tunggu sebentar lalu coba lagi", "Data re-encryption is in progress — wait a moment and try again"),
     };
     if (e.code && map[e.code]) {
       // LOCKOUT membawa retryAfterSeconds pada pesan server — tampilkan.
@@ -313,13 +319,18 @@ export function MoneyVaultButton() {
   const submitSetup = async () => {
     if (busy) return;
     setSetupErr(null);
-    if (setupPw.length < 8) { setSetupErr(t("Kata sandi minimal 8 karakter", "Password must be at least 8 characters")); return; }
+    if (setupPw.length < 6) { setSetupErr(t("Kata sandi minimal 6 karakter", "Password must be at least 6 characters")); return; }
     if (setupPw !== setupPw2) { setSetupErr(t("Konfirmasi kata sandi tidak sama", "Password confirmation does not match")); return; }
     setBusy("setup");
     const res = await vaultMutate({ action: "setup", password: setupPw });
     setBusy(null);
     if (res.ok) {
-      toast.success(t("Kata sandi enkripsi uang berhasil diatur", "Money encryption password set successfully"));
+      const n = res.reEncrypted?.rows;
+      toast.success(
+        n != null
+          ? t("Kata sandi diatur — {n} data dienkripsi ulang dengannya", "Password set — {n} records re-encrypted with it", { n })
+          : t("Kata sandi enkripsi uang berhasil diatur", "Money encryption password set successfully"),
+      );
       setSetupPw(""); setSetupPw2("");
       setTab("status");
       await fetchStatus();
@@ -363,18 +374,23 @@ export function MoneyVaultButton() {
     if (busy) return;
     setChangeErr(null);
     if (!curPw) { setChangeErr(t("Kata sandi saat ini wajib diisi", "Current password is required")); return; }
-    if (newPw.length < 8) { setChangeErr(t("Kata sandi baru minimal 8 karakter", "New password must be at least 8 characters")); return; }
+    if (newPw.length < 6) { setChangeErr(t("Kata sandi baru minimal 6 karakter", "New password must be at least 6 characters")); return; }
     if (newPw !== newPw2) { setChangeErr(t("Konfirmasi kata sandi baru tidak sama", "New password confirmation does not match")); return; }
     setBusy("change");
     const res = await vaultMutate({ action: "change-password", currentPassword: curPw, newPassword: newPw });
     setBusy(null);
     if (res.ok) {
-      toast.success(t("Kata sandi enkripsi uang berhasil diganti", "Money encryption password changed successfully"));
+      const n = res.reEncrypted?.rows;
+      toast.success(
+        n != null
+          ? t("Kata sandi diganti — {n} data didekripsi lalu dienkripsi ulang dengan kunci baru", "Password changed — {n} records decrypted then re-encrypted with the new key", { n })
+          : t("Kata sandi enkripsi uang berhasil diganti", "Money encryption password changed successfully"),
+      );
       setCurPw(""); setNewPw(""); setNewPw2("");
       await fetchStatus();
     } else {
       setChangeErr(errText(res.error));
-      await fetchStatus(); // VAULT_LOCKED bisa terjadi bila ditutup orang lain
+      await fetchStatus(); // lockout/REKEY_IN_PROGRESS bisa terjadi — segarkan status
     }
   };
 
@@ -471,26 +487,14 @@ export function MoneyVaultButton() {
 
               {/* ============ TAB STATUS (semua peran) ============ */}
               <TabsContent value="status" className="space-y-3.5">
-                {envKeyBlocked && canManage && (
-                  <Alert variant="destructive">
-                    <TriangleAlert aria-hidden />
-                    <AlertTitle>{t("Kunci enkripsi server belum diatur", "Server encryption key is not set")}</AlertTitle>
-                    <AlertDescription>
-                      {t(
-                        "Server berjalan mode production tanpa variabel lingkungan ONEVITY_ENCRYPTION_KEY — operasi enkripsi uang (termasuk menyimpan kata sandi enkripsi) akan gagal. Set ONEVITY_ENCRYPTION_KEY (disarankan ≥ 32 karakter acak) di environment server (mis. file .env atau konfigurasi PM2/systemd) lalu restart aplikasi.",
-                        "The server runs in production mode without the ONEVITY_ENCRYPTION_KEY environment variable — money encryption operations (including saving the encryption password) will fail. Set ONEVITY_ENCRYPTION_KEY (≥ 32 random characters recommended) in the server environment (e.g. the .env file or PM2/systemd config), then restart the app.",
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
                 {!st.configured ? (
                   <Alert className="border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                     <LockKeyholeOpen className="text-amber-600 dark:text-amber-400" aria-hidden />
                     <AlertTitle>{t("Kata sandi enkripsi belum diatur", "Encryption password not set yet")}</AlertTitle>
                     <AlertDescription>
                       {t(
-                        "Nilai uang masih tampil normal. Atur kata sandi untuk mengunci visibilitas uang.",
-                        "Money values are still visible normally. Set a password to lock money visibility.",
+                        "Data sensitif perusahaan masih memakai kunci bootstrap sementara dan nilai uang tampil normal. Atur kata sandi agar seluruh data (NIK, rekening, nilai uang) dienkripsi dengan kunci milik perusahaan ini.",
+                        "Company sensitive data still uses a temporary bootstrap key and money values are visible. Set a password to encrypt all data (ID numbers, bank accounts, money values) with this company's own key.",
                       )}
                     </AlertDescription>
                   </Alert>
@@ -615,53 +619,47 @@ export function MoneyVaultButton() {
                   </Alert>
                 ) : !st.configured ? (
                   <>
-                    {envKeyBlocked && (
-                      <Alert variant="destructive">
-                        <TriangleAlert aria-hidden />
-                        <AlertTitle>{t("Kunci enkripsi server belum diatur", "Server encryption key is not set")}</AlertTitle>
-                        <AlertDescription>
-                          {t(
-                            "Atur variabel lingkungan ONEVITY_ENCRYPTION_KEY (disarankan ≥ 32 karakter acak) di server lalu restart aplikasi — setelah itu form ini dapat dipakai. (Lihat tab Status.)",
-                            "Set the ONEVITY_ENCRYPTION_KEY environment variable (≥ 32 random characters recommended) on the server and restart the app — after that this form can be used. (See the Status tab.)",
-                          )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
                     <form
                       className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
                       onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
                     >
                       <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
+                      <Alert className="border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
+                        <KeyRound className="text-sky-600 dark:text-sky-400" aria-hidden />
+                        <AlertDescription>
+                          {t(
+                            "Kata sandi ini menjadi KUNCI enkripsi data sensitif perusahaan ini (NIK, rekening, seluruh nilai uang) — tidak perlu variabel server apa pun. Seluruh data akan otomatis dienkripsi ulang saat disimpan.",
+                            "This password becomes the encryption KEY for this company's sensitive data (ID numbers, bank accounts, all money values) — no server variables needed. All data is automatically re-encrypted upon saving.",
+                          )}
+                        </AlertDescription>
+                      </Alert>
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
-                        <PasswordInput value={setupPw} onChange={setSetupPw} disabled={busy !== null || envKeyBlocked} />
-                        <p className="text-[10px] text-stone-400">{t("Minimal 8 karakter", "Minimum 8 characters")}</p>
+                        <PasswordInput value={setupPw} onChange={setSetupPw} disabled={busy !== null} />
+                        <p className="text-[10px] text-stone-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
                       </div>
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi", "Confirm Password")} *</p>
-                        <PasswordInput value={setupPw2} onChange={setSetupPw2} disabled={busy !== null || envKeyBlocked} />
+                        <PasswordInput value={setupPw2} onChange={setSetupPw2} disabled={busy !== null} />
                       </div>
                       {setupErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{setupErr}</p>}
-                      <Button type="submit" disabled={busy !== null || envKeyBlocked || !setupPw || !setupPw2} className="gap-2 rounded-xl font-bold">
+                      <Button type="submit" disabled={busy !== null || !setupPw || !setupPw2} className="gap-2 rounded-xl font-bold">
                         {busy === "setup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                        {busy === "setup" ? t("Menyimpan…", "Saving…") : t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}
+                        {busy === "setup" ? t("Mengenkripsi ulang data…", "Re-encrypting data…") : t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}
                       </Button>
                     </form>
                   </>
                 ) : (
                   <>
-                    {!st.open && (
-                      <Alert className="border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                        <TriangleAlert className="text-amber-600 dark:text-amber-400" aria-hidden />
-                        <AlertTitle>{t("Buka brankas dulu", "Open the vault first")}</AlertTitle>
-                        <AlertDescription>
-                          {t(
-                            "Kata sandi enkripsi hanya dapat diganti saat brankas dalam keadaan TERBUKA (tab Status).",
-                            "The encryption password can only be changed while the vault is OPEN (see the Status tab).",
-                          )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                    <Alert className="border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
+                      <KeyRound className="text-sky-600 dark:text-sky-400" aria-hidden />
+                      <AlertDescription>
+                        {t(
+                          "Bisa diganti KAPAN PUN (brankas terbuka maupun tertutup) — seluruh data akan didekripsi lalu dienkripsi ulang dengan kata sandi baru secara otomatis. Status brankas (terbuka/tertutup) tidak berubah.",
+                          "Can be changed ANYTIME (vault open or closed) — all data will be decrypted then re-encrypted with the new password automatically. The vault state (open/closed) stays unchanged.",
+                        )}
+                      </AlertDescription>
+                    </Alert>
                     <form
                       className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
                       onSubmit={(e) => { e.preventDefault(); void submitChange(); }}
@@ -669,21 +667,21 @@ export function MoneyVaultButton() {
                       <p className="text-xs font-bold">{t("Ganti Kata Sandi Enkripsi", "Change Encryption Password")}</p>
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Saat Ini", "Current Password")} *</p>
-                        <PasswordInput value={curPw} onChange={setCurPw} autoComplete="current-password" disabled={!st.open || busy !== null} />
+                        <PasswordInput value={curPw} onChange={setCurPw} autoComplete="current-password" disabled={busy !== null} />
                       </div>
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
-                        <PasswordInput value={newPw} onChange={setNewPw} disabled={!st.open || busy !== null} />
-                        <p className="text-[10px] text-stone-400">{t("Minimal 8 karakter", "Minimum 8 characters")}</p>
+                        <PasswordInput value={newPw} onChange={setNewPw} disabled={busy !== null} />
+                        <p className="text-[10px] text-stone-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
                       </div>
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi Baru", "Confirm New Password")} *</p>
-                        <PasswordInput value={newPw2} onChange={setNewPw2} disabled={!st.open || busy !== null} />
+                        <PasswordInput value={newPw2} onChange={setNewPw2} disabled={busy !== null} />
                       </div>
                       {changeErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{changeErr}</p>}
-                      <Button type="submit" disabled={!st.open || busy !== null || !curPw || !newPw || !newPw2} className="gap-2 rounded-xl font-bold">
+                      <Button type="submit" disabled={busy !== null || !curPw || !newPw || !newPw2} className="gap-2 rounded-xl font-bold">
                         {busy === "change" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                        {busy === "change" ? t("Menyimpan…", "Saving…") : t("Ganti Kata Sandi", "Change Password")}
+                        {busy === "change" ? t("Mengenkripsi ulang data…", "Re-encrypting data…") : t("Ganti Kata Sandi", "Change Password")}
                       </Button>
                     </form>
                   </>

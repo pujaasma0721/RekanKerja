@@ -1,13 +1,16 @@
 // GET/POST /api/onevity/money-vault · GET /api/onevity/money-vault/members
 // ========================================================================
-// MONEY VAULT (Task 45-a) — backend core. Kata sandi vault HANYA dipegang
-// admin workspace; anggota lain diberi HAK LIHAT (MoneyViewGrant) tanpa sandi.
+// MONEY VAULT (Task 45-a · rev 47) — backend core. Kata sandi enkripsi
+// PERUSAHAAN (sumber kunci data terenkripsi) dikelola admin workspace via
+// UI; anggota lain diberi HAK LIHAT (MoneyViewGrant) tanpa sandi.
 //
 //   GET  /api/onevity/money-vault          → status (semua anggota workspace;
 //        tanpa menu key — vault bukan modul ber-menu; resolusi sesi style
 //        requireAppUser/requireTenant: session → membership → client schema)
 //   POST /api/onevity/money-vault {action} → setup | unlock | lock |
 //        change-password | grant | revoke (semuanya canManage OWNER/ADMIN)
+//        — setup & change-password me-re-enkripsi SELURUH data (respons
+//        membawa reEncrypted {tables, rows})
 //   GET  /api/onevity/money-vault/members  → daftar anggota + flag granted
 //        (hanya canManage — 403 selainnya)
 //
@@ -33,7 +36,7 @@ import {
   vaultInfo,
   type VaultActor,
 } from "@/onevity/shared/lib/money-vault";
-import { encryptionEnvKeyMissing } from "@/onevity/shared/lib/field-crypto";
+import { primeTenantCrypto } from "@/onevity/shared/lib/field-crypto";
 
 // Role workspace yang boleh mengelola vault (mirror access-scope:
 // SUPER_ADMIN_PLATFORM_ROLES — OWNER/ADMIN).
@@ -74,6 +77,9 @@ export async function requireVaultSession(req: Request): Promise<VaultSessionRes
   }
 
   const db = getTenantClient(membership.tenant.schemaName);
+  // Task 47: pastikan dataKey vault termuat sebelum operasi vault membaca
+  // status / menulis nilai terenkripsi.
+  await primeTenantCrypto(membership.tenant.schemaName).catch(() => {});
 
   // AppUser tenant via email (opsional — audit log; schema legacy → null)
   let appUserId: string | null = null;
@@ -165,9 +171,6 @@ export async function GET(req: Request) {
       grantsCount: grants.size,
       lockoutUntil: info.lockoutUntil,
       serverNow: new Date().toISOString(),
-      // Task 46: production tanpa ONEVITY_ENCRYPTION_KEY → setup akan gagal
-      // (masterKey throw, M-10) — UI menampilkan penghalang SEBELUM submit.
-      envKeyMissing: encryptionEnvKeyMissing(),
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
@@ -192,12 +195,12 @@ export async function POST(req: Request) {
       case "setup": {
         requireAdmin();
         const password = String(b.password ?? "");
-        await setupVault(db, actor, password);
+        const res = await setupVault(db, actor, password);
         await audit(
           db, appUserId, "MoneyVault", "VaultSetup",
-          `Vault uang dikonfigurasi oleh ${actorName}${appUserId ? ` (AppUser ${appUserId.slice(0, 12)}…)` : ""} — kata sandi TIDAK dicatat`,
+          `Vault uang dikonfigurasi oleh ${actorName}${appUserId ? ` (AppUser ${appUserId.slice(0, 12)}…)` : ""} — seluruh data (${res.reEncrypted.rows} baris di ${res.reEncrypted.tables} tabel) dienkripsi ulang dengan kunci kata sandi perusahaan; sandi TIDAK dicatat`,
         );
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, reEncrypted: res.reEncrypted });
       }
 
       case "unlock": {
@@ -228,12 +231,12 @@ export async function POST(req: Request) {
         requireAdmin();
         const currentPassword = String(b.currentPassword ?? "");
         const newPassword = String(b.newPassword ?? "");
-        await changeVaultPassword(db, currentPassword, newPassword);
+        const res = await changeVaultPassword(db, currentPassword, newPassword);
         await audit(
           db, appUserId, "MoneyVault", "VaultPasswordChange",
-          `Kata sandi vault uang diganti oleh ${actorName} (vault tetap terbuka) — sandi lama & baru TIDAK dicatat`,
+          `Kata sandi enkripsi diganti oleh ${actorName} — seluruh data (${res.reEncrypted.rows} baris di ${res.reEncrypted.tables} tabel) didekripsi lalu dienkripsi ulang dengan kunci kata sandi baru; sandi lama & baru TIDAK dicatat`,
         );
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, reEncrypted: res.reEncrypted });
       }
 
       case "grant":

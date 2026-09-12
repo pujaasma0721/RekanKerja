@@ -194,7 +194,7 @@ Aplikasi adalah PWA (`public/sw.js`): HTML = network-first, `/_next/static/*` = 
 |---|---|---|
 | `PLATFORM_DB_URL` | **WAJIB** | Koneksi DB platform (registry Tenant/User/UserTenant). |
 | `TENANT_DB_BASE_URL` | **WAJIB** | Base URL DB domain HRIS (schema per tenant, client di-append `?schema=tenant_x`). |
-| `ONEVITY_ENCRYPTION_KEY` | **WAJIB di production** (43-b / M-10) | Kunci master enkripsi field PII & uang (`enc:v1:…`: NIK, NPWP, rekening, nominal payroll). Di `NODE_ENV=production` **tanpa** key ini, operasi baca/tulis field terenkripsi **throw saat pertama dipakai** (fail-fast — aplikasi boot tapi modul keuangan/karyawan error jelas). Dev pakai fallback deterministik. PERINGATAN: mengganti key = data lama terenkripsi tidak terbaca lagi. |
+| `ONEVITY_ENCRYPTION_KEY` | **OPSIONAL** (sejak Task 47) | Hanya memperkuat kunci **bootstrap pra-vault** (`enc:v1`) — TIDAK lagi wajib di production. Kunci enkripsi utama kini = **kata sandi brankas perusahaan per tenant** (diatur admin via UI, disimpan di DB tenant, lihat §5.2.2). Instalasi lama yang sudah men-set nilai ini: biarkan agar data `enc:v1` lama tetap terbaca saat migrasi. PERINGATAN: mengganti nilai ini = data `enc:v1` lama tidak terbaca lagi — tapi migrasi setup vault mengubah semuanya ke `enc:v2` sehingga tidak berpengaruh pasca-setup. |
 | `ONEVITY_ALLOW_DEMO_SEED` | opsional (43-c / M-2) | `1`/`true` → izinkan seed **data demo** di production (auto-seed fresh-install + token seed). Default: **ditolak** di production. Jalur parity-only (upgrade migrasi tenant existing) tetap jalan tanpa env ini. |
 | `DEMO_SEED_TOKEN` | opsional (43-c / M-2) | Token guard `POST/GET /api/admin/seed-demo`. Di production **tanpa** env ini token default repo NONAKTIF → endpoint selalu 401 sampai env diset. Dev memakai token default repo. |
 
@@ -212,7 +212,8 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 | 18 | `scheduler-race` (**BARU**) | Task 41 — partial unique index dedupe `ActivityLog` baris Reminder (scheduler race-safe; TIDAK ada di tenant-ddl.sql Prisma) |
 | 19 | `webhook-retry` (**BARU**) | Task 41 — kolom retry `WebhookLog` (attempts/nextRetryAt/lastError) + index status,nextRetryAt + DEFAULT status='delivered' — **dibutuhkan panel Webhook** |
 | 20 | `task43-indexes` (**BARU**) | Task 43 — 4 index payroll/klaim (M-15) + partial unique run payroll aktif (M-20) |
-| 21 | `encrypt-money` (**BARU**) | Task 44 (audit 42 M-8) — gelombang enkripsi kedua: 38 kolom uang modul claim (EmployeeLoan/LoanInstallment, BenefitClaim, LeaveEncashment.amount, MedicalBalance/Claim/ClaimLine/Adjustment, TravelClaim/Expense/Advance/Budget/BudgetItem) Float→TEXT + encrypt-in-place `enc:v1:n`. Skrip `scripts/migrate-encrypt-money.ts` (idempoten, skip baris sudah terenkripsi). Kunci = SAMA `ONEVITY_ENCRYPTION_KEY`. Catatan: agregasi SQL (`_sum`/`groupBy`) pada kolom ini sudah dipindah in-memory di kode — JANGAN menambah query SQL agregat ke kolom terenkripsi. |
+| 21 | `encrypt-money` | Task 44 (M-8) — 38 kolom uang claim → `enc:v1:n` (skrip `migrate-encrypt-money.ts`, idempoten). Kunci = kunci AKTIF tenant (sejak Task 47: `dataKey` vault bila sudah di-setup, else bootstrap — runner men-prime kunci sebelum langkah ini). Catatan: agregasi SQL (`_sum`/`groupBy`) pada kolom terenkripsi sudah dipindah in-memory — JANGAN menambah query SQL agregat ke kolom terenkripsi. |
+| 22 | `money-vault` | Task 45-a/47 — tabel `MoneyVault` (+ kolom `dataKey` kunci kata sandi perusahaan — `ALTER ADD COLUMN IF NOT EXISTS` idempoten; CREATE TABLE fresh-install sudah memuatnya lewat tenant-ddl.sql) + `MoneyViewGrant` + unique index userId. Setup vault sendiri via API admin (bukan migrasi). |
 
 ### 5.2.1 Enkripsi uang modul claim — catatan perilaku (Task 44 / M-8)
 
@@ -221,13 +222,18 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - Laporan XLSX modul terkait menampilkan nilai terdekripsi (report-builder flag `encrypted`).
 - PII scope-aware list karyawan (M-9): akun dengan data-scope CUSTOM menerima field PII di-mask (`piiScope:"limited"` di respons; export tanpa kolom PII).
 
-### 5.2.2 Money Vault (Brankas Uang, Task 45/46) — env key & precheck UI
+### 5.2.2 Money Vault (Brankas Uang, Task 45/46/47) — kata sandi enkripsi perusahaan
 
-- **PRASYARUT**: mengatur kata sandi enkripsi uang (tombol vault di header) memanggil `tenantDataKey()` → **`ONEVITY_ENCRYPTION_KEY` WAJIB sudah di-set** sebelum admin menekan "Atur Kata Sandi Enkripsi". Tanpa itu, production melempar error fail-fast M-10 (`[field-crypto] ONEVITY_ENCRYPTION_KEY wajib di-set di production…`).
-- **Sejak Task 46** status `GET /api/onevity/money-vault` mengembalikan `envKeyMissing:true` untuk kondisi tsb — dialog vault menampilkan alert merah **sebelum** admin mengetik sandi, dan form pengaturan dinonaktifkan (tidak ada lagi 500 setelah submit).
-- **Urutan benar fresh-install production**: (1) set `ONEVITY_ENCRYPTION_KEY` (≥ 32 karakter acak, simpan di password manager — **rotasi = data terenkripsi lama tidak terbaca**), (2) restart app, (3) admin atur kata sandi vault, (4) assign hak lihat uang ke anggota.
-- Operasi vault yang **tidak** butuh env key: unlock (verifier PBKDF2 lokal), lock, ganti kata sandi (DEK dari memori saat open), grant/revoke (baris DB). Hanya **setup** dan dekripsi jalur env (legacy/masked-PII) yang bergantung master key.
-- Status "open" vault hanya di **memori proses** (TTL 8 jam; restart PM2 = terkunci kembali — by design). Kolom `openUntil`/`openByUserId` di DB bersifat informatif saja.
+**MODEL BARU (Task 47)**: kata sandi enkripsi adalah **kunci perusahaan per workspace** — TIDAK ada env var server:
+- **Setup** (admin, tombol vault di header): sandi → PBKDF2 → `dataKey` — seluruh data sensitif schema tenant itu (NIK/NPWP/rekening + semua nilai uang) **di-decrypt lalu di-enkripsi ulang** (`enc:v2`) dalam SATU transaksi atomik + advisory lock. Respons membawa `reEncrypted {tables, rows}`.
+- **Ganti kata sandi**: bisa **kapan pun** (brankas terbuka ATAU tertutup — verifikasi sandi saat ini adalah gerbangnya). Sama seperti setup: seluruh data didekripsi dengan kunci lama lalu di-enkripsi ulang dengan kunci sandi baru — **backup/data lama otomatis tidak terbaca lagi setelah rotasi** (properti keamanan disengaja). Status open/closed dipertahankan.
+- **Penyimpanan**: baris `MoneyVault` di schema tenant (`salt` + `verifier` HMAC + `dataKey` hex + `wrappedKey` salinan pemulihan) — "password di DB" sesuai permintaan produk. Server membaca `dataKey` dari DB → dekripsi transparan (payroll/klaim/laporan tetap jalan tanpa input sandi).
+- **Visibilitas uang** tetap digerbangi: status "open" hanya di **memori proses** (TTL 8 jam; restart PM2 = terkunci lagi — by design) + admin (OWNER/ADMIN) + grant `MoneyViewGrant` per user (tanpa sandi). Brankas tertutup → nilai uang masked (`null`) di API; **PII (NIK dll.) tetap terbaca** — tidak terpengaruh status brankas.
+- **Pre-vault (bootstrap)**: sebelum sandi diatur, data baru ditulis `enc:v1` dengan kunci bootstrap deterministik (lemah — atur sandi segera; migrasi otomatis saat setup). `ONEVITY_ENCRYPTION_KEY` opsional memperkuat bootstrap ini.
+- **Urutan fresh-install production**: deploy → admin atur kata sandi brankas via UI → (opsional) assign hak lihat uang. **Tanpa env var, tanpa restart tambahan.**
+- Operasi vault yang tidak menyentuh kunci: unlock/lock/grant/revoke. Setup & ganti sandi menjalankan re-enkripsi (bisa beberapa detik–menit untuk data besar; UI menampilkan "Mengenkripsi ulang data…").
+- Lupa kata sandi: data tetap terbaca server (dekripsi transparan) — hanya status open yang tidak bisa dibuka; hubungi ops dengan akses DB (baris berisi `dataKey`) untuk reset manual (`scripts/migrate-rekey-vault.ts <schema> <sandi-baru>`).
+- Skrip ops: `scripts/reset-vault-demo.ts <schema>` mengembalikan schema demo ke pra-vault (v2 → v1 + hapus baris) — **restart server setelahnya** (cache kunci in-memory).
 
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 

@@ -38,12 +38,17 @@ export async function main(schemas?: string[]): Promise<void> {
             "salt" TEXT NOT NULL,
             "verifier" TEXT NOT NULL,
             "wrappedKey" TEXT NOT NULL,
+            "dataKey" TEXT,
             "openUntil" TIMESTAMP(3),
             "openByUserId" TEXT,
             "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" TIMESTAMP(3) NOT NULL,
             CONSTRAINT "MoneyVault_pkey" PRIMARY KEY ("id")
         );`);
+      // Task 47: instalasi lama (tabel tanpa kolom dataKey — kunci kata sandi
+      // perusahaan) → tambahkan. Baris lama dibiarkan NULL (legacy, upgrade
+      // otomatis saat admin mengganti kata sandi).
+      await c.query(`ALTER TABLE "MoneyVault" ADD COLUMN IF NOT EXISTS "dataKey" TEXT;`);
 
       // ---- MoneyViewGrant ----
       await c.query(`

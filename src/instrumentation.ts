@@ -59,4 +59,16 @@ export async function register() {
       console.warn(`[scheduler] gagal diinisialisasi: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  // Task 47: muat dataKey vault (kunci kata sandi perusahaan) semua tenant ke
+  // cache field-crypto saat boot — scheduler/background job membaca field
+  // terenkripsi SEBELUM request pertama (prime per-request hanya menutup
+  // jalur HTTP). Best-effort: DB belum siap → request path mengulang prime.
+  try {
+    const { primeAllTenantCrypto } = await import("./onevity/shared/lib/field-crypto");
+    const n = await primeAllTenantCrypto();
+    if (n > 0) console.log(`[field-crypto] kunci vault ${n} tenant termuat`);
+  } catch {
+    // diam — jalur request akan prime ulang
+  }
 }
+

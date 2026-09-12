@@ -2011,6 +2011,7 @@ CREATE TABLE "MoneyVault" (
     "salt" TEXT NOT NULL,
     "verifier" TEXT NOT NULL,
     "wrappedKey" TEXT NOT NULL,
+    "dataKey" TEXT,
     "openUntil" TIMESTAMP(3),
     "openByUserId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

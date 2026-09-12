@@ -4,7 +4,7 @@
 import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { db as platformDb } from "@/lib/db";
 import { readVerifiedSession } from "./auth";
-import { TENANT_SCHEMA_BRAND } from "./field-crypto";
+import { TENANT_SCHEMA_BRAND, primeTenantCrypto } from "./field-crypto";
 
 export type TenantDb = TenantPrismaClient;
 export type { TenantPrismaClient };
@@ -42,13 +42,15 @@ export type { TenantPrismaClient };
 // TASK 45-A: versi dinaikkan lagi (T45A) — model MoneyVault + MoneyViewGrant
 // (gerbang visibilitas uang terenkripsi) masuk client hasil generate; instance
 // lama (pra-T45A, DMMF tanpa db.moneyVault/moneyViewGrant) tidak dipakai ulang.
+// TASK 47: versi dinaikkan lagi (T47A) — kolom MoneyVault.dataKey (kunci
+// enkripsi kata sandi perusahaan) masuk client hasil generate.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsT45A: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsT47A: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsT45A ?? new Map();
-globalForTenants.onevityTenantClientsT45A = tenantClients;
+  globalForTenants.onevityTenantClientsT47A ?? new Map();
+globalForTenants.onevityTenantClientsT47A = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;
@@ -104,6 +106,10 @@ export function getTenantClient(schemaName: string): TenantDb {
       writable: true,
     });
     tenantClients.set(schemaName, client);
+    // Task 47: muat dataKey vault (kunci kata sandi perusahaan) ke cache
+    // field-crypto — fire-and-forget (request path menunggu versi await
+    // di requireTenant/requireMutator; ini menutup celah jalur sync).
+    void primeTenantCrypto(schemaName).catch(() => {});
   }
   return client;
 }
@@ -137,7 +143,11 @@ export async function requireTenant(req: Request): Promise<TenantDb | null> {
   });
   if (!membership || membership.tenant.status !== "ACTIVE") return null;
 
-  return getTenantClient(membership.tenant.schemaName);
+  const db = getTenantClient(membership.tenant.schemaName);
+  // Task 47: pastikan dataKey vault termuat (sekali per proses per schema)
+  // sebelum serializer membaca nilai enc:v2.
+  await primeTenantCrypto(membership.tenant.schemaName).catch(() => {});
+  return db;
 }
 
 export const UNAUTHORIZED_MSG = "Sesi tidak valid atau berakhir — silakan masuk kembali.";
@@ -196,6 +206,9 @@ export async function requireMutator(req: Request): Promise<MutatorResult> {
   }
 
   const db = getTenantClient(membership.tenant.schemaName);
+  // Task 47: pastikan dataKey vault termuat sebelum mutasi membaca/menulis
+  // nilai terenkripsi.
+  await primeTenantCrypto(membership.tenant.schemaName).catch(() => {});
 
   // Resolusi AppUser tenant via email (opsional — boleh null, mis. user platform tanpa AppUser)
   let appUser: { id: string; username: string; employeeId: string | null } | null = null;
