@@ -764,6 +764,10 @@ async function main() {
         wageTemplateId: bsIdx.has(empIdx) ? tplBS.id : freelanceIdx.has(empIdx) ? tplFreelance.id : tplDefault.id,
         taxStatus,
         dependents: dep,
+        // Task 49: PTKP turunan data keluarga — "auto" (disinkronkan saat
+        // keluarga berubah + refresh 1 Januari); K/I tetap "manual" (pilihan
+        // penggabungan penghasilan pasangan tidak dapat diturunkan otomatis).
+        ptkpSource: spouseWorks ? "manual" : "auto",
         payrollDependentAllowed: true,
         bankName: emp.bankName,
         bankAccount: emp.bankAccount,

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { syncEmployeePtkpAuto } from "@/onevity/payroll/services/ptkp-auto";
 
 // GET ?employeeId= | POST | DELETE ?id=
 // Task 32-d: mutasi dijaga hak AKSI menu hr:directory (per pengguna).
+// Task 49: mutasi keluarga → sinkronkan PTKP otomatis (profil bersumber
+// "auto") — status pajak karyawan mengikuti data keluarga terkini.
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
@@ -33,7 +36,9 @@ export async function POST(req: NextRequest) {
         occupation: b.occupation ?? null, isDependent: b.isDependent ?? true,
       },
     });
-    return NextResponse.json({ family: fam }, { status: 201 });
+    // Task 49: PTKP otomatis — recompute bila profil bersumber "auto".
+    const ptkpSync = await syncEmployeePtkpAuto(db, b.employeeId);
+    return NextResponse.json({ family: fam, ptkpSync }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
@@ -47,8 +52,11 @@ export async function DELETE(req: NextRequest) {
 
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    // Task 49: tangkap employeeId SEBELUM baris terhapus (hook sinkron PTKP).
+    const fam = await db.employeeFamily.findUnique({ where: { id }, select: { employeeId: true } });
     await db.employeeFamily.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const ptkpSync = fam ? await syncEmployeePtkpAuto(db, fam.employeeId) : null;
+    return NextResponse.json({ ok: true, ptkpSync });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

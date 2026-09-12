@@ -960,3 +960,28 @@ Work Log:
 Stage Summary:
 - Task 47 TERVERIFIKASI LULUS dan TERPUSH ke origin — refaktor kata sandi enkripsi perusahaan (DB, per-company, bebas diganti, re-encrypt total) live di remote.
 - ATURAN GIT BARU PERMANEN: setelah setiap perbaikan selesai → commit + push otomatis (tidak lagi menunggu perintah "push" eksplisit).
+
+---
+Task ID: 49
+Agent: orchestrator (Z.ai)
+Task: PTKP Status pada menu Data Gaji Karyawan terisi OTOMATIS dari data family (dependent) + refresh otomatis per 1 Januari, sesuai peraturan perpajakan Indonesia (riset regulasi via web-search).
+
+Work Log:
+- Riset regulasi (web-search + verifikasi pajak.go.id/klikpajak/ortax/muc): UU PPh Ps. 7 ayat (1) + PMK 168/2023 — PTKP TK/0 Rp 54jt, kawin +4,5jt, per tanggungan +4,5jt maks 3; tanggungan = keluarga sedarah/semenda garis keturunan LURUS + anak angkat (→ model EmployeeFamily: Child & Parent; Sibling DIKECUALIKAN garis samping); status kawin = relasi Spouse ATAU maritalStatus "Menikah"; Ps. 7 ayat (2) perubahan status berlaku bulanan mulai bulan BERIKUTNYA; K/I (penghasilan pasangan digabung) tidak dapat diturunkan dari data keluarga → manual.
+- Eksplorasi (subagent Explore): EmployeeFamily (relation String konvensi Spouse|Child|Parent|Sibling, isDependent, tanpa enum); EmployeePayrollProfile.taxStatus TK0..KI3 + dependents; PTKP_ANNUAL hardcode payroll-engine; scheduler setInterval 6 jam + guarded(mutex advisory); referensi derivasi seed.ts:748.
+- SKEMA: EmployeePayrollProfile + kolom ptkpSource String @default("manual") — aman untuk upgrade (baris lama tidak berubah perilaku); tenant-ddl.sql regen; skrip scripts/migrate-ptkp-auto.ts (ALTER ADD COLUMN IF NOT EXISTS, idempoten, import-in-process parity); parity-runner: step 23 + gap marker ke-5 (kolom ptkpSource); versi client tenant T47A→T49A (DMMF).
+- SERVICE BARU src/onevity/payroll/services/ptkp-auto.ts: derivePtkpFromFamily (pure; spouse || marital Menikah → K; tanggungan Child/Parent isDependent maks 3; hasil TK0..K3 — TIDAK PERNAH KI*) + suggestPtkpForEmployee + syncEmployeePtkpAuto (profil auto saja; tulis + ActivityLog bila berubah) + syncAllPtkpAuto + applyPtkpAutoToAll (ops-in massal: alihkan semua profil aktif non-KI → auto lalu sync; dryRun pratinjau; K/I preservedKi).
+- API payroll-profiles.ts: GET membawa ptkpSource + ptkpSuggestion per baris (derivasi server-side — tanpa PII keluarga); PATCH menerima ptkpSource — "auto" mengabaikan payload taxStatus (derived menang), taxStatus eksplisit tanpa ptkpSource → manual (override admin menang); POST {action:"sync-ptkp", dryRun} sinkron massal; route export POST.
+- API family.ts: hook POST/DELETE → syncEmployeePtkpAuto + respons ptkpSync {changed, from, to} (DELETE menangkap employeeId SEBELUM hapus); AddFamilyDialog toast "status PTKP TK0 → K0 (otomatis dari keluarga)".
+- SCHEDULER: job "ptkp-tahunan" (jobAnnualPtkpRefresh) — marker ActivityLog (action Scheduled, entity PtkpSync, entityId annual-<tahun>) per tahun pajak; siklus pertama setelah 1 Januari menjalankan syncAllPtkpAuto + ringkasan; counter SchedulerJobCounts.ptkpYearlySynced + ringkasan detail siklus.
+- UI payroll-profiles.tsx: tabel badge Auto (emerald)/Manual (stone) + hint "Saran keluarga: K2" amber saat manual mismatch; tombol header "Sinkronkan PTKP dari Keluarga" → dialog pratinjau dryRun (daftar perubahan from→to, K/I dibiarkan manual, info regulasi) → Terapkan; dialog edit: dua kartu sumber (Otomatis dari keluarga / Manual), mode auto = info box derivasi (Pasangan ada/tidak · Tanggungan N → Status K2 Rp 67,5jt/thn + catatan refresh 1 Januari) + select disabled; mode manual = select aktif + dependents + chip saran "Terapkan"; alert K/I by-design; i18n t() penuh.
+- SEED: profil demo ptkpSource = spouseWorks (KI) ? manual : auto; demo DB existing disamakan via SQL (MII: 39 auto + 3 K/I manual; tenant lain 0 profil).
+- BONUS FIX shell header: overflow horizontal 18px di 390px (pre-existing, tombol notifikasi/tema meluber di SEMUA halaman — terverifikasi di dashboard) → gap-2 px-3 base (sm:gap-3 sm:px-6) — scrollWidth 390=390 clean, desktop 1440 utuh.
+- E2E API (login hrd MII): GET 42 karyawan (39 auto, 3 manual KI2/KI1/KI0 + saran K2/K1/K0) · family POST Spouse → TK0→K0 · POST Child → K0→K1 · DELETE Child → K1→K0 · DELETE Spouse → K0→TK0 · PATCH manual K1 → PATCH auto dengan taxStatus TK3 DIABAIKAN (derived TK0 menang) · POST sync dryRun (39 karyawan, 0 berubah, preservedKi 3) · ganggu Sri Wahyuni K1→TK0 di DB → POST sync apply memperbaiki (TK0→K1, 1 changed) · marker scheduler "annual-2026" tertulis (39 profil, 0 berubah) · ActivityLog audit per perubahan.
+- E2E Browser: tabel badge + saran (VLM verifikasi 4/4 poin) · dialog sinkron lengkap (pratinjau, K/I note, info regulasi) · dialog edit auto (info box keluarga + status terkunci) + toggle manual (select + tanggungan aktif) · responsif 390px bersih pasca-fix header · 1440 desktop utuh · console/page errors 0.
+- bunx tsc --noEmit 0 · bun run lint 0 · dev.log 0×500 · DEPLOY-RUNBOOK §5.2.3 baru + step parity 23.
+
+Stage Summary:
+- Task 49 TUNTAS: PTKP terisi otomatis dari data family (dependent) — pasangan → K, anak/ortu tanggungan maks 3, K/I tetap manual by-design; berubah otomatis saat data keluarga CRUD; REFRESH TAHUNAN otomatis tiap 1 Januari (job scheduler, marker idempoten); admin bisa massal "Sinkronkan PTKP dari Keluarga" (dryRun pratinjau → apply) atau per-karyawan pilih sumber; upgrade aman (default manual — payroll berjalan tidak tersentuh sampai admin mengaktifkan).
+- Kontrak API bertambah backward-compat: GET +ptkpSource/+ptkpSuggestion; PATCH +ptkpSource; POST baru {action:"sync-ptkp"}; family POST/DELETE +ptkpSync; kolom DB ptkpSource (step parity 23 self-heal).
+- Bonus: fix overflow header mobile 390px (pre-existing shell, semua halaman).

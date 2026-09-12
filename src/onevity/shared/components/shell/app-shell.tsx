@@ -842,8 +842,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ============ MAIN COLUMN ============ */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* topbar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-stone-200/80 bg-background/85 px-4 backdrop-blur-xl dark:border-stone-800/80 sm:px-6">
+          {/* topbar — gap/padding dirapatkan di layar sempit agar seluruh tombol
+              ikon (cari/brankas/notifikasi/bahasa/tema) muat tanpa overflow */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-stone-200/80 bg-background/85 px-3 backdrop-blur-xl dark:border-stone-800/80 sm:gap-3 sm:px-6">
             {/* brand mobile — di desktop identitas sudah dibawa rail+panel */}
             <div className="flex items-center gap-2.5 lg:hidden">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow" style={{ background: grad(accent) }}>

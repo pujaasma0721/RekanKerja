@@ -471,6 +471,7 @@ CREATE TABLE "EmployeePayrollProfile" (
     "wageTemplateId" TEXT,
     "taxStatus" TEXT NOT NULL DEFAULT 'TK0',
     "dependents" INTEGER NOT NULL DEFAULT 0,
+    "ptkpSource" TEXT NOT NULL DEFAULT 'manual',
     "payrollDependentAllowed" BOOLEAN NOT NULL DEFAULT true,
     "bankName" TEXT,
     "bankAccount" TEXT,

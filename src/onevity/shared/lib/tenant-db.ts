@@ -44,13 +44,15 @@ export type { TenantPrismaClient };
 // lama (pra-T45A, DMMF tanpa db.moneyVault/moneyViewGrant) tidak dipakai ulang.
 // TASK 47: versi dinaikkan lagi (T47A) — kolom MoneyVault.dataKey (kunci
 // enkripsi kata sandi perusahaan) masuk client hasil generate.
+// TASK 49: versi dinaikkan lagi (T49A) — kolom EmployeePayrollProfile.ptkpSource
+// (sumber PTKP auto|manual — turunan data keluarga) masuk client hasil generate.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsT47A: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsT49A: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsT47A ?? new Map();
-globalForTenants.onevityTenantClientsT47A = tenantClients;
+  globalForTenants.onevityTenantClientsT49A ?? new Map();
+globalForTenants.onevityTenantClientsT49A = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

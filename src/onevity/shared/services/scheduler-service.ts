@@ -864,6 +864,43 @@ async function jobPayrollReminders(db: TenantDb): Promise<{ periods: number; not
 
 // ---------- JOB f: housekeeping notifikasi ----------
 
+// ---------- JOB g: refresh tahunan PTKP dari data keluarga (Task 49) ----------
+
+/**
+ * Refresh PTKP TAHUNAN per 1 Januari (permintaan pemilik produk; UU PPh
+ * Pasal 7 — status PTKP diperbarui tiap awal tahun pajak):
+ *   1. marker ActivityLog per tahun (action "Scheduled", entity "PtkpSync",
+ *      entityId "annual-<tahun>") — bila sudah ada → skip sisa tahun;
+ *   2. syncAllPtkpAuto(db) — recompute SELURUH profil bersumber "auto" dari
+ *      data keluarga terkini (profil "manual" termasuk K/I tidak disentuh);
+ *   3. tulis marker + ActivityLog ringkasan hasil.
+ * Job dipagari advisory lock "ptkp-tahunan" per schema (guarded) — race
+ * antar-proses aman; jendela mikrodetik antara cek-marker dan tulis-marker
+ * hanya menyebabkan sync idempoten berjalan ganda (tanpa efek samping).
+ */
+async function jobAnnualPtkpRefresh(db: TenantDb): Promise<number> {
+  const year = new Date().getFullYear();
+  const markerId = `annual-${year}`;
+  try {
+    const done = await db.activityLog.findFirst({
+      where: { action: "Scheduled", entity: "PtkpSync", entityId: markerId },
+      select: { id: true },
+    });
+    if (done) return 0; // tahun berjalan sudah disinkronkan
+  } catch {
+    return 0; // tabel/kolom belum termigrasi → skip senyap
+  }
+  const { syncAllPtkpAuto } = await import("@/onevity/payroll/services/ptkp-auto");
+  const r = await syncAllPtkpAuto(db);
+  await writeActivity(db, {
+    action: "Scheduled",
+    entity: "PtkpSync",
+    entityId: markerId,
+    detail: `Refresh PTKP tahunan ${year} dari data keluarga — ${r.employees} profil auto diperiksa, ${r.changed} berubah status`,
+  });
+  return r.employees;
+}
+
 async function jobNotificationHousekeeping(db: TenantDb): Promise<number> {
   try {
     const cutoff = new Date(Date.now() - NOTIFICATION_RETENTION_DAYS * DAY_MS);
@@ -886,6 +923,9 @@ export interface SchedulerJobCounts {
   notificationsPruned: number;
   /** T41-M14 — baris webhook yang dikirim ulang job webhook-retry. */
   webhookRetried: number;
+  /** T49 — karyawan yang status PTKP-nya disinkronkan dari data keluarga
+   *  oleh job tahunan (paling signifikan pada siklus pertama tiap 1 Januari). */
+  ptkpYearlySynced: number;
 }
 
 export interface SchedulerRunResult {
@@ -924,6 +964,7 @@ export async function runAllJobs(
     payrollReminders: 0,
     notificationsPruned: 0,
     webhookRetried: 0,
+    ptkpYearlySynced: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -981,6 +1022,12 @@ export async function runAllJobs(
   await guarded("housekeeping", async () => {
     jobs.notificationsPruned = await jobNotificationHousekeeping(db);
   });
+  // T49: refresh tahunan PTKP dari data keluarga — berjalan pada siklus
+  // pertama setelah 1 Januari (marker ActivityLog per tahun pajak), lalu
+  // dilewati sisa tahun (idempoten lintas restart/proses).
+  await guarded("ptkp-tahunan", async () => {
+    jobs.ptkpYearlySynced = await jobAnnualPtkpRefresh(db);
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -995,6 +1042,7 @@ export async function runAllJobs(
     `${totalJobs} job, ${notificationsSent} notifikasi` +
     (templatesSeeded > 0 ? `, ${templatesSeeded} template baru` : "") +
     (jobs.webhookRetried > 0 ? `, ${jobs.webhookRetried} webhook retry` : "") +
+    (jobs.ptkpYearlySynced > 0 ? `, ${jobs.ptkpYearlySynced} PTKP disinkronkan dari data keluarga` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

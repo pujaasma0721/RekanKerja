@@ -106,6 +106,14 @@ export interface CompAssignmentRow {
   processType: { code: string; name: string } | null;
 }
 
+/** Task 49: saran PTKP hasil derivasi data keluarga (server-side; tanpa PII). */
+export interface PtkpSuggestion {
+  taxStatus: string; // TK0..TK3 | K0..K3
+  dependents: number; // 0..3
+  spouse: boolean;
+  tanggungan: number; // jumlah nyata sebelum clamp 3
+}
+
 export interface ProfileRow {
   employeeId: string; employeeNo: string; fullName: string;
   orgUnitName: string | null; positionName: string | null; gradeName: string | null;
@@ -114,8 +122,22 @@ export interface ProfileRow {
     id: string; npwp: string | null; hasNpwp: boolean; processMethod: string;
     paymentFrequency: string; wageTemplateId: string | null; wageTemplateName: string | null;
     taxStatus: string; ptkpValue: number; dependents: number;
+    ptkpSource: "auto" | "manual";
     bankName: string | null; bankAccount: string | null;
   } | null;
+  ptkpSuggestion: PtkpSuggestion;
+}
+
+/** Task 49: hasil sinkronisasi massal PTKP dari data keluarga (POST sync-ptkp). */
+export interface PtkpSyncResponse {
+  ok: boolean;
+  dryRun: boolean;
+  employees: number;
+  changed: number;
+  autoEnabled: number;
+  preservedKi: string[];
+  changes: { employeeId: string; employeeName: string; changed: boolean; from: string; to: string }[];
+  detail: string;
 }
 
 export interface TemplateRow {

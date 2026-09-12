@@ -656,6 +656,12 @@ model EmployeePayrollProfile {
   wageTemplateId          String?
   taxStatus               String    @default("TK0") // TK0..TK3, K0..K3, KI0..KI3
   dependents              Int       @default(0)
+  // Task 49: sumber status PTKP — "auto" = diturunkan dari data keluarga
+  // (EmployeeFamily; pasangan → K, tanggungan Child/Parent max 3), disinkronkan
+  // saat data keluarga berubah + refresh tahunan tiap 1 Januari; "manual" =
+  // ditetapkan admin (mis. K/I — penghasilan pasangan digabung, tak dapat
+  // diturunkan otomatis dari data keluarga).
+  ptkpSource              String    @default("manual") // auto|manual
   payrollDependentAllowed Boolean   @default(true)
   bankName                String?
   bankAccount             String? // terenkripsi (enc:v1:t:…)

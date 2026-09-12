@@ -214,6 +214,7 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 | 20 | `task43-indexes` (**BARU**) | Task 43 — 4 index payroll/klaim (M-15) + partial unique run payroll aktif (M-20) |
 | 21 | `encrypt-money` | Task 44 (M-8) — 38 kolom uang claim → `enc:v1:n` (skrip `migrate-encrypt-money.ts`, idempoten). Kunci = kunci AKTIF tenant (sejak Task 47: `dataKey` vault bila sudah di-setup, else bootstrap — runner men-prime kunci sebelum langkah ini). Catatan: agregasi SQL (`_sum`/`groupBy`) pada kolom terenkripsi sudah dipindah in-memory — JANGAN menambah query SQL agregat ke kolom terenkripsi. |
 | 22 | `money-vault` | Task 45-a/47 — tabel `MoneyVault` (+ kolom `dataKey` kunci kata sandi perusahaan — `ALTER ADD COLUMN IF NOT EXISTS` idempoten; CREATE TABLE fresh-install sudah memuatnya lewat tenant-ddl.sql) + `MoneyViewGrant` + unique index userId. Setup vault sendiri via API admin (bukan migrasi). |
+| 23 | `ptkp-auto` | Task 49 — kolom `EmployeePayrollProfile.ptkpSource` (`auto`\|`manual`, default `manual`, ALTER ADD COLUMN idempoten). Nilai PTKP tidak diubah migrasi — admin mengaktifkan via UI (lihat §5.2.3). |
 
 ### 5.2.1 Enkripsi uang modul claim — catatan perilaku (Task 44 / M-8)
 
@@ -234,6 +235,17 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - Operasi vault yang tidak menyentuh kunci: unlock/lock/grant/revoke. Setup & ganti sandi menjalankan re-enkripsi (bisa beberapa detik–menit untuk data besar; UI menampilkan "Mengenkripsi ulang data…").
 - Lupa kata sandi: data tetap terbaca server (dekripsi transparan) — hanya status open yang tidak bisa dibuka; hubungi ops dengan akses DB (baris berisi `dataKey`) untuk reset manual (`scripts/migrate-rekey-vault.ts <schema> <sandi-baru>`).
 - Skrip ops: `scripts/reset-vault-demo.ts <schema>` mengembalikan schema demo ke pra-vault (v2 → v1 + hapus baris) — **restart server setelahnya** (cache kunci in-memory).
+
+### 5.2.3 PTKP otomatis dari data keluarga (Task 49)
+
+**Status PTKP** (`EmployeePayrollProfile.taxStatus` — TK0..KI3) kini bisa diturunkan otomatis dari **data keluarga karyawan** (`EmployeeFamily`):
+
+- **Kolom baru** `ptkpSource`: `auto` (mengikuti data keluarga) atau `manual` (ditetapkan admin). Default `manual` → **upgrade tidak mengubah payroll yang sudah jalan**; admin mengaktifkan via UI "Data Gaji Karyawan" (per karyawan: pilihan sumber; massal: tombol **Sinkronkan PTKP dari Keluarga** dengan pratinjau perubahan sebelum diterapkan).
+- **Aturan derivasi (UU PPh Ps. 7 + PMK 168/2023)**: ada relasi `Spouse` (atau `maritalStatus` = Menikah) → menikah (K); tanggungan = relasi `Child`/`Parent` dengan `isDependent=true`, maks 3 (garis keturunan lurus — `Sibling` tidak dihitung). Hasil: `TK/0..3` atau `K/0..3`.
+- **K/I TIDAK otomatis**: penggabungan penghasilan pasangan adalah pilihan pemotongan — tidak terdapat di data keluarga → profil `KI*` selalu `manual`; tombol sinkron massal sengaja membiarkannya.
+- **Pemicu sinkronisasi**: (1) data keluarga berubah (tambah/hapus anggota — hook API `family`); (2) **refresh tahunan otomatis tiap 1 Januari** (job scheduler `ptkp-tahunan`, marker `ActivityLog` entity `PtkpSync` per tahun — idempoten); (3) admin (PATCH/sinkron massal). Perubahan bulanan berlaku mulai bulan berikutnya (UU PPh Ps. 7 ayat 2) — admin menjaga cut-off data.
+- **Audit**: setiap perubahan status otomatis menulis `ActivityLog` ("PTKP otomatis dari data keluarga: TK0 → K1 (…)"), entity `EmployeePayrollProfile`.
+- API: `GET /api/onevity/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource`.
 
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 

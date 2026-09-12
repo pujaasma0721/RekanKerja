@@ -772,8 +772,14 @@ function AddFamilyDialog({ employeeId, onSaved }: { employeeId: string; onSaved:
     if (!name.trim()) { toast.error(t("Nama wajib diisi", "Name is required")); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null });
-      toast.success(t("Anggota keluarga ditambahkan", "Family member added"));
+      // Task 49: respons membawa ptkpSync bila profil PTKP karyawan bersumber
+      // "auto" dan statusnya berubah mengikuti data keluarga.
+      const r = (await apiSend("/api/onevity/family", "POST", { employeeId, relation, name, gender, occupation: occupation || null })) as { ptkpSync?: { changed: boolean; from: string; to: string } | null };
+      if (r?.ptkpSync?.changed) {
+        toast.success(t("Anggota keluarga ditambahkan — status PTKP {from} → {to} (otomatis dari keluarga)", "Family member added — PTKP status {from} → {to} (auto from family)", { from: r.ptkpSync.from, to: r.ptkpSync.to }));
+      } else {
+        toast.success(t("Anggota keluarga ditambahkan", "Family member added"));
+      }
       setOpen(false); onSaved();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
