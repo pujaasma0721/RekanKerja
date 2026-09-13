@@ -85,6 +85,9 @@ export async function main(schemas?: string[]): Promise<void> {
     const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
     await c.connect();
     try {
+      // Query SELECT/UPDATE tidak memenuhi syarat skema — arahkan search_path
+      // ke skema tenant (konvensi migrate-encrypt-money.ts).
+      await c.query(`SET search_path TO "${schema}"`);
       const tc = tenantCrypto(schema);
       console.log(`\n[${schema}] pindai nilai uang terenkripsi non-finite…`);
       let fixed = 0;
