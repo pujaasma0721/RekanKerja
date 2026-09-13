@@ -96,8 +96,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const canAct = !!actor && action.status === "Submitted" && !!pending && layerAuthz.allowed;
 
     // flatten assignment aktif → bentuk lama (employmentStatus/baseSalary/workShift/position/…)
-    // 45-b: baseSalary display digate vault (masked → null); resolve via sesi
-    // (route ini requireTenant; requireMutator berikut hanya informasional).
+    // 45-b: baseSalary display digate vault; resolve via sesi (route ini
+    // requireTenant; requireMutator berikut hanya informasional).
+    // 56: dec0 — vault tertutup → 0 (konsisten gate uang UI admin payroll).
     const emp = action.employee as typeof action.employee & { assignments?: unknown[] };
     const cur = (emp.assignments as { employmentStatus: string; workShift: string; baseSalary: string | null; position: unknown; orgUnit: unknown; grade: unknown }[] | undefined)?.[0];
     const { assignments: _a, ...empRest } = emp as Record<string, unknown>;
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       ...empRest,
       employmentStatus: cur?.employmentStatus ?? "—",
       // 28-c: baseSalary terenkripsi — dekripsi di batas serializer (gate 45-b).
-      baseSalary: cur ? (mv.canSee ? (mv.dec(cur.baseSalary) ?? 0) : null) : 0,
+      baseSalary: cur ? mv.dec0(cur.baseSalary) : 0,
       workShift: cur?.workShift ?? "—",
       position: cur?.position ?? null,
       orgUnit: cur?.orgUnit ?? null,

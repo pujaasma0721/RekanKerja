@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { getLang } from "@/onevity/shared/lib/i18n-core";
 
+/**
+ * Event global perubahan status brankas uang (Task 56): dikirim money-vault.tsx
+ * setelah unlock/lock/setup/ganti sandi/grant/revoke sukses. SEMUA hook useApi
+ * yang sedang ter-mount mendengarkan event ini dan me-refetch data — halaman
+ * yang terbuka OTOMATIS berganti nilai uang (Rp 0 ↔ nilai asli) tanpa reload
+ * manual ("setelah memasukkan kata sandi enkripsi, halaman terefresh otomatis
+ * dengan nilai sebenarnya").
+ */
+export const VAULT_CHANGED_EVENT = "onevity:vault-changed";
+
 export function useApi<T>(url: string | null, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(!!url);
@@ -10,6 +20,14 @@ export function useApi<T>(url: string | null, deps: unknown[] = []) {
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  // Task 56: status brankas berubah (unlock/lock/…) → refetch data halaman ini
+  // otomatis — nilai uang masked (0) berganti nilai asli tanpa reload browser.
+  useEffect(() => {
+    const onVaultChanged = () => setTick((t) => t + 1);
+    window.addEventListener(VAULT_CHANGED_EVENT, onVaultChanged);
+    return () => window.removeEventListener(VAULT_CHANGED_EVENT, onVaultChanged);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -72,9 +90,13 @@ export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
 const dateLocale = () => (getLang() === "en" ? "en-US" : "id-ID");
 
 export const fmtIDR = (n: number | null | undefined) =>
-  n == null ? "—" : `Rp ${new Intl.NumberFormat(dateLocale()).format(n)}`;
+  // 56: defensif — nilai non-number/non-finite (mis. string enc: bocor jalur
+  // lama) dirender "—", bukan karakter mentah.
+  typeof n !== "number" || !Number.isFinite(n) ? "—" : `Rp ${new Intl.NumberFormat(dateLocale()).format(n)}`;
 
 export const fmtIDRShort = (n: number) => {
+  // 56: defensif — sama fmtIDR (null/NaN/string enc: → "—").
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
   const sign = n < 0 ? "-" : "";
   const a = Math.abs(n);
   if (getLang() === "en") {

@@ -21,7 +21,7 @@ import { Vault, KeyRound, Users, ShieldCheck, LockKeyhole, LockKeyholeOpen, Tria
 import { cn } from "@/lib/utils";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
-import { fmtDateTime } from "@/onevity/shared/lib/api";
+import { fmtDateTime, VAULT_CHANGED_EVENT } from "@/onevity/shared/lib/api";
 import { PasswordInput } from "@/onevity/shared/components/password-ui";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const VAULT_BASE = "/api/onevity/money-vault";
 const VAULT_MEMBERS = `${VAULT_BASE}/members`;
+
+/**
+ * Task 56 — umumkan perubahan status brankas ke SELURUH halaman yang terbuka:
+ * setiap hook useApi yang ter-mount (payroll, klaim, jurnal, dashboard, …)
+ * mendengarkan event ini dan me-refetch data — nilai uang berganti otomatis
+ * (Rp 0 ↔ nilai asli) tanpa reload browser. Dipanggil setelah aksi vault
+ * sukses (setup/unlock/lock/change-password/grant/revoke).
+ */
+function notifyVaultChanged(): void {
+  window.dispatchEvent(new CustomEvent(VAULT_CHANGED_EVENT));
+}
 
 // ============ TIPE KONTRAK ============
 
@@ -334,6 +345,7 @@ export function MoneyVaultButton() {
       setSetupPw(""); setSetupPw2("");
       setTab("status");
       await fetchStatus();
+      notifyVaultChanged(); // 56: halaman terbuka re-fetch — nilai uang asli muncul
     } else {
       setSetupErr(errText(res.error));
     }
@@ -349,6 +361,7 @@ export function MoneyVaultButton() {
       toast.success(t("Brankas uang dibuka", "Money vault opened"));
       setUnlockPw("");
       await fetchStatus();
+      notifyVaultChanged(); // 56: halaman terbuka re-fetch — nilai asli muncul OTOMATIS
     } else {
       setUnlockErr(errText(res.error));
       await fetchStatus(); // bawa lockoutUntil segar bila 429
@@ -365,6 +378,7 @@ export function MoneyVaultButton() {
     if (res.ok) {
       toast.success(t("Brankas uang ditutup", "Money vault closed"));
       await fetchStatus();
+      notifyVaultChanged(); // 56: nilai uang kembali masked (Rp 0) otomatis
     } else {
       toast.error(errText(res.error));
     }
@@ -388,6 +402,7 @@ export function MoneyVaultButton() {
       );
       setCurPw(""); setNewPw(""); setNewPw2("");
       await fetchStatus();
+      notifyVaultChanged(); // 56: data di-re-enkripsi — refresh nilai di halaman
     } else {
       setChangeErr(errText(res.error));
       await fetchStatus(); // lockout/REKEY_IN_PROGRESS bisa terjadi — segarkan status
@@ -406,6 +421,7 @@ export function MoneyVaultButton() {
         ? t("Hak lihat uang diberikan kepada {name}", "Money view rights granted to {name}", { name: m.name })
         : t("Hak lihat uang {name} dicabut", "Money view rights revoked for {name}", { name: m.name }));
       await Promise.all([fetchStatus(), fetchMembers()]); // grantsCount + baris segar
+      notifyVaultChanged(); // 56: hak lihat uang berubah — refresh nilai halaman
     } else {
       toast.error(errText(res.error)); // 404 dsb.
       await fetchMembers(); // kembalikan baris ke kondisi server

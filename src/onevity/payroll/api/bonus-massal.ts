@@ -315,9 +315,10 @@ export async function POST(req: NextRequest) {
         run: run ? {
           id: run.id, runNo: run.runNo, status: run.status, employeeCount: run.employeeCount,
           // 28-c: total run terenkripsi — dekripsi utk response (gate 45-b).
-          totalBruto: mv.canSee ? (mv.dec(run.totalBruto) ?? 0) : null,
-          totalTax: mv.canSee ? (mv.dec(run.totalTax) ?? 0) : null,
-          totalNet: mv.canSee ? (mv.dec(run.totalNet) ?? 0) : null,
+          // 56: dec0 — vault tertutup → 0 (konsisten UI payroll lainnya).
+          totalBruto: mv.dec0(run.totalBruto),
+          totalTax: mv.dec0(run.totalTax),
+          totalNet: mv.dec0(run.totalNet),
         } : null,
         calculated,
       },

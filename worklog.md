@@ -1136,3 +1136,27 @@ Stage Summary:
 - Pertahanan berlapis: (a) guard encryptText idempoten = tidak ada lapisan baru DI MANA PUN; (b) migrasi parity 29 self-heal data historis tiap boot; (c) 3 jalur bocor RAW ditutup (CSV BPJS, pengingat dokumen, respons POST create); (d) prime vault tidak lagi pin-null saat error transien.
 - Kontrak tidak berubah (field tetap sama; hanya kunci ESS bpjsEmpskill → bpjsEmpSkill). Deploy = restart saja (parity 29 idempoten).
 - Catatan: PATCH dengan input ciphertext well-formed kini tersimpan apa adanya → respons decrypt mengembalikan inner value; kasus pathologis (form tak pernah mengirim ciphertext) + migrasi unwrap membersihkan sisa data lama.
+
+---
+Task ID: 56
+Agent: orchestrator (Z.ai)
+Task: Payroll — UX enkripsi uang (lanjutan Task 55/47): field uang menu payroll saat brankas tertutup harus bernilai 0 (bukan "—"/null), dan SETELAH kata sandi enkripsi dimasukkan halaman harus terefresh OTOMATIS dengan nilai sebenarnya. Audit menyeluruh field ter-impact encryption di seluruh menu payroll.
+
+Work Log:
+- DIAGNOSIS end-to-end (login MII owner + browser): semua endpoint payroll utama SUDAH ter-gate money-view (tidak ada ciphertext mentah yang bocor); scan DB scripts/diag-scan-double-enc.ts (baru): 5.379 nilai terenkripsi MII — 0 double-enc, 0 gagal dekripsi (data bersih pasca-Task 55). Perilaku aktual yang salah: vault tertutup → uang "—" (null); unlock → halaman TIDAK re-fetch (nilai tetap "—" sampai reload manual) — dua akar keluhan pemilik produk.
+- src/onevity/shared/lib/money-view.ts: maskedWalker kind "n" → 0 (semula null) untuk mode vault-closed/no-grant — SEMUA respons json() UI admin (payroll runs/detail, loans, component-assignments, journals, benefit-claims, rapel) kini "Rp 0" saat brankas tertutup; kind "t" (PII) tetap terdekripsi; dec() TETAP null saat masked (jalur karyawan: PDF payslip/email/ESS tetap "—" — karyawan tidak boleh melihat "Rp 0"); komentar header + interface diperbarui.
+- src/onevity/payroll/api/payroll-profiles.ts GET: baseSalary mv.canSee?(dec??0):null → mv.dec0() (masked → 0).
+- src/onevity/payroll/api/bonus-massal.ts: total run respons → mv.dec0() (masked → 0).
+- src/onevity/human-resource/api/personnel-actions-detail.ts: baseSalary → mv.dec0() (masked → 0, konsisten).
+- src/onevity/payroll/api/reports-register.ts: baris per karyawan r0n(null→"—") → r0(dm=dec0) (masked → 0, XLSX & JSON); helper r0n dihapus; type Map diperketat number.
+- src/onevity/shared/lib/api.ts: konstanta VAULT_CHANGED_EVENT="onevity:vault-changed"; hook useApi mendengarkan event → bump tick → REFETCH otomatis semua data halaman terbuka; fmtIDR & fmtIDRShort defensif (non-number/non-finite → "—" — tidak pernah merender string enc: mentah).
+- src/onevity/shared/components/shell/money-vault.tsx: notifyVaultChanged() dipanggil pada SETIAP aksi sukses (setup/unlock/lock/change-password/grant/revoke) → semua useApi ter-mount re-fetch → nilai uang berganti otomatis Rp 0 ↔ nilai asli TANPA reload browser.
+- src/onevity/payroll/components/payroll-run-detail.tsx: badge item informational {i.name}: {i.amount} (render mentah — satu-satunya titik bisa menampilkan karakter enkripsi bila ada kebocoran jalur lama) → fmtIDR(i.amount) (konsisten dgn PDF payslip).
+- E2E browser (MII, 42 karyawan): [locked] runs/detail/profiles/transactions/journals/overview + ekspor bank CSV/register JSON/jurnal CSV → Rp 0/0 semua; [unlock via dialog] runs list, profiles (Gaji Pokok Rp 54.900.000), run detail 176 sel + dialog slip + overview → nilai asli muncul TANPA reload; [lock via dialog] → otomatis kembali Rp 0. lint ✓ tsc ✓ dev.log bersih (semua 200, tanpa error).
+- CATATAN LINGKUNGAN: vault MII SEKARANG TERKONFIGURASI (setup test) — kata sandi "brankas123", status terkunci; ganti lewat dialog Brankas Uang (tab Kata Sandi) bila ingin sandi sendiri. Tenant Cahaya/Sentra belum ber-vault (legacy — semua nilai terlihat).
+
+Stage Summary:
+- Aturan produk Task 56 tuntas: brankas uang tertutup → SEMUA field uang payroll = 0; kata sandi dimasukkan → halaman aktif terefresh otomatis (event onevity:vault-changed + useApi listener) dengan nilai asli; kunci kembali → 0 otomatis.
+- Tidak ada kebocoran ciphertext: endpoint payroll seluruhnya ter-gate; DB bersih (diag-scan-double-enc.ts bisa dijalankan ulang kapan pun); fmtIDR defensif.
+- Jalur karyawan (PDF payslip/email/ESS) TETAP "—" saat masked (disengaja — karyawan tidak boleh menyangka gajinya Rp 0).
+- Artefak: scripts/diag-scan-double-enc.ts (diagnostik read-only double-encryption lintas tenant).

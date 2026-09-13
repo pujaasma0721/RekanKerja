@@ -53,7 +53,9 @@ export async function GET(req: NextRequest) {
         positionName: a?.position?.title ?? null,
         gradeName: a?.grade?.name ?? null,
         // 28-c: baseSalary + npwp/rekening terenkripsi — dekripsi di batas serializer.
-        baseSalary: a ? (mv.canSee ? (mv.dec(a.baseSalary) ?? 0) : null) : 0,
+        // 56: dec0 — vault tertutup → 0 (bukan null/"—"; nilai asli muncul
+        // otomatis setelah unlock via event onevity:vault-changed).
+        baseSalary: a ? mv.dec0(a.baseSalary) : 0,
         profile: p
           ? {
               id: p.id,

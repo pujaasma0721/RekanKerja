@@ -492,7 +492,9 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
           {infos.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {infos.map((i) => (
-                <Badge key={i.id} variant="secondary" className="text-[10px]">{i.name}: {i.amount}</Badge>
+                // 56: fmtIDR — jangan render nilai mentah (null/string bocor jalur
+                // lama tampil karakter enkripsi; masked → Rp 0).
+                <Badge key={i.id} variant="secondary" className="text-[10px]">{i.name}: {fmtIDR(i.amount)}</Badge>
               ))}
             </div>
           )}

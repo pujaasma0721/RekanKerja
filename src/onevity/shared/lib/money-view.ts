@@ -12,9 +12,13 @@
 // DEKRIPSI (Task 47): semua mode memakai konteks field-crypto dengan
 // DISPATCH PREFIX — enc:v2 (kunci kata sandi perusahaan) / enc:v1 (bootstrap
 // legacy) / plaintext — kunci dibaca field-crypto dari cache vault.
-// Ketika MASKED: dec() → null; walker json tetap mendekripsi KIND TEKS
-// (enc:t: PII — aturan PII TIDAK dipengaruhi vault) tetapi KIND UANG
-// (enc:n:) → null.
+// Ketika MASKED (Task 56 — keputusan pemilik produk): walker json
+// mengembalikan 0 utk KIND UANG (enc:n: — "belum masukkan kata sandi
+// enkripsi → nilai 0"; setelah unlock, halaman me-refresh otomatis via
+// event onevity:vault-changed dan nilai asli muncul), sedangkan KIND TEKS
+// (enc:t: PII) tetap didekripsi — aturan PII TIDAK dipengaruhi vault.
+// dec() tetap null saat masked (jalur PDF payslip/email/ESS memakai "—"
+// sebagai penanda tersembunyi — karyawan tidak boleh melihat "Rp 0").
 //
 // PENTING (kontrak 45-a→45-b): file ini OPT-IN — pemanggilan serializer
 // yang BELUM men-thread money-view tetap memakai decryptJson lama
@@ -33,9 +37,11 @@ export type MoneyViewReason = "legacy" | "open-admin" | "open-granted" | "vault-
 export interface MoneyView {
   readonly canSee: boolean;
   readonly reason: MoneyViewReason;
-  /** Bisa lihat → dekripsi angka uang (dispatch prefix field-crypto); masked → null. */
+  /** Bisa lihat → dekripsi angka uang (dispatch prefix field-crypto); masked → null
+   *  (jalur PDF/email/ESS — dirender "—"; JANGAN dipakai utk UI admin uang,
+   *  pakai dec0/json yang masked → 0). */
   dec(v: string | null | undefined): number | null;
-  /** dec() ?? 0 — helper DTO angka. */
+  /** dec() ?? 0 — helper DTO angka (masked → 0: UI admin menampilkan Rp 0). */
   dec0(v: string | null | undefined): number;
   /** Walker JSON dalam (array+objek): nilai enc: diganti sesuai mode. */
   json<T>(payload: T): T;
@@ -49,15 +55,17 @@ function encKind(v: string): string {
 }
 
 /**
- * Walker mode MASKED: kind t tetap didekripsi (PII tidak dipengaruhi vault —
- * jalur field-crypto dispatch prefix), kind n → null (uang disembunyikan).
+ * Walker mode MASKED (Task 56): kind t tetap didekripsi (PII tidak
+ * dipengaruhi vault — jalur field-crypto dispatch prefix), kind n → 0
+ * (keputusan pemilik produk: "belum masukkan kata sandi enkripsi → nilai 0";
+ * bukan null — type kontrak frontend number pun cocok, tanpa "—").
  */
 function maskedWalker(tc: { decryptText(v: string | null | undefined): string | null }) {
   const walk = (v: unknown): unknown => {
     if (v == null) return v;
     if (typeof v === "string") {
       if (!isEncrypted(v)) return v;
-      if (encKind(v) === "n") return null; // uang — masked
+      if (encKind(v) === "n") return 0; // uang — masked → 0 (Task 56)
       return tc.decryptText(v); // PII (t) — tetap terbaca
     }
     if (Array.isArray(v)) return v.map(walk);
