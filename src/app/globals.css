@@ -166,6 +166,8 @@
   --ring: var(--accent-live);
   --sidebar-primary: var(--accent-live);
   --sidebar-primary-foreground: var(--accent-live-fg);
+  /* seri utama grafik ikut tema (seri 2–5 tetap agar multi-seri terbedakan) */
+  --chart-1: var(--accent-live);
 }
 .dark[data-accent="1"] {
   --primary: var(--accent-live);
@@ -173,6 +175,7 @@
   --ring: var(--accent-live);
   --sidebar-primary: var(--accent-live);
   --sidebar-primary-foreground: var(--accent-live-fg);
+  --chart-1: var(--accent-live);
 }
 
 /* ============================================================
