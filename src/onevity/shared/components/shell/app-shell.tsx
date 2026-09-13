@@ -536,10 +536,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .filter((g) => g.children.length > 0);
   }, [allowedKeys, itemAllowed]);
 
-  // panel: saat di Pengaturan → hanya menu settings; di modul → menu modul + settings
+  // panel: saat di Pengaturan → hanya menu settings; di modul → HANYA menu modul.
+  // (Task 64g — menu settings tidak lagi disisipkan ke panel modul; masuk lewat
+  //  ikon Settings di rail / sheet "Semua Modul" di mobile.)
   const groups = useMemo(() => {
     if (inSettings) return settingsGroups;
-    const base = [...nav, ...settingsGroups];
+    const base = [...nav];
     if (allowedKeys == null) return base;
     return base
       .map((g) => ({ ...g, children: g.children.filter((c) => menuAllowed(g.section, c.id)) }))
@@ -647,10 +649,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     else navigateToModule(m);
   };
 
-  // grup menu untuk sheet modul (disaring hak akses)
+  // grup menu untuk sheet modul — HANYA menu modul (settings lewat sheet "Semua Modul")
   const sheetGroups = useMemo(() => {
     if (sheet == null || sheet === "all") return [];
-    const base = [...navOfModule(sheet), ...settingsGroups];
+    const base = [...navOfModule(sheet)];
     if (allowedKeys == null) return base;
     return base
       .map((g) => ({ ...g, children: g.children.filter((c) => menuAllowed(g.section, c.id)) }))
