@@ -154,11 +154,12 @@
    Default (tanpa data-accent) = tema bawaan emerald.
    ============================================================ */
 :root {
-  --accent-live: #10b981;
-  --accent-live-rgb: 16 185 129;
+  /* default = tema cyan (pengguna baru); ditimpa oleh accent-theme.ts saat hydrate */
+  --accent-live: #06b6d4;
+  --accent-live-rgb: 6 182 212;
   --accent-live-fg: #ffffff;
   /* versi pekat utk teks di atas latar terang (ganti saat dark via JS) */
-  --accent-live-deep: #047857;
+  --accent-live-deep: #0e7490;
 }
 :root[data-accent="1"] {
   --primary: var(--accent-live);

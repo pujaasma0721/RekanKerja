@@ -3,8 +3,10 @@
 // status: "loading" → splash; "anonymous" → AuthScreen; "select-tenant" → TenantSelect; "ready" → children.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Loader2, Waypoints } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
+import { useAccentTheme, applyAccentTheme } from "@/onevity/shared/lib/accent-theme";
 import { AuthScreen } from "./auth-screen";
 import { TenantSelect } from "./tenant-select";
 
@@ -19,6 +21,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
     void load();
   }, [load]);
 
+  // Task 64f — tema aksen pilihan pengguna tetap berlaku di layar auth
+  // (login/pilih tenant terbuka sebelum shell, jadi hydrate & apply di sini).
+  const { accent: accentId, hydrate: hydrateAccent } = useAccentTheme();
+  const { resolvedTheme } = useTheme();
+  useEffect(() => { hydrateAccent(); }, [hydrateAccent]);
+  useEffect(() => { if (resolvedTheme) applyAccentTheme(accentId); }, [resolvedTheme, accentId]);
+
   if (status === "loading") {
     // splash senada Ivory Editorial — latar ivory + logo tinta + spinner amber
     return (
@@ -28,7 +37,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
             <Waypoints className="h-7 w-7" aria-hidden />
           </div>
           <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500 dark:text-stone-400">
-            <Loader2 className="h-4 w-4 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
+            <Loader2 className="h-4 w-4 animate-spin text-brand-deep dark:text-brand" aria-hidden />
             {t("Memuat sesi…", "Loading session…")}
           </div>
         </div>

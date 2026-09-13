@@ -28,7 +28,7 @@ export const ACCENT_THEMES: AccentTheme[] = [
   { id: "rose",    label: "Rose",      labelEn: "Rose",      hex: "#f43f5e", hexDark: "#fb7185", hexDeep: "#be123c" }, // sml. Medical
 ];
 
-export const DEFAULT_ACCENT = "emerald";
+export const DEFAULT_ACCENT = "cyan"; // tema bawaan pengguna baru
 const ACCENT_KEY = "onevity:accent";
 
 function hexToRgb(hex: string): [number, number, number] {

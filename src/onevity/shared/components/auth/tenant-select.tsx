@@ -56,7 +56,7 @@ export function TenantSelect() {
         >
           <EditorialLogo compact />
 
-          <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.3em] text-amber-700 dark:text-amber-500">
+          <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.3em] text-brand-deep dark:text-brand">
             {t("Pilih workspace", "Select workspace")}
           </p>
           <h1 className="mt-2.5 font-serif text-[30px] italic leading-tight text-stone-900 dark:text-stone-100">
@@ -105,10 +105,10 @@ export function TenantSelect() {
                       onClick={() => void handleSelect(ws.id)}
                       disabled={busy}
                       aria-label={t("Pilih workspace {name}", "Select workspace {name}", { name: ws.name })}
-                      className="group w-full rounded-2xl border border-stone-200/90 bg-white p-4 text-left shadow-[0_24px_48px_-32px_rgba(87,83,78,0.28)] outline-none transition-all focus-visible:ring-2 focus-visible:ring-amber-600/40 hover:border-amber-600/50 hover:shadow-[0_28px_56px_-28px_rgba(87,83,78,0.38)] disabled:cursor-not-allowed disabled:opacity-60 sm:p-5 dark:border-stone-800 dark:bg-stone-900 dark:shadow-[0_24px_48px_-32px_rgba(0,0,0,0.7)] dark:hover:border-amber-500/40"
+                      className="group w-full rounded-2xl border border-stone-200/90 bg-white p-4 text-left shadow-[0_24px_48px_-32px_rgba(87,83,78,0.28)] outline-none transition-all focus-visible:ring-2 focus-visible:ring-brand/40 hover:border-brand/50 hover:shadow-[0_28px_56px_-28px_rgba(87,83,78,0.38)] disabled:cursor-not-allowed disabled:opacity-60 sm:p-5 dark:border-stone-800 dark:bg-stone-900 dark:shadow-[0_24px_48px_-32px_rgba(0,0,0,0.7)] dark:hover:border-brand/40"
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-[#faf8f3] text-stone-600 transition-colors group-hover:border-amber-600/40 group-hover:bg-amber-50 group-hover:text-amber-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:group-hover:border-amber-500/30 dark:group-hover:bg-amber-500/10 dark:group-hover:text-amber-400">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-[#faf8f3] text-stone-600 transition-colors group-hover:border-brand/40 group-hover:bg-brand/10 group-hover:text-brand-deep dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:group-hover:border-brand/30 dark:group-hover:bg-brand/10 dark:group-hover:text-brand/85">
                           <Building2 className="h-5 w-5" aria-hidden />
                         </span>
                         <span className="min-w-0 flex-1">
@@ -128,7 +128,7 @@ export function TenantSelect() {
                           </span>
                         </span>
                         <span className="hidden shrink-0 items-center gap-2 sm:flex">
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                          <span className="rounded-full border border-brand/25 bg-brand/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85">
                             {ws.role}
                           </span>
                           <span className="rounded-full border border-stone-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400 dark:border-stone-700 dark:text-stone-500">
@@ -136,10 +136,10 @@ export function TenantSelect() {
                           </span>
                         </span>
                         {pending ? (
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand-deep dark:text-brand" aria-hidden />
                         ) : (
                           <ChevronRight
-                            className="h-4 w-4 shrink-0 text-stone-400 transition-all group-hover:translate-x-0.5 group-hover:text-amber-700 dark:group-hover:text-amber-500"
+                            className="h-4 w-4 shrink-0 text-stone-400 transition-all group-hover:translate-x-0.5 group-hover:text-brand-deep dark:group-hover:text-brand"
                             aria-hidden
                           />
                         )}

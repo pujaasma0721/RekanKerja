@@ -98,8 +98,8 @@ function UnderlineField({
         className={cn(
           "border-b pb-2 pt-1 transition-colors duration-300",
           invalid
-            ? "border-rose-400"
-            : "border-stone-300 focus-within:border-amber-600 hover:border-stone-400 dark:border-stone-700 dark:focus-within:border-amber-500 dark:hover:border-stone-600",
+            ? "border-brand/40"
+            : "border-stone-300 focus-within:border-brand hover:border-stone-400 dark:border-stone-700 dark:focus-within:border-brand dark:hover:border-stone-600",
         )}
       >
         <input
@@ -115,7 +115,7 @@ function UnderlineField({
           aria-invalid={invalid ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            "h-9 w-full bg-transparent text-[15px] text-stone-800 caret-amber-700 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300 disabled:opacity-60 dark:text-stone-200 dark:caret-amber-500 dark:placeholder:text-stone-600",
+            "h-9 w-full bg-transparent text-[15px] text-stone-800 caret-brand/70 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300 disabled:opacity-60 dark:text-stone-200 dark:caret-brand dark:placeholder:text-stone-600",
             mono && "font-mono text-[14px] uppercase tracking-[0.14em]",
           )}
         />
@@ -129,7 +129,7 @@ function UnderlineField({
 // InputOTPSlot default kotak shadcn ditimpa jadi garis-bawah serif senada
 // field lain di kartu masuk (pola: 3 digit · 3 digit).
 const OTP_SLOT_CLS =
-  "h-12 w-10 rounded-none border-0 border-b border-stone-300 bg-transparent font-serif text-[18px] text-stone-800 shadow-none first:rounded-none first:border-l-0 last:rounded-none data-[active=true]:border-amber-600 data-[active=true]:ring-0 dark:border-stone-600 dark:bg-transparent dark:text-stone-200 dark:data-[active=true]:border-amber-500";
+  "h-12 w-10 rounded-none border-0 border-b border-stone-300 bg-transparent font-serif text-[18px] text-stone-800 shadow-none first:rounded-none first:border-l-0 last:rounded-none data-[active=true]:border-brand data-[active=true]:ring-0 dark:border-stone-600 dark:bg-transparent dark:text-stone-200 dark:data-[active=true]:border-brand";
 
 // ============ CTA tinta ============
 function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: string; children: React.ReactNode }) {
@@ -139,7 +139,7 @@ function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: st
       disabled={busy}
       whileHover={{ y: -1.5 }}
       whileTap={{ y: 0 }}
-      className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-stone-900 text-[13px] font-bold uppercase tracking-[0.16em] text-stone-50 shadow-[0_18px_40px_-16px_rgba(28,25,23,0.6)] transition-colors hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f3] disabled:pointer-events-none disabled:opacity-70 dark:bg-stone-100 dark:text-stone-900 dark:shadow-none dark:hover:bg-white dark:focus-visible:ring-offset-stone-950"
+      className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-stone-900 text-[13px] font-bold uppercase tracking-[0.16em] text-stone-50 shadow-[0_18px_40px_-16px_rgba(28,25,23,0.6)] transition-colors hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f3] disabled:pointer-events-none disabled:opacity-70 dark:bg-stone-100 dark:text-stone-900 dark:shadow-none dark:hover:bg-white dark:focus-visible:ring-offset-stone-950"
     >
       {busy ? (
         <>
@@ -284,7 +284,7 @@ export function AuthScreen() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
-                className="text-[10px] font-bold uppercase tracking-[0.32em] text-amber-700 dark:text-amber-500"
+                className="text-[10px] font-bold uppercase tracking-[0.32em] text-brand-deep dark:text-brand"
               >
                 {t("Satu platform · multi perusahaan", "One platform · many companies")}
               </motion.p>
@@ -296,7 +296,7 @@ export function AuthScreen() {
               >
                 {t("HR yang tertata,", "HR in order,")}
                 <br />
-                <span className="italic text-amber-700 dark:text-amber-500">{t("bisnis yang tenang.", "business at ease.")}</span>
+                <span className="italic text-brand-deep dark:text-brand">{t("bisnis yang tenang.", "business at ease.")}</span>
               </motion.h1>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -306,7 +306,7 @@ export function AuthScreen() {
               >
                 <div className="flex items-center gap-1.5" aria-hidden>
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} className="text-[13px] text-amber-600 dark:text-amber-500">
+                    <span key={i} className="text-[13px] text-brand dark:text-brand">
                       ★
                     </span>
                   ))}
@@ -327,9 +327,9 @@ export function AuthScreen() {
             <div className="relative">
               <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400 lg:flex dark:text-stone-500">
                 <span>{t("86 tabel siap", "86 tables ready")}</span>
-                <span aria-hidden className="h-1 w-1 rotate-45 bg-amber-600/60 dark:bg-amber-500/50" />
+                <span aria-hidden className="h-1 w-1 rotate-45 bg-brand/60 dark:bg-brand/50" />
                 <span>{t("Ter-isolasi per tenant", "Isolated per tenant")}</span>
-                <span aria-hidden className="h-1 w-1 rotate-45 bg-amber-600/60 dark:bg-amber-500/50" />
+                <span aria-hidden className="h-1 w-1 rotate-45 bg-brand/60 dark:bg-brand/50" />
                 <span>PPh21 · BPJS · SPT 1721-A1</span>
               </div>
               <div aria-hidden className="border-t border-stone-300/80 dark:border-stone-700/60" />
@@ -357,7 +357,7 @@ export function AuthScreen() {
               {/* tagline serif — mobile (panel kiri tersembunyi) */}
               <p className="mb-5 max-w-[300px] text-center font-serif text-[20px] italic leading-snug text-stone-700 lg:hidden dark:text-stone-300">
                 {t("HR yang tertata,", "HR in order,")}{" "}
-                <span className="text-amber-700 dark:text-amber-500">{t("bisnis yang tenang.", "business at ease.")}</span>
+                <span className="text-brand-deep dark:text-brand">{t("bisnis yang tenang.", "business at ease.")}</span>
               </p>
 
               <motion.div
@@ -366,7 +366,7 @@ export function AuthScreen() {
                 transition={{ duration: 0.5, ease: "easeOut" }}
                 className="relative w-full max-w-md overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-8 shadow-[0_40px_80px_-40px_rgba(87,83,78,0.35)] sm:p-10 dark:border-stone-800 dark:bg-stone-900 dark:shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)]"
               >
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-700 dark:text-amber-500">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand-deep dark:text-brand">
                   {tab === "register"
                     ? t("Registrasi", "Registration")
                     : mfaStep
@@ -401,7 +401,7 @@ export function AuthScreen() {
                       role="tab"
                       aria-selected={tab === k}
                       onClick={() => switchTab(k)}
-                      className="group relative rounded-sm pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600/40"
+                      className="group relative rounded-sm pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
                     >
                       <span
                         className={cn(
@@ -418,7 +418,7 @@ export function AuthScreen() {
                         className={cn(
                           "absolute inset-x-0 -bottom-[21px] h-[2px] transition-all",
                           tab === k
-                            ? "bg-amber-600 dark:bg-amber-500"
+                            ? "bg-brand dark:bg-brand"
                             : "bg-transparent group-hover:bg-stone-300 dark:group-hover:bg-stone-600",
                         )}
                       />
@@ -488,13 +488,13 @@ export function AuthScreen() {
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                       <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
-                        <ShieldCheck className="h-3.5 w-3.5 text-amber-700 dark:text-amber-500" aria-hidden />
+                        <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Autentikasi dua faktor aktif di akun ini", "Two-factor authentication is active on this account")}
                       </span>
                       <button
                         type="button"
                         onClick={backToPassword}
-                        className="text-[11px] font-bold text-amber-800 hover:underline dark:text-amber-400"
+                        className="text-[11px] font-bold text-brand-deep hover:underline dark:text-brand/85"
                       >
                         ← {t("Kembali ke kata sandi", "Back to password")}
                       </button>
@@ -539,13 +539,13 @@ export function AuthScreen() {
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                       <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
-                        <ShieldCheck className="h-3.5 w-3.5 text-amber-700 dark:text-amber-500" aria-hidden />
+                        <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Koneksi terenkripsi · data terisolasi per tenant", "Encrypted · data isolated per tenant")}
                       </span>
                       <button
                         type="button"
                         onClick={() => switchTab("register")}
-                        className="text-[11px] font-bold text-amber-800 hover:underline dark:text-amber-400"
+                        className="text-[11px] font-bold text-brand-deep hover:underline dark:text-brand/85"
                       >
                         {t("Belum punya akun?", "No account yet?")}
                       </button>
@@ -643,13 +643,13 @@ export function AuthScreen() {
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                       <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
-                        <ShieldCheck className="h-3.5 w-3.5 text-amber-700 dark:text-amber-500" aria-hidden />
+                        <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Koneksi terenkripsi · data terisolasi per tenant", "Encrypted · data isolated per tenant")}
                       </span>
                       <button
                         type="button"
                         onClick={() => switchTab("login")}
-                        className="text-[11px] font-bold text-amber-800 hover:underline dark:text-amber-400"
+                        className="text-[11px] font-bold text-brand-deep hover:underline dark:text-brand/85"
                       >
                         {t("Sudah punya akun?", "Already registered?")}
                       </button>

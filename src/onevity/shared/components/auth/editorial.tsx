@@ -57,7 +57,7 @@ export function EditorialLogo({ compact = false }: { compact?: boolean }) {
             compact ? "text-base" : "text-lg",
           )}
         >
-          One<span className="text-amber-700 dark:text-amber-500">Vity</span>
+          One<span className="text-brand-deep dark:text-brand">Vity</span>
         </p>
         <p className="text-[9px] font-bold uppercase tracking-[0.32em] text-stone-400 dark:text-stone-500">
           HR Suite
@@ -91,7 +91,7 @@ export function MarqueeStrip({ items }: { items: string[] }) {
             className="flex items-center whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.22em] text-stone-400 dark:text-stone-500"
           >
             {c}
-            <span aria-hidden className="mx-10 block h-1.5 w-1.5 rotate-45 bg-amber-600/60 dark:bg-amber-500/50" />
+            <span aria-hidden className="mx-10 block h-1.5 w-1.5 rotate-45 bg-brand/60 dark:bg-brand/50" />
           </span>
         ))}
       </div>
@@ -108,7 +108,7 @@ export function EditorialError({ id, message }: { id?: string; message: string }
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0, x: [0, -5, 5, -3, 3, 0] }}
       transition={{ duration: 0.35 }}
-      className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400"
+      className="flex items-center gap-2 rounded-lg border border-brand/25 bg-brand/10 px-3.5 py-2.5 text-[12.5px] font-semibold text-brand dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
     >
       <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
       {message}
