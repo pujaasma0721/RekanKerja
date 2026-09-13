@@ -78,15 +78,17 @@
   --chart-3: oklch(0.62 0.09 220);
   --chart-4: oklch(0.66 0.19 25);
   --chart-5: oklch(0.45 0.09 100);
-  /* sidebar: signature obsidian shell (always dark) */
-  --sidebar: oklch(0.185 0.008 240);
-  --sidebar-foreground: oklch(0.93 0.005 90);
-  --sidebar-primary: oklch(0.62 0.15 163);
+  /* Task 64e — sidebar mengikuti warna halaman (bukan lagi obsidian gelap);
+     teks & ikon kontras jelas di atas paper white. Restore: branch
+     backup/sidebar-obsidian (a477f31). */
+  --sidebar: var(--card);
+  --sidebar-foreground: oklch(0.30 0.012 60);
+  --sidebar-primary: oklch(0.508 0.118 168.5);
   --sidebar-primary-foreground: oklch(0.985 0.01 165);
-  --sidebar-accent: oklch(0.24 0.01 235);
-  --sidebar-accent-foreground: oklch(0.96 0.01 90);
-  --sidebar-border: oklch(0.28 0.01 235);
-  --sidebar-ring: oklch(0.62 0.15 163);
+  --sidebar-accent: oklch(0.94 0.03 160);
+  --sidebar-accent-foreground: oklch(0.30 0.06 165);
+  --sidebar-border: oklch(0.912 0.005 70);
+  --sidebar-ring: oklch(0.55 0.11 168);
 }
 
 .dark {
@@ -114,13 +116,15 @@
   --chart-3: oklch(0.68 0.1 220);
   --chart-4: oklch(0.7 0.18 25);
   --chart-5: oklch(0.55 0.09 100);
-  --sidebar: oklch(0.165 0.008 240);
-  --sidebar-foreground: oklch(0.93 0.005 90);
+  /* Task 64e — dark: sidebar = kartu obsidian (tone page, sedikit beda utk
+     keterbacaan); teks tetap terang. */
+  --sidebar: oklch(0.196 0.007 170);
+  --sidebar-foreground: oklch(0.95 0.004 90);
   --sidebar-primary: oklch(0.66 0.15 163);
   --sidebar-primary-foreground: oklch(0.985 0.01 165);
-  --sidebar-accent: oklch(0.23 0.01 235);
-  --sidebar-accent-foreground: oklch(0.96 0.01 90);
-  --sidebar-border: oklch(0.27 0.01 235);
+  --sidebar-accent: oklch(0.28 0.04 163);
+  --sidebar-accent-foreground: oklch(0.93 0.02 160);
+  --sidebar-border: oklch(0.98 0 0 / 9%);
   --sidebar-ring: oklch(0.66 0.15 163);
 }
 

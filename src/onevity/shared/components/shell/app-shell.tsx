@@ -420,7 +420,7 @@ function RailButton({ label, icon: Icon, hex, active, badge, onClick }: {
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}
-          <Icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-stone-500 group-hover:text-stone-200")} aria-hidden />
+          <Icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-muted-foreground group-hover:text-foreground")} aria-hidden />
           {badge != null && badge > 0 && (
             <span className="absolute -right-0.5 -top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: hex }}>
               {badge > 9 ? "9+" : badge}
@@ -657,7 +657,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen bg-background">
         {/* ============ RAIL MODUL (desktop) — ★ opsi A ============ */}
         <aside
-          className="hidden w-[72px] shrink-0 flex-col items-center gap-1.5 bg-[oklch(0.16_0.007_240)] py-4 lg:sticky lg:top-0 lg:flex lg:h-screen"
+          className="hidden w-[72px] shrink-0 flex-col items-center gap-1.5 border-r border-border bg-sidebar py-4 lg:sticky lg:top-0 lg:flex lg:h-screen"
           aria-label={t("Rail modul OneVity", "OneVity module rail")}
         >
           <Tooltip>
@@ -673,7 +673,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </TooltipTrigger>
             <TooltipContent side="right">OneVity HR Suite</TooltipContent>
           </Tooltip>
-          <div className="my-2 h-px w-8 bg-white/10" aria-hidden />
+          <div className="my-2 h-px w-8 bg-border" aria-hidden />
           <nav className="flex flex-col items-center gap-1.5" aria-label={t("Pilih modul", "Select module")}>
             {allowedModules.map((m) => (
               <RailButton
@@ -697,10 +697,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-current={inSettings ? "page" : undefined}
                     className={cn(
                       "group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
-                      inSettings ? "bg-white/[0.08]" : "hover:bg-white/[0.06]",
+                      inSettings ? "bg-accent" : "hover:bg-accent/60",
                     )}
                   >
-                    <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-stone-200" : "text-stone-500 group-hover:text-stone-200")} aria-hidden />
+                    <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground")} aria-hidden />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">{t("Pengaturan Sistem")}</TooltipContent>
@@ -711,26 +711,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ============ PANEL MENU MODUL (desktop) ============ */}
         <aside
-          className="hidden w-[264px] shrink-0 flex-col border-l border-white/[0.06] bg-[oklch(0.185_0.008_240)] text-stone-300 lg:sticky lg:top-0 lg:flex lg:h-screen"
+          className="hidden w-[264px] shrink-0 flex-col border-l border-border bg-sidebar text-foreground lg:sticky lg:top-0 lg:flex lg:h-screen"
           aria-label={t("Menu modul aktif", "Active module menu")}
         >
           {/* header modul — identitas warna (opsi C) */}
-          <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow" style={{ background: grad(accent) }}>
               <PanelIcon className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-extrabold text-stone-50">{panelLabel}</p>
-              <p className="truncate text-[10px] text-stone-500">{panelDesc}</p>
+              <p className="truncate text-[13px] font-extrabold text-foreground">{panelLabel}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{panelDesc}</p>
             </div>
           </div>
 
           {/* nav — menu mengikuti modul aktif, stagger saat ganti modul */}
           <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1" aria-label={t("Navigasi utama", "Main navigation")}>
             {groups.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-4 text-center">
-                <ShieldOff className="mx-auto h-5 w-5 text-stone-500" />
-                <p className="mt-2 text-[11px] font-semibold leading-relaxed text-stone-400">
+              <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/50 px-3 py-4 text-center">
+                <ShieldOff className="mx-auto h-5 w-5 text-muted-foreground" />
+                <p className="mt-2 text-[11px] font-semibold leading-relaxed text-muted-foreground">
                   {t("Tidak ada menu yang tersedia untuk Anda di modul ini.", "No menus are available to you in this module.")}
                 </p>
               </div>
@@ -752,13 +752,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       className="pb-1"
                       variants={{ hidden: { opacity: 0, x: -6 }, show: { opacity: 1, x: 0, transition: { duration: 0.18 } } }}
                     >
-                      {isSettingsGroup && !inSettings && <div className="mx-2 mb-1 mt-3 h-px bg-white/[0.07]" aria-hidden />}
+                      {isSettingsGroup && !inSettings && <div className="mx-2 mb-1 mt-3 h-px bg-border" aria-hidden />}
                       {group.label ? (
                         <button
                           onClick={() => go(group.section, group.children[0].id)}
                           className={cn(
-                            "flex w-full items-center px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500 transition-colors hover:text-stone-300",
-                            active && "hover:text-stone-300",
+                            "flex w-full items-center px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground",
+                            active && "hover:text-foreground",
                           )}
                           style={active ? { color: accent } : undefined}
                         >
@@ -781,7 +781,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
                               "group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-colors",
-                              isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.04]",
+                              isActive ? "bg-accent" : "hover:bg-accent/60",
                             )}
                           >
                             {isActive && (
@@ -793,11 +793,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                               />
                             )}
                             <Icon
-                              className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !isActive && "text-stone-500 group-hover:translate-x-0.5 group-hover:text-stone-300")}
+                              className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !isActive && "text-muted-foreground group-hover:translate-x-0.5 group-hover:text-foreground")}
                               style={isActive ? { color: accent } : undefined}
                               aria-hidden
                             />
-                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{t(item.label)}</span>
+                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{t(item.label)}</span>
                             <ItemWidget mod={isSettingsGroup ? "settings" : module} item={item} meta={meta.data} accent={accent} />
                           </button>
                         );
@@ -811,23 +811,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* footer panel: user (session SaaS multi-tenant) — T8: avatar kini
               membuka dropdown berisi item "Mode Karyawan" (ganti ke shell ESS) */}
-          <div className="border-t border-white/10 px-3.5 py-3">
+          <div className="border-t border-border px-3.5 py-3">
             <div className="flex items-center gap-2.5">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-0.5 text-left transition hover:bg-white/5"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-0.5 text-left transition hover:bg-accent/60"
                     aria-label={t("Menu akun", "Account menu")}
                   >
                     <div className="relative shrink-0">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[11px] font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
-                      <p className="truncate text-[9px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
+                      <p className="truncate text-[11px] font-bold text-foreground">{sessionUser?.name ?? "—"}</p>
+                      <p className="truncate text-[9px] text-muted-foreground">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : t("tanpa workspace", "no workspace")}</p>
                     </div>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-stone-500" aria-hidden />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top" className="w-56">
@@ -838,7 +838,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenu>
               <button
                 onClick={() => setPwOpen(true)}
-                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:ov-text-accent-base"
+                className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent/60 hover:ov-text-accent-base"
                 aria-label={t("Ganti kata sandi", "Change password")}
                 title={t("Ganti kata sandi", "Change password")}
               >
@@ -846,14 +846,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={() => void session.logout()}
-                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-rose-300"
+                className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-accent/60 hover:text-rose-500 dark:hover:text-rose-400"
                 aria-label={t("Keluar dari sesi", "Log out of session")}
                 title={t("Keluar")}
               >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {inSettings ? t("Pengaturan") : t(activeModule.short)}</p>
+            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-muted-foreground/80">OneVity HR Suite v1.0 · {inSettings ? t("Pengaturan") : t(activeModule.short)}</p>
           </div>
         </aside>
 
