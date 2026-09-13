@@ -389,6 +389,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
               positionId: targets.positionId,
               orgUnitId: targets.orgUnitId,
               gradeId: targets.gradeId,
+              // Task 64 — pindah office/lokasi via PA (Transfer/Mutation):
+              // perubahan efektif mencipta segmen prorate di run payroll.
+              companyOfficeId: detail.companyOfficeId ? String(detail.companyOfficeId) : undefined,
+              workLocationId: detail.workLocationId ? String(detail.workLocationId) : undefined,
               baseSalary: detail.newSalary ? Number(detail.newSalary) : undefined,
             },
             { reason: action.type, effectiveDate, sourceDocNo: action.docNo, notes: action.reason ?? null },

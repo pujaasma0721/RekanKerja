@@ -83,7 +83,7 @@ await Bun.write("/tmp/t64-monthly.xlsx", buf);
 
 // 6) baca workbook & verifikasi
 const wb = new ExcelJS.Workbook();
-await wb.xlsx.load(buf as unknown as Buffer);
+await wb.xlsx.load(buf as unknown as Parameters<typeof wb.xlsx.load>[0]);
 const names = wb.worksheets.map((w) => w.name);
 ok("5 sheet lengkap", names.join(",") === "Ringkasan,Rekap Gaji,Detail Komponen,Rekap Komponen,Pembayaran", names.join(","));
 
@@ -133,7 +133,7 @@ const netByr = pvals[pvals.length - 1][7];
 const rpVal = Number(String(flat.find((r) => r[0] === "Total Take Home Pay")?.[1] ?? "").replace(/[^\d]/g, ""));
 ok("konsistensi THP: Rekap Gaji = Pembayaran", netGaji === netByr, `${netGaji} vs ${netByr}`);
 ok("konsistensi THP: Ringkasan (Rp) = sheet angka", rpVal === netGaji, `${rpVal} vs ${netGaji}`);
-ok("nilai uang riil tampil (vault terbuka)", netGaji > 0 && prev.totals.totalBruto > 0, `THP=${netGaji} bruto=${prev.totals.totalBruto}`);
+ok("nilai uang riil tampil (vault terbuka)", Number(netGaji) > 0 && prev.totals.totalBruto > 0, `THP=${netGaji} bruto=${prev.totals.totalBruto}`);
 ok("tidak ada ciphertext enc: bocor", !buf.toString("latin1").includes("enc:v1:") && !buf.toString("latin1").includes("enc:v2:"));
 
 // 7) kunci kembali vault bila tadi dibuka (pulihkan state pra-tes) — best effort
