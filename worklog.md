@@ -1316,3 +1316,17 @@ Work Log:
 
 Stage Summary:
 - Fix bug sub-unit dikirim; fase 2 seeder akan melengkapi 20 sub-unit + 247 karyawan (gaji dalam rentang grade) + keluarga/pendidikan/pengalaman untuk semua karyawan.
+
+---
+Task ID: 60b
+Agent: orchestrator (Z.ai)
+Task: Fase 2 seeder SAYONE + verifikasi final — semua target HR tercapai.
+
+Work Log:
+- Deploy fix sub-unit ternyata GAGAL DIAM-DIAM di run sebelumnya: scp scripts/seed-sayone-via-ui.ts ke server SEBELUM git pull → file untracked menabrak merge → pull berhenti, tapi pipe `| tail` menelan exit code (PELAJARAN: pull via ssh WAJIB cek git log eksplisit, jangan andalkan pipe).
+- Pull diperbaiki (rm duplikat untracked → pull → build ulang). Rerun fase 2: sub-unit 20/20 SUKSES dgn parentId — bug org-units resmi fixed end-to-end di prod.
+- Fase 2 hasil: +247 karyawan (gaji DALAM rentang grade aktual dari GET /grades) → total 500; keluarga 1-3 + pendidikan 1-2 + pengalaman 0-2 per karyawan utk SEMUA 500 (±2.100 detail baris via API UI).
+- VERIFIKASI FINAL via API (login owner): karyawan 500 (active 500, probation 67, contract 76), org 30, posisi 50, kantor 23, lokasi kerja 36, grade 8, jobs 12; company profil lengkap (NPWP/alamat/kota/telepon); sampel detail karyawan terisi (5 sampel → 24 keluarga, 16 pendidikan, 11 pengalaman); nomor karyawan SAYONE00001…; gaji tampil normal (vault BELUM diset untuk SAYONE).
+
+Stage Summary:
+- Modul Human Resource SAYONE terisi lengkap via alur UI API (bukan DB langsung); 1 bug kode asli ditemukan & diperbaiki (sub-unit 500).
