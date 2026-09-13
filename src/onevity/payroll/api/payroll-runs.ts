@@ -146,6 +146,14 @@ export async function PATCH(req: NextRequest) {
     switch (b.action) {
       case "calculate": {
         const result = await calculateAndSaveRun(db, runId);
+        // Task 63 — ringkasan log kejadian langsung di response calculate
+        // (UI menampilkan notifikasi + tab Log di detail run memuat detail).
+        const logCounts = await db.payrollRunLog.groupBy({
+          by: ["level"],
+          _count: { _all: true },
+          where: { runId },
+        });
+        const lc = Object.fromEntries(logCounts.map((c) => [c.level, c._count._all]));
         return NextResponse.json({
           ok: true,
           summary: {
@@ -154,6 +162,11 @@ export async function PATCH(req: NextRequest) {
             totalDeduction: result.totalDeduction,
             totalTax: result.totalTax,
             totalNet: result.totalNet,
+          },
+          logCounts: {
+            error: lc["error"] ?? 0,
+            warning: lc["warning"] ?? 0,
+            info: lc["info"] ?? 0,
           },
         });
       }

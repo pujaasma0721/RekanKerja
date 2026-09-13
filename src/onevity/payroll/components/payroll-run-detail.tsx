@@ -13,8 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert } from "lucide-react";
-import { RunDetail, RunLine, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle } from "lucide-react";
+import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
@@ -44,8 +44,19 @@ export function PayrollRunDetailPage() {
     if (msgs[action] && !window.confirm(msgs[action])) return;
     setBusy(true);
     try {
-      await apiSend("/api/onevity/payroll-runs", "PATCH", { id: data.run.id, action });
-      toast.success(action === "calculate" ? t("Perhitungan selesai", "Calculation completed") : action === "confirm" ? t("Run dikonfirmasi", "Run confirmed") : t("Run ditandai dibayar", "Run marked as paid"));
+      const res = await apiSend<{ logCounts?: { error: number; warning: number; info: number } }>(
+        "/api/onevity/payroll-runs", "PATCH", { id: data.run.id, action }
+      );
+      if (action === "calculate") {
+        const lc = res.logCounts;
+        if (lc && lc.error > 0) {
+          toast.warning(t("Perhitungan selesai — {n} karyawan TIDAK diproses (lihat Log Run)", "Calculation done — {n} employees NOT processed (see Run Log)", { n: String(lc.error) }));
+        } else {
+          toast.success(t("Perhitungan selesai", "Calculation completed"));
+        }
+      } else {
+        toast.success(action === "confirm" ? t("Run dikonfirmasi", "Run confirmed") : t("Run ditandai dibayar", "Run marked as paid"));
+      }
       refresh();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
@@ -98,6 +109,11 @@ export function PayrollRunDetailPage() {
   const lines = run.lines.filter((l) =>
     !q || l.employeeNo.toLowerCase().includes(q.toLowerCase()) || l.employeeName.toLowerCase().includes(q.toLowerCase())
   );
+  // Task 63 — log kejadian run + hitungan per level utk badge tab Log.
+  const runLogs: RunLog[] = data.logs ?? [];
+  const logErrors = runLogs.filter((l) => l.level === "error").length;
+  const logWarnings = runLogs.filter((l) => l.level === "warning").length;
+  const logInfos = runLogs.filter((l) => l.level === "info").length;
   const earnings = data.componentTotals.filter((c) => c.type === "Earning");
   const deductions = data.componentTotals.filter((c) => c.type === "Deduction");
   // 26-b P0 — warning UMP/UMK (PP 36/2021): snapshot per line di bawah upah minimum
@@ -400,6 +416,40 @@ export function PayrollRunDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task 63 — log kejadian run (parameter kurang / anomali / info proses) */}
+      {runLogs.length > 0 && (
+        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <ScrollText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              {t("Log Run", "Run Log")}
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400">
+                {logErrors > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400">{logErrors} {t("gagal", "errors")}</span>}
+                {logWarnings > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">{logWarnings} {t("peringatan", "warnings")}</span>}
+                {logInfos > 0 && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">{logInfos} {t("info", "info")}</span>}
+              </span>
+            </CardTitle>
+            <p className="text-[11px] text-stone-400">{t("Kejadian selama kalkulasi: karyawan tanpa template upah/profil/gaji dilewati & dicatat di sini.", "Events during calculation: employees without wage template/profile/salary are skipped & recorded here.")}</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="max-h-72 space-y-1 overflow-y-auto">
+              {runLogs.map((l) => (
+                <div key={l.id} className="flex items-start gap-2 rounded-xl px-3 py-1.5 odd:bg-stone-50/60 dark:odd:bg-stone-800/30">
+                  {l.level === "error" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" /> : l.level === "warning" ? <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-500" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-semibold text-stone-700 dark:text-stone-200">
+                      {l.employeeNo ? `${l.employeeNo} — ${l.employeeName ?? ""}` : t("Umum", "General")}
+                      <span className="ml-2 font-mono text-[10px] font-normal text-stone-400">{l.code}</span>
+                    </p>
+                    <p className="text-[11.5px] text-stone-500 dark:text-stone-400">{l.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* payslip dialog */}
       <PaySlipDialog line={slipLine} onClose={() => setSlipLine(null)} context={{ runNo: run.runNo, periodName: run.period.name, processName: run.processType.name, status: run.status }} />

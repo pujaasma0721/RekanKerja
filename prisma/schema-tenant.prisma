@@ -769,6 +769,7 @@ model PayrollRun {
   period      PayrollPeriod    @relation(fields: [periodId], references: [id])
   processType ProcessType      @relation(fields: [processTypeId], references: [id])
   lines       PayrollRunLine[]
+  logs        PayrollRunLog[]
 
   // M-15 (audit 42): index period×processType — query terberat: dup-check run
   // aktif (payroll-runs.ts POST), GET runs?periodId=, markOvertimePaidForRun,
@@ -786,6 +787,25 @@ model PayrollRun {
 
 // Header hasil per karyawan per run — snapshot (seperti "Wage Transaction"):
 // PTKP, bruto, potongan, pajak R/I, THP, identitas & penempatan saat proses.
+// Task 63 — log kejadian selama run payroll: parameter kurang (tanpa template
+// upah / profil payroll / gaji), anomali data, atau info proses per karyawan.
+// Satu baris per kejadian; dibaca tab Log di detail run (API payroll-run).
+model PayrollRunLog {
+  id           String   @id @default(cuid())
+  runId        String
+  employeeId   String?
+  employeeNo   String? // snapshot (bisa null utk kejadian run-level)
+  employeeName String?
+  level        String   @default("warning") // warning|error|info
+  code         String // NO_WAGE_TEMPLATE | NO_PAYROLL_PROFILE | NO_BASE_SALARY | NO_ACTIVE_ASSIGNMENT | SKIPPED | INFO
+  message      String
+  createdAt    DateTime @default(now())
+
+  run PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
 model PayrollRunLine {
   id           String  @id @default(cuid())
   runId        String

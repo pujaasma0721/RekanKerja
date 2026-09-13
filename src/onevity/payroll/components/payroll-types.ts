@@ -75,6 +75,15 @@ export interface UmkLineWarning {
 export interface RunDetail {
   run: RunRow & { lines: RunLine[] };
   componentTotals: { code: string; name: string; type: string; wageType: string; total: number }[];
+  /** Task 63 — log kejadian run (parameter kurang/anomali/info proses). */
+  logs?: RunLog[];
+}
+
+export interface RunLog {
+  id: string; runId: string;
+  employeeId: string | null; employeeNo: string | null; employeeName: string | null;
+  level: "warning" | "error" | "info"; code: string; message: string;
+  createdAt: string;
 }
 
 export interface LoanRow {

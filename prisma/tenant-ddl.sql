@@ -665,6 +665,21 @@ CREATE TABLE "EmployeeComponentAssignment" (
 );
 
 -- CreateTable
+CREATE TABLE "PayrollRunLog" (
+    "id" TEXT NOT NULL,
+    "runId" TEXT NOT NULL,
+    "employeeId" TEXT,
+    "employeeNo" TEXT,
+    "employeeName" TEXT,
+    "level" TEXT NOT NULL DEFAULT 'warning',
+    "code" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PayrollRunLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PayrollJournal" (
     "id" TEXT NOT NULL,
     "journalNo" TEXT NOT NULL,
@@ -2157,6 +2172,9 @@ CREATE INDEX "PayrollRun_periodId_processTypeId_idx" ON "PayrollRun"("periodId",
 
 -- CreateIndex
 CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "PayrollRunLog_runId_idx" ON "PayrollRunLog"("runId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollRunLine_runId_employeeId_key" ON "PayrollRunLine"("runId", "employeeId");

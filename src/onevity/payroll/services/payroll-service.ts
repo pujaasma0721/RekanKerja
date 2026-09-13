@@ -2,9 +2,9 @@
 // komponen, regulasi, pinjaman) dan menyimpan hasil run ke database.
 // Dipakai oleh API routes dan seed.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
-import {
-  runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";import { runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
+  // Task 63 — bentuk entri log kejadian run (disimpan ke tabel PayrollRunLog).
+  RunLogEntry,
   EngineTer, EngineRegulation, EngineRunResult,
 } from "@/onevity/payroll/services/payroll-engine";
 import { ComponentRuleLite } from "@/onevity/payroll/services/component-rules";
@@ -78,6 +78,29 @@ function toEngineComponent(c: {
 // Komponen per karyawan = item template profil + komponen Periodic aktif +
 // komponen Specific (period & processType cocok) + angsuran pinjaman jatuh tempo.
 export async function buildRunRows(db: TenantDb, periodId: string, processTypeId: string): Promise<EngineRow[]> {
+  const { rows } = await buildRunRowsWithLog(db, periodId, processTypeId);
+  return rows;
+}
+
+/**
+ * Task 63 — buildRunRows + log kejadian. Mengembalikan baris engine plus daftar
+ * log per kejadian: karyawan tanpa penempatan aktif, tanpa profil payroll,
+ * tanpa template upah, gaji kosong/0 — atau ter-skip (suplemental tanpa komponen).
+ * Task 63b — SALARY run kini WAJIB template upah: tanpa template → SKIP + log
+ * (dulu diam-diam memakai template DEFAULT → gaji tidak sesuai parameternya).
+ * Task 63c — gaji pokok dibaca dari VERSI PENEMPATAN yang berlaku pada PERIODE
+ * (validFrom ≤ periodEnd, validTo null/≥ periodStart, versi validFrom tertinggi),
+ * BUKAN selalu penempatan terbaru — kenaikan gaji Juli tidak lagi bocor ke run Juni.
+ */
+export async function buildRunRowsWithLog(
+  db: TenantDb,
+  periodId: string,
+  processTypeId: string,
+): Promise<{ rows: EngineRow[]; logs: RunLogEntry[] }> {
+  const logs: RunLogEntry[] = [];
+  const log = (l: RunLogEntry) => {
+    logs.push(l);
+  };
   // 28-c: konteks dekripsi per-tenant (baseSalary & komponen tersimpan terenkripsi).
   const tc = tenantCryptoForDb(db);
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
@@ -135,19 +158,24 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   // Karyawan yang keluar SEBELUM period (validTo/endDate < periodStart) tetap
   // dikecualikan; branch TERMINATION tidak berubah (item settlement, bukan upah).
   const isTerminationRun = processType.code === "TERMINATION";
-  const leaverAssignmentFilter = {
-    OR: [{ validTo: null }, { validTo: { gte: period.startDate } }],
-  };
+  // Task 63c — ambil SEMUA versi penempatan yang menyentuh period (validFrom ≤
+  // periodEnd DAN validTo null/≥ periodStart); versi berlaku dipilih per
+  // karyawan di loop (validFrom tertinggi ≤ periodEnd). Dulu: take 1 terbaru
+  // (orderBy validFrom desc) → kenaikan gaji efektif bulan depan ikut terbaca
+  // oleh run bulan berjalan (gaji Juli terpakai di run Juni).
+  const assignmentsPeriodFilter = isTerminationRun
+    ? {}
+    : { validFrom: { lte: period.endDate }, OR: [{ validTo: null }, { validTo: { gte: period.startDate } }] };
   const activeEmployees = await db.employee.findMany({
     where: isTerminationRun
       ? { status: { in: ["Active", "Resigned", "Terminated"] } }
       : {
           status: { in: ["Active", "Resigned", "Terminated"] },
-          assignments: { some: leaverAssignmentFilter },
+          assignments: { some: assignmentsPeriodFilter },
         },
     include: {
       assignments: {
-        ...(isTerminationRun ? {} : { where: leaverAssignmentFilter }),
+        ...(isTerminationRun ? {} : { where: assignmentsPeriodFilter }),
         orderBy: { validFrom: "desc" },
         include: {
           orgUnit: { select: { code: true, name: true } },
@@ -157,7 +185,6 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
           companyOffice: { select: { code: true, name: true } },
           workLocation: { select: { code: true, name: true } },
         },
-        take: 1,
       },
       payrollProfile: true,
       positionLevel: { select: { code: true, name: true } },
@@ -296,14 +323,25 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
 
   // Fix audit 40 K-2 — batas period dinormalisasi ke HARI (inklusif) utk
   // kalkulasi prorate joiner/leaver (pola sama dgn validFrom di bawah).
+  // Task 63c — periodEndDay dipakai juga utk memilih versi penempatan berlaku.
   const periodStartDay = new Date(period.startDate);
   periodStartDay.setHours(0, 0, 0, 0);
   const periodEndDay = new Date(period.endDate);
   periodEndDay.setHours(0, 0, 0, 0);
 
   for (const emp of activeEmployees) {
-    const assignment = emp.assignments[0];
-    if (!assignment) continue; // tidak punya penempatan aktif → dilewati
+    // Task 63c — versi penempatan BERLAKU utk period ini: validFrom tertinggi
+    // yang ≤ akhir period (query sudah memfilter validFrom ≤ periodEnd & rentang
+    // menyentuh period). Bila karyawan hanya punya penempatan yang MULAI setelah
+    // period (data anomali) → skip + log.
+    const allAssignments = emp.assignments;
+    const assignment = isTerminationRun
+      ? allAssignments[0]
+      : allAssignments.find((a) => new Date(a.validFrom) <= periodEndDay) ?? null;
+    if (!assignment) {
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "warning", code: "NO_ACTIVE_ASSIGNMENT", message: "Tidak ada versi penempatan yang berlaku pada period ini — dilewati" });
+      continue; // tidak punya penempatan aktif → dilewati
+    }
 
     // Fix audit 40 K-2 — hari terakhir kerja EFEKTIF utk run non-TERMINATION:
     // assignment.validTo (PA menutup assignment pada lastDay — INKLUSIF hari
@@ -327,9 +365,24 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     }
 
     const profile = emp.payrollProfile;
+    // Task 63 — profil payroll wajib terisi; tidak ada → log (default tetap TK0/GrossToNet).
+    if (!profile) {
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "warning", code: "NO_PAYROLL_PROFILE", message: "Profil payroll belum dibuat — PTKP default TK0 & metode GrossToNet dipakai" });
+    }
+    // Task 63b — template upah = PARAMETER WAJIB run SALARY. Tanpa template →
+    // karyawan TIDAK diproses + log error (dulu diam-diam memakai template DEFAULT).
+    if (isSalaryRun && !profile?.wageTemplateId) {
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "error", code: "NO_WAGE_TEMPLATE", message: "Template upah belum ditetapkan pada Profil Payroll — karyawan TIDAK diproses (tetapkan template di menu Profil Payroll)" });
+      continue;
+    }
     const taxStatus = profile?.taxStatus ?? "TK0";
     // 28-c: gaji pokok tersimpan terenkripsi — dekripsi utk engine (number).
     const baseSalary = tc.decryptMoney(assignment.baseSalary) ?? 0;
+    // Task 63 — gaji kosong/0 pada run SALARY → tidak wajar, skip + log error.
+    if (isSalaryRun && (!Number.isFinite(baseSalary) || baseSalary <= 0)) {
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "error", code: "NO_BASE_SALARY", message: "Gaji pokok kosong/0 pada penempatan berlaku — karyawan TIDAK diproses (perbaiki gaji di penempatan aktif atau via PA kenaikan upah)" });
+      continue;
+    }
 
     // Prorata: karyawan masuk di tengah period.
     const validFrom = new Date(assignment.validFrom);
@@ -398,8 +451,11 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       compList.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)), overrideAmount: s.amount });
     }
 
-    // Karyawan tanpa komponen apa pun pada run suplemental → dilewati.
-    if (!isSalaryRun && compList.length === 0) continue;
+    // Karyawan tanpa komponen apa pun pada run suplemental → dilewati (+ log info).
+    if (!isSalaryRun && compList.length === 0) {
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "info", code: "SKIPPED", message: `Tidak ada komponen transaksi (Specific) untuk run ${processType.code} — dilewati` });
+      continue;
+    }
 
     // Angsuran pinjaman jatuh tempo dalam period — hanya dipotong di run salary.
     const loanDues = isSalaryRun
@@ -485,7 +541,7 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     });
   }
 
-  return rows;
+  return { rows, logs };
 }
 
 // Menjalankan kalkulasi dan menyimpan hasil (lines + items) ke run.
@@ -506,12 +562,16 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
   }
 
   // --- Fase 1: komputasi murni (baca input + runPayroll; nol mutasi DB) ---
-  const [reg, brackets, ter, rows] = await Promise.all([
+  // Task 63 — buildRunRowsWithLog: baris engine + log kejadian (tanpa template,
+  // tanpa profil, gaji kosong, tanpa penempatan berlaku, skip suplemental).
+  const [reg, brackets, ter, built] = await Promise.all([
     getActiveRegulation(db),
     getBrackets(db),
     getTerRates(db),
-    buildRunRows(db, run.periodId, run.processTypeId),
+    buildRunRowsWithLog(db, run.periodId, run.processTypeId),
   ]);
+  const rows = built.rows;
+  const runLogs = built.logs;
 
   const result = runPayroll(rows, reg, brackets, ter, { calculateTax: run.calculateTax });
 
@@ -542,6 +602,23 @@ export async function calculateAndSaveRun(db: TenantDb, runId: string): Promise<
     });
     if (updated.count !== 1) {
       throw new Error("Run yang sudah dikonfirmasi/dibayar tidak dapat dihitung ulang");
+    }
+
+    // Task 63 — simpan log kejadian (ganti seluruh log run ini; idempoten
+    // untuk hitung ulang — log selalu mencerminkan kalkulasi TERAKHIR).
+    await tx.payrollRunLog.deleteMany({ where: { runId } });
+    if (runLogs.length > 0) {
+      await tx.payrollRunLog.createMany({
+        data: runLogs.map((l) => ({
+          runId,
+          employeeId: l.employeeId ?? null,
+          employeeNo: l.employeeNo ?? null,
+          employeeName: l.employeeName ?? null,
+          level: l.level,
+          code: l.code,
+          message: l.message,
+        })),
+      });
     }
 
     await tx.payrollRunLine.deleteMany({ where: { runId } });

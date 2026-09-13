@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
           orderBy: { employeeNo: "asc" },
           include: { items: { orderBy: { sortOrder: "asc" } } },
         },
+        // Task 63 — log kejadian run (parameter kurang/anomali) utk tab Log.
+        logs: { orderBy: [{ level: "asc" }, { employeeNo: "asc" }] },
       },
     });
     if (!run) return NextResponse.json({ error: "Run tidak ditemukan" }, { status: 404 });

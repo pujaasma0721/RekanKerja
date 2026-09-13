@@ -1377,3 +1377,19 @@ Work Log:
 Stage Summary:
 - Seeder HR base: DIBATALKAN oleh user; tuntas dikerjakan developer lain (Task 60/60b) — sesi ini tidak menulis baris kode seeder pun.
 - [RENUMBER saat rebase: awalnya dicatat sbg Task 60 pembatalan, tapi Task 60-62 telah dipakai sesi paralel → 63.]
+
+---
+Task ID: 63
+Agent: orchestrator (Z.ai)
+Task: Template upah jadi parameter wajib run SALARY + tabel PayrollRunLog (log kejadian run) + baca gaji dari versi penempatan yang berlaku pada period.
+
+Work Log:
+- KRITIK USER VALID: run payroll SAYONE sebelumnya jalan meski 0 profil payroll (NPWP/bank/template kosong) — template diam-diam fallback DEFAULT; gaji dibaca dari assignment TERBARU (take 1 orderBy validFrom desc) tanpa melihat period → kenaikan gaji efektif Juli akan bocor ke run Juni.
+- schema-tenant.prisma + tenant-ddl.sql + scripts/migrate-payroll-run-log.ts (parity step `payroll-run-log` + gap check): tabel PayrollRunLog (runId, employee*, level warning|error|info, code, message).
+- payroll-service buildRunRowsWithLog: SALARY run WAJIB template upah → tanpa template SKIP + log error NO_WAGE_TEMPLATE; tanpa profil → log warning NO_PAYROLL_PROFILE; gaji kosong/0 → SKIP + log error NO_BASE_SALARY; tanpa penempatan berlaku → log NO_ACTIVE_ASSIGNMENT; suplemental tanpa komponen → log info SKIPPED. Log disimpan di transaksi kalkulasi (ganti semua per hitung ulang).
+- Task 63c: query employee mengambil SEMUA versi penempatan yang menyentuh period (validFrom ≤ periodEnd, validTo null/≥ periodStart); versi dipakai = validFrom tertinggi ≤ periodEnd → riwayat kenaikan upah via PA SalaryAdjustment (applyAssignmentChange menutup lama + buat versi baru) kini terbaca benar per period.
+- payroll-run GET: include logs; payroll-runs PATCH calculate: + logCounts (error/warning/info); UI payroll-run-detail: kartu "Log Run" dgn badge jumlah per level + toast peringatan bila ada karyawan ter-skip.
+- Reversi run test SAYONE (PR-2026-09-SAL-01, dgn kondisi salah): jurnal → Reversed, 26 saldo Account dikembalikan (dekripsi enc:v2 dgn dataKey vault), run → Cancelled, period → Draft. Run ulang akan memakai aturan baru.
+
+Stage Summary:
+- Payroll menolak karyawan tanpa template upah (bukan fallback diam-diam), semua kejadian tercatat di tab Log Run, dan pembacaan gaji berbasis riwayat penempatan per period.

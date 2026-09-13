@@ -115,6 +115,16 @@ export interface EngineLoanDue {
   amount: number;
 }
 
+/** Task 63 — entri log kejadian run payroll (parameter kurang / anomali / skip). */
+export interface RunLogEntry {
+  employeeId?: string | null;
+  employeeNo?: string | null;
+  employeeName?: string | null;
+  level: "warning" | "error" | "info";
+  code: string;
+  message: string;
+}
+
 export interface EngineRow {
   employee: EngineEmployee;
   components: { comp: EngineComponent; overrideAmount?: number }[];
