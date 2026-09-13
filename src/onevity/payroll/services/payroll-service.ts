@@ -11,7 +11,7 @@ import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";import { r
 import { ComponentRuleLite } from "@/onevity/payroll/services/component-rules";
 import { generateJournalForRun } from "@/onevity/payroll/services/payroll-journal";
 import { markClaimsPaidForRun } from "@/onevity/payroll/services/benefit-service";
-import { markOvertimePaidForRun } from "@/onevity/time-attendance/services/attendance-service";
+import { markOvertimePaidForRun, countScheduledWorkingDaysPure, dayStart } from "@/onevity/time-attendance/services/attendance-service";
 import { markEncashmentPaidForRun } from "@/onevity/leave/services/leave-service";
 import { markTravelPaidForRun } from "@/onevity/travel/services/travel-service";
 import { markMedicalPaidForRun } from "@/onevity/medical/services/medical-service";
@@ -63,12 +63,14 @@ export async function getTerRates(db: TenantDb): Promise<EngineTer[]> {
 function toEngineComponent(c: {
   code: string; name: string; type: string; wageType: string; calcMethod: string;
   amount: number; formula: string | null; incomeTaxMethod: string; prorated: boolean;
+  prorateBasis?: string | null;
   includeInTHP: boolean; includeInBasicIncome: boolean; jamsostekBasis: string | null;
   roundingType: string; roundingValue: number;
 }, rules?: ComponentRuleLite[]): EngineComponent {
   return {
     code: c.code, name: c.name, type: c.type, wageType: c.wageType, calcMethod: c.calcMethod,
     amount: c.amount, formula: c.formula, incomeTaxMethod: c.incomeTaxMethod, prorated: c.prorated,
+    prorateBasis: c.prorateBasis ?? null,
     includeInTHP: c.includeInTHP, includeInBasicIncome: c.includeInBasicIncome,
     jamsostekBasis: c.jamsostekBasis, roundingType: c.roundingType, roundingValue: c.roundingValue,
     ...(rules && rules.length > 0 ? { rules } : {}),
@@ -196,6 +198,67 @@ export async function buildRunRowsWithLog(
     },
     orderBy: { employeeNo: "asc" },
   });
+
+  // Task 64b — basis prorata "WorkingDays" (hari kerja jadwal): prefetch SEMUA
+  // jadwal + assignment + libur dalam period sekali (massal, M-13), lalu hitung
+  // per karyawan murni di memori. Karyawan tanpa jadwal → fallback Sen–Jum.
+  const anyWorkingDaysBasis = components.some((c) => c.prorated && c.prorateBasis === "WorkingDays");
+  const wdByEmp = new Map<string, { empDays: number; fullDays: number }>();
+  // Konteks jadwal per karyawan (utk hitung hari kerja per SEGEMEN di bawah):
+  // daftar schedule assignment ber-tanggal + holiday set period.
+  const wdCtxByEmp = new Map<string, {
+    holidaySet: Set<string>;
+    scheds: { validFrom: Date; anchorMonday: Date; anchorSequence: number; cycle: { sequence: number; category: string }[] }[];
+  }>();
+  if (anyWorkingDaysBasis && !isTerminationRun) {
+    const [schedules, schedAssignments, holidays] = await Promise.all([
+      db.workSchedule.findMany({ where: { active: true }, include: { days: { include: { dayType: { select: { category: true } } } } } }),
+      db.scheduleAssignment.findMany({
+        where: { employeeId: { in: activeEmployees.map((e) => e.id) } },
+        include: { schedule: { include: { days: true } } },
+      }),
+      db.holidayDate.findMany({ where: { date: { gte: period.startDate, lte: period.endDate } }, select: { date: true } }),
+    ]);
+    const holidaySet = new Set(holidays.map((h) => dayStart(h.date).toISOString().slice(0, 10)));
+    const schedById = new Map(schedules.map((s) => [s.id, s.days.map((d) => ({ sequence: d.sequence, category: d.dayType.category }))]));
+    const saByEmp = new Map<string, typeof schedAssignments>();
+    for (const sa of schedAssignments) {
+      const list = saByEmp.get(sa.employeeId) ?? [];
+      list.push(sa);
+      saByEmp.set(sa.employeeId, list);
+    }
+    const dayOf = (d: Date) => dayStart(d);
+    const pS = dayOf(period.startDate);
+    const pE = dayOf(period.endDate);
+    for (const e of activeEmployees) {
+      const list = (saByEmp.get(e.id) ?? []).slice().sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
+      const asSched = (sa: (typeof list)[number]) => ({
+        validFrom: dayOf(sa.validFrom),
+        anchorMonday: dayOf(sa.anchorMonday),
+        anchorSequence: sa.anchorSequence,
+        cycle: schedById.get(sa.scheduleId) ?? [],
+      });
+      wdCtxByEmp.set(e.id, { holidaySet, scheds: list.map(asSched) });
+      // Jadwal aktif utk penyebut/pembilang: schedule assignment pertama yang
+      // menyentuh period (fallback: terakhir — atau null → Sen–Jum).
+      const active = list.find((sa) => dayOf(sa.validFrom) <= pE) ?? list[list.length - 1] ?? null;
+      const schedArg = active ? asSched(active) : null;
+      // Hari kerja period penuh (penyebut faktor jalur tunggal).
+      const full = countScheduledWorkingDaysPure({ from: pS, to: pE }, schedArg, holidaySet)[0];
+      // Hari kerja masa kerja karyawan dalam period (pembilang jalur tunggal).
+      const firstAsgStart = e.assignments.length > 0
+        ? dayOf(new Date([...e.assignments].sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime())[0]!.validFrom))
+        : pS;
+      const empFrom = firstAsgStart > pS ? firstAsgStart : pS;
+      const lastWork = e.assignments.reduce<Date | null>((acc, a) => {
+        const vt = a.validTo ? dayOf(new Date(a.validTo)) : null;
+        return vt && (!acc || vt < acc) ? vt : acc;
+      }, null);
+      const empTo = lastWork && lastWork < pE ? lastWork : pE;
+      const empDays = empTo >= empFrom ? countScheduledWorkingDaysPure({ from: empFrom, to: empTo }, schedArg, holidaySet)[0] : 0;
+      wdByEmp.set(e.id, { empDays, fullDays: full });
+    }
+  }
 
   const specificByEmp = new Map<string, { wageComponentId: string; amount: number; notes: string | null }[]>();
   for (const s of specific) {
@@ -501,10 +564,13 @@ export async function buildRunRowsWithLog(
       }
     }
 
-    // Komponen dari template profil (fallback: template DEFAULT).
+    // Komponen dari template EFEKTIF period (riwayat — Task 64-fix; fallback:
+    // template DEFAULT). Jalur tunggal memakai versi yang sama dgn validasi:
+    // perubahan template mid-period tanpa assignment change tetap terbaca di
+    // sini, dan versi masa depan tidak bocor.
     const compList: { comp: EngineComponent; overrideAmount?: number }[] = [];
-    const template = profile?.wageTemplateId
-      ? (templateById.get(profile.wageTemplateId) ?? templateByCode.get("DEFAULT"))
+    const template = effectiveTemplateId
+      ? (templateById.get(effectiveTemplateId) ?? templateByCode.get("DEFAULT"))
       : templateByCode.get("DEFAULT");
 
     const seen = new Set<string>();
@@ -576,10 +642,19 @@ export async function buildRunRowsWithLog(
               segComps.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)), overrideAmount: p.amount });
             }
             const asg = sg.assignment;
+            // Task 64b — hari kerja segmen: hitung dari konteks jadwal karyawan
+            // (schedule assignment berlaku pada MULAI segmen + holiday overlay).
+            const ctxWd = wdCtxByEmp.get(emp.id);
+            let segWd: number | undefined;
+            if (ctxWd) {
+              const act = ctxWd.scheds.filter((s) => s.validFrom <= sg.from).pop() ?? null;
+              segWd = countScheduledWorkingDaysPure({ from: sg.from, to: sg.to }, act, ctxWd.holidaySet)[0];
+            }
             return {
               days: sg.days,
               baseSalary: tc.decryptMoney(asg.baseSalary) ?? 0,
               templateId: sg.templateId,
+              workingDays: segWd,
               orgUnitCode: asg.orgUnit?.code ?? null,
               positionCode: asg.position?.code ?? null,
               gradeCode: asg.grade?.code ?? null,
@@ -668,6 +743,11 @@ export async function buildRunRowsWithLog(
       // period (tanpa override), engine mengevaluasi per segmen; header
       // (employee/baseSalary) tetap versi AKHIR period utk pajak & tampilan.
       ...(segmentsPayload && segmentsPayload.length > 1 ? { segments: segmentsPayload, hasOverride: false } : { hasOverride }),
+      // Task 64b — hari kerja jadwal utk basis prorata "WorkingDays" (bila
+      // ada komponen dgn basis tsb; kalau tidak prefetch tidak berjalan → undefined).
+      ...(wdByEmp.has(emp.id)
+        ? { periodWorkingDays: wdByEmp.get(emp.id)!.empDays, periodWorkingDaysFull: wdByEmp.get(emp.id)!.fullDays }
+        : {}),
       // K-1: konteks regular YTD (run suplemental; fallback gaji bulanan profil).
       regularIncomeYtd: ctx && ctx.months > 0 ? ctx.bruto : baseSalary,
       regularIuranYtd: ctx && ctx.months > 0 ? ctx.iuran : 0,

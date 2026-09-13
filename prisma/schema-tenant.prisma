@@ -530,6 +530,7 @@ model WageComponent {
   roundingType         String    @default("Nearest") // RoundingUp|RoundingDown|Nearest
   roundingValue        Int       @default(1)
   prorated             Boolean   @default(false)
+  prorateBasis         String? // Task 64b — null/"Calendar" = hari kalender; "WorkingDays" = hari kerja jadwal (WorkSchedule + libur; fallback Sen–Jum)
   taxable              Boolean   @default(true)
   includeInBasicIncome Boolean   @default(false)
   includeInTHP         Boolean   @default(true)

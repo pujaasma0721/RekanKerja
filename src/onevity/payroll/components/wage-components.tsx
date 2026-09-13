@@ -208,6 +208,8 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
   const [formula, setFormula] = useState("");
   const [incomeTaxMethod, setIncomeTaxMethod] = useState("Regular");
   const [prorated, setProrated] = useState(false);
+  // Task 64b — basis prorata: kalender (default) vs hari kerja jadwal attendance.
+  const [prorateBasis, setProrateBasis] = useState<string>("Calendar");
   const [includeInTHP, setIncludeInTHP] = useState(true);
   const [displayInPaySlip, setDisplayInPaySlip] = useState(true);
   const [accountDebitCode, setAccountDebitCode] = useState("");
@@ -227,6 +229,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
     setFormula(comp?.formula ?? "");
     setIncomeTaxMethod(comp?.incomeTaxMethod ?? "Regular");
     setProrated(comp?.prorated ?? false);
+    setProrateBasis(comp?.prorateBasis === "WorkingDays" ? "WorkingDays" : "Calendar");
     setIncludeInTHP(comp?.includeInTHP ?? true);
     setDisplayInPaySlip(comp?.displayInPaySlip ?? true);
     setAccountDebitCode(comp?.accountDebitCode ?? "");
@@ -242,6 +245,7 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
       amount: Number(amount) || 0,
       formula: calcMethod === "Formula" ? formula.trim().toUpperCase() : null,
       incomeTaxMethod, prorated, includeInTHP, displayInPaySlip,
+      prorateBasis: prorated && prorateBasis === "WorkingDays" ? "WorkingDays" : null,
       accountDebitCode: accountDebitCode.trim() || null,
       accountCreditCode: accountCreditCode.trim() || null,
     };
@@ -346,12 +350,32 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
               <Input value={accountCreditCode} onChange={(e) => setAccountCreditCode(e.target.value)} placeholder={t("default 2102/2103/2104", "default 2102/2103/2104")} className="mt-1.5 font-mono" />
             </div>
           )}
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
-            <div>
-              <p className="text-xs font-bold">{t("Prorata", "Pro-rata")}</p>
-              <p className="text-[10px] text-stone-400">{t("Proporsional masa kerja period", "Proportional to period tenure")}</p>
+          <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold">{t("Prorata", "Pro-rata")}</p>
+                <p className="text-[10px] text-stone-400">{t("Proporsional masa kerja period", "Proportional to period tenure")}</p>
+              </div>
+              <Switch checked={prorated} onCheckedChange={setProrated} />
             </div>
-            <Switch checked={prorated} onCheckedChange={setProrated} />
+            {prorated && (
+              <div className="mt-3 flex gap-1.5">
+                {["Calendar", "WorkingDays"].map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setProrateBasis(b)}
+                    className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition-colors ${
+                      prorateBasis === b
+                        ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
+                        : "border-stone-200 text-stone-500 hover:border-stone-400 dark:border-stone-700 dark:text-stone-400"
+                    }`}
+                  >
+                    {b === "Calendar" ? t("Hari Kalender", "Calendar days") : t("Hari Kerja (Jadwal)", "Working days (schedule)")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
             <div>

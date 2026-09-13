@@ -64,6 +64,9 @@ export interface EngineComponent {
   formula?: string | null;
   incomeTaxMethod: string; // NonTaxable|Regular|Irregular|FixedRateFinal|...
   prorated: boolean;
+  // Task 64b — basis prorata: null/"Calendar" = hari kalender;
+  // "WorkingDays" = hari kerja jadwal (WorkSchedule + libur; fallback Sen–Jum).
+  prorateBasis?: string | null;
   includeInTHP: boolean;
   includeInBasicIncome: boolean;
   jamsostekBasis?: string | null; // JHT|JP|JKK|JKM|JPK
@@ -128,6 +131,8 @@ export interface EngineSegment {
   days: number; // hari kalender segmen dalam period (inklusif)
   baseSalary: number; // gaji pokok versi segmen (plaintext number)
   templateId?: string | null; // versi template segmen (dipakai service, engine abaikan)
+  // Task 64b — hari kerja jadwal segmen (utk komponen prorate basis WorkingDays).
+  workingDays?: number;
   orgUnitCode?: string | null;
   positionCode?: string | null;
   gradeCode?: string | null;
@@ -177,6 +182,11 @@ export interface EngineRow {
   // selalu jalur tunggal — nilai Specific tidak boleh terpengaruh segmen).
   segments?: EngineSegment[];
   hasOverride?: boolean;
+  // Task 64b — hari kerja jadwal (utk komponen prorate basis WorkingDays di
+  // jalur tunggal): periodWorkingDays = hari kerja dalam masa kerja karyawan;
+  // periodWorkingDaysFull = hari kerja period penuh (penyebut faktor).
+  periodWorkingDays?: number;
+  periodWorkingDaysFull?: number;
 }
 
 export interface EngineItem {
@@ -421,6 +431,14 @@ export function runPayroll(
     // segmen): persis nilai lama (emp.baseSalary).
     const segs = row.segments;
     const segDayTotal = segs?.reduce((s, x) => s + x.days, 0) ?? 0;
+    // Task 64b — total hari kerja jadwal (basis prorata "WorkingDays") dan
+    // faktor prorata hari-kerja jalur tunggal: hari kerja masa kerja karyawan /
+    // hari kerja period penuh (0..1 — bulan penuh = 1). Tanpa data jadwal →
+    // fallback faktor kalender (perilaku lama).
+    const segWdTotal = segs?.reduce((s, x) => s + (x.workingDays ?? 0), 0) ?? 0;
+    const periodWdFactor = row.periodWorkingDays != null && row.periodWorkingDaysFull
+      ? Math.max(0, Math.min(1, row.periodWorkingDays / row.periodWorkingDaysFull))
+      : row.prorateFactor;
     const wavg = (pick: (s: EngineSegment) => number): number =>
       segs && segDayTotal > 0 ? segs.reduce((s, x) => s + pick(x) * x.days, 0) / segDayTotal : emp.baseSalary;
     const jhtBase = wavg((s) => s.baseSalary);
@@ -505,8 +523,13 @@ export function runPayroll(
               amount = base;
             }
           }
-          if (comp.prorated && segFactor < 1) {
-            amount *= segFactor;
+          if (comp.prorated) {
+            // Task 64b — faktor per basis: "WorkingDays" memakai rasio hari kerja
+            // jadwal segmen terhadap total hari kerja period; lainnya hari kalender.
+            const f = comp.prorateBasis === "WorkingDays" && segWdTotal > 0 && sg.workingDays != null
+              ? Math.max(0, Math.min(1, sg.workingDays / segWdTotal))
+              : segFactor;
+            if (f < 1) amount *= f;
           }
           amount = roundAmount(amount, comp);
           if (!isLast) {
@@ -530,7 +553,9 @@ export function runPayroll(
           } else if (comp.calcMethod === "Fixed" && comp.prorated && segFactor < 1) {
             const prior = fixedAcc.get(comp.code) ?? 0;
             amount = roundAmount(prior + amount, comp);
-            segNote = `Prorata per segmen (${segs!.map((s) => s.days).join(" + ")} hari)`;
+            segNote = comp.prorateBasis === "WorkingDays" && segWdTotal > 0
+              ? `Prorata hari kerja per segmen (${segs!.map((s) => s.workingDays ?? s.days).join(" + ")} hari kerja)`
+              : `Prorata per segmen (${segs!.map((s) => s.days).join(" + ")} hari)`;
           }
           const note = ruleNote
             ?? (comp.prorated && segFactor < 1 ? `Prorata ${(segFactor * 100).toFixed(0)}%` : null);
@@ -568,8 +593,11 @@ export function runPayroll(
             amount = base;
           }
         }
-        if (comp.prorated && row.prorateFactor < 1) {
-          amount *= row.prorateFactor;
+        if (comp.prorated) {
+          // Task 64b — basis "WorkingDays": faktor = hari kerja period / hari
+          // kalender period; basis lain (null/Calendar) = faktor kalender lama.
+          const f = comp.prorateBasis === "WorkingDays" ? periodWdFactor : row.prorateFactor;
+          if (f < 1) amount *= f;
         }
         amount = roundAmount(amount, comp);
         const item: EngineItem = {

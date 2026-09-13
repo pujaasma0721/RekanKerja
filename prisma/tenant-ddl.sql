@@ -366,6 +366,7 @@ CREATE TABLE "WageComponent" (
     "roundingType" TEXT NOT NULL DEFAULT 'Nearest',
     "roundingValue" INTEGER NOT NULL DEFAULT 1,
     "prorated" BOOLEAN NOT NULL DEFAULT false,
+    "prorateBasis" TEXT,
     "taxable" BOOLEAN NOT NULL DEFAULT true,
     "includeInBasicIncome" BOOLEAN NOT NULL DEFAULT false,
     "includeInTHP" BOOLEAN NOT NULL DEFAULT true,

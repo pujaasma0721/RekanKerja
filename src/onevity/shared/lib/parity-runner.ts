@@ -207,6 +207,7 @@ const STEPS: Step[] = [
   // Task 63: tabel PayrollRunLog (log kejadian run payroll — parameter kurang/anomali).
   { key: "payroll-run-log", label: "Task 63 — tabel PayrollRunLog (log kejadian run payroll)", run: (s) => import("../../../../scripts/migrate-payroll-run-log").then((m) => m.main(s)) },
   { key: "wage-template-history", label: "Task 64 — riwayat template upah effective-dated + backfill", run: (s) => import("../../../../scripts/migrate-wage-template-history").then((m) => m.main(s)) },
+  { key: "wage-component-prorate-basis", label: "Task 64b — basis prorata per komponen (kalender vs hari kerja)", run: (s) => import("../../../../scripts/migrate-wage-component-prorate-basis").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

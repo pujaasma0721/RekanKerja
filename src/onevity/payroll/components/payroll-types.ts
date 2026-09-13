@@ -8,6 +8,8 @@ export interface WageCompFull {
   incomeTaxMethod: string; processMethod: string;
   roundingType: string; roundingValue: number;
   prorated: boolean; taxable: boolean;
+  /** Task 64b — basis prorata: null/"Calendar" = hari kalender; "WorkingDays" = hari kerja jadwal. */
+  prorateBasis?: string | null;
   includeInBasicIncome: boolean; includeInTHP: boolean; displayInPaySlip: boolean;
   applyThrRules: boolean; jamsostekBasis: string | null;
   sptReference: string | null; naturaType: string | null; wageCodeBackPay: string | null;

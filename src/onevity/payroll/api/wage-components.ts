@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
         roundingType: b.roundingType ?? "Nearest",
         roundingValue: Number(b.roundingValue ?? 1),
         prorated: b.prorated ?? false,
+        // Task 64b — basis prorata: null/"Calendar" hari kalender, "WorkingDays" hari kerja jadwal.
+        prorateBasis: b.prorateBasis === "WorkingDays" ? "WorkingDays" : null,
         taxable: incomeTaxMethod !== "NonTaxable",
         includeInBasicIncome: b.includeInBasicIncome ?? false,
         includeInTHP: b.includeInTHP ?? true,
@@ -105,6 +107,8 @@ export async function PATCH(req: NextRequest) {
         roundingType: b.roundingType,
         roundingValue: b.roundingValue != null ? Number(b.roundingValue) : undefined,
         prorated: b.prorated,
+        // Task 64b — basis prorata (undefined = tidak diubah; null/"Calendar" = kalender).
+        prorateBasis: b.prorateBasis === undefined ? undefined : (b.prorateBasis === "WorkingDays" ? "WorkingDays" : null),
         taxable: incomeTaxMethod != null ? incomeTaxMethod !== "NonTaxable" : b.taxable,
         includeInBasicIncome: b.includeInBasicIncome,
         includeInTHP: b.includeInTHP,

@@ -35,6 +35,46 @@ export function minutesBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / 60_000);
 }
 
+/**
+ * Task 64b — hitung HARI KERJA jadwal dalam rentang tanggal (inklusif) dari
+ * data jadwal yang sudah di-prefetch (MURNI, tanpa query — dipakai payroll
+ * service dgn prefetch massal). Hari libur (HolidayDate) selalu dihitung off
+ * (overlay menang atas cycle — semantik resolveDayType). Tanpa assignment
+ * aktif → fallback Senin–Jumat. Return [hariKerja, adaJadwal].
+ */
+export function countScheduledWorkingDaysPure(
+  range: { from: Date; to: Date },
+  assignment: {
+    anchorMonday: Date;
+    anchorSequence: number;
+    cycle: { sequence: number; category: string }[];
+  } | null,
+  holidaySet: Set<string>,
+): [number, boolean] {
+  const from = dayStart(range.from);
+  const to = dayStart(range.to);
+  if (to < from) return [0, false];
+  if (!assignment || assignment.cycle.length === 0) {
+    let n = 0;
+    for (let d = new Date(from); d <= to; d = addDays(d, 1)) {
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6 && !holidaySet.has(d.toISOString().slice(0, 10))) n++;
+    }
+    return [n, false];
+  }
+  const cycleLen = assignment.cycle.length;
+  const minSeq = assignment.cycle.reduce((m, d) => (d.sequence < m ? d.sequence : m), assignment.cycle[0]!.sequence);
+  let count = 0;
+  for (let d = new Date(from); d <= to; d = addDays(d, 1)) {
+    if (holidaySet.has(d.toISOString().slice(0, 10))) continue; // libur menang
+    const idx = ((diffDays(assignment.anchorMonday, d) + (assignment.anchorSequence - 1)) % cycleLen + cycleLen) % cycleLen;
+    const seq = minSeq + idx;
+    const day = assignment.cycle.find((x) => x.sequence === seq) ?? assignment.cycle.find((x) => x.sequence === idx + 1);
+    if (day && day.category === "Workday") count++;
+  }
+  return [count, true];
+}
+
 /** "08:30" + tanggal dasar → Date; nextDay → +1 hari. */
 export function atTime(hhmm: string, base: Date, nextDay = false): Date {
   const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
