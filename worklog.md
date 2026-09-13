@@ -1489,3 +1489,18 @@ Work Log:
 Stage Summary:
 - Repo lokal kini sinkron + SEHAT: prisma client tergenerate, tabel WTH/RunLog ada di semua tenant schema, migrasi idempoten berfungsi, dan fitur laporan bulanan XLSX terverifikasi lulus penuh di atas kode hasil pull.
 - Fix penting utk developer paralel: JANGAN referensikan kolom createdAt pada EmployeePayrollProfile (tidak ada di model/DDL/DB).
+
+---
+Task ID: 66
+Agent: orchestrator (Z.ai)
+Task: Sinkronisasi pull github (user: "pull github") — f12cbeb..034aada (5 commit paralel) + penerapan migrasi baru + verifikasi.
+
+Work Log:
+- git pull --rebase: f12cbeb..034aada fast-forward (582 insert) — masuk: (a) d5bdfcc PA Transfer/Mutation dapat menarget office/workLocation; (b) f722d27 fix akumulasi prorate segmen + clamp segmen ke jendela kepegawaian; (c) 9e8565a Task 64b prorateBasis per komponen (Calendar vs WorkingDays — jadwal attendance WorkSchedule + overlay libur, fallback Sen–Jum); (d) 6141cbd insert versi effective-dated mid-chain utk perubahan backdated; (e) 034aada propagate override backdated ke versi sesudahnya.
+- Bunyi migrasi baru: scripts/migrate-wage-component-prorate-basis.ts (Task 64b — kolom WageComponent.prorateBasis; pattern idempoten information_schema, TIDAK referensi kolom tak-ada seperti bug Task 65) — dijalankan: kolom tertambah di 3/3 tenant schema ✓ (schema-tenant.prisma model sudah memuat prorateBasis, prisma client di-regenerate).
+- tsc bersih · dev server 200 · scheduler aktif · kunci vault 3 tenant termuat.
+- VERIFIKASI smoke read-only: E2E tmp-t64-e2e-monthly.ts (laporan bulanan XLSX run MII Paid 42 kar): SEMUA TES LULUS ✔ — konsistensi THP 531.745.241 lintas sheet, nilai riil, 0 ciphertext (fitur Excel tetap utuh di atas payroll-engine prorate-basis baru).
+- Catatan: sesi paralel BELUM menulis entri worklog utk 5 commit terakhir (d5bdfcc..034aada) per waktu pull — sinkronisasi DB/tabel tetap saya pastikan jalan.
+
+Stage Summary:
+- Repo lokal kini di 034aada: prorate per-komponen (kalender/hari kerja) + backdate chain versi effective-dated aktif; DB 3/3 tenant sinkron (kolom prorateBasis); semua jalur inti terverifikasi sehat tanpa perubahan kode aplikasi dari sesi ini (hanya worklog + eksekusi migrasi idempoten).
