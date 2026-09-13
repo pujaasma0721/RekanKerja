@@ -24,7 +24,11 @@ const SCHEMAS = [
   "tenant_sentra_logistik_prima",
 ];
 
-const MAX_LAYERS = 5;
+// FIX Task 59: kap 5 lapis terbukti kurang — 40 baris npwp MII tertimbun 7
+// lapis (semua lapis kunci sama) dan dibiarkan "masih terenkripsi" → UI
+// menampilkan enc:… mentah. Kap dinaikkan ke 20; pesan gagal dikoreksi
+// (bukan selalu "kunci tidak cocok" — bisa lapis melebihi kap).
+const MAX_LAYERS = 20;
 
 /** Buka semua lapisan enkripsi → { plain, layers } (layers=1 normal). */
 function unwrapText(stored: string, dec: (s: string) => string | null): { plain: string | null; layers: number } {
@@ -76,8 +80,8 @@ export async function main(schemas?: string[]): Promise<void> {
               await c.query(`UPDATE "${table}" SET "${col}" = $1 WHERE id = $2`, [tc.encryptText(plain), r.id]);
               fixed++;
               fixedCol++;
-            } else if (plain != null && isEncrypted(plain) && layers >= MAX_LAYERS) {
-              console.warn(`  [${schema}] ${table}.${col} id=${r.id}: masih terenkripsi setelah ${MAX_LAYERS} lapis — kunci tidak cocok, DIBIARKAN (fail-closed).`);
+            } else if (plain != null && isEncrypted(plain)) {
+              console.warn(`  [${schema}] ${table}.${col} id=${r.id}: masih terenkripsi setelah ${layers} lapis (kap ${MAX_LAYERS}) — kunci lapisan dalam tidak cocok, DIBIARKAN (fail-closed).`);
             }
           } else {
             // kind "n" — uang: normal = decryptMoney angka. Double-enc / kind

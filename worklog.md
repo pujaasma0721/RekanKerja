@@ -1257,3 +1257,16 @@ Stage Summary:
 - Semua jalur diverifikasi bersih: API payroll-profiles, UI tabel+dialog, ekspor bank CSV/SPT/XLSX, DB (0 double-enc).
 - Artefak: scripts/test-unwrap-selfhealing.ts (verifikasi read-only, dataKey vault asli).
 - CATATAN REBASE: Task 59 dikerjakan paralel dgn 57b (restore uang MII) — keduanya utuh; 57b menyentuh scripts/restore-mii-payroll-money.ts + parity-runner, 59 menyentuh field-crypto unwrapDeep + payroll-profiles guard — tanpa tumpang-tindih file.
+
+---
+Task ID: 59b
+Agent: orchestrator (Z.ai)
+Task: Tindak lanjut task 59 — akar 40 npwp "masih terenkripsi" adalah kap unwrap migrasi (5) lebih kecil dari jumlah lapisan aktual (7).
+
+Work Log:
+- Diagnostik prod: 40 EmployeePayrollProfile.npwp MII enc:v2 berlapis-7 (outer→inner semua kunci sama); uji unwrap penuh 3 sampel → plaintext valid (mis. 091004475308). Log parity: "masih terenkripsi setelah 5 lapis — DIBIARKAN" (2×/boot).
+- migrate-unwrap-double-enc.ts: MAX_LAYERS 5 → 20 + pesan warning dilengkapi (lapisan aktual + kap; bukan selalu "kunci tidak cocok").
+- Sinergi dgn task 59: core unwrapDeep (5 lapis) menangani baca sementara itu; skrip migrasi (20 lapis) membongkar permanen semua lapisan saat parity dijalankan → data tulis-ulang 1 lapis.
+
+Stage Summary:
+- Kap dinaikkan; rerun parity akan memperbaiki 40 npwp (idempoten untuk sisanya).
