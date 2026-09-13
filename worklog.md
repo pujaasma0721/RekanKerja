@@ -1538,3 +1538,19 @@ Task 64c — Basis prorata per komponen + perbaikan effective-dated backdate
   vs kalender 11/30 → 550.000. Komponen demo T_TRF/rule/TPL_TRF di SAYONE;
   rantai SAYONE00001 dirapikan via PA koreksi (PA-2026-0007/0008).
 Commits: 9e8565a, 6141cbd, 034aada
+
+---
+Task ID: 64d
+Agent: Buffy (Codebuff)
+Date: 2026-09-13
+Status: DONE
+
+Task 64d — Riwayat gaji & template upah di MODUL PAYROLL (bukan HR base)
+- GET /api/onevity/payroll-profiles?history=1&employeeId= : riwayat gaji pokok
+  (versi EmployeeAssignment ber-tanggal, uang digate MoneyView) + riwayat
+  template upah (EmployeeWageTemplateHistory) per karyawan.
+- UI payroll-profiles.tsx: tombol Riwayat (ikon History) per baris Data Gaji
+  Karyawan → dialog timeline gaji per periode (nilai, alasan, dokumen PA,
+  catatan) + timeline template per periode. Konsisten prinsip: data payroll
+  ditampilkan di modul Payroll.
+Commits: (this)

@@ -18,8 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info } from "lucide-react";
-import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow } from "@/onevity/payroll/components/payroll-types";
+import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, History } from "lucide-react";
+import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
@@ -41,6 +41,8 @@ export function PayrollProfilesPage() {
   const templatesApi = useApi<{ templates: TemplateRow[] }>("/api/onevity/wage-templates");
   const [editing, setEditing] = useState<ProfileRow | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
+  // Task 64d — riwayat gaji & template per karyawan (dialog dari tombol baris).
+  const [histRow, setHistRow] = useState<ProfileRow | null>(null);
 
   const rows = data?.employees ?? [];
 
@@ -156,9 +158,14 @@ export function PayrollProfilesPage() {
                           ) : "—"}
                         </TableCell>
                         <TableCell>
-                          <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Edit profil payroll", "Edit payroll profile")}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => setHistRow(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Lihat riwayat gaji & template", "View salary & template history")}>
+                              <History className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Edit profil payroll", "Edit payroll profile")}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -172,7 +179,114 @@ export function PayrollProfilesPage() {
 
       <ProfileDialog row={editing} templates={templatesApi.data?.templates ?? []} onClose={() => { setEditing(null); refresh(); }} />
       <SyncPtkpDialog open={syncOpen} onClose={() => { setSyncOpen(false); refresh(); }} />
+      <PayrollHistoryDialog row={histRow} onClose={() => setHistRow(null)} />
     </div>
+  );
+}
+
+// ============ Task 64d — Dialog Riwayat Gaji & Template Upah per karyawan ============
+
+function PayrollHistoryDialog({ row, onClose }: { row: ProfileRow | null; onClose: () => void }) {
+  const { t } = useI18n();
+  const [data, setData] = useState<PayrollHistoryResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [key, setKey] = useState("");
+
+  const empId = row?.employeeId ?? "closed";
+  if (key !== empId) {
+    setKey(empId);
+    setData(null);
+    if (row) {
+      setLoading(true);
+      fetch(`/api/onevity/payroll-profiles?history=1&employeeId=${row.employeeId}`)
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("gagal memuat"))))
+        .then((d: PayrollHistoryResponse) => setData(d))
+        .catch(() => toast.error(t("Gagal memuat riwayat", "Failed to load history")))
+        .finally(() => setLoading(false));
+    }
+  }
+
+  const fmtPeriod = (from: string, to: string | null) =>
+    `${new Date(from).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })} — ${to ? new Date(to).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : t("Sekarang", "Present")}`;
+  const reasonLabel = (r: string | null) =>
+    r === "Initial" ? t("Penempatan Awal", "Initial placement")
+    : r === "Promotion" ? t("Promosi", "Promotion")
+    : r === "Demotion" ? t("Demosi", "Demotion")
+    : r === "Transfer" ? t("Transfer", "Transfer")
+    : r === "Mutation" ? t("Mutasi", "Mutation")
+    : r === "SalaryAdjustment" ? t("Penyesuaian Upah", "Salary adjustment")
+    : r === "ChangeStatus" ? t("Perubahan Status", "Status change")
+    : r === "ContractRenewal" ? t("Perpanjangan Kontrak", "Contract renewal")
+    : r === "ManualEdit" ? t("Perubahan Manual", "Manual edit")
+    : (r ?? "—");
+
+  return (
+    <Dialog open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4 ov-text-accent" />
+            {t("Riwayat Gaji & Template", "Salary & Template History")}
+          </DialogTitle>
+        </DialogHeader>
+        {!row ? null : loading || !data ? (
+          <p className="py-6 text-center text-sm text-stone-400">{t("Memuat…", "Loading…")}</p>
+        ) : (
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-bold">{data.employee.fullName}</p>
+              <p className="font-mono text-[10px] text-stone-400">{data.employee.employeeNo}</p>
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Riwayat Gaji Pokok (per periode berlaku)", "Base Salary History (per effective period)")}</p>
+              {data.salary.length === 0 ? (
+                <p className="text-xs text-stone-400">{t("Belum ada data.", "No data yet.")}</p>
+              ) : (
+                <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-4 dark:border-stone-800">
+                  {data.salary.map((s, i) => (
+                    <li key={s.id} className="relative pb-3 last:pb-0">
+                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.salary.length - 1 ? "ov-fill" : "border-2 border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")} />
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(s.validFrom, s.validTo)}</span>
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(s.reason)}</Badge>
+                        {s.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{s.sourceDocNo}</span>}
+                      </div>
+                      <p className="text-sm font-bold">{fmtIDR(s.baseSalary)}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{s.positionName ?? ""}{s.officeCode ? ` · ${s.officeCode}` : ""}</span></p>
+                      {s.notes && <p className="text-[10px] italic text-stone-400">{s.notes}</p>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Riwayat Template Upah (per periode berlaku)", "Wage Template History (per effective period)")}</p>
+              {data.templates.length === 0 ? (
+                <p className="text-xs text-stone-400">{t("Belum ada data.", "No data yet.")}</p>
+              ) : (
+                <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-4 dark:border-stone-800">
+                  {data.templates.map((h, i) => (
+                    <li key={h.id} className="relative pb-3 last:pb-0">
+                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.templates.length - 1 ? "ov-fill" : "border-2 border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")} />
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(h.validFrom, h.validTo)}</span>
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(h.reason)}</Badge>
+                        {h.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{h.sourceDocNo}</span>}
+                      </div>
+                      <p className="text-sm font-bold">{h.templateName ?? t("(tanpa template)", "(no template)")}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{h.templateCode ?? ""}</span></p>
+                      {h.notes && <p className="text-[10px] italic text-stone-400">{h.notes}</p>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <p className="text-[10px] text-stone-400">{t("Run payroll membaca versi yang berlaku pada periode — perubahan efektif di tengah bulan otomatis membentuk segmen prorate.", "Payroll runs read the version effective for the period — mid-month changes automatically form prorate segments.")}</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t("Tutup", "Close")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

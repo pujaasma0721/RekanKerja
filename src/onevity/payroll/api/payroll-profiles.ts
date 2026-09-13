@@ -12,10 +12,71 @@ import {
 
 // GET /api/onevity/payroll-profiles?q= — daftar karyawan aktif + profil payroll + assignment aktif
 // Task 49: tiap baris membawa ptkpSource + ptkpSuggestion (derivasi data keluarga).
+// Task 64d — GET ?history=1&employeeId= : riwayat GAJI per periode (versi
+// EmployeeAssignment ber-tanggal) + riwayat TEMPLATE UPAH per periode
+// (EmployeeWageTemplateHistory) untuk satu karyawan — ditampilkan modul
+// Payroll (Profil Payroll → tombol Riwayat). Uang digate MoneyView; alasan
+// & dokumen sumber tampil apa adanya.
+async function historyHandler(req: NextRequest, db: NonNullable<Awaited<ReturnType<typeof requireTenant>>>) {
+  const employeeId = req.nextUrl.searchParams.get("employeeId");
+  if (!employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
+  const mv = await moneyViewForReq(req, db);
+  const emp = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, employeeNo: true, fullName: true },
+  });
+  if (!emp) return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+  const [assignments, templateHist] = await Promise.all([
+    db.employeeAssignment.findMany({
+      where: { employeeId },
+      orderBy: { validFrom: "asc" },
+      include: {
+        orgUnit: { select: { name: true } },
+        position: { select: { title: true } },
+        grade: { select: { name: true } },
+        companyOffice: { select: { code: true, name: true } },
+      },
+    }),
+    db.employeeWageTemplateHistory.findMany({
+      where: { employeeId },
+      orderBy: { validFrom: "asc" },
+      include: { wageTemplate: { select: { code: true, name: true } } },
+    }),
+  ]);
+  return NextResponse.json({
+    employee: { id: emp.id, employeeNo: emp.employeeNo, fullName: emp.fullName },
+    salary: assignments.map((a) => ({
+      id: a.id,
+      validFrom: a.validFrom,
+      validTo: a.validTo,
+      baseSalary: mv.dec0(a.baseSalary),
+      reason: a.changeReason,
+      sourceDocNo: a.sourceDocNo,
+      notes: a.notes,
+      positionName: a.position?.title ?? null,
+      orgUnitName: a.orgUnit?.name ?? null,
+      gradeName: a.grade?.name ?? null,
+      officeCode: a.companyOffice?.code ?? null,
+    })),
+    templates: templateHist.map((h) => ({
+      id: h.id,
+      validFrom: h.validFrom,
+      validTo: h.validTo,
+      templateId: h.wageTemplateId,
+      templateCode: h.wageTemplate?.code ?? null,
+      templateName: h.wageTemplate?.name ?? null,
+      reason: h.changeReason,
+      sourceDocNo: h.sourceDocNo,
+      notes: h.notes,
+    })),
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const db = await requireTenant(req);
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    if (req.nextUrl.searchParams.get("history") === "1") return await historyHandler(req, db);
 
     const q = req.nextUrl.searchParams.get("q")?.trim();
     // 45-b: resolve gerbang vault SEKALI di luar .map (getMoneyView async).

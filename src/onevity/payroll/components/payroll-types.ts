@@ -139,6 +139,24 @@ export interface ProfileRow {
   ptkpSuggestion: PtkpSuggestion;
 }
 
+/** Task 64d — riwayat gaji & template upah per karyawan (modul Payroll). */
+export interface SalaryHistoryEntry {
+  id: string; validFrom: string; validTo: string | null;
+  baseSalary: number; reason: string | null; sourceDocNo: string | null;
+  notes: string | null; positionName: string | null; orgUnitName: string | null;
+  gradeName: string | null; officeCode: string | null;
+}
+export interface TemplateHistoryEntry {
+  id: string; validFrom: string; validTo: string | null;
+  templateId: string | null; templateCode: string | null; templateName: string | null;
+  reason: string | null; sourceDocNo: string | null; notes: string | null;
+}
+export interface PayrollHistoryResponse {
+  employee: { id: string; employeeNo: string; fullName: string };
+  salary: SalaryHistoryEntry[];
+  templates: TemplateHistoryEntry[];
+}
+
 /** Task 49: hasil sinkronisasi massal PTKP dari data keluarga (POST sync-ptkp). */
 export interface PtkpSyncResponse {
   ok: boolean;
