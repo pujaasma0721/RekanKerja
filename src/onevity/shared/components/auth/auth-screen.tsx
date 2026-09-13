@@ -25,12 +25,21 @@ const VALIDATION_EN: Record<string, string> = {
   "Format email tidak valid.": "Invalid email format.",
   "Kata sandi wajib diisi.": "Password is required.",
   "Nama workspace wajib diisi.": "Workspace name is required.",
+  "Kode perusahaan wajib diisi.": "Company code is required.",
+  "Kode perusahaan minimal 2 karakter (huruf/angka).": "Company code must be at least 2 characters (letters/numbers).",
   "Nama lengkap wajib diisi.": "Full name is required.",
   "Kata sandi minimal 8 karakter.": "Password must be at least 8 characters.",
 };
 
 type AuthTab = "login" | "register";
-type FieldId = "login-email" | "login-password" | "reg-workspace" | "reg-name" | "reg-email" | "reg-password";
+type FieldId =
+  | "login-email"
+  | "login-password"
+  | "reg-workspace"
+  | "reg-companycode"
+  | "reg-name"
+  | "reg-email"
+  | "reg-password";
 
 interface Validity {
   message: string | null;
@@ -44,8 +53,13 @@ function validateLogin(email: string, password: string): Validity {
   return { message: null, fields: [] };
 }
 
-function validateRegister(workspaceName: string, fullName: string, email: string, password: string): Validity {
+/** Sanitasi kode perusahaan → huruf besar A-Z0-9 (mirror aturan server). */
+const sanitizeCode = (raw: string) => raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function validateRegister(workspaceName: string, companyCode: string, fullName: string, email: string, password: string): Validity {
   if (!workspaceName) return { message: "Nama workspace wajib diisi.", fields: ["reg-workspace"] };
+  if (!companyCode) return { message: "Kode perusahaan wajib diisi.", fields: ["reg-companycode"] };
+  if (companyCode.length < 2) return { message: "Kode perusahaan minimal 2 karakter (huruf/angka).", fields: ["reg-companycode"] };
   if (!fullName) return { message: "Nama lengkap wajib diisi.", fields: ["reg-name"] };
   if (!email) return { message: "Email wajib diisi.", fields: ["reg-email"] };
   if (!EMAIL_RE.test(email)) return { message: "Format email tidak valid.", fields: ["reg-email"] };
@@ -66,10 +80,14 @@ interface UnderlineFieldProps {
   disabled?: boolean;
   invalid?: boolean;
   describedBy?: string;
+  /** Gaya monospace + huruf besar (utk kode perusahaan). */
+  mono?: boolean;
+  maxLength?: number;
+  hint?: string;
 }
 
 function UnderlineField({
-  id, label, type = "text", placeholder, value, onChange, autoComplete, autoFocus, disabled, invalid, describedBy,
+  id, label, type = "text", placeholder, value, onChange, autoComplete, autoFocus, disabled, invalid, describedBy, mono, maxLength, hint,
 }: UnderlineFieldProps) {
   return (
     <div className="group space-y-1.5">
@@ -92,12 +110,17 @@ function UnderlineField({
           autoComplete={autoComplete}
           autoFocus={autoFocus}
           disabled={disabled}
+          maxLength={maxLength}
           onChange={onChange}
           aria-invalid={invalid ? true : undefined}
           aria-describedby={describedBy}
-          className="h-9 w-full bg-transparent text-[15px] text-stone-800 caret-amber-700 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300 disabled:opacity-60 dark:text-stone-200 dark:caret-amber-500 dark:placeholder:text-stone-600"
+          className={cn(
+            "h-9 w-full bg-transparent text-[15px] text-stone-800 caret-amber-700 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300 disabled:opacity-60 dark:text-stone-200 dark:caret-amber-500 dark:placeholder:text-stone-600",
+            mono && "font-mono text-[14px] uppercase tracking-[0.14em]",
+          )}
         />
       </div>
+      {hint && <p className="font-serif text-[11.5px] italic text-stone-400 dark:text-stone-500">{hint}</p>}
     </div>
   );
 }
@@ -144,6 +167,7 @@ export function AuthScreen() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -218,12 +242,14 @@ export function AuthScreen() {
   const submitRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
-    const v = validateRegister(workspaceName.trim(), fullName.trim(), regEmail.trim(), regPassword);
+    const code = sanitizeCode(companyCode);
+    const v = validateRegister(workspaceName.trim(), code, fullName.trim(), regEmail.trim(), regPassword);
     setFormError(v.message ? t(v.message, VALIDATION_EN[v.message]) : null);
     setInvalidFields(v.fields);
     if (v.message) return;
     await register({
       workspaceName: workspaceName.trim(),
+      companyCode: code,
       fullName: fullName.trim(),
       email: regEmail.trim(),
       password: regPassword,
@@ -540,6 +566,22 @@ export function AuthScreen() {
                       disabled={busy}
                       invalid={isInvalid("reg-workspace")}
                       describedBy={describedBy("reg-workspace", "register-error")}
+                    />
+                    <UnderlineField
+                      id="reg-companycode"
+                      label={t("Kode Perusahaan", "Company Code")}
+                      placeholder="MII"
+                      maxLength={24}
+                      mono
+                      hint={t(
+                        "2–12 huruf besar/angka — dipakai sebagai prefix nomor karyawan (mis. MII00001) dan identitas perusahaan Anda.",
+                        "2–12 uppercase letters/numbers — used as your employee number prefix (e.g. MII00001) and your company identity.",
+                      )}
+                      value={companyCode}
+                      onChange={update("reg-companycode", setCompanyCode)}
+                      disabled={busy}
+                      invalid={isInvalid("reg-companycode")}
+                      describedBy={describedBy("reg-companycode", "register-error")}
                     />
                     <UnderlineField
                       id="reg-name"

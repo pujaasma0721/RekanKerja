@@ -1197,3 +1197,25 @@ Stage Summary:
 - Bug sumber SUDAH DIPERBAIKI & akan dideploy: parity rerun tidak akan pernah menimpa enc:v2 lagi (Tenant lain tanpa vault tidak pernah terdampak; data mereka verifikasi utuh).
 - Data uang MII (kolom 28-c) hilang permanen (ditimpa 0): opsi pemulihan = (a) restorasi nilai demo dgn angka realistis per grade (kolom loan/travel/benefit tetap asli), (b) input manual ulang via UI, (c) biarkan 0 sebagai data baru. Menunggu keputusan pemilik produk; bug tidak akan terulang.
 - Rekomendasi tindak lanjut (di luar task ini): pg_dump harian cron + parity runner skip tenant ber-vault utk step enkripsi.
+
+---
+Task ID: 58
+Agent: orchestrator (Z.ai)
+Task: Form "Buat Workspace" (registrasi) — tambah kolom input KODE PERUSAHAAN perusahaan yang didaftarkan (permintaan user: "cek form ketika membuat workspace baru, seharusnya ada kolom untuk input company code"). [RENUMBER 57→58 saat rebase: Task ID 57 telah dipakai sesi paralel (fix parity encrypt enc:v2)]
+
+Work Log:
+- Audit form registrasi auth-screen.tsx: hanya 4 field (Nama Workspace, Nama Lengkap, Email, Kata Sandi) — tidak ada company code; tenant baru pun TIDAK punya record Company (companies.ts GET 404 "Perusahaan belum di-setup") sehingga prefix nomor karyawan jatuh ke fallback slug (CAH/SEN) — akar masalahnya.
+- prisma/schema.prisma: model Tenant += kolom companyCode String? (nullable utk tenant lama) → bun run db:push (Prisma Client platform ter-regenerate).
+- src/app/api/auth/register/route.ts: parse + sanitizeCompanyCode (trim→uppercase→A-Z0-9→max 12, mirror codePrefix employees.ts); validasi wajib 2–12 karakter (400 bila kurang); SETELAH seedTenantReference kini langsung CREATE record Company { code, name: workspaceName, shortName: code } → tenant baru langsung punya profil perusahaan + prefix nomor karyawan benar (MII00001-style); registry platform Tenant.create menyimpan companyCode; gagal seed tetap drop schema (idempoten).
+- src/onevity/shared/lib/session-store.ts: SessionTenant += companyCode: string | null; type input register += companyCode: string.
+- src/onevity/shared/lib/auth.ts buildSessionInfo: select tenant += companyCode; mapping workspaces += companyCode.
+- src/onevity/shared/components/auth/auth-screen.tsx: FieldId "reg-companycode"; state companyCode; validateRegister(companyCode) — wajib + min 2 (pesan baru + VALIDATION_EN); UnderlineField += props mono (font-mono uppercase tracking) / maxLength / hint; field baru "Kode Perusahaan" (placeholder MII) tepat di bawah Nama Workspace + helper text fungsi prefix nomor karyawan; submit sanitasi client-side (mirror server).
+- src/onevity/shared/components/auth/tenant-select.tsx: kartu workspace menampilkan badge kode perusahaan (mono uppercase bordered) sebelum slug — tenant lama tanpa kode tetap rapi (null-safe).
+- scripts/backfill-tenant-company-code.ts (baru): backfill Tenant.companyCode dari Company.code tiap schema — MII ✓; Cahaya/Sentra TANPA Company sama sekali → dibuatkan Company (CDN, SLP — kode 3 huruf dari nama) + companyCode registry via SQL satu kali.
+- E2E browser: [form] field KODE PERUSAHAAN tampil; [validasi] submit kosong → "Kode perusahaan wajib diisi." + aria-invalid; [registrasi penuh] kode "cKr-7!" disanitasi CKR7 → provisioning sukses → masuk app shell; [DB] Tenant companyCode=CKR7 + Company {code CKR7} + User owner; [halaman Perusahaan tenant baru] menampilkan CKR7 (dulu 404 belum-setup); [tenant-select hrd@mii.co.id] badge MII + CDN tampil; console/error bersih; tenant uji E2E dibersihkan pasca-verifikasi (DROP schema + registry).
+- tsc ✓ lint ✓ dev.log bersih (semua 200).
+
+Stage Summary:
+- Aturan produk Task 58 tuntas: form buat workspace kini MEMINTA kode perusahaan (wajib, A-Z0-9 2–12, otomatis uppercase); kode langsung dipakai membuat record Company tenant (profil + prefix nomor karyawan) dan tersimpan di registry platform (tampilan workspace + fallback).
+- Tenant demo existing: MII, CDN, SLP — semua ber-companyCode; tenant baru apapun otomatis benar dari detik pertama.
+- Artefak: scripts/backfill-tenant-company-code.ts; screenshot audit/t58-tenant-select-code.png.

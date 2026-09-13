@@ -17,14 +17,15 @@ datasource db {
 // ============ TENANT REGISTRY ============
 
 model Tenant {
-  id         String   @id @default(cuid())
-  name       String // nama workspace/organisasi (bebas)
-  slug       String   @unique // identitas pendek (subdomain-ready)
-  schemaName String   @unique // nama PostgreSQL schema, mis. tenant_nusantara
-  plan       String   @default("trial") // trial | starter | growth | enterprise
-  status     String   @default("ACTIVE") // ACTIVE | SUSPENDED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String // nama workspace/organisasi (bebas)
+  companyCode String? // kode perusahaan (A-Z0-9) — diinput saat registrasi; dipakai prefix nomor karyawan & tampilan workspace
+  slug        String   @unique // identitas pendek (subdomain-ready)
+  schemaName  String   @unique // nama PostgreSQL schema, mis. tenant_nusantara
+  plan        String   @default("trial") // trial | starter | growth | enterprise
+  status      String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   memberships UserTenant[]
 }

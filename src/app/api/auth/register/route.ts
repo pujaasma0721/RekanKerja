@@ -23,14 +23,20 @@ function clientIp(req: NextRequest): string {
 }
 
 // POST /api/auth/register — daftar + BUAT WORKSPACE BARU (self-service SaaS):
-// validasi → slug unik → provision schema PostgreSQL tenant_<slug> (DDL + seed referensi)
-// → Tenant + User(owner) + UserTenant → session cookie.
+// validasi → slug unik → provision schema PostgreSQL tenant_<slug> (DDL + seed referensi
+// + record Company pakai KODE PERUSAHAAN dari form) → Tenant + User(owner) + UserTenant
+// → session cookie.
 // Task 33: kata sandi owner baru divalidasi KEBIJAKAN DEFAULT (kompleksitas
 // lengkap — sama aturan dengan menu Keamanan & Akses).
+/** Sanitasi kode perusahaan → huruf besar A-Z0-9 (sama aturan prefix nomor karyawan). */
+function sanitizeCompanyCode(raw: string): string {
+  return String(raw ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+}
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
     const workspaceName = String(b.workspaceName ?? "").trim();
+    const companyCode = sanitizeCompanyCode(String(b.companyCode ?? ""));
     const fullName = String(b.fullName ?? "").trim();
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (workspaceName.length < 3) return NextResponse.json({ error: "Nama workspace minimal 3 karakter" }, { status: 400 });
+    if (companyCode.length < 2) {
+      return NextResponse.json({ error: "Kode perusahaan wajib diisi (2–12 karakter huruf/angka)" }, { status: 400 });
+    }
     if (fullName.length < 2) return NextResponse.json({ error: "Nama lengkap wajib diisi" }, { status: 400 });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
     const pv = validatePassword({}, password, { username: email.split("@")[0], fullName, email });
@@ -72,8 +81,13 @@ export async function POST(req: NextRequest) {
 
     // 1) schema PostgreSQL + tabel + referensi (komponen gaji, pajak, TER, akun, benefit)
     await provisionTenantSchema(schemaName);
+    const tenantDb = getTenantClient(schemaName);
     try {
-      await seedTenantReference(getTenantClient(schemaName));
+      await seedTenantReference(tenantDb);
+      // Record Company (profil perusahaan) langsung dibuat saat registrasi:
+      // kode dari form → prefix nomor karyawan (MII00001) & template import;
+      // detail profil (NPWP, alamat, dll) dilengkapi lewat menu Profil Perusahaan.
+      await tenantDb.company.create({ data: { code: companyCode, name: workspaceName, shortName: companyCode } });
     } catch (e) {
       // seed gagal → drop schema agar tidak setengah jadi
       const { Client } = await import("pg");
@@ -84,8 +98,8 @@ export async function POST(req: NextRequest) {
       throw e;
     }
 
-    // 2) registry platform
-    const tenant = await db.tenant.create({ data: { name: workspaceName, slug, schemaName } });
+    // 2) registry platform — companyCode tersimpan utk tampilan workspace & fallback prefix
+    const tenant = await db.tenant.create({ data: { name: workspaceName, companyCode, slug, schemaName } });
     const user = await db.user.create({
       data: { email, name: fullName, passwordHash: hashPassword(password) },
     });

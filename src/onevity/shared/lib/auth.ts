@@ -170,12 +170,12 @@ export async function buildSessionInfo(userId: string, tenantId: string | null):
   const memberships = await db.userTenant.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
-    include: { tenant: { select: { id: true, name: true, slug: true, plan: true, status: true } } },
+    include: { tenant: { select: { id: true, name: true, companyCode: true, slug: true, plan: true, status: true } } },
   });
 
   const workspaces = memberships
     .filter((m) => m.tenant.status === "ACTIVE")
-    .map((m) => ({ id: m.tenant.id, name: m.tenant.name, slug: m.tenant.slug, plan: m.tenant.plan, role: m.role }));
+    .map((m) => ({ id: m.tenant.id, name: m.tenant.name, companyCode: m.tenant.companyCode, slug: m.tenant.slug, plan: m.tenant.plan, role: m.role }));
 
   const tenant = tenantId ? (workspaces.find((w) => w.id === tenantId) ?? null) : null;
   return { user, tenant, workspaces };

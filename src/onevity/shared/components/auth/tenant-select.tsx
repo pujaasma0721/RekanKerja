@@ -115,8 +115,16 @@ export function TenantSelect() {
                           <span className="block truncate text-[15px] font-semibold text-stone-800 dark:text-stone-100">
                             {ws.name}
                           </span>
-                          <span className="mt-0.5 block truncate font-mono text-xs text-stone-400 dark:text-stone-500">
-                            {ws.slug}
+                          <span className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-stone-400 dark:text-stone-500">
+                            {ws.companyCode && (
+                              <span
+                                title={t("Kode perusahaan", "Company code")}
+                                className="shrink-0 rounded border border-stone-200 bg-[#faf8f3] px-1.5 py-px font-bold uppercase tracking-[0.1em] text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                              >
+                                {ws.companyCode}
+                              </span>
+                            )}
+                            <span className="truncate">{ws.slug}</span>
                           </span>
                         </span>
                         <span className="hidden shrink-0 items-center gap-2 sm:flex">

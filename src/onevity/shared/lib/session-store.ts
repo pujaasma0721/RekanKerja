@@ -13,6 +13,8 @@ export interface SessionUser {
 export interface SessionTenant {
   id: string;
   name: string;
+  /** Kode perusahaan workspace (A-Z0-9) — null bila tenant lama tanpa kode. */
+  companyCode: string | null;
   slug: string;
   plan: string;
   role: string;
@@ -46,7 +48,7 @@ interface SessionState {
   error: string | null;
   load: () => Promise<void>;
   login: (email: string, password: string) => Promise<LoginResult>;
-  register: (input: { workspaceName: string; fullName: string; email: string; password: string }) => Promise<boolean>;
+  register: (input: { workspaceName: string; companyCode: string; fullName: string; email: string; password: string }) => Promise<boolean>;
   selectTenant: (tenantId: string) => Promise<boolean>;
   /** Langkah-2 login MFA (T17-MFA): tukar mfaToken + kode 6 digit → sesi. */
   verifyMfa: (mfaToken: string, token: string) => Promise<boolean>;
