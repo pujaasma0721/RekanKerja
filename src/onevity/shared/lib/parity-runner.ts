@@ -199,39 +199,34 @@ export async function checkParityGap(): Promise<ParityGap> {
   const c = new Client({ connectionString: TENANT_URL() });
   await c.connect();
   try {
-    const [ann, bruto, vault, vaultKey, ptkpSrc] = await Promise.all([
-      c.query<{ n: number }>(
-        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-         WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
-        [schemas],
-      ),
-      c.query<{ n: number }>(
-        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
-         WHERE table_name = 'PayrollRunLine' AND column_name = 'bruto' AND data_type = 'text'
-           AND table_schema = ANY($1::text[])`,
-        [schemas],
-      ),
-      c.query<{ n: number }>(
-        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
-         WHERE table_name = 'MoneyVault' AND table_schema = ANY($1::text[])`,
-        [schemas],
-      ),
-      c.query<{ n: number }>(
-        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
-         WHERE table_name = 'MoneyVault' AND column_name = 'dataKey' AND table_schema = ANY($1::text[])`,
-        [schemas],
-      ),
-      c.query<{ n: number }>(
-        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
-         WHERE table_name = 'EmployeePayrollProfile' AND column_name = 'ptkpSource' AND table_schema = ANY($1::text[])`,
-        [schemas],
-      ),
-    ]);
-    const annOk = ann.rows[0]?.n ?? 0;
-    const encOk = bruto.rows[0]?.n ?? 0;
-    const vaultOk = vault.rows[0]?.n ?? 0;
-    const vaultKeyOk = vaultKey.rows[0]?.n ?? 0;
-    const ptkpSrcOk = ptkpSrc.rows[0]?.n ?? 0;
+    // Sekuensial (bukan Promise.all) — pg 8.23 deprecated mengantre >1 query
+    // pada Client yang sama (warning "client is already executing a query").
+    const annOk = (await c.query<{ n: number }>(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    )).rows[0]?.n ?? 0;
+    const encOk = (await c.query<{ n: number }>(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'PayrollRunLine' AND column_name = 'bruto' AND data_type = 'text'
+         AND table_schema = ANY($1::text[])`,
+      [schemas],
+    )).rows[0]?.n ?? 0;
+    const vaultOk = (await c.query<{ n: number }>(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'MoneyVault' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    )).rows[0]?.n ?? 0;
+    const vaultKeyOk = (await c.query<{ n: number }>(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'MoneyVault' AND column_name = 'dataKey' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    )).rows[0]?.n ?? 0;
+    const ptkpSrcOk = (await c.query<{ n: number }>(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'EmployeePayrollProfile' AND column_name = 'ptkpSource' AND table_schema = ANY($1::text[])`,
+      [schemas],
+    )).rows[0]?.n ?? 0;
     const reasons: string[] = [];
     if (annOk < schemas.length) reasons.push(`${schemas.length - annOk} tenant tanpa tabel Announcement (wave 27)`);
     if (encOk < schemas.length) reasons.push(`${schemas.length - encOk} tenant tanpa enkripsi kolom uang (wave 28-c)`);
