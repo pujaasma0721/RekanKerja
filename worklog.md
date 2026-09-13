@@ -1302,3 +1302,17 @@ Work Log:
 Stage Summary:
 - Registrasi gagal di titik mana pun SETELAH schema dibuat kini selalu gagal-bersih; percobaan ulang dengan slug sama langsung berhasil tanpa perlu intervensi DB manual.
 - tsc ✓; deploy prod menyusul.
+
+---
+Task ID: 60
+Agent: orchestrator (Z.ai)
+Task: Seeder SAYONE via UI API (500 karyawan, 30 org, 50 posisi, 20 kantor, 30 lokasi) — bukan seed DB langsung.
+
+Work Log:
+- scripts/seed-sayone-via-ui.ts: login owner puja.asmara@sayone.com → cookie session → PATCH profil perusahaan, POST kantor 20, work-location 30, org 10 induk, jobs 12, grades 8, posisi 50, karyawan (alur wizard /api/onevity/employees, PII via endpoint sama dgn form).
+- BUG DITEMUKAN via UI (sesuai tujuan): POST /api/onevity/org-units dgn parentId → 500 "Expected OrgUnitWhereUniqueInput, provided String" — findUnique({ where: b.parentId }) mengirim string mentah; form sub-unit UI juga rusak. Fix: where: { id: String(b.parentId) }. 20 sub-unit gagal dibuat saat run pertama.
+- 247/500 karyawan ditolak validasi rentang gaji grade (generator seeder tidak sinkron rentang) → fase 2 pakai min/max grade aktual dari GET /grades.
+- Run 1: 385 OK (perusahaan+20 kantor+30 lokasi+10 org+12 jobs+8 grades+50 posisi+253 karyawan), 267 gagal (bug sub-unit + rentang gaji).
+
+Stage Summary:
+- Fix bug sub-unit dikirim; fase 2 seeder akan melengkapi 20 sub-unit + 247 karyawan (gaji dalam rentang grade) + keluarga/pendidikan/pengalaman untuk semua karyawan.

@@ -47,7 +47,9 @@ export async function POST(req: NextRequest) {
     if (exists) return NextResponse.json({ error: `Kode unit ${b.code} sudah dipakai` }, { status: 400 });
     let level = 1;
     if (b.parentId) {
-      const parent = await db.orgUnit.findUnique({ where: b.parentId });
+      // Fix bug: findUnique butuh objek where unik ({ id }), bukan string mentah —
+      // dulu sub-unit selalu 500 "Expected OrgUnitWhereUniqueInput, provided String".
+      const parent = await db.orgUnit.findUnique({ where: { id: String(b.parentId) } });
       if (!parent) return NextResponse.json({ error: "Unit induk tidak ditemukan" }, { status: 400 });
       level = parent.level + 1;
     }
