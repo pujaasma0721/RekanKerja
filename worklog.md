@@ -1111,3 +1111,28 @@ Stage Summary:
 - SELURUH temuan BPA-AUDIT-53 R1-R9 terimplementasi & terverifikasi (F-10 dipertahankan by design; F-11 catatan review tahunan). Parity 3/3 tenant hijau.
 - Artefak: audit/BPA-FIX-54.md (dokumentasi remediasi), ter-official.ts (sumber tunggal tabel TER resmi), migrate-audit53.ts, migrate-jkp.ts revisi.
 - Angka kunci tervalidasi: TER resmi 125 baris (contoh DJP 9/9); true-up Desember eksak; PKWT final 10% lapisan eksak; JKP 0% pekerja + 0,14% rekomposisi (0 potongan THP tidak sah dihilangkan).
+
+---
+Task ID: 55
+Agent: orchestrator (Z.ai) + 1 Explore subagent (audit PII decryption leak paths)
+Task: Laporan user (screenshot Direktori Karyawan, tab Personal, MII00001 Hartono): field NIK/NPWP/No. Rekening menampilkan ciphertext mentah "enc:v2:t:…" (lingkaran merah). Perbaiki.
+
+Work Log:
+- VLM analisa screenshot: Personal tab MII00001 — NIK `enc:v2:t:9WDFDSizNt96PMHT:…`, NPWP + ACCOUNT NO juga enc:v2; BPJS Health/Emp PLAINTEXT; identifikasi karyawan via DB (birthPlace Bogor/21-7-1995/AB/Cerai/Kristen Protestan → MII00001 Hartono).
+- LIVE API test awal: employee-detail + employees list saat INI mengembalikan plaintext benar (nik 3176363464506) — DB kini enc:v1 tanpa vault (rollback sandbox mengubah state vs saat screenshot).
+- Subagent Explore (audit 24 lokasi serializer PII): akar masalah TERBUKTI = DOUBLE-ENCRYPTION — encryptText TANPA guard isEncrypted; ciphertext yang pernah bocor ke UI (vektor historis employee-options pra-43-f) di-round-trip balik ke write-path → 2 lapis; decryptText melepas lapisan luar → "mengembalikan" ciphertext lapisan dalam seolah plaintext → persis gejala screenshot (terverifikasi kriptografis oleh subagent + repro orchestrator). Tambah ditemukan: 3 jalur bocor RAW (reports-bpjs bpjsTk/bpjsKes, scheduler docNumber, POST /employees respons), bug primeTenantCrypto pin-null permanen saat error transien, kunci respons ESS "bpjsEmpskill" casing salah.
+- FIX field-crypto.ts: (1) guard encryptText — input isEncrypted → tulis apa adanya (idempoten, mencegah double-enc di SEMUA write-path: employee-detail PATCH, payroll-profiles, createEmployeeWithAssignment, employee-documents, medical-service); (2) primeTenantCrypto catch — error koneksi transien TIDAK lagi pin-null+tandai primed (dulu: 1 error → enc:v2 gagal 500 sampai restart); 42P01/42703 tetap null permanen.
+- FIX reports-bpjs.ts toMemberRow: bpjsTk/bpjsKes didekripsi tc.decryptText (CSV upload BPJS TK/JKN kini berisi no. kartu riil).
+- FIX scheduler-service.ts jobDocumentExpiryReminders: docNumber didekripsi best-effort per baris (tcDoc dari tenantCryptoForDb; gagal → label generik; JANGAN tulis ciphertext mentah ke notifikasi/email).
+- FIX employees.ts POST respons: bentuk read-path (decryptText 5 field PII) — konsumen respons tidak menerima ciphertext.
+- FIX ESS me.ts: kunci respons bpjsEmpskill → bpjsEmpSkill + UI consumers (ess-profile.tsx, ess-types.ts).
+- BARU scripts/migrate-unwrap-double-enc.ts + parity step 29 "unwrap-double-enc": pindai 63 kolom registry ENCRYPTED_COLUMNS, unwrap maks 5 lapis, tulis ulang 1 lapis; kolom uang (kind n) dicek defensif (kind-mismatch → unwrap → parse); idempoten. Log per-tabel diperbaiki (fixedCol).
+- E2E REPRO KONTROL: (1) tulis double-enc faithful (outer v1 bootstrap manual) ke MII00001 → GET employee-detail 200 mengembalikan "enc:v1:t:CG4X…" RAW = BUG REPRODUCED; (2) guard: encryptText(ciphertext) = no-op PASSED; (3) migrasi → 1 diperbaiki dari 5379 dipindai; (4) GET kembali plaintext 3176363464506 RESTORED; (5) BPJS CSV TK/JKN 200 tanpa "enc:" (baris Hartono: 3176363464506;…;92008027469135 / JKN 000173269675); (6) POST /employees 201 respons decrypt benar (nik/taxId/acct plaintext); (7) PATCH input ciphertext → DB tetap 1 lapis (guard) + PATCH nilai normal round-trip 200; (8) data uji dibersihkan.
+- E2E BROWSER (agent-browser, login hrd MII): Direktori → Hartono → dialog quick view → "Buka Profil Lengkap" → tab Personal: NIK 3176363464506, NPWP 091485262345, No. Rekening 848850308, BPJS Kesehatan 000173269675, BPJS TK 92008027469135 (semua plaintext — persis field screenshot); eval innerText: CLEAN tanpa "enc:"; console 0 error (hanya Fast Refresh); mobile 390px scrollWidth=390; footer visible; desktop 1280px scrollWidth=1280. VLM verifikasi screenshot: nilai terbaca normal.
+- bunx tsc --noEmit 0 · bun run lint 0 · dev.log bersih (PATCH 500 tunggal = uji malformed disengaja, 404 = route typo uji). Commit 6e3aefc. DEPLOY-RUNBOOK §5.2: baris parity 29.
+
+Stage Summary:
+- Task 55 TUNTAS: akar masalah screenshot = double-encryption PII (bukan serializer detail — GET employee-detail memang sudah mendekripsi; nilai yang tersimpan berlapis dua membuat decrypt "berhasil" mengembalikan ciphertext lapisan dalam).
+- Pertahanan berlapis: (a) guard encryptText idempoten = tidak ada lapisan baru DI MANA PUN; (b) migrasi parity 29 self-heal data historis tiap boot; (c) 3 jalur bocor RAW ditutup (CSV BPJS, pengingat dokumen, respons POST create); (d) prime vault tidak lagi pin-null saat error transien.
+- Kontrak tidak berubah (field tetap sama; hanya kunci ESS bpjsEmpskill → bpjsEmpSkill). Deploy = restart saja (parity 29 idempoten).
+- Catatan: PATCH dengan input ciphertext well-formed kini tersimpan apa adanya → respons decrypt mengembalikan inner value; kasus pathologis (form tak pernah mengirim ciphertext) + migrasi unwrap membersihkan sisa data lama.
