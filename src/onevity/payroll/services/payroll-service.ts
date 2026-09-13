@@ -452,6 +452,14 @@ export async function buildRunRowsWithLog(
     const segments: PaySegment[] = [];
     if (isSalaryRun && !isTerminationRun) {
       const dayOf = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+      // Task 64-fix — batas masa kerja efektif karyawan pada period: segmen
+      // hanya dibangun dalam rentang ini, sehingga joiner mid-month (masuk
+      // tgl X) dan leaver mid-month (terakhir kerja tgl Y) otomatis prorate
+      // per segmen tanpa dobel-hitung hari sebelum masuk / sesudah keluar.
+      // Break di luar rentang diabaikan; break di dalam dipotong ke rentang.
+      const firstAsg = periodAssignments[0];
+      const empFrom = dayOf(firstAsg.validFrom) > periodStartDay ? dayOf(firstAsg.validFrom) : periodStartDay;
+      const empTo = lastWorkDay && lastWorkDay < periodEndDay ? lastWorkDay : periodEndDay;
       const breaks: { t: Date; a: AsgVers | null; tid?: string | null }[] = [
         ...periodAssignments
           .filter((a) => dayOf(a.validFrom) > periodStartDay && dayOf(a.validFrom) <= periodEndDay)
@@ -459,7 +467,9 @@ export async function buildRunRowsWithLog(
         ...histList
           .filter((h) => dayOf(h.validFrom) > periodStartDay && dayOf(h.validFrom) <= periodEndDay)
           .map((h) => ({ t: dayOf(h.validFrom), a: null as AsgVers | null, tid: h.wageTemplateId })),
-      ].sort((x, y) => x.t.getTime() - y.t.getTime());
+      ]
+        .filter((b) => b.t > empFrom && b.t <= empTo)
+        .sort((x, y) => x.t.getTime() - y.t.getTime());
       if (breaks.length > 0) {
         // Versi awal (sebelum titik belah pertama): penempatan pertama yang
         // menyentuh period + template berlaku s.d. awal period.
@@ -469,7 +479,7 @@ export async function buildRunRowsWithLog(
           startedBeforePeriod.length > 0
             ? startedBeforePeriod[startedBeforePeriod.length - 1].wageTemplateId
             : (profile?.wageTemplateId ?? null);
-        let cursor = periodStartDay;
+        let cursor = empFrom;
         for (const br of breaks) {
           if (cursor < br.t) {
             const days = Math.round((br.t.getTime() - cursor.getTime()) / 86_400_000);
@@ -486,8 +496,8 @@ export async function buildRunRowsWithLog(
             if (startedAt.length > 0) curTid = startedAt[startedAt.length - 1].wageTemplateId;
           }
         }
-        const days = Math.round((periodEndDay.getTime() - cursor.getTime()) / 86_400_000) + 1;
-        if (days > 0) segments.push({ from: cursor, to: periodEndDay, days, assignment: curAsg, templateId: curTid });
+        const days = Math.round((empTo.getTime() - cursor.getTime()) / 86_400_000) + 1;
+        if (days > 0) segments.push({ from: cursor, to: empTo, days, assignment: curAsg, templateId: curTid });
       }
     }
 

@@ -464,6 +464,11 @@ export function runPayroll(
     // Task 64 — kode yang pernah diberi override (Specific/Periodic one-off)
     // DIKUNCI: segmen berikutnya tidak boleh menghitung ulang/menimpanya.
     const overriddenCodes = new Set<string>();
+    // Task 64-fix — akumulasi komponen Fixed ter-prorate antar segmen:
+    // setiap segmen menyumbang bagian harinya (office lama + office baru),
+    // hasil akhir = jumlah seluruh segmen. Tanpa ini segmen pertama hilang
+    // karena merged baru terisi di segmen terakhir.
+    const fixedAcc = new Map<string, number>();
     if (segs && segs.length > 0 && segDayTotal > 0 && !row.hasOverride) {
       for (let si = 0; si < segs.length; si++) {
         const sg = segs[si];
@@ -507,17 +512,25 @@ export function runPayroll(
           if (!isLast) {
             // Segmen non-terakhir: hanya dorong nilai antara utk formula
             // segmen berikutnya; komponen Specific (override) TIDAK ditumpuk
-            // antar segmen (one-off).
-            if (overrideAmount == null) computedByCode[comp.code] = amount;
+            // antar segmen (one-off); Fixed ter-prorate diakumulasi.
+            if (overrideAmount == null) {
+              computedByCode[comp.code] = amount;
+              if (comp.calcMethod === "Fixed") {
+                fixedAcc.set(comp.code, (fixedAcc.get(comp.code) ?? 0) + amount);
+              }
+            }
             continue;
           }
-          // Segmen terakhir (versi aktif): non-formula dijumlahkan antar segmen;
-          // formula & override ambil nilai segmen terakhir apa adanya.
+          // Segmen terakhir (versi aktif): Fixed ter-prorate = jumlah seluruh
+          // segmen (office lama + baru); formula & override ambil nilai
+          // segmen terakhir apa adanya; Fixed non-prorate nilai penuh aktif.
+          let segNote: string | null = null;
           if (overrideAmount != null) {
             amount = roundAmount(overrideAmount, comp);
-          } else if (comp.calcMethod === "Fixed") {
-            const prevAmt = merged.get(comp.code)?.amount ?? 0;
-            amount = roundAmount(prevAmt + amount, comp);
+          } else if (comp.calcMethod === "Fixed" && comp.prorated && segFactor < 1) {
+            const prior = fixedAcc.get(comp.code) ?? 0;
+            amount = roundAmount(prior + amount, comp);
+            segNote = `Prorata per segmen (${segs!.map((s) => s.days).join(" + ")} hari)`;
           }
           const note = ruleNote
             ?? (comp.prorated && segFactor < 1 ? `Prorata ${(segFactor * 100).toFixed(0)}%` : null);
