@@ -196,6 +196,9 @@ const STEPS: Step[] = [
   // enc:v2:…"): buka lapisan ganda → tulis ulang satu lapis. Guard kini ada
   // di encryptText; langkah ini merapikan data historis pra-guard (idempoten).
   { key: "unwrap-double-enc", label: "Task 55 — buka enkripsi berlapis ganda (PII direktori enc:… mentah)", run: (s) => import("../../../../scripts/migrate-unwrap-double-enc").then((m) => m.main(s)) },
+  // Task 57: pulihkan data uang MII yang tertimpa 0 oleh bug rerun parity
+  // encrypt (kini diperbaiki) — idempoten, no-op bila data sudah utuh.
+  { key: "restore-mii-payroll-money", label: "Task 57 — pulihkan nilai uang MII (baseSalary/komponen/run) pasca-bug rerun encrypt", run: (s) => import("../../../../scripts/restore-mii-payroll-money").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

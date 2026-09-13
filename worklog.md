@@ -1219,3 +1219,21 @@ Stage Summary:
 - Aturan produk Task 58 tuntas: form buat workspace kini MEMINTA kode perusahaan (wajib, A-Z0-9 2–12, otomatis uppercase); kode langsung dipakai membuat record Company tenant (profil + prefix nomor karyawan) dan tersimpan di registry platform (tampilan workspace + fallback).
 - Tenant demo existing: MII, CDN, SLP — semua ber-companyCode; tenant baru apapun otomatis benar dari detik pertama.
 - Artefak: scripts/backfill-tenant-company-code.ts; screenshot audit/t58-tenant-select-code.png.
+
+---
+Task ID: 57b
+Agent: orchestrator (Z.ai)
+Task: Implementasi restore otomatis data uang MII (keputusan pemilik produk) — skrip restore + parity step.
+
+Work Log:
+- scripts/restore-mii-payroll-money.ts (BARU): pemulihan 3 lapis dari sumber yang masih dapat di-reason:
+  1. EmployeeAssignment.baseSalary — nilai seed RANDOM per grade (tak rekonstruksiibel) → diisi ulang angka realistis per rentang grade (G1 4.5-7jt … G8 50-80jt, kelipatan 50rb) dgn PRNG deterministik per baris (rerun konsisten) + multiplier mutasi historis PA-2022-0101..0104 (1.18/1.0/1.12/1.05) sesuai seed.
+  2. EmployeeComponentAssignment.amount — nilai seed eksplisit dikembalikan: BONUS Q3 SEP (MII00004 2.5jt, MII00009 1.5jt, MII00014 3jt) + TTRANS MII00021 1jt; baris 0 non-seed (settlement sah) dibiarkan.
+  3. Run PR-2026-07/08-SAL-01 (Paid) dihitung ULANG via engine payroll sungguhan (calculateAndSaveRun + confirmRun): RunLine/RunItem/totals terisi konsisten dgn master baru; jurnal lama berisi-0 dihapus dulu (generateJournalForRun idempoten per runId → regenerate). Rollback buku pinjaman M-8 sebelum recalc: angsuran Deducted oleh run tsb → Pending + paid/outstanding dikembalikan, sehingga recalc memasukkan kembali item LOAN dan confirmRun memotong ulang SEKALI (netto buku = nol perubahan). Run SEP tetap Draft (demo interaktif).
+- IDEMPOTEN: hanya nilai 0 yang ditulis; run hanya diproses bila Paid+totalNet=0; rerun = no-op penuh.
+- parity-runner.ts: step "restore-mii-payroll-money" didaftarkan setelah unwrap-double-enc (konvensi K-6).
+- tsc --noEmit bersih (setelah regen prisma client utk nullable LoanInstallment.periodCode & encLoan ?? "0" utk M-8 NOT NULL).
+
+Stage Summary:
+- Restore otomatis siap deploy — bug sumber (Task 57) + repair data satu paket.
+- Deployment prod: parity pipeline dipicu manual (env diag sementara) → step restore jalan → env diag dibersihkan lagi (pm2 delete+start+save).
