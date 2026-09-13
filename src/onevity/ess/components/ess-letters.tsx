@@ -52,7 +52,7 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
       <span
         aria-hidden
         className={cnDot(
-          r.status === "Pending" ? "bg-amber-400" : r.status === "Issued" ? "bg-emerald-500" : "bg-rose-500",
+          r.status === "Pending" ? "bg-amber-400" : r.status === "Issued" ? "bg-brand" : "bg-rose-500",
         )}
       />
       <div className="rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
@@ -74,7 +74,7 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
         {/* timeline status ringkas */}
         <ol className="mt-2.5 space-y-1.5" aria-label={t("Status permintaan", "Request status")}>
           <li className="flex items-center gap-2 text-[11.5px] font-semibold text-stone-600 dark:text-stone-300">
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden />
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden />
             {t("Permintaan diterima — menunggu keputusan HR", "Request received — awaiting HR decision")}
           </li>
           {r.status === "Pending" && (
@@ -84,7 +84,7 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
             </li>
           )}
           {r.status === "Issued" && (
-            <li className="flex flex-wrap items-center gap-2 text-[11.5px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <li className="flex flex-wrap items-center gap-2 text-[11.5px] font-semibold text-brand-deep dark:text-brand/85">
               <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("Diterbitkan", "Issued")} — <span className="font-mono">{r.letterRefNo ?? "—"}</span>
               {r.issuedAt ? ` · ${fmtDate(r.issuedAt)}` : ""}

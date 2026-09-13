@@ -38,8 +38,8 @@ export function PayrollTransactionsPage() {
         description={t("Pinjaman karyawan dengan skedul cicilan otomatis, komponen khusus/periodik, serta rapel (back-pay) retroaktif lintas period", "Employee loans with automatic installment schedules, special/periodic components, and cross-period retroactive retro pay (back-pay)")}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setRapelDialog(true)} className="gap-2 font-bold"><History className="h-4 w-4 text-teal-600" /> {t("Rapel Baru", "New Retro Pay")}</Button>
-            <Button variant="outline" onClick={() => setCompDialog(true)} className="gap-2 font-bold"><Coins className="h-4 w-4 text-amber-600" /> {t("Komponen Baru", "New Component")}</Button>
+            <Button variant="outline" onClick={() => setRapelDialog(true)} className="gap-2 font-bold"><History className="h-4 w-4 text-brand" /> {t("Rapel Baru", "New Retro Pay")}</Button>
+            <Button variant="outline" onClick={() => setCompDialog(true)} className="gap-2 font-bold"><Coins className="h-4 w-4 text-brand" /> {t("Komponen Baru", "New Component")}</Button>
             <Button onClick={() => setLoanDialog(true)} className="gap-2 font-bold"><Plus className="h-4 w-4" /> {t("Pinjaman Baru", "New Loan")}</Button>
           </div>
         }
@@ -106,7 +106,7 @@ export function PayrollTransactionsPage() {
                             <p className="font-mono text-[10px] text-stone-400">{a.wageComponent.code}</p>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("text-[9px] font-bold", a.kind === "Specific" ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" : "border-teal-300 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-400")}>
+                            <Badge variant="outline" className={cn("text-[9px] font-bold", a.kind === "Specific" ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" : "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85")}>
                               {a.kind === "Specific" ? t("Khusus (sekali)", "Specific (one-time)") : t("Periodik (tiap period)", "Periodic (every period)")}
                             </Badge>
                           </TableCell>
@@ -158,7 +158,7 @@ export function PayrollTransactionsPage() {
                     {t(" (fromPeriod → wageCode back pay).", " (fromPeriod → back pay wageCode).")}
                   </p>
                 </div>
-                <Button onClick={() => setRapelDialog(true)} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                <Button onClick={() => setRapelDialog(true)} className="gap-2 bg-brand font-bold hover:bg-brand/70">
                   <PlayCircle className="h-4 w-4" /> {t("Hitung Rapel", "Calculate Retro Pay")}
                 </Button>
               </div>
@@ -222,7 +222,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
   return (
     <div className="p-4">
       <button onClick={() => setExpanded((v) => !v)} className="flex w-full items-center gap-3 text-left">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand text-white shadow">
           <Landmark className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -235,7 +235,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
               loan.status === "Rejected" ? "Rejected" : "Cancelled"
             } />
             {loan.approval?.status === "InProgress" && (
-              <span className="whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+              <span className="whitespace-nowrap rounded-full border border-brand/25 bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
                 {t("Jenjang {l}/{n}", "Level {l}/{n}", { l: loan.approval.currentLevel, n: loan.approval.totalLevels })}
               </span>
             )}
@@ -245,7 +245,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
             {loan.purpose && ` · ${loan.purpose}`}
           </p>
           {loan.approval?.status === "InProgress" && (
-            <p className="mt-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+            <p className="mt-0.5 text-[10px] font-semibold text-brand-deep dark:text-brand/85">
               {t("pengajuan menunggu {a}", "request awaiting {a}", { a: loan.approval.currentApprover ?? t("jenjang berikutnya", "the next level") })}
             </p>
           )}
@@ -266,11 +266,11 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
       </button>
 
       {expanded && loan.status === "Submitted" && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/5">
-          <p className="min-w-40 flex-1 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand/25 bg-brand/10/60 p-3 dark:border-brand/25 dark:bg-brand/5">
+          <p className="min-w-40 flex-1 text-[11px] leading-relaxed text-brand-deep dark:text-brand/85">
             {t("Pengajuan menunggu persetujuan", "Request awaiting approval")}{loan.approval?.status === "InProgress" ? t(" berjenjang (jenjang {l}/{n})", " tiered (level {l}/{n})", { l: loan.approval.currentLevel, n: loan.approval.totalLevels }) : ""}{t(" — skedul cicilan dibuat otomatis setelah seluruh jenjang disetujui.", " — the installment schedule is created automatically after every level approves.")}
           </p>
-          <Button size="sm" onClick={() => decide("approve")} disabled={busy} className="h-8 gap-1.5 bg-emerald-600 text-xs font-bold hover:bg-emerald-700">
+          <Button size="sm" onClick={() => decide("approve")} disabled={busy} className="h-8 gap-1.5 bg-brand text-xs font-bold hover:bg-brand/70">
             <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => decide("reject")} disabled={busy} className="h-8 gap-1.5 border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
@@ -304,9 +304,9 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
                     <TableCell className="text-right text-xs font-semibold">{fmtIDR(i.amount)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("text-[9px] font-bold",
-                        i.status === "Deducted" ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400" :
+                        i.status === "Deducted" ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" :
                         i.status === "Skipped" ? "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600" :
-                        "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400")}>
+                        "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85")}>
                         {i.status === "Deducted" ? t("Terpotong", "Deducted") : i.status === "Skipped" ? t("Dilewati", "Skipped") : t("Menunggu")}
                       </Badge>
                     </TableCell>
@@ -406,7 +406,7 @@ function LoanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
               {t("Total tagihan {td} · cicilan ± {per}/bulan (bunga flat)", "Total due {td} · installment ± {per}/month (flat interest)", { td: fmtIDR(totalDue), per: fmtIDR(per) })}
             </p>
           )}
-          <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+          <p className="rounded-xl bg-brand/10 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-brand-deep dark:bg-brand/10 dark:text-brand/85">
             {t("Pinjaman diajukan berstatus Menunggu — skedul cicilan dibuat otomatis setelah seluruh jenjang approval disetujui, lalu terpotong payroll saat run dikonfirmasi.", "Loans are submitted as Pending — the installment schedule is created automatically after all approval levels approve, then deducted from payroll when the run is confirmed.")}
           </p>
         </div>
@@ -455,7 +455,7 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-xl">
-        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 text-amber-600" /> {t("Komponen Upah Karyawan", "Employee Wage Component")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Coins className="h-4 w-4 text-brand" /> {t("Komponen Upah Karyawan", "Employee Wage Component")}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div>
             <Label className="text-xs">{t("Karyawan *")}</Label>
@@ -598,7 +598,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
     <Dialog open={open} onOpenChange={(v) => { if (!v) { setPreview(null); onClose(); } }}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4 text-teal-600" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4 text-brand" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div className="grid grid-cols-2 gap-3">
@@ -674,12 +674,12 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
           </div>
 
           {preview && (
-            <div className="overflow-hidden rounded-xl border border-teal-200 dark:border-teal-500/30">
-              <div className="flex items-center justify-between bg-teal-50 px-3.5 py-2.5 dark:bg-teal-500/10">
-                <p className="text-[11px] font-bold text-teal-700 dark:text-teal-400">
+            <div className="overflow-hidden rounded-xl border border-brand/25 dark:border-brand/30">
+              <div className="flex items-center justify-between bg-brand/10 px-3.5 py-2.5 dark:bg-brand/10">
+                <p className="text-[11px] font-bold text-brand-deep dark:text-brand/85">
                   {t("Selisih rapel — {n} period · {c}", "Retro pay difference — {n} periods · {c}", { n: preview.periods, c: componentCode })}
                 </p>
-                <p className="text-sm font-extrabold text-teal-700 dark:text-teal-400">{fmtIDR(preview.totalDiff)}</p>
+                <p className="text-sm font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(preview.totalDiff)}</p>
               </div>
               <div className="max-h-44 overflow-y-auto">
                 <Table>
@@ -713,7 +713,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
           {!preview ? (
-            <Button onClick={doPreview} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+            <Button onClick={doPreview} disabled={busy} className="gap-2 bg-brand font-bold hover:bg-brand/70">
               <Calculator className="h-4 w-4" />{busy ? t("Menghitung…", "Calculating…") : t("Preview Selisih", "Preview Difference")}
             </Button>
           ) : (

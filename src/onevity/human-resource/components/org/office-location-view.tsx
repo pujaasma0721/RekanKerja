@@ -44,10 +44,10 @@ function ActivePill({ active }: { active: boolean }) {
     <span className={cn(
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
       active
-        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
+        ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
         : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
     )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-stone-400")} />
+      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-stone-400")} />
       {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );

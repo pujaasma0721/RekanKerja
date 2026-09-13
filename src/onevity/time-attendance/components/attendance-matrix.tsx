@@ -124,7 +124,7 @@ export function AttendanceMatrixPage() {
                         </TableCell>
                       ))}
                       <TableCell>
-                        <span className={cn("text-[10px] font-bold", r.clockingRequired ? "text-emerald-600 dark:text-emerald-400" : "text-stone-400")}>
+                        <span className={cn("text-[10px] font-bold", r.clockingRequired ? "text-brand dark:text-brand/85" : "text-stone-400")}>
                           {r.clockingRequired ? t("Wajib", "Required") : "Non-clock"}
                         </span>
                       </TableCell>

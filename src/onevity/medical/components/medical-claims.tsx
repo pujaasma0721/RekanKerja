@@ -264,7 +264,7 @@ export function MedicalClaimsPage() {
                           </TableCell>
                           <TableCell>
                             <span className="font-medium">{c.typeName}</span>
-                            {c.forDependent && <span className="ml-1 text-xs text-violet-600 dark:text-violet-400">(dependent)</span>}
+                            {c.forDependent && <span className="ml-1 text-xs text-brand dark:text-brand/85">(dependent)</span>}
                           </TableCell>
                           <TableCell className="text-sm">{fmtDateID(c.claimDate)}</TableCell>
                           <TableCell className="text-right">{fmtIDR(c.totalBill)}</TableCell>
@@ -328,7 +328,7 @@ export function MedicalClaimsPage() {
                                           <TableRow key={i}>
                                             <TableCell>
                                               <p className="font-medium">{l.treatedName}</p>
-                                              {l.occupationalInjury && <span className="text-xs font-semibold text-rose-600">CK / PJK</span>}
+                                              {l.occupationalInjury && <span className="text-xs font-semibold text-brand">CK / PJK</span>}
                                             </TableCell>
                                             <TableCell className="text-sm">{l.treatment ?? "—"}</TableCell>
                                             <TableCell className="text-sm">{fmtDateID(l.treatmentDate)}</TableCell>
@@ -507,7 +507,7 @@ export function MedicalClaimsPage() {
                         {t("Kecelakaan/Penyakit Kerja (CK)", "Occupational Injury / Illness (CK)")}
                       </label>
                       <Button variant="ghost" size="sm" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))} disabled={lines.length === 1}>
-                        <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                        <Trash2 className="h-3.5 w-3.5 text-brand" />
                       </Button>
                     </div>
                   </div>

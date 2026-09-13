@@ -35,6 +35,10 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  /* Task 64f — aksen global (tema dipilih di topbar): bg-brand, text-brand,
+     border-brand/40, text-brand-deep, … mengikuti --accent-live. */
+  --color-brand: var(--accent-live);
+  --color-brand-deep: var(--accent-live-deep);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -153,6 +157,8 @@
   --accent-live: #10b981;
   --accent-live-rgb: 16 185 129;
   --accent-live-fg: #ffffff;
+  /* versi pekat utk teks di atas latar terang (ganti saat dark via JS) */
+  --accent-live-deep: #047857;
 }
 :root[data-accent="1"] {
   --primary: var(--accent-live);

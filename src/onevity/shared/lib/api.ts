@@ -176,13 +176,13 @@ export const paTypeLabelSafe = (t: string): string => {
 
 // avatar color from name hash
 const AVATAR_COLORS = [
-  "bg-emerald-100 text-emerald-700",
+  "bg-brand/15 text-brand-deep",
   "bg-amber-100 text-amber-700",
   "bg-rose-100 text-rose-700",
-  "bg-teal-100 text-teal-700",
+  "bg-brand/15 text-brand-deep",
   "bg-orange-100 text-orange-700",
   "bg-lime-100 text-lime-700",
-  "bg-cyan-100 text-cyan-700",
+  "bg-brand/15 text-brand-deep",
   "bg-fuchsia-100 text-fuchsia-700",
 ];
 export function avatarColor(name: string) {

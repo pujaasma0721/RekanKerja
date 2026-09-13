@@ -305,7 +305,7 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-lg bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{s.code}</span>
               <span className="font-semibold text-stone-900 dark:text-stone-50">{s.name}</span>
-              <Badge className="rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">{t(docTypeLabel(s.docType), docTypeLabelEn(s.docType))}</Badge>
+              <Badge className="rounded-lg bg-brand/10 text-brand-deep hover:bg-brand/10 dark:bg-brand/90 dark:text-brand/75">{t(docTypeLabel(s.docType), docTypeLabelEn(s.docType))}</Badge>
               {!s.active && <Badge variant="secondary" className="rounded-lg">{t("Nonaktif")}</Badge>}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -319,7 +319,7 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
                 </Badge>
               ))}
               {isAmountDoc(s.docType) && s.levels.some((l) => l.minAmount != null || l.maxAmount != null) && (
-                <Badge variant="outline" className="rounded-lg border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <Badge variant="outline" className="rounded-lg border-brand/25 bg-brand/10 text-[11px] text-brand-deep dark:border-brand/70 dark:bg-brand/90 dark:text-brand/75">
                   {t("Ada jenjang bersyarat nominal", "Has amount-conditional tiers")}
                 </Badge>
               )}
@@ -342,7 +342,7 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
               <div className={cn(
                 "flex max-w-64 flex-col gap-0.5 rounded-xl border px-3 py-2",
                 l.minAmount != null || l.maxAmount != null
-                  ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40"
+                  ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
                   : "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60",
               )}>
                 <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Jenjang {n}", "Tier {n}", { n: l.levelNo })}</span>
@@ -350,7 +350,7 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
                   {approverTargetLabel(l, t)}
                 </span>
                 {(l.minAmount != null || l.maxAmount != null) && (
-                  <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                  <span className="text-[10px] font-medium text-brand-deep dark:text-brand/85">
                     {tierLabel(l.minAmount, l.maxAmount)}
                   </span>
                 )}
@@ -598,7 +598,7 @@ function StructureFormDialog(p: StructureFormDialogProps) {
               </Button>
             </div>
             {amountDoc && (
-              <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <p className="mb-3 rounded-lg bg-brand/10 px-3 py-2 text-[11px] text-brand-deep dark:bg-brand/90 dark:text-brand/75">
                 {t("Jenis dokumen bernilai uang — jenjang dapat dibatasi nominal", "This document type carries an amount — tiers can be amount-conditional")} <b>{t("besaran benefit / jumlah pinjaman", "benefit value / loan amount")}</b>. {t("Isi &ldquo;min&rdquo; (mis. 10.000.000) agar jenjang tambahan aktif hanya bila nominal ≥ nilai tsb.", "Fill in &ldquo;min&rdquo; (e.g. 10,000,000) so the extra tier only activates when the amount ≥ that value.")}
               </p>
             )}
@@ -768,7 +768,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
               {preview.fallback ? (
                 <Badge className="rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t("Fallback — atasan langsung / Admin-HR", "Fallback — direct superior / Admin-HR")}</Badge>
               ) : (
-                <Badge className="rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300">{preview.structureCode} — {preview.structureName}</Badge>
+                <Badge className="rounded-lg bg-brand/10 text-brand-deep dark:bg-brand/90 dark:text-brand/75">{preview.structureCode} — {preview.structureName}</Badge>
               )}
             </div>
             <div className="space-y-1.5">
@@ -776,7 +776,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                 <div key={i} className={cn(
                   "flex items-center gap-3 rounded-xl border px-3 py-2",
                   st.minAmount != null || st.maxAmount != null
-                    ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40"
+                    ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
                     : "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60",
                 )}>
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-[11px] font-bold text-white dark:bg-stone-200 dark:text-stone-900">{st.levelNo}</span>
@@ -785,7 +785,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                     <div className="text-[10px] text-stone-400">{t(APPROVER_TYPE_LABEL[st.approverType] ?? st.approverType, APPROVER_TYPE_LABEL_EN[st.approverType] ?? st.approverType)}</div>
                   </div>
                   {(st.minAmount != null || st.maxAmount != null) && (
-                    <Badge variant="outline" className="shrink-0 rounded-lg border-emerald-200 text-[10px] text-emerald-700 dark:border-emerald-700 dark:text-emerald-300">
+                    <Badge variant="outline" className="shrink-0 rounded-lg border-brand/25 text-[10px] text-brand-deep dark:border-brand/70 dark:text-brand/75">
                       {tierLabel(st.minAmount, st.maxAmount)}
                     </Badge>
                   )}

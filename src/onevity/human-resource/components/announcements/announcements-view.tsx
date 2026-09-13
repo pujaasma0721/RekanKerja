@@ -67,13 +67,13 @@ const STATUS_META: Record<string, { label: string; en: string; cls: string; dot:
   },
   published: {
     label: "Terbit", en: "Published",
-    cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
-    dot: "bg-emerald-500",
+    cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+    dot: "bg-brand",
   },
   expired: {
     label: "Kedaluwarsa", en: "Expired",
-    cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/25",
-    dot: "bg-violet-500",
+    cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+    dot: "bg-brand",
   },
 };
 function AnnStatusPill({ status }: { status: string }) {
@@ -90,7 +90,7 @@ function AnnStatusPill({ status }: { status: string }) {
 /** Chip kategori — ikon + warna ringan per kelompok pengumuman. */
 const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = {
   Umum: { icon: Megaphone, cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" },
-  Kebijakan: { icon: Scale, cls: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25" },
+  Kebijakan: { icon: Scale, cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
   Event: { icon: PartyPopper, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
   Darurat: { icon: Siren, cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
 };
@@ -118,7 +118,7 @@ function ReadProgress({ reads, total }: { reads: number; total: number }) {
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
         <div
-          className={cn("h-full rounded-full transition-all", pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-emerald-400" : "bg-amber-400")}
+          className={cn("h-full rounded-full transition-all", pct >= 80 ? "bg-brand" : pct >= 40 ? "bg-brand/55" : "bg-amber-400")}
           style={{ width: `${pct}%` }}
           role="progressbar"
           aria-valuenow={pct}
@@ -338,7 +338,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
                         </TableCell>
                         <TableCell className="hidden text-xs lg:table-cell xl:table-cell">
                           {a.expiresAt ? (
-                            <span className={cn("flex items-center gap-1 font-semibold", a.status === "expired" ? "text-violet-600 dark:text-violet-400" : "text-stone-600 dark:text-stone-400")}>
+                            <span className={cn("flex items-center gap-1 font-semibold", a.status === "expired" ? "text-brand dark:text-brand/85" : "text-stone-600 dark:text-stone-400")}>
                               <CalendarClock className="h-3.5 w-3.5" aria-hidden /> {fmtDate(a.expiresAt)}
                             </span>
                           ) : (
@@ -803,7 +803,7 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
         <span className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
           tone === "amber" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
-            : tone === "emerald" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+            : tone === "emerald" ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
               : "ov-soft ov-text-accent",
         )}>
           <Icon className="h-4.5 w-4.5" aria-hidden />

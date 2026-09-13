@@ -43,7 +43,7 @@ function categoryIcon(category: string): React.ElementType {
 function ConditionPill({ cond }: { cond: string | null }) {
   const { t } = useI18n();
   const map: Record<string, { label: string; en: string; cls: string }> = {
-    Good: { label: "Baik", en: "Good", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25" },
+    Good: { label: "Baik", en: "Good", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
     Damaged: { label: "Rusak", en: "Damaged", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
     Lost: { label: "Hilang", en: "Lost", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
   };
@@ -177,7 +177,7 @@ export function EssAssets() {
                     aria-hidden
                     className={cn(
                       "absolute -left-[31px] top-3.5 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-stone-950",
-                      h.returnCondition === "Good" ? "bg-emerald-500" : h.returnCondition === "Damaged" ? "bg-amber-400" : h.returnCondition === "Lost" ? "bg-rose-500" : "bg-stone-400",
+                      h.returnCondition === "Good" ? "bg-brand" : h.returnCondition === "Damaged" ? "bg-amber-400" : h.returnCondition === "Lost" ? "bg-rose-500" : "bg-stone-400",
                     )}
                   />
                   <div className="rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">

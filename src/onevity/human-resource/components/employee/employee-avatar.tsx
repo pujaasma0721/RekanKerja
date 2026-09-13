@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
 const GRADIENTS = [
-  "from-emerald-200 to-teal-100 text-emerald-900",
+  "from-brand/30 to-brand/25 text-brand-deep",
   "from-amber-200 to-orange-100 text-amber-900",
   "from-rose-200 to-pink-100 text-rose-900",
-  "from-teal-200 to-cyan-100 text-teal-900",
-  "from-lime-200 to-emerald-100 text-lime-900",
+  "from-brand/30 to-brand/25 text-brand-deep",
+  "from-lime-200 to-brand/25 text-lime-900",
   "from-orange-200 to-amber-100 text-orange-900",
   "from-fuchsia-200 to-rose-100 text-fuchsia-900",
   "from-stone-200 to-stone-100 text-stone-700",
@@ -43,7 +43,7 @@ const SIZE_CLS: Record<Size, { box: string; text: string; dot: string; dotRing: 
 
 /** Status akun → warna titik status pada avatar. */
 const STATUS_DOT: Record<string, string> = {
-  Active: "bg-emerald-500",
+  Active: "bg-brand",
   Resigned: "bg-stone-400",
   Terminated: "bg-rose-400",
   Blacklisted: "bg-rose-500",

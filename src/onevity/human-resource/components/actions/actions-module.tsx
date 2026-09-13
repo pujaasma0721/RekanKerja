@@ -100,7 +100,7 @@ function ApprovalInbox() {
                     <div className="flex flex-col items-center gap-1">
                       <div className="flex items-center gap-1.5">
                         {a.layers.map((l) => (
-                          <span key={l.id} className={cn("h-2 w-8 rounded-full", l.status === "Approved" ? "bg-emerald-500" : l.status === "Rejected" ? "bg-rose-500" : "bg-amber-300 dark:bg-amber-400/50")} />
+                          <span key={l.id} className={cn("h-2 w-8 rounded-full", l.status === "Approved" ? "bg-brand" : l.status === "Rejected" ? "bg-rose-500" : "bg-amber-300 dark:bg-amber-400/50")} />
                         ))}
                       </div>
                       <p className="text-[10px] font-bold text-stone-400">{t("Layer {cur}/{total} — {role}", "Layer {cur}/{total} — {role}", { cur: a.currentLayer, total: a.layers.length, role: pendingLayer?.approverRole ?? "—" })}</p>
@@ -108,7 +108,7 @@ function ApprovalInbox() {
                     <div className="flex gap-2">
                       {perms.canOp("hr", "inbox", "approve") && (
                         <>
-                          <Button size="sm" onClick={() => setDecision({ pa: a, act: "approve" })} className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
+                          <Button size="sm" onClick={() => setDecision({ pa: a, act: "approve" })} className="gap-1.5 bg-brand font-bold hover:bg-brand/70">
                             <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setDecision({ pa: a, act: "reject" })} className="gap-1.5 border-rose-200 font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400">
@@ -157,7 +157,7 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
     <Dialog open onOpenChange={(v) => { if (!v) { setNote(""); onClose(); } }}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className={cn("flex items-center gap-2 text-base", isApprove ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+          <DialogTitle className={cn("flex items-center gap-2 text-base", isApprove ? "text-brand-deep dark:text-brand/85" : "text-rose-600 dark:text-rose-400")}>
             {isApprove ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
             {isApprove ? t("Setujui Dokumen?", "Approve Document?") : t("Tolak Dokumen?", "Reject Document?")}
           </DialogTitle>
@@ -177,7 +177,7 @@ function DecisionDialog({ decision, onClose, onConfirm }: {
             <Button
               onClick={async () => { setBusy(true); await onConfirm(note); setBusy(false); setNote(""); }}
               disabled={busy}
-              className={cn("font-bold", isApprove ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
+              className={cn("font-bold", isApprove ? "bg-brand hover:bg-brand/70" : "bg-rose-600 hover:bg-rose-700")}
             >
               {busy ? t("Memproses…", "Processing…") : isApprove ? t("Ya, Setujui", "Yes, Approve") : t("Ya, Tolak", "Yes, Reject")}
             </Button>
@@ -306,7 +306,7 @@ function AllDocuments() {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           {a.layers.map((l) => (
-                            <span key={l.id} className={cn("h-1.5 w-6 rounded-full", l.status === "Approved" ? "bg-emerald-500" : l.status === "Rejected" ? "bg-rose-500" : "bg-amber-300 dark:bg-amber-400/50")} />
+                            <span key={l.id} className={cn("h-1.5 w-6 rounded-full", l.status === "Approved" ? "bg-brand" : l.status === "Rejected" ? "bg-rose-500" : "bg-amber-300 dark:bg-amber-400/50")} />
                           ))}
                           <span className="ml-1 text-[10px] font-bold text-stone-400">{a.currentLayer}/{a.layers.length}</span>
                         </div>
@@ -577,7 +577,7 @@ function ActionDetail() {
 
       {/* header */}
       <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <div className={cn("h-1.5", a.status === "Approved" || a.status === "Processed" ? "bg-emerald-500" : a.status === "Rejected" ? "bg-rose-500" : a.status === "Submitted" ? "bg-amber-400" : "bg-stone-300")} />
+        <div className={cn("h-1.5", a.status === "Approved" || a.status === "Processed" ? "bg-brand" : a.status === "Rejected" ? "bg-rose-500" : a.status === "Submitted" ? "bg-amber-400" : "bg-stone-300")} />
         <CardContent className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -642,7 +642,7 @@ function ActionDetail() {
                     <li key={l.id} className="relative pb-6 last:pb-0">
                       <span className={cn(
                         "absolute -left-[35px] flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-white dark:ring-stone-950",
-                        l.status === "Approved" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" :
+                        l.status === "Approved" ? "bg-brand/15 text-brand dark:bg-brand/20 dark:text-brand/85" :
                         l.status === "Rejected" ? "bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400" :
                         isCurrent ? "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 animate-pulse" :
                         "bg-stone-100 text-stone-400 dark:bg-stone-800"
@@ -677,7 +677,7 @@ function ActionDetail() {
                 {data.activities.map((act) => (
                   <li key={act.id} className="flex items-start gap-3 text-xs">
                     <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full",
-                      act.action === "Approved" ? "bg-emerald-500" : act.action === "Rejected" ? "bg-rose-500" : act.action === "Processed" ? "bg-teal-500" : "bg-stone-300")} />
+                      act.action === "Approved" ? "bg-brand" : act.action === "Rejected" ? "bg-rose-500" : act.action === "Processed" ? "bg-brand" : "bg-stone-300")} />
                     <div>
                       <p className="font-semibold text-stone-700 dark:text-stone-300">
                         <b>{act.appUser?.fullName ?? "System"}</b> · {act.action}
@@ -731,9 +731,9 @@ function ActionDetail() {
                 <ActionButton icon={Undo2} label={t("Kembalikan ke Draft", "Return to Draft")} tone="stone" onClick={() => setConfirmAct("return")} desc={t("Reset semua layer & status menjadi Draft", "Reset all layers & status to Draft")} />
               )}
               {a.status === "Processed" && (
-                <div className="rounded-xl border border-teal-200 bg-teal-50/70 p-4 text-center dark:border-teal-500/25 dark:bg-teal-500/5">
-                  <CheckCircle2 className="mx-auto h-8 w-8 text-teal-600 dark:text-teal-400" />
-                  <p className="mt-1.5 text-sm font-bold text-teal-700 dark:text-teal-300">{t("Dokumen Selesai", "Document Completed")}</p>
+                <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
+                  <CheckCircle2 className="mx-auto h-8 w-8 text-brand dark:text-brand/85" />
+                  <p className="mt-1.5 text-sm font-bold text-brand-deep dark:text-brand/75">{t("Dokumen Selesai", "Document Completed")}</p>
                   <p className="mt-0.5 text-[11px] text-stone-500">{t("Efek sudah diterapkan {date}", "Effects applied on {date}", { date: fmtDate(a.processedAt) })}</p>
                 </div>
               )}
@@ -768,8 +768,8 @@ function ActionButton({ icon: Icon, label, desc, tone, onClick, prominent }: {
   icon: React.ElementType; label: string; desc: string; tone: string; onClick: () => void; prominent?: boolean;
 }) {
   const tones: Record<string, string> = {
-    emerald: "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400",
-    teal: "border-teal-300 bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:from-teal-600 hover:to-emerald-700 shadow-lg shadow-teal-500/25",
+    emerald: "border-brand/40 bg-brand/10 text-brand-deep hover:bg-brand/15 dark:border-brand/40 dark:bg-brand/10 dark:text-brand/85",
+    teal: "border-brand/40 bg-gradient-to-r from-brand to-brand text-white hover:from-brand hover:to-brand/70 shadow-lg shadow-brand/25",
     rose: "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400",
     stone: "border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
   };
@@ -809,7 +809,7 @@ function ConfirmDialog({ act, onConfirm, onClose }: { act: string | null; onConf
         <p className="text-sm text-stone-500">{t(l.desc, labelsEn[act].desc)}</p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
-          <Button onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }} disabled={busy} className={cn("font-bold", l.tone === "emerald" ? "bg-emerald-600 hover:bg-emerald-700" : l.tone === "teal" ? "bg-teal-600 hover:bg-teal-700" : "bg-stone-600 hover:bg-stone-700")}>
+          <Button onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }} disabled={busy} className={cn("font-bold", l.tone === "emerald" ? "bg-brand hover:bg-brand/70" : l.tone === "teal" ? "bg-brand hover:bg-brand/70" : "bg-stone-600 hover:bg-stone-700")}>
             {busy ? t("Memproses…", "Processing…") : t("Ya, Lanjutkan", "Yes, Continue")}
           </Button>
         </DialogFooter>

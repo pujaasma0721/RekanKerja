@@ -32,12 +32,12 @@ export function PayrollSptPage() {
     {
       label: t("Bruto Kena Pajak Setahun", "Annual Taxable Gross"), value: totals ? fmtIDRShort(totals.brutoTaxable) : "—",
       sub: report ? t("{e} pegawai · {r} baris run", "{e} employees · {r} run rows", { e: totals?.employees ?? 0, r: report.employees.reduce((s, r) => s + r.runs, 0) }) : "",
-      icon: Landmark, tone: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
+      icon: Landmark, tone: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
     },
     {
       label: t("PPh21 Dipotong (Bulanan)", "PPh21 Withheld (Monthly)"), value: totals ? fmtIDRShort(totals.taxWithheld) : "—",
       sub: t("Akumulasi taxR + taxI dari run final", "Accumulated taxR + taxI from final runs"),
-      icon: Calculator, tone: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+      icon: Calculator, tone: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
     },
     {
       label: t("PPh21 Pasal 17 Setahun", "Annual PPh21 Article 17"), value: totals ? fmtIDRShort(totals.pph21Annual) : "—",
@@ -49,7 +49,7 @@ export function PayrollSptPage() {
       sub: t("PPh21 setahun − telah dipotong", "Annual PPh21 − already withheld"),
       icon: ArrowDownUp, tone: totals && totals.delta > 0
         ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
-        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+        : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
     },
   ];
 
@@ -74,10 +74,10 @@ export function PayrollSptPage() {
                 <TooltipTrigger asChild>
                   <a
                     href={`/api/onevity/payroll-spt?year=${year}&export=espt`}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 text-[13px] font-bold text-teal-700 shadow-sm transition hover:bg-teal-100 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-teal-400 dark:hover:bg-teal-500/20"
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 text-[13px] font-bold text-brand-deep shadow-sm transition hover:bg-brand/15 dark:border-brand/40 dark:bg-brand/10 dark:text-brand/85 dark:hover:bg-brand/20"
                   >
                     <FileUp className="h-4 w-4" /> {t("e-SPT 1721-A1 (CSV DJP)", "e-SPT 1721-A1 (DJP CSV)")}
-                    <Info className="h-3.5 w-3.5 text-teal-500/70" />
+                    <Info className="h-3.5 w-3.5 text-brand/70" />
                   </a>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="end" className="w-80 text-[11px] leading-relaxed">
@@ -128,7 +128,7 @@ export function PayrollSptPage() {
               className={cn(
                 "inline-flex h-9 items-center gap-2 rounded-xl border px-3.5 text-[12px] font-bold transition",
                 coretaxPeriod
-                  ? "border-teal-300 text-teal-700 hover:bg-teal-50 dark:border-teal-500/40 dark:text-teal-400 dark:hover:bg-teal-500/10"
+                  ? "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10"
                   : "pointer-events-none border-stone-200 text-stone-300 dark:border-stone-700 dark:text-stone-600"
               )}
             >
@@ -216,13 +216,13 @@ export function PayrollSptPage() {
                           <p className="text-[10px] text-stone-400">PKP {fmtIDR(r.pkp)}</p>
                         </TableCell>
                         <TableCell className="text-right text-xs font-bold text-stone-700 dark:text-stone-300">{fmtIDR(r.pph21Annual)}</TableCell>
-                        <TableCell className="text-right text-xs text-amber-700 dark:text-amber-400">{fmtIDR(r.taxWithheld)}</TableCell>
+                        <TableCell className="text-right text-xs text-brand-deep dark:text-brand/85">{fmtIDR(r.taxWithheld)}</TableCell>
                         <TableCell className="text-right">
                           <span className={cn(
                             "inline-flex h-6 items-center rounded-full px-2 text-[11px] font-bold",
                             r.delta > 0
                               ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
-                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                              : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
                           )}>
                             {r.delta > 0 ? "+" : ""}{fmtIDR(r.delta)}
                           </span>
@@ -238,7 +238,7 @@ export function PayrollSptPage() {
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.iuranJstk ?? 0)}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.neto ?? 0)}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.pph21Annual ?? 0)}</TableCell>
-                      <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(totals?.taxWithheld ?? 0)}</TableCell>
+                      <TableCell className="text-right text-xs font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(totals?.taxWithheld ?? 0)}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(totals?.delta ?? 0)}</TableCell>
                     </TableRow>
                   </TableBody>

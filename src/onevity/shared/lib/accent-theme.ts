@@ -14,16 +14,18 @@ export interface AccentTheme {
   hex: string;
   /** aksen versi dark mode (lebih terang agar kontras di latar gelap) */
   hexDark: string;
+  /** versi pekat utk teks di atas latar terang (light mode) */
+  hexDeep: string;
 }
 
 // Sumber warna: identitas modul lama (dipertahankan sebagai pilihan tema).
 export const ACCENT_THEMES: AccentTheme[] = [
-  { id: "emerald", label: "Emerald",   labelEn: "Emerald",   hex: "#10b981", hexDark: "#34d399" }, // sml. HR Base
-  { id: "amber",   label: "Amber",     labelEn: "Amber",     hex: "#f59e0b", hexDark: "#fbbf24" }, // sml. Payroll
-  { id: "teal",    label: "Teal",      labelEn: "Teal",      hex: "#14b8a6", hexDark: "#2dd4bf" }, // sml. Attendance
-  { id: "cyan",    label: "Cyan",      labelEn: "Cyan",      hex: "#06b6d4", hexDark: "#22d3ee" }, // sml. Leave
-  { id: "violet",  label: "Ungu Violet", labelEn: "Violet",  hex: "#8b5cf6", hexDark: "#a78bfa" }, // sml. Travel
-  { id: "rose",    label: "Rose",      labelEn: "Rose",      hex: "#f43f5e", hexDark: "#fb7185" }, // sml. Medical
+  { id: "emerald", label: "Emerald",   labelEn: "Emerald",   hex: "#10b981", hexDark: "#34d399", hexDeep: "#047857" }, // sml. HR Base
+  { id: "amber",   label: "Amber",     labelEn: "Amber",     hex: "#f59e0b", hexDark: "#fbbf24", hexDeep: "#b45309" }, // sml. Payroll
+  { id: "teal",    label: "Teal",      labelEn: "Teal",      hex: "#14b8a6", hexDark: "#2dd4bf", hexDeep: "#0f766e" }, // sml. Attendance
+  { id: "cyan",    label: "Cyan",      labelEn: "Cyan",      hex: "#06b6d4", hexDark: "#22d3ee", hexDeep: "#0e7490" }, // sml. Leave
+  { id: "violet",  label: "Ungu Violet", labelEn: "Violet",  hex: "#8b5cf6", hexDark: "#a78bfa", hexDeep: "#6d28d9" }, // sml. Travel
+  { id: "rose",    label: "Rose",      labelEn: "Rose",      hex: "#f43f5e", hexDark: "#fb7185", hexDeep: "#be123c" }, // sml. Medical
 ];
 
 export const DEFAULT_ACCENT = "emerald";
@@ -55,6 +57,9 @@ export function applyAccentTheme(id: string): void {
   s.setProperty("--accent-live", main);
   s.setProperty("--accent-live-rgb", `${r} ${g} ${b}`);
   s.setProperty("--accent-live-fg", readableFg(main));
+  s.setProperty("--accent-live-deep", dark ? th.hexDark : th.hexDeep);
+  // Aktifkan override --primary/--ring + kelas aksen global via atribut <html>.
+  document.documentElement.setAttribute("data-accent", "1");
 }
 
 interface AccentThemeState {

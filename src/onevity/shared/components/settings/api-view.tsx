@@ -189,7 +189,7 @@ function ApiKeysPanel() {
                           <Ban className="h-3 w-3" /> {t("DICABUT", "REVOKED")}
                         </Badge>
                       ) : (
-                        <Badge className="gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        <Badge className="gap-1 rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75">
                           <Check className="h-3 w-3" /> {t("AKTIF", "ACTIVE")}
                         </Badge>
                       )}
@@ -547,7 +547,7 @@ function WebhooksPanel() {
                               delivered / failed / dead (max retry) / pending retry /
                               "Sent" (legacy pre-retry era). */}
                           {l.status === "Sent" || l.status === "delivered" ? (
-                            <Badge className="gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"><Check className="h-3 w-3" /> {l.status === "delivered" ? "Delivered" : "Sent"}</Badge>
+                            <Badge className="gap-1 rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75"><Check className="h-3 w-3" /> {l.status === "delivered" ? "Delivered" : "Sent"}</Badge>
                           ) : l.status === "failed" || l.status === "pending" ? (
                             <Badge className="gap-1 rounded-full bg-amber-100 px-2 text-[10px] font-extrabold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"><Clock3 className="h-3 w-3" /> Retry {l.attempts ?? 1}/5</Badge>
                           ) : (

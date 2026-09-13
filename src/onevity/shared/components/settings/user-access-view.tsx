@@ -164,7 +164,7 @@ const EMPLOYMENT_STATUS_LABEL_EN: Record<string, string> = {
 
 const ROLE_TONE: Record<string, string> = {
   Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
-  "HR Manager": "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400",
+  "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
   Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
 };
@@ -383,11 +383,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
             <span><b>{t("Atasan langsung", "Direct superior")}</b> {t("otomatis mengakses data seluruh bawahannya.", "automatically accesses all of their subordinates' data.")}</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
-            <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+            <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
             <span><b>{t("Setiap pengguna", "Every user")}</b> {t("selalu dapat mengakses data dirinya.", "can always access their own data.")}</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
-            <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+            <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
             <span>{t("Hak menu turun ke", "Menu rights go down to")} <b>{t("level aksi", "action level")}</b> {t("— Lihat/Baru/Ubah/Hapus + operasi khusus tiap menu.", "— View/Create/Update/Delete + special operations per menu.")}</span>
           </span>
         </div>
@@ -444,7 +444,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", active ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400")}>{t("dibatasi", "restricted")}</span>
                         )}
                         {u.ruleCount > 0 && (
-                          <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", active ? "bg-white/20 text-white" : "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300")}>{t("{n} rule", "{n} rules", { n: u.ruleCount })}</span>
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", active ? "bg-white/20 text-white" : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/75")}>{t("{n} rule", "{n} rules", { n: u.ruleCount })}</span>
                         )}
                       </span>
                     </button>
@@ -482,7 +482,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                     <div className="ml-auto flex flex-wrap items-center gap-1.5">
                       <Badge variant="outline" className={cn("text-[10px] font-bold", ROLE_TONE[selected.role] ?? "")}>{selected.role}</Badge>
                       {selected.subordinateCount > 0 && (
-                        <Badge variant="outline" className="gap-1 border-teal-200 bg-teal-50 text-[10px] font-bold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-300">
+                        <Badge variant="outline" className="gap-1 border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
                           <UserCheck className="h-3 w-3" /> {t("{n} bawahan", "{n} subordinates", { n: selected.subordinateCount })}
                         </Badge>
                       )}
@@ -722,9 +722,9 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                         "flex items-center gap-3 rounded-2xl border px-4 py-3",
                         preview.all
                           ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10"
-                          : "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/25 dark:bg-emerald-500/10",
+                          : "border-brand/25 bg-brand/10/70 dark:border-brand/25 dark:bg-brand/10",
                       )}>
-                        {preview.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-emerald-600" />}
+                        {preview.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-brand" />}
                         <div>
                           <p className="text-sm font-bold text-stone-900 dark:text-stone-50">
                             {preview.all ? t("Akses penuh — seluruh data karyawan", "Full access — all employee data") : t("{n} karyawan dapat diakses", "{n} employees accessible", { n: preview.accessibleCount })}
@@ -850,7 +850,7 @@ function UserRuleCard({ r, busy, onToggle, onEdit, onDelete }: {
             {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-stone-500 dark:text-stone-400">{r.description}</p>}
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
-                <Badge variant="outline" className="gap-1 rounded-lg border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                <Badge variant="outline" className="gap-1 rounded-lg border-brand/25 bg-brand/10 text-[11px] text-brand-deep dark:border-brand/70 dark:bg-brand/90 dark:text-brand/75">
                   <ShieldCheck className="h-3 w-3" /> {t("Akses penuh — semua karyawan (tanpa kriteria)", "Full access — all employees (no criteria)")}
                 </Badge>
               ) : criteria.map((c, i) => (
@@ -1007,7 +1007,7 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
               ))}
             </div>
             {!anyCriteria && (
-              <p className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/10 dark:text-brand/75">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 {t("Tanpa kriteria apa pun, rule ini memberi", "With no criteria at all, this rule grants")} <b>{t("akses penuh", "full access")}</b> {t("ke seluruh data karyawan bagi {name}.", "to all employee data for {name}.", { name: user.fullName })}
               </p>
@@ -1199,7 +1199,7 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
                   <div className="min-w-0">
                     <Label htmlFor={`ma-${menuKey}-${d.key}`} className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
                       {t(d.label, MENU_ACTION_LABEL_EN[d.key] ?? d.label)}
-                      {locked && <span className="ml-1.5 rounded-md bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">{t("terkunci", "locked")}</span>}
+                      {locked && <span className="ml-1.5 rounded-md bg-brand/15 px-1 py-px text-[9px] font-bold text-brand-deep dark:bg-brand/15 dark:text-brand/85">{t("terkunci", "locked")}</span>}
                     </Label>
                     <p className="text-[11px] leading-snug text-stone-400">{locked ? t("Aktif karena menu diizinkan", "On because the menu is allowed") : t(d.hint, MENU_ACTION_HINT_EN[d.key] ?? d.hint)}</p>
                   </div>

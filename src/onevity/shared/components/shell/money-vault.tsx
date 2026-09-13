@@ -301,7 +301,7 @@ export function MoneyVaultButton() {
         ? { cls: "bg-amber-500", pulse: true } // admin: belum diatur → ajakan aksi
         : { cls: "bg-stone-400 dark:bg-stone-500", pulse: false };
     }
-    if (st.open) return { cls: "bg-emerald-500", pulse: false };
+    if (st.open) return { cls: "bg-brand", pulse: false };
     // tertutup: admin & pengguna ber-grant peduli; pemirsa none/legacy abu-abu
     return st.canManage || st.myView === "granted"
       ? { cls: "bg-rose-500", pulse: false }
@@ -515,10 +515,10 @@ export function MoneyVaultButton() {
                     </AlertDescription>
                   </Alert>
                 ) : st.open ? (
-                  <Alert className="border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                    <LockKeyholeOpen className="text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                    <LockKeyholeOpen className="text-brand dark:text-brand/85" aria-hidden />
                     <AlertTitle>{t("Brankas uang TERBUKA", "Money vault OPEN")}</AlertTitle>
-                    <AlertDescription className="text-emerald-700 dark:text-emerald-400">
+                    <AlertDescription className="text-brand-deep dark:text-brand/85">
                       {t("Pengguna dengan hak lihat uang dapat melihat nilainya.", "Users with money view rights can see the values.")}
                       {st.openUntil && (
                         <span className="block">
@@ -558,7 +558,7 @@ export function MoneyVaultButton() {
                     {t("Hak lihat uang Anda:", "Your money view rights:")}{" "}
                     <span className={cn(
                       "font-bold",
-                      st.myView === "admin" || st.myView === "granted" ? "text-emerald-600 dark:text-emerald-400" : st.myView === "none" ? "text-rose-600 dark:text-rose-400" : "text-stone-500",
+                      st.myView === "admin" || st.myView === "granted" ? "text-brand dark:text-brand/85" : st.myView === "none" ? "text-rose-600 dark:text-rose-400" : "text-stone-500",
                     )}>{myViewLabel(st.myView)}</span>
                   </p>
                   {st.configured && (
@@ -640,8 +640,8 @@ export function MoneyVaultButton() {
                       onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
                     >
                       <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
-                      <Alert className="border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
-                        <KeyRound className="text-sky-600 dark:text-sky-400" aria-hidden />
+                      <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                        <KeyRound className="text-brand dark:text-brand/85" aria-hidden />
                         <AlertDescription>
                           {t(
                             "Kata sandi ini menjadi KUNCI enkripsi data sensitif perusahaan ini (NIK, rekening, seluruh nilai uang) — tidak perlu variabel server apa pun. Seluruh data akan otomatis dienkripsi ulang saat disimpan.",
@@ -667,8 +667,8 @@ export function MoneyVaultButton() {
                   </>
                 ) : (
                   <>
-                    <Alert className="border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
-                      <KeyRound className="text-sky-600 dark:text-sky-400" aria-hidden />
+                    <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                      <KeyRound className="text-brand dark:text-brand/85" aria-hidden />
                       <AlertDescription>
                         {t(
                           "Bisa diganti KAPAN PUN (brankas terbuka maupun tertutup) — seluruh data akan didekripsi lalu dienkripsi ulang dengan kata sandi baru secara otomatis. Status brankas (terbuka/tertutup) tidak berubah.",
@@ -722,8 +722,8 @@ export function MoneyVaultButton() {
                   </>
                 ) : (
                   <>
-                    <Alert className="border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
-                      <Users className="text-sky-600 dark:text-sky-400" aria-hidden />
+                    <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                      <Users className="text-brand dark:text-brand/85" aria-hidden />
                       <AlertTitle>{t("Bagikan hak lihat uang", "Share money view rights")}</AlertTitle>
                       <AlertDescription>
                         {t(
@@ -766,7 +766,7 @@ export function MoneyVaultButton() {
                                   <TableCell className="py-2.5">{roleBadge(m.role)}</TableCell>
                                   <TableCell className="py-2.5 text-right">
                                     {implicit ? (
-                                      <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                                      <span className="text-[10px] font-bold uppercase tracking-wide text-brand dark:text-brand/85">
                                         {t("Otomatis", "Automatic")}
                                       </span>
                                     ) : (

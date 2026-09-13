@@ -329,7 +329,7 @@ export function TravelClaimsPage() {
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {c.journalNo ? (
-                            <span className="flex items-center gap-1 font-mono text-[11px] font-bold text-teal-700 dark:text-teal-400">
+                            <span className="flex items-center gap-1 font-mono text-[11px] font-bold text-brand-deep dark:text-brand/85">
                               <Landmark className="h-3 w-3" /> {c.journalNo}
                             </span>
                           ) : (
@@ -361,7 +361,7 @@ export function TravelClaimsPage() {
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
                                     <p className="text-[10px] font-bold text-stone-500">{t("(b) Ke karyawan", "(b) To employee")}</p>
-                                    <p className="text-sm font-black text-teal-700 dark:text-teal-400">{fmtIDR(c.payableEmployee)}</p>
+                                    <p className="text-sm font-black text-brand-deep dark:text-brand/85">{fmtIDR(c.payableEmployee)}</p>
                                   </div>
                                   <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
                                     <p className="text-[10px] font-bold text-stone-500">{t("(c) Ke perusahaan", "(c) To company")}</p>
@@ -374,7 +374,7 @@ export function TravelClaimsPage() {
                                 </div>
                                 {c.remark && <p className="mt-2 text-[11px] text-stone-500">{c.remark}</p>}
                                 {c.status === "Paid" && c.paidRunNo && (
-                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
+                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-brand/10 px-3 py-1.5 text-[11px] font-bold text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
                                     <Landmark className="h-3 w-3" /> {t("Dibayar via payroll run {no} (period {p})", "Paid via payroll run {no} (period {p})", { no: c.paidRunNo, p: c.periodCode ?? "-" })}
                                   </p>
                                 )}
@@ -563,7 +563,7 @@ export function TravelClaimsPage() {
                   <Input type="number" min="0" value={amounts.exchangeLoss} onChange={(e) => setAmounts({ ...amounts, exchangeLoss: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-teal-700 dark:text-teal-400">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</Label>
+                  <Label className="text-[10px] font-bold text-brand-deep dark:text-brand/85">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</Label>
                   <Input
                     type="number" min="0" readOnly value={suggestedB}
                     placeholder={String(suggestedB)} className="h-8 bg-stone-50 text-sm font-bold dark:bg-stone-900"

@@ -83,7 +83,7 @@ const SAMPLE_EMPLOYEES = ["MII00001", "MII00002", "MII00003", "MII00004", "MII00
 type Phase = "idle" | "checking" | "preview" | "committing" | "done";
 
 const STATUS_META: Record<RowStatus, { id: string; en: string; icon: React.ElementType; cls: string; rowCls: string }> = {
-  ok: { id: "OK — baru", en: "OK — new", icon: CheckCircle2, cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400", rowCls: "bg-emerald-50/40 dark:bg-emerald-500/5" },
+  ok: { id: "OK — baru", en: "OK — new", icon: CheckCircle2, cls: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85", rowCls: "bg-brand/10/40 dark:bg-brand/5" },
   duplicate: { id: "Duplikat", en: "Duplicate", icon: Copy, cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400", rowCls: "bg-amber-50/40 dark:bg-amber-500/5" },
   unknown: { id: "Tidak dikenal", en: "Unknown", icon: UserX, cls: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400", rowCls: "bg-orange-50/40 dark:bg-orange-500/5" },
   invalid: { id: "Tidak valid", en: "Invalid", icon: FileX2, cls: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400", rowCls: "bg-rose-50/40 dark:bg-rose-500/5" },
@@ -330,7 +330,7 @@ export function AttendanceMachineImportPage() {
               <div className="grid grid-cols-2 gap-3 px-5 py-3 sm:grid-cols-5">
                 {[
                   { label: t("Baris Terbaca", "Rows Parsed"), value: report.summary.total, tone: "text-stone-700 dark:text-stone-200" },
-                  { label: t("Baru (OK)", "New (OK)"), value: report.summary.ok, tone: "text-emerald-600 dark:text-emerald-400" },
+                  { label: t("Baru (OK)", "New (OK)"), value: report.summary.ok, tone: "text-brand dark:text-brand/85" },
                   { label: t("Duplikat", "Duplicates"), value: report.summary.duplicate, tone: "text-amber-600 dark:text-amber-400" },
                   { label: t("Tak Dikenal", "Unknown"), value: report.summary.unknown, tone: "text-orange-600 dark:text-orange-400" },
                   { label: t("Tak Valid", "Invalid"), value: report.summary.invalid, tone: "text-rose-600 dark:text-rose-400" },
@@ -385,7 +385,7 @@ export function AttendanceMachineImportPage() {
                           </TableCell>
                           <TableCell>
                             {r.direction ? (
-                              <Badge variant="outline" className={cn("text-[10px] font-bold", r.direction === "IN" ? "border-emerald-200 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-400" : "border-rose-200 text-rose-700 dark:border-rose-500/30 dark:text-rose-400")}>
+                              <Badge variant="outline" className={cn("text-[10px] font-bold", r.direction === "IN" ? "border-brand/25 text-brand-deep dark:border-brand/30 dark:text-brand/85" : "border-rose-200 text-rose-700 dark:border-rose-500/30 dark:text-rose-400")}>
                                 {r.direction}
                               </Badge>
                             ) : (
@@ -435,9 +435,9 @@ export function AttendanceMachineImportPage() {
       {/* ===== hasil komit ===== */}
       {phase === "done" && result && summary && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="rounded-2xl border-emerald-200/80 shadow-sm dark:border-emerald-500/25">
+          <Card className="rounded-2xl border-brand/25/80 shadow-sm dark:border-brand/25">
             <CardContent className="p-5">
-              <div className={cn("flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-semibold", result.summary.ok > 0 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
+              <div className={cn("flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-semibold", result.summary.ok > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
                 {result.summary.ok > 0 ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Copy className="mt-0.5 h-4 w-4 shrink-0" />}
                 {result.summary.ok > 0
                   ? t("Import selesai — {n} log disisipkan, {s} dilewati.", "Import finished — {n} logs inserted, {s} skipped.", { n: result.summary.ok, s: result.summary.duplicate + result.summary.unknown + result.summary.invalid })
@@ -543,7 +543,7 @@ export function AttendanceMachineImportPage() {
                         {b.dateFrom ? `${fmtDateShort(b.dateFrom, locale)} → ${fmtDateShort(b.dateTo ?? b.dateFrom, locale)}` : "—"}
                       </TableCell>
                       <TableCell className="text-right text-xs font-semibold tabular-nums text-stone-600 dark:text-stone-300">{b.rowCount}</TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{b.inserted}</TableCell>
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-brand dark:text-brand/85">{b.inserted}</TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-amber-600 dark:text-amber-400">{b.skipped}</TableCell>
                       <TableCell className="text-[11px] text-stone-500 dark:text-stone-400">{fmtDateTime(b.importedAt)}</TableCell>
                     </TableRow>

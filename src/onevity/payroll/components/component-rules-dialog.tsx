@@ -171,7 +171,7 @@ export function ComponentRulesDialog({ open, comp, onClose }: { open: boolean; c
                                     className={cn(
                                       "w-fit rounded-md px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide",
                                       (r.matchMode ?? "all") === "any"
-                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
+                                        ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
                                         : "bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-300",
                                     )}
                                     title={(r.matchMode ?? "all") === "any" ? t("Salah satu kondisi cukup", "Any one condition suffices") : t("Semua kondisi harus cocok", "All conditions must match")}
@@ -257,7 +257,7 @@ function PreviewTab({ compId }: { compId: string }) {
         <Badge className="gap-1 bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
           {t("{n} karyawan", "{n} employees", { n: rows.length })}
         </Badge>
-        <Badge className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+        <Badge className="gap-1 bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
           {t("{n} kena aturan", "{n} matched by rule", { n: matchedCount })}
         </Badge>
         <Badge className="gap-1 bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">
@@ -313,7 +313,7 @@ function PreviewTab({ compId }: { compId: string }) {
                     <TableCell className="text-right font-mono text-[11px] text-stone-500">{r.base != null ? fmtIDR(r.base) : "—"}</TableCell>
                     <TableCell>
                       {r.matchedRule ? (
-                        <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-emerald-600 dark:text-emerald-400" title={r.matchedRule.name}>
+                        <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-brand dark:text-brand/85" title={r.matchedRule.name}>
                           {r.matchedRule.name}
                         </Badge>
                       ) : (
@@ -353,7 +353,7 @@ function MatchModeToggle({ value, onChange }: { value: RuleMatchMode; onChange: 
   const { t } = useI18n();
   const items: { v: RuleMatchMode; label: string; labelEn: string; activeCls: string }[] = [
     { v: "all", label: "DAN — semua cocok", labelEn: "AND — all match", activeCls: "bg-white ov-text-accent shadow-sm dark:bg-stone-700" },
-    { v: "any", label: "ATAU — salah satu", labelEn: "OR — any one", activeCls: "bg-white text-amber-600 shadow-sm dark:bg-stone-700 dark:text-amber-400" },
+    { v: "any", label: "ATAU — salah satu", labelEn: "OR — any one", activeCls: "bg-white text-brand shadow-sm dark:bg-stone-700 dark:text-brand/85" },
   ];
   return (
     <div className="flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800" role="group" aria-label={t("Kombinasi kondisi", "Condition combination")}>

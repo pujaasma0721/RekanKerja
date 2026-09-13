@@ -106,9 +106,9 @@ export function TravelReportsPage() {
               <p className="text-[11px] text-stone-500">{t("rincian bruto — settlement = rincian + rugi kurs − (a)", "gross expenses — settlement = expenses + exchange loss − (a)")}</p>
             </CardContent>
           </Card>
-          <Card className="border-teal-200 bg-teal-50/50 shadow-sm dark:border-teal-800 dark:bg-teal-950/20">
+          <Card className="border-brand/25 bg-brand/10/50 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
             <CardContent className="p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">{t("(b) Dibayar Karyawan", "(b) Paid to Employee")}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("(b) Dibayar Karyawan", "(b) Paid to Employee")}</p>
               <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.payableEmployee)}</p>
             </CardContent>
           </Card>
@@ -219,12 +219,12 @@ export function TravelReportsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(r.totalSettlement)}</p>
-                          {r.payableEmployee > 0 && <p className="text-[10px] font-bold text-teal-700 dark:text-teal-400">(b) {fmtIDRShort(r.payableEmployee)}</p>}
+                          {r.payableEmployee > 0 && <p className="text-[10px] font-bold text-brand-deep dark:text-brand/85">(b) {fmtIDRShort(r.payableEmployee)}</p>}
                           {r.payableCompany > 0 && <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) {fmtIDRShort(r.payableCompany)}</p>}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {r.journalNo ? (
-                            <span className="flex items-center gap-1 font-mono text-[11px] font-bold text-teal-700 dark:text-teal-400">
+                            <span className="flex items-center gap-1 font-mono text-[11px] font-bold text-brand-deep dark:text-brand/85">
                               <Landmark className="h-3 w-3" /> {r.journalNo}
                             </span>
                           ) : (

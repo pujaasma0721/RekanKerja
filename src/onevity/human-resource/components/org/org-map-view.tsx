@@ -85,9 +85,9 @@ const EMP_LABEL_EN: Record<string, string> = { Permanent: "Permanent", Probation
 const empLabelEn = (s: string) => EMP_LABEL_EN[s] ?? s;
 const STATUS_DOT: Record<string, string> = {
   Probation: "bg-amber-400",
-  Contract: "bg-teal-400",
+  Contract: "bg-brand/55",
   Outsourcing: "bg-orange-400",
-  Permanent: "bg-emerald-500",
+  Permanent: "bg-brand",
 };
 const LINE = "bg-stone-300 dark:bg-stone-700";
 const DEFAULT_DEPTH = 1; // kedalaman default terbuka (0 = akar)
@@ -504,9 +504,9 @@ export function OrgMapView() {
           <div className="absolute left-3 top-3 hidden rounded-xl border border-stone-200 bg-white/90 px-2.5 py-2 shadow-sm backdrop-blur dark:border-stone-800 dark:bg-stone-900/90 lg:block">
             <p className="mb-1 text-[9px] font-extrabold uppercase tracking-[0.15em] text-stone-400">{t("Legenda", "Legend")}</p>
             <div className="space-y-1 text-[10px] font-medium text-stone-600 dark:text-stone-300">
-              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("Karyawan tetap", "Permanent employee")}</p>
+              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand" /> {t("Karyawan tetap", "Permanent employee")}</p>
               <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> {t("Percobaan", "Probation")}</p>
-              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" /> {t("Kontrak", "Contract")}</p>
+              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand/55" /> {t("Kontrak", "Contract")}</p>
               <p className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded border-2 border-dashed border-amber-400" /> {t("Posisi lowong", "Vacant position")}</p>
               <p className="flex items-center gap-1.5"><Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" /> {t("Kepala unit", "Unit head")}</p>
             </div>
@@ -671,7 +671,7 @@ function PersonCard({
           <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(p.fullName), root && "ring-2 ring-ring/40")}>
             {initials(p.fullName)}
           </span>
-          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
+          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-brand")} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
@@ -695,7 +695,7 @@ function PersonCard({
           {p.employmentStatus !== "Permanent" && (
             <span className={cn(
               "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
-              p.employmentStatus === "Probation" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400"
+              p.employmentStatus === "Probation" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
             )}>
               {t(empLabel(p.employmentStatus), empLabelEn(p.employmentStatus))}
             </span>
@@ -793,8 +793,8 @@ function UnitColumn({
 
 const LEVEL_STYLE: Record<number, { icon: typeof Building; box: string }> = {
   1: { icon: Crown, box: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" },
-  2: { icon: Landmark, box: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
-  3: { icon: Building, box: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400" },
+  2: { icon: Landmark, box: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85" },
+  3: { icon: Building, box: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85" },
   4: { icon: Network, box: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300" },
 };
 
@@ -876,7 +876,7 @@ function UnitCard({
       {u.headcountBudget > 0 && (
         <div className="mt-2 flex items-center justify-between gap-2 text-[9.5px]">
           <span className="text-stone-400">{t("Budget {n} org", "Budget {n} people", { n: u.headcountBudget })}</span>
-          <span className={cn("font-bold", overBudget ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+          <span className={cn("font-bold", overBudget ? "text-amber-600 dark:text-amber-400" : "text-brand dark:text-brand/85")}>
             {agg.total}/{u.headcountBudget} {overBudget ? t("melebihi", "over budget") : t("sesuai", "within budget")}
           </span>
         </div>
@@ -917,7 +917,7 @@ function MobilePersonItem({
         <button type="button" onClick={() => openPerson(p.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className="relative flex shrink-0">
             <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</span>
-            <span className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
+            <span className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-brand")} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1">
@@ -1065,7 +1065,7 @@ function PersonDrawer({
               <div className="flex items-start gap-3.5">
                 <div className="relative shrink-0">
                   <span className={cn("flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-extrabold", avatarColor(e.fullName))}>{initials(e.fullName)}</span>
-                  <span className={cn("absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-[3px] border-white dark:border-stone-900", STATUS_DOT[e.employmentStatus] ?? "bg-emerald-500")} />
+                  <span className={cn("absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-[3px] border-white dark:border-stone-900", STATUS_DOT[e.employmentStatus] ?? "bg-brand")} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1239,7 +1239,7 @@ function PersonDrawer({
                       <div className="space-y-1.5">
                         {e.experiences.map((ex) => (
                           <div key={ex.id} className="flex items-start gap-2.5 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400"><Briefcase className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"><Briefcase className="h-3.5 w-3.5" /></span>
                             <div className="min-w-0 flex-1">
                               <p className="text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{ex.position} — {ex.company}</p>
                               <p className="text-[10px] text-stone-400">{fmtDate(ex.startDate)} → {ex.endDate ? fmtDate(ex.endDate) : t("sekarang", "present")}</p>
@@ -1355,7 +1355,7 @@ function UnitDrawer({
                     <span className="font-mono">{u.code}</span> · {t(levelLabel(u.level), levelLabelEn(u.level))} · {t("{n} sub-unit", "{n} sub-units", { n: subUnits.length })}
                   </p>
                   {u.headcountBudget > 0 && (
-                    <p className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", agg.total > u.headcountBudget ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400")}>
+                    <p className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", agg.total > u.headcountBudget ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85")}>
                       <MapPin className="h-2.5 w-2.5" /> {t("{a}/{b} dari budget", "{a}/{b} of budget", { a: agg.total, b: u.headcountBudget })}
                     </p>
                   )}
@@ -1416,7 +1416,7 @@ function UnitDrawer({
                         <span className="block truncate text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{m.fullName}</span>
                         <span className="block truncate text-[9.5px] text-stone-400">{m.positionTitle ?? "—"}{m.gradeCode ? ` · ${m.gradeCode}` : ""}</span>
                       </span>
-                      <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[m.employmentStatus] ?? "bg-emerald-500")} />
+                      <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[m.employmentStatus] ?? "bg-brand")} />
                     </button>
                   ))}
                 </div>
@@ -1441,7 +1441,7 @@ function UnitDrawer({
                             <span className="font-mono">{p.code}</span>{p.reportsToTitle ? t(" · bawahan {r}", " · reports to {r}", { r: p.reportsToTitle }) : ""}{p.gradeCode ? ` · ${p.gradeCode}` : ""}
                           </p>
                         </div>
-                        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold", open > 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400")}>
+                        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold", open > 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85")}>
                           {p.filled}/{p.headcount}{open > 0 ? t(" · lowong", " · vacant") : ""}
                         </span>
                       </div>

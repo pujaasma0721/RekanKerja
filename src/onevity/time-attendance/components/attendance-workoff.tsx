@@ -117,13 +117,13 @@ export function AttendanceWorkoffPage() {
           <p className="text-[11px] text-stone-400">{t("dokumen izin", "permit documents")}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Disetujui")}</p></div>
-          <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{t("{a} · {b} hari", "{a} · {b} days", { a: stats?.approved ?? 0, b: stats?.totalDays ?? 0 })}</p>
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Disetujui")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{t("{a} · {b} hari", "{a} · {b} days", { a: stats?.approved ?? 0, b: stats?.totalDays ?? 0 })}</p>
           <p className="text-[11px] text-stone-400">{t("{n} memotong saldo cuti", "{n} deduct leave balance", { n: stats?.deductLeave ?? 0 })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><FileInput className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Dibayar (gaji tetap)", "Paid (salary kept)")}</p></div>
-          <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">{stats?.paid ?? 0}</p>
+          <div className="flex items-center gap-2"><FileInput className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Dibayar (gaji tetap)", "Paid (salary kept)")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{stats?.paid ?? 0}</p>
           <p className="text-[11px] text-stone-400">{t("{n} tidak dibayar (potongan)", "{n} unpaid (deducted)", { n: stats?.unpaid ?? 0 })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -190,11 +190,11 @@ export function AttendanceWorkoffPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn("text-[10px] font-bold",
-                          p.paid ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
+                          p.paid ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
                         )}>{p.paid ? t("Dibayar", "Paid") : t("Tanpa upah", "Unpaid")}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", p.deductLeave ? "text-violet-600 dark:text-violet-400" : "text-stone-400")}>
+                        <span className={cn("text-[11px] font-bold", p.deductLeave ? "text-brand dark:text-brand/85" : "text-stone-400")}>
                           {p.deductLeave ? t("Ya") : t("Tidak")}
                         </span>
                       </TableCell>
@@ -222,7 +222,7 @@ export function AttendanceWorkoffPage() {
                               {perms.canOp("attendance", "workoff", "approve") && (
                                 <>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Setujui", "Approve")} onClick={() => decide(p, "approve")} aria-label={t("Setujui izin", "Approve permit")}>
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                    <CheckCircle2 className="h-4 w-4 text-brand" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Tolak", "Reject")} onClick={() => { setRejectTarget(p); setRejectNote(""); }} aria-label={t("Tolak izin", "Reject permit")}>
                                     <XCircle className="h-4 w-4 text-rose-500" />

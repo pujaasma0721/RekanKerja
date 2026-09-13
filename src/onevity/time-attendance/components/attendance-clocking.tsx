@@ -19,10 +19,10 @@ import { Activity, Plus, RefreshCw, Search, LogIn, LogOut, Clock } from "lucide-
 import { cn } from "@/lib/utils";
 
 const STATUS_TONE: Record<string, string> = {
-  Present: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+  Present: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   Late: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
   Absent: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
-  WorkOff: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
+  WorkOff: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   Off: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
 };
 
@@ -92,10 +92,10 @@ export function AttendanceClockingPage() {
 
       <div className="mb-4 grid grid-cols-3 gap-3 xl:grid-cols-6">
         {[
-          { label: t("Hadir", "Present"), value: stats?.present ?? 0, tone: "text-emerald-600 dark:text-emerald-400" },
+          { label: t("Hadir", "Present"), value: stats?.present ?? 0, tone: "text-brand dark:text-brand/85" },
           { label: t("Telat", "Late"), value: stats?.late ?? 0, tone: "text-amber-600 dark:text-amber-400" },
           { label: t("Absen", "Absent"), value: stats?.absent ?? 0, tone: "text-rose-600 dark:text-rose-400" },
-          { label: t("Izin", "Permit"), value: stats?.workoff ?? 0, tone: "text-violet-600 dark:text-violet-400" },
+          { label: t("Izin", "Permit"), value: stats?.workoff ?? 0, tone: "text-brand dark:text-brand/85" },
           { label: "Off", value: stats?.off ?? 0, tone: "text-stone-500" },
           { label: t("Total Telat", "Total Late"), value: t("{n} j", "{n} h", { n: Math.round((stats?.lateMinutes ?? 0) / 60) }), tone: "text-amber-700" },
         ].map((k) => (
@@ -223,7 +223,7 @@ export function AttendanceClockingPage() {
                             <p className="font-mono text-[10px] text-stone-400">{l.employee.employeeNo}</p>
                           </TableCell>
                           <TableCell>
-                            <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold", l.direction === "IN" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400")}>
+                            <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold", l.direction === "IN" ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85" : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400")}>
                               {l.direction === "IN" ? <LogIn className="h-3 w-3" /> : <LogOut className="h-3 w-3" />} {l.direction}
                             </span>
                           </TableCell>

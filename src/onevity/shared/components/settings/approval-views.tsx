@@ -138,7 +138,7 @@ function TemplatesTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="rounded-full border-teal-200 bg-teal-50 text-[10px] font-bold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400">{tpl.docType}</Badge>
+                  <Badge variant="outline" className="rounded-full border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{tpl.docType}</Badge>
                   {tpl.autoApprove && (
                     <Badge className="gap-1 rounded-full bg-amber-50 text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
                       <Zap className="h-3 w-3" /> AUTO
@@ -334,9 +334,9 @@ function delegationStatus(d: Delegation): { label: string; cls: string } {
   const from = new Date(d.validFrom);
   const to = new Date(d.validTo);
   if (!d.active) return { label: "Nonaktif", cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" };
-  if (now < from) return { label: "Terjadwal", cls: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25" };
+  if (now < from) return { label: "Terjadwal", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
   if (now > to) return { label: "Kedaluwarsa", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" };
-  return { label: "Aktif", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25" };
+  return { label: "Aktif", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
 }
 
 function TempApproversTab() {
@@ -365,7 +365,7 @@ function TempApproversTab() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-stone-500 dark:text-stone-400">{t("{n} delegasi approver aktif/tercatat.", "{n} approver delegations active/recorded.", { n: delegations.length })}</p>
-          <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">{t("Delegasi AKTIF — mesin approval membacanya saat keputusan jenjang (Leave/Travel/Medical/Loan/WorkOff/PA).", "Delegations are LIVE — the approval engine enforces them on tier decisions (Leave/Travel/Medical/Loan/WorkOff/PA).")}</p>
+          <p className="mt-0.5 text-xs text-brand dark:text-brand/85">{t("Delegasi AKTIF — mesin approval membacanya saat keputusan jenjang (Leave/Travel/Medical/Loan/WorkOff/PA).", "Delegations are LIVE — the approval engine enforces them on tier decisions (Leave/Travel/Medical/Loan/WorkOff/PA).")}</p>
         </div>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
           <Plus className="h-4 w-4" /> {t("Delegasi Baru", "New Delegation")}
@@ -411,7 +411,7 @@ function TempApproversTab() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold", st.cls)}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", st.label === "Aktif" ? "bg-emerald-500" : st.label === "Terjadwal" ? "bg-teal-500" : st.label === "Kedaluwarsa" ? "bg-rose-500" : "bg-stone-400")} />
+                      <span className={cn("h-1.5 w-1.5 rounded-full", st.label === "Aktif" ? "bg-brand" : st.label === "Terjadwal" ? "bg-brand" : st.label === "Kedaluwarsa" ? "bg-rose-500" : "bg-stone-400")} />
                       {t(st.label, DELEGATION_LABEL_EN[st.label] ?? st.label)}
                     </span>
                     <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
@@ -430,7 +430,7 @@ function TempApproversTab() {
                     <CalendarRange className="h-3.5 w-3.5" />
                     {fmtDate(d.validFrom)} <span className="text-stone-300 dark:text-stone-600">{t("s.d.", "to")}</span> {fmtDate(d.validTo)}
                   </span>
-                  <Badge variant="outline" className="rounded-full border-teal-200 bg-teal-50 text-[10px] font-bold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400">{d.docType}</Badge>
+                  <Badge variant="outline" className="rounded-full border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{d.docType}</Badge>
                   <span className="inline-flex items-center gap-1.5 text-stone-400">
                     <Clock3 className="h-3.5 w-3.5" />
                     {t("{n} hari tersisa", "{n} days left", { n: Math.max(0, Math.ceil((new Date(d.validTo).getTime() - Date.now()) / 86400000)) })}

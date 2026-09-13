@@ -227,7 +227,7 @@ export function AttachmentCountBadge({ count }: { count: number }) {
   const { t } = useI18n();
   if (!count) return null;
   return (
-    <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700 hover:bg-sky-100 dark:bg-sky-500/15 dark:text-sky-300">
+    <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-brand/15 px-1.5 py-0.5 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/75">
       <Paperclip className="h-2.5 w-2.5" />
       {t("lampiran {n}", "{n} attached", { n: count })}
     </span>

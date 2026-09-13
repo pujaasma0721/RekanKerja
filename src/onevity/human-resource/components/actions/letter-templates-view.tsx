@@ -237,11 +237,11 @@ export function LetterTemplatesView() {
               className={cn(
                 "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition-colors",
                 tpl.active
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
+                  ? "border-brand/25 bg-brand/10 text-brand-deep hover:bg-brand/15 dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
                   : "border-stone-200 bg-stone-50 text-stone-400 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-500",
               )}
             >
-              <span className={cn("h-1.5 w-1.5 rounded-full", tpl.active ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-600")} aria-hidden />
+              <span className={cn("h-1.5 w-1.5 rounded-full", tpl.active ? "bg-brand" : "bg-stone-300 dark:bg-stone-600")} aria-hidden />
               {tpl.active ? t("Aktif", "Active") : t("Nonaktif", "Inactive")}
             </button>
           </div>

@@ -81,7 +81,7 @@ function CellValue({ v, type }: { v: unknown; type: FieldType }) {
       <Badge variant="outline" className={cn(
         "text-[10px] font-bold",
         v
-          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25"
+          ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
           : "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
       )}>
         {v ? t("Ya", "Yes") : t("Tidak", "No")}
@@ -442,7 +442,7 @@ export function CustomReportsView() {
         <Card className="h-fit">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-[15px]">
-              <SlidersHorizontal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <SlidersHorizontal className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
               {t("Laporan Tersimpan", "Saved Reports")}
               <Badge variant="outline" className="ml-auto text-[10px] font-bold tabular-nums">{reports.length}</Badge>
             </CardTitle>
@@ -469,13 +469,13 @@ export function CustomReportsView() {
               ) : (
                 <ul className="max-h-[540px] space-y-2.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
                   {reports.map((r) => (
-                    <li key={r.id} className="rounded-xl border border-stone-200 p-3 transition-colors hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-500/40">
+                    <li key={r.id} className="rounded-xl border border-stone-200 p-3 transition-colors hover:border-brand/40 dark:border-stone-800 dark:hover:border-brand/40">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-semibold text-stone-800 dark:text-stone-100">{r.name}</p>
                           <p className="text-[10px] font-mono text-stone-400">{r.code}</p>
                         </div>
-                        <Badge variant="outline" className="shrink-0 bg-emerald-50 text-[10px] font-bold text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25">
+                        <Badge variant="outline" className="shrink-0 bg-brand/10 text-[10px] font-bold text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25">
                           {entityLabelOf(r.entity)}
                         </Badge>
                       </div>
@@ -523,7 +523,7 @@ export function CustomReportsView() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex flex-wrap items-center gap-2 text-[15px]">
-                <Table2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                <Table2 className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                 {t("Susun Laporan", "Report Builder")}
                 {editing && (
                   <Badge variant="outline" className="gap-1 bg-amber-50 text-[10px] font-bold text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25">
@@ -562,12 +562,12 @@ export function CustomReportsView() {
                 <div className="rounded-xl border border-stone-200 dark:border-stone-800">
                   <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-900/60">
                     <ChevronDown className="h-4 w-4 text-stone-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
-                    <Filter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    <Filter className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                     {t("Pilih Field", "Pick Fields")}
                     <Badge variant="outline" className={cn(
                       "ml-auto text-[10px] font-bold tabular-nums",
                       selected.length > 0
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25"
+                        ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
                         : "bg-stone-100 text-stone-500 border-stone-200",
                     )}>
                       {selected.length}/{limits?.maxFields ?? 25}
@@ -604,7 +604,7 @@ export function CustomReportsView() {
                                     className={cn(
                                       "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
                                       on
-                                        ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                        ? "border-brand/40 bg-brand/10 text-brand-deep hover:border-brand/40 dark:border-brand/40 dark:bg-brand/10 dark:text-brand/75"
                                         : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
                                     )}
                                   >
@@ -670,12 +670,12 @@ export function CustomReportsView() {
                 <div className="rounded-xl border border-stone-200 dark:border-stone-800">
                   <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-900/60">
                     <ChevronDown className="h-4 w-4 text-stone-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
-                    <Filter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    <Filter className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                     {t("Filter Data", "Data Filters")}
                     <Badge variant="outline" className={cn(
                       "ml-auto text-[10px] font-bold tabular-nums",
                       filterRows.length > 0
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25"
+                        ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
                         : "bg-stone-100 text-stone-500 border-stone-200",
                     )}>
                       {filterRows.length}/{limits?.maxFilters ?? 10}
@@ -805,7 +805,7 @@ export function CustomReportsView() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex flex-wrap items-center gap-2 text-[15px]">
-                <Table2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                <Table2 className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                 {t("Hasil", "Result")}
                 {result && (
                   <span className="text-[11px] font-normal text-stone-500 dark:text-stone-400">

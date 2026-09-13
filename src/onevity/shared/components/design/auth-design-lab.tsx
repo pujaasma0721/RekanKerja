@@ -123,12 +123,12 @@ function AuroraField() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <motion.div
-        className="absolute -left-[12%] -top-[22%] h-[72%] w-[62%] rounded-full bg-emerald-600/25 blur-[110px]"
+        className="absolute -left-[12%] -top-[22%] h-[72%] w-[62%] rounded-full bg-brand/25 blur-[110px]"
         animate={{ x: ["0%", "10%", "0%"], y: ["0%", "7%", "0%"] }}
         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute right-[-16%] top-[28%] h-[62%] w-[56%] rounded-full bg-teal-500/15 blur-[120px]"
+        className="absolute right-[-16%] top-[28%] h-[62%] w-[56%] rounded-full bg-brand/15 blur-[120px]"
         animate={{ x: ["0%", "-9%", "0%"], y: ["0%", "9%", "0%"] }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
       />
@@ -162,7 +162,7 @@ function MeshField() {
         }}
       />
       <motion.div
-        className="absolute left-[12%] top-[18%] h-[46%] w-[42%] rounded-full bg-emerald-500/10 blur-[110px]"
+        className="absolute left-[12%] top-[18%] h-[46%] w-[42%] rounded-full bg-brand/10 blur-[110px]"
         animate={{ scale: [1, 1.18, 1], opacity: [0.7, 1, 0.7] }}
         transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -190,7 +190,7 @@ function LogoLockup({ compact = false, light = false }: { compact?: boolean; lig
           compact ? "h-10 w-10" : "h-12 w-12",
           light
             ? "bg-stone-900 shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)]"
-            : "bg-gradient-to-br from-emerald-300 via-emerald-500 to-teal-600 shadow-[0_10px_28px_-10px_rgba(16,185,129,0.75),inset_0_1px_0_rgba(255,255,255,0.35)]",
+            : "bg-gradient-to-br from-brand/40 via-brand to-brand shadow-[0_10px_28px_-10px_rgba(16,185,129,0.75),inset_0_1px_0_rgba(255,255,255,0.35)]",
         )}
       >
         <Waypoints className={compact ? "h-5 w-5" : "h-6 w-6"} />
@@ -201,7 +201,7 @@ function LogoLockup({ compact = false, light = false }: { compact?: boolean; lig
           {light ? (
             <span className="text-amber-700">Vity</span>
           ) : (
-            <span className="bg-gradient-to-r from-emerald-200 to-teal-300 bg-clip-text text-transparent">Vity</span>
+            <span className="bg-gradient-to-r from-brand/30 to-brand/40 bg-clip-text text-transparent">Vity</span>
           )}
         </p>
         <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", light ? "text-stone-400" : "text-stone-500")}>HR Suite</p>
@@ -234,9 +234,9 @@ function LangPill({ sim, dark = true }: { sim: Sim; dark?: boolean }) {
       )}
     >
       <Languages className="h-3.5 w-3.5" />
-      <span className={lang === "id" ? "text-emerald-500" : "text-stone-500 dark:text-stone-500"}>ID</span>
+      <span className={lang === "id" ? "text-brand" : "text-stone-500 dark:text-stone-500"}>ID</span>
       <span className="opacity-40">·</span>
-      <span className={lang === "en" ? "text-emerald-500" : "text-stone-500 dark:text-stone-500"}>EN</span>
+      <span className={lang === "en" ? "text-brand" : "text-stone-500 dark:text-stone-500"}>EN</span>
     </button>
   );
 }
@@ -258,13 +258,13 @@ function GlassField({
         className={cn(
           "relative flex items-center rounded-xl border bg-white/[0.04] backdrop-blur-md transition-all duration-300",
           focus
-            ? "border-emerald-400/60 shadow-[0_0_0_4px_rgba(16,185,129,0.10),0_10px_26px_-14px_rgba(16,185,129,0.45)]"
+            ? "border-brand/40/60 shadow-[0_0_0_4px_rgba(16,185,129,0.10),0_10px_26px_-14px_rgba(16,185,129,0.45)]"
             : invalid
               ? "border-rose-500/60"
               : "border-white/10 hover:border-white/25",
         )}
       >
-        <Icon className={cn("pointer-events-none absolute left-4 h-4 w-4 transition-colors", focus ? "text-emerald-400" : "text-stone-500")} />
+        <Icon className={cn("pointer-events-none absolute left-4 h-4 w-4 transition-colors", focus ? "text-brand/85" : "text-stone-500")} />
         <input
           id={id}
           type={type}
@@ -274,7 +274,7 @@ function GlassField({
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           onChange={(e) => onChange(e.target.value)}
-          className="h-12 w-full rounded-xl bg-transparent pl-11 pr-4 text-sm text-stone-100 caret-emerald-400 outline-none placeholder:text-stone-600"
+          className="h-12 w-full rounded-xl bg-transparent pl-11 pr-4 text-sm text-stone-100 caret-brand/60 outline-none placeholder:text-stone-600"
         />
       </div>
       {hint && <p className="text-[11px] leading-relaxed text-stone-500">{hint}</p>}
@@ -318,7 +318,7 @@ function ShineCTA({ onClick, busy, children }: { onClick: () => void; busy: bool
       disabled={busy}
       whileHover={{ y: -1.5 }}
       whileTap={{ y: 0 }}
-      className="relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 text-[14px] font-bold tracking-wide text-stone-950 shadow-[0_14px_36px_-12px_rgba(16,185,129,0.75)] disabled:opacity-70"
+      className="relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-r from-brand via-brand/60 to-brand/60 text-[14px] font-bold tracking-wide text-stone-950 shadow-[0_14px_36px_-12px_rgba(16,185,129,0.75)] disabled:opacity-70"
     >
       <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
         <motion.span
@@ -398,7 +398,7 @@ function SuccessOverlay({ label }: { label: string }) {
         initial={{ scale: 0.5, rotate: -12 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: "spring", stiffness: 260, damping: 16 }}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 shadow-[0_0_40px_-6px_rgba(16,185,129,0.6)]"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-brand/15 text-brand/85 shadow-[0_0_40px_-6px_rgba(16,185,129,0.6)]"
       >
         <CheckCircle2 className="h-7 w-7" />
       </motion.div>
@@ -466,13 +466,13 @@ function FloatPayroll() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-[11px] font-bold text-stone-200">Payroll · Agustus 2026</p>
-          <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-emerald-400">Terbayar penuh</p>
+          <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-brand/85">Terbayar penuh</p>
         </div>
       </div>
       <p className="mt-3 font-mono text-[19px] font-bold tracking-tight text-stone-50">Rp 531.700.000</p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
         <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300"
+          className="h-full rounded-full bg-gradient-to-r from-brand/60 to-brand/40"
           initial={{ width: "12%" }}
           animate={{ width: "100%" }}
           transition={{ delay: 0.8, duration: 1.6, ease: "easeOut" }}
@@ -485,18 +485,18 @@ function FloatPayroll() {
 
 function FloatApprovals() {
   const items: { icon: typeof Palmtree; label: string; tint: string }[] = [
-    { icon: Palmtree, label: "Cuti", tint: "text-cyan-300 bg-cyan-400/10" },
-    { icon: Plane, label: "Travel", tint: "text-sky-300 bg-sky-400/10" },
+    { icon: Palmtree, label: "Cuti", tint: "text-brand/75 bg-brand/55/10" },
+    { icon: Plane, label: "Travel", tint: "text-brand/75 bg-brand/55/10" },
     { icon: HeartPulse, label: "Medis", tint: "text-rose-300 bg-rose-400/10" },
   ];
   return (
     <FloatCard className="w-[212px]" delay={0.55} rotate={-2}>
       <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-300">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/55/15 text-brand/75">
           <CalendarCheck2 className="h-4 w-4" />
         </span>
         <p className="text-[11px] font-bold text-stone-200">Menunggu persetujuan</p>
-        <span className="ml-auto rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-300">3</span>
+        <span className="ml-auto rounded-full bg-brand/55/20 px-1.5 py-0.5 text-[10px] font-extrabold text-brand/75">3</span>
       </div>
       <div className="mt-3 flex items-center gap-1.5">
         {["SW", "BS", "AR"].map((n, i) => (
@@ -504,7 +504,7 @@ function FloatApprovals() {
             key={n}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded-full border border-stone-950 text-[9px] font-extrabold text-stone-950",
-              i === 0 ? "bg-emerald-300" : i === 1 ? "bg-amber-300" : "bg-teal-300",
+              i === 0 ? "bg-brand/35" : i === 1 ? "bg-amber-300" : "bg-brand/35",
             )}
           >
             {n}
@@ -590,7 +590,7 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
     { icon: Coins, t: "Payroll Indonesia PPh21/BPJS", d: "Pajak progresif, TER, jurnal & SPT 1721-A1" },
     { icon: Users, t: "Modul HR lengkap", d: "Organisasi, karyawan, pengajuan & benefit" },
   ];
-  const inputCls = "h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/50";
+  const inputCls = "h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
   return (
     <div className="grid h-full min-h-0 bg-white lg:grid-cols-2">
       {variant === "desktop" && (
@@ -599,22 +599,22 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-[image:linear-gradient(to_right,rgba(214,211,209,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(214,211,209,0.05)_1px,transparent_1px)] bg-[size:36px_36px]" />
           <div className="relative z-10 flex h-full flex-col justify-between gap-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand text-white shadow-lg">
                 <Waypoints className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-lg font-bold tracking-tight text-stone-50">One<span className="text-emerald-400">Vity</span></p>
+                <p className="text-lg font-bold tracking-tight text-stone-50">One<span className="text-brand/85">Vity</span></p>
                 <p className="text-[11px] uppercase tracking-widest text-stone-500">HR Suite</p>
               </div>
             </div>
             <div className="max-w-md">
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">SaaS Multi-Tenant</span>
+              <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand/85">SaaS Multi-Tenant</span>
               <h2 className="mt-5 text-3xl font-bold tracking-tight text-stone-50 xl:text-4xl">OneVity HR Suite</h2>
               <p className="mt-3 text-sm leading-relaxed text-stone-400">HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.</p>
               <ul className="mt-9 space-y-4">
                 {feats.map((f) => (
                   <li key={f.t} className="flex items-start gap-3.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-brand/20 bg-brand/10 text-brand/85">
                       <f.icon className="h-[18px] w-[18px]" />
                     </span>
                     <span>
@@ -633,10 +633,10 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <LangPill sim={sim} dark={false} />
         <div className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/60">
           <div className="mb-3 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand/60 to-brand text-white shadow-md">
               <Waypoints className="h-5 w-5" />
             </div>
-            <p className="text-base font-bold tracking-tight text-stone-900">One<span className="text-emerald-600">Vity</span></p>
+            <p className="text-base font-bold tracking-tight text-stone-900">One<span className="text-brand">Vity</span></p>
           </div>
           <h1 className="text-xl font-bold text-stone-900">{tt("welcome", lang)}</h1>
           <p className="mt-1 text-sm text-stone-500">{tt("welcomeDesc", lang)}</p>
@@ -672,12 +672,12 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
               </>
             )}
             <SimErrorLight err={sim.err} />
-            <button type="submit" className="h-10 w-full rounded-md bg-emerald-600 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">
+            <button type="submit" className="h-10 w-full rounded-md bg-brand text-sm font-semibold text-white shadow-sm hover:bg-brand/70">
               {sim.phase === "busy" ? tt("busy", lang) : tab === "login" ? tt("masuk", lang) : tt("buat", lang)}
             </button>
             <p className="text-center text-xs text-stone-500">
               {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}{" "}
-              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-semibold text-emerald-700 hover:underline">
+              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-semibold text-brand-deep hover:underline">
                 {tab === "login" ? tt("buatLink", lang) : tt("masukLink", lang)}
               </button>
             </p>
@@ -717,7 +717,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
                 {tab === k && (
                   <motion.span
                     layoutId="aurora-tab"
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-300 to-teal-300 shadow-[0_6px_20px_-6px_rgba(16,185,129,0.7)]"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-brand/40 to-brand/40 shadow-[0_6px_20px_-6px_rgba(16,185,129,0.7)]"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
@@ -746,10 +746,10 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
             </ShineCTA>
             <div className="flex items-center justify-between gap-3 pt-0.5">
               <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/80" />
+                <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
                 {tt("secure", lang)}
               </span>
-              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline">
+              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="text-[11px] font-bold text-brand/85 hover:text-brand/75 hover:underline">
                 {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}
               </button>
             </div>
@@ -794,7 +794,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               transition={{ delay: 0.15, duration: 0.5 }}
               className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-300 backdrop-blur-md"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand/55 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
               SaaS Multi-Tenant
             </motion.span>
             <motion.h1
@@ -807,7 +807,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               <br />
               Seluruh operasional
               <br />
-              <span className="bg-gradient-to-r from-emerald-200 via-teal-200 to-amber-100 bg-clip-text font-serif italic text-transparent">
+              <span className="bg-gradient-to-r from-brand/30 via-brand/30 to-amber-100 bg-clip-text font-serif italic text-transparent">
                 perusahaan Anda.
               </span>
             </motion.h1>
@@ -1031,7 +1031,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
       <div aria-hidden className="absolute inset-x-10 top-0 z-10 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
       <AnimatePresence>{sim.phase === "done" && <SuccessOverlay label={tt("done", lang)} />}</AnimatePresence>
       <div className="text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-teal-200/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand/75/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
         <h2 className="mt-2 text-[22px] font-bold tracking-tight text-stone-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
         <p className="mt-1 text-[12.5px] text-stone-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
       </div>
@@ -1039,7 +1039,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
         {(["login", "register"] as const).map((k) => (
           <button key={k} onClick={() => switchTab(k)} className={cn("relative h-8 flex-1 rounded-full px-4 text-[12px] font-bold transition-colors", tab === k ? "text-stone-950" : "text-stone-400 hover:text-stone-200")}>
             {tab === k && (
-              <motion.span layoutId="showcase-tab" className="absolute inset-0 rounded-full bg-gradient-to-r from-teal-300 to-emerald-300" transition={{ type: "spring", stiffness: 380, damping: 32 }} />
+              <motion.span layoutId="showcase-tab" className="absolute inset-0 rounded-full bg-gradient-to-r from-brand/40 to-brand/40" transition={{ type: "spring", stiffness: 380, damping: 32 }} />
             )}
             <span className="relative">{k === "login" ? tt("masuk", lang) : tt("buat", lang)}</span>
           </button>
@@ -1067,7 +1067,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
         </ShineCTA>
         <p className="text-center text-[11px] text-stone-500">
           {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}{" "}
-          <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-bold text-emerald-400 hover:underline">
+          <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-bold text-brand/85 hover:underline">
             {tab === "login" ? tt("buatLink", lang) : tt("masukLink", lang)}
           </button>
         </p>
@@ -1110,14 +1110,14 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <div className="hidden text-center lg:mb-7 lg:block">
           <h1 className="text-[30px] font-extrabold tracking-[-0.02em] text-stone-50">
             Satu platform,{" "}
-            <span className="bg-gradient-to-r from-teal-200 to-emerald-200 bg-clip-text text-transparent">enam modul</span>{" "}
+            <span className="bg-gradient-to-r from-brand/30 to-brand/30 bg-clip-text text-transparent">enam modul</span>{" "}
             — data terisolasi.
           </h1>
           <p className="mt-2 text-[13px] text-stone-400">Lihat produknya bekerja bahkan sebelum Anda masuk.</p>
         </div>
         {card}
         <p className="mt-6 flex items-center gap-1.5 text-[11px] text-stone-500">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/80" />
+          <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
           {tt("secure", lang)}
         </p>
       </div>
@@ -1141,7 +1141,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-200/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
             <span className="flex items-center gap-1.5 text-[10px] font-semibold text-stone-500">
-              <Lock className="h-3 w-3 text-emerald-500/80" />
+              <Lock className="h-3 w-3 text-brand/80" />
               TLS
             </span>
           </div>
@@ -1156,7 +1156,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
                 {tab === k && (
                   <motion.span
                     layoutId="grand-tab"
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-300 to-teal-300 shadow-[0_6px_22px_-6px_rgba(16,185,129,0.8)]"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-brand/40 to-brand/40 shadow-[0_6px_22px_-6px_rgba(16,185,129,0.8)]"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
@@ -1189,10 +1189,10 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
             </ShineCTA>
             <div className="flex items-center justify-between gap-3 pt-0.5">
               <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/80" />
+                <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
                 {tt("secure", lang)}
               </span>
-              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline">
+              <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="text-[11px] font-bold text-brand/85 hover:text-brand/75 hover:underline">
                 {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}
               </button>
             </div>
@@ -1239,7 +1239,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
               transition={{ delay: 0.15, duration: 0.5 }}
               className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-300 backdrop-blur-md"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand/55 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
               SaaS Multi-Tenant · HR Suite
             </motion.span>
             <motion.h1
@@ -1250,7 +1250,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
             >
               Kesan pertama yang
               <br />
-              <span className="bg-gradient-to-r from-emerald-200 via-teal-200 to-amber-100 bg-clip-text font-serif italic text-transparent">
+              <span className="bg-gradient-to-r from-brand/30 via-brand/30 to-amber-100 bg-clip-text font-serif italic text-transparent">
                 sekelas operasional Anda.
               </span>
             </motion.h1>
@@ -1447,7 +1447,7 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         <ul className="mt-1.5 space-y-1.5">
           {opt.pros.map((t) => (
             <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
-              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand/85" />
               {t}
             </li>
           ))}
@@ -1482,7 +1482,7 @@ function BrowserFrame({ children }: { children: ReactNode }) {
       <div className="flex items-center gap-2 border-b border-white/[0.07] bg-stone-900 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-brand/55/70" />
         <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-stone-500">
           onevity.sayone.my.id · pratinjau desain halaman masuk
         </div>
@@ -1523,12 +1523,12 @@ export function AuthDesignLab() {
         {/* header */}
         <header className="flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-900/40">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/85/40">
               <Waypoints className="h-4 w-4 text-white" />
             </div>
             <div>
               <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">
-                OneVity <span className="text-emerald-400">Design Lab</span>
+                OneVity <span className="text-brand/85">Design Lab</span>
               </p>
               <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">Preview desain halaman masuk</p>
             </div>
@@ -1550,7 +1550,7 @@ export function AuthDesignLab() {
             Halaman masuk adalah kesan pertama pengguna terhadap produk. Lab ini merender konsep secara{" "}
             <span className="font-bold text-stone-200">interaktif penuh</span>: ketik email, coba submit kosong (validasi hidup),
             ganti tab Masuk/Buat Workspace, dan saklar bahasa ID/EN di pojok. Halaman login live{" "}
-            <span className="font-bold text-emerald-400">tidak tersentuh sama sekali</span> sampai Anda memilih.
+            <span className="font-bold text-brand/85">tidak tersentuh sama sekali</span> sampai Anda memilih.
           </p>
         </div>
 
@@ -1583,7 +1583,7 @@ export function AuthDesignLab() {
           <div className="min-w-0">
             <BrowserFrame key={`desk-${opt}`}>{active.render("desktop")}</BrowserFrame>
             <p className="mt-3 flex items-center gap-2 text-[11.5px] text-stone-500">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/70" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-brand/70" />
               Form di atas hidup: ketik, submit (loading → sukses), ganti tab &amp; bahasa.
             </p>
 

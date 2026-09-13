@@ -146,7 +146,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
   if (loading && !cfg) return <LoadingRows rows={5} />;
 
   const statusBadge = cfg?.active
-    ? <Badge className="gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"><CheckCircle2 className="h-3 w-3" /> {t("AKTIF", "ACTIVE")}</Badge>
+    ? <Badge className="gap-1 rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75"><CheckCircle2 className="h-3 w-3" /> {t("AKTIF", "ACTIVE")}</Badge>
     : <Badge className="gap-1 rounded-full bg-stone-100 px-2 text-[10px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400"><MinusCircle className="h-3 w-3" /> {t("NONAKTIF", "INACTIVE")}</Badge>;
 
   return (
@@ -185,7 +185,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">
-                Password SMTP {cfg?.hasPassword && <span className="ml-1 font-normal text-emerald-600">{t("(tersimpan — kosongkan agar tetap)", "(saved — leave empty to keep it)")}</span>}
+                Password SMTP {cfg?.hasPassword && <span className="ml-1 font-normal text-brand">{t("(tersimpan — kosongkan agar tetap)", "(saved — leave empty to keep it)")}</span>}
               </Label>
               <Input type="password" value={form.smtpPassword} onChange={(e) => setForm((f) => ({ ...f, smtpPassword: e.target.value }))} placeholder={cfg?.hasPassword ? "••••••••••" : t("app password / sandi SMTP", "app password / SMTP password")} className="text-[13px]" />
             </div>
@@ -229,7 +229,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
               <div className={cn(
                 "rounded-xl border p-3 text-xs",
                 cfg.lastTestOk
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
+                  ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/20 dark:bg-brand/10 dark:text-brand/75"
                   : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300",
               )}>
                 <p className="flex items-center gap-1.5 font-bold">
@@ -305,7 +305,7 @@ function TemplatesPanel() {
           className="h-9 w-full max-w-xs rounded-xl text-[13px]"
         />
         <Badge variant="secondary" className="rounded-full font-mono text-[10px]">{t("{n} template", "{n} templates", { n: templates.length })}</Badge>
-        <Badge className="rounded-full bg-emerald-100 px-2 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+        <Badge className="rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75">
           {t("{n} aktif", "{n} active", { n: templates.filter((tpl) => tpl.active).length })}
         </Badge>
       </div>
@@ -549,7 +549,7 @@ function LogsPanel() {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         {([
-          ["Sent", "Terkirim", "Sent", CheckCircle2, "text-emerald-600"],
+          ["Sent", "Terkirim", "Sent", CheckCircle2, "text-brand"],
           ["Failed", "Gagal", "Failed", XCircle, "text-rose-500"],
           ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-stone-400"],
         ] as const).map(([key, label, labelEn, Icon, cls]) => (

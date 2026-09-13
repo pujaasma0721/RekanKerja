@@ -110,13 +110,13 @@ export function AttendanceAbsencePage() {
           <p className="text-[11px] text-stone-400">{t("estimasi potongan {v}", "estimated deduction {v}", { v: fmtIDRShort(totals?.absenceDeduction ?? 0) })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Lembur Bulan Ini", "Overtime This Month")}</p></div>
-          <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">{t("{n} jam", "{n} h", { n: Math.round((totals?.overtimeMinutes ?? 0) / 60) })}</p>
+          <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Lembur Bulan Ini", "Overtime This Month")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{t("{n} jam", "{n} h", { n: Math.round((totals?.overtimeMinutes ?? 0) / 60) })}</p>
           <p className="text-[11px] text-stone-400">{t("estimasi dibayar {v}", "estimated pay {v}", { v: fmtIDRShort(totals?.overtimePay ?? 0) })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Kehadiran Sempurna", "Perfect Attendance")}</p></div>
-          <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{t("{n} karyawan", "{n} employees", { n: (api.data?.recap ?? []).filter((r) => r.attendanceAllowance > 0).length })}</p>
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Kehadiran Sempurna", "Perfect Attendance")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{t("{n} karyawan", "{n} employees", { n: (api.data?.recap ?? []).filter((r) => r.attendanceAllowance > 0).length })}</p>
           <p className="text-[11px] text-stone-400">{t("tunjangan {v}", "allowance {v}", { v: fmtIDRShort(totals?.attendanceAllowance ?? 0) })}</p>
         </div>
       </div>
@@ -158,7 +158,7 @@ export function AttendanceAbsencePage() {
                         <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</p>
                         <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400">{r.presentDays}/{r.scheduledDays}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold text-brand dark:text-brand/85">{r.presentDays}/{r.scheduledDays}</TableCell>
                       <TableCell className={cn("text-right text-xs font-bold", r.lateCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-400")}>
                         {r.lateCount > 0 ? t("{n}×", "{n}×", { n: r.lateCount }) : "—"}
                       </TableCell>
@@ -177,7 +177,7 @@ export function AttendanceAbsencePage() {
                       </TableCell>
                       <TableCell>
                         {r.attendanceAllowance > 0
-                          ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">{t("SEMPURNA", "PERFECT")}</Badge>
+                          ? <Badge variant="outline" className="border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{t("SEMPURNA", "PERFECT")}</Badge>
                           : <span className="text-[10px] text-stone-300">—</span>}
                       </TableCell>
                     </TableRow>
@@ -262,10 +262,10 @@ export function AttendanceAbsencePage() {
             </div>
             {totals && (
               <div className="grid grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-[11px] dark:bg-stone-900/60">
-                <p className="text-stone-500">{t("Estimasi lembur: ", "Est. overtime: ")}<span className="font-bold text-teal-600">{fmtIDR(totals.overtimePay ?? 0)}</span></p>
+                <p className="text-stone-500">{t("Estimasi lembur: ", "Est. overtime: ")}<span className="font-bold text-brand">{fmtIDR(totals.overtimePay ?? 0)}</span></p>
                 <p className="text-stone-500">{t("Estimasi potongan telat: ", "Est. late deduction: ")}<span className="font-bold text-rose-600">−{fmtIDR(totals.lateDeduction ?? 0)}</span></p>
                 <p className="text-stone-500">{t("Estimasi potongan absen: ", "Est. absence deduction: ")}<span className="font-bold text-rose-600">−{fmtIDR(totals.absenceDeduction ?? 0)}</span></p>
-                <p className="text-stone-500">{t("Tunjangan kehadiran: ", "Attendance allowance: ")}<span className="font-bold text-emerald-600">{fmtIDR(totals.attendanceAllowance ?? 0)}</span></p>
+                <p className="text-stone-500">{t("Tunjangan kehadiran: ", "Attendance allowance: ")}<span className="font-bold text-brand">{fmtIDR(totals.attendanceAllowance ?? 0)}</span></p>
               </div>
             )}
           </div>

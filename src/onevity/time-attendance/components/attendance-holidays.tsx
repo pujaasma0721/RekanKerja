@@ -43,13 +43,13 @@ const kindLabel = (t: (id: string, en: string) => string, kind: string) =>
 const kindCellStyle: Record<string, string> = {
   National: "bg-rose-500/90 text-white hover:bg-rose-500",
   Joint: "bg-amber-400/90 text-stone-900 hover:bg-amber-400",
-  Company: "bg-sky-500/90 text-white hover:bg-sky-500",
+  Company: "bg-brand/90 text-white hover:bg-brand",
 };
 
 const kindBadgeStyle: Record<string, string> = {
   National: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
   Joint: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
-  Company: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-400",
+  Company: "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
 };
 
 const WEEKDAYS_ID = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
@@ -177,7 +177,7 @@ export function AttendanceHolidaysPage() {
                 <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-stone-500">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> {t("Nasional", "National")}</span>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> {t("Cuti Bersama", "Joint Leave")}</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> {t("Perusahaan", "Company")}</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-brand" /> {t("Perusahaan", "Company")}</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

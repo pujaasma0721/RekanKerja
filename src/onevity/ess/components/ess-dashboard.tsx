@@ -144,7 +144,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
   const quickActions = [
     { label: t("Ajukan Cuti", "Request Leave"), icon: Palmtree, onClick: () => go("leave", "new"), cls: "text-amber-700 dark:text-amber-400" },
-    { label: t("Izin Tidak Masuk", "Work Off Permit"), icon: ClipboardList, onClick: () => go("requests", "workoff"), cls: "text-teal-700 dark:text-teal-400" },
+    { label: t("Izin Tidak Masuk", "Work Off Permit"), icon: ClipboardList, onClick: () => go("requests", "workoff"), cls: "text-brand-deep dark:text-brand/85" },
     { label: t("Ajukan Lembur", "Request Overtime"), icon: Clock, onClick: () => go("requests", "overtime"), cls: "text-orange-700 dark:text-orange-400" },
   ];
 
@@ -209,7 +209,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 </div>
                 <span className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold ring-1",
-                  doneForToday ? "bg-emerald-400/20 text-emerald-50 ring-emerald-300/30"
+                  doneForToday ? "bg-brand/55/20 text-brand/75 ring-brand/40/30"
                   : clocked ? "bg-white/15 text-white ring-white/25"
                   : "bg-white/15 text-white/90 ring-white/25",
                 )}>

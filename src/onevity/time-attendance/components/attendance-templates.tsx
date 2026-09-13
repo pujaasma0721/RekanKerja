@@ -173,7 +173,7 @@ function DayTypesTab() {
                     <TableCell>
                       <Badge variant="outline" className={cn(
                         "text-[10px] font-bold",
-                        d.category === "Workday" && "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-400",
+                        d.category === "Workday" && "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
                         d.category === "Off" && "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
                         d.category === "Holiday" && "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
                       )}>{t(DAY_CATEGORY_LABEL[d.category] ?? d.category, DAY_CATEGORY_LABEL_EN[d.category] ?? d.category)}</Badge>

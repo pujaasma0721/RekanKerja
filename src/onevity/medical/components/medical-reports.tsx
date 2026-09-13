@@ -162,11 +162,11 @@ export function MedicalReportsPage() {
                         </TableCell>
                         <TableCell>
                           {r.typeName}
-                          {r.forDependent && <span className="ml-1 text-xs text-violet-600 dark:text-violet-400">(dep.)</span>}
+                          {r.forDependent && <span className="ml-1 text-xs text-brand dark:text-brand/85">(dep.)</span>}
                         </TableCell>
                         <TableCell className="text-sm">{fmtDateID(r.claimDate)}</TableCell>
                         <TableCell className="text-right">{fmtIDR(r.totalBill)}</TableCell>
-                        <TableCell className={cn("text-right font-semibold", r.state === "Settled" && "text-emerald-600 dark:text-emerald-400")}>
+                        <TableCell className={cn("text-right font-semibold", r.state === "Settled" && "text-brand dark:text-brand/85")}>
                           {fmtIDR(r.totalApproved)}
                         </TableCell>
                         <TableCell><StatusPill status={r.state} /></TableCell>

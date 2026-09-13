@@ -82,9 +82,9 @@ export function jobCategoryIcon(category: string | null): { icon: string; cls: s
     case "Executive":
       return { icon: "crown", cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400", label: "Executive" };
     case "Managerial":
-      return { icon: "briefcase", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400", label: "Managerial" };
+      return { icon: "briefcase", cls: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85", label: "Managerial" };
     case "Supervisory":
-      return { icon: "user-cog", cls: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400", label: "Supervisory" };
+      return { icon: "user-cog", cls: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85", label: "Supervisory" };
     default:
       return { icon: "user", cls: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400", label: category ?? "Staff" };
   }

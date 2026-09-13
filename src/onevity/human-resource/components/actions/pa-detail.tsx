@@ -214,7 +214,7 @@ export function PADetail({ id }: { id: string }) {
                     <span
                       className={cn(
                         "absolute left-[19px] top-10 h-[calc(100%-40px)] w-0.5 rounded",
-                        l.status === "Approved" ? "bg-emerald-300 dark:bg-emerald-500/40" : "bg-stone-200 dark:bg-stone-700"
+                        l.status === "Approved" ? "bg-brand/35 dark:bg-brand/40" : "bg-stone-200 dark:bg-stone-700"
                       )}
                       aria-hidden
                     />
@@ -223,7 +223,7 @@ export function PADetail({ id }: { id: string }) {
                   <span
                     className={cn(
                       "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2",
-                      l.status === "Approved" && "border-emerald-200 bg-emerald-100 text-emerald-600 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-400",
+                      l.status === "Approved" && "border-brand/25 bg-brand/15 text-brand dark:border-brand/30 dark:bg-brand/15 dark:text-brand/85",
                       l.status === "Rejected" && "border-rose-200 bg-rose-100 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-400",
                       l.status === "Pending" && (isCurrent
                         ? "animate-pulse border-amber-300 bg-amber-100 text-amber-600 shadow-md shadow-amber-200 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-400 dark:shadow-none"
@@ -315,9 +315,9 @@ function MetaItem({ label, value, mono }: { label: string; value: string; mono?:
 function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
   const { t } = useI18n();
   const icon =
-    a.action === "Approved" ? <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+    a.action === "Approved" ? <CheckCircle2 className="h-4 w-4 text-brand dark:text-brand/85" />
     : a.action === "Rejected" ? <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-    : a.action === "Processed" ? <Zap className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+    : a.action === "Processed" ? <Zap className="h-4 w-4 text-brand dark:text-brand/85" />
     : a.action === "Submitted" ? <Send className="h-4 w-4 text-amber-600 dark:text-amber-400" />
     : a.action === "Cancelled" ? <Ban className="h-4 w-4 text-stone-400" />
     : <History className="h-4 w-4 text-stone-400" />;
@@ -374,7 +374,7 @@ function WorkflowBar({
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-2xl border p-4 shadow-sm sm:p-5",
         pa.status === "Submitted" ? "border-amber-300/70 bg-gradient-to-r from-amber-50/80 to-stone-50/50 dark:border-amber-500/30 dark:from-amber-500/[0.07] dark:to-stone-900/40"
-        : pa.status === "Approved" ? "border-emerald-300/70 bg-gradient-to-r from-emerald-50/80 to-stone-50/50 dark:border-emerald-500/30 dark:from-emerald-500/[0.07] dark:to-stone-900/40"
+        : pa.status === "Approved" ? "border-brand/40/70 bg-gradient-to-r from-brand/20/80 to-stone-50/50 dark:border-brand/30 dark:from-brand/[0.07] dark:to-stone-900/40"
         : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
       )}
       aria-label={t("Aksi dokumen", "Document actions")}
@@ -406,7 +406,7 @@ function WorkflowBar({
 
         {pa.status === "Submitted" && canAct && (
           <>
-            <Button onClick={() => onDecision("approve")} disabled={loading} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
+            <Button onClick={() => onDecision("approve")} disabled={loading} className="h-11 gap-2 bg-brand px-5 font-bold hover:bg-brand/70">
               <CheckCircle2 className="h-4 w-4" /> Approve
             </Button>
             <Button variant="outline" onClick={() => onDecision("reject")} disabled={loading} className="h-11 gap-2 border-rose-300 px-5 font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-500/10">
@@ -421,7 +421,7 @@ function WorkflowBar({
         )}
 
         {pa.status === "Approved" && (
-          <Button onClick={() => onConfirm("process")} disabled={loading} className="h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 px-6 text-[15px] font-extrabold shadow-md shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700">
+          <Button onClick={() => onConfirm("process")} disabled={loading} className="h-11 gap-2 bg-gradient-to-r from-brand to-brand px-6 text-[15px] font-extrabold shadow-md shadow-brand/25 hover:from-brand hover:to-brand/70">
             <Zap className="h-5 w-5" /> {t("Proses Sekarang", "Process Now")}
           </Button>
         )}
@@ -470,8 +470,8 @@ function ConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2.5">
             {isProcess ? (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15">
-                <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/15 dark:bg-brand/15">
+                <Zap className="h-5 w-5 text-brand dark:text-brand/85" />
               </span>
             ) : (
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
@@ -505,7 +505,7 @@ function ConfirmDialog({
           <AlertDialogAction
             disabled={busy}
             onClick={(e) => { e.preventDefault(); onConfirm(note.trim() || null); }}
-            className={cn("h-11 gap-2 font-bold", isProcess ? "bg-emerald-600 hover:bg-emerald-700" : "")}
+            className={cn("h-11 gap-2 font-bold", isProcess ? "bg-brand hover:bg-brand/70" : "")}
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {isProcess ? t("Ya, Proses Sekarang", "Yes, Process Now") : t("Ya, Batalkan", "Yes, Cancel")}

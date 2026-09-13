@@ -110,13 +110,13 @@ export function AttendanceOvertimePage() {
           <p className="text-[11px] text-stone-400">{t("perintah lembur", "overtime orders")}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Disetujui (siap bayar)", "Approved (ready to pay)")}</p></div>
-          <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{stats?.approved ?? 0}</p>
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Disetujui (siap bayar)", "Approved (ready to pay)")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{stats?.approved ?? 0}</p>
           <p className="text-[11px] text-stone-400">{t("estimasi {v}", "est. {v}", { v: fmtIDRShort(stats?.approvedPay ?? 0) })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Dibayar via Payroll", "Paid via Payroll")}</p></div>
-          <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">{stats?.paid ?? 0}</p>
+          <div className="flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Dibayar via Payroll", "Paid via Payroll")}</p></div>
+          <p className="text-lg font-extrabold text-brand dark:text-brand/85">{stats?.paid ?? 0}</p>
           <p className="text-[11px] text-stone-400">{t("{n} jam terbayar", "{n} h paid", { n: Math.round((stats?.paidMinutes ?? 0) / 60) })}</p>
         </div>
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -184,7 +184,7 @@ export function AttendanceOvertimePage() {
                       <TableCell>
                         <Badge variant="outline" className={cn(
                           "text-[9px] font-bold",
-                          o.dayCategory === "Weekday" && "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-400",
+                          o.dayCategory === "Weekday" && "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
                           o.dayCategory === "Weekend" && "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
                           o.dayCategory === "Holiday" && "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
                         )}>{t(OT_CATEGORY_LABEL[o.dayCategory] ?? o.dayCategory, OT_CATEGORY_LABEL_EN[o.dayCategory] ?? o.dayCategory)}</Badge>
@@ -218,7 +218,7 @@ export function AttendanceOvertimePage() {
                               {perms.canOp("attendance", "overtime", "approve") && (
                                 <>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Setujui", "Approve")} onClick={() => decide(o, "approve")} aria-label={t("Setujui lembur", "Approve overtime")}>
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                    <CheckCircle2 className="h-4 w-4 text-brand" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Tolak", "Reject")} onClick={() => { setRejectTarget(o); setRejectNote(""); }} aria-label={t("Tolak lembur", "Reject overtime")}>
                                     <XCircle className="h-4 w-4 text-rose-500" />

@@ -171,7 +171,7 @@ function PositionList() {
                         ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">{t("Lowong", "Vacant")}</span>}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px] font-bold", p.active ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500")}>
+                        <Badge variant="outline" className={cn("text-[10px] font-bold", p.active ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85" : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500")}>
                           {p.active ? t("Aktif") : t("Non-aktif", "Inactive")}
                         </Badge>
                       </TableCell>
@@ -215,7 +215,7 @@ function PositionList() {
               <div className="space-y-5 p-6">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
-                    <p className="text-lg font-extrabold text-emerald-600">{selected.filled}</p>
+                    <p className="text-lg font-extrabold text-brand">{selected.filled}</p>
                     <p className="text-[9px] font-bold uppercase text-stone-400">{t("Terisi", "Filled")}</p>
                   </div>
                   <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
@@ -450,7 +450,7 @@ function JobLibrary() {
     Executive: TrendingUp, Managerial: Users, Supervisory: Layers, Staff: FileText,
   };
   const catTone: Record<string, string> = {
-    Executive: "from-emerald-500 to-teal-600", Managerial: "from-teal-500 to-emerald-600",
+    Executive: "from-brand to-brand", Managerial: "from-brand to-brand",
     Supervisory: "from-amber-400 to-orange-500", Staff: "from-stone-400 to-stone-600",
   };
 
@@ -659,7 +659,7 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
             <Users className="h-5 w-5" />
           </div>
           <div>

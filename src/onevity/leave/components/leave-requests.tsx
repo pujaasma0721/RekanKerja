@@ -140,7 +140,7 @@ export function LeaveRequestsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           { label: t("Menunggu Approval", "Pending Approvals"), value: stats?.submitted ?? 0, sub: t("{n} hari diminta", "{n} days requested", { n: stats?.pendingDays ?? 0 }), icon: Inbox, tone: "text-amber-600" },
-          { label: t("Disetujui"), value: (stats?.approved ?? 0) + (stats?.massLeave ?? 0), sub: t("{n} hari total", "{n} days total", { n: stats?.approvedDays ?? 0 }), icon: CheckCircle2, tone: "text-emerald-600" },
+          { label: t("Disetujui"), value: (stats?.approved ?? 0) + (stats?.massLeave ?? 0), sub: t("{n} hari total", "{n} days total", { n: stats?.approvedDays ?? 0 }), icon: CheckCircle2, tone: "text-brand" },
           { label: t("Cuti Massal", "Mass Leave"), value: stats?.massLeave ?? 0, sub: t("baris dari SKB", "rows from SKB"), icon: Inbox, tone: "text-rose-600" },
           { label: t("Total Permintaan", "Total Requests"), value: stats?.total ?? 0, sub: t("{r} ditolak · {c} batal", "{r} rejected · {c} cancelled", { r: stats?.rejected ?? 0, c: stats?.cancelled ?? 0 }), icon: Inbox, tone: "text-stone-500" },
         ].map((k) => {

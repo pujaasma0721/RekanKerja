@@ -86,13 +86,13 @@ export function TravelApprovalPage() {
             <Inbox className="h-7 w-7 text-amber-600" />
           </CardContent>
         </Card>
-        <Card className="border-teal-200 bg-teal-50/60 shadow-sm dark:border-teal-800 dark:bg-teal-950/20">
+        <Card className="border-brand/25 bg-brand/10/60 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">{t("Uang Muka Menunggu", "Pending Advances")}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("Uang Muka Menunggu", "Pending Advances")}</p>
               <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{stats ? fmtIDR(stats.advanceTotal) : "—"}</p>
             </div>
-            <Wallet className="h-7 w-7 text-teal-600" />
+            <Wallet className="h-7 w-7 text-brand" />
           </CardContent>
         </Card>
         <Card className="border-rose-200 bg-rose-50/60 shadow-sm dark:border-rose-800 dark:bg-rose-950/20">
@@ -151,7 +151,7 @@ export function TravelApprovalPage() {
                     {r.destinations.map((d, i) => (
                       <Badge key={i} variant="outline" className="gap-1 text-[10px] font-semibold">
                         <MapPin className="h-2.5 w-2.5" /> {d.city}
-                        {d.overseas && <Globe2 className="h-2.5 w-2.5 text-teal-600" />}
+                        {d.overseas && <Globe2 className="h-2.5 w-2.5 text-brand" />}
                       </Badge>
                     ))}
                   </div>
@@ -172,7 +172,7 @@ export function TravelApprovalPage() {
                   {perms.canOp("travel", "travel-approval", "approve") && (
                     <>
                       <Button
-                        size="sm" className="h-8 gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700"
+                        size="sm" className="h-8 gap-1.5 bg-brand text-xs font-bold hover:bg-brand/70"
                         onClick={() => { setDialog({ request: r, action: "approve" }); setNote(""); }}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
@@ -230,7 +230,7 @@ export function TravelApprovalPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {dialog.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-teal-600" /> : dialog.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}
+              {dialog.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : dialog.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}
               {dialog.action === "approve" ? t("Setujui Permintaan", "Approve Request") : dialog.action === "reject" ? t("Tolak Permintaan", "Reject Request") : t("Batalkan Permintaan", "Cancel Request")}
             </DialogTitle>
           </DialogHeader>
@@ -255,7 +255,7 @@ export function TravelApprovalPage() {
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder={t("Mis. Disetujui — sertakan laporan audit", "e.g. Approved — attach the audit report")} className="text-sm" />
               </div>
               {dialog.action === "approve" && (
-                <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs leading-relaxed text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
+                <p className="rounded-lg bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
                   {t("Setelah disetujui: karyawan berangkat → klaim settlement dibuat dari permintaan ini (jatuh tempo {due}).", "After approval: the employee departs → a settlement claim is created from this request (due {due}).", { due: dialog.request.settlementDue ? fmtDateID(dialog.request.settlementDue) : t("14 hari setelah kembali", "14 days after return") })}
                 </p>
               )}
@@ -268,7 +268,7 @@ export function TravelApprovalPage() {
                 onClick={submitDecision} disabled={busy}
                 className={
                   dialog.action === "approve"
-                    ? "gap-2 bg-teal-600 font-bold hover:bg-teal-700"
+                    ? "gap-2 bg-brand font-bold hover:bg-brand/70"
                     : "gap-2 bg-rose-600 font-bold hover:bg-rose-700"
                 }
               >

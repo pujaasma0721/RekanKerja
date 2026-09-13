@@ -276,12 +276,12 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                       {report.rows.slice(0, MAX_PREVIEW_ROWS).map((r) => {
                         const invalid = r.errors.length > 0;
                         return (
-                          <tr key={r.row} className={cn("border-t border-stone-100 dark:border-stone-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-emerald-50/50 dark:bg-emerald-500/5")}>
+                          <tr key={r.row} className={cn("border-t border-stone-100 dark:border-stone-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-brand/10/50 dark:bg-brand/5")}>
                             <td className="px-3 py-1.5 tabular-nums text-stone-500">{r.row}</td>
                             <td className="px-3 py-1.5 font-mono text-[11.5px]">{r.nik || "—"}</td>
                             <td className="max-w-40 truncate px-3 py-1.5 font-medium">{r.fullName || "—"}</td>
                             <td className="px-3 py-1.5">
-                              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", invalid ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300")}>
+                              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", invalid ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/75")}>
                                 {invalid ? <XCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                                 {invalid ? t("Invalid") : t("Valid")}
                               </span>
@@ -377,7 +377,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
             {/* hasil komit */}
             {phase === "done" && result && (
               <div className="flex flex-col gap-3">
-                <div className={cn("flex items-center gap-2 rounded-xl p-3 text-[13px] font-medium", result.created > 0 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
+                <div className={cn("flex items-center gap-2 rounded-xl p-3 text-[13px] font-medium", result.created > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
                   <CheckCircle2 className="h-4 w-4" />
                   {t("{n} karyawan dibuat", "{n} employees created", { n: result.created })}
                   {result.failed.length > 0 ? t(` · ${result.failed.length} gagal`, ` · ${result.failed.length} failed`) : ""}

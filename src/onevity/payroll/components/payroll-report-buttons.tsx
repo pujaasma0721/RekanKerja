@@ -46,12 +46,12 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-teal-500">
+        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-brand">
           {t("Format upload resmi (CSV)", "Official upload format (CSV)")}
         </DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <a href={`/api/onevity/payroll-reports/bpjs?runId=${runId}&format=tk`} className="cursor-pointer">
-            <FileUp className="h-4 w-4 text-teal-500" />
+            <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Laporan Kepegawaian BPJS TK (CSV)", "BPJS TK Employee Report (CSV)")}</p>
               <p className="text-[10px] text-stone-400">
@@ -62,7 +62,7 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href={`/api/onevity/payroll-reports/bpjs?runId=${runId}&format=jkn`} className="cursor-pointer">
-            <FileUp className="h-4 w-4 text-teal-500" />
+            <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Data Peserta BPJS Kesehatan (CSV)", "BPJS Health Members (CSV)")}</p>
               <p className="text-[10px] text-stone-400">

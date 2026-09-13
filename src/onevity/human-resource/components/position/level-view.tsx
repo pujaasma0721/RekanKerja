@@ -30,10 +30,10 @@ function ActivePill({ active }: { active: boolean }) {
     <span className={cn(
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
       active
-        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
+        ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
         : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
     )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-stone-400")} />
+      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-stone-400")} />
       {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );
@@ -218,7 +218,7 @@ export function PositionLevelView() {
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
-                          <BriefcaseBusiness className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> {l.positionCount}
+                          <BriefcaseBusiness className="h-3.5 w-3.5 text-brand dark:text-brand/85" /> {l.positionCount}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -284,7 +284,7 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
     <Card className="mt-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
             <TrendingUp className="h-5 w-5" />
           </div>
           <div>

@@ -64,11 +64,11 @@ export function PayrollJournalsPage() {
         <div className="space-y-4">
           {/* Backfill */}
           {missing.length > 0 && (
-            <Card className="rounded-2xl border-amber-200 bg-amber-50/60 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/5">
+            <Card className="rounded-2xl border-brand/25 bg-brand/10/60 shadow-sm dark:border-brand/30 dark:bg-brand/5">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-600" />
-                  <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                  <Sparkles className="h-4 w-4 text-brand" />
+                  <p className="text-[13px] font-bold text-brand-deep dark:text-brand/75">
                     {t("{n} run selesai belum diposting ke jurnal", "{n} completed runs not yet posted to journals", { n: missing.length })}
                   </p>
                 </div>
@@ -78,11 +78,11 @@ export function PayrollJournalsPage() {
                       key={r.id}
                       onClick={() => generate(r)}
                       disabled={busyId === r.id}
-                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 text-[11px] font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-100/60 disabled:opacity-50 dark:border-amber-500/40 dark:bg-stone-900 dark:text-amber-300"
+                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-brand/40 bg-white px-3 text-[11px] font-bold text-brand-deep transition hover:border-brand/40 hover:bg-brand/15/60 disabled:opacity-50 dark:border-brand/40 dark:bg-stone-900 dark:text-brand/75"
                     >
                       <BookOpen className="h-3 w-3" />
                       {busyId === r.id ? t("Memposting…", "Posting…") : t("Post {no}", "Post {no}", { no: r.runNo })}
-                      <span className="text-amber-500/80">· {loc(r.periodName)}</span>
+                      <span className="text-brand/80">· {loc(r.periodName)}</span>
                     </button>
                   ))}
                 </div>
@@ -220,7 +220,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
                       <p className="text-[11px]">{l.accountName}</p>
                     </TableCell>
                     <TableCell className="max-w-[220px] truncate text-[11px] text-stone-500">{l.memo ?? "—"}</TableCell>
-                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-emerald-700 dark:text-emerald-400" : "text-stone-300 dark:text-stone-600")}>
+                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-brand-deep dark:text-brand/85" : "text-stone-300 dark:text-stone-600")}>
                       {l.position === "Debit" ? fmtIDR(l.amount) : ""}
                     </TableCell>
                     <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Credit" ? "text-rose-600 dark:text-rose-400" : "text-stone-300 dark:text-stone-600")}>
@@ -230,7 +230,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
                 ))}
                 <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
                   <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total — balance ✓", "Total — balanced ✓")}</TableCell>
-                  <TableCell className="text-right text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">{fmtIDR(journal.totalDebit)}</TableCell>
+                  <TableCell className="text-right text-[11px] font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(journal.totalDebit)}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(journal.totalCredit)}</TableCell>
                 </TableRow>
               </TableBody>

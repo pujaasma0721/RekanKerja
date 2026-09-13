@@ -410,8 +410,8 @@ function CompanyProfile() {
                 <h2 className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{c?.name}</h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="font-mono text-[10px]">{c?.code}</Badge>
-                  <Badge className="gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {t("Aktif")}
+                  <Badge className="gap-1 bg-brand/10 text-brand-deep hover:bg-brand/10 dark:bg-brand/10 dark:text-brand/85">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> {t("Aktif")}
                   </Badge>
                   <Badge variant="secondary" className="text-[10px]">{t("Mata uang: {c}", "Currency: {c}", { c: c?.currency ?? "" })}</Badge>
                 </div>

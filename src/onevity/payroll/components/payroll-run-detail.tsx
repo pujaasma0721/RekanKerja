@@ -136,19 +136,19 @@ export function PayrollRunDetailPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {(run.status === "Draft" || run.status === "Calculated") && perms.canOp("payroll", "runs", "calculate") && (
-              <Button onClick={() => act("calculate")} disabled={busy} className="gap-2 bg-sky-600 font-bold hover:bg-sky-700">
+              <Button onClick={() => act("calculate")} disabled={busy} className="gap-2 bg-brand font-bold hover:bg-brand/70">
                 <Calculator className="h-4 w-4" /> {run.status === "Draft" ? t("Hitung Payroll", "Calculate Payroll") : t("Hitung Ulang", "Recalculate")}
               </Button>
             )}
             {run.status === "Calculated" && perms.canOp("payroll", "runs", "confirm") && (
-              <Button onClick={() => act("confirm")} disabled={busy} className="gap-2 bg-emerald-600 font-bold hover:bg-emerald-700">
+              <Button onClick={() => act("confirm")} disabled={busy} className="gap-2 bg-brand font-bold hover:bg-brand/70">
                 <CheckCircle2 className="h-4 w-4" /> {t("Konfirmasi")}
               </Button>
             )}
             {run.status === "Confirmed" && (
               <>
                 {perms.canOp("payroll", "runs", "markPaid") && (
-                  <Button onClick={() => act("markPaid")} disabled={busy} className="gap-2 bg-teal-600 font-bold hover:bg-teal-700">
+                  <Button onClick={() => act("markPaid")} disabled={busy} className="gap-2 bg-brand font-bold hover:bg-brand/70">
                     <Wallet className="h-4 w-4" /> {t("Tandai Dibayar", "Mark as Paid")}
                   </Button>
                 )}
@@ -194,31 +194,31 @@ export function PayrollRunDetailPage() {
       {run.status !== "Draft" && (
         <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
           <SummaryCard icon={Users} label={t("Karyawan")} value={String(run.employeeCount)} tone="text-stone-700 dark:text-stone-200" />
-          <SummaryCard icon={Receipt} label={t("Bruto", "Gross")} value={fmtIDR(run.totalBruto)} tone="text-emerald-700 dark:text-emerald-400" />
+          <SummaryCard icon={Receipt} label={t("Bruto", "Gross")} value={fmtIDR(run.totalBruto)} tone="text-brand-deep dark:text-brand/85" />
           <SummaryCard icon={BanknoteArrowDown} label={t("Potongan", "Deductions")} value={fmtIDR(run.totalDeduction)} tone="text-rose-600 dark:text-rose-400" />
-          <SummaryCard icon={Receipt} label={t("PPh21")} value={fmtIDR(run.totalTax)} tone="text-amber-600 dark:text-amber-400" />
-          <SummaryCard icon={Wallet} label={t("Take Home Pay")} value={fmtIDR(run.totalNet)} tone="text-teal-600 dark:text-teal-400" />
+          <SummaryCard icon={Receipt} label={t("PPh21")} value={fmtIDR(run.totalTax)} tone="text-brand dark:text-brand/85" />
+          <SummaryCard icon={Wallet} label={t("Take Home Pay")} value={fmtIDR(run.totalNet)} tone="text-brand dark:text-brand/85" />
         </div>
       )}
 
       {/* 26-b P0 — banner warning UMP/UMK (amber, edukatif non-bloking) */}
       {run.status !== "Draft" && umkWarnings.length > 0 && (
-        <Card className="mb-4 rounded-2xl border-amber-200 bg-amber-50/70 shadow-sm dark:border-amber-500/25 dark:bg-amber-500/10">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 shadow-sm dark:border-brand/25 dark:bg-brand/10">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85">
                   <TriangleAlert className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                  <p className="text-[13px] font-bold text-brand-deep dark:text-brand/75">
                     {t(
                       "{n} karyawan di bawah UMP/UMK kantor penempatan (PP 36/2021)",
                       "{n} employees below the minimum wage of their placement office (PP 36/2021)",
                       { n: String(umkWarnings.length) },
                     )}
                   </p>
-                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                  <p className="text-[11px] text-brand-deep/80 dark:text-brand/85/80">
                     {t("Warning edukatif — hitungan payroll tetap sah. Tinjau gaji pokok atau ubah penempatan sebelum konfirmasi.", "Educational warning — the payroll calculation remains valid. Review base salaries or placements before confirming.")}
                   </p>
                 </div>
@@ -226,32 +226,32 @@ export function PayrollRunDetailPage() {
               <Button
                 size="sm" variant="outline"
                 onClick={() => setUmkOpen((v) => !v)}
-                className="gap-1.5 border-amber-300 bg-white font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-transparent dark:text-amber-400"
+                className="gap-1.5 border-brand/40 bg-white font-bold text-brand-deep hover:bg-brand/15 dark:border-brand/30 dark:bg-transparent dark:text-brand/85"
               >
                 {umkOpen ? t("Sembunyikan Rincian", "Hide Details") : t("Lihat Rincian", "View Details")} ({umkWarnings.length})
               </Button>
             </div>
             {umkOpen && (
-              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-amber-200/70 bg-white/80 [scrollbar-width:thin] dark:border-amber-500/20 dark:bg-stone-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300 dark:[&::-webkit-scrollbar-thumb]:bg-amber-500/40">
+              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-brand/25/70 bg-white/80 [scrollbar-width:thin] dark:border-brand/20 dark:bg-stone-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand/35 dark:[&::-webkit-scrollbar-thumb]:bg-brand/40">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-amber-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableHeader className="sticky top-0 z-10 bg-brand/10/95 backdrop-blur dark:bg-stone-900/95">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Karyawan")}</TableHead>
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Kantor", "Office")}</TableHead>
-                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Gaji Pokok", "Base Salary")}</TableHead>
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("UMP/UMK")}</TableHead>
-                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-400/80">{t("Selisih", "Gap")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Karyawan")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Kantor", "Office")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Gaji Pokok", "Base Salary")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("UMP/UMK")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Selisih", "Gap")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {umkWarnings.map((w) => (
-                      <TableRow key={w.employeeNo} className="hover:bg-amber-50/60 dark:hover:bg-amber-500/5">
+                      <TableRow key={w.employeeNo} className="hover:bg-brand/10/60 dark:hover:bg-brand/5">
                         <TableCell>
                           <p className="text-[12.5px] font-bold text-stone-800 dark:text-stone-100">{w.employeeName}</p>
                           <p className="font-mono text-[10.5px] text-stone-400">{w.employeeNo}</p>
                         </TableCell>
                         <TableCell className="text-[12.5px] text-stone-600 dark:text-stone-300">{w.office ?? t("— tanpa kantor —", "— no office —")}</TableCell>
-                        <TableCell className="text-right font-mono text-[12.5px] font-semibold text-amber-700 dark:text-amber-400">{fmtIDR(w.baseSalary)}</TableCell>
+                        <TableCell className="text-right font-mono text-[12.5px] font-semibold text-brand-deep dark:text-brand/85">{fmtIDR(w.baseSalary)}</TableCell>
                         <TableCell>
                           <p className="font-mono text-[12.5px] font-bold text-stone-700 dark:text-stone-200">{fmtIDR(w.umk.amount)}</p>
                           <p className="text-[10px] text-stone-400">{w.umk.label}</p>
@@ -268,10 +268,10 @@ export function PayrollRunDetailPage() {
       )}
 
       {run.status === "Draft" && (
-        <Card className="mb-4 rounded-2xl border-sky-200 bg-sky-50/70 dark:border-sky-500/30 dark:bg-sky-500/10">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 dark:border-brand/30 dark:bg-brand/10">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
-            <Calculator className="h-5 w-5 text-sky-600 dark:text-sky-400" />
-            <p className="flex-1 text-[13px] font-semibold text-sky-800 dark:text-sky-200">
+            <Calculator className="h-5 w-5 text-brand dark:text-brand/85" />
+            <p className="flex-1 text-[13px] font-semibold text-brand-deep dark:text-brand/75">
               {t("Run masih Draft. Klik", "Run is still a Draft. Click")} <b>{t("Hitung Payroll", "Calculate Payroll")}</b> {t("untuk memproses seluruh karyawan aktif — komponen diambil dari template + transaksi (pinjaman, bonus period ini).", "to process all active employees — components come from the template + transactions (loans, this period's bonuses).")}
             </p>
           </CardContent>
@@ -320,7 +320,7 @@ export function PayrollRunDetailPage() {
                       </TableCell>
                       <TableCell className="text-right text-xs">{fmtIDR(l.bruto)}</TableCell>
                       <TableCell className="text-right text-xs text-rose-600 dark:text-rose-400">{fmtIDR(l.deduction)}</TableCell>
-                      <TableCell className="text-right text-xs text-amber-700 dark:text-amber-400">{fmtIDR(l.taxRegular + l.taxIrregular)}</TableCell>
+                      <TableCell className="text-right text-xs text-brand-deep dark:text-brand/85">{fmtIDR(l.taxRegular + l.taxIrregular)}</TableCell>
                       <TableCell className="text-right text-xs font-bold ov-text-accent">{fmtIDR(l.net)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px] font-bold" onClick={() => setSlipLine(l)}>
@@ -335,7 +335,7 @@ export function PayrollRunDetailPage() {
                     <TableCell colSpan={3} className="text-xs font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
-                    <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(run.totalTax)}</TableCell>
+                    <TableCell className="text-right text-xs font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(run.totalTax)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold ov-text-accent">{fmtIDR(run.totalNet)}</TableCell>
                     <TableCell />
                   </TableRow>
@@ -355,12 +355,12 @@ export function PayrollRunDetailPage() {
           </CardHeader>
           <CardContent className="grid gap-4 pt-0 lg:grid-cols-2">
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{t("Penghasilan & Iuran Perusahaan", "Earnings & Company Contributions")}</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-brand dark:text-brand/85">{t("Penghasilan & Iuran Perusahaan", "Earnings & Company Contributions")}</p>
               <div className="space-y-1.5">
                 {earnings.map((c) => (
-                  <div key={c.code} className="flex items-center justify-between rounded-xl bg-emerald-50/50 px-3 py-1.5 dark:bg-emerald-500/5">
+                  <div key={c.code} className="flex items-center justify-between rounded-xl bg-brand/10/50 px-3 py-1.5 dark:bg-brand/5">
                     <span className="text-xs font-semibold">{c.name}</span>
-                    <span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">{fmtIDR(c.total)}</span>
+                    <span className="font-mono text-xs font-bold text-brand-deep dark:text-brand/85">{fmtIDR(c.total)}</span>
                   </div>
                 ))}
               </div>
@@ -400,7 +400,7 @@ export function PayrollRunDetailPage() {
             <span className="min-w-0">
               <span className="flex items-center gap-1.5 text-[13px] font-bold">
                 {t("Proteksi slip dengan kata sandi", "Protect slips with password")}
-                <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">AES-256</Badge>
+                <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-bold text-brand dark:text-brand/85">AES-256</Badge>
               </span>
               <span className="mt-0.5 block text-[11.5px] leading-snug text-stone-500 dark:text-stone-400">
                 {t(
@@ -425,12 +425,12 @@ export function PayrollRunDetailPage() {
         <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
-              <ScrollText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <ScrollText className="h-4 w-4 text-brand dark:text-brand/85" />
               {t("Log Run", "Run Log")}
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400">
                 {logErrors > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400">{logErrors} {t("gagal", "errors")}</span>}
-                {logWarnings > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">{logWarnings} {t("peringatan", "warnings")}</span>}
-                {logInfos > 0 && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">{logInfos} {t("info", "info")}</span>}
+                {logWarnings > 0 && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-brand-deep dark:bg-brand/15 dark:text-brand/85">{logWarnings} {t("peringatan", "warnings")}</span>}
+                {logInfos > 0 && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-brand-deep dark:bg-brand/15 dark:text-brand/85">{logInfos} {t("info", "info")}</span>}
               </span>
             </CardTitle>
             <p className="text-[11px] text-stone-400">{t("Kejadian selama kalkulasi: karyawan tanpa template upah/profil/gaji dilewati & dicatat di sini.", "Events during calculation: employees without wage template/profile/salary are skipped & recorded here.")}</p>
@@ -439,7 +439,7 @@ export function PayrollRunDetailPage() {
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {runLogs.map((l) => (
                 <div key={l.id} className="flex items-start gap-2 rounded-xl px-3 py-1.5 odd:bg-stone-50/60 dark:odd:bg-stone-800/30">
-                  {l.level === "error" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" /> : l.level === "warning" ? <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-500" />}
+                  {l.level === "error" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" /> : l.level === "warning" ? <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />}
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-semibold text-stone-700 dark:text-stone-200">
                       {l.employeeNo ? `${l.employeeNo} — ${l.employeeName ?? ""}` : t("Umum", "General")}
@@ -510,14 +510,14 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5 border-t border-dashed border-stone-200 pt-2 dark:border-stone-700">
             <Badge variant="outline" className="text-[10px] font-bold">{t("PTKP {s} · {v}/thn", "PTKP {s} · {v}/yr", { s: TAX_STATUS_LABEL[line.ptkpStatus] ?? line.ptkpStatus, v: fmtIDR(line.ptkpValue) })}</Badge>
-            {line.actualNetTax != null && <Badge variant="outline" className="text-[10px] font-bold text-amber-600">{t("NetToGross — pajak ditanggung perusahaan", "NetToGross — tax borne by the company")}</Badge>}
+            {line.actualNetTax != null && <Badge variant="outline" className="text-[10px] font-bold text-brand">{t("NetToGross — pajak ditanggung perusahaan", "NetToGross — tax borne by the company")}</Badge>}
             {line.notes && <Badge variant="outline" className="text-[10px] font-bold">{line.notes}</Badge>}
           </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{t("Penghasilan", "Earnings")}</p>
+            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-brand dark:text-brand/85">{t("Penghasilan", "Earnings")}</p>
             <div className="space-y-1">
               {inThp.map((i) => (
                 <div key={i.id} className="flex items-center justify-between text-[13px]">
@@ -526,7 +526,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
                     {i.code.endsWith("_C") && <span className="ml-1 text-[9px] font-bold uppercase text-stone-400">{t("(iuran perush.)", "(co. contribution)")}</span>}
                     {i.note && <span className="ml-1 text-[10px] text-stone-400">· {i.note}</span>}
                   </span>
-                  <span className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400">{fmtIDR(i.amount)}</span>
+                  <span className="font-mono text-xs font-semibold text-brand-deep dark:text-brand/85">{fmtIDR(i.amount)}</span>
                 </div>
               ))}
             </div>
@@ -552,15 +552,15 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             </div>
           )}
 
-          <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10/60 p-3.5 dark:border-brand/30 dark:bg-brand/10">
             <SlipRow label={t("Total Bruto", "Total Gross")} value={fmtIDR(line.bruto)} strong />
             <SlipRow label={t("Total Potongan", "Total Deductions")} value={`- ${fmtIDR(line.deduction)}`} tone="text-rose-600 dark:text-rose-400" />
             {line.taxRegular + line.taxIrregular > 0 && (
-              <SlipRow label={t("PPh21 (termasuk dalam potongan)", "PPh21 (included in deductions)")} value={fmtIDR(line.taxRegular + line.taxIrregular)} tone="text-amber-600 dark:text-amber-400" />
+              <SlipRow label={t("PPh21 (termasuk dalam potongan)", "PPh21 (included in deductions)")} value={fmtIDR(line.taxRegular + line.taxIrregular)} tone="text-brand dark:text-brand/85" />
             )}
-            <div className="mt-1 flex items-center justify-between border-t border-emerald-300/50 pt-2 dark:border-emerald-500/30">
-              <span className="text-xs font-extrabold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{t("Take Home Pay")}</span>
-              <span className="font-mono text-lg font-extrabold text-emerald-700 dark:text-emerald-300">{fmtIDR(line.net)}</span>
+            <div className="mt-1 flex items-center justify-between border-t border-brand/40/50 pt-2 dark:border-brand/30">
+              <span className="text-xs font-extrabold uppercase tracking-wide text-brand-deep dark:text-brand/75">{t("Take Home Pay")}</span>
+              <span className="font-mono text-lg font-extrabold text-brand-deep dark:text-brand/75">{fmtIDR(line.net)}</span>
             </div>
           </div>
         </div>

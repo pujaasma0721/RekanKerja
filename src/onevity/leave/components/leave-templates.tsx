@@ -149,8 +149,8 @@ export function LeaveTypesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex max-w-64 flex-wrap gap-1">
-                          {ty.paid && <Badge className="bg-emerald-100 text-[9px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-400">{t("Dibayar", "Paid")}</Badge>}
-                          {ty.cashable && <Badge className="bg-teal-100 text-[9px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">{t("Cashable")}</Badge>}
+                          {ty.paid && <Badge className="bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Dibayar", "Paid")}</Badge>}
+                          {ty.cashable && <Badge className="bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Cashable")}</Badge>}
                           {ty.carryOverMax > 0 && <Badge className="bg-primary/10 text-[9px] font-bold text-primary">{t("Carry")} {ty.carryOverMax}</Badge>}
                           {ty.waitingMonths > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("Tunggu {n} bln", "Wait {n} mo", { n: ty.waitingMonths })}</Badge>}
                           {ty.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("Advance")}</Badge>}
@@ -167,7 +167,7 @@ export function LeaveTypesPage() {
                             <Pencil className="h-3.5 w-3.5 text-stone-500" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleActive(ty)} title={ty.active ? t("Nonaktifkan", "Deactivate") : t("Aktifkan", "Activate")}>
-                            {ty.active ? <Ban className="h-3.5 w-3.5 text-stone-400" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
+                            {ty.active ? <Ban className="h-3.5 w-3.5 text-stone-400" /> : <CheckCircle2 className="h-3.5 w-3.5 text-brand" />}
                           </Button>
                         </div>
                       </TableCell>

@@ -30,13 +30,13 @@ function shiftMonth(month: string, delta: number): string {
 
 // ============ peta warna status (konsisten, aksen amber utk hari ini) ============
 const STATUS_META: Record<string, { id: string; en: string; cell: string; dot: string }> = {
-  Present: { id: "Hadir", en: "Present", cell: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/25 dark:text-emerald-400", dot: "bg-emerald-500" },
+  Present: { id: "Hadir", en: "Present", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
   Late: { id: "Telat", en: "Late", cell: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/25 dark:text-amber-400", dot: "bg-amber-500" },
   Absent: { id: "Absen", en: "Absent", cell: "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/25 dark:text-rose-400", dot: "bg-rose-500" },
   Off: { id: "Libur", en: "Off", cell: "bg-stone-50 border-stone-200 text-stone-400 dark:bg-stone-800/60 dark:border-stone-700 dark:text-stone-500", dot: "bg-stone-300" },
-  OnLeave: { id: "Cuti", en: "Leave", cell: "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-500/10 dark:border-teal-500/25 dark:text-teal-400", dot: "bg-teal-500" },
-  WorkOff: { id: "Izin", en: "Permit", cell: "bg-cyan-50 border-cyan-200 text-cyan-700 dark:bg-cyan-500/10 dark:border-cyan-500/25 dark:text-cyan-400", dot: "bg-cyan-500" },
-  Holiday: { id: "Hari Libur", en: "Holiday", cell: "bg-violet-50 border-violet-200 text-violet-700 dark:bg-violet-500/10 dark:border-violet-500/25 dark:text-violet-400", dot: "bg-violet-500" },
+  OnLeave: { id: "Cuti", en: "Leave", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
+  WorkOff: { id: "Izin", en: "Permit", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
+  Holiday: { id: "Hari Libur", en: "Holiday", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
   "Non-clocking": { id: "Non-clocking", en: "Non-clocking", cell: "bg-stone-50 border-stone-200 text-stone-500 dark:bg-stone-800/60 dark:border-stone-700 dark:text-stone-400", dot: "bg-stone-400" },
 };
 
@@ -95,10 +95,10 @@ export function EssAttendance() {
   }, [locale]);
 
   const stats = [
-    { label: t("Hadir", "Present"), value: summary ? String(summary.present ?? 0) : "—", accent: "text-emerald-600 dark:text-emerald-400", icon: <CalendarDays className="h-3.5 w-3.5" /> },
+    { label: t("Hadir", "Present"), value: summary ? String(summary.present ?? 0) : "—", accent: "text-brand dark:text-brand/85", icon: <CalendarDays className="h-3.5 w-3.5" /> },
     { label: t("Telat", "Late"), value: summary ? String(summary.late ?? 0) : "—", accent: "text-amber-600 dark:text-amber-400", icon: <Timer className="h-3.5 w-3.5" /> },
     { label: t("Absen", "Absent"), value: summary ? String(summary.absent ?? 0) : "—", accent: "text-rose-600 dark:text-rose-400", icon: <Clock3 className="h-3.5 w-3.5" /> },
-    { label: t("Cuti / Izin", "Leave / Permit"), value: summary ? String((Number(summary.onLeave ?? 0) + Number(summary.workoff ?? 0))) : "—", accent: "text-teal-600 dark:text-teal-400", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+    { label: t("Cuti / Izin", "Leave / Permit"), value: summary ? String((Number(summary.onLeave ?? 0) + Number(summary.workoff ?? 0))) : "—", accent: "text-brand dark:text-brand/85", icon: <TrendingUp className="h-3.5 w-3.5" /> },
     { label: t("Lembur", "Overtime"), value: summary ? `${summary.overtimeHours ?? 0} ${t("jam", "h")}` : "—", accent: "text-amber-700 dark:text-amber-400", icon: <Clock3 className="h-3.5 w-3.5" /> },
   ];
 
@@ -331,7 +331,7 @@ export function EssAttendance() {
                         </span>
                         <div className="ml-auto flex shrink-0 items-center gap-2">
                           {late > 0 && <span className="text-[11px] font-bold tabular-nums text-rose-600 dark:text-rose-400">+{fmtMin(late, t)}</span>}
-                          {early > 0 && <span className="hidden text-[11px] font-bold tabular-nums text-teal-600 dark:text-teal-400 sm:inline">−{fmtMin(early, t)}</span>}
+                          {early > 0 && <span className="hidden text-[11px] font-bold tabular-nums text-brand dark:text-brand/85 sm:inline">−{fmtMin(early, t)}</span>}
                           {ot > 0 && <span className="text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-400">{t("lem", "OT")} {fmtMin(ot, t)}</span>}
                           <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold", meta.cell)}>
                             <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} aria-hidden /> {t(meta.id, meta.en)}

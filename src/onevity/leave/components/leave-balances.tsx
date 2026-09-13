@@ -92,7 +92,7 @@ export function LeaveBalancesPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           { label: t("Baris Saldo", "Balance Rows"), value: s ? String(s.rows) : "—", sub: s ? t("{n} karyawan", "{n} employees", { n: s.employees }) : undefined, icon: Palmtree, tone: "text-orange-600" },
-          { label: t("Total Saldo Tersisa", "Total Remaining Balance"), value: s ? t("{n} hari", "{n} days", { n: s.totalRemaining }) : "—", sub: t("akumulasi semua jenis", "accumulated across all types"), icon: ArrowUpDown, tone: "text-teal-600" },
+          { label: t("Total Saldo Tersisa", "Total Remaining Balance"), value: s ? t("{n} hari", "{n} days", { n: s.totalRemaining }) : "—", sub: t("akumulasi semua jenis", "accumulated across all types"), icon: ArrowUpDown, tone: "text-brand" },
           { label: t("Total Terpakai", "Total Taken"), value: s ? t("{n} hari", "{n} days", { n: s.totalTaken }) : "—", sub: t("cuti disetujui/massal", "approved/mass leave"), icon: Palmtree, tone: "text-amber-600" },
           { label: t("Saldo Minus (Advance)", "Negative Balance (Advance)"), value: s ? String(s.negative) : "—", sub: t("karyawan saldo minus", "employees with negative balance"), icon: Minus, tone: "text-rose-600" },
         ].map((k) => {
@@ -165,7 +165,7 @@ export function LeaveBalancesPage() {
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.earned)}</TableCell>
                       <TableCell className={cn("text-right text-xs tabular-nums", b.adjustment !== 0 ? "font-bold text-amber-600" : "text-stone-500")}>{fmtDay(b.adjustment)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-400">{fmtDay(b.forfeited)}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-teal-600">{fmtDay(b.cashed)}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-brand">{fmtDay(b.cashed)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.taken)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.applied)}</TableCell>
                       <TableCell className={cn("text-right text-xs font-extrabold tabular-nums", b.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>

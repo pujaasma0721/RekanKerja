@@ -76,7 +76,7 @@ export function PayrollTemplatesPage() {
                   {tpl.items.map((it) => (
                     <span key={it.id} className={cn(
                       "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
-                      it.wageComponent.type === "Earning" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" :
+                      it.wageComponent.type === "Earning" ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85" :
                       it.wageComponent.type === "Deduction" ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400" :
                       "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400"
                     )}>

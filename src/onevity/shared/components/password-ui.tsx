@@ -75,7 +75,7 @@ export function PasswordRuleChecklist({
       {v.checks.map((c) => (
         <li key={c.key} className="flex items-start gap-1.5" title={t(c.label, checkLabelEn(c.label))}>
           {c.pass ? (
-            <Check className={cn("mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
+            <Check className={cn("mt-0.5 shrink-0 text-brand dark:text-brand/85", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
           ) : (
             <X className={cn("mt-0.5 shrink-0 text-rose-500", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
           )}
@@ -96,12 +96,12 @@ export function PasswordStrengthBar({ password, compact }: { password: string; c
   const tone =
     s.label === "Lemah" ? "bg-rose-500"
     : s.label === "Sedang" ? "bg-amber-400"
-    : s.label === "Kuat" ? "bg-emerald-500"
-    : "bg-emerald-600";
+    : s.label === "Kuat" ? "bg-brand"
+    : "bg-brand";
   const text =
     s.label === "Lemah" ? "text-rose-600 dark:text-rose-400"
     : s.label === "Sedang" ? "text-amber-600 dark:text-amber-400"
-    : "text-emerald-700 dark:text-emerald-400";
+    : "text-brand-deep dark:text-brand/85";
   return (
     <div className="flex items-center gap-2.5">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800" role="progressbar" aria-valuenow={s.pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Kekuatan kata sandi", "Password strength")}>

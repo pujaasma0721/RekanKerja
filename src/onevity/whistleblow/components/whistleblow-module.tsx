@@ -37,8 +37,8 @@ interface TriageData {
 const STATUS_META: Record<string, { id: string; en: string; cls: string }> = {
   Baru: { id: "Baru", en: "New", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
   Diterima: { id: "Diterima", en: "Received", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
-  Investigasi: { id: "Investigasi", en: "Investigating", cls: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/25" },
-  Selesai: { id: "Selesai", en: "Resolved", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25" },
+  Investigasi: { id: "Investigasi", en: "Investigating", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
+  Selesai: { id: "Selesai", en: "Resolved", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
   Ditutup: { id: "Ditutup", en: "Closed", cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" },
 };
 
@@ -268,7 +268,7 @@ function TriagePage() {
                 </div>
 
                 {(selected.followUpNote || selected.resolutionNote) && (
-                  <div className="space-y-1 rounded-xl border border-sky-200 bg-sky-50/50 p-3 text-[11px] dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300">
+                  <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10/50 p-3 text-[11px] dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
                     {selected.followUpNote && <p><b>{t("Catatan tindak lanjut:", "Follow-up note:")}</b> {selected.followUpNote}</p>}
                     {selected.resolutionNote && <p><b>{t("Hasil:", "Resolution:")}</b> {selected.resolutionNote}</p>}
                   </div>
@@ -343,7 +343,7 @@ function TriagePage() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11px] text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <div className="rounded-xl border border-brand/25 bg-brand/10/60 p-3 text-[11px] text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
                     {t("Laporan telah selesai ditangani/ditutup — dokumen hanya-baca.", "This report has been resolved/closed — read-only record.")}
                   </div>
                 )}

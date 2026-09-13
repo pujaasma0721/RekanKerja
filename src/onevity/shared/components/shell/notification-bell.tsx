@@ -59,10 +59,10 @@ const KIND_ICON: Record<string, React.ElementType> = {
   attendance: CalendarClock,
 };
 const KIND_ICON_CLS: Record<string, string> = {
-  leave: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
-  travel: "bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400",
+  leave: "bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85",
+  travel: "bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85",
   medical: "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400",
-  payroll: "bg-teal-100 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400",
+  payroll: "bg-brand/15 text-brand dark:bg-brand/15 dark:text-brand/85",
   attendance: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400",
 };
 

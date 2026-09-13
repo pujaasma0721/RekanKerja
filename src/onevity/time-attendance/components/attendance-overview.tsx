@@ -148,12 +148,12 @@ export function AttendanceOverview() {
                   <TrendingUp className="h-5 w-5 ov-text-accent" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <MiniStat label={t("Hadir", "Present")} value={month ? t("{n} hari", "{n} days", { n: month.present }) : "—"} tone="text-emerald-600 dark:text-emerald-400" />
+                  <MiniStat label={t("Hadir", "Present")} value={month ? t("{n} hari", "{n} days", { n: month.present }) : "—"} tone="text-brand dark:text-brand/85" />
                   <MiniStat label={t("Absen", "Absent")} value={month ? t("{n} hari", "{n} days", { n: month.absent }) : "—"} tone="text-rose-600 dark:text-rose-400" />
                   <MiniStat label={t("Izin", "Permit")} value={month ? t("{n} hari", "{n} days", { n: month.workoff }) : "—"} tone="text-amber-600 dark:text-amber-400" />
                   <MiniStat label={t("Telat", "Late")} value={month ? t("{n} hari", "{n} days", { n: month.late }) : "—"} tone="text-amber-600 dark:text-amber-400" />
                   <MiniStat label={t("Jam Telat", "Late Hours")} value={month ? t("{n} jam", "{n} h", { n: Math.round(month.lateMinutes / 60) }) : "—"} tone="text-stone-700 dark:text-stone-300" />
-                  <MiniStat label={t("Lembur", "Overtime")} value={month ? t("{n} jam", "{n} h", { n: Math.round(month.overtimeMinutes / 60) }) : "—"} tone="text-teal-600 dark:text-teal-400" />
+                  <MiniStat label={t("Lembur", "Overtime")} value={month ? t("{n} jam", "{n} h", { n: Math.round(month.overtimeMinutes / 60) }) : "—"} tone="text-brand dark:text-brand/85" />
                 </div>
                 <Button variant="ghost" size="sm" className="mt-3 w-full gap-1 text-xs font-bold ov-text-accent hover:ov-text-accent" onClick={() => navigate("attendance", "absence")}>
                   {t("Lihat rekap & transfer ke payroll →", "View recap & transfer to payroll →")}
@@ -226,17 +226,17 @@ function CoverageAlert({ cov, onOpenClocking }: { cov: CoverageData; onOpenClock
   const warn = !good && pct >= 90;
   const Icon = good ? ShieldCheck : warn ? TriangleAlert : ShieldAlert;
   const box = good
-    ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/25 dark:bg-emerald-500/10"
+    ? "border-brand/25 bg-brand/10/70 dark:border-brand/25 dark:bg-brand/10"
     : warn
       ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10"
       : "border-rose-200 bg-rose-50/70 dark:border-rose-500/25 dark:bg-rose-500/10";
   const iconTone = good
-    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+    ? "bg-brand/15 text-brand-deep dark:bg-brand/20 dark:text-brand/85"
     : warn
       ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
       : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400";
   const badge = good
-    ? "border-emerald-200 bg-white text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:bg-transparent dark:text-emerald-400"
+    ? "border-brand/25 bg-white text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-transparent dark:text-brand/85"
     : warn
       ? "border-amber-300 bg-white text-[10px] font-bold text-amber-700 dark:border-amber-500/40 dark:bg-transparent dark:text-amber-400"
       : "border-rose-300 bg-white text-[10px] font-bold text-rose-700 dark:border-rose-500/40 dark:bg-transparent dark:text-rose-400";
@@ -291,7 +291,7 @@ function SetupRow({ icon: Icon, label, value, ok, onClick }: { icon: React.Eleme
       </div>
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-semibold text-stone-500">{value}</span>
-        <span className={`h-2 w-2 rounded-full ${ok ? "bg-emerald-500" : "bg-amber-400"}`} />
+        <span className={`h-2 w-2 rounded-full ${ok ? "bg-brand" : "bg-amber-400"}`} />
       </div>
     </button>
   );

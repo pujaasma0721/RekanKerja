@@ -257,7 +257,7 @@ export function BonusMassalDialog({
                 {irregularComps.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     <span className="font-mono text-xs text-stone-400">{c.code}</span> · {c.name}
-                    <Badge variant="outline" className="ml-1.5 h-4 rounded px-1.5 text-[9px] font-bold text-amber-600 dark:text-amber-400">Iregular</Badge>
+                    <Badge variant="outline" className="ml-1.5 h-4 rounded px-1.5 text-[9px] font-bold text-brand dark:text-brand/85">Iregular</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -427,7 +427,7 @@ export function BonusMassalDialog({
                 {t("{n} karyawan · total", "{n} employees · total", { n: preview.count })}{" "}
                 <b className="text-sm text-stone-800 dark:text-stone-100">{fmtIDR(preview.total)}</b>
                 {preview.taxEstimate && (
-                  <span className="text-stone-400"> · {t("est. PPh21 ireguler", "est. irregular income tax")} <b className="text-amber-600 dark:text-amber-400">{fmtIDR(preview.taxEstimate.total)}</b></span>
+                  <span className="text-stone-400"> · {t("est. PPh21 ireguler", "est. irregular income tax")} <b className="text-brand dark:text-brand/85">{fmtIDR(preview.taxEstimate.total)}</b></span>
                 )}
               </span>
             </div>
@@ -481,11 +481,11 @@ export function BonusMassalDialog({
 
         {/* konfirmasi komit */}
         {confirming && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-500/40 dark:bg-amber-500/10">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+          <div className="rounded-xl border border-brand/40 bg-brand/10/80 p-4 dark:border-brand/40 dark:bg-brand/10">
+            <p className="text-sm font-bold text-brand-deep dark:text-brand/75">
               {t("Komit bonus massal untuk {n} karyawan?", "Commit mass bonus for {n} employees?", { n: preview?.count ?? 0 })}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+            <p className="mt-1 text-xs leading-relaxed text-brand-deep dark:text-brand/75">
               {t(
                 `Total ${fmtIDR(preview?.total ?? 0)} akan dibuat sebagai assignment Specific pada ${period?.name ?? "-"} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% gaji pokok)`}, lalu run dihitung otomatis. Karyawan yang sudah punya assignment akan dilewati.`,
                 `Total ${fmtIDR(preview?.total ?? 0)} will be created as Specific assignments on ${period?.name ?? "-"} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% of base salary)`}, then the run is calculated automatically. Employees with existing assignments are skipped.`,
@@ -493,7 +493,7 @@ export function BonusMassalDialog({
             </p>
             <div className="mt-3 flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setConfirming(false)} disabled={busy !== null} className="h-9 px-4">{t("Periksa Lagi", "Review Again")}</Button>
-              <Button size="sm" onClick={() => void doCommit()} disabled={busy !== null} className="h-9 gap-2 bg-amber-600 px-5 font-bold text-white hover:bg-amber-600/90">
+              <Button size="sm" onClick={() => void doCommit()} disabled={busy !== null} className="h-9 gap-2 bg-brand px-5 font-bold text-white hover:bg-brand/90">
                 {busy === "commit" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {t("Ya, Komit", "Yes, Commit")}
               </Button>

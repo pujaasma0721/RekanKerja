@@ -69,8 +69,8 @@ interface EmployeeOption { id: string; employeeNo: string; fullName: string }
 const ASSET_STATUS: Record<string, { label: string; en: string; cls: string; dot: string }> = {
   Available: {
     label: "Tersedia", en: "Available",
-    cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
-    dot: "bg-emerald-500",
+    cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+    dot: "bg-brand",
   },
   Assigned: {
     label: "Ditugaskan", en: "Assigned",
@@ -79,8 +79,8 @@ const ASSET_STATUS: Record<string, { label: string; en: string; cls: string; dot
   },
   Maintenance: {
     label: "Perbaikan", en: "Maintenance",
-    cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/25",
-    dot: "bg-violet-500",
+    cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+    dot: "bg-brand",
   },
   Retired: {
     label: "Dipensiunkan", en: "Retired",
@@ -127,7 +127,7 @@ function CategoryBadge({ category }: { category: string }) {
 /** Label kondisi pengembalian (kecil, dipakai tab Penugasan + offboarding). */
 export function conditionLabel(cond: string | null): { label: string; en: string; cls: string } {
   switch (cond) {
-    case "Good": return { label: "Baik", en: "Good", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25" };
+    case "Good": return { label: "Baik", en: "Good", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
     case "Damaged": return { label: "Rusak", en: "Damaged", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" };
     case "Lost": return { label: "Hilang", en: "Lost", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" };
     default: return { label: "—", en: "—", cls: "bg-stone-50 text-stone-400 border-stone-200 dark:bg-stone-900 dark:text-stone-500 dark:border-stone-700" };
@@ -971,7 +971,7 @@ export function ReturnDialog({ assignment, onClose, onSaved, compact }: {
                     "rounded-xl border p-2.5 text-center text-[12px] font-bold transition-all",
                     condition === c.key
                       ? c.key === "Good"
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400"
+                        ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/40 dark:bg-brand/15 dark:text-brand/85"
                         : c.key === "Damaged"
                           ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-400"
                           : "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-400"
@@ -1023,7 +1023,7 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
         <span className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
           tone === "amber" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
-            : tone === "emerald" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+            : tone === "emerald" ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
               : "ov-soft ov-text-accent",
         )}>
           <Icon className="h-4.5 w-4.5" aria-hidden />

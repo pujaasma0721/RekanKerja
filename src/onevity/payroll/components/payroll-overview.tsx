@@ -102,10 +102,10 @@ export function PayrollOverview() {
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <MiniStat icon={Receipt} label={t("Bruto", "Gross")} value={fmtIDR(lastPaid.totalBruto)} tone="text-emerald-600 dark:text-emerald-400" />
+                  <MiniStat icon={Receipt} label={t("Bruto", "Gross")} value={fmtIDR(lastPaid.totalBruto)} tone="text-brand dark:text-brand/85" />
                   <MiniStat icon={BanknoteArrowDown} label={t("Potongan", "Deductions")} value={fmtIDR(lastPaid.totalDeduction)} tone="text-rose-600 dark:text-rose-400" />
-                  <MiniStat icon={Receipt} label={t("PPh21")} value={fmtIDR(lastPaid.totalTax)} tone="text-amber-600 dark:text-amber-400" />
-                  <MiniStat icon={Wallet} label={t("Take Home Pay")} value={fmtIDR(lastPaid.totalNet)} tone="text-teal-600 dark:text-teal-400" />
+                  <MiniStat icon={Receipt} label={t("PPh21")} value={fmtIDR(lastPaid.totalTax)} tone="text-brand dark:text-brand/85" />
+                  <MiniStat icon={Wallet} label={t("Take Home Pay")} value={fmtIDR(lastPaid.totalNet)} tone="text-brand dark:text-brand/85" />
                 </div>
               </CardContent>
             </Card>

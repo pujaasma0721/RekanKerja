@@ -102,7 +102,7 @@ export function PayrollParametersPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="mb-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+                  <div className="mb-4 flex items-center justify-between rounded-xl border border-brand/25 bg-brand/10/60 p-3.5 dark:border-brand/30 dark:bg-brand/10">
                     <div>
                       <p className="text-xs font-bold">{t("Gunakan Metode TER", "Use TER Method")}</p>
                       <p className="text-[10px] text-stone-500 dark:text-stone-400">{t("Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP", "Monthly effective rate (PP 58/2023) replacing annualized progressive — for Indonesian citizens with NPWP")}</p>
@@ -183,14 +183,14 @@ export function PayrollParametersPage() {
                 <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 ov-text-accent" /> {t("Tarif Efektif Rata-rata (TER) — PP 58/2023", "Average Effective Rate (TER) — PP 58/2023")}</CardTitle>
                 <p className="text-[11px] text-stone-400">
                   {t("Tarif bulanan atas bruto. Kategori A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Aktif jika switch TER dihidupkan (", "Monthly rate on gross. Category A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Active when the TER switch is on (")}
-                  {data?.regulation?.useTer ? <span className="font-bold text-emerald-600">{t("aktif", "active")}</span> : <span className="font-bold text-stone-500">{t("non-aktif — progresif", "inactive — progressive")}</span>}{t(").", ").")}
+                  {data?.regulation?.useTer ? <span className="font-bold text-brand">{t("aktif", "active")}</span> : <span className="font-bold text-stone-500">{t("non-aktif — progresif", "inactive — progressive")}</span>}{t(").", ").")}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid gap-4 lg:grid-cols-3">
                   {["A", "B", "C"].map((cat) => (
                     <div key={cat}>
-                      <p className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-wider", cat === "A" ? "text-emerald-600 dark:text-emerald-400" : cat === "B" ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400")}>
+                      <p className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-wider", cat === "A" ? "text-brand dark:text-brand/85" : cat === "B" ? "text-brand dark:text-brand/85" : "text-rose-600 dark:text-rose-400")}>
                         {t("Kategori {c} ({n} rentang)", "Category {c} ({n} ranges)", { c: cat, n: (data?.ter ?? []).filter((ter) => ter.category === cat).length })}
                       </p>
                       <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 dark:border-stone-800">

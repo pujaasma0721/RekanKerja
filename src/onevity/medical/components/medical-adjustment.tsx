@@ -158,7 +158,7 @@ export function MedicalAdjustmentPage() {
           <CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Efek", "Effect")}</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-              <TrendingUp className="h-4 w-4 text-emerald-600" /> {t("Approve → saldo ± langsung", "Approve → balance ± applied immediately")}
+              <TrendingUp className="h-4 w-4 text-brand" /> {t("Approve → saldo ± langsung", "Approve → balance ± applied immediately")}
             </p>
             <p className="mt-1 text-xs text-stone-500">{t("employee / dependent terpisah", "employee / dependent tracked separately")}</p>
           </CardContent>
@@ -202,12 +202,12 @@ export function MedicalAdjustmentPage() {
                       <TableCell>{a.typeName}</TableCell>
                       <TableCell>
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", a.forDependent
-                          ? "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400"
+                          ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
                           : "bg-stone-100 text-stone-600 dark:bg-stone-500/15 dark:text-stone-400")}>
                           {a.forDependent ? "Dependent" : t("Karyawan")}
                         </span>
                       </TableCell>
-                      <TableCell className={cn("text-right font-bold", a.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                      <TableCell className={cn("text-right font-bold", a.amount > 0 ? "text-brand dark:text-brand/85" : "text-brand dark:text-brand/85")}>
                         {a.amount > 0 ? "+" : ""}{fmtIDR(a.amount)}
                       </TableCell>
                       <TableCell className="text-sm">{fmtDateID(a.adjustmentDate)}</TableCell>
@@ -215,7 +215,7 @@ export function MedicalAdjustmentPage() {
                       <TableCell>
                         {a.state === "Submitted" && (
                           <div className="flex gap-1">
-                            <Button size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700" onClick={() => { setDecideDialog({ adj: a, action: "approve" }); setReason(""); }}>
+                            <Button size="sm" className="h-7 bg-brand hover:bg-brand/70" onClick={() => { setDecideDialog({ adj: a, action: "approve" }); setReason(""); }}>
                               <XCircle className="mr-0.5 h-3 w-3 rotate-45" /> {t("Setujui", "Approve")}
                             </Button>
                             <Button size="sm" variant="outline" className="h-7" onClick={() => { setDecideDialog({ adj: a, action: "reject" }); setReason(""); }}>
@@ -298,7 +298,7 @@ export function MedicalAdjustmentPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {decideDialog?.action === "approve" ? <XCircle className="h-5 w-5 rotate-45 text-emerald-600" /> : <Ban className="h-5 w-5 text-rose-600" />}
+              {decideDialog?.action === "approve" ? <XCircle className="h-5 w-5 rotate-45 text-brand" /> : <Ban className="h-5 w-5 text-brand" />}
               {decideDialog?.action === "approve" ? t("Setujui Penyesuaian", "Approve Adjustment") : t("Tolak Penyesuaian", "Reject Adjustment")}
             </DialogTitle>
           </DialogHeader>
@@ -315,7 +315,7 @@ export function MedicalAdjustmentPage() {
                 {decideDialog.adj.note && <p className="text-xs text-stone-500">{decideDialog.adj.note}</p>}
               </div>
               {decideDialog.action === "approve" && (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs text-brand-deep dark:border-brand/70 dark:bg-brand/90/30 dark:text-brand/75">
                   {t("Approve akan langsung mengubah saldo:", "Approve will immediately change the balance:")} {decideDialog.adj.forDependent ? "depAdjustment" : "adjustmentAmount"} {decideDialog.adj.amount > 0 ? t("bertambah", "increases") : t("berkurang", "decreases")} {fmtIDR(Math.abs(decideDialog.adj.amount))}.
                 </p>
               )}
@@ -327,7 +327,7 @@ export function MedicalAdjustmentPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDecideDialog(null)}>{t("Batal")}</Button>
-            <Button onClick={decide} disabled={busy} className={decideDialog?.action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}>
+            <Button onClick={decide} disabled={busy} className={decideDialog?.action === "approve" ? "bg-brand hover:bg-brand/70" : "bg-brand hover:bg-brand/70"}>
               {busy ? t("Memproses…", "Processing…") : decideDialog?.action === "approve" ? t("Setujui", "Approve") : t("Tolak", "Reject")}
             </Button>
           </DialogFooter>

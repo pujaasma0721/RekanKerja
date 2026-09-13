@@ -298,7 +298,7 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
         <Badge className="gap-1 bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
           {t("{n} karyawan", "{n} employees", { n: rows.length })}
         </Badge>
-        <Badge className="gap-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+        <Badge className="gap-1 bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
           {t("{n} kena aturan", "{n} matched by rule", { n: matchedCount })}
         </Badge>
         <Badge className="gap-1 bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">
@@ -354,7 +354,7 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
                     <TableCell className="text-right font-mono text-[11px] text-stone-500">{fmt(r.base)}</TableCell>
                     <TableCell>
                       {r.matchedRule ? (
-                        <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-emerald-600 dark:text-emerald-400" title={r.matchedRule.name}>
+                        <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-brand dark:text-brand/85" title={r.matchedRule.name}>
                           {r.matchedRule.name}
                         </Badge>
                       ) : (

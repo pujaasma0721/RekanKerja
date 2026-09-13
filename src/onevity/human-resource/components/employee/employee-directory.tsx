@@ -68,9 +68,9 @@ function ContractBadge({ employmentStatus, contractEnd }: { employmentStatus: st
 
 // status kerja → dot + teks tenang (mengganti pill "stiker" yang ramai)
 const EMPLOYMENT_TAG: Record<string, { text: string; dot: string }> = {
-  Permanent: { text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+  Permanent: { text: "text-brand-deep dark:text-brand/85", dot: "bg-brand" },
   Probation: { text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
-  Contract: { text: "text-teal-700 dark:text-teal-400", dot: "bg-teal-500" },
+  Contract: { text: "text-brand-deep dark:text-brand/85", dot: "bg-brand" },
   Outsourcing: { text: "text-orange-700 dark:text-orange-400", dot: "bg-orange-500" },
 };
 

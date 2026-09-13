@@ -27,9 +27,9 @@ import { cn } from "@/lib/utils";
 type Action = "approve" | "reject" | "cancel" | "settle" | "return";
 
 const ACTION_META: Record<Action, { title: string; label: string; tone: string; icon: typeof CheckCircle2 }> = {
-  approve: { title: "Setujui Klaim", label: "Setujui", tone: "bg-emerald-600 hover:bg-emerald-700", icon: CheckCircle2 },
-  settle: { title: "Settle Klaim", label: "Settle", tone: "bg-teal-600 hover:bg-teal-700", icon: Landmark },
-  reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-rose-600 hover:bg-rose-700", icon: XCircle },
+  approve: { title: "Setujui Klaim", label: "Setujui", tone: "bg-brand hover:bg-brand/70", icon: CheckCircle2 },
+  settle: { title: "Settle Klaim", label: "Settle", tone: "bg-brand hover:bg-brand/70", icon: Landmark },
+  reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-brand hover:bg-brand/70", icon: XCircle },
   cancel: { title: "Batalkan Klaim", label: "Batalkan", tone: "bg-stone-600 hover:bg-stone-700", icon: Ban },
   return: { title: "Kembalikan ke Pemohon", label: "Kembalikan", tone: "bg-amber-600 hover:bg-amber-700", icon: History },
 };
@@ -191,7 +191,7 @@ export function MedicalApprovalPage() {
               className={cn(
                 "flex flex-wrap items-center gap-3 rounded-xl border p-3",
                 c.state === "Approved"
-                  ? "border-teal-200 bg-teal-50/50 dark:border-teal-800 dark:bg-teal-950/20"
+                  ? "border-brand/25 bg-brand/10/50 dark:border-brand/70 dark:bg-brand/90/20"
                   : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900",
               )}
             >
@@ -204,7 +204,7 @@ export function MedicalApprovalPage() {
                       {t("Jenjang {l}", "Tier {l}", { l: `${c.approval.currentLevel}/${c.approval.totalLevels}` })}
                     </span>
                   )}
-                  {c.forDependent && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-400">dependent</span>}
+                  {c.forDependent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand-deep dark:bg-brand/15 dark:text-brand/85">dependent</span>}
                 </div>
                 <p className="mt-0.5 text-sm text-stone-600 dark:text-stone-300">
                   {c.fullName} · {c.typeName} · {fmtDateID(c.claimDate)}
@@ -224,13 +224,13 @@ export function MedicalApprovalPage() {
                   <>
                     {perms.canOp("medical", "medical-approval", "approve") && (
                       <>
-                        <Button size="sm" onClick={() => openDialog("approve", c)} className="h-8 bg-emerald-600 hover:bg-emerald-700">
+                        <Button size="sm" onClick={() => openDialog("approve", c)} className="h-8 bg-brand hover:bg-brand/70">
                           <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> {t("Setujui", "Approve")}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => openDialog("return", c)} className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400">
                           <History className="mr-1 h-3.5 w-3.5" /> {t("Kembalikan", "Return")}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400">
+                        <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/70 dark:text-brand/85">
                           <XCircle className="mr-1 h-3.5 w-3.5" /> {t("Tolak", "Reject")}
                         </Button>
                       </>
@@ -240,7 +240,7 @@ export function MedicalApprovalPage() {
                 {c.state === "Approved" && (
                   <>
                     {perms.canOp("medical", "medical-approval", "settle") && (
-                      <Button size="sm" onClick={() => openDialog("settle", c)} className="h-8 bg-teal-600 hover:bg-teal-700">
+                      <Button size="sm" onClick={() => openDialog("settle", c)} className="h-8 bg-brand hover:bg-brand/70">
                         <Landmark className="mr-1 h-3.5 w-3.5" /> {t("Settle & Jurnal", "Settle & Journal")}
                       </Button>
                     )}
@@ -261,7 +261,7 @@ export function MedicalApprovalPage() {
         <Card className="mt-4 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
-              <FileText className="h-4 w-4 text-teal-600" /> {t("Riwayat Settlement Terbaru", "Recent Settlement History")}
+              <FileText className="h-4 w-4 text-brand" /> {t("Riwayat Settlement Terbaru", "Recent Settlement History")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5">
@@ -301,7 +301,7 @@ export function MedicalApprovalPage() {
                 </p>
               )}
               {action === "settle" && (
-                <p className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-xs leading-relaxed text-teal-800 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300">
+                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/90/30 dark:text-brand/75">
                   {t("Settle akan: (1) membuat jurnal otomatis Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas, (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal Debit 5106 Medical Welfare Expense / Credit 1101 Cash, (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
                 </p>
               )}

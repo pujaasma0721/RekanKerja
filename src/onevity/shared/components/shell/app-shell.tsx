@@ -828,7 +828,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     <div className="relative shrink-0">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">{sessionUser ? initials(sessionUser.name) : "?"}</div>
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-400" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-brand/55" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[11px] font-bold text-foreground">{sessionUser?.name ?? "—"}</p>
@@ -1377,7 +1377,7 @@ function WorkspaceMenu() {
             <Building2 className="h-4 w-4 shrink-0 text-stone-400" />
             <span className="flex-1 truncate">{w.name}</span>
             {w.id === tenant.id ? (
-              <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Check className="h-4 w-4 shrink-0 text-brand dark:text-brand/85" />
             ) : (
               <span className="shrink-0 text-[10px] text-stone-400">{w.role}</span>
             )}

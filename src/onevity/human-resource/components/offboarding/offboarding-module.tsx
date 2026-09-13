@@ -92,8 +92,8 @@ function ObStatusPill({ status, className }: { status: string; className?: strin
     },
     Completed: {
       label: "Selesai", en: "Completed",
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
-      dot: "bg-emerald-500",
+      cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+      dot: "bg-brand",
     },
     Cancelled: {
       label: "Dibatalkan", en: "Cancelled",
@@ -112,10 +112,10 @@ function ObStatusPill({ status, className }: { status: string; className?: strin
 
 // chip pemilik tugas — warna lembut per fungsi
 const OWNER_CLS: Record<string, string> = {
-  IT: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/25",
-  HR: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
+  IT: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
+  HR: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
   Finance: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
-  Supervisor: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25",
+  Supervisor: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
   GA: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25",
   Payroll: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/25",
 };
@@ -231,7 +231,7 @@ function OffboardingList() {
                           <div className="flex items-center gap-2">
                             <Progress value={pct} className="h-1.5 w-20 [&>div]:ov-chart" />
                             <span className="text-[10px] font-bold tabular-nums text-stone-500">{r.taskStats.done}/{r.taskStats.total}</span>
-                            {allDone && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+                            {allDone && <CheckCircle2 className="h-3.5 w-3.5 text-brand" />}
                           </div>
                         </TableCell>
                         <TableCell><ObStatusPill status={r.status} /></TableCell>
@@ -464,7 +464,7 @@ function OffboardingDetail({ id }: { id: string }) {
 
       {/* ===== kartu ringkasan karyawan ===== */}
       <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <div className={cn("h-1.5", ob.status === "Completed" ? "bg-emerald-500" : ob.status === "Cancelled" ? "bg-stone-300" : "bg-amber-400")} />
+        <div className={cn("h-1.5", ob.status === "Completed" ? "bg-brand" : ob.status === "Cancelled" ? "bg-stone-300" : "bg-amber-400")} />
         <CardContent className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -511,10 +511,10 @@ function OffboardingDetail({ id }: { id: string }) {
         </Card>
       )}
       {ob.status === "Completed" && (
-        <Card className="mb-4 rounded-2xl border-emerald-200 bg-emerald-50/70 shadow-sm dark:border-emerald-500/25 dark:bg-emerald-500/5">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 shadow-sm dark:border-brand/25 dark:bg-brand/5">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <p className="flex-1 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-brand dark:text-brand/85" />
+            <p className="flex-1 text-[13px] font-bold text-brand-deep dark:text-brand/75">
               {t("Offboarding selesai {date} — seluruh clearance tuntas", "Offboarding completed {date} — all clearance done", { date: fmtDate(ob.completedAt) })}
             </p>
           </CardContent>
@@ -556,14 +556,14 @@ function OffboardingDetail({ id }: { id: string }) {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
-                    task.status === "Done" ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5" :
+                    task.status === "Done" ? "border-brand/25 bg-brand/10/50 dark:border-brand/25 dark:bg-brand/5" :
                     task.status === "Na" ? "border-stone-200 bg-stone-50/70 dark:border-stone-800 dark:bg-stone-900/40" :
                     "border-stone-100 bg-white dark:border-stone-800 dark:bg-stone-900",
                   )}
                 >
                   <span className={cn(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold tabular-nums",
-                    task.status === "Done" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" :
+                    task.status === "Done" ? "bg-brand/15 text-brand-deep dark:bg-brand/20 dark:text-brand/85" :
                     task.status === "Na" ? "bg-stone-100 text-stone-400 dark:bg-stone-800" :
                     "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
                   )}>
@@ -576,7 +576,7 @@ function OffboardingDetail({ id }: { id: string }) {
                     </div>
                     {task.notes && <p className="mt-0.5 text-[11px] italic text-stone-500">"{task.notes}"</p>}
                     {task.status === "Done" && (
-                      <p className="mt-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      <p className="mt-0.5 text-[10px] text-brand dark:text-brand/85">
                         <CheckCircle2 className="mr-1 inline h-3 w-3" />
                         {t("oleh {name}, {time}", "by {name}, {time}", { name: task.completedByName ?? "—", time: fmtDateTime(task.completedAt) })}
                       </p>
@@ -589,7 +589,7 @@ function OffboardingDetail({ id }: { id: string }) {
                       disabled={!canUpdate || busy}
                       onClick={() => void setTaskStatus(task, task.status === "Done" ? "Pending" : "Done")}
                       title={t("Tandai selesai", "Mark as done")}
-                      className={cn("h-7 gap-1 px-2 text-[11px] font-bold", task.status === "Done" && "border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400")}
+                      className={cn("h-7 gap-1 px-2 text-[11px] font-bold", task.status === "Done" && "border-brand/40 bg-brand/15 text-brand-deep hover:bg-brand/15 dark:border-brand/40 dark:bg-brand/15 dark:text-brand/85")}
                     >
                       <Check className="h-3.5 w-3.5" /> {t("Selesai", "Done")}
                     </Button>
@@ -680,9 +680,9 @@ function OffboardingDetail({ id }: { id: string }) {
             </CardHeader>
             <CardContent className="space-y-1.5 pt-0">
               {(ob.outstandingAssets?.length ?? 0) === 0 ? (
-                <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/25 dark:bg-emerald-500/5">
-                  <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <p className="text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
+                <div className="flex items-center gap-2.5 rounded-xl border border-brand/25 bg-brand/10/70 p-3.5 dark:border-brand/25 dark:bg-brand/5">
+                  <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-brand dark:text-brand/85" aria-hidden />
+                  <p className="text-[12px] font-bold text-brand-deep dark:text-brand/75">
                     {t("Tidak ada aset tertunda — clearance aset tuntas", "No pending assets — asset clearance is clear")}
                   </p>
                 </div>
@@ -746,7 +746,7 @@ function OffboardingDetail({ id }: { id: string }) {
             <CardHeader className="pb-3">
               <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
                 <MessageSquareText className="h-4 w-4 ov-text-accent" /> {t("Exit Interview", "Exit Interview")}
-                <Badge variant="outline" className={cn("text-[10px] font-bold", ob.exitInterview ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400")}>
+                <Badge variant="outline" className={cn("text-[10px] font-bold", ob.exitInterview ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400")}>
                   {ob.exitInterview ? t("Terisi", "Filled") : t("Belum terisi", "Not filled")}
                 </Badge>
               </CardTitle>
@@ -827,7 +827,7 @@ function OffboardingDetail({ id }: { id: string }) {
                   <Button
                     onClick={() => setConfirmComplete(true)}
                     disabled={remaining > 0 || !perms.can("hr", "offboarding", "update")}
-                    className="w-full gap-2 bg-emerald-600 font-bold hover:bg-emerald-700"
+                    className="w-full gap-2 bg-brand font-bold hover:bg-brand/70"
                   >
                     <CheckCircle2 className="h-4 w-4" /> {t("Tandai Selesai", "Mark as Completed")}
                   </Button>
@@ -848,9 +848,9 @@ function OffboardingDetail({ id }: { id: string }) {
               )}
 
               {ob.status === "Completed" && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-center dark:border-emerald-500/25 dark:bg-emerald-500/5">
-                  <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600 dark:text-emerald-400" />
-                  <p className="mt-1 text-[13px] font-bold text-emerald-700 dark:text-emerald-300">{t("Proses Selesai", "Process Completed")}</p>
+                <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
+                  <CheckCircle2 className="mx-auto h-7 w-7 text-brand dark:text-brand/85" />
+                  <p className="mt-1 text-[13px] font-bold text-brand-deep dark:text-brand/75">{t("Proses Selesai", "Process Completed")}</p>
                   <p className="mt-0.5 text-[11px] text-stone-500">{t("Ditutup {date}", "Closed {date}", { date: fmtDateTime(ob.completedAt) })}</p>
                 </div>
               )}
@@ -917,7 +917,7 @@ function OffboardingDetail({ id }: { id: string }) {
       <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> {t("Tandai Offboarding Selesai?", "Mark Offboarding as Completed?")}</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-brand" /> {t("Tandai Offboarding Selesai?", "Mark Offboarding as Completed?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
                 "Seluruh {total} tugas clearance ({done} selesai, {na} N/A) untuk {name} telah tuntas. Proses akan dikunci dan tidak bisa diubah lagi.",
@@ -933,7 +933,7 @@ function OffboardingDetail({ id }: { id: string }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void doComplete()} className="bg-emerald-600 font-bold hover:bg-emerald-700">
+            <AlertDialogAction onClick={() => void doComplete()} className="bg-brand font-bold hover:bg-brand/70">
               {t("Ya, Tandai Selesai", "Yes, Mark as Completed")}
             </AlertDialogAction>
           </AlertDialogFooter>

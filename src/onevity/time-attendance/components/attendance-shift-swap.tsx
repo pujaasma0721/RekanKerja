@@ -155,7 +155,7 @@ export function AttendanceShiftSwapPage() {
 
   const statChips = [
     { key: "pending", label: t("Menunggu Keputusan", "Awaiting Decision"), value: stats?.pending ?? 0, cls: "text-amber-600 dark:text-amber-400", icon: Clock3 },
-    { key: "approved", label: t("Disetujui", "Approved"), value: stats?.approved ?? 0, cls: "text-emerald-600 dark:text-emerald-400", icon: CheckCircle2 },
+    { key: "approved", label: t("Disetujui", "Approved"), value: stats?.approved ?? 0, cls: "text-brand dark:text-brand/85", icon: CheckCircle2 },
     { key: "rejected", label: t("Ditolak", "Rejected"), value: stats?.rejected ?? 0, cls: "text-rose-600 dark:text-rose-400", icon: XCircle },
     { key: "total", label: t("Total Permintaan", "Total Requests"), value: stats?.total ?? 0, cls: "text-stone-500", icon: ArrowLeftRight },
   ];
@@ -262,7 +262,7 @@ export function AttendanceShiftSwapPage() {
                           <div className="flex items-center gap-1.5">
                             <Badge variant="outline" className="max-w-36 truncate text-[10px] font-bold">{r.requesterScheduleName}</Badge>
                             <ArrowRight className="h-3 w-3 shrink-0 text-stone-400" aria-hidden />
-                            <Badge variant="outline" className="max-w-36 truncate border-teal-200 bg-teal-50 text-[10px] font-bold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400">{r.targetScheduleName}</Badge>
+                            <Badge variant="outline" className="max-w-36 truncate border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{r.targetScheduleName}</Badge>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -287,7 +287,7 @@ export function AttendanceShiftSwapPage() {
                             {r.status === "Pending" && canApprove && (
                               <>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Setujui", "Approve")} disabled={busyId === r.id} onClick={() => setApproveTarget(r)} aria-label={t("Setujui tukar shift", "Approve swap")}>
-                                  {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                                  {busyId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-brand" />}
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Tolak", "Reject")} disabled={busyId === r.id} onClick={() => { setRejectTarget(r); setRejectNote(""); }} aria-label={t("Tolak tukar shift", "Reject swap")}>
                                   <XCircle className="h-4 w-4 text-rose-500" />
@@ -321,7 +321,7 @@ export function AttendanceShiftSwapPage() {
                     <div className="mt-2 flex items-center gap-1.5">
                       <Badge variant="outline" className="max-w-[38%] truncate text-[10px] font-bold">{r.requesterScheduleName}</Badge>
                       <ArrowRight className="h-3 w-3 shrink-0 text-stone-400" aria-hidden />
-                      <Badge variant="outline" className="max-w-[38%] truncate border-teal-200 bg-teal-50 text-[10px] font-bold text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-400">{r.targetScheduleName}</Badge>
+                      <Badge variant="outline" className="max-w-[38%] truncate border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{r.targetScheduleName}</Badge>
                     </div>
                     {r.reason && <p className="mt-2 line-clamp-2 text-[11px] italic text-stone-500 dark:text-stone-400">“{r.reason}”</p>}
                     {r.decisionNote && (
@@ -335,7 +335,7 @@ export function AttendanceShiftSwapPage() {
                       </Button>
                       {r.status === "Pending" && canApprove && (
                         <>
-                          <Button size="sm" className="h-8 flex-1 gap-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700" disabled={busyId === r.id} onClick={() => setApproveTarget(r)}>
+                          <Button size="sm" className="h-8 flex-1 gap-1.5 rounded-lg bg-brand text-[11px] font-bold hover:bg-brand/70" disabled={busyId === r.id} onClick={() => setApproveTarget(r)}>
                             {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} {t("Setujui", "Approve")}
                           </Button>
                           <Button size="sm" variant="outline" className="h-8 flex-1 gap-1.5 rounded-lg border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400" disabled={busyId === r.id} onClick={() => { setRejectTarget(r); setRejectNote(""); }}>
@@ -357,7 +357,7 @@ export function AttendanceShiftSwapPage() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArrowLeftRight className="h-4 w-4 text-teal-600 dark:text-teal-400" aria-hidden />
+              <ArrowLeftRight className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
               {t("Detail Tukar Shift {code}", "Shift Swap Detail {code}", { code: detail?.code ?? "" })}
             </DialogTitle>
             <DialogDescription>
@@ -406,7 +406,7 @@ export function AttendanceShiftSwapPage() {
               )}
 
               {detail.applied && (
-                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] leading-relaxed text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                <p className="rounded-lg bg-brand/10 px-3 py-2 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/10 dark:text-brand/85">
                   {t(
                     "Override jadwal 1-hari telah dibuat untuk kedua karyawan (assignment 1: {a1}, assignment 2: {a2}) — rekap absensi tanggal tsb dihitung ulang.",
                     "One-day schedule overrides created for both employees (assignment 1: {a1}, assignment 2: {a2}) — that date's attendance recap recalculated.",
@@ -441,7 +441,7 @@ export function AttendanceShiftSwapPage() {
                   <p className="truncate font-bold text-stone-800 dark:text-stone-200">{approveTarget.requester.fullName}</p>
                   <p className="truncate text-[11px] text-stone-400">{approveTarget.requesterScheduleName}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-teal-500" aria-hidden />
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand" aria-hidden />
                 <div className="min-w-0 text-right">
                   <p className="truncate font-bold text-stone-800 dark:text-stone-200">{approveTarget.targetScheduleName}</p>
                   <p className="truncate text-[11px] text-stone-400">{approveTarget.target.fullName}</p>

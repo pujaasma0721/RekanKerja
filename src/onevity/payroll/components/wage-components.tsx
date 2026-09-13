@@ -118,7 +118,7 @@ export function WageComponentsPage() {
                         {c.calcMethod === "Tax" && <Badge variant="outline" className="text-[9px]">{t("dihitung engine", "engine-calculated")}</Badge>}
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", c.incomeTaxMethod === "Regular" ? "text-amber-600 dark:text-amber-400" : "text-stone-400")}>
+                        <span className={cn("text-[11px] font-bold", c.incomeTaxMethod === "Regular" ? "text-brand dark:text-brand/85" : "text-stone-400")}>
                           {t(TAX_METHOD_LABEL[c.incomeTaxMethod] ?? c.incomeTaxMethod, TAX_METHOD_LABEL_EN[c.incomeTaxMethod])}
                         </span>
                       </TableCell>
@@ -137,7 +137,7 @@ export function WageComponentsPage() {
                         </button>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", c.includeInTHP ? "text-emerald-600 dark:text-emerald-400" : "text-stone-300")}>{c.includeInTHP ? t("Ya") : t("Tidak")}</span>
+                        <span className={cn("text-[11px] font-bold", c.includeInTHP ? "text-brand dark:text-brand/85" : "text-stone-300")}>{c.includeInTHP ? t("Ya") : t("Tidak")}</span>
                       </TableCell>
                       <TableCell>
                         <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} aria-label={t("Toggle {name}", "Toggle {name}", { name: c.name })} />
@@ -179,7 +179,7 @@ export function WageComponentsPage() {
 
 function TypeCard({ label, value, icon: Icon, tone, active, onClick }: { label: string; value: number; icon: React.ElementType; tone: string; active: boolean; onClick: () => void }) {
   const tones: Record<string, string> = {
-    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+    emerald: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
     rose: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
     stone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400",
   };

@@ -263,7 +263,7 @@ export function TravelTemplatesPage() {
                   <p className="mt-1 text-sm font-bold text-stone-900 dark:text-stone-100">{z.name}</p>
                   <Badge variant="secondary" className="mt-1.5 text-[9px] font-bold">{t("Zona dasar", "Base zone")}</Badge>
                 </div>
-                <div className={cn("rounded-xl p-2.5", z.overseas ? "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400" : "ov-tile")}>
+                <div className={cn("rounded-xl p-2.5", z.overseas ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85" : "ov-tile")}>
                   {z.overseas ? <Globe2 className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
                 </div>
               </CardContent>

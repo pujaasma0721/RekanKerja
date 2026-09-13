@@ -124,7 +124,7 @@ export function PayrollProfilesPage() {
                               {r.profile && (
                                 <Badge variant="outline" className={cn("h-4 px-1 text-[8px] font-bold",
                                   auto
-                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                    ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
                                     : "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-400")}>
                                   {auto ? t("Auto", "Auto") : "Manual"}
                                 </Badge>
@@ -132,19 +132,19 @@ export function PayrollProfilesPage() {
                             </div>
                             <span className="text-[10px] text-stone-400">{r.profile ? t("PTKP {v}/thn", "PTKP {v}/yr", { v: fmtIDR(r.profile.ptkpValue) }) : ""}</span>
                             {mismatch && (
-                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                              <span className="text-[10px] font-bold text-brand dark:text-brand/85">
                                 {t("Saran keluarga: {s}", "Family suggests: {s}", { s: r.ptkpSuggestion.taxStatus })}
                               </span>
                             )}
                             {pending && (
-                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                              <span className="text-[10px] font-bold text-brand dark:text-brand/85">
                                 {t("→ {s} pada 1 Jan {y}", "→ {s} on Jan 1, {y}", { s: r.ptkpSuggestion.taxStatus, y: nextYear })}
                               </span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("text-[9px] font-bold", r.profile?.processMethod === "NetToGross" ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" : "")}>
+                          <Badge variant="outline" className={cn("text-[9px] font-bold", r.profile?.processMethod === "NetToGross" ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" : "")}>
                             {r.profile?.processMethod === "NetToGross" ? "NetToGross" : "GrossToNet"}
                           </Badge>
                         </TableCell>
@@ -349,9 +349,9 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
               </p>
             </div>
             {preview.preservedKi.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] dark:border-amber-500/30 dark:bg-amber-500/10">
-                <p className="font-bold text-amber-700 dark:text-amber-400">{t("K/I dibiarkan manual ({n} karyawan)", "K/I kept manual ({n} employees)", { n: preview.preservedKi.length })}</p>
-                <p className="mt-0.5 text-amber-700/80 dark:text-amber-400/80">
+              <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11px] dark:border-brand/30 dark:bg-brand/10">
+                <p className="font-bold text-brand-deep dark:text-brand/85">{t("K/I dibiarkan manual ({n} karyawan)", "K/I kept manual ({n} employees)", { n: preview.preservedKi.length })}</p>
+                <p className="mt-0.5 text-brand-deep/80 dark:text-brand/85/80">
                   {t("Status K/I (penghasilan pasangan digabung) tidak dapat diturunkan dari data keluarga — diatur manual per karyawan.", "K/I status (spouse income combined) cannot be derived from family data — set manually per employee.")}
                 </p>
               </div>
@@ -371,7 +371,7 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85">
                 {t("Semua status PTKP sudah sesuai data keluarga — tidak ada perubahan.", "All PTKP statuses already match family data — no changes.")}
               </div>
             )}
@@ -491,7 +491,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
                 className={cn(
                   "rounded-xl border p-2.5 text-left transition-colors",
                   ptkpSource === "auto"
-                    ? "border-emerald-400 bg-emerald-50 dark:border-emerald-500/50 dark:bg-emerald-500/10"
+                    ? "border-brand/40 bg-brand/10 dark:border-brand/50 dark:bg-brand/10"
                     : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
                 )}
                 aria-pressed={ptkpSource === "auto"}
@@ -505,7 +505,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
                 className={cn(
                   "rounded-xl border p-2.5 text-left transition-colors",
                   ptkpSource === "manual"
-                    ? "border-amber-400 bg-amber-50 dark:border-amber-500/50 dark:bg-amber-500/10"
+                    ? "border-brand/40 bg-brand/10 dark:border-brand/50 dark:bg-brand/10"
                     : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
                 )}
                 aria-pressed={ptkpSource === "manual"}
@@ -517,13 +517,13 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
           </div>
           {ptkpSource === "auto" ? (
             <div className="grid gap-2">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{t("PTKP efektif — dipakai payroll tahun ini", "Effective PTKP — used by this year's payroll")}</p>
+              <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-3 dark:border-brand/30 dark:bg-brand/10">
+                <p className="text-[11px] font-bold text-brand-deep dark:text-brand/85">{t("PTKP efektif — dipakai payroll tahun ini", "Effective PTKP — used by this year's payroll")}</p>
                 <p className="mt-1 text-[13px] font-bold ov-text-accent">
                   {t("Status: {s}", "Status: {s}", { s: frozenStatus })} — {fmtIDR(frozenPtkp?.ptkp ?? 0)}/{t("thn", "yr")}
                 </p>
                 {pending ? (
-                  <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                  <p className="mt-1.5 rounded-lg border border-brand/25 bg-brand/10 px-2 py-1.5 text-[10px] leading-snug text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85">
                     {t(
                       "Data keluarga terkini: pasangan {spouse}, tanggungan {n} → {s} — berlaku 1 Jan {y} (perubahan tengah tahun menunggu refresh tahunan).",
                       "Current family data: spouse {spouse}, dependents {n} → {s} — effective Jan 1, {y} (mid-year changes wait for the annual refresh).",
@@ -531,7 +531,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
                     )}
                   </p>
                 ) : (
-                  <p className="mt-1.5 text-[10px] leading-snug text-emerald-700/80 dark:text-emerald-400/80">
+                  <p className="mt-1.5 text-[10px] leading-snug text-brand-deep/80 dark:text-brand/85/80">
                     {t(
                       "Sesuai data keluarga (pasangan {spouse}, tanggungan {n}) — tidak ada perubahan tertunda.",
                       "Matches family data (spouse {spouse}, dependents {n}) — no pending changes.",
@@ -556,7 +556,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
           ) : (
             <div className="grid gap-2">
               {isKi && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[10px] leading-snug text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                <div className="rounded-xl border border-brand/25 bg-brand/10 p-2.5 text-[10px] leading-snug text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85">
                   {t("Status K/I (penghasilan pasangan digabung) hanya dapat diatur manual — data keluarga tidak memuat informasi penggabungan penghasilan.", "K/I status (spouse income combined) can only be set manually — family data does not contain income-combination info.")}
                 </div>
               )}

@@ -73,8 +73,8 @@ export function DecisionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
             {approve ? (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/15 dark:bg-brand/15">
+                <CheckCircle2 className="h-5 w-5 text-brand dark:text-brand/85" />
               </span>
             ) : (
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/15">
@@ -106,7 +106,7 @@ export function DecisionDialog({
             <Button
               disabled={busy}
               onClick={() => void submit()}
-              className={`h-11 px-5 font-bold ${approve ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
+              className={`h-11 px-5 font-bold ${approve ? "bg-brand hover:bg-brand/70" : "bg-rose-600 hover:bg-rose-700"}`}
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {approve ? t("Setujui Sekarang", "Approve Now") : t("Tolak Dokumen", "Reject Document")}

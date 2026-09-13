@@ -149,7 +149,7 @@ export function PayrollRunsPage() {
                       <TableCell><StatusPill status={r.status} /></TableCell>
                       <TableCell className="text-center text-xs font-semibold">{r.employeeCount || "—"}</TableCell>
                       <TableCell className="text-right text-xs">{r.status === "Draft" ? "—" : fmtIDR(r.totalBruto)}</TableCell>
-                      <TableCell className="text-right text-xs text-amber-700 dark:text-amber-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalTax)}</TableCell>
+                      <TableCell className="text-right text-xs text-brand-deep dark:text-brand/85">{r.status === "Draft" ? "—" : fmtIDR(r.totalTax)}</TableCell>
                       <TableCell className="text-right text-xs font-bold ov-text-accent">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
@@ -193,9 +193,9 @@ export function PayrollRunsPage() {
 function RunActionButton({ icon: Icon, label, tone, disabled, onClick }: { icon: React.ElementType; label: string; tone: string; disabled: boolean; onClick: () => void }) {
   const { t } = useI18n();
   const tones: Record<string, string> = {
-    sky: "border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-500/40 dark:text-sky-400 dark:hover:bg-sky-500/10",
-    emerald: "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-400 dark:hover:bg-emerald-500/10",
-    teal: "border-teal-300 text-teal-700 hover:bg-teal-50 dark:border-teal-500/40 dark:text-teal-400 dark:hover:bg-teal-500/10",
+    sky: "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10",
+    emerald: "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10",
+    teal: "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10",
     rose: "border-rose-200 text-rose-500 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10",
     stone: "border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800",
   };
@@ -262,7 +262,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
               <SelectContent>
                 {(typesApi.data?.processTypes ?? []).map((pt) => (
                   <SelectItem key={pt.id} value={pt.id}>
-                    {pt.name} {pt.calculateTax ? <Receipt className="ml-1 inline h-3 w-3 text-amber-500" /> : null}
+                    {pt.name} {pt.calculateTax ? <Receipt className="ml-1 inline h-3 w-3 text-brand" /> : null}
                   </SelectItem>
                 ))}
               </SelectContent>

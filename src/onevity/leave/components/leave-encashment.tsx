@@ -129,9 +129,9 @@ export function LeaveEncashmentPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           { label: t("Menunggu Approval", "Pending Approvals"), value: stats?.submitted ?? 0, sub: t("permintaan", "requests"), icon: Send, tone: "text-amber-600" },
-          { label: t("Siap Transfer", "Ready to Transfer"), value: stats?.approved ?? 0, sub: t("approved — belum masuk payroll", "approved — not yet in payroll"), icon: Coins, tone: "text-teal-600" },
+          { label: t("Siap Transfer", "Ready to Transfer"), value: stats?.approved ?? 0, sub: t("approved — belum masuk payroll", "approved — not yet in payroll"), icon: Coins, tone: "text-brand" },
           { label: t("Total Nilai", "Total Value"), value: fmtIDRShort(stats?.totalAmount ?? 0), sub: t("{n} hari diuangkan", "{n} days cashed out", { n: stats?.totalDays ?? 0 }), icon: Wallet, tone: "text-orange-600" },
-          { label: t("Ditransfer / Dibayar", "Transferred / Paid"), value: (stats?.transferred ?? 0) + (stats?.paid ?? 0), sub: t("{n} sudah dibayar", "{n} already paid", { n: stats?.paid ?? 0 }), icon: CheckCircle2, tone: "text-emerald-600" },
+          { label: t("Ditransfer / Dibayar", "Transferred / Paid"), value: (stats?.transferred ?? 0) + (stats?.paid ?? 0), sub: t("{n} sudah dibayar", "{n} already paid", { n: stats?.paid ?? 0 }), icon: CheckCircle2, tone: "text-brand" },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -191,7 +191,7 @@ export function LeaveEncashmentPage() {
                         <p className="text-[10px] text-stone-400">{e.fullName}</p>
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{e.days}</TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-teal-700 dark:text-teal-400">{fmtIDR(e.amount)}</TableCell>
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-brand-deep dark:text-brand/85">{fmtIDR(e.amount)}</TableCell>
                       <TableCell className="text-[11px] text-stone-500">{e.paymentDate ? new Date(e.paymentDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" }) : "—"}</TableCell>
                       <TableCell className="text-[11px] text-stone-500">
                         {e.periodCode ? <span className="font-mono">{e.periodCode}{e.transferredRunNo && <span className="block text-[9px] text-stone-400">{e.transferredRunNo}</span>}</span> : "—"}
@@ -200,7 +200,7 @@ export function LeaveEncashmentPage() {
                       <TableCell>
                         {e.status === "Submitted" && (
                           <div className="flex gap-1">
-                            <Button size="sm" onClick={() => decide(e, "approve", "Disetujui")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
+                            <Button size="sm" onClick={() => decide(e, "approve", "Disetujui")} className="h-7 gap-1 bg-brand text-[11px] font-bold hover:bg-brand/70">
                               <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { setRejectTarget(e); setRejectNote(""); }} className="h-7 gap-1 border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
@@ -261,7 +261,7 @@ export function LeaveEncashmentPage() {
               <Label className="text-xs font-bold">{t("Catatan")}</Label>
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={t("Opsional", "Optional")} className="h-8 text-xs" />
             </div>
-            <div className="flex items-start gap-2 rounded-lg bg-teal-50 p-2.5 text-[11px] leading-relaxed text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
+            <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
               <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>{t("Estimasi upah = hari × gaji pokok ÷ 25. Setelah disetujui, saldo ", "Estimated wage = days × base salary ÷ 25. Once approved, the ")}<b>{t("e · diuangkan", "e · cashed out")}</b>{t(" bertambah dan siap ditransfer sebagai komponen ", " increases and is ready to be transferred as the ")}<b>UCT</b>{t(" ke payroll period.", " component to the payroll period.")}</p>
             </div>
@@ -279,7 +279,7 @@ export function LeaveEncashmentPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <ArrowRightCircle className="h-4 w-4 text-teal-600" /> {t("Transfer ke Payroll", "Transfer to Payroll")}
+              <ArrowRightCircle className="h-4 w-4 text-brand" /> {t("Transfer ke Payroll", "Transfer to Payroll")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -301,14 +301,14 @@ export function LeaveEncashmentPage() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className="bg-teal-100 text-[10px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">{t("Komponen UCT", "UCT Component")}</Badge>
+              <Badge className="bg-brand/15 text-[10px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Komponen UCT", "UCT Component")}</Badge>
               <Badge variant="outline" className="text-[10px]">{t("Run SALARY")}</Badge>
               <Badge variant="outline" className="text-[10px]">{t("Confirm → Paid")}</Badge>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferDialog(false)} className="text-xs font-bold">{t("Batal")}</Button>
-            <Button onClick={transfer} disabled={busy || !periodId} className="gap-1.5 bg-teal-600 text-xs font-bold hover:bg-teal-700">
+            <Button onClick={transfer} disabled={busy || !periodId} className="gap-1.5 bg-brand text-xs font-bold hover:bg-brand/70">
               <ArrowRightCircle className="h-3.5 w-3.5" /> {t("Transfer Sekarang", "Transfer Now")}
             </Button>
           </DialogFooter>

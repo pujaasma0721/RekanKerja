@@ -47,7 +47,7 @@ interface EssAnnouncementsData {
 // ================= CHIP KATEGORI =================
 const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = {
   Umum: { icon: Megaphone, cls: "border-stone-200 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300" },
-  Kebijakan: { icon: Scale, cls: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-400" },
+  Kebijakan: { icon: Scale, cls: "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" },
   Event: { icon: PartyPopper, cls: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" },
   Darurat: { icon: Siren, cls: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400" },
 };
@@ -112,7 +112,7 @@ export function EssAnnouncements() {
               {t("{n} belum dibaca", "{n} unread", { n: unread })}
             </span>
           ) : announcements.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11.5px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400" role="status">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-3 py-1.5 text-[11.5px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" role="status">
               <CheckCheck className="h-3.5 w-3.5" aria-hidden />
               {t("Semua sudah dibaca", "All read")}
             </span>
@@ -222,7 +222,7 @@ export function EssAnnouncements() {
                 </p>
               )}
               <DialogFooter className="items-center sm:justify-between">
-                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-400" role="status">
+                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold text-brand dark:text-brand/85" role="status">
                   <CheckCheck className="h-3.5 w-3.5" aria-hidden />
                   {detail.readByMe || api.data?.announcements.find((a) => a.id === detail.id)?.readByMe
                     ? t("Sudah Anda baca", "You have read this")

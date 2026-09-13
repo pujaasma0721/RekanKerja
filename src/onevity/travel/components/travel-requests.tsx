@@ -220,7 +220,7 @@ export function TravelRequestsPage() {
                         <TableCell>
                           <StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} />
                           {r.claimCount > 0 && (
-                            <Badge className="ml-1 bg-teal-100 text-[9px] font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-500/15 dark:text-teal-400">{t("KLAIM ✓", "CLAIM ✓")}</Badge>
+                            <Badge className="ml-1 bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("KLAIM ✓", "CLAIM ✓")}</Badge>
                           )}
                           {r.overdue && (
                             <Badge className="ml-1 bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("TELAT SETTLE", "OVERDUE")}</Badge>
@@ -254,7 +254,7 @@ export function TravelRequestsPage() {
                                       <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{d.seq}</span>
                                       <span className="font-semibold text-stone-800 dark:text-stone-200">{d.city}</span>
                                       <span className="text-stone-500">{d.country}</span>
-                                      {d.overseas && <Globe2 className="h-3 w-3 text-teal-600" />}
+                                      {d.overseas && <Globe2 className="h-3 w-3 text-brand" />}
                                       {d.zoneName && <Badge variant="outline" className="text-[9px]">{d.zoneName}</Badge>}
                                       <span className="ml-auto text-stone-500">{fmtDateID(d.dateFrom)} → {fmtDateID(d.dateTo)}</span>
                                     </div>

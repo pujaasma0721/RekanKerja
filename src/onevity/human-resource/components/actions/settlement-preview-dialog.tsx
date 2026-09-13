@@ -181,11 +181,11 @@ export function SettlementPreviewDialog({
                     <TableRow key={r.code}>
                       <TableCell className="py-2 text-xs font-semibold">
                         <span className="inline-flex items-center gap-1.5">
-                          <Plus className="h-3 w-3 text-emerald-500" /> {r.label}
+                          <Plus className="h-3 w-3 text-brand" /> {r.label}
                         </span>
                       </TableCell>
                       <TableCell className="py-2 text-[11px] leading-snug text-stone-500">{r.note}</TableCell>
-                      <TableCell className="py-2 text-right text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{fmtIDR(r.amount)}</TableCell>
+                      <TableCell className="py-2 text-right text-xs font-bold tabular-nums text-brand dark:text-brand/85">{fmtIDR(r.amount)}</TableCell>
                     </TableRow>
                   ))}
                   {cuts.map((r) => (

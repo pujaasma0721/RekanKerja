@@ -40,12 +40,12 @@ interface LiveboardData {
 }
 
 const STATUS_TONE: Record<string, string> = {
-  Present: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+  Present: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   Late: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
   Absent: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
-  WorkOff: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
-  OnLeave: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
-  Holiday: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
+  WorkOff: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
+  OnLeave: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
+  Holiday: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   Off: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
 };
 
@@ -105,7 +105,7 @@ export function AttendanceLiveboardPage() {
     {
       key: "inOffice",
       title: t("Sedang di Kantor", "Currently In Office"),
-      icon: DoorOpen, dot: "bg-emerald-500",
+      icon: DoorOpen, dot: "bg-brand",
       count: rows.filter((r) => r.state === "inOffice").length,
       items: rows.filter((r) => r.state === "inOffice"),
     },
@@ -126,7 +126,7 @@ export function AttendanceLiveboardPage() {
     {
       key: "off",
       title: t("Off · Cuti · Izin", "Off · Leave · Permit"),
-      icon: Coffee, dot: "bg-violet-400",
+      icon: Coffee, dot: "bg-brand/55",
       count: rows.filter((r) => r.state === "off").length,
       items: rows.filter((r) => r.state === "off"),
     },
@@ -140,10 +140,10 @@ export function AttendanceLiveboardPage() {
   ];
 
   const chips = [
-    { label: t("Di kantor sekarang", "In office now"), value: stats?.inOffice ?? 0, tone: "text-emerald-600 dark:text-emerald-400" },
+    { label: t("Di kantor sekarang", "In office now"), value: stats?.inOffice ?? 0, tone: "text-brand dark:text-brand/85" },
     { label: t("Sudah pulang", "Already left"), value: stats?.done ?? 0, tone: "text-stone-600 dark:text-stone-300" },
     { label: t("Terlambat", "Late"), value: stats?.late ?? 0, tone: "text-amber-600 dark:text-amber-400" },
-    { label: t("Off & cuti", "Off & leave"), value: stats?.off ?? 0, tone: "text-violet-600 dark:text-violet-400" },
+    { label: t("Off & cuti", "Off & leave"), value: stats?.off ?? 0, tone: "text-brand dark:text-brand/85" },
     { label: t("Belum absen", "Not clocked"), value: stats?.noClock ?? 0, tone: "text-orange-600 dark:text-orange-400" },
     { label: t("Absen", "Absent"), value: stats?.absent ?? 0, tone: "text-rose-600 dark:text-rose-400" },
   ];
@@ -183,17 +183,17 @@ export function AttendanceLiveboardPage() {
       />
 
       {/* strip LIVE — indikator denyut + timestamp pembaruan terakhir */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200/70 bg-teal-50/60 px-4 py-3 dark:border-teal-500/20 dark:bg-teal-500/10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/25/70 bg-brand/10/60 px-4 py-3 dark:border-brand/20 dark:bg-brand/10">
         <div className="flex items-center gap-2.5">
-          <Radar className="h-4 w-4 text-teal-600 dark:text-teal-400" aria-hidden />
+          <Radar className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
           {isHistory ? (
             <span className="flex items-center gap-2 text-xs font-bold text-stone-600 dark:text-stone-300">
               <span className="h-2 w-2 rounded-full bg-stone-400" aria-hidden />
               {t("Mode riwayat — data tanggal {d}", "History mode — data for {d}", { d: api.data?.date ?? "—" })}
             </span>
           ) : (
-            <span className="flex items-center gap-2 text-xs font-bold text-teal-700 dark:text-teal-300">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-teal-500" aria-hidden />
+            <span className="flex items-center gap-2 text-xs font-bold text-brand-deep dark:text-brand/75">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden />
               {t("Live — diperbarui tiap 30 dtk", "Live — refreshed every 30 s")}
             </span>
           )}
@@ -321,7 +321,7 @@ function EmployeeCard({
             </AvatarFallback>
           </Avatar>
           {section === "inOffice" && (
-            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-stone-900" aria-hidden />
+            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-brand dark:border-stone-900" aria-hidden />
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -347,7 +347,7 @@ function EmployeeCard({
 
       <div className="mt-auto flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800/70">
         {r.checkIn ? (
-          <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400" title={t("Jam masuk", "Clock in")}>
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-brand dark:text-brand/85" title={t("Jam masuk", "Clock in")}>
             <LogIn className="h-3 w-3" aria-hidden /> {fmtTime(r.checkIn, locale)}
           </span>
         ) : (
@@ -359,7 +359,7 @@ function EmployeeCard({
             <LogOut className="h-3 w-3" aria-hidden /> {fmtTime(r.checkOut, locale)}
           </span>
         ) : section === "inOffice" ? (
-          <span className="text-[10px] font-bold text-emerald-500/80 dark:text-emerald-400/70">{t("masih di kantor", "still in office")}</span>
+          <span className="text-[10px] font-bold text-brand/80 dark:text-brand/85/70">{t("masih di kantor", "still in office")}</span>
         ) : (
           <span className="font-mono text-[11px] text-stone-300 dark:text-stone-600">—</span>
         )}

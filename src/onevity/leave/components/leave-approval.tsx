@@ -184,7 +184,7 @@ export function LeaveApprovalPage() {
                         <div className="flex gap-1">
                           {perms.canOp("leave", "leave-approval", "approve") && (
                             <>
-                              <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-emerald-600 text-[11px] font-bold hover:bg-emerald-700">
+                              <Button size="sm" onClick={() => openDialog(r, "approve")} className="h-7 gap-1 bg-brand text-[11px] font-bold hover:bg-brand/70">
                                 <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui", "Approve")}
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => openDialog(r, "reject")} className="h-7 gap-1 border-rose-200 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
@@ -212,7 +212,7 @@ export function LeaveApprovalPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className={cn("flex items-center gap-2 text-sm",
-              action === "approve" ? "text-emerald-700 dark:text-emerald-400" : action === "reject" ? "text-rose-600" : "text-stone-500")}>
+              action === "approve" ? "text-brand-deep dark:text-brand/85" : action === "reject" ? "text-rose-600" : "text-stone-500")}>
               {action === "approve" ? <CheckCircle2 className="h-4 w-4" /> : action === "reject" ? <XCircle className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
               {action === "approve" ? t("Setujui Permintaan Cuti", "Approve Leave Request") : action === "reject" ? t("Tolak Permintaan Cuti", "Reject Leave Request") : t("Batalkan Permintaan Cuti", "Cancel Leave Request")}
             </DialogTitle>
@@ -227,7 +227,7 @@ export function LeaveApprovalPage() {
                 <p className="mt-0.5 text-stone-400">{t("Alasan:", "Reason:")} {target.reason}</p>
               </div>
               {action === "approve" && (
-                <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-[11px] leading-relaxed text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <p>{t("Saat disetujui: saldo (g· terpakai mendatang) diperbarui, dan rekap absensi rentang cuti dihitung ulang menjadi ", "When approved: the balance (g· upcoming taken) is updated, and the attendance recap for the leave range is recalculated as ")}<b>OnLeave</b>{t(" (dibayar bila jenis cuti dibayar).", " (paid if the leave type is paid).")}</p>
                 </div>
@@ -257,7 +257,7 @@ export function LeaveApprovalPage() {
                 onClick={decide}
                 disabled={busy}
                 className={cn("gap-1.5 text-xs font-bold",
-                  action === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")}
+                  action === "approve" ? "bg-brand hover:bg-brand/70" : "bg-rose-600 hover:bg-rose-700")}
               >
                 {action === "approve" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
                 {action === "approve" ? t("Setujui", "Approve") : action === "reject" ? t("Tolak", "Reject") : t("Batalkan", "Cancel")}

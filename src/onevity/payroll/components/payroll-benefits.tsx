@@ -78,7 +78,7 @@ export function PayrollBenefitsPage() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setEditType(null); setTypeDialog(true); }} className="gap-2 font-bold">
-              <Sparkles className="h-4 w-4 text-violet-600" /> {t("Jenis Benefit", "Benefit Types")}
+              <Sparkles className="h-4 w-4 text-brand" /> {t("Jenis Benefit", "Benefit Types")}
             </Button>
             <Button onClick={() => setClaimDialog(true)} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> {t("Ajukan Klaim", "Submit Claim")}
@@ -234,10 +234,10 @@ function KpiCard({ icon, tone, label, value, sub }: {
   label: string; value: string; sub?: string;
 }) {
   const tones: Record<string, string> = {
-    amber: "from-amber-500 to-orange-500",
-    emerald: "from-emerald-500 to-teal-600",
-    violet: "from-violet-500 to-purple-600",
-    teal: "from-teal-500 to-emerald-600",
+    amber: "from-brand to-orange-500",
+    emerald: "from-brand to-brand",
+    violet: "from-brand to-purple-600",
+    teal: "from-brand to-brand",
   };
   return (
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
@@ -287,7 +287,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand dark:bg-brand/10 dark:text-brand/85">
             <CatIcon className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0">
@@ -310,8 +310,8 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
               <Badge variant="outline" className={cn(
                 "cursor-help text-[9px] font-bold",
                 claim.inLimit
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
-                  : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400",
+                  ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
+                  : "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85",
               )}>
                 {claim.inLimit ? t("Dalam Limit", "Within Limit") : claim.status === "Rejected" ? t("Melebihi Limit", "Over Limit") : t("Over (diizinkan)", "Over (allowed)")}
               </Badge>
@@ -328,10 +328,10 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           <p className="mt-1 max-w-44 text-[10px] italic leading-tight text-rose-500">{claim.rejectedReason}</p>
         )}
         {claim.status === "Scheduled" && claim.period && (
-          <p className="mt-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400">{loc(claim.period.name)}</p>
+          <p className="mt-1 text-[10px] font-semibold text-brand dark:text-brand/85">{loc(claim.period.name)}</p>
         )}
         {claim.status === "Paid" && (
-          <p className="mt-1 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">{claim.paidRunNo ?? t("via kas", "via cash")}</p>
+          <p className="mt-1 font-mono text-[10px] text-brand dark:text-brand/85">{claim.paidRunNo ?? t("via kas", "via cash")}</p>
         )}
       </TableCell>
       <TableCell>
@@ -339,7 +339,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           {claim.status === "Pending" && (
             <>
               <Button size="sm" disabled={busy === "a"} onClick={() => act("a", "approve", {}, t("Klaim {no} disetujui", "Claim {no} approved", { no: claim.claimNo }))}
-                className="h-7 gap-1 rounded-lg bg-emerald-600 px-2.5 text-[10px] font-bold hover:bg-emerald-700">
+                className="h-7 gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold hover:bg-brand/70">
                 <CheckCircle2 className="h-3 w-3" /> {t("Setujui", "Approve")}
               </Button>
               <Button size="sm" variant="outline" disabled={busy === "r"} onClick={onReject}
@@ -351,12 +351,12 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           {claim.status === "Approved" && (
             claim.benefitType.payInPayroll ? (
               <Button size="sm" disabled={busy === "s"} onClick={onSchedule}
-                className="h-7 gap-1 rounded-lg bg-violet-600 px-2.5 text-[10px] font-bold hover:bg-violet-700">
+                className="h-7 gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold hover:bg-brand/70">
                 <CalendarClock className="h-3 w-3" /> {t("Jadwalkan", "Schedule")}
               </Button>
             ) : (
               <Button size="sm" disabled={busy === "p"} onClick={() => act("p", "markPaid", undefined, t("Klaim {no} lunas dari kas", "Claim {no} settled from cash", { no: claim.claimNo }))}
-                className="h-7 gap-1 rounded-lg bg-teal-600 px-2.5 text-[10px] font-bold hover:bg-teal-700">
+                className="h-7 gap-1 rounded-lg bg-brand px-2.5 text-[10px] font-bold hover:bg-brand/70">
                 <Wallet className="h-3 w-3" /> {t("Tandai Lunas", "Mark Settled")}
               </Button>
             )
@@ -364,7 +364,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           {claim.status === "Scheduled" && claim.period && (
             <button
               onClick={() => navigate("payroll", "runs", claim.periodId ? { period: claim.periodId } : undefined)}
-              className="flex h-7 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:bg-stone-900 dark:text-violet-400 dark:hover:bg-violet-500/10"
+              className="flex h-7 items-center gap-1 rounded-lg border border-brand/25 bg-white px-2.5 text-[10px] font-bold text-brand-deep hover:bg-brand/10 dark:border-brand/30 dark:bg-stone-900 dark:text-brand/85 dark:hover:bg-brand/10"
             >
               {t("Lihat Run", "View Run")} <ChevronRight className="h-3 w-3" />
             </button>
@@ -406,13 +406,13 @@ function TypeCard({ type, onEdit, onChanged, onOpenRules }: {
     <Card className={cn("rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800", !type.active && "opacity-60")}>
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-purple-600 text-white shadow-md">
             <Icon className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate text-[14px] font-bold">{type.name}</p>
-              <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-violet-600 dark:text-violet-400">{type.category}</Badge>
+              <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-brand dark:text-brand/85">{type.category}</Badge>
             </div>
             <p className="font-mono text-[10px] text-stone-400">{type.code} · {t(RESET_LABEL[type.resetPeriod] ?? type.resetPeriod, RESET_LABEL_EN[type.resetPeriod])}</p>
             {type.description && <p className="mt-1 text-[11px] leading-snug text-stone-500 dark:text-stone-400">{type.description}</p>}
@@ -431,12 +431,12 @@ function TypeCard({ type, onEdit, onChanged, onOpenRules }: {
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {type.autoApproveInLimit && (
-            <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"><CheckCircle2 className="h-2.5 w-2.5" /> {t("Auto-approve dalam limit", "Auto-approve within limit")}</Badge>
+            <Badge variant="outline" className="gap-1 border-brand/40 bg-brand/10 text-[9px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"><CheckCircle2 className="h-2.5 w-2.5" /> {t("Auto-approve dalam limit", "Auto-approve within limit")}</Badge>
           )}
-          <Badge variant="outline" className="gap-1 border-violet-300 bg-violet-50 text-[9px] font-bold text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400">
+          <Badge variant="outline" className="gap-1 border-brand/40 bg-brand/10 text-[9px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85">
             {type.payInPayroll ? <><CalendarClock className="h-2.5 w-2.5" /> {t("Pay-in-payroll (BENEFIT)", "Pay-in-payroll (BENEFIT)")}</> : <><Wallet className="h-2.5 w-2.5" /> {t("Kas langsung", "Direct cash")}</>}
           </Badge>
-          {type.needDocuments && <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"><FileText className="h-2.5 w-2.5" /> {t("Perlu dokumen", "Documents required")}</Badge>}
+          {type.needDocuments && <Badge variant="outline" className="gap-1 border-brand/40 bg-brand/10 text-[9px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"><FileText className="h-2.5 w-2.5" /> {t("Perlu dokumen", "Documents required")}</Badge>}
           {type.allowOverlimit && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{t("Boleh overlimit", "Overlimit allowed")}</Badge>}
           {type.entitleFor !== "All" && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{t("{s} saja", "{s} only", { s: type.entitleFor })}</Badge>}
         </div>
@@ -499,7 +499,7 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><HeartHandshake className="h-4 w-4 text-violet-600" /> {t("Ajukan Klaim Benefit", "Submit Benefit Claim")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><HeartHandshake className="h-4 w-4 text-brand" /> {t("Ajukan Klaim Benefit", "Submit Benefit Claim")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <div>
@@ -553,8 +553,8 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
               usage.limit === null
                 ? "bg-stone-50 text-stone-600 dark:bg-stone-900 dark:text-stone-400"
                 : usage.inLimit && amt <= (usage.remaining ?? 0)
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                  : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+                  ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/85"
+                  : "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/85",
             )}>
               {usage.limit === null
                 ? t("Jenis ini tanpa limit nominal.", "This type has no amount limit.")
@@ -647,7 +647,7 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
       <DialogContent className="max-h-[90vh] sm:max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-violet-600" /> {editing ? t("Ubah — {n}", "Edit — {n}", { n: editing.name }) : t("Jenis Benefit Baru", "New Benefit Type")}
+            <Sparkles className="h-4 w-4 text-brand" /> {editing ? t("Ubah — {n}", "Edit — {n}", { n: editing.name }) : t("Jenis Benefit Baru", "New Benefit Type")}
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
@@ -740,7 +740,7 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
-          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? t("Menyimpan…") : editing ? t("Simpan") : t("Buat Jenis", "Create Type")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-brand font-bold hover:bg-brand/70">{busy ? t("Menyimpan…") : editing ? t("Simpan") : t("Buat Jenis", "Create Type")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -828,7 +828,7 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
     <Dialog open={!!claim} onOpenChange={(v) => { if (!v) { setPeriodId(""); onClose(); } }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-violet-600" /> {t("Jadwalkan {no}", "Schedule {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-brand" /> {t("Jadwalkan {no}", "Schedule {no}", { no: claim?.claimNo ?? "" })}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
           <p className="text-xs text-stone-500">
@@ -845,14 +845,14 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
               </SelectContent>
             </Select>
           </div>
-          <p className="rounded-xl bg-violet-50 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">
+          <p className="rounded-xl bg-brand/10 px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold text-brand-deep dark:bg-brand/10 dark:text-brand/85">
             {t("Klaim menjadi komponen upah period ini (run jenis ", "The claim becomes a wage component of this period (a ")}
             <b>{t("Benefit")}</b>{t("). Konfirmasi run tersebut agar klaim otomatis berstatus Dibayar + jurnal terposting.", " run). Confirm that run so the claim automatically becomes Paid + the journal is posted.")}
           </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
-          <Button onClick={submit} disabled={busy} className="bg-violet-600 font-bold hover:bg-violet-700">{busy ? t("Menjadwalkan…", "Scheduling…") : t("Jadwalkan", "Schedule")}</Button>
+          <Button onClick={submit} disabled={busy} className="bg-brand font-bold hover:bg-brand/70">{busy ? t("Menjadwalkan…", "Scheduling…") : t("Jadwalkan", "Schedule")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

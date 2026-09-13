@@ -91,7 +91,7 @@ export function EssClaims() {
                             <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-stone-700 dark:text-stone-200">
                               {fmtIDR(pickNum(c, ["bill", "claimAmount", "amount", "billed", "tagihan", "total"]))}
                             </TableCell>
-                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-brand-deep dark:text-brand/85">
                               {fmtIDR(pickNum(c, ["approvedAmount", "approved", "disetujui", "settled"]))}
                             </TableCell>
                             <TableCell>

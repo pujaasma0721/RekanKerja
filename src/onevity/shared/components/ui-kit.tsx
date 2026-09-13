@@ -39,31 +39,31 @@ export function PageHeader({
 // status pill mapping used across modules
 const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = {
   // employee
-  Active: { label: "Aktif", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
+  Active: { label: "Aktif", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Resigned: { label: "Resign", cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" },
   Terminated: { label: "Diberhentikan", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
   Blacklisted: { label: "Blacklist", cls: "bg-red-50 text-red-800 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/25", dot: "bg-red-600" },
   // PA flow
   Prepared: { label: "Draft", cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" },
   Submitted: { label: "Menunggu Approval", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25", dot: "bg-amber-500" },
-  Approved: { label: "Disetujui", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
+  Approved: { label: "Disetujui", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Rejected: { label: "Ditolak", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
-  Processed: { label: "Diproses", cls: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25", dot: "bg-teal-500" },
+  Processed: { label: "Diproses", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Cancelled: { label: "Dibatalkan", cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-500 dark:border-stone-500/25", dot: "bg-stone-400" },
   // approval layer
   Pending: { label: "Pending", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25", dot: "bg-amber-400" },
   // 26-a: permintaan surat karyawan sudah diterbitkan (PDF siap diunduh)
-  Issued: { label: "Diterbitkan", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
+  Issued: { label: "Diterbitkan", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   // payroll period & run
-  Open: { label: "Terbuka", cls: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25", dot: "bg-teal-500" },
-  Scheduled: { label: "Terjadwal", cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/25", dot: "bg-violet-500" },
+  Open: { label: "Terbuka", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
+  Scheduled: { label: "Terjadwal", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Closed: { label: "Ditutup", cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" },
   Locked: { label: "Terkunci", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
-  Calculated: { label: "Terhitung", cls: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/25", dot: "bg-sky-500" },
-  Confirmed: { label: "Dikonfirmasi", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
-  Paid: { label: "Dibayar", cls: "bg-emerald-600/10 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40", dot: "bg-emerald-600" },
+  Calculated: { label: "Terhitung", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
+  Confirmed: { label: "Dikonfirmasi", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
+  Paid: { label: "Dibayar", cls: "bg-brand/10 text-brand-deep border-brand/40 dark:bg-brand/20 dark:text-brand/75 dark:border-brand/40", dot: "bg-brand" },
   // wage type
-  Earning: { label: "Earning", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25", dot: "bg-emerald-500" },
+  Earning: { label: "Earning", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Deduction: { label: "Deduction", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
   Informational: { label: "Informational", cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" },
 };

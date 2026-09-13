@@ -74,14 +74,14 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+      <div className="rounded-2xl border border-brand/25 bg-brand/10/70 p-5 dark:border-brand/30 dark:bg-brand/10">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand dark:text-brand/85" aria-hidden />
           <div className="space-y-1">
-            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+            <p className="text-sm font-bold text-brand-deep dark:text-brand/75">
               {t("Laporan tercatat", "Report recorded")} — <span className="font-mono">{done.ticketNo}</span>
             </p>
-            <p className="text-xs leading-relaxed text-emerald-700 dark:text-emerald-400">{done.message}</p>
+            <p className="text-xs leading-relaxed text-brand-deep dark:text-brand/85">{done.message}</p>
             <p className="text-[11px] text-stone-500 dark:text-stone-400">
               {t(
                 "Simpan nomor tiket ini. Laporan ditangani tim yang berwenang; pelapor anonim dilindungi UU 12/2022 Ps.23.",

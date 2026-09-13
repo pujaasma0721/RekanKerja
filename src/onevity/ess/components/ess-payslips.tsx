@@ -26,7 +26,7 @@ function SlipRow({ label, amount, tone }: { label: string; amount: number; tone:
       <span className="min-w-0 break-words text-[12.5px] font-medium text-stone-600 dark:text-stone-300">{label}</span>
       <span className={cn(
         "shrink-0 text-[13px] font-bold tabular-nums",
-        tone === "earn" && "text-emerald-700 dark:text-emerald-400",
+        tone === "earn" && "text-brand-deep dark:text-brand/85",
         tone === "deduct" && "text-rose-600 dark:text-rose-400",
         tone === "info" && "text-stone-500 dark:text-stone-400",
       )}>
@@ -44,7 +44,7 @@ function ItemList({ title, icon: Icon, items, tone, empty }: {
     <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
       <CardHeader className="pb-1">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <Icon className={cn("h-4 w-4", tone === "earn" && "text-emerald-600 dark:text-emerald-400", tone === "deduct" && "text-rose-500 dark:text-rose-400", tone === "info" && "text-stone-400")} aria-hidden />
+          <Icon className={cn("h-4 w-4", tone === "earn" && "text-brand dark:text-brand/85", tone === "deduct" && "text-rose-500 dark:text-rose-400", tone === "info" && "text-stone-400")} aria-hidden />
           {title}
         </CardTitle>
       </CardHeader>

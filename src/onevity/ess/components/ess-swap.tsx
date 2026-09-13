@@ -131,7 +131,7 @@ function SwapHistoryCard({
         </p>
       )}
       {r.status === "Approved" && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-deep dark:text-brand/85">
           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("Jadwal Anda telah tertukar pada tanggal tsb", "Your schedule has been swapped on that date")}
         </p>

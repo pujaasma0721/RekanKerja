@@ -180,7 +180,7 @@ export function MedicalInfoPage() {
                         </p>
                       </TableCell>
                       <TableCell className="text-right">{b.limitRule === "UNLIMITED" ? "∞" : fmtIDR(b.benefitAmount)}</TableCell>
-                      <TableCell className={cn("text-right", b.adjustmentAmount !== 0 && "text-violet-600 dark:text-violet-400")}>
+                      <TableCell className={cn("text-right", b.adjustmentAmount !== 0 && "text-brand dark:text-brand/85")}>
                         {b.adjustmentAmount !== 0 ? `${b.adjustmentAmount > 0 ? "+" : ""}${fmtIDR(b.adjustmentAmount)}` : "—"}
                       </TableCell>
                       <TableCell className="text-right">

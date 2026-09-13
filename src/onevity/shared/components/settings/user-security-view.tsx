@@ -61,7 +61,7 @@ function ageLabelEn(label: string): string {
 
 const ROLE_TONE: Record<string, string> = {
   Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
-  "HR Manager": "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400",
+  "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
   Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
 };
@@ -180,7 +180,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                           <span className={cn(
                             "flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold",
                             u.active
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                              ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
                               : "bg-stone-100 text-stone-400 dark:bg-stone-800",
                           )}>{initials(u.fullName)}</span>
                           <div className="min-w-0">
@@ -1004,7 +1004,7 @@ export function MfaCard() {
             className={cn(
               "text-[10px] font-bold",
               enabled
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
+                ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
                 : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
             )}
           >
@@ -1146,7 +1146,7 @@ function MfaSetupDialog({
                   {setup.secret}
                 </code>
                 <Button type="button" variant="outline" size="sm" onClick={() => void copySecret()} className="gap-1.5 px-2.5">
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                  {copied ? <Check className="h-3.5 w-3.5 text-brand" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
                   {copied ? t("Tersalin") : t("Salin")}
                 </Button>
               </div>

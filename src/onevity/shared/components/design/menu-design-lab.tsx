@@ -350,7 +350,7 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
               <p className="truncate text-xs font-bold text-stone-100">MII</p>
               <p className="truncate text-[10px] text-stone-500">PT Mitra Industri Internasional</p>
             </div>
-            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">Aktif</span>
+            <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-brand/85">Aktif</span>
           </div>
         </div>
         {/* dropdown modul */}
@@ -831,7 +831,7 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         <ul className="mt-1.5 space-y-1.5">
           {opt.pros.map((t) => (
             <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
-              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand/85" />
               {t}
             </li>
           ))}
@@ -880,7 +880,7 @@ function BrowserFrame({ children }: { children: React.ReactNode }) {
       <div className="flex items-center gap-2 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+        <span className="h-2.5 w-2.5 rounded-full bg-brand/80" />
         <div className="mx-auto w-full max-w-xs rounded-full bg-stone-800 px-4 py-1 text-center text-[10px] font-semibold tracking-wide text-stone-500">
           onevity.app · pratinjau desain menu
         </div>
@@ -910,14 +910,14 @@ export function MenuDesignLab() {
         {/* header */}
         <header className="flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-900/40">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/85/40">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="5" r="2.6" /><circle cx="5" cy="17" r="2.6" /><circle cx="19" cy="17" r="2.6" />
                 <path d="M12 7.6 6.6 14.6M12 7.6l5.4 7M7.6 17h8.8" />
               </svg>
             </div>
             <div>
-              <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">OneVity <span className="text-emerald-400">Design Lab</span></p>
+              <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">OneVity <span className="text-brand/85">Design Lab</span></p>
               <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">Preview desain menu navigasi</p>
             </div>
           </div>
