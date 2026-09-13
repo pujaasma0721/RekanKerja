@@ -3,7 +3,7 @@
 // saldo, bentrok, backdate guard, maks per permintaan, waiting period).
 import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/onevity/ess/api/ess-auth";
-import { listBalances, listRequests, submitRequest } from "@/onevity/leave/services/leave-service";
+import { listBalances, listRequests, submitRequest, FEMALE_ONLY_LEAVE } from "@/onevity/leave/services/leave-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
@@ -15,21 +15,55 @@ export async function GET(req: Request) {
 
   try {
     const year = new Date().getFullYear();
-    const [balances, requests] = await Promise.all([
+    const [balances, requests, me] = await Promise.all([
       listBalances(db, { employeeId, year }),
       listRequests(db, { employeeId, limit: 50 }),
+      // Task 52-a — jenis cuti khusus perempuan disembunyikan dari pekerja laki-laki.
+      db.employee.findUnique({ where: { id: employeeId }, select: { gender: true } }),
     ]);
+    const visible = balances.filter(
+      (b) => me?.gender === "F" || !FEMALE_ONLY_LEAVE.has(b.leaveTypeCode),
+    );
+    // Task 52-a — jenis cuti EVENT aktif (nikah/melahirkan/haids… — tanpa
+    // prorata/carry/cashable/anniversary) tetap tampil meski belum ada baris
+    // saldo: saldo dibuat otomatis saat pengajuan (ensureBalance) dan hak
+    // event tidak bergantung baris tahunan. Jenis perempuan-only tetap
+    // disembunyikan dari pekerja laki-laki.
+    const haveIds = new Set(visible.map((b) => b.leaveTypeId));
+    const activeTypes = await db.leaveType.findMany({ where: { active: true } });
+    const female = me?.gender === "F";
+    const synth = activeTypes
+      .filter(
+        (t) =>
+          !haveIds.has(t.id) &&
+          !t.prorateMonthly &&
+          !(t.carryOverMax > 0) &&
+          !t.cashable &&
+          t.periodMode !== "ANNIVERSARY" &&
+          (female || !FEMALE_ONLY_LEAVE.has(t.code)),
+      )
+      .map((t) => ({
+        typeId: t.id,
+        code: t.code,
+        name: t.name,
+        unit: t.unit,
+        entitlement: t.entitlement,
+        taken: 0,
+        applied: 0,
+        available: t.entitlement,
+      }));
 
     return NextResponse.json({
-      balances: balances.map((b) => ({
+      balances: [...visible.map((b) => ({
         typeId: b.leaveTypeId,
         code: b.leaveTypeCode,
         name: b.leaveTypeName,
+        unit: b.unit,
         entitlement: b.entitlement,
         taken: b.taken,
         applied: b.applied,
         available: b.remaining,
-      })),
+      })), ...synth],
       requests: requests.map((r) => ({
         id: r.id,
         docNo: r.docNo,

@@ -43,6 +43,9 @@ import { EssLetters } from "./ess-letters";
 import { EssAnnouncements } from "./ess-announcements";
 import { EssSwap } from "./ess-swap";
 import { EssAssets } from "./ess-assets";
+// Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
+import { WhistleblowForm } from "@/onevity/whistleblow/components/whistleblow-form";
+import { Siren } from "lucide-react";
 
 // ============ NAVIGASI ESS ============
 interface EssNavItem { id: EssView; label: string; en: string; short: string; shortEn: string; icon: React.ElementType }
@@ -60,6 +63,8 @@ const ESS_NAV: EssNavItem[] = [
   { id: "announcements", label: "Pengumuman", en: "Announcements", short: "Pengumuman", shortEn: "News", icon: Megaphone },
   { id: "swap", label: "Tukar Shift", en: "Shift Swap", short: "Tukar Shift", shortEn: "Swap", icon: ArrowLeftRight },
   { id: "assets", label: "Aset Saya", en: "My Assets", short: "Aset", shortEn: "Assets", icon: Package },
+  // Task 52-f — kanal pelaporan pelanggaran/TPKS (anonim, semua pekerja)
+  { id: "whistleblow", label: "Laporkan Pelanggaran", en: "Report a Violation", short: "Lapor", shortEn: "Report", icon: Siren },
   { id: "profile", label: "Profil Saya", en: "My Profile", short: "Profil", shortEn: "Profile", icon: UserRound },
 ];
 
@@ -459,6 +464,27 @@ export function EssShell() {
             {view === "announcements" && <EssAnnouncements />}
             {view === "swap" && <EssSwap />}
             {view === "assets" && <EssAssets />}
+            {view === "whistleblow" && (
+              <div className="mx-auto max-w-2xl">
+                <div className="mb-4 flex items-start gap-3 border-b border-stone-200/70 pb-4 dark:border-stone-800/70">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-[0_10px_28px_-12px_rgba(225,29,72,0.7)]">
+                    <Siren className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-semibold tracking-tight text-stone-900 dark:text-stone-50">{t("Laporkan Pelanggaran", "Report a Violation")}</h1>
+                    <p className="text-[12px] leading-relaxed text-stone-500 dark:text-stone-400">
+                      {t(
+                        "Kanal pelaporan kekerasan seksual & pelanggaran di tempat kerja (UU 12/2022). Anonim & dilindungi undang-undang.",
+                        "Channel for reporting sexual violence & workplace violations (Law 12/2022). Anonymous & protected by law.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+                  <WhistleblowForm compact />
+                </div>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </main>

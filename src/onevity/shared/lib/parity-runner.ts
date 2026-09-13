@@ -174,6 +174,18 @@ const STEPS: Step[] = [
   // encryptMoney pra-Task 50) ditulis ulang → 0; tanpa ini SATU baris buruk
   // membuat step travel-settlement gagal & parity.ok=false di tenant tsb.
   { key: "fix-nan-money", label: "Task 50-fix — perbaiki nilai uang terenkripsi non-finite (NaN → 0)", run: (s) => import("../../../../scripts/migrate-fix-nan-money").then((m) => m.main(s)) },
+  // 52-a: cuti melahirkan/keguguran pekerja perempuan (UU 13/2003 Ps.82 +
+  // UU KIA 4/2024 Ps.22) — 2 jenis cuti unit MONTH + gating gender di service.
+  { key: "maternity-leave", label: "Task 52-a — jenis cuti CT-LAHIR-P & CT-GUGUR-P (melahirkan/keguguran, MONTH)", run: (s) => import("../../../../scripts/migrate-maternity-leave").then((m) => m.main(s)) },
+  // 52-c: JKP (PP 6/2025) — kolom PayrollRegulation (iuran 0,22%/0,24%, plafon
+  // 5jt) + komponen JKP_C/JKP_E + item template DEFAULT/BS.
+  { key: "jkp", label: "Task 52-c — JKP PP 6/2025: parameter regulasi + komponen JKP_C/JKP_E + template", run: (s) => import("../../../../scripts/migrate-jkp").then((m) => m.main(s)) },
+  // 52-d: gelombang enkripsi PII lanjutan — no. BPJS, no. dokumen identitas,
+  // diagnosis/perawatan medis (audit 51) → enc:v1:t (idempoten).
+  { key: "encrypt-pii", label: "Task 52-d — enkripsi PII lanjutan: bpjsHealth/bpjsEmpSkill/docNumber/treatment", run: (s) => import("../../../../scripts/migrate-encrypt-pii").then((m) => m.main(s)) },
+  // 52-f: kanal whistleblowing TPKS (UU 12/2022 Ps.22-24) — tabel
+  // WhistleblowReport (CREATE IF NOT EXISTS + index, idempoten).
+  { key: "whistleblow", label: "Task 52-f — tabel WhistleblowReport (kanal laporan TPKS)", run: (s) => import("../../../../scripts/migrate-whistleblow").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -199,41 +211,66 @@ export async function checkParityGap(): Promise<ParityGap> {
   const c = new Client({ connectionString: TENANT_URL() });
   await c.connect();
   try {
+
     // Sekuensial (bukan Promise.all) — pg 8.23 deprecated mengantre >1 query
     // pada Client yang sama (warning "client is already executing a query").
-    const annOk = (await c.query<{ n: number }>(
+    // Task 52 — rowSchemas: jumlah schema yang MEMUAT baris `where` pada `table`
+    // (UNION ALL antar schema; nama schema dari registry internal — aman di-inline).
+    const rowSchemas = async (table: string, whereSql: string): Promise<number> => {
+      const union = schemas.map((sc) => `SELECT 1 FROM "${sc}"."${table}" WHERE ${whereSql}`).join(" UNION ALL ");
+      try {
+        const r = await c.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM (${union}) t`);
+        return r.rows[0]?.n ?? 0;
+      } catch {
+        return 0; // tabel belum ada → gap 0 (step DDL akan membuatnya)
+      }
+    };
+    const q = async (sql: string): Promise<number> =>
+      (await c.query<{ n: number }>(sql, [schemas])).rows[0]?.n ?? 0;
+    const annOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'Announcement' AND table_schema = ANY($1::text[])`,
-      [schemas],
-    )).rows[0]?.n ?? 0;
-    const encOk = (await c.query<{ n: number }>(
+    );
+    const encOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
        WHERE table_name = 'PayrollRunLine' AND column_name = 'bruto' AND data_type = 'text'
          AND table_schema = ANY($1::text[])`,
-      [schemas],
-    )).rows[0]?.n ?? 0;
-    const vaultOk = (await c.query<{ n: number }>(
+    );
+    const vaultOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'MoneyVault' AND table_schema = ANY($1::text[])`,
-      [schemas],
-    )).rows[0]?.n ?? 0;
-    const vaultKeyOk = (await c.query<{ n: number }>(
+    );
+    const vaultKeyOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
        WHERE table_name = 'MoneyVault' AND column_name = 'dataKey' AND table_schema = ANY($1::text[])`,
-      [schemas],
-    )).rows[0]?.n ?? 0;
-    const ptkpSrcOk = (await c.query<{ n: number }>(
+    );
+    const ptkpSrcOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
        WHERE table_name = 'EmployeePayrollProfile' AND column_name = 'ptkpSource' AND table_schema = ANY($1::text[])`,
-      [schemas],
-    )).rows[0]?.n ?? 0;
+    );
+    // Task 52-a/c/f — gap baru: jenis cuti perempuan, kolom JKP, tabel whistleblow.
+    const maternityOk = await rowSchemas("LeaveType", `"code" = 'CT-LAHIR-P'`);
+    const jkpOk = await rowSchemas("PayrollRegulation", `"jkpEmployeeRate" IS NOT NULL`);
+    const wbtOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'WhistleblowReport' AND table_schema = ANY($1::text[])`,
+    );
+    // Task 52-d — kolom PII lanjutan: nilai plaintext tersisa = gap (sekuensial).
+    const piiPlainOk =
+      (await rowSchemas("Employee", `("bpjsHealth" IS NOT NULL AND "bpjsHealth" NOT LIKE 'enc:%') OR ("bpjsEmpSkill" IS NOT NULL AND "bpjsEmpSkill" NOT LIKE 'enc:%')`)) +
+      (await rowSchemas("EmployeeDocument", `"docNumber" IS NOT NULL AND "docNumber" NOT LIKE 'enc:%'`)) +
+      (await rowSchemas("MedicalClaimLine", `"treatment" IS NOT NULL AND "treatment" NOT LIKE 'enc:%'`));
     const reasons: string[] = [];
     if (annOk < schemas.length) reasons.push(`${schemas.length - annOk} tenant tanpa tabel Announcement (wave 27)`);
     if (encOk < schemas.length) reasons.push(`${schemas.length - encOk} tenant tanpa enkripsi kolom uang (wave 28-c)`);
     if (vaultOk < schemas.length) reasons.push(`${schemas.length - vaultOk} tenant tanpa tabel MoneyVault (Task 45-a)`);
     if (vaultKeyOk < schemas.length) reasons.push(`${schemas.length - vaultKeyOk} tenant tanpa kolom MoneyVault.dataKey (Task 47)`);
     if (ptkpSrcOk < schemas.length) reasons.push(`${schemas.length - ptkpSrcOk} tenant tanpa kolom EmployeePayrollProfile.ptkpSource (Task 49)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk) };
+    if (maternityOk < schemas.length) reasons.push(`${schemas.length - maternityOk} tenant tanpa jenis cuti CT-LAHIR-P (Task 52-a)`);
+    if (jkpOk < schemas.length) reasons.push(`${schemas.length - jkpOk} tenant tanpa kolom PayrollRegulation.jkpEmployeeRate (Task 52-c)`);
+    if (piiPlainOk > 0) reasons.push(`${piiPlainOk} tenant dengan PII lanjutan masih plaintext (Task 52-d)`);
+    if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, wbtOk) };
   } finally {
     await c.end();
   }

@@ -60,6 +60,39 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Task 52-e — audit trail AKSES BACA profil (UU PDP 27/2022 Art.17-19;
+    // temuan audit 51: hanya mutasi & ekspor yang tercatat). Setiap pembukaan
+    // detail dicatat (action "Viewed") — best-effort, gagal log tidak boleh
+    // menggagalkan pembacaan. Anti-spam ringan: duplikat oleh PENGCACAT SAMA
+    // dalam 5 menit dilewati (refresh UI), akses menit ke berikutnya tetap
+    // tercatat.
+    try {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
+      const viewerId = s.actor.appUserId;
+      const dup = await db.activityLog.findFirst({
+        where: {
+          action: "Viewed", entity: "Employee", entityId: employee.id,
+          appUserId: viewerId, createdAt: { gte: fiveMinAgo },
+        },
+        select: { id: true },
+      });
+      if (!dup) {
+        const piiScopePre: PiiScope = s.scope.all
+          ? "full"
+          : employee.id === s.scope.selfEmployeeId ? "self" : "limited";
+        await db.activityLog.create({
+          data: {
+            action: "Viewed", entity: "Employee", entityId: employee.id,
+            appUserId: viewerId ?? undefined,
+            employeeId: employee.id,
+            detail: `Melihat detail karyawan ${employee.fullName} (${employee.employeeNo}) — cakupan PII: ${piiScopePre === "full" ? "penuh" : piiScopePre}`,
+          },
+        });
+      }
+    } catch {
+      // jejak baca bersifat best-effort — jangan blok payload
+    }
+
     // M-9 (audit 42 / desain 42-e): cakupan PII detail — FULL utk scope ALL
     // (super admin / rule akses penuh) dan utk profil SENDIRI (self — hak
     // melihat data sendiri); pemanggil scoped lainnya yang LOLOS guard di atas
@@ -112,9 +145,12 @@ export async function GET(req: NextRequest) {
     const { assignments: _curAssignments, ...personal } = employee;
     // 28-c: NIK/NPWP/rekening terenkripsi di DB — dekripsi utk tampilan detail
     // (profil HR; decryptText meloloskan plaintext legacy).
+    // Task 52-d: no. BPJS ikut terenkripsi.
     personal.nationalId = tcD.decryptText(personal.nationalId);
     personal.taxId = tcD.decryptText(personal.taxId);
     personal.bankAccount = tcD.decryptText(personal.bankAccount);
+    personal.bpjsHealth = tcD.decryptText(personal.bpjsHealth);
+    personal.bpjsEmpSkill = tcD.decryptText(personal.bpjsEmpSkill);
     // M-9 / 42-e: pemanggil LIMITED → PII sensitif di-mask (pola sama dgn
     // list /employees) + seksi personal lanjutan dikosongkan: keluarga = PII
     // pihak ketiga/dependen (nama + tanggal lahir); pendidikan/pengalaman/
@@ -258,7 +294,8 @@ export async function PATCH(req: NextRequest) {
     // NOTE: jalur tulis lain (wizard POST /employees + import Excel) sudah
     // terenkripsi via createEmployeeWithAssignment (employees.ts).
     const tcW = tenantCryptoForDb(db);
-    const ENCRYPTED_PERSONAL: ReadonlySet<string> = new Set(["nationalId", "taxId", "bankAccount"]);
+    // Task 52-d — no. BPJS masuk set enkripsi (migrate-encrypt-pii).
+    const ENCRYPTED_PERSONAL: ReadonlySet<string> = new Set(["nationalId", "taxId", "bankAccount", "bpjsHealth", "bpjsEmpSkill"]);
     const data: Record<string, unknown> = {};
     for (const f of PERSONAL_FIELDS) {
       if (b[f] === undefined) continue;
@@ -318,6 +355,8 @@ export async function PATCH(req: NextRequest) {
         nationalId: tcW.decryptText(employee.nationalId),
         taxId: tcW.decryptText(employee.taxId),
         bankAccount: tcW.decryptText(employee.bankAccount),
+        bpjsHealth: tcW.decryptText(employee.bpjsHealth),
+        bpjsEmpSkill: tcW.decryptText(employee.bpjsEmpSkill),
       },
     });
   } catch (e) {

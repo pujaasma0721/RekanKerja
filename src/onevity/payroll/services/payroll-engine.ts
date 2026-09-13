@@ -32,6 +32,10 @@ export interface EngineRegulation {
   jpkCompanyRate: number;
   jpkEmployeeRate: number;
   jpkSalaryCap: number;
+  // Task 52-c — JKP (PP 6/2025).
+  jkpEmployeeRate: number;
+  jkpCompanyRate: number;
+  jkpSalaryCap: number;
   nonNpwpSurcharge: number;
   useTer: boolean;
 }
@@ -363,6 +367,8 @@ export function runPayroll(
     const jpkBase = Math.min(emp.baseSalary, reg.jpkSalaryCap);
     const jkkBase = emp.baseSalary;
     const jkmBase = emp.baseSalary;
+    // Task 52-c — basis JKP: upah dibatasi plafon (PP 6/2025: Rp 5jt default).
+    const jkpBase = Math.min(emp.baseSalary, reg.jkpSalaryCap);
 
     const baseEnv: Record<string, number> = {
       BASE_SALARY: emp.baseSalary,
@@ -374,6 +380,7 @@ export function runPayroll(
       JP_RATE_CO: reg.jpCompanyRate, JP_RATE_EMP: reg.jpEmployeeRate,
       JKK_RATE: reg.jkkRate, JKM_RATE: reg.jkmRate,
       JPK_RATE_CO: reg.jpkCompanyRate, JPK_RATE_EMP: reg.jpkEmployeeRate,
+      JKP_BASE: jkpBase, JKP_RATE_CO: reg.jkpCompanyRate, JKP_RATE_EMP: reg.jkpEmployeeRate,
       PTKP_VALUE: ptkpValue,
     };
 
@@ -433,7 +440,7 @@ export function runPayroll(
     // incomeTaxMethod "Regular" — klasifikasi diperbaiki di engine berdasar
     // wageType Jamsostek + jamsostekBasis, data live tidak di-reseed.
     // Iuran JHT/JP perusahaan tetap objek pajak (iuran pensiun pemberi kerja).
-    const NON_OBJEK_BPJS = new Set(["JKK", "JKM", "JPK"]);
+    const NON_OBJEK_BPJS = new Set(["JKK", "JKM", "JPK", "JKP"]);
     const isNonObjekBpjs = (i: EngineItem) =>
       i.type === "Earning" && i.wageType === "Jamsostek" && NON_OBJEK_BPJS.has(i.jamsostekBasis ?? "");
     const regularIncome = items
@@ -445,7 +452,9 @@ export function runPayroll(
     // M-1 (UU PPh Pasal 21 ayat (3) huruf a): pengurang penghasilan neto hanya
     // iuran pensiun yang dibayar sendiri oleh PEGAWAI (JHT + JP). Iuran JPK
     // pegawai bukan pengurang neto pajak (tetap dipotong dari THP).
-    const DEDUCTIBLE_IURAN = new Set(["JHT", "JP"]);
+    // Task 52-c — iuran JKP pegawai ikut pengurang penghasilan bruto (perlakuan
+    // iuran jaminan sosial ketenagakerjaan seperti JP — PP 6/2025 jo. PMK PPh).
+    const DEDUCTIBLE_IURAN = new Set(["JHT", "JP", "JKP"]);
     const taxDeductibleIuran = items
       .filter((i) => i.wageType === "Jamsostek" && i.type === "Deduction" && DEDUCTIBLE_IURAN.has(i.jamsostekBasis ?? ""))
       .reduce((s, i) => s + i.amount, 0);

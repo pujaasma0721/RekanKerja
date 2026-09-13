@@ -18,6 +18,7 @@ import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, scopeWhere } from "@/onevity/shared/services/access-scope";
 import { saveAttachment, deleteAttachmentByRow, MAX_ATTACHMENT_BYTES } from "@/onevity/shared/services/attachment-service";
 import { tenantSlugOfSession } from "@/onevity/shared/api/attachments";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 
 /** docType yang dikenal (label EN/ID ada di komponen UI). */
 export const DOC_TYPES = ["KTP", "Paspor", "SIM", "KK", "NPWP", "Ijazah", "Sertifikat", "Kontrak", "Lainnya"] as const;
@@ -29,17 +30,23 @@ function parseDate(v: unknown, label: string): Date | null {
   return d;
 }
 
-function docMeta(d: {
-  id: string; employeeId: string; docType: string; docNumber: string | null;
-  issuedAt: Date | null; expiresAt: Date | null; notes: string | null;
-  attachmentId: string | null; createdAt: Date; updatedAt: Date;
-  employee: { employeeNo: string; fullName: string };
-  attachment: { id: string; fileName: string; mimeType: string; sizeBytes: number } | null;
-}) {
+function docMeta(
+  d: {
+    id: string; employeeId: string; docType: string; docNumber: string | null;
+    issuedAt: Date | null; expiresAt: Date | null; notes: string | null;
+    attachmentId: string | null; createdAt: Date; updatedAt: Date;
+    employee: { employeeNo: string; fullName: string };
+    attachment: { id: string; fileName: string; mimeType: string; sizeBytes: number } | null;
+  },
+  tc?: { decryptText: (v: string | null) => string | null },
+) {
   return {
     id: d.id, employeeId: d.employeeId,
     employeeNo: d.employee.employeeNo, employeeName: d.employee.fullName,
-    docType: d.docType, docNumber: d.docNumber,
+    docType: d.docType,
+    // Task 52-d — no. dokumen (NIK KTP/KK/paspor = PII) terenkripsi di DB;
+    // dekripsi di batas serializer (decryptText meloloskan plaintext legacy).
+    docNumber: tc ? tc.decryptText(d.docNumber) : d.docNumber,
     issuedAt: d.issuedAt, expiresAt: d.expiresAt, notes: d.notes,
     attachment: d.attachment ? { id: d.attachment.id, fileName: d.attachment.fileName, mimeType: d.attachment.mimeType, sizeBytes: d.attachment.sizeBytes } : null,
     createdAt: d.createdAt, updatedAt: d.updatedAt,
@@ -100,7 +107,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      documents: docs.map(docMeta),
+      documents: docs.map((d) => docMeta(d, tenantCryptoForDb(db))),
       stats: { total: totalAll, expired, expiring30: soon30 },
     });
   } catch (e) {
@@ -180,8 +187,10 @@ export async function POST(req: NextRequest) {
     const slug = await tenantSlugOfSession(req);
     if (buf && !slug) return NextResponse.json({ error: "Sesi tidak valid" }, { status: 401 });
 
+    // Task 52-d — no. dokumen (NIK/paspor/KK) dienkripsi sebelum persist.
+    const tcDoc = tenantCryptoForDb(db);
     const doc = await db.employeeDocument.create({
-      data: { employeeId, docType, docNumber, issuedAt, expiresAt, notes },
+      data: { employeeId, docType, docNumber: docNumber != null ? tcDoc.encryptText(docNumber) : null, issuedAt, expiresAt, notes },
     });
 
     if (buf && slug) {
@@ -210,7 +219,7 @@ export async function POST(req: NextRequest) {
       .catch(() => undefined);
 
     const created = await db.employeeDocument.findUnique({ where: { id: doc.id }, include: INCLUDE });
-    return NextResponse.json({ document: created ? docMeta(created) : null }, { status: 201 });
+    return NextResponse.json({ document: created ? docMeta(created, tcDoc) : null }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -238,7 +247,13 @@ export async function PATCH(req: NextRequest) {
       }
       data.docType = docType;
     }
-    if (b.docNumber !== undefined) data.docNumber = String(b.docNumber).trim() || null;
+    // Task 52-d — docNumber terenkripsi di DB: tulis terenkripsi, log/tampilkan
+    // plaintext (dekripsi di batas; plaintext legacy diloloskan apa adanya).
+    const tcUpd = tenantCryptoForDb(db);
+    if (b.docNumber !== undefined) {
+      const plain = String(b.docNumber).trim() || null;
+      data.docNumber = plain != null ? tcUpd.encryptText(plain) : null;
+    }
     if (b.notes !== undefined) data.notes = String(b.notes).trim() || null;
     if (b.issuedAt !== undefined || b.expiresAt !== undefined) {
       let issuedAt: Date | null;
@@ -257,18 +272,19 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await db.employeeDocument.update({ where: { id }, data, include: INCLUDE });
+    const updatedDocNo = tcUpd.decryptText(updated.docNumber);
 
     void db.activityLog
       .create({
         data: {
           appUserId: m.actor.appUserId ?? undefined, employeeId: updated.employeeId,
           action: "Updated", entity: "EmployeeDocument", entityId: id,
-          detail: `Ubah dokumen ${updated.docType}${updated.docNumber ? ` ${updated.docNumber}` : ""} (${updated.employee.fullName}) oleh ${m.actor.appUsername ?? m.actor.name}`,
+          detail: `Ubah dokumen ${updated.docType}${updatedDocNo ? ` ${updatedDocNo}` : ""} (${updated.employee.fullName}) oleh ${m.actor.appUsername ?? m.actor.name}`,
         },
       })
       .catch(() => undefined);
 
-    return NextResponse.json({ document: docMeta(updated) });
+    return NextResponse.json({ document: docMeta(updated, tcUpd) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
@@ -296,12 +312,14 @@ export async function DELETE(req: NextRequest) {
     }
     await db.employeeDocument.delete({ where: { id } });
 
+    // Task 52-d — tampilkan no. dokumen terdekripsi di jejak (bukan ciphertext).
+    const delDocNo = tenantCryptoForDb(db).decryptText(doc.docNumber);
     void db.activityLog
       .create({
         data: {
           appUserId: m.actor.appUserId ?? undefined, employeeId: doc.employeeId,
           action: "Deleted", entity: "EmployeeDocument", entityId: id,
-          detail: `Hapus dokumen ${doc.docType}${doc.docNumber ? ` ${doc.docNumber}` : ""} (${doc.employee.fullName}) oleh ${m.actor.appUsername ?? m.actor.name}`,
+          detail: `Hapus dokumen ${doc.docType}${delDocNo ? ` ${delDocNo}` : ""} (${doc.employee.fullName}) oleh ${m.actor.appUsername ?? m.actor.name}`,
         },
       })
       .catch(() => undefined);

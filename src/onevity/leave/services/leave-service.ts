@@ -126,6 +126,31 @@ interface TypeLite {
   allowAdvance: boolean; allowHalfDay: boolean; active: boolean;
 }
 
+// ============ Task 52-a — cuti khusus pekerja perempuan (UU 13/2003 Ps.82) ============
+// Jenis cuti yang HANYA boleh diajukan karyawan perempuan: melahirkan (CT-LAHIR-P),
+// keguguran (CT-GUGUR-P) — UU 13/2003 pasal 82 — serta cuti haid (pasal 81).
+// Validasi di submitRequest/previewRequest (admin & ESS) + guard cuti massal.
+export const FEMALE_ONLY_LEAVE = new Set(["CT-LAHIR-P", "CT-GUGUR-P", "CT-HAID"]);
+
+/** Konversi hari-kerja → satuan saldo jenis cuti. Jenis DAY: identitas.
+ * Jenis MONTH (cuti melahirkan/keguguran UU KIA): konvensi 21 hari kerja per
+ * bulan (5 hari kerja × 4,33 minggu rata-rata) — 3 bulan ≈ 63 hari kerja.
+ * Semua aritmetika saldo (taken/applied/pending/saldo) konsisten dalam SATU
+ * satuan ini, display memakai suffix bln/hr. */
+export function toUnitDays(type: { unit: string }, workingDays: number): number {
+  return type.unit === "MONTH" ? round2(workingDays / 21) : workingDays;
+}
+
+const unitLabel = (type: { unit: string }) => (type.unit === "MONTH" ? "bulan" : "hari");
+
+function assertGenderEligible(type: TypeLite, gender: string | null): void {
+  if (FEMALE_ONLY_LEAVE.has(type.code) && gender !== "F") {
+    throw new Error(
+      `Cuti ${type.name} hanya dapat diambil pekerja perempuan (UU 13/2003 pasal 81 & 82)`,
+    );
+  }
+}
+
 // ============ Task 33 — rule diferensiasi entitlement ============
 // Fix audit 40 M-5 — leaveTypeRules & entitlementFor DIPINDAH ke modul bersama
 // leave/services/entitlement.ts (diekspor dari sana — satu sumber kebenaran
@@ -155,8 +180,9 @@ function computeParts(
   let taken = 0;
   let applied = 0;
   for (const r of requests) {
-    if (dayStart(r.dateTo) < dayStart(asOf)) taken += r.workingDays;
-    else applied += r.workingDays;
+    // Task 52-a: satuan saldo — jenis MONTH dibukukan dalam bulan (÷21).
+    if (dayStart(r.dateTo) < dayStart(asOf)) taken += toUnitDays(type, r.workingDays);
+    else applied += toUnitDays(type, r.workingDays);
   }
   const remaining =
     balance.carriedOver + earned + balance.adjustment - forfeited - balance.cashed - taken - applied;
@@ -315,7 +341,7 @@ async function availableForRequest(
     },
     select: { workingDays: true },
   });
-  const pendingDays = round2(pending.reduce((s, r) => s + r.workingDays, 0));
+  const pendingDays = round2(pending.reduce((s, r) => s + toUnitDays(type, r.workingDays), 0));
   return { current: parts.remaining, pendingDays, available: round2(parts.remaining - pendingDays) };
 }
 
@@ -607,6 +633,8 @@ export async function previewRequest(
   if (!emp || emp.status !== "Active") throw new Error("Karyawan tidak ditemukan / tidak aktif");
   const type = (await db.leaveType.findUnique({ where: { id: input.leaveTypeId } })) as unknown as TypeLite | null;
   if (!type || !type.active) throw new Error("Jenis cuti tidak ditemukan / tidak aktif");
+  // Task 52-a — cuti khusus pekerja perempuan (melahirkan/keguguran/haid).
+  assertGenderEligible(type, emp.gender);
 
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
@@ -626,7 +654,7 @@ export async function previewRequest(
   return {
     workingDays: calc.workingDays,
     balance: current,
-    remaining: round2(current - calc.workingDays),
+    remaining: round2(current - toUnitDays(type, calc.workingDays)),
     backToWork: calc.backToWork ? iso(calc.backToWork) : null,
     maxPerRequest: type.maxPerRequest > 0 ? type.maxPerRequest : pvEff,
     unit: type.unit,
@@ -642,6 +670,8 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   if (!emp || emp.status !== "Active") throw new Error("Karyawan tidak ditemukan / tidak aktif");
   const type = (await db.leaveType.findUnique({ where: { id: input.leaveTypeId } })) as unknown as TypeLite | null;
   if (!type || !type.active) throw new Error("Jenis cuti tidak ditemukan / tidak aktif");
+  // Task 52-a — cuti khusus pekerja perempuan (melahirkan/keguguran/haid).
+  assertGenderEligible(type, emp.gender);
 
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
@@ -670,8 +700,10 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   ]);
   const sbEff = entitlementFor(type.entitlement, sbRules.get(type.id), sbCtx);
   const maxPer = type.maxPerRequest > 0 ? type.maxPerRequest : sbEff;
-  if (calc.workingDays > maxPer) {
-    throw new Error(`Maksimum ${maxPer} ${type.unit === "MONTH" ? "bulan" : "hari"} per permintaan untuk ${type.name}`);
+  // Task 52-a — jenis MONTH: bandingkan dalam satuan bulan (÷21 hari kerja).
+  const reqInUnit = toUnitDays(type, calc.workingDays);
+  if (reqInUnit > maxPer) {
+    throw new Error(`Maksimum ${maxPer} ${unitLabel(type)} per permintaan untuk ${type.name}`);
   }
 
   // bentrok dengan permintaan lain (belum ditolak/dibatalkan)
@@ -690,12 +722,14 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   const year = yearForDate(type, emp, from);
   const avail = await availableForRequest(db, input.employeeId, type, year, asOf);
   const current = avail.current;
-  const remaining = round2(avail.available - calc.workingDays);
+  // Task 52-a — saldo dalam satuan jenis (bulan utk MONTH); tersimpan di
+  // remainingAtRequest sebagai catatan saldo-saat-ajukan (satuan konsisten).
+  const remaining = round2(avail.available - reqInUnit);
   if (remaining < 0 && !type.allowAdvance) {
     throw new Error(
-      `Saldo tidak cukup: tersedia ${avail.available} ${type.unit === "MONTH" ? "bulan" : "hari"}` +
-        (avail.pendingDays > 0 ? ` (saldo ${current}, terpotong ${avail.pendingDays} hari permintaan lain yang menunggu persetujuan)` : "") +
-        `, diminta ${calc.workingDays}. Advance leave tidak diizinkan untuk ${type.name}`,
+      `Saldo tidak cukup: tersedia ${avail.available} ${unitLabel(type)}` +
+        (avail.pendingDays > 0 ? ` (saldo ${current}, terpotong ${avail.pendingDays} ${unitLabel(type)} permintaan lain yang menunggu persetujuan)` : "") +
+        `, diminta ${reqInUnit} ${unitLabel(type)}. Advance leave tidak diizinkan untuk ${type.name}`,
     );
   }
 
@@ -988,6 +1022,11 @@ export interface MassLeaveResult {
 export async function createMassLeave(db: TenantDb, input: MassLeaveInput): Promise<MassLeaveResult> {
   const type = (await db.leaveType.findUnique({ where: { id: input.leaveTypeId } })) as unknown as TypeLite | null;
   if (!type || !type.active) throw new Error("Jenis cuti tidak ditemukan / tidak aktif");
+  // Task 52-a — cuti khusus pekerja perempuan tidak bisa diberikan massal
+  // (berlaku per individu perempuan, dengan dokumen medis per kejadian).
+  if (FEMALE_ONLY_LEAVE.has(type.code)) {
+    throw new Error(`Jenis ${type.name} hanya untuk pekerja perempuan per kejadian — tidak dapat diproses sebagai cuti massal`);
+  }
   const from = dayStart(new Date(input.dateFrom));
   const to = dayStart(new Date(input.dateTo));
   if (to < from) throw new Error("Tanggal selesai sebelum tanggal mulai");

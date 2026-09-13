@@ -36,6 +36,7 @@ import {
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
+  MegaphoneOff, Siren, Eye, ClipboardCheck, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +81,9 @@ export const MODULES: ModuleMeta[] = [
   { id: "leave", label: "Leave", short: "Cuti", desc: "Saldo, permintaan & persetujuan", icon: Palmtree, ready: true, hex: "#06b6d4" },
   { id: "travel", label: "Travel", short: "Travel", desc: "Perjalanan dinas & settlement", icon: Plane, ready: true, hex: "#8b5cf6" },
   { id: "medical", label: "Medical", short: "Medis", desc: "Benefit & klaim kesehatan", icon: HeartPulse, ready: true, hex: "#f43f5e" },
+  // Task 52-f — kanal whistleblowing TPKS (UU 12/2022 Ps.22-24): laporan
+  // anonim + penanganan (triase) oleh tim yang berwenang.
+  { id: "whistleblowing", label: "Whistleblowing", short: "Lapor", desc: "Kanal pelaporan anonim & penanganan (TPKS)", icon: Siren, ready: true, hex: "#e11d48" },
 ];
 
 export const SETTINGS_META = {
@@ -232,6 +236,18 @@ const MEDICAL_NAV: NavGroup[] = [
   ] },
 ];
 
+// Task 52-f — whistleblowing TPKS (UU 12/2022): kanal laporan (default utk
+// semua pengguna terautentikasi — PUBLIC_MENU_KEYS) + triase penanganan
+// (whistleblowing:triage — admin/tim yang diberi akses).
+const WHISTLEBLOW_NAV: NavGroup[] = [
+  { section: "whistleblowing", children: [
+    { id: "report", label: "Laporkan Pelanggaran", icon: Siren },
+  ] },
+  { section: "whistleblowing", label: "Penanganan", children: [
+    { id: "triage", label: "Kelola Laporan", icon: ClipboardCheck },
+  ] },
+];
+
 // Pengaturan sistem — cross-module, tampil di panel semua modul + rail bawah.
 export const SETTINGS_NAV: NavGroup[] = [
   { section: "settings", label: "Pengaturan Sistem", children: [
@@ -254,6 +270,7 @@ export function navOfModule(m: ModuleId): NavGroup[] {
     case "leave": return LEAVE_NAV;
     case "travel": return TRAVEL_NAV;
     case "medical": return MEDICAL_NAV;
+    case "whistleblowing": return WHISTLEBLOW_NAV;
     default: return HR_NAV;
   }
 }

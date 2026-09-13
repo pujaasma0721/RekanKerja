@@ -138,6 +138,8 @@ export async function GET(req: NextRequest) {
           jkkRate: regulation.jkkRate, jkmRate: regulation.jkmRate,
           jpkCompanyRate: regulation.jpkCompanyRate, jpkEmployeeRate: regulation.jpkEmployeeRate,
           jpkSalaryCap: regulation.jpkSalaryCap,
+          jkpCompanyRate: regulation.jkpCompanyRate, jkpEmployeeRate: regulation.jkpEmployeeRate,
+          jkpSalaryCap: regulation.jkpSalaryCap,
           nonNpwpSurcharge: regulation.nonNpwpSurcharge,
           useTer: regulation.useTer,
         }
@@ -147,6 +149,7 @@ export async function GET(req: NextRequest) {
           jpEmployeeRate: 0.01, jpCompanyRate: 0.02, jpSalaryCap: 10_547_400,
           jkkRate: 0.0024, jkmRate: 0.003,
           jpkCompanyRate: 0.04, jpkEmployeeRate: 0.01, jpkSalaryCap: 12_000_000,
+          jkpCompanyRate: 0.0022, jkpEmployeeRate: 0.0024, jkpSalaryCap: 5_000_000,
           nonNpwpSurcharge: 0.2, useTer: false,
         };
 
@@ -194,6 +197,9 @@ export async function GET(req: NextRequest) {
             JP_RATE_CO: reg.jpCompanyRate, JP_RATE_EMP: reg.jpEmployeeRate,
             JKK_RATE: reg.jkkRate, JKM_RATE: reg.jkmRate,
             JPK_RATE_CO: reg.jpkCompanyRate, JPK_RATE_EMP: reg.jpkEmployeeRate,
+            // Task 52-c — variabel formula JKP (PP 6/2025).
+            JKP_BASE: Math.min(baseSalary, reg.jkpSalaryCap),
+            JKP_RATE_CO: reg.jkpCompanyRate, JKP_RATE_EMP: reg.jkpEmployeeRate,
             WORKING_DAYS: workingDaysBetween(monthStart, monthEnd), PRORATE: 1,
             PTKP_VALUE: 54_000_000,
           });

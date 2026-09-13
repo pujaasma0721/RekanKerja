@@ -75,4 +75,10 @@ export const ENCRYPTED_COLUMNS: [string, string, "t" | "n"][] = [
   ["TravelAdvance", "amount", "n"],
   ["TravelBudget", "totalBudget", "n"],
   ["TravelBudgetItem", "amount", "n"],
+  // ==== Task 52-d — PII lanjutan (audit 51: no. dokumen identitas, diagnosis
+  // medis, no. BPJS tersimpan plaintext) — gelombang migrate-encrypt-pii.ts ====
+  ["Employee", "bpjsHealth", "t"],
+  ["Employee", "bpjsEmpSkill", "t"],
+  ["EmployeeDocument", "docNumber", "t"],
+  ["MedicalClaimLine", "treatment", "t"],
 ];

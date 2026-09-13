@@ -335,6 +335,45 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         if (!cur) return NextResponse.json({ error: "Karyawan tidak memiliki penempatan aktif" }, { status: 400 });
       }
 
+      // ===== Task 52-g — BLOKIR PKWT > 5 TAHUN (PP 35/2021 Ps.8) =====
+      // PKWT + seluruh perpanjangannya maks 5 tahun; lebih dari itu WAJIB
+      // konversi PKS. Sebelumnya hanya warning banner (edukatif). Kini proses
+      // perpanjangan DITOLAK 409 (code PKWT_OVER_5Y) bila contractStart pertama
+      // → contractEnd baru > 60 bulan. Override eksplisit b.force === true
+      // (HR menyadari pelanggaran — dicatat sebagai ActivityLog Warning).
+      let pkwtForceNote = "";
+      if (action.type === "ContractRenewal") {
+        const empPkwt = await db.employee.findUnique({
+          where: { id: action.employeeId },
+          select: { joinDate: true, contractStart: true, contractEnd: true },
+        });
+        if (empPkwt) {
+          const months = detail.months ? Number(detail.months) : null;
+          let newEnd = detail.newEndDate ? new Date(String(detail.newEndDate)) : null;
+          if (!newEnd && months && empPkwt.contractEnd) {
+            newEnd = new Date(empPkwt.contractEnd);
+            newEnd.setMonth(newEnd.getMonth() + months);
+          }
+          if (newEnd) {
+            const startRef = empPkwt.contractStart ? new Date(empPkwt.contractStart) : new Date(empPkwt.joinDate);
+            let totalMonths = (newEnd.getFullYear() - startRef.getFullYear()) * 12 + (newEnd.getMonth() - startRef.getMonth());
+            if (newEnd.getDate() < startRef.getDate()) totalMonths -= 1;
+            if (totalMonths > 60 && b.force !== true) {
+              return NextResponse.json(
+                {
+                  error: `Total durasi PKWT akan menjadi ${Math.floor(totalMonths / 12)} tahun ${totalMonths % 12} bulan — melebihi batas 5 tahun (PP 35/2021 Ps.8). WAJIB konversi ke PKS (PA ChangeStatus → Permanent). Bila tetap dipaksa, kirim force=true dengan kesadaran risiko hubungan kerja menjadi PKS demi hukum.`,
+                  code: "PKWT_OVER_5Y",
+                },
+                { status: 409 },
+              );
+            }
+            if (totalMonths > 60 && b.force === true) {
+              pkwtForceNote = ` — DIPAKSA melampaui 5 tahun (${Math.floor(totalMonths / 12)} th ${totalMonths % 12} bln) oleh ${actorLabel}: risiko otomatis menjadi PKS (PP 35/2021 Ps.8)`;
+            }
+          }
+        }
+      }
+
       // Fix K-02: seluruh side-effect + perubahan status PA dalam SATU transaksi —
       // kegagalan di tengah tidak meninggalkan assignment tertutup tanpa pengganti /
       // status berubah tanpa jejak; PA hanya menjadi Processed bila semua efek berhasil.
@@ -451,7 +490,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         if (upd.count === 0) throw new WorkflowError(409, "Dokumen sudah diproses sebelumnya");
       });
 
-      await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})${pkwtNote}`);
+      await log(`${action.docNo} DIPROSES oleh ${actorLabel} — perubahan diterapkan & tercatat di riwayat pekerjaan (${action.type})${pkwtNote}${pkwtForceNote}`);
 
       // ===== T19: Final Settlement PHK — best-effort, SETELAH status karyawan =====
       // berubah (transaksi di atas sudah commit). Kegagalan settlement TIDAK

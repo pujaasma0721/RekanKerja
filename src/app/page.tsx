@@ -28,7 +28,11 @@ import { AttendanceModule } from "@/onevity/time-attendance/components/attendanc
 import { LeaveModule } from "@/onevity/leave/components/leave-module";
 import { TravelModule } from "@/onevity/travel/components/travel-module";
 import { MedicalModule } from "@/onevity/medical/components/medical-module";
+// Task 52-f — modul whistleblowing (TPKS UU 12/2022): kanal laporan anonim
+// + penanganan (triase) oleh tim berwenang.
+import { WhistleblowModule } from "@/onevity/whistleblow/components/whistleblow-module";
 import { SettingsModule } from "@/onevity/shared/components/settings/settings-module";
+import { isPublicMenuKey } from "@/onevity/shared/lib/public-menus";
 import { Loader2, Waypoints } from "lucide-react";
 
 export default function Page() {
@@ -81,10 +85,13 @@ function PageInner() {
 
   // Auto-deteksi mode default: pengguna TANPA menu admin apa pun → otomatis ESS.
   // Tidak menimpa pilihan eksplisit pengguna (override di store).
+  // Task 52-f — menu PUBLIK (whistleblowing:report — kanal TPKS semua pekerja)
+  // TIDAK dihitung sebagai menu admin: pemiliknya tetap masuk mode ESS.
   useEffect(() => {
     if (session.status !== "ready" || !meMenu.data) return;
     const d = meMenu.data;
-    const noAdminMenu = !d.all && !(d.menus ?? []).length && !d.isSuperAdmin;
+    const adminMenus = (d.menus ?? []).filter((k) => !isPublicMenuKey(k));
+    const noAdminMenu = !d.all && adminMenus.length === 0 && !d.isSuperAdmin;
     useUiMode.getState().setAutoMode(noAdminMenu ? "ess" : "admin");
   }, [session.status, meMenu.data]);
 
@@ -129,6 +136,7 @@ function PageInner() {
             {section === "travel" && <TravelModule view={view} />}
             {section === "settings" && <SettingsModule view={view} />}
             {section === "medical" && <MedicalModule view={view} />}
+            {section === "whistleblowing" && <WhistleblowModule view={view} />}
           </motion.div>
         </AnimatePresence>
       </AppShell>

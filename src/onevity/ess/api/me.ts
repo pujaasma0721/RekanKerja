@@ -53,8 +53,9 @@ export async function GET(req: Request) {
         joinDate: fmtIsoDate(emp.joinDate),
         employmentStatus: a?.employmentStatus ?? null,
         taxId: tenantCryptoForDb(db).decryptText(emp.taxId),
-        bpjsHealth: emp.bpjsHealth,
-        bpjsEmpskill: emp.bpjsEmpSkill,
+        // Task 52-d — no. BPJS terenkripsi (migrate-encrypt-pii) — dekripsi utk profil sendiri.
+        bpjsHealth: tenantCryptoForDb(db).decryptText(emp.bpjsHealth),
+        bpjsEmpskill: tenantCryptoForDb(db).decryptText(emp.bpjsEmpSkill),
       },
       companyName: emp.company?.name ?? null,
       role: m.actor.appUserRole,

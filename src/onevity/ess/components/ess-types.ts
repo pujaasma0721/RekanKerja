@@ -19,7 +19,9 @@ export type EssView =
   // wave 27 — pengumuman / tukar shift / aset saya
   | "announcements"
   | "swap"
-  | "assets";
+  | "assets"
+  // Task 52-f — kanal laporan TPKS (anonim) utk semua pekerja
+  | "whistleblow";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;

@@ -215,6 +215,11 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 | 21 | `encrypt-money` | Task 44 (M-8) — 38 kolom uang claim → `enc:v1:n` (skrip `migrate-encrypt-money.ts`, idempoten). Kunci = kunci AKTIF tenant (sejak Task 47: `dataKey` vault bila sudah di-setup, else bootstrap — runner men-prime kunci sebelum langkah ini). Catatan: agregasi SQL (`_sum`/`groupBy`) pada kolom terenkripsi sudah dipindah in-memory — JANGAN menambah query SQL agregat ke kolom terenkripsi. |
 | 22 | `money-vault` | Task 45-a/47 — tabel `MoneyVault` (+ kolom `dataKey` kunci kata sandi perusahaan — `ALTER ADD COLUMN IF NOT EXISTS` idempoten; CREATE TABLE fresh-install sudah memuatnya lewat tenant-ddl.sql) + `MoneyViewGrant` + unique index userId. Setup vault sendiri via API admin (bukan migrasi). |
 | 23 | `ptkp-auto` | Task 49 — kolom `EmployeePayrollProfile.ptkpSource` (`auto`\|`manual`, default `manual`, ALTER ADD COLUMN idempoten). Nilai PTKP tidak diubah migrasi — admin mengaktifkan via UI (lihat §5.2.3). |
+| 24 | `fix-nan-money` | Task 50-fix — tulis ulang nilai uang terenkripsi non-finite (NaN/Infinity, sisa bug pra-T50) → 0 (skrip `migrate-fix-nan-money.ts`, idempoten). |
+| 25 | `maternity-leave` (**BARU T52**) | Task 52-a — 2 jenis cuti pekerja perempuan: `CT-LAHIR-P` (melahirkan, 6 bln — 3 dasar + perpanjangan UU KIA) & `CT-GUGUR-P` (keguguran 1,5 bln), unit MONTH (INSERT ON CONFLICT). |
+| 26 | `jkp` (**BARU T52**) | Task 52-c — JKP PP 6/2025: kolom `PayrollRegulation.jkpEmployeeRate/jkpCompanyRate/jkpSalaryCap` (default 0,24%/0,22%/5jt — DEFAULT mengisi baris lama) + komponen `JKP_C`/`JKP_E` (formula JKP_BASE×rate) + item template DEFAULT/BS. |
+| 27 | `encrypt-pii` (**BARU T52**) | Task 52-d — enkripsi PII lanjutan: `Employee.bpjsHealth/bpjsEmpSkill`, `EmployeeDocument.docNumber`, `MedicalClaimLine.treatment` → `enc:v1:t` (idempoten; registry rekey 63 kolom). |
+| 28 | `whistleblow` (**BARU T52**) | Task 52-f — tabel `WhistleblowReport` (CREATE IF NOT EXISTS + 4 index) — kanal whistleblowing TPKS UU 12/2022. |
 
 ### 5.2.1 Enkripsi uang modul claim — catatan perilaku (Task 44 / M-8)
 
@@ -247,6 +252,19 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - **PTKP efektif hanya berubah lewat**: (1) refresh tahunan 1 Januari (otomatis); (2) koreksi eksplisit admin — sinkron massal atau PATCH manual; (3) **pengisian awal** saat profil baru dibuat / dialihkan `manual`→`auto` (PATCH profil yang SUDAH `auto` mempertahankan snapshot — payload `taxStatus` diabaikan).
 - **Audit**: setiap perubahan status otomatis menulis `ActivityLog` ("PTKP otomatis dari data keluarga: TK0 → K1 (…)"), entity `EmployeePayrollProfile`; marker tahunan mencatat ringkasan + catatan kebijakan tahun berikutnya.
 - API: `GET /api/onevity/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource` (freeze bila profil sudah auto); API `family` POST/DELETE mengembalikan `ptkpPending` tanpa menulis.
+
+### 5.2.4 Kepatuhan hukum Task 52 (cuti UU KIA · kompensasi PKWT · JKP · PII · audit baca · whistleblowing · 40 jam)
+
+Tujuh fitur hasil audit kepatuhan (Task 51) — perilaku penting:
+
+- **Cuti melahirkan/keguguran (52-a)**: jenis `CT-LAHIR-P` (entitlement 6 MONTH, `needDocs`) & `CT-GUGUR-P` (1,5 MONTH). Hanya pekerja **perempuan** (validasi di `submitRequest`/`previewRequest` — laki-laki 400; ESS menyembunyikan jenis perempuan-only dari daftar). Saldo dibukukan dalam **bulan** (konversi hari-kerja ÷21 di `leave-service`); cuti massal menolak jenis perempuan-only. Jenis event tanpa baris saldo tetap tampil di ESS (dibuat otomatis saat pengajuan).
+- **Uang kompensasi PKWT (52-b)**: settlement PHK karyawan PKWT (Contract/Probation/Outsourcing) otomatis menghitung `PKWT_KOMP` = masa kerja/12 × upah (prorata, PP 35/2021 Ps.15-16) — **PPh final 0%** (dikecualikan dari kelompok pesangon; komponen `NonTaxable`). Dialog preview punya opsi faktor UPMK **×0** (jangka waktu kontrak berakhir — tanpa pesangon, hanya kompensasi).
+- **JKP (52-c)**: parameter regulasi (0,24% pekerja — pengurang penghasilan bruto PPh21; 0,22% perusahaan — non-objek; plafon 5jt) di Parameter Pajak & Regulasi. Komponen `JKP_C`/`JKP_E` masuk template DEFAULT/BS (aktif setelah migrasi); FREELANCE sengaja tanpa BPJS. Rekap BPJS + XLSX punya kolom JKP. Checklist offboarding bertambah "Terbitkan surat keterangan PHK & daftar upah utk klaim JKP" (tandai Na bila resign).
+- **PII lanjutan terenkripsi (52-d)**: no. BPJS, no. dokumen (KTP/paspor/KK), diagnosis/perawatan medis kini `enc:` (4 kolom baru; registry re-key 63). Dekripsi di batas serializer — bentuk respons TIDAK berubah. Kolom tidak dipakai di where-clause → aman penuh.
+- **Audit akses baca (52-e)**: setiap GET detail karyawan menulis `ActivityLog` action `Viewed` (entity `Employee`, detail menyebut cakupan PII penuh/self/limited; dedupe 5 menit per penampil×karyawan). Viewer: Pengaturan → Log Aktivitas.
+- **Whistleblowing TPKS (52-f)**: modul baru (rail merah). `Laporkan Pelanggaran` terbuka bagi SEMUA pengguna (menu publik `whistleblowing:report` — juga di portal ESS) — mode **anonim default** (identitas TIDAK disimpan; sesi hanya autentikasi keanggotaan), rate-limit 3/15 mnt/sesi. `Kelola Laporan` (guard `whistleblowing:triage`, ops `assign`/`decide`) — alur Baru → Diterima → Investigasi → Selesai/Ditutup; tiap keputusan menulis ActivityLog (aktor = penangan, bukan pelapor). Notifikasi masuk ke admin/HR. Tabel `WhistleblowReport` per tenant.
+- **Enforce 40 jam + PKWT 5 tahun (52-g)**: jadwal kerja (POST/reorder cycle) validasi UU 13/2003 Ps.77 — rata-rata ≤ 40 jam/minggu ATAU pola 6 hari × 7 jam (≤ 42 jam, tiap hari ≤ 7 jam); hari kerja > 8 jam ditolak. Tipe hari Off/Holiday tidak dihitung. Proses PA ContractRenewal yang membuat total durasi PKWT > 60 bulan DITOLAK 409 (`code: PKWT_OVER_5Y`) — jalur sah: konversi PKS (PA ChangeStatus → Permanent); override `force:true` tersedia via API (tercatat di log).
+- **Catatan klien tenant**: versi cache dinaikkan `T49A` → **`T52A`** (DMMF +jkp* + WhistleblowReport) — restart otomatis dipakai ulang; deploy = cukup restart, parity self-heal semua langkah 25-28.
 
 ### 5.3 Health endpoint `/api/health` (Task 43-e)
 

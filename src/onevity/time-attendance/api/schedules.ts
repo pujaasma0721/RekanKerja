@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
+// Task 52-g — UU 13/2003 Ps.77 ayat (1): 40 jam kerja/minggu, pembagian sah
+// 8 jam × 5 hari (≤ 2400 menit/minggu) ATAU pola 6 hari kerja × 7 jam
+// (≤ 2520 menit dgn tiap hari kerja ≤ 420 menit). Rata-rata mingguan dihitung
+// dari proporsi cycle: (Σ menit hari kerja) × 7 / cycleDays. Tipe hari
+// kategori Off/Holiday tidak dihitung (bukan hari kerja).
+function assertWeeklyHours(
+  dayTypes: { code: string; category: string; normalMinutes: number }[],
+  days: string[],
+): void {
+  const byCode = new Map(dayTypes.map((d) => [d.code, d]));
+  let sumMinutes = 0;
+  let workdays = 0;
+  let maxDayMinutes = 0;
+  for (const code of days) {
+    const dt = byCode.get(code);
+    if (!dt || dt.category !== "Workday") continue;
+    workdays += 1;
+    sumMinutes += dt.normalMinutes;
+    maxDayMinutes = Math.max(maxDayMinutes, dt.normalMinutes);
+  }
+  const cycleDays = days.length;
+  const weeklyAvg = Math.round((sumMinutes * 7) / cycleDays);
+  const workdaysPerWeek = (workdays * 7) / cycleDays;
+  // pola 6 hari kerja × 7 jam (UU 13/2003 Ps.77(1)(b)): toleransi pembulatan
+  // (6.0 tepat, bukan hanya > 6.02) & tiap hari kerja ≤ 7 jam.
+  const sixDayPattern = workdaysPerWeek >= 5.98 && maxDayMinutes <= 420;
+  const weeklyLimit = sixDayPattern ? 2520 : 2400;
+  if (weeklyAvg > weeklyLimit) {
+    const jam = (n: number) => (n / 60).toFixed(1).replace(".0", "");
+    throw new Error(
+      `Rata-rata ${jam(weeklyAvg)} jam kerja/minggu melebihi batas UU 13/2003 Ps.77 (${jam(weeklyLimit)} jam — pola ${sixDayPattern ? "6 hari × 7 jam" : "5 hari × 8 jam"}). Kurangi menit hari kerja atau tambahkan hari libur ke cycle.`,
+    );
+  }
+  if (maxDayMinutes > 480) {
+    throw new Error(
+      `Hari kerja terpanjang ${(maxDayMinutes / 60).toFixed(1)} jam melebihi 8 jam/hari (UU 13/2003 Ps.77) — perbaiki tipe hari terkait.`,
+    );
+  }
+}
+
 const SCHEDULE_INCLUDE = {
   days: {
     orderBy: { sequence: "asc" as const },
@@ -46,6 +86,12 @@ export async function POST(req: NextRequest) {
     if (byCode.size !== new Set(days).size) {
       return NextResponse.json({ error: "Ada kode tipe hari tidak dikenal / tidak aktif" }, { status: 400 });
     }
+    // Task 52-g — validasi 40 jam/minggu (UU 13/2003 Ps.77).
+    try {
+      assertWeeklyHours(dayTypes, days);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
 
     const schedule = await db.workSchedule.create({
       data: {
@@ -84,6 +130,12 @@ export async function PATCH(req: NextRequest) {
       const byCode = new Map(dayTypes.map((d) => [d.code, d.id]));
       if (byCode.size !== new Set(days).size) {
         return NextResponse.json({ error: "Ada kode tipe hari tidak dikenal / tidak aktif" }, { status: 400 });
+      }
+      // Task 52-g — validasi SEBELUM mutasi (jangan hapus cycle dulu lalu gagal).
+      try {
+        assertWeeklyHours(dayTypes, days);
+      } catch (e) {
+        return NextResponse.json({ error: (e as Error).message }, { status: 400 });
       }
       await db.workScheduleDay.deleteMany({ where: { scheduleId: b.id } });
       await db.workScheduleDay.createMany({

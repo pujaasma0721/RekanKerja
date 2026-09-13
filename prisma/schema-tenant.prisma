@@ -711,6 +711,14 @@ model PayrollRegulation {
   jpkCompanyRate         Float     @default(0.04)
   jpkEmployeeRate        Float     @default(0.01)
   jpkSalaryCap           Float     @default(12000000)
+  // Task 52-c — JKP (Jaminan Kehilangan Pekerjaan, PP 6/2025): iuran 0,22%
+  // pemberi kerja + 0,24% pekerja dari upah bulanan, batas upah Rp 5.000.000.
+  // Iuran pekerja = potongan THP & pengurang penghasilan bruto PPh21 (perlakuan
+  // iuran jaminan sosial seperti JP); iuran perusahaan = beban non-objek PPh21.
+  // Manfaat diklaim pekerja saat PHK — checklist offboarding + surat keterangan.
+  jkpEmployeeRate        Float     @default(0.0024)
+  jkpCompanyRate         Float     @default(0.0022)
+  jkpSalaryCap           Float     @default(5000000)
   nonNpwpSurcharge       Float     @default(0.2)
   useTer                 Boolean   @default(false)
   active                 Boolean   @default(true)
@@ -2592,4 +2600,36 @@ model CustomReport {
   updatedAt   DateTime @updatedAt
 
   @@index([entity])
+}
+
+// ============ Task 52-f — WHISTLEBLOWING / TPKS (UU 12/2022 Ps.22-24) ============
+// Kanal pelaporan pelanggaran & kekerasan seksual di tempat kerja. Mode ANONIM:
+// identitas pelapor TIDAK disimpan (reporterEmployeeId null, tidak ada AppUser
+// link, ActivityLog tanpa actor user) — pelapor login cukup utk terautentikasi
+// sebagai anggota organisasi, identitasnya dibuang sebelum persist. Laporan
+// non-anonim opsional (kontak ditinggalkan utk tindak lanjut).
+// Status: Baru → Diterima → Investigasi → Selesai | Ditutup (ditutup tanpa
+// tindak lanjut — dicatat alasan). Kategori mengikuti TPKS + pelanggaran lain.
+model WhistleblowReport {
+  id                 String    @id @default(cuid())
+  ticketNo           String    @unique // WB-2026-001
+  category           String // KEKERASAN_SEKSUAL|PELECEHAN|BULLYING|RETALIASI|FRAUD|KESELAMATAN|LAINNYA
+  channel            String    @default("ESS") // ESS (aplikasi) | ANONIM (form anonim)
+  description        String // kronologi pelaporan (bebas)
+  incidentDate       DateTime? // tanggal kejadian
+  location           String? // lokasi kejadian
+  involvedHint       String? // pihak terlibat (deskriptif — bukan data master)
+  anonymous          Boolean   @default(true) // true → identitas pelapor TIDAK disimpan
+  reporterEmployeeId String? // null bila anonim (dibuang saat submit)
+  reporterContact    String? // kontak opsional utk tindak lanjut (anonim boleh)
+  status             String    @default("Baru") // Baru|Diterima|Investigasi|Selesai|Ditutup
+  assignedToId       String? // AppUser penangan (plain string, tanpa FK)
+  followUpNote       String? // catatan tindak lanjut per ganti status
+  resolutionNote     String? // hasil akhir (Selesai/Ditutup)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
 }

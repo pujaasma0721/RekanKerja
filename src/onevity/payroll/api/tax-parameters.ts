@@ -49,6 +49,10 @@ export async function PATCH(req: NextRequest) {
         jpkCompanyRate: num(b.jpkCompanyRate),
         jpkEmployeeRate: num(b.jpkEmployeeRate),
         jpkSalaryCap: num(b.jpkSalaryCap),
+        // Task 52-c — parameter JKP (PP 6/2025).
+        jkpCompanyRate: num(b.jkpCompanyRate),
+        jkpEmployeeRate: num(b.jkpEmployeeRate),
+        jkpSalaryCap: num(b.jkpSalaryCap),
         nonNpwpSurcharge: num(b.nonNpwpSurcharge),
         useTer: b.useTer,
       },

@@ -311,11 +311,11 @@ export function LeaveRequestsPage() {
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">{t("Saldo Saat Ini", "Current Balance")}</p>
-                  <p className="text-sm font-extrabold text-stone-700 dark:text-stone-200">{preview ? fmtDay(preview.balance) : "—"}</p>
+                  <p className="text-sm font-extrabold text-stone-700 dark:text-stone-200">{preview ? fmtDay(preview.balance) : "—"}{preview && <span className="ml-0.5 text-[9px] font-bold text-stone-400">{preview.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")}</span>}</p>
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">{t("Sisa Saldo", "Remaining Balance")}</p>
-                  <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>{preview ? fmtDay(preview.remaining) : "—"}</p>
+                  <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "ov-text-accent")}>{preview ? fmtDay(preview.remaining) : "—"}{preview && <span className="ml-0.5 text-[9px] font-bold text-stone-400">{preview.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")}</span>}</p>
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase text-stone-400">{t("Kembali Kerja", "Back to Work")}</p>

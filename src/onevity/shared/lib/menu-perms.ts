@@ -122,6 +122,14 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
   ],
   "medical:medical-adjustment": [{ key: "approve", label: "Menyetujui / menolak penyesuaian saldo", hint: "Memutuskan penyesuaian saldo medis" }],
 
+  // Task 52-f — whistleblowing TPKS: triase & memutuskan laporan (form Lapor
+  // sendiri tanpa guard menu — cukup sesi; menu key whistleblowing:report
+  // publik view-only lihat public-menus.ts).
+  "whistleblowing:triage": [
+    { key: "assign", label: "Menugaskan penangan laporan", hint: "Menetapkan penanggung jawab investigasi laporan" },
+    { key: "decide", label: "Memutuskan status & hasil laporan", hint: "Menerima, investigasi, menyelesaikan, atau menutup laporan" },
+  ],
+
   // Settings — konfigurasi email (Task 34)
   "settings:email": [
     { key: "test", label: "Mengirim email uji", hint: "Tombol Tes Kirim pada konfigurasi SMTP" },

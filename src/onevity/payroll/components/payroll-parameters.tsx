@@ -27,6 +27,7 @@ interface TaxData {
     jpEmployeeRate: number; jpCompanyRate: number; jpSalaryCap: number;
     jkkRate: number; jkmRate: number;
     jpkCompanyRate: number; jpkEmployeeRate: number; jpkSalaryCap: number;
+    jkpCompanyRate: number; jkpEmployeeRate: number; jkpSalaryCap: number;
     nonNpwpSurcharge: number; useTer: boolean;
   } | null;
   ptkp: Record<string, number>;
@@ -130,7 +131,16 @@ export function PayrollParametersPage() {
                     <NumField label={t("JKK")} value={String(reg.jkkRate * 100)} onChange={(v) => setReg({ ...reg, jkkRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("JKM")} value={String(reg.jkmRate * 100)} onChange={(v) => setReg({ ...reg, jkmRate: num(v) / 100 })} suffix="%" />
                     <div />
+                    <NumField label={t("JKP Pegawai (PP 6/2025)", "JKP Employee (GR 6/2025)")} value={String((reg.jkpEmployeeRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpEmployeeRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JKP Perusahaan", "JKP Company")} value={String((reg.jkpCompanyRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpCompanyRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Cap Gaji JKP", "JKP Salary Cap")} value={String(reg.jkpSalaryCap ?? 0)} onChange={(v) => setReg({ ...reg, jkpSalaryCap: num(v) })} money />
                   </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+                    {t(
+                      "Jaminan Kehilangan Pekerjaan (PP 6/2025): total iuran 0,46% dari upah s.d. plafon — 0,24% dipotong dari pekerja (pengurang penghasilan bruto PPh21), 0,22% beban perusahaan. Manfaat diklaim pekerja saat PHK (aktifkan komponen JKP_C/JKP_E di template gaji).",
+                      "Unemployment insurance (GR 6/2025): total 0.46% of capped wage — 0.24% deducted from the employee (PPh21 income reduction), 0.22% employer cost. Claimed by the worker on termination (enable JKP_C/JKP_E in wage templates).",
+                    )}
+                  </p>
                 </CardContent>
               </Card>
             )}

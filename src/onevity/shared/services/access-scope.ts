@@ -257,7 +257,7 @@ export async function isEmployeeInScope(db: TenantDb, scope: DataAccessScope, em
 // ============ guard endpoint ber-scope ============
 
 export type ScopedResult =
-  | { ok: true; db: TenantDb; scope: DataAccessScope }
+  | { ok: true; db: TenantDb; scope: DataAccessScope; actor: { appUserId: string | null; employeeId: string | null } }
   | { ok: false; status: number; error: string };
 
 /**
@@ -266,7 +266,7 @@ export type ScopedResult =
  * → scope efektif. Route memakai:
  *   const s = await requireScoped(req);
  *   if (!s.ok) return NextResponse.json({ error: s.error }, { status: s.status });
- *   // s.db, s.scope
+ *   // s.db, s.scope, s.actor (Task 52-e — utk jejak audit akses baca)
  */
 export async function requireScoped(req: Request): Promise<ScopedResult> {
   // T1-SECURITY: readVerifiedSession — revokasi sesi server-side diperhitungkan.
@@ -305,5 +305,6 @@ export async function requireScoped(req: Request): Promise<ScopedResult> {
     appUserRole: appUser?.role ?? null,
     platformRole: membership.role,
   });
-  return { ok: true, db, scope };
+  // Task 52-e — aktor dibawa keluar utk jejak audit akses baca (appUserId).
+  return { ok: true, db, scope, actor: { appUserId: appUser?.id ?? null, employeeId: appUser?.employeeId ?? null } };
 }

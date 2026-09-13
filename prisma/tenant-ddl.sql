@@ -524,6 +524,9 @@ CREATE TABLE "PayrollRegulation" (
     "jpkCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.04,
     "jpkEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0.01,
     "jpkSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 12000000,
+    "jkpEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0024,
+    "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0022,
+    "jkpSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 5000000,
     "nonNpwpSurcharge" DOUBLE PRECISION NOT NULL DEFAULT 0.2,
     "useTer" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
@@ -2048,6 +2051,29 @@ CREATE TABLE "CustomReport" (
     CONSTRAINT "CustomReport_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "WhistleblowReport" (
+    "id" TEXT NOT NULL,
+    "ticketNo" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "channel" TEXT NOT NULL DEFAULT 'ESS',
+    "description" TEXT NOT NULL,
+    "incidentDate" TIMESTAMP(3),
+    "location" TEXT,
+    "involvedHint" TEXT,
+    "anonymous" BOOLEAN NOT NULL DEFAULT true,
+    "reporterEmployeeId" TEXT,
+    "reporterContact" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Baru',
+    "assignedToId" TEXT,
+    "followUpNote" TEXT,
+    "resolutionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WhistleblowReport_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2440,6 +2466,18 @@ CREATE UNIQUE INDEX "CustomReport_code_key" ON "CustomReport"("code");
 
 -- CreateIndex
 CREATE INDEX "CustomReport_entity_idx" ON "CustomReport"("entity");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WhistleblowReport_ticketNo_key" ON "WhistleblowReport"("ticketNo");
+
+-- CreateIndex
+CREATE INDEX "WhistleblowReport_status_idx" ON "WhistleblowReport"("status");
+
+-- CreateIndex
+CREATE INDEX "WhistleblowReport_category_idx" ON "WhistleblowReport"("category");
+
+-- CreateIndex
+CREATE INDEX "WhistleblowReport_createdAt_idx" ON "WhistleblowReport"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

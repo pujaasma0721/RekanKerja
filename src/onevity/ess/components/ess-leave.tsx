@@ -113,6 +113,8 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
           used: b.taken ?? b.used ?? pickNum(b as unknown as Record<string, unknown>, ["taken", "used"]) ?? 0,
           pending: b.applied ?? b.pending ?? pickNum(b as unknown as Record<string, unknown>, ["applied", "pending"]) ?? 0,
           avail: b.available ?? 0,
+          // Task 52-a — satuan saldo (bln utk cuti melahirkan/keguguran UU KIA).
+          unit: String((b as { unit?: string }).unit ?? "DAY") === "MONTH" ? t("bln", "mo") : t("hari", "days"),
         });
         return (
           <div className="space-y-4">
@@ -133,7 +135,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                         <p className="text-sm font-bold text-stone-800 dark:text-stone-100">{b.name}</p>
                         <p className="text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
                           {r.avail}
-                          <span className="ml-1 text-xs font-bold text-stone-400">/ {r.entitlement} {t("hari", "days")}</span>
+                          <span className="ml-1 text-xs font-bold text-stone-400">/ {r.entitlement} {r.unit}</span>
                         </p>
                       </div>
                       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
@@ -169,7 +171,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                       <p className="truncate text-[11px] font-semibold text-stone-500 dark:text-stone-400" title={b.name}>{b.name}</p>
                       <p className="mt-1 text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">
                         {r.avail}
-                        <span className="ml-1 text-[10px] font-bold text-stone-400">/ {r.entitlement}</span>
+                        <span className="ml-1 text-[10px] font-bold text-stone-400">/ {r.entitlement} {r.unit}</span>
                       </p>
                       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                         <div className="h-full rounded-full bg-amber-500" style={{ width: `${r.entitlement > 0 ? Math.max(4, Math.min(100, (r.avail / r.entitlement) * 100)) : 0}%` }} />

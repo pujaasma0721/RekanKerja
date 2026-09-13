@@ -26,6 +26,8 @@ import { nextRunNo } from "@/onevity/payroll/services/payroll-service";
 // Fix audit 40 M-5 — uang pengganti cuti memakai entitlement EFEKTIF rule-aware
 // (LeaveTypeRule Task 33) via helper bersama modul leave (bukan entitlement dasar).
 import { effectiveEntitlement } from "@/onevity/leave/services/entitlement";
+// Task 52-b — status PKWT utk uang kompensasi (PP 35/2021 Ps.15-16).
+import { PKWT_STATUSES } from "@/onevity/human-resource/services/pkwt";
 
 // Fix audit 40 K-2(b) — jenis settlement: "termination" (PHK — pesangon +
 // UPMK + uang pisah + THR prorata + penggantian hak) vs "resignation"
@@ -180,7 +182,9 @@ export function normalizeSettlementParams(input: Record<string, unknown> | null 
   const mult = Number(raw.pesangonMultiplier ?? raw.multiplier ?? 1);
   const pct = Number(raw.uangPisahPct ?? (raw.uangPisah ? 15 : 0));
   return {
-    pesangonMultiplier: Number.isFinite(mult) && mult > 0 && mult <= 3 ? mult : 1,
+    // Task 52-b — multiplier 0 dibolehkan: PKWT berakhir karena JANGKA WAKTU
+    // (bukan PHK — tanpa pesangon; hak = uang kompensasi PP 35/2021 Ps.15).
+    pesangonMultiplier: Number.isFinite(mult) && mult >= 0 && mult <= 3 ? mult : 1,
     uangPisahPct: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? pct : 0,
     includeBonusProRata: raw.includeBonusProRata === true || raw.includeBonusProRata === "true",
   };
@@ -302,6 +306,30 @@ export async function computeTerminationSettlement(
     rows.push({ code: "THR_PRORATA", label: "THR Prorata", kind: "Earning", amount: thrAmount, note: thrNote });
   }
 
+  // --- (d2) uang kompensasi PKWT — Task 52-b (PP 35/2021 Ps.15-16) ---
+  // Pekerja PKWT yang hubungan kerjanya BERAKHIR (jangka waktu habis / PHK /
+  // selesainya pekerjaan) berhak: 1 bulan upah per 12 bulan masa kerja,
+  // PRORATA utk masa kerja < 12 bulan (Ps.16 ayat 1). Nilai TIDAK termasuk
+  // objek PPh (final 0%) — dikeluarkan dari kelompok pesangon di blok (i)
+  // dan komponen wage-nya NonTaxable. Resignation TIDAK berhak (bukan
+  // pengakhiran oleh pemberi kerja / jangka waktu).
+  const isPkwt = PKWT_STATUSES.has(assignment.employmentStatus ?? "");
+  if (!isResignation && isPkwt) {
+    const kompensasiFactor = Math.round((tenure.totalMonths / 12) * 100) / 100;
+    const kompensasi = Math.round((tenure.totalMonths / 12) * upah);
+    if (kompensasi > 0) {
+      rows.push({
+        code: "PKWT_KOMP",
+        label: "Uang Kompensasi PKWT",
+        kind: "Earning",
+        amount: kompensasi,
+        note: `PKWT (${assignment.employmentStatus}) — ${tenure.totalMonths} bln masa kerja / 12 = ${kompensasiFactor} bln × ${fmtRp(upah)} — PP 35/2021 Ps.15; PPh final 0% (Ps.16)`,
+      });
+    } else {
+      notes.push("Uang kompensasi PKWT: masa kerja < 1 bulan — belum berhak (PP 35/2021 Ps.16)");
+    }
+  }
+
   // --- (e) uang pengganti cuti: saldo CT-THN tersisa × upah/25 ---
   // Saldo dihitung LOKAL (bukan listBalances leave-service): settlement dihitung
   // SETELAH status karyawan menjadi Terminated — listBalances memfilter hanya
@@ -410,7 +438,11 @@ export async function computeTerminationSettlement(
 
   // --- (i) PPh21 final atas kelompok pesangon ---
   // (pesangon + uang pisah + seluruh penggantian hak — PP 68/2009 Pasal 5(3))
-  const pesangonGroup = rows.filter((r) => r.kind === "Earning").reduce((s, r) => s + r.amount, 0);
+  // Task 52-b — uang kompensasi PKWT DIKECUALIKAN dari basis pajak final
+  // (PP 35/2021 Ps.16: bukan objek PPh — potongan 0%).
+  const pesangonGroup = rows
+    .filter((r) => r.kind === "Earning" && r.code !== "PKWT_KOMP")
+    .reduce((s, r) => s + r.amount, 0);
   const { tax, brackets } = finalTerminationTax(pesangonGroup);
   if (tax > 0) {
     rows.push({
@@ -471,6 +503,9 @@ const SETTLEMENT_COMPONENTS: SettlementCompDef[] = [
   { code: "THR_PRORATA", name: "THR Prorata (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
   { code: "CUTI_CASH", name: "Uang Pengganti Cuti (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
   { code: "BONUS_PRO_RATA", name: "Bonus Pro-rata (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
+  // Task 52-b — uang kompensasi PKWT (PP 35/2021 Ps.15-16): NonTaxable →
+  // engine tidak memotong pajak & tidak masuk basis PPh final settlement.
+  { code: "PKWT_KOMP", name: "Uang Kompensasi PKWT (PP 35/2021)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "NonTaxable", accountDebitCode: "5102" },
   { code: "PHK_POT_CUTI", name: "Potongan Cuti Lebih (PHK)", type: "Deduction", wageType: "Deduction", incomeTaxMethod: "NonTaxable", accountCreditCode: "2105" },
   { code: "PHK_POT_LOAN", name: "Potongan Sisa Pinjaman (PHK)", type: "Deduction", wageType: "Deduction", incomeTaxMethod: "NonTaxable", accountCreditCode: "2104" },
   { code: "PHK_TAX", name: "PPh21 Final PHK", type: "Deduction", wageType: "FinalTax", incomeTaxMethod: "NonTaxable", accountCreditCode: "2102" },

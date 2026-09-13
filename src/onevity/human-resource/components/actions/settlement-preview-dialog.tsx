@@ -116,6 +116,7 @@ export function SettlementPreviewDialog({
             <Select value={multiplier} onValueChange={setMultiplier}>
               <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="0">×0 — {t("jangka waktu PKWT berakhir (tanpa pesangon — kompensasi PP 35/2021 Ps.15)", "fixed-term contract expired (no severance — compensation PP 35/2021 Art.15)")}</SelectItem>
                 <SelectItem value="0.5">×0,5 — {t("pengurangan hak (pengunduran)", "waiver (resignation)")}</SelectItem>
                 <SelectItem value="1">×1 — {t("PHK efisiensi", "efficiency termination")}</SelectItem>
                 <SelectItem value="1.5">×1,5 — {t("tanpa alasan (PHK murah)", "no cause (cheap termination)")}</SelectItem>

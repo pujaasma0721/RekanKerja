@@ -888,7 +888,8 @@ export async function submitClaim(
       lines: {
         create: lines.map((l) => ({
           treatedName: l.treatedName,
-          treatment: l.treatment,
+          // Task 52-d — diagnosis/perawatan = PII kesehatan: TERENKRIPSI (enc:t).
+          treatment: l.treatment != null ? tcSub.encryptText(l.treatment) : null,
           treatmentDate: l.treatmentDate,
           receiptNo: l.receiptNo,
           physician: l.physician,
@@ -1005,7 +1006,9 @@ export async function listClaims(
       ? {
           lines: c.lines.map((l) => ({
             treatedName: l.treatedName,
-            treatment: l.treatment,
+            // Task 52-d — diagnosis/perawatan terenkripsi (PII kesehatan):
+            // dekripsi di batas serializer (meloloskan plaintext legacy).
+            treatment: tcList.decryptText(l.treatment),
             treatmentDate: l.treatmentDate,
             receiptNo: l.receiptNo,
             physician: l.physician,

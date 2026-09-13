@@ -17,6 +17,10 @@ export const DEFAULT_OFFBOARDING_TASKS: { title: string; owner: string }[] = [
   { title: "Clearance keuangan — kasbon, pinjaman karyawan, piutang", owner: "Finance" },
   { title: "Pengembalian kartu akses, seragam & aset kantor", owner: "GA" },
   { title: "Administrasi BPJS & asuransi (penghentian iuran)", owner: "HR" },
+  // Task 52-c — JKP (PP 6/2025): pekerja yang di-PHK berhak manfaat JKP;
+  // perusahaan WAJIB menerbitkan surat keterangan PHK + daftar upah (syarat
+  // klaim ke BPJS Ketenagakerjaan). Non-PHK (resign/mundur) → tandai Na.
+  { title: "Terbitkan surat keterangan PHK & daftar upah utk klaim JKP (BPJS Ketenagakerjaan — PP 6/2025)", owner: "HR" },
   { title: "Exit interview", owner: "HR" },
   { title: "Slip final settlement & surat keterangan kerja", owner: "Payroll" },
   { title: "Arsip dokumen kepegawaian & tanda tangan berita acara", owner: "HR" },

@@ -50,6 +50,9 @@ export interface BpjsRow {
   jkm: number;
   jknCompany: number;
   jknEmployee: number;
+  // Task 52-c — JKP (PP 6/2025).
+  jkpCompany: number;
+  jkpEmployee: number;
   totalCompany: number;
   totalEmployee: number;
 }
@@ -57,6 +60,7 @@ export interface BpjsRow {
 interface BpjsBuckets {
   jhtC: number; jhtE: number; jpC: number; jpE: number;
   jkk: number; jkm: number; jknC: number; jknE: number;
+  jkpC: number; jkpE: number;
 }
 
 const r0 = (n: number) => Math.round(n);
@@ -198,13 +202,16 @@ async function logBpjsFormatExport(db: TenantDb, format: "tk" | "jkn", scope: st
   }
 }
 
-/** Klasifikasi program BPJS dari code+name (order matters: JPK/JKK/JKM sebelum JP). */
-function basisOf(code: string, name: string): "JHT" | "JP" | "JKK" | "JKM" | "JKN" | null {
+/** Klasifikasi program BPJS dari code+name (order matters: JPK/JKK/JKM/JKP sebelum JP). */
+function basisOf(code: string, name: string): "JHT" | "JP" | "JKK" | "JKM" | "JKN" | "JKP" | null {
   const s = `${code} ${name}`.toUpperCase().replace(/\s+/g, "");
   if (s.includes("JHT")) return "JHT";
   if (s.includes("JPK") || s.includes("JKN") || s.includes("KESEHATAN")) return "JKN";
   if (s.includes("JKK")) return "JKK";
   if (s.includes("JKM")) return "JKM";
+  // Task 52-c — JKP harus dicek SEBELUM JP ("JKP" memuat "KP", bukan "JP",
+  // tapi urutan eksplisit menghindari salah klasifikasi varian penamaan).
+  if (s.includes("JKP")) return "JKP";
   if (s.includes("JP")) return "JP";
   return null;
 }
@@ -304,19 +311,20 @@ export async function GET(req: NextRequest) {
     }
 
     const rows: BpjsRow[] = run.lines.map((l) => {
-      const b: BpjsBuckets = { jhtC: 0, jhtE: 0, jpC: 0, jpE: 0, jkk: 0, jkm: 0, jknC: 0, jknE: 0 };
+      const b: BpjsBuckets = { jhtC: 0, jhtE: 0, jpC: 0, jpE: 0, jkk: 0, jkm: 0, jknC: 0, jknE: 0, jkpC: 0, jkpE: 0 };
       for (const item of l.items) {
         if (item.wageType !== "Jamsostek") continue;
         const basis = basisOf(item.code, item.name);
         if (!basis) continue;
         // arah iuran: Earning = ditanggung perusahaan; Deduction = dipotong
-        // dari pegawai (JKK/JKM/JKN-perusahaan tidak dipotong dari slip).
+        // dari pegawai (JKK/JKM/JKN/JKP-perusahaan tidak dipotong dari slip).
         const isCompany = item.type === "Earning";
         const key: keyof BpjsBuckets =
           basis === "JHT" ? (isCompany ? "jhtC" : "jhtE")
           : basis === "JP" ? (isCompany ? "jpC" : "jpE")
           : basis === "JKK" ? "jkk"
           : basis === "JKM" ? "jkm"
+          : basis === "JKP" ? (isCompany ? "jkpC" : "jkpE")
           : isCompany ? "jknC" : "jknE";
         b[key] += mv.dec0(item.amount); // 28-c: iuran terenkripsi · 45-b: gated vault
       }
@@ -330,8 +338,9 @@ export async function GET(req: NextRequest) {
         jpCompany: r0(b.jpC), jpEmployee: r0(b.jpE),
         jkk: r0(b.jkk), jkm: r0(b.jkm),
         jknCompany: r0(b.jknC), jknEmployee: r0(b.jknE),
-        totalCompany: r0(b.jhtC + b.jpC + b.jkk + b.jkm + b.jknC),
-        totalEmployee: r0(b.jhtE + b.jpE + b.jknE),
+        jkpCompany: r0(b.jkpC), jkpEmployee: r0(b.jkpE),
+        totalCompany: r0(b.jhtC + b.jpC + b.jkk + b.jkm + b.jknC + b.jkpC),
+        totalEmployee: r0(b.jhtE + b.jpE + b.jknE + b.jkpE),
       };
     });
 
@@ -342,6 +351,7 @@ export async function GET(req: NextRequest) {
       jpCompany: sum((r) => r.jpCompany), jpEmployee: sum((r) => r.jpEmployee),
       jkk: sum((r) => r.jkk), jkm: sum((r) => r.jkm),
       jknCompany: sum((r) => r.jknCompany), jknEmployee: sum((r) => r.jknEmployee),
+      jkpCompany: sum((r) => r.jkpCompany), jkpEmployee: sum((r) => r.jkpEmployee),
       totalCompany: sum((r) => r.totalCompany), totalEmployee: sum((r) => r.totalEmployee),
     };
 
@@ -368,18 +378,20 @@ export async function GET(req: NextRequest) {
         { header: "JKM", width: 12 },
         { header: "JKN Perusahaan (4%)", width: 20 },
         { header: "JKN Pegawai (1%)", width: 18 },
+        { header: "JKP Perusahaan (0,22%)", width: 20 },
+        { header: "JKP Pegawai (0,24%)", width: 18 },
         { header: "Total Perusahaan", width: 18 },
         { header: "Total Pegawai", width: 16 },
       ];
       const body = rows.map((r) => [
         r.nik ?? "", r.employeeNo, r.fullName, r.orgUnitName ?? "",
         r.jhtCompany, r.jhtEmployee, r.jpCompany, r.jpEmployee, r.jkk, r.jkm,
-        r.jknCompany, r.jknEmployee, r.totalCompany, r.totalEmployee,
+        r.jknCompany, r.jknEmployee, r.jkpCompany, r.jkpEmployee, r.totalCompany, r.totalEmployee,
       ]);
       body.push([
         "", "", `TOTAL (${rows.length} karyawan)`, "",
         totals.jhtCompany, totals.jhtEmployee, totals.jpCompany, totals.jpEmployee, totals.jkk, totals.jkm,
-        totals.jknCompany, totals.jknEmployee, totals.totalCompany, totals.totalEmployee,
+        totals.jknCompany, totals.jknEmployee, totals.jkpCompany, totals.jkpEmployee, totals.totalCompany, totals.totalEmployee,
       ]);
       const buf = await toXlsx("Rekap BPJS", columns, body, {
         title: `Rekap Iuran BPJS — ${run.runNo} · ${run.period.name} · ${run.processType.name}`,

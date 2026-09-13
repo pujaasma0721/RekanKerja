@@ -46,6 +46,10 @@ export function monthsBetween(a: Date, b: Date): number {
 
 const PKWT_STATUSES = new Set(["Contract", "Probation", "Outsourcing"]);
 
+/** Status penempatan yang tergolong PKWT — diekspor utk dipakai settlement
+ * (uang kompensasi PKWT PP 35/2021 Ps.15) & guard lain. */
+export { PKWT_STATUSES };
+
 /**
  * Hitung info PKWT satu karyawan (murni, tanpa IO) — dipakai API
  * employee-detail (guard profil) + UI directory (badge masa kontrak).

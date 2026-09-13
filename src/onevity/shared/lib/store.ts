@@ -9,7 +9,8 @@ export type ModuleId =
   | "attendance"
   | "leave"
   | "travel"
-  | "medical";
+  | "medical"
+  | "whistleblowing";
 
 export type SectionId =
   | "dashboard"
@@ -23,7 +24,8 @@ export type SectionId =
   | "attendance"
   | "leave"
   | "travel"
-  | "medical";
+  | "medical"
+  | "whistleblowing";
 
 export interface NavState {
   module: ModuleId;
@@ -36,8 +38,8 @@ export interface NavState {
   syncFromUrl: () => void;
 }
 
-const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical"];
-const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical"];
+const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing"];
 
 export const MODULE_LABEL: Record<ModuleId, string> = {
   hr: "Human Resource Base",
@@ -46,6 +48,7 @@ export const MODULE_LABEL: Record<ModuleId, string> = {
   leave: "Leave",
   travel: "Travel",
   medical: "Medical",
+  whistleblowing: "Whistleblowing",
 };
 
 export function moduleOfSection(section: SectionId): ModuleId {
@@ -60,6 +63,8 @@ export function moduleOfSection(section: SectionId): ModuleId {
       return "travel";
     case "medical":
       return "medical";
+    case "whistleblowing":
+      return "whistleblowing";
     default:
       return "hr"; // dashboard, org, position, employee, actions, settings
   }
@@ -77,6 +82,8 @@ export function defaultSectionOfModule(m: ModuleId): SectionId {
       return "travel";
     case "medical":
       return "medical";
+    case "whistleblowing":
+      return "whistleblowing";
     default:
       return "dashboard";
   }
@@ -95,6 +102,7 @@ export function defaultView(section: SectionId): string {
     case "leave": return "balances";
     case "travel": return "requests";
     case "medical": return "claims";
+    case "whistleblowing": return "report";
     default: return "overview";
   }
 }

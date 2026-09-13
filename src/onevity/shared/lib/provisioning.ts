@@ -119,9 +119,14 @@ const COMP_DEFS: CompDef[] = [
   { code: "JKK_C", name: "BPJS JKK Perusahaan", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKK_BASE*JKK_RATE", includeInTHP: false, jamsostekBasis: "JKK" },
   { code: "JKM_C", name: "BPJS JKM Perusahaan 0,3%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKM_BASE*JKM_RATE", includeInTHP: false, jamsostekBasis: "JKM" },
   { code: "JP_C", name: "BPJS JP Perusahaan 2%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_CO", includeInTHP: false, jamsostekBasis: "JP" },
+  // Task 52-c — JKP (PP 6/2025): 0,22% perusahaan (beban, non-objek PPh21)
+  // + 0,24% pekerja (potongan, pengurang penghasilan bruto); basis upah s.d.
+  // plafon (default Rp 5jt).
+  { code: "JKP_C", name: "BPJS JKP Perusahaan 0,22%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKP_BASE*JKP_RATE_CO", includeInTHP: false, jamsostekBasis: "JKP" },
   { code: "JHT_E", name: "Potongan BPJS JHT 2%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JHT_BASE*JHT_RATE_EMP", jamsostekBasis: "JHT" },
   { code: "JP_E", name: "Potongan BPJS JP 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_EMP", jamsostekBasis: "JP" },
   { code: "JPK_E", name: "Potongan BPJS JPK 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JPK_BASE*JPK_RATE_EMP", jamsostekBasis: "JPK" },
+  { code: "JKP_E", name: "Potongan BPJS JKP 0,24%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKP_BASE*JKP_RATE_EMP", jamsostekBasis: "JKP" },
   { code: "PPH21", name: "PPh21 (PPh Pasal 21)", type: "Deduction", wageType: "IncomeTax", calcMethod: "Tax", amount: 0, sptReference: "PPh21" },
   { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
   { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
@@ -134,9 +139,9 @@ const COMP_DEFS: CompDef[] = [
 ];
 
 const TPL_DEFS: { code: string; name: string; description: string; components: string[] }[] = [
-  { code: "DEFAULT", name: "Template Standar Karyawan", description: "Gaji pokok + tunjangan + BPJS penuh", components: ["BASIC", "TJAB", "TKEL", "TTRANS", "TMAKAN", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JHT_E", "JP_E", "JPK_E", "WORKDAYS"] },
-  { code: "BS", name: "Basic Salary Only", description: "Gaji pokok + potongan BPJS (tanpa tunjangan)", components: ["BASIC", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JHT_E", "JP_E", "JPK_E", "WORKDAYS"] },
-  { code: "FREELANCE", name: "Kontrak/Freelance", description: "Gaji pokok + tunjangan transport-makan (tanpa BPJS)", components: ["BASIC", "TTRANS", "TMAKAN", "WORKDAYS"] },
+  { code: "DEFAULT", name: "Template Standar Karyawan", description: "Gaji pokok + tunjangan + BPJS penuh (termasuk JKP PP 6/2025)", components: ["BASIC", "TJAB", "TKEL", "TTRANS", "TMAKAN", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JKP_C", "JHT_E", "JP_E", "JPK_E", "JKP_E", "WORKDAYS"] },
+  { code: "BS", name: "Basic Salary Only", description: "Gaji pokok + potongan BPJS (tanpa tunjangan; termasuk JKP)", components: ["BASIC", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JKP_C", "JHT_E", "JP_E", "JPK_E", "JKP_E", "WORKDAYS"] },
+  { code: "FREELANCE", name: "Kontrak/Freelance", description: "Gaji pokok + tunjangan transport-makan (tanpa BPJS — non-pekerja tetap, di luar program JKP)", components: ["BASIC", "TTRANS", "TMAKAN", "WORKDAYS"] },
 ];
 
 import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
@@ -235,6 +240,8 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
       jpEmployeeRate: 0.01, jpCompanyRate: 0.02, jpSalaryCap: 10547400,
       jkkRate: 0.0024, jkmRate: 0.003,
       jpkCompanyRate: 0.04, jpkEmployeeRate: 0.01, jpkSalaryCap: 12000000,
+      // Task 52-c — JKP PP 6/2025: 0,24% pekerja + 0,22% perusahaan, plafon 5jt.
+      jkpEmployeeRate: 0.0024, jkpCompanyRate: 0.0022, jkpSalaryCap: 5000000,
       nonNpwpSurcharge: 0.2,
       useTer: false,
     },
@@ -498,6 +505,13 @@ export const LEAVE_TYPE_DEFS: {
   { code: "CT-MATI-S", name: "Cuti Kematian Serumah/Saudara", description: "Kematian saudara/kakek/nenek/kenalan serumah (PP 35/2021)", entitlement: 1, needDocs: true },
   { code: "CT-HAJI", name: "Cuti Haji", description: "Ibadah haji (perusahaan menanggung upah penuh)", entitlement: 40, needDocs: true },
   { code: "CT-HAID", name: "Cuti Haid", description: "Cuti haid (UU 13/2003 pasal 81)", entitlement: 2, allowHalfDay: true },
+  // Task 52-a — UU 13/2003 Ps.82 ayat (1) & (2) + UU KIA 4/2024 Ps.22: cuti
+  // melahirkan/keguguran PEKERJA PEREMPUAN (3 bln; perpanjangan s.d. 6 bln
+  // sesuai rekomendasi dokter kandungan/psikiater; keguguran 1,5 bln). Satuan
+  // MONTH — saldo dibukukan dalam bulan (konversi hari-kerja ↔ bulan 21 hr/bln
+  // di leave-service). Hanya perempuan (validasi gender di leave-service).
+  { code: "CT-LAHIR-P", name: "Cuti Melahirkan (Pekerja Perempuan)", description: "3 bulan (UU 13/2003 Ps.82) — dapat diperpanjang hingga 6 bulan sesuai surat rekomendasi dokter (UU KIA 4/2024 Ps.22)", unit: "MONTH", entitlement: 6, maxPerRequest: 6, needDocs: true },
+  { code: "CT-GUGUR-P", name: "Cuti Keguguran (Pekerja Perempuan)", description: "1,5 bulan (UU 13/2003 Ps.82 ayat 2)", unit: "MONTH", entitlement: 1.5, maxPerRequest: 1.5, needDocs: true },
 ];
 
 export async function ensureLeaveReference(db: TenantDb): Promise<void> {

@@ -99,6 +99,11 @@ const ACTIVITY_PHRASES: [string, string][] = [
   ["dokumen lengkap", "documents complete"],
   ["Surat", "Letter"],
   ["Dokumen", "Document"],
+  // — Task 52-e: audit trail akses baca profil (UU PDP 27/2022) —
+  ["Melihat detail karyawan", "Viewed employee profile"],
+  ["cakupan PII", "PII scope"],
+  ["Viewed", "Melihat"],
+  ["penuh", "full"],
   // — notifikasi scheduler —
   ["menunggu persetujuan Anda", "awaiting your approval"],
   ["menunggu persetujuan atasan", "awaiting supervisor approval"],

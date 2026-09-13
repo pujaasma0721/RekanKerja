@@ -104,11 +104,14 @@ export async function createEmployeeWithAssignment(
   tc: FieldCrypto,
 ): Promise<Employee> {
   // 28-c: enkripsi field sensitif (NIK/NPWP/rekening) sebelum persist.
+  // Task 52-d: no. BPJS ikut terenkripsi.
   const encData: Omit<Prisma.EmployeeUncheckedCreateInput, "employeeNo"> = {
     ...employeeData,
     nationalId: employeeData.nationalId != null ? tc.encryptText(employeeData.nationalId) : null,
     taxId: employeeData.taxId != null ? tc.encryptText(employeeData.taxId) : null,
     bankAccount: employeeData.bankAccount != null ? tc.encryptText(employeeData.bankAccount) : null,
+    bpjsHealth: employeeData.bpjsHealth != null ? tc.encryptText(employeeData.bpjsHealth) : null,
+    bpjsEmpSkill: employeeData.bpjsEmpSkill != null ? tc.encryptText(employeeData.bpjsEmpSkill) : null,
   };
   const employee = await createEmployeeWithNoRetry(db, prefix, encData);
   await db.employeeAssignment.create({

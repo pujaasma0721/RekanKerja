@@ -39,22 +39,20 @@ export type MenuActionResult =
 
 /**
  * Menu yang SENGAJA terbuka untuk semua pengguna AppUser tanpa konfigurasi
- * (escape hatch default-deny M-7). Saat ini KOSONG oleh desain:
- * • Portal Karyawan (/ess) memakai endpoint /api/onevity/ess/* yang TIDAK
- *   melalui guard menu (requireEss — self-scope per employeeId);
- * • notifikasi, dashboard KPI, dan profil admin shell juga tanpa guard menu
- *   (requireAppUser / requireScoped — self-scope);
- * • unduhan slip gaji & lampiran milik sendiri lolos lewat cek KEPEMILIKAN
- *   (payslip.ts, attachments-id.ts) — bukan lewat menu.
- * Tambahkan key menu di sini (view-only) bila kelak ada menu yang memang
- * publik bagi semua role.
+ * (escape hatch default-Deny M-7). Definisi dipindah ke lib murni
+ * shared/lib/public-menus.ts (Task 52-f — supaya komponen client bisa
+ * memfilter tanpa menarik kode server):
+ * • whistleblowing:report — kanal pelaporan TPKS (UU 12/2022 Ps.22-24),
+ *   wajib tersedia bagi seluruh pekerja (view-only; submit via sesi).
+ * Selain itu portal ESS tetap lewat guard requireEss (self-scope).
  */
-export const PUBLIC_MENU_KEYS: readonly string[] = [];
+export { PUBLIC_MENU_KEYS } from "@/onevity/shared/lib/public-menus";
+import { PUBLIC_MENU_KEYS as PUBLIC_KEYS } from "@/onevity/shared/lib/public-menus";
 
 /** Izin efektif pengguna tanpa konfigurasi: hanya menu publik, view-only. */
 export function publicMenuPerms(): MenusMap {
   const map: MenusMap = {};
-  for (const k of PUBLIC_MENU_KEYS) {
+  for (const k of PUBLIC_KEYS) {
     map[k] = { view: true, create: false, update: false, delete: false, ops: {} };
   }
   return map;

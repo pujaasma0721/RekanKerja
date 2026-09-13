@@ -31,6 +31,11 @@ export async function getActiveRegulation(db: TenantDb): Promise<EngineRegulatio
     jpkCompanyRate: r.jpkCompanyRate,
     jpkEmployeeRate: r.jpkEmployeeRate,
     jpkSalaryCap: r.jpkSalaryCap,
+    // Task 52-c — JKP (PP 6/2025); kolom baru di-backfill default oleh
+    // migrasi parity utk tenant lama (Prisma default hanya baris baru).
+    jkpEmployeeRate: r.jkpEmployeeRate,
+    jkpCompanyRate: r.jkpCompanyRate,
+    jkpSalaryCap: r.jkpSalaryCap,
     nonNpwpSurcharge: r.nonNpwpSurcharge,
     useTer: r.useTer,
   };

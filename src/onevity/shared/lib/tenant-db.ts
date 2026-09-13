@@ -46,13 +46,15 @@ export type { TenantPrismaClient };
 // enkripsi kata sandi perusahaan) masuk client hasil generate.
 // TASK 49: versi dinaikkan lagi (T49A) — kolom EmployeePayrollProfile.ptkpSource
 // (sumber PTKP auto|manual — turunan data keluarga) masuk client hasil generate.
+// TASK 52: versi dinaikkan lagi (T52A) — PayrollRegulation +jkp* (JKP PP 6/2025)
+// dan tabel WhistleblowReport (Task 52-f) masuk client hasil generate.
 const globalForTenants = globalThis as unknown as {
-  onevityTenantClientsT49A: Map<string, TenantPrismaClient> | undefined;
+  onevityTenantClientsT52A: Map<string, TenantPrismaClient> | undefined;
 };
 
 const tenantClients: Map<string, TenantPrismaClient> =
-  globalForTenants.onevityTenantClientsT49A ?? new Map();
-globalForTenants.onevityTenantClientsT49A = tenantClients;
+  globalForTenants.onevityTenantClientsT52A ?? new Map();
+globalForTenants.onevityTenantClientsT52A = tenantClients;
 
 function tenantBaseUrl(): string {
   const base = process.env.TENANT_DB_BASE_URL;

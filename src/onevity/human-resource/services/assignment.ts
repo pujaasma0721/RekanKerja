@@ -67,9 +67,12 @@ export function flattenEmployee<T extends { assignments?: unknown[] }>(emp: T, t
     ...rest,
     // 28-c: identitas sensitif terenkripsi di DB — dekripsi di batas serializer
     // (decryptText meloloskan plaintext legacy apa adanya).
+    // Task 52-d: no. BPJS ikut terenkripsi (migrate-encrypt-pii).
     nationalId: tc ? tc.decryptText((rest.nationalId as string | null) ?? null) : (rest.nationalId ?? null),
     taxId: tc ? tc.decryptText((rest.taxId as string | null) ?? null) : (rest.taxId ?? null),
     bankAccount: tc ? tc.decryptText((rest.bankAccount as string | null) ?? null) : (rest.bankAccount ?? null),
+    bpjsHealth: tc ? tc.decryptText((rest.bpjsHealth as string | null) ?? null) : (rest.bpjsHealth ?? null),
+    bpjsEmpSkill: tc ? tc.decryptText((rest.bpjsEmpSkill as string | null) ?? null) : (rest.bpjsEmpSkill ?? null),
     orgUnitId: cur?.orgUnitId ?? null,
     positionId: cur?.positionId ?? null,
     gradeId: cur?.gradeId ?? null,
