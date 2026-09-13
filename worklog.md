@@ -1176,3 +1176,24 @@ Work Log:
 Stage Summary:
 - origin/main kini berada di 4464022 (Task 56: field uang payroll = 0 saat brankas terkunci + auto-refresh nilai asli saat unlock).
 - Semua pekerjaan Task 49–56 (PTKP/TER/PPH21, employee directory, payroll encryption UX) sudah aman di remote GitHub.
+
+---
+Task ID: 57
+Agent: orchestrator (Z.ai)
+Task: Investigasi laporan user "MII Proses & Hasil: password brankas 'asmaree.007' benar tapi nilai tetap 0" — temukan akar masalah, perbaiki bug sumber, tetapkan rencana pemulihan data.
+
+Work Log:
+- Diagnostik prod berlapis (MII = tenant_pt_mitra_industri_internasional):
+  - MoneyVault MII: 1 baris, openUntil=12:53 UTC (unlock 04:53 UTC sukses) → password "asmaree.007" COCOK, vault TERBUKA di memori.
+  - Aktor: Tri Handayani = OWNER platform (role OWNER, satu-satunya member) → gate money-view open-admin → mustSee.
+  - Dekripsi manual PayrollRunLine.bruto/net dgn dataKey vault: plaintext-nya BENAR-BENAR "0" — bukan gate, bukan UI, bukan key mismatch (dataKey tersimpan == PBKDF2(password) terverifikasi YA).
+  - Pindai 16 kolom uang MII: SEMUA nilai hasil migrasi 28-c = 0 (baseSalary 48/48, PayrollRunLine 126/126, RunItem, Run totals, Journal totals) — sementara kolom M-8 (Loan/Benefit/Travel/Medical) utuh non-zero, dan journal 3 baris non-zero (created 12 Sep setelah seed, tidak tersentuh rerun).
+- AKAR MASALAH (bug idempotensi migrasi): scripts/migrate-encrypt.ts step parity "encrypt" memilih baris dgn filter `NOT LIKE 'enc:v1%'` — baris enc:v2 (Money Vault Task 47) TIDAK terskip → Number("enc:v2:…") = NaN → encryptMoney(NaN) (pra-fix Task 50 menulis "NaN"; pasca-fix menulis 0) → SETIAP parity rerun setelah vault aktif MENIMPA seluruh kolom uang tenant tsb menjadi 0. MII satu-satunya tenant ber-vault → satu-satunya korban. Korban kedua hampir terjadi: migrate-encrypt-money.ts (M-8) pola sama — selamat hanya karena guard isFinite men-skip ciphertext (mubazir tiap rerun: 126 baris "dienkripsi" = dibaca+ditulis ulang tanpa kerusakan).
+- Momen korupsi teridentifikasi: log deploy 13 Sep 04:00 UTC (task 54) — "PayrollRunLine.bruto: 126 baris dienkripsi" dst = rerun parity menimpa data.
+- FIX (scripts/migrate-encrypt.ts + migrate-encrypt-money.ts): filter kini `NOT LIKE 'enc:%'` (skip v1 DAN v2) + counter `already` pakai 'enc:%'. Typecheck bersih.
+- Pencarian pemulihan: TIDAK ada backup DB (ROOT.war.bak = aplikasi, bukan data; tidak ada cron pg_dump; /var/backups = sistem); WaLog kosong; Attachment kosong; seed baseSalary = RANDOM dlm range grade (G1 4.5-7jt … G8 50-80jt, kelipatan 50rb) → nilai asli TIDAK dapat direkonstruksi dari sumber repo; jurnal 3 baris non-zero + kolom M-8 non-zero utuh.
+
+Stage Summary:
+- Bug sumber SUDAH DIPERBAIKI & akan dideploy: parity rerun tidak akan pernah menimpa enc:v2 lagi (Tenant lain tanpa vault tidak pernah terdampak; data mereka verifikasi utuh).
+- Data uang MII (kolom 28-c) hilang permanen (ditimpa 0): opsi pemulihan = (a) restorasi nilai demo dgn angka realistis per grade (kolom loan/travel/benefit tetap asli), (b) input manual ulang via UI, (c) biarkan 0 sebagai data baru. Menunggu keputusan pemilik produk; bug tidak akan terulang.
+- Rekomendasi tindak lanjut (di luar task ini): pg_dump harian cron + parity runner skip tenant ber-vault utk step enkripsi.

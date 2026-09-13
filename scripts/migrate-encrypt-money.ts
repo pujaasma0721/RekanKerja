@@ -90,9 +90,12 @@ export async function main(schemas?: string[]): Promise<void> {
           await c.query(`ALTER TABLE "${table}" ALTER COLUMN "${col}" TYPE TEXT USING "${col}"::text`);
           altered++;
         }
-        // ---- 2. encrypt-in-place (skip enc:v1 & string kosong) ----
+        // ---- 2. encrypt-in-place (skip APAPUN nilai terenkripsi + string kosong) ----
+        // FIX Task 57: filter lama hanya skip 'enc:v1%' — baris enc:v2 (Money
+        // Vault) ikut terpilih; guard isFinite menyelamatkan ciphertext (skip),
+        // tapi mubazir. Kini nilai terenkripsi apa pun dilewati.
         const rows = await c.query(
-          `SELECT id, "${col}" AS v FROM "${table}" WHERE "${col}" IS NOT NULL AND "${col}" NOT LIKE 'enc:v1%' AND "${col}" <> ''`,
+          `SELECT id, "${col}" AS v FROM "${table}" WHERE "${col}" IS NOT NULL AND "${col}" NOT LIKE 'enc:%' AND "${col}" <> ''`,
         );
         for (const r of rows.rows) {
           const n = Number(r.v);
@@ -105,7 +108,7 @@ export async function main(schemas?: string[]): Promise<void> {
           encrypted++;
         }
         const already = await c.query(
-          `SELECT count(*)::int n FROM "${table}" WHERE "${col}" LIKE 'enc:v1%'`,
+          `SELECT count(*)::int n FROM "${table}" WHERE "${col}" LIKE 'enc:%'`,
         );
         skippedEnc += already.rows[0].n;
         if (rows.rows.length > 0) console.log(`  ${table}.${col}: ${rows.rows.length} baris dienkripsi`);

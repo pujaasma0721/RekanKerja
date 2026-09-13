@@ -66,9 +66,13 @@ export async function main(schemas?: string[]): Promise<void> {
         await c.query(`ALTER TABLE "${table}" ALTER COLUMN "${col}" TYPE TEXT USING "${col}"::text`);
         altered++;
       }
-      // ---- 2. encrypt-in-place (skip enc:v1) ----
+      // ---- 2. encrypt-in-place (skip APAPUN nilai terenkripsi enc:v1/v2) ----
+      // FIX Task 57: filter lama hanya skip 'enc:v1%' — baris enc:v2 (Money
+      // Vault) ikut terpilih lalu Number("enc:v2:…") = NaN → tersimpan 0.
+      // Satu parity rerun setelah vault aktif = SELURUH kolom uang tenant
+      // tersebut tertimpa 0. Kini nilai terenkripsi apa pun dilewati.
       const rows = await c.query(
-        `SELECT id, "${col}" AS v FROM "${table}" WHERE "${col}" IS NOT NULL AND "${col}" NOT LIKE 'enc:v1%'`,
+        `SELECT id, "${col}" AS v FROM "${table}" WHERE "${col}" IS NOT NULL AND "${col}" NOT LIKE 'enc:%'`,
       );
       for (const r of rows.rows) {
         const enc = kind === "n" ? tc.encryptMoney(Number(r.v)) : tc.encryptText(String(r.v));
@@ -76,7 +80,7 @@ export async function main(schemas?: string[]): Promise<void> {
         encrypted++;
       }
       const already = await c.query(
-        `SELECT count(*)::int n FROM "${table}" WHERE "${col}" LIKE 'enc:v1%'`,
+        `SELECT count(*)::int n FROM "${table}" WHERE "${col}" LIKE 'enc:%'`,
       );
       skippedEnc += already.rows[0].n;
       if (rows.rows.length > 0) console.log(`  ${table}.${col}: ${rows.rows.length} baris dienkripsi`);
