@@ -155,32 +155,61 @@ export async function applyAssignmentChange(
   tc?: FieldCrypto,
 ) {
   const tcr = tc ?? (TENANT_SCHEMA_BRAND in (db as object) ? tenantCryptoForDb(db as TenantDb) : undefined);
-  const current = await getCurrentAssignment(db, employeeId);
-  if (!current) throw new Error("Karyawan tidak memiliki penempatan aktif");
   if (!tcr) {
     throw new Error("[field-crypto] applyAssignmentChange dalam $transaction tanpa konteks kunci — berikan tc dari client luar (pola payroll-service 28-c)");
   }
-  // 28-c: gaji pokok lama terenkripsi — dekripsi untuk perbandingan.
-  const currentBase = decryptBaseSalary(tcr, current.baseSalary);
+  // Task 64-fix — perubahan BACKDATED (efektif di tengah rantai versi) harus
+  // menyisip versi baru dengan NILAI YANG BERLAKU pada tanggal efektif — bukan
+  // menggabungkan nilai versi terbuka terakhir yang bisa berupa perubahan
+  // ber-future-date (gaji efektif Okt tidak boleh bocor ke PA eff pertengahan
+  // Sep). Versi-versi SETELAH tanggal efektif dipertahankan apa adanya.
+  const all = await db.employeeAssignment.findMany({
+    where: { employeeId },
+    orderBy: { validFrom: "asc" },
+  });
+  if (all.length === 0) throw new Error("Karyawan tidak memiliki penempatan aktif");
+  const eff = opts.effectiveDate;
+  let idx = -1;
+  for (let i = 0; i < all.length; i++) {
+    if (new Date(all[i].validFrom).getTime() <= eff.getTime()) idx = i;
+    else break;
+  }
+  const base = idx >= 0 ? all[idx] : all[0];
+  // 28-c: gaji pokok versi dasar terenkripsi — dekripsi untuk perbandingan.
+  const baseBase = decryptBaseSalary(tcr, base.baseSalary);
 
   const merged = {
-    orgUnitId: overrides.orgUnitId !== undefined && overrides.orgUnitId !== null ? overrides.orgUnitId : current.orgUnitId,
-    positionId: overrides.positionId !== undefined && overrides.positionId !== null ? overrides.positionId : current.positionId,
-    gradeId: overrides.gradeId !== undefined && overrides.gradeId !== null ? overrides.gradeId : current.gradeId,
-    managerId: overrides.managerId !== undefined ? (overrides.managerId || null) : current.managerId,
-    companyOfficeId: overrides.companyOfficeId !== undefined ? (overrides.companyOfficeId || null) : current.companyOfficeId,
-    workLocationId: overrides.workLocationId !== undefined ? (overrides.workLocationId || null) : current.workLocationId,
-    employmentStatus: overrides.employmentStatus ?? current.employmentStatus,
-    workShift: overrides.workShift ?? current.workShift,
-    baseSalary: overrides.baseSalary !== undefined ? overrides.baseSalary : currentBase,
+    orgUnitId: overrides.orgUnitId !== undefined && overrides.orgUnitId !== null ? overrides.orgUnitId : base.orgUnitId,
+    positionId: overrides.positionId !== undefined && overrides.positionId !== null ? overrides.positionId : base.positionId,
+    gradeId: overrides.gradeId !== undefined && overrides.gradeId !== null ? overrides.gradeId : base.gradeId,
+    managerId: overrides.managerId !== undefined ? (overrides.managerId || null) : base.managerId,
+    companyOfficeId: overrides.companyOfficeId !== undefined ? (overrides.companyOfficeId || null) : base.companyOfficeId,
+    workLocationId: overrides.workLocationId !== undefined ? (overrides.workLocationId || null) : base.workLocationId,
+    employmentStatus: overrides.employmentStatus ?? base.employmentStatus,
+    workShift: overrides.workShift ?? base.workShift,
+    baseSalary: overrides.baseSalary !== undefined ? overrides.baseSalary : baseBase,
   };
 
   const changed = (Object.keys(merged) as (keyof typeof merged)[]).some((k) =>
-    merged[k] !== (k === "baseSalary" ? currentBase : current[k]));
-  if (!changed) return { changed: false, assignment: current };
+    merged[k] !== (k === "baseSalary" ? baseBase : base[k]));
+  if (!changed) return { changed: false, assignment: base };
 
-  const eff = opts.effectiveDate;
-  await db.employeeAssignment.update({ where: { id: current.id }, data: { validTo: eff } });
+  const baseFrom = new Date(base.validFrom);
+  if (eff.getTime() <= baseFrom.getTime()) {
+    // Efektif tepat di mulai versi dasar → perbarui versi dasar apa adanya
+    // (rentangnya dipertahankan; versi penerus tetap berlaku).
+    const assignment = await db.employeeAssignment.update({
+      where: { id: base.id },
+      data: { ...merged, baseSalary: tcr.encryptMoney(merged.baseSalary) },
+    });
+    await syncEmployeePlacementSnapshot(db, employeeId);
+    return { changed: true, assignment };
+  }
+  // Sisip versi baru pada eff: versi dasar ditutup di eff, versi baru mewarisi
+  // batas akhir versi dasar (null = tetap terbuka; atau tanggal versi penerus
+  // — rantai tetap utuh). run payroll membaca versi per tanggal → segmen
+  // otomatis terbentuk di tanggal eff.
+  await db.employeeAssignment.update({ where: { id: base.id }, data: { validTo: eff } });
   const assignment = await db.employeeAssignment.create({
     data: {
       employeeId,
@@ -188,7 +217,7 @@ export async function applyAssignmentChange(
       // 28-c: gaji pokok disimpan TERENKRIPSI (enc:v1:n:…).
       baseSalary: tcr.encryptMoney(merged.baseSalary),
       validFrom: eff,
-      validTo: null,
+      validTo: base.validTo,
       changeReason: opts.reason,
       sourceDocNo: opts.sourceDocNo ?? null,
       notes: opts.notes ?? null,
@@ -238,27 +267,49 @@ export async function applyWageTemplateChange(
 ): Promise<{ changed: boolean }> {
   const eff = new Date(opts.effectiveDate);
   eff.setHours(0, 0, 0, 0);
-  const open = await db.employeeWageTemplateHistory.findFirst({
-    where: { employeeId, validTo: null },
-    orderBy: { validFrom: "desc" },
+  // Task 64-fix — sisip effective-dated di tengah rantai: baris yang berlaku
+  // pada tanggal efektif ditutup di eff, baris baru mewarisi batas akhirnya
+  // (termasuk null). Baris ber-future-date SETELAH eff dipertahankan — ganti
+  // template backdated tidak boleh menimpa/menabrak versi masa depan.
+  const all = await db.employeeWageTemplateHistory.findMany({
+    where: { employeeId },
+    orderBy: { validFrom: "asc" },
   });
-  if (open) {
-    const openFrom = new Date(open.validFrom);
-    openFrom.setHours(0, 0, 0, 0);
-    // Idempoten: template efektif sudah sama → tidak ada perubahan.
-    if (open.wageTemplateId === wageTemplateId && openFrom.getTime() <= eff.getTime()) return { changed: false };
-    // Jangan tutup bila efektif ≤ mulai baris aktif (data anomali/backdate
-    // sebelum baris aktif) — hindari validTo < validFrom.
-    if (eff > openFrom) {
-      const closeTo = new Date(eff.getTime() - 86_400_000);
-      await db.employeeWageTemplateHistory.update({ where: { id: open.id }, data: { validTo: closeTo } });
-    }
+  if (all.length === 0) {
+    await db.employeeWageTemplateHistory.create({
+      data: {
+        employeeId,
+        wageTemplateId,
+        validFrom: eff,
+        changeReason: opts.reason,
+        sourceDocNo: opts.sourceDocNo ?? null,
+        notes: opts.notes ?? null,
+      },
+    });
+    return { changed: true };
   }
+  let idx = -1;
+  for (let i = 0; i < all.length; i++) {
+    if (new Date(all[i].validFrom).getTime() <= eff.getTime()) idx = i;
+    else break;
+  }
+  const base = idx >= 0 ? all[idx] : all[0];
+  // Idempoten: template efektif pada tanggal tsb sudah sama → tidak ada perubahan.
+  if (idx >= 0 && base.wageTemplateId === wageTemplateId) return { changed: false };
+  if (idx < 0 || new Date(base.validFrom).getTime() >= eff.getTime()) {
+    // Efektif ≤ mulai baris dasar (termasuk sebelum riwayat pertama) → perbarui
+    // baris dasar apa adanya; versi penerus tetap berlaku.
+    await db.employeeWageTemplateHistory.update({ where: { id: base.id }, data: { wageTemplateId } });
+    return { changed: true };
+  }
+  const closeTo = new Date(eff.getTime() - 86_400_000);
+  await db.employeeWageTemplateHistory.update({ where: { id: base.id }, data: { validTo: closeTo } });
   await db.employeeWageTemplateHistory.create({
     data: {
       employeeId,
       wageTemplateId,
       validFrom: eff,
+      validTo: base.validTo,
       changeReason: opts.reason,
       sourceDocNo: opts.sourceDocNo ?? null,
       notes: opts.notes ?? null,
