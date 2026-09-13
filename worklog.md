@@ -1050,3 +1050,18 @@ Stage Summary:
 - Skema DB bertambah: PayrollRegulation +3 kolom JKP; tabel WhistleblowReport; LeaveType +2 baris data; ENCRYPTED_COLUMNS 59→63. Parity steps 25-28 self-heal saat boot; client tenant T52A; deploy = restart saja.
 - Kontrak API baru: POST /api/onevity/whistleblowing/report (anonim, rate-limited) + GET/PATCH /api/onevity/whistleblowing/reports; family/leave/month-unit backward-compat; PATCH PA ContractRenewal bisa 409 PKWT_OVER_5Y (force=true override); settlement +row PKWT_KOMP; GET employee-detail menulis Viewed log.
 - Keputusan desain penting: (1) whistleblow anonim = sesi login wajib tapi identitas dibuang (tak ada kanal pra-login di SPA single-route — dibatasi arsitektur, dijelaskan di form); (2) cycle jadwal TANPA hari libur = melanggar 40 jam (rata-rata mingguan dihitung dari proporsi cycle — math benar, jadwal seed valid); (3) PKWT_KOMP dikecualikan basis PPh final (0% per PP 35 Ps.16); (4) iuran JKP pegawai = pengurang bruto (perlakuan JP).
+
+---
+Task ID: 52 (lanjutan push)
+Agent: orchestrator (Z.ai)
+Task: Push Task 52 — rebase di atas 2 commit paralel origin (83b8ccb fix fix-nan-money search_path, 9602be9 checkParityGap sekuensial deprecation pg 8.23).
+
+Work Log:
+- git push awal ditolak (origin maju 2 commit perbaikan parity paralel) → git pull --rebase.
+- Konflik tunggal: src/onevity/shared/lib/parity-runner.ts (checkParityGap).
+- Resolusi gabungan: pertahankan gaya SEKUENSIAL dari origin (pg 8.23 deprecated mengantre >1 query per Client) + semua cek gap Task 52 (maternity/jkp/pii-plaintext/whistleblow — rowSchemas helper kini sekuensial; Promise.all bersarang PII dihapus).
+- tsc 0 · lint 0 · rebase continue → 08cbd51 → PUSH sukses (9602be9..08cbd51).
+- Verifikasi final: HTTP 200, dev.log 0×500, worktree bersih.
+
+Stage Summary:
+- Task 52 TERPUSH ke origin/main sebagai 08cbd51 — resolusi konflik mempertahankan perbaikan pg-deprecation origin sekaligus seluruh cek gap baru Task 52.
