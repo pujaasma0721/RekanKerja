@@ -321,9 +321,6 @@ export function AuthScreen() {
                     "“Hiring, attendance, leave, even encrypted payroll — it all fits in one place. The rest? See for yourself.”",
                   )}
                 </blockquote>
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.2em] text-stone-400 dark:text-stone-500">
-                  {t("Tri Handayani · HR Director", "Tri Handayani · HR Director")}
-                </p>
               </motion.div>
             </div>
 
