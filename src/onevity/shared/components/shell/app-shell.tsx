@@ -30,7 +30,7 @@ import { CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList, Com
 import {
   LayoutDashboard, Users, Workflow, Settings2, Check, ChevronDown, UserRound,
   Network, Landmark, BriefcaseBusiness, GraduationCap, UserPlus, Inbox, Coins, Calculator, Building2,
-  Scale, ShieldCheck, ShieldOff, Layers, Moon, Sun, Search, Command as CommandIcon, Plus, LogOut,
+  Scale, ShieldCheck, ShieldOff, Layers, Moon, Sun, Search, Command as CommandIcon, LogOut,
   KeyRound, X, ChevronRight, Activity, Clock, CheckCircle2, FileText, Waypoints, HeartHandshake,
   Wallet, CalendarRange, PlayCircle, LayoutTemplate, IdCard, ArrowLeftRight, Percent,
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
@@ -915,30 +915,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label={t("Cari")}>
               <Search className="h-5 w-5" />
             </button>
-
-            {/* quick create — aksen mengikuti modul aktif */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  className="hidden gap-1.5 px-3.5 font-bold text-white hover:brightness-110 active:brightness-95 sm:flex"
-                  style={{ background: accent }}
-                >
-                  <Plus className="h-4 w-4" /> {t("Buat Baru")}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {([
-                  { s: "employee" as SectionId, v: "wizard", icon: UserPlus, cls: "text-emerald-600", label: "Onboarding Karyawan" },
-                  { s: "payroll" as SectionId, v: "runs", icon: PlayCircle, cls: "text-teal-600", label: "Proses Payroll" },
-                  { s: "actions" as SectionId, v: "all", icon: Workflow, cls: "text-amber-600", label: "Pengajuan Karyawan" },
-                  { s: "org" as SectionId, v: "tree", icon: Network, cls: "text-teal-600", label: "Unit Organisasi" },
-                  { s: "position" as SectionId, v: "list", icon: BriefcaseBusiness, cls: "text-orange-600", label: "Posisi Baru" },
-                ] as const).filter((q) => menuAllowed(q.s, q.v) && permsCan(moduleOfSection(q.s), q.v, "create")).map((q) => (
-                  <DropdownMenuItem key={q.label} onClick={() => navigate(q.s, q.v)}><q.icon className={cn("h-4 w-4", q.cls)} /> {t(q.label)}</DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
 
             {/* money vault — kata sandi enkripsi uang (Task 45-c) */}
             <MoneyVaultButton />
