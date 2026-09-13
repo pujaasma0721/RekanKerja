@@ -143,6 +143,33 @@
 }
 
 /* ============================================================
+   Task 64f — TEMA AKSEN GLOBAL (dipilih di topbar).
+   --accent-live-* ditulis oleh accent-theme.ts (inline style :root).
+   Saat tema aktif, seluruh UI (semua halaman & modul) memakai SATU
+   aksen: --primary/--ring/--sidebar-primary ditimpa dari --accent-live.
+   Default (tanpa data-accent) = tema bawaan emerald.
+   ============================================================ */
+:root {
+  --accent-live: #10b981;
+  --accent-live-rgb: 16 185 129;
+  --accent-live-fg: #ffffff;
+}
+:root[data-accent="1"] {
+  --primary: var(--accent-live);
+  --primary-foreground: var(--accent-live-fg);
+  --ring: var(--accent-live);
+  --sidebar-primary: var(--accent-live);
+  --sidebar-primary-foreground: var(--accent-live-fg);
+}
+.dark[data-accent="1"] {
+  --primary: var(--accent-live);
+  --primary-foreground: var(--accent-live-fg);
+  --ring: var(--accent-live);
+  --sidebar-primary: var(--accent-live);
+  --sidebar-primary-foreground: var(--accent-live-fg);
+}
+
+/* ============================================================
    OneVity Custom Scrollbar — thin, premium
    ============================================================ */
 * {

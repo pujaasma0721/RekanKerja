@@ -12,9 +12,11 @@ import { MenuPermsProvider } from "@/onevity/shared/lib/menu-perms-context";
 import { actionAllowed, type MenusMap } from "@/onevity/shared/lib/menu-perms";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
+import { AccentSwitcher } from "@/onevity/shared/components/shell/accent-switcher";
 import { NotificationBell } from "@/onevity/shared/components/shell/notification-bell";
 import { MoneyVaultButton } from "@/onevity/shared/components/shell/money-vault";
 import { useI18n } from "@/onevity/shared/lib/i18n";
+import { useAccentTheme, applyAccentTheme, ACCENT_THEMES } from "@/onevity/shared/lib/accent-theme";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -620,7 +622,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [section, view, params, module, groups, inSettings, t]);
 
   const activeModule = MODULES.find((m) => m.id === module) ?? MODULES[0];
-  const accent = inSettings ? SETTINGS_META.hex : activeModule.hex;
+  // Task 64f — satu tema aksen global untuk SEMUA modul/halaman (dipilih di topbar).
+  const { accent: accentThemeId, hydrate: hydrateAccent } = useAccentTheme();
+  const { resolvedTheme } = useTheme();
+  useEffect(() => { hydrateAccent(); }, [hydrateAccent]);
+  useEffect(() => { if (resolvedTheme) applyAccentTheme(accentThemeId); }, [resolvedTheme, accentThemeId]);
+  const accent = (ACCENT_THEMES.find((x) => x.id === accentThemeId) ?? ACCENT_THEMES[0]).hex;
   const panelLabel = inSettings ? t(SETTINGS_META.label) : activeModule.label;
   const panelDesc = inSettings ? t(SETTINGS_META.desc) : t(activeModule.desc);
   const PanelIcon = inSettings ? Settings2 : activeModule.icon;
@@ -680,7 +687,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={m.id}
                 label={m.label}
                 icon={m.icon}
-                hex={m.hex}
+                hex={accent}
                 active={!inSettings && m.id === module}
                 badge={railBadge(m.id)}
                 onClick={() => navigateToModule(m.id)}
@@ -919,6 +926,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {/* money vault — kata sandi enkripsi uang (Task 45-c) */}
             <MoneyVaultButton />
 
+            {/* tema warna — satu aksen untuk semua modul & halaman (Task 64f) */}
+            <AccentSwitcher />
+
             {/* notifications — feed nyata per AppUser (T11-NOTIF) */}
             <NotificationBell />
 
@@ -992,18 +1002,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <motion.span
                         layoutId="ov-mtab"
                         className="absolute inset-0 rounded-md"
-                        style={{ background: hexA(m.hex, 0.14) }}
+                        style={{ background: hexA(accent, 0.14) }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
-                    <m.icon className={cn("relative h-[18px] w-[18px]", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: m.hex } : undefined} aria-hidden />
+                    <m.icon className={cn("relative h-[18px] w-[18px]", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: accent } : undefined} aria-hidden />
                     {b > 0 && (
-                      <span className="absolute -right-0 -top-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: m.hex }}>
+                      <span className="absolute -right-0 -top-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: accent }}>
                         {b > 9 ? "9+" : b}
                       </span>
                     )}
                   </span>
-                  <span className={cn("text-[9px] font-bold", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: m.hex } : undefined}>
+                  <span className={cn("text-[9px] font-bold", !active && "text-stone-400 dark:text-stone-500")} style={active ? { color: accent } : undefined}>
                     {m.short}
                   </span>
                 </button>
@@ -1105,6 +1115,8 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
   onModeEmployee: () => void;
 }) {
   const { t } = useI18n();
+  const { accent: listAccentId } = useAccentTheme();
+  const listAccent = (ACCENT_THEMES.find((x) => x.id === listAccentId) ?? ACCENT_THEMES[0]).hex;
   return (
     <div>
       <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("Semua Modul", "All Modules")}</p>
@@ -1118,11 +1130,11 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
               className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-stone-100 dark:hover:bg-stone-800"
               onClick={() => onNavigateModule(m.id)}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: m.hex }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: listAccent }}>
                 <m.icon className="h-4 w-4" />
               </span>
               <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">{m.label}</span>
-              {current ? <Check className="h-4 w-4 shrink-0" style={{ color: m.hex }} /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />}
+              {current ? <Check className="h-4 w-4 shrink-0" style={{ color: listAccent }} /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />}
             </motion.button>
           );
         })}
@@ -1187,10 +1199,12 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
 }) {
   const { t } = useI18n();
   const MIcon = m.icon;
+  const { accent: sheetAccentId } = useAccentTheme();
+  const sheetAccent = (ACCENT_THEMES.find((x) => x.id === sheetAccentId) ?? ACCENT_THEMES[0]).hex;
   return (
     <div>
       <div className="mb-2 flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: m.hex }}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: sheetAccent }}>
           <MIcon className="h-4 w-4" />
         </span>
         <p className="flex-1 text-[14px] font-extrabold text-stone-800 dark:text-stone-100">{m.label}</p>
@@ -1208,7 +1222,7 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
             )}
             {g.children.map((item) => {
               const IIcon = item.icon;
-              const c = g.section === "settings" ? SETTINGS_META.hex : m.hex;
+              const c = sheetAccent;
               return (
                 <motion.button
                   key={item.id}
