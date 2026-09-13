@@ -1065,3 +1065,26 @@ Work Log:
 
 Stage Summary:
 - Task 52 TERPUSH ke origin/main sebagai 08cbd51 — resolusi konflik mempertahankan perbaikan pg-deprecation origin sekaligus seluruh cek gap baru Task 52.
+
+---
+Task ID: 53
+Agent: orchestrator (Z.ai)
+Task: AUDIT ULANG hasil Task 49-52 terhadap peraturan pemerintah yang dirujuk ("audit ulang apa yang sudah dibuat di atas refer ke peraturan pemerintah sebelumnya") — verification audit, TANPA perubahan kode aplikasi.
+
+Work Log:
+- Baca kode: payroll-engine.ts (PTKP_ANNUAL, terCategoryOf, terRateFor, computeTaxOn, supplemental, DEDUCTIBLE_IURAN, NON_OBJEK_BPJS), ptkp-auto.ts (derivasi + snapshot), settlement-service.ts (PKWT_KOMP, multiplier), provisioning.ts + seed.ts (JKP, TER 36×3, regulasi default), scheduler-service.ts (jobAnnualPtkpRefresh), schedules.ts (assertWeeklyHours), provisioning leave CT-LAHIR-P/CT-GUGUR-P.
+- Riset regulasi via web-search (17 kueri; sumber: pajak.go.id, JDIH Kemenkeu, peraturan.bpk.go.id, BPJS Ketenagakerjaan, klikpajak, muc.co.id, uc.co.id, ortax, ideatax, ptpsi, lekslawyer, catapa, hukumonline, glints, adcolaw, gadjian, kantorku, taalenta).
+- Verifikasi as-built langsung ke DB (pg): PayrollRegulation JKP live 0,0024/0,0022/5jt, TerRate MII (A r3 5.65-6.35 vs resmi 5.65-5.95; B r1 ≤5,6jt vs resmi ≤6,2jt; C max 20% vs resmi ada ≥21%), 3 profil K1 auto, CT-LAHIR-P 6 MONTH flat, JKP_C/JKP_E terpasang di template DEFAULT+BS (aktif di run berikutnya), 0 run item JKP historis. Dev server 200 OK.
+- Tulis laporan audit/BPA-AUDIT-53.md.
+
+Stage Summary (matriks temuan — 4 KRITIS, 3 SEDANG, 4 RENDAH):
+- ✅ PTKP INTI LOLOS: PTKP 54jt (PMK 101/2016) TETAP SAH s.d. TA 2026 (pajakku/ikpi/DDTC — tidak ada kenaikan; angka "72jt" hanya RUU HPP yang tak diundangkan). Derivasi keluarga (spouse→K, Child/Parent isDependent maks 3, Sibling dikecualikan, K/I manual) + snapshot 1 Jan idempoten PATUH.
+- 🔴 F-01 JKP (AKTIF): PP 6/2025 = iuran 0,36% (0,22% APBN + 0,14% REKOMPOSISI JKK — tanpa biaya baru perusahaan) dan TANPA iuran pekerja; implementasi memotong pekerja 0,24% (tidak sah) + beban perusahaan fiktif 0,22%; komponen live di template DEFAULT/BS 3 tenant → R1 remediasi SEGERA.
+- 🔴 F-02 (LATEN): tabel TER seed menyimpang dari Lampiran UU HPP/PMK 168 (A r3+: 5.650.001-5.950.000; B r1 ≤6.200.000; C ada bracket ≥21%) — hanya aktif bila useTer=true (default false).
+- 🔴 F-03 (LATEN): terCategoryOf salah — K1 di A (harus B, PTKP 63jt), K3 di B (harus C, 72jt); 3 profil K1 live terdampak.
+- 🔴 F-04 (LATEN): tidak ada true-up Masa Pajak Terakhir — PMK 168: Desember = Pasal 17 atas penghasilan setahun (biaya jabatan cap 6jt/TAHUN) minus yang telah dipotong Jan-Nov; engine pakai metode sama 12 bulan.
+- ⚠️ F-05 kompensasi PKWT dikecualikan saat resign (PP 35 Ps.17: "salah satu pihak" — termasuk pengunduran diri); F-06 PPh kompensasi di-hardcode 0% (praktik lazim: tarif final lapisan 0/10/20/25% PP 36/2021 + ×1,2 non-NPWP); F-07 cuti melahirkan 6 bln flat (UU KIA Ps.4(3)(a): 3 bln + maks 3 bln berikutnya APABILA kondisi khusus + surat dokter).
+- ℹ️ F-08 kutipan keliru (ptkp-auto.ts sebut "PMK 168/2023 PTKP 54jt" — PMK 168 ≠ pengatur PTKP; CT-LAHIR-P "Ps.22"; CT-LAHIR "PP 35/2021"; settlement "PPh 0% (Ps.16)"); F-09 istirahat mingguan Ps.79 tak di-enforce (cycle 7×6jam lolos); F-10 snapshot vs Ps.7(2) "bulan berikutnya" = penyimpangan yang DISKAHKAN pemilik produk (timing-only, SPT mengoreksi liabilitas tahunan); F-11 plafon JP perlu review tahunan.
+- ✅ Patuh terverifikasi ulang: bracket Pasal 17 + non-NPWP ×1,2, biaya jabatan 5%/500rb-bl, basis TER=bruto, bulan ireguler→Pasal 17, iuran JHT+JP pengurang neto, formula kompensasi masa/12×upah, keguguran 1,5 bln, suami 2 hari, 40 jam (8×5/6×7) + ≤8 jam/hari, PKWT >5th 409+force, BPJS rates.
+- PRIORITAS REMEDIASI (bila "perbaiki"): R1 JKP segera (aktif) → R2 re-seed TER resmi → R3 mapping kategori → R4 true-up Desember → R5 kompensasi resign → R6 PPh kompensasi → R7 melahirkan 3+3 → R8 kutipan → R9 istirahat mingguan.
+- Laporan lengkap + bukti DB live + sumber: audit/BPA-AUDIT-53.md.
