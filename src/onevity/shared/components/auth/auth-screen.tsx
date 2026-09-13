@@ -256,12 +256,15 @@ export function AuthScreen() {
     });
   };
 
+  // marquee: modul-modul aplikasi (bukan nama klien)
   const marqueeItems = [
-    "PT Mitra Industri Internasional",
-    "Cahaya Digital Nusantara",
-    "Sentra Logistik Prima",
-    t("Payroll PPh21 · BPJS", "Payroll PPh21 · BPJS"),
-    t("Presensi · Cuti · Travel · Medis", "Attendance · Leave · Travel · Medical"),
+    t("Human Resource Base", "Human Resource Base"),
+    t("Payroll", "Payroll"),
+    t("Time & Attendance", "Time & Attendance"),
+    t("Cuti", "Leave"),
+    t("Perjalanan Dinas", "Travel"),
+    t("Medis", "Medical"),
+    t("Whistleblowing · TPKS", "Whistleblowing · TPKS"),
   ];
 
   const langPillCls =
