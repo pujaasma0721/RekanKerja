@@ -362,6 +362,9 @@ export async function GET(req: NextRequest) {
       period: run.period.name,
       processType: run.processType.name,
       generatedAt: new Date().toISOString(),
+      // F-01 BPA-AUDIT-53 — catatan informatif struktur iuran JKP PP 6/2025.
+      jkpNote:
+        "JKP (PP 6/2025 Ps.11): iuran 0,36% dari upah s.d. plafon = 0,22% ditanggung APBN + 0,14% rekomposisi iuran JKK yang telah dibayar perusahaan — tanpa potongan pekerja dan tanpa beban iuran baru perusahaan. Klaim manfaat saat PHK.",
     };
 
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
@@ -378,8 +381,8 @@ export async function GET(req: NextRequest) {
         { header: "JKM", width: 12 },
         { header: "JKN Perusahaan (4%)", width: 20 },
         { header: "JKN Pegawai (1%)", width: 18 },
-        { header: "JKP Perusahaan (0,22%)", width: 20 },
-        { header: "JKP Pegawai (0,24%)", width: 18 },
+        { header: "JKP Rekomposisi JKK (0,14%)", width: 24 },
+        { header: "JKP Pegawai (0% — PP 6/2025)", width: 22 },
         { header: "Total Perusahaan", width: 18 },
         { header: "Total Pegawai", width: 16 },
       ];

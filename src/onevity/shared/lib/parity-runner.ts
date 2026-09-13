@@ -177,15 +177,21 @@ const STEPS: Step[] = [
   // 52-a: cuti melahirkan/keguguran pekerja perempuan (UU 13/2003 Ps.82 +
   // UU KIA 4/2024 Ps.22) — 2 jenis cuti unit MONTH + gating gender di service.
   { key: "maternity-leave", label: "Task 52-a — jenis cuti CT-LAHIR-P & CT-GUGUR-P (melahirkan/keguguran, MONTH)", run: (s) => import("../../../../scripts/migrate-maternity-leave").then((m) => m.main(s)) },
-  // 52-c: JKP (PP 6/2025) — kolom PayrollRegulation (iuran 0,22%/0,24%, plafon
-  // 5jt) + komponen JKP_C/JKP_E + item template DEFAULT/BS.
-  { key: "jkp", label: "Task 52-c — JKP PP 6/2025: parameter regulasi + komponen JKP_C/JKP_E + template", run: (s) => import("../../../../scripts/migrate-jkp").then((m) => m.main(s)) },
+  // 52-c: JKP (PP 6/2025) — REVISI F-01 BPA-AUDIT-53 (Task 54): struktur
+  // iuran benar = 0% pekerja + 0,14% rekomposisi JKK (informatif) — versi
+  // lama memasang potongan THP 0,24% + beban fiktif 0,22% (salah PP 6/2025
+  // Ps.11). Nonaktifkan komponen lama + hapus item template DEFAULT/BS.
+  { key: "jkp", label: "Task 52-c/F-01 — JKP PP 6/2025 Ps.11: 0% pekerja + rekomposisi JKK 0,14% (perbaiki instalasi 0,24%/0,22%)", run: (s) => import("../../../../scripts/migrate-jkp").then((m) => m.main(s)) },
   // 52-d: gelombang enkripsi PII lanjutan — no. BPJS, no. dokumen identitas,
   // diagnosis/perawatan medis (audit 51) → enc:v1:t (idempoten).
   { key: "encrypt-pii", label: "Task 52-d — enkripsi PII lanjutan: bpjsHealth/bpjsEmpSkill/docNumber/treatment", run: (s) => import("../../../../scripts/migrate-encrypt-pii").then((m) => m.main(s)) },
   // 52-f: kanal whistleblowing TPKS (UU 12/2022 Ps.22-24) — tabel
   // WhistleblowReport (CREATE IF NOT EXISTS + index, idempoten).
   { key: "whistleblow", label: "Task 52-f — tabel WhistleblowReport (kanal laporan TPKS)", run: (s) => import("../../../../scripts/migrate-whistleblow").then((m) => m.main(s)) },
+  // Task 54 (BPA-AUDIT-53 "perbaiki semua"): F-02 tabel TER resmi PMK
+  // 168/2023 (44/40/41 lapisan, max 34%) + F-07 cuti melahirkan 3+3 UU KIA
+  // Ps.4(3)(a) + F-08 kutipan deskripsi + F-06 komponen PKWT_KOMP/PKWT_TAX.
+  { key: "audit53", label: "Task 54/F-02 — tabel TER resmi PMK 168/2023 + cuti melahirkan 3+3 + PKWT final tax", run: (s) => import("../../../../scripts/migrate-audit53").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -251,6 +257,14 @@ export async function checkParityGap(): Promise<ParityGap> {
     // Task 52-a/c/f — gap baru: jenis cuti perempuan, kolom JKP, tabel whistleblow.
     const maternityOk = await rowSchemas("LeaveType", `"code" = 'CT-LAHIR-P'`);
     const jkpOk = await rowSchemas("PayrollRegulation", `"jkpEmployeeRate" IS NOT NULL`);
+    // Task 54 (BPA-AUDIT-53) — marker perbaikan: tabel TER resmi (lapisan ke-44
+    // kategori A ada di tabel resmi saja), JKP struktur benar (pegawai 0%),
+    // cuti melahirkan 3+3 (entitlement 3), PKWT_KOMP SeveranceFinal.
+    const terOfficialOk = await rowSchemas("TerRate", `"category" = 'A' AND "lowerLimit" = 1400000000`);
+    const terOldOk = await rowSchemas("TerRate", `"category" = 'A' AND "upperLimit" = 6350000`);
+    const jkpFixedOk = await rowSchemas("PayrollRegulation", `"jkpEmployeeRate" = 0`);
+    const maternity3Ok = await rowSchemas("LeaveType", `"code" = 'CT-LAHIR-P' AND "entitlement" = 3`);
+    const pkwtFinalOk = await rowSchemas("WageComponent", `"code" = 'PKWT_KOMP' AND "incomeTaxMethod" = 'SeveranceFinal'`);
     const wbtOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'WhistleblowReport' AND table_schema = ANY($1::text[])`,
@@ -268,9 +282,15 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (ptkpSrcOk < schemas.length) reasons.push(`${schemas.length - ptkpSrcOk} tenant tanpa kolom EmployeePayrollProfile.ptkpSource (Task 49)`);
     if (maternityOk < schemas.length) reasons.push(`${schemas.length - maternityOk} tenant tanpa jenis cuti CT-LAHIR-P (Task 52-a)`);
     if (jkpOk < schemas.length) reasons.push(`${schemas.length - jkpOk} tenant tanpa kolom PayrollRegulation.jkpEmployeeRate (Task 52-c)`);
+    // Task 54 (BPA-AUDIT-53) — gap perbaikan audit.
+    if (terOldOk > 0) reasons.push(`${terOldOk} tenant masih memuat baris TER lama yang menyimpang (F-02)`);
+    if (terOfficialOk < schemas.length) reasons.push(`${schemas.length - terOfficialOk} tenant tanpa tabel TER resmi PMK 168/2023 (F-02)`);
+    if (jkpFixedOk < schemas.length) reasons.push(`${schemas.length - jkpFixedOk} tenant dengan jkpEmployeeRate ≠ 0 (F-01 — PP 6/2025 tanpa iuran pekerja)`);
+    if (maternity3Ok < schemas.length) reasons.push(`${schemas.length - maternity3Ok} tenant cuti melahirkan belum 3+3 bersyarat (F-07)`);
+    if (pkwtFinalOk < schemas.length) reasons.push(`${schemas.length - pkwtFinalOk} tenant PKWT_KOMP belum SeveranceFinal (F-06)`);
     if (piiPlainOk > 0) reasons.push(`${piiPlainOk} tenant dengan PII lanjutan masih plaintext (Task 52-d)`);
     if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, wbtOk) };
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk) };
   } finally {
     await c.end();
   }

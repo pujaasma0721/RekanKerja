@@ -702,8 +702,29 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   const maxPer = type.maxPerRequest > 0 ? type.maxPerRequest : sbEff;
   // Task 52-a — jenis MONTH: bandingkan dalam satuan bulan (÷21 hari kerja).
   const reqInUnit = toUnitDays(type, calc.workingDays);
-  if (reqInUnit > maxPer) {
+  // F-07 BPA-AUDIT-53 — gerbang satuan BULAN memakai BULAN KALENDER
+  // (semantik UU KIA: "3 bulan pertama"), bukan konversi hari-kerja ÷21
+  // (3 bulan kalender ≈ 3,1 satuan ÷21 — overshoot pembulatan akan salah
+  // memicu gerbang surat dokter / batas maksimum pada permintaan tepat).
+  const calMonthsOf = (a: Date, b: Date): number => {
+    let m = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    m += b.getDate() >= a.getDate() ? 1 : 0;
+    return m;
+  };
+  const reqGateUnit = type.unit === "MONTH" ? calMonthsOf(from, to) : reqInUnit;
+  if (reqGateUnit > maxPer) {
     throw new Error(`Maksimum ${maxPer} ${unitLabel(type)} per permintaan untuk ${type.name}`);
+  }
+
+  // F-07 BPA-AUDIT-53 — perpanjangan cuti melahirkan/keguguran (satuan BULAN)
+  // MELEBIHI hak dasar: UU KIA 4/2024 Ps.4 ayat (3) — bulan tambahan HANYA
+  // untuk kondisi khusus medis yang dibuktikan SURAT KETERANGAN /
+  // rekomendasi dokter (kandungan/psikiater). Gerbang: catatan pengajuan
+  // WAJIB berisi rujukan surat dokter (nomor & tanggal) — kosong → tolak.
+  if (type.unit === "MONTH" && reqGateUnit > type.entitlement && !input.note?.trim()) {
+    throw new Error(
+      `Perpanjangan ${type.name} melebihi hak dasar ${type.entitlement} bulan hanya boleh dengan kondisi khusus medis — wajib surat keterangan/rekomendasi dokter (UU KIA 4/2024 Ps.4(3)); isi nomor & tanggal surat dokter pada kolom catatan`,
+    );
   }
 
   // bentrok dengan permintaan lain (belum ditolak/dibatalkan)

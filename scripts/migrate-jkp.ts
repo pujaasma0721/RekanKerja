@@ -1,13 +1,23 @@
-// Migrasi JKP — Jaminan Kehilangan Pekerjaan (Task 52-c, PP 6/2025):
+// Migrasi JKP — Jaminan Kehilangan Pekerjaan (Task 52-c, PP 6/2025; REVISI
+// F-01 BPA-AUDIT-53 Task 54 — struktur iuran yang benar):
+//   PP 6/2025 Pasal 11 (perubahan PP 37/2021): iuran JKP 0,36% dari upah
+//   sebulan (basis plafon Rp5jt) — 0,22% DITANGGUNG PEMERINTAH (APBN) dan
+//   0,14% dari REKOMPOSISI iuran JKK yang sudah dibayar pemberi kerja.
+//   Konsekuensi: TIDAK ADA iuran pekerja (porsi 0,10% pada PP 37/2021 lama
+//   DIHAPUS) dan TIDAK ADA beban iuran baru perusahaan (0,14% dipotong dari
+//   premi JKK yang sudah ada). Versi lama skrip ini memasang potongan THP
+//   0,24% + beban perusahaan 0,22% — SALAH struktur & besaran (audit F-01).
+// Langkah (idempoten, aman di-rerun):
 //   1. ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS
-//      jkpEmployeeRate (0.0024) / jkpCompanyRate (0.0022) / jkpSalaryCap
-//      (5000000) — DEFAULT mengisi baris lama (Prisma default hanya baris baru).
-//   2. INSERT komponen wage JKP_C (Earning, formula JKP_BASE*JKP_RATE_CO,
-//      includeInTHP false, basis JKP) & JKP_E (Deduction, JKP_BASE*JKP_RATE_EMP)
-//      — ON CONFLICT ("code") DO NOTHING.
-//   3. Tambahkan JKP_C/JKP_E ke template DEFAULT & BS bila belum ada
-//      (FREELANCE sengaja tanpa BPJS — di luar program).
-// Idempoten — aman di-rerun. IN-PROCESS oleh parity-runner ATAU CLI:
+//      jkpEmployeeRate (0 — tanpa potongan pekerja) / jkpCompanyRate
+//      (0.0014 — rekomposisi JKK, informatif) / jkpSalaryCap (5000000).
+//   2. UPDATE semua baris PayrollRegulation → nilai benar (memperbaiki
+//      instalasi lama yang memuat 0.0024/0.0022).
+//   3. NONAKTIFKAN komponen JKP_C/JKP_E bila ada (installasi Task 52-c lama)
+//      + HAPUS item template DEFAULT/BS yang memuatnya — run berikutnya
+//      tidak lagi memotong THP / menambah beban fiktif. Baris komponen
+//      dibiarkan (active=false) agar snapshot run historis tetap terbaca.
+// IN-PROCESS oleh parity-runner ATAU CLI:
 //   bun run scripts/migrate-jkp.ts
 import "./lib/env";
 import { Client } from "pg";
@@ -28,67 +38,29 @@ export async function main(schemas?: string[]): Promise<void> {
       await c.query(`SET search_path TO "${schema}"`);
 
       // (1) kolom parameter regulasi — DEFAULT langsung mengisi baris lama.
-      await c.query(`ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "jkpEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0024`);
-      await c.query(`ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0022`);
+      await c.query(`ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "jkpEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0`);
+      await c.query(`ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0014`);
       await c.query(`ALTER TABLE "PayrollRegulation" ADD COLUMN IF NOT EXISTS "jkpSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 5000000`);
 
-      // (2) komponen wage JKP_C / JKP_E.
-      const jkpC = await c.query(
-        `INSERT INTO "WageComponent"
-           ("id","code","name","type","wageType","calcMethod","amount","formula",
-            "incomeTaxMethod","processMethod","roundingType","roundingValue","prorated",
-            "taxable","includeInBasicIncome","includeInTHP","displayInPaySlip","applyThrRules",
-            "jamsostekBasis","active","createdAt")
-         VALUES ('wage_comp_jkp_c','JKP_C','BPJS JKP Perusahaan 0,22%','Earning','Jamsostek','Formula',0,
-                 'JKP_BASE*JKP_RATE_CO','Regular','GrossToNet','Nearest',1,false,
-                 true,false,false,true,false,'JKP',true,CURRENT_TIMESTAMP)
-         ON CONFLICT ("code") DO NOTHING`,
-      );
-      const jkpE = await c.query(
-        `INSERT INTO "WageComponent"
-           ("id","code","name","type","wageType","calcMethod","amount","formula",
-            "incomeTaxMethod","processMethod","roundingType","roundingValue","prorated",
-            "taxable","includeInBasicIncome","includeInTHP","displayInPaySlip","applyThrRules",
-            "jamsostekBasis","active","createdAt")
-         VALUES ('wage_comp_jkp_e','JKP_E','Potongan BPJS JKP 0,24%','Deduction','Jamsostek','Formula',0,
-                 'JKP_BASE*JKP_RATE_EMP','Regular','GrossToNet','Nearest',1,false,
-                 true,false,false,true,false,'JKP',true,CURRENT_TIMESTAMP)
-         ON CONFLICT ("code") DO NOTHING`,
+      // (2) F-01 — nilai struktur benar utk instalasi lama (0,24%/0,22% salah).
+      const reg = await c.query(
+        `UPDATE "PayrollRegulation" SET "jkpEmployeeRate" = 0, "jkpCompanyRate" = 0.0014, "jkpSalaryCap" = 5000000`,
       );
 
-      // (3) daftarkan ke template DEFAULT & BS (bila belum ada item-nya).
-      let tplItems = 0;
-      for (const tplCode of ["DEFAULT", "BS"]) {
-        const added = await c.query(
-          `INSERT INTO "WageTemplateItem" ("id","wageTemplateId","wageComponentId","sortOrder")
-           SELECT 'wti_jkp_c_' || t."code", t."id", wc."id", 99
-           FROM "WageTemplate" t, "WageComponent" wc
-           WHERE t."code" = $1 AND wc."code" = 'JKP_C'
-             AND NOT EXISTS (
-               SELECT 1 FROM "WageTemplateItem" i
-               WHERE i."wageTemplateId" = t."id" AND i."wageComponentId" = wc."id"
-             )
-           ON CONFLICT DO NOTHING`,
-          [tplCode],
-        );
-        tplItems += added.rowCount ?? 0;
-        const addedE = await c.query(
-          `INSERT INTO "WageTemplateItem" ("id","wageTemplateId","wageComponentId","sortOrder")
-           SELECT 'wti_jkp_e_' || t."code", t."id", wc."id", 99
-           FROM "WageTemplate" t, "WageComponent" wc
-           WHERE t."code" = $1 AND wc."code" = 'JKP_E'
-             AND NOT EXISTS (
-               SELECT 1 FROM "WageTemplateItem" i
-               WHERE i."wageTemplateId" = t."id" AND i."wageComponentId" = wc."id"
-             )
-           ON CONFLICT DO NOTHING`,
-          [tplCode],
-        );
-        tplItems += addedE.rowCount ?? 0;
-      }
+      // (3) F-01 — nonaktifkan komponen JKP_C/JKP_E instalasi lama.
+      const comp = await c.query(
+        `UPDATE "WageComponent" SET "active" = false WHERE "code" IN ('JKP_C','JKP_E') AND "active" = true`,
+      );
+      // hapus item template DEFAULT/BS yang memuat JKP (run berikutnya bersih).
+      const items = await c.query(
+        `DELETE FROM "WageTemplateItem" wti
+         USING "WageTemplate" wt, "WageComponent" wc
+         WHERE wti."wageTemplateId" = wt.id AND wti."wageComponentId" = wc.id
+           AND wt."code" IN ('DEFAULT','BS') AND wc."code" IN ('JKP_C','JKP_E')`,
+      );
 
       console.log(
-        `[${schema}] JKP (Task 52-c): kolom regulasi siap · komponen ${(jkpC.rowCount ?? 0) + (jkpE.rowCount ?? 0)} baru · template item +${tplItems}`,
+        `[${schema}] jkp-fix (F-01): PayrollRegulation → pegawai 0% + rekomposisi JKK 0,14% (${reg.rowCount ?? 0} baris) · komponen JKP dinonaktifkan (${comp.rowCount ?? 0}) · item template JKP dihapus (${items.rowCount ?? 0})`,
       );
     } finally {
       await c.end().catch(() => {});

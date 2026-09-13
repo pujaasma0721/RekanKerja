@@ -119,14 +119,14 @@ const COMP_DEFS: CompDef[] = [
   { code: "JKK_C", name: "BPJS JKK Perusahaan", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKK_BASE*JKK_RATE", includeInTHP: false, jamsostekBasis: "JKK" },
   { code: "JKM_C", name: "BPJS JKM Perusahaan 0,3%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKM_BASE*JKM_RATE", includeInTHP: false, jamsostekBasis: "JKM" },
   { code: "JP_C", name: "BPJS JP Perusahaan 2%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_CO", includeInTHP: false, jamsostekBasis: "JP" },
-  // Task 52-c — JKP (PP 6/2025): 0,22% perusahaan (beban, non-objek PPh21)
-  // + 0,24% pekerja (potongan, pengurang penghasilan bruto); basis upah s.d.
-  // plafon (default Rp 5jt).
-  { code: "JKP_C", name: "BPJS JKP Perusahaan 0,22%", type: "Earning", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKP_BASE*JKP_RATE_CO", includeInTHP: false, jamsostekBasis: "JKP" },
+  // F-01 BPA-AUDIT-53 — JKP PP 6/2025: iuran 0,36% = 0,22% APBN + 0,14%
+  // REKOMPOSISI iuran JKK yang sudah dibayar perusahaan. TIDAK ADA potongan
+  // pekerja (porsi 0,10% PP 37/2021 lama dihapus) dan TIDAK ADA beban iuran
+  // baru perusahaan → komponen JKP_C/JKP_E TIDAK dibuat/dipasang di template;
+  // baris informatif rekomposisi ada di laporan BPJS (reports-bpjs.ts).
   { code: "JHT_E", name: "Potongan BPJS JHT 2%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JHT_BASE*JHT_RATE_EMP", jamsostekBasis: "JHT" },
   { code: "JP_E", name: "Potongan BPJS JP 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JP_BASE*JP_RATE_EMP", jamsostekBasis: "JP" },
   { code: "JPK_E", name: "Potongan BPJS JPK 1%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JPK_BASE*JPK_RATE_EMP", jamsostekBasis: "JPK" },
-  { code: "JKP_E", name: "Potongan BPJS JKP 0,24%", type: "Deduction", wageType: "Jamsostek", calcMethod: "Formula", formula: "JKP_BASE*JKP_RATE_EMP", jamsostekBasis: "JKP" },
   { code: "PPH21", name: "PPh21 (PPh Pasal 21)", type: "Deduction", wageType: "IncomeTax", calcMethod: "Tax", amount: 0, sptReference: "PPh21" },
   { code: "LOAN", name: "Angsuran Pinjaman", type: "Deduction", wageType: "Loan", calcMethod: "Tax", amount: 0, incomeTaxMethod: "NonTaxable" },
   { code: "WORKDAYS", name: "Hari Kerja Period", type: "Informational", wageType: "Information", calcMethod: "Formula", formula: "WORKING_DAYS", includeInTHP: false },
@@ -139,12 +139,17 @@ const COMP_DEFS: CompDef[] = [
 ];
 
 const TPL_DEFS: { code: string; name: string; description: string; components: string[] }[] = [
-  { code: "DEFAULT", name: "Template Standar Karyawan", description: "Gaji pokok + tunjangan + BPJS penuh (termasuk JKP PP 6/2025)", components: ["BASIC", "TJAB", "TKEL", "TTRANS", "TMAKAN", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JKP_C", "JHT_E", "JP_E", "JPK_E", "JKP_E", "WORKDAYS"] },
-  { code: "BS", name: "Basic Salary Only", description: "Gaji pokok + potongan BPJS (tanpa tunjangan; termasuk JKP)", components: ["BASIC", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JKP_C", "JHT_E", "JP_E", "JPK_E", "JKP_E", "WORKDAYS"] },
+  // F-01 BPA-AUDIT-53 — JKP_C/JKP_E dihapus dari template: iuran JKP 0,36%
+  // (0,22% APBN + 0,14% rekomposisi JKK — PP 6/2025 Ps.11) tidak memotong
+  // pekerja dan tidak menambah beban iuran perusahaan.
+  { code: "DEFAULT", name: "Template Standar Karyawan", description: "Gaji pokok + tunjangan + BPJS penuh (JHT/JP/JKK/JKM/JPK; JKP via rekomposisi JKK — PP 6/2025)", components: ["BASIC", "TJAB", "TKEL", "TTRANS", "TMAKAN", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JHT_E", "JP_E", "JPK_E", "WORKDAYS"] },
+  { code: "BS", name: "Basic Salary Only", description: "Gaji pokok + potongan BPJS (tanpa tunjangan; JKP via rekomposisi JKK — PP 6/2025)", components: ["BASIC", "JHT_C", "JPK_C", "JKK_C", "JKM_C", "JP_C", "JHT_E", "JP_E", "JPK_E", "WORKDAYS"] },
   { code: "FREELANCE", name: "Kontrak/Freelance", description: "Gaji pokok + tunjangan transport-makan (tanpa BPJS — non-pekerja tetap, di luar program JKP)", components: ["BASIC", "TTRANS", "TMAKAN", "WORKDAYS"] },
 ];
 
 import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
+// F-02 BPA-AUDIT-53 — tabel TER resmi Lampiran PMK 168/2023 (sumber tunggal).
+import { TER_OFFICIAL } from "@/onevity/payroll/services/ter-official";
 
 export async function seedTenantReference(db: TenantDb): Promise<void> {
   // lookup master
@@ -240,8 +245,12 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
       jpEmployeeRate: 0.01, jpCompanyRate: 0.02, jpSalaryCap: 10547400,
       jkkRate: 0.0024, jkmRate: 0.003,
       jpkCompanyRate: 0.04, jpkEmployeeRate: 0.01, jpkSalaryCap: 12000000,
-      // Task 52-c — JKP PP 6/2025: 0,24% pekerja + 0,22% perusahaan, plafon 5jt.
-      jkpEmployeeRate: 0.0024, jkpCompanyRate: 0.0022, jkpSalaryCap: 5000000,
+      // F-01 BPA-AUDIT-53 — JKP PP 6/2025 Ps.11: total 0,36% dari upah s.d.
+      // plafon 5jt = 0,22% ditanggung APBN + 0,14% rekomposisi iuran JKK.
+      // TIDAK ADA iuran pekerja (jkpEmployeeRate = 0) dan TIDAK ADA beban
+      // iuran baru perusahaan — jkpCompanyRate 0,0014 semata-mata nilai
+      // informatif rekomposisi utk laporan BPJS (bukan komponen gaji).
+      jkpEmployeeRate: 0, jkpCompanyRate: 0.0014, jkpSalaryCap: 5000000,
       nonNpwpSurcharge: 0.2,
       useTer: false,
     },
@@ -261,56 +270,9 @@ export async function seedTenantReference(db: TenantDb): Promise<void> {
     })),
   });
 
-  // TER PP 58/2023 (kategori A/B/C)
-  const terA: [number, number | null, number][] = [
-    [0, 5_400_000, 0], [5_400_000, 5_650_000, 0.0025], [5_650_000, 6_350_000, 0.005],
-    [6_350_000, 6_800_000, 0.0075], [6_800_000, 7_500_000, 0.01], [7_500_000, 8_050_000, 0.0125],
-    [8_050_000, 8_700_000, 0.015], [8_700_000, 9_350_000, 0.0175], [9_350_000, 9_950_000, 0.02],
-    [9_950_000, 10_600_000, 0.0225], [10_600_000, 11_300_000, 0.025], [11_300_000, 12_400_000, 0.03],
-    [12_400_000, 13_600_000, 0.035], [13_600_000, 14_850_000, 0.04], [14_850_000, 16_100_000, 0.045],
-    [16_100_000, 17_350_000, 0.05], [17_350_000, 18_600_000, 0.055], [18_600_000, 19_850_000, 0.06],
-    [19_850_000, 21_100_000, 0.065], [21_100_000, 22_350_000, 0.07], [22_350_000, 23_600_000, 0.075],
-    [23_600_000, 24_850_000, 0.08], [24_850_000, 26_100_000, 0.085], [26_100_000, 27_400_000, 0.09],
-    [27_400_000, 28_700_000, 0.095], [28_700_000, 32_100_000, 0.10], [32_100_000, 36_500_000, 0.11],
-    [36_500_000, 41_200_000, 0.12], [41_200_000, 46_200_000, 0.13], [46_200_000, 51_200_000, 0.14],
-    [51_200_000, 56_200_000, 0.15], [56_200_000, 61_200_000, 0.16], [61_200_000, 66_200_000, 0.17],
-    [66_200_000, 71_200_000, 0.18], [71_200_000, 76_200_000, 0.19], [76_200_000, null, 0.20],
-  ];
-  const terB: [number, number | null, number][] = [
-    [0, 5_600_000, 0], [5_600_000, 5_850_000, 0.0025], [5_850_000, 6_350_000, 0.005],
-    [6_350_000, 6_850_000, 0.0075], [6_850_000, 7_550_000, 0.01], [7_550_000, 8_150_000, 0.0125],
-    [8_150_000, 8_900_000, 0.015], [8_900_000, 9_600_000, 0.0175], [9_600_000, 10_150_000, 0.02],
-    [10_150_000, 10_850_000, 0.0225], [10_850_000, 11_550_000, 0.025], [11_550_000, 12_700_000, 0.03],
-    [12_700_000, 13_900_000, 0.035], [13_900_000, 15_150_000, 0.04], [15_150_000, 16_400_000, 0.045],
-    [16_400_000, 17_650_000, 0.05], [17_650_000, 18_900_000, 0.055], [18_900_000, 20_150_000, 0.06],
-    [20_150_000, 21_400_000, 0.065], [21_400_000, 22_650_000, 0.07], [22_650_000, 23_900_000, 0.075],
-    [23_900_000, 25_150_000, 0.08], [25_150_000, 26_400_000, 0.085], [26_400_000, 27_700_000, 0.09],
-    [27_700_000, 29_000_000, 0.095], [29_000_000, 32_500_000, 0.10], [32_500_000, 37_000_000, 0.11],
-    [37_000_000, 41_700_000, 0.12], [41_700_000, 46_700_000, 0.13], [46_700_000, 51_700_000, 0.14],
-    [51_700_000, 56_700_000, 0.15], [56_700_000, 61_700_000, 0.16], [61_700_000, 66_700_000, 0.17],
-    [66_700_000, 71_700_000, 0.18], [71_700_000, 76_700_000, 0.19], [76_700_000, null, 0.20],
-  ];
-  const terC: [number, number | null, number][] = [
-    [0, 6_600_000, 0], [6_600_000, 6_950_000, 0.0025], [6_950_000, 7_700_000, 0.005],
-    [7_700_000, 8_200_000, 0.0075], [8_200_000, 8_950_000, 0.01], [8_950_000, 9_450_000, 0.0125],
-    [9_450_000, 10_200_000, 0.015], [10_200_000, 10_700_000, 0.0175], [10_700_000, 11_450_000, 0.02],
-    [11_450_000, 12_200_000, 0.025], [12_200_000, 13_550_000, 0.03], [13_550_000, 14_900_000, 0.035],
-    [14_900_000, 16_250_000, 0.04], [16_250_000, 17_600_000, 0.045], [17_600_000, 18_950_000, 0.05],
-    [18_950_000, 20_300_000, 0.055], [20_300_000, 21_650_000, 0.06], [21_650_000, 23_000_000, 0.065],
-    [23_000_000, 24_350_000, 0.07], [24_350_000, 25_700_000, 0.075], [25_700_000, 27_050_000, 0.08],
-    [27_050_000, 28_400_000, 0.085], [28_400_000, 29_750_000, 0.09], [29_750_000, 31_100_000, 0.095],
-    [31_100_000, 35_500_000, 0.10], [35_500_000, 39_900_000, 0.11], [39_900_000, 44_300_000, 0.12],
-    [44_300_000, 48_700_000, 0.13], [48_700_000, 53_100_000, 0.14], [53_100_000, 57_500_000, 0.15],
-    [57_500_000, 61_900_000, 0.16], [61_900_000, 66_300_000, 0.17], [66_300_000, 70_700_000, 0.18],
-    [70_700_000, 75_100_000, 0.19], [75_100_000, null, 0.20],
-  ];
-  await db.terRate.createMany({
-    data: [
-      ...terA.map(([lowerLimit, upperLimit, rate]) => ({ category: "A", lowerLimit, upperLimit, rate })),
-      ...terB.map(([lowerLimit, upperLimit, rate]) => ({ category: "B", lowerLimit, upperLimit, rate })),
-      ...terC.map(([lowerLimit, upperLimit, rate]) => ({ category: "C", lowerLimit, upperLimit, rate })),
-    ],
-  });
+  // F-02 BPA-AUDIT-53 — TER resmi Lampiran PMK 168/2023 (pajak.go.id
+  // hlm. 10-12): 44/40/41 lapisan, maksimum 34%. Sumber tunggal ter-official.ts.
+  await db.terRate.createMany({ data: TER_OFFICIAL });
 
   // template gaji
   for (const t of TPL_DEFS) {
@@ -499,19 +461,20 @@ export const LEAVE_TYPE_DEFS: {
   { code: "CT-NIKAH", name: "Cuti Pernikahan", description: "Pernikahan karyawan sendiri (UU 13/2003 pasal 81)", entitlement: 3, waitingMonths: 0, needDocs: true },
   { code: "CT-NIKAH-A", name: "Cuti Pernikahan Anak", description: "Pernikahan anak sah karyawan (PP 35/2021)", entitlement: 2, needDocs: true },
   { code: "CT-KHITAN", name: "Cuti Baptis/Khitanan Anak", description: "Baptis/khitanan anak sah karyawan (PP 35/2021)", entitlement: 2, needDocs: true },
-  { code: "CT-LAHIR", name: "Cuti Kelahiran Anak", description: "Istri sah karyawan melahirkan (PP 35/2021)", entitlement: 2, needDocs: true },
-  { code: "CT-GUGUR-I", name: "Cuti Istri Keguguran", description: "Istri keguguran — untuk suami (PP 35/2021)", entitlement: 2, needDocs: true },
+  { code: "CT-LAHIR", name: "Cuti Kelahiran Anak", description: "Istri sah karyawan melahirkan (UU 13/2003 Ps.93 — suami beristirahat 2 hari; UU KIA 4/2024 Ps.8 suami ikut beristirahat)", entitlement: 2, needDocs: true },
+  { code: "CT-GUGUR-I", name: "Cuti Istri Keguguran", description: "Istri keguguran — untuk suami (UU 13/2003 Ps.93)", entitlement: 2, needDocs: true },
   { code: "CT-MATI-I", name: "Cuti Kematian Keluarga Inti", description: "Kematian suami/istri, anak, orang tua, mertua (PP 35/2021)", entitlement: 2, needDocs: true },
   { code: "CT-MATI-S", name: "Cuti Kematian Serumah/Saudara", description: "Kematian saudara/kakek/nenek/kenalan serumah (PP 35/2021)", entitlement: 1, needDocs: true },
   { code: "CT-HAJI", name: "Cuti Haji", description: "Ibadah haji (perusahaan menanggung upah penuh)", entitlement: 40, needDocs: true },
   { code: "CT-HAID", name: "Cuti Haid", description: "Cuti haid (UU 13/2003 pasal 81)", entitlement: 2, allowHalfDay: true },
-  // Task 52-a — UU 13/2003 Ps.82 ayat (1) & (2) + UU KIA 4/2024 Ps.22: cuti
-  // melahirkan/keguguran PEKERJA PEREMPUAN (3 bln; perpanjangan s.d. 6 bln
-  // sesuai rekomendasi dokter kandungan/psikiater; keguguran 1,5 bln). Satuan
-  // MONTH — saldo dibukukan dalam bulan (konversi hari-kerja ↔ bulan 21 hr/bln
-  // di leave-service). Hanya perempuan (validasi gender di leave-service).
-  { code: "CT-LAHIR-P", name: "Cuti Melahirkan (Pekerja Perempuan)", description: "3 bulan (UU 13/2003 Ps.82) — dapat diperpanjang hingga 6 bulan sesuai surat rekomendasi dokter (UU KIA 4/2024 Ps.22)", unit: "MONTH", entitlement: 6, maxPerRequest: 6, needDocs: true },
-  { code: "CT-GUGUR-P", name: "Cuti Keguguran (Pekerja Perempuan)", description: "1,5 bulan (UU 13/2003 Ps.82 ayat 2)", unit: "MONTH", entitlement: 1.5, maxPerRequest: 1.5, needDocs: true },
+  // Task 52-a + F-07/F-08 BPA-AUDIT-53 — UU 13/2003 Ps.82 & UU KIA 4/2024
+  // Ps.4 ayat (3) huruf a: cuti melahirkan = 3 bulan PERTAMA (hak dasar) +
+  // paling lama 3 bulan BERIKUTNYA HANYA bila ada kondisi khusus yang
+  // dibuktikan SURAT KETERANGAN DOKTER. Saldo dasar 3 bulan; perpanjangan
+  // bulan ke-4 s.d. 6 via allowAdvance + gerbang wajib catatan surat dokter
+  // (leave-service submitRequest). Satuan MONTH (konversi 21 hr/bln).
+  { code: "CT-LAHIR-P", name: "Cuti Melahirkan (Pekerja Perempuan)", description: "3 bulan pertama (UU KIA 4/2024 Ps.4(3)(a)) — perpanjangan s.d. 3 bulan berikutnya HANYA dengan kondisi khusus medis (wajib surat keterangan dokter, isi di catatan pengajuan)", unit: "MONTH", entitlement: 3, maxPerRequest: 6, allowAdvance: true, needDocs: true },
+  { code: "CT-GUGUR-P", name: "Cuti Keguguran (Pekerja Perempuan)", description: "1,5 bulan (UU 13/2003 Ps.82(2) & UU KIA 4/2024 Ps.4(3)(b)) — dapat lebih lama sesuai rekomendasi dokter kandungan/psikiater (wajib catatan surat)", unit: "MONTH", entitlement: 1.5, maxPerRequest: 3, allowAdvance: true, needDocs: true },
 ];
 
 export async function ensureLeaveReference(db: TenantDb): Promise<void> {

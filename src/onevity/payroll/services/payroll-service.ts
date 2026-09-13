@@ -194,6 +194,61 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
   // (period × processType) yang diproses, agar tidak terjadi pembayaran ganda.
   const isSalaryRun = processType.code === "SALARY";
 
+  // F-04 BPA-AUDIT-53 — TRUE-UP MASA PAJAK TERAKHIR (PMK 168/2023): period
+  // DESEMBER (masa pajak terakhir tahun pajak) ATAU period terakhir karyawan
+  // yang berhenti → PPh21 = Pasal 17 atas penghasilan setahun aktual − PPh21
+  // yang telah dipotong. Desember dideteksi dari bulan endDate (bukan "period
+  // dengan endDate terbesar" — period Okt–Des biasanya baru dibuat menjelang
+  // akhir tahun; memakai max-endDate akan salah memicu true-up di Sep dkk).
+  // Konteks YTD dihitung dari SEMUA run Confirmed/Paid non-TERMINATION
+  // (pesangon dipajaki FINAL PP 36/2021 — tidak boleh masuk basis progresif)
+  // & non-YEAR_END_ADJ (penyesuaian manual terpisah) tahun pajak s.d. period
+  // ini; run yang sedang dihitung otomatis dikecualikan (status masih
+  // Draft/Calculated).
+  const isDecemberPeriod = isSalaryRun
+    ? period.endDate.getMonth() === 11 && period.endDate.getFullYear() === period.sptYear
+    : false;
+  const trueUpCtx = new Map<string, { bruto: number; iuran: number; withheld: number }>();
+  if (isSalaryRun) {
+    const yearStart = new Date(period.sptYear, 0, 1);
+    const priorRuns = await db.payrollRun.findMany({
+      where: {
+        status: { in: ["Confirmed", "Paid"] },
+        processType: { code: { notIn: ["TERMINATION", "YEAR_END_ADJ"] } },
+        period: {
+          sptYear: period.sptYear,
+          startDate: { gte: yearStart },
+          endDate: { lte: period.endDate },
+        },
+      },
+      select: {
+        lines: {
+          select: {
+            employeeId: true,
+            bruto: true,
+            items: { select: { code: true, wageType: true, type: true, amount: true } },
+          },
+        },
+      },
+    });
+    for (const r of priorRuns) {
+      for (const line of r.lines) {
+        const cur = trueUpCtx.get(line.employeeId) ?? { bruto: 0, iuran: 0, withheld: 0 };
+        cur.bruto += tc.decryptMoney(line.bruto) ?? 0;
+        // Iuran pensiun pegawai (pengurang neto — UU PPh Ps.21(3)(a)):
+        // JHT_E/JP_E/JKP_E. JPK_E BUKAN pengurang pajak.
+        cur.iuran += line.items
+          .filter((it) => it.wageType === "Jamsostek" && it.type === "Deduction" && ["JHT_E", "JP_E", "JKP_E"].includes(it.code))
+          .reduce((s, it) => s + (tc.decryptMoney(it.amount) ?? 0), 0);
+        // PPh21 yang telah dipotong (item IncomeTax — kode PPH21).
+        cur.withheld += line.items
+          .filter((it) => it.wageType === "IncomeTax")
+          .reduce((s, it) => s + (tc.decryptMoney(it.amount) ?? 0), 0);
+        trueUpCtx.set(line.employeeId, cur);
+      }
+    }
+  }
+
   // K-1: konteks penghasilan regular kumulatif masa pajak (YTD) untuk run
   // suplemental — Σ bruto THP & Σ iuran pegawai Jamsostek karyawan dari run
   // SALARY Confirmed/Paid tahun pajak berjalan (Jan s.d. period ini), dibaca
@@ -362,6 +417,14 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
     // Konteks K-1 untuk run suplemental (dihitung sebelum loop, per karyawan).
     const ctx = ytdCtx.get(emp.id);
 
+    // F-04 BPA-AUDIT-53 — masa pajak terakhir karyawan ini? (a) period
+    // Desember tahun pajak, ATAU (b) period terakhir sebelum berhenti —
+    // leaver dengan status keluar (bukan PKWT aktif yang kontraknya masih
+    // mungkin diperpanjang). True-up hanya pada run SALARY.
+    const tCtx = trueUpCtx.get(emp.id);
+    const isLeaverFinal = lastWorkDay != null && (emp.status !== "Active" || emp.endDate != null);
+    const lastTaxPeriod = isSalaryRun && (isDecemberPeriod || isLeaverFinal);
+
     // Task 32: konteks parameter rule (kode entitas + atribut personal).
     // ageYears/tenureYears dihitung terhadap AKHIR period (konsisten dgn run).
     const periodEnd = new Date(period.endDate);
@@ -409,6 +472,16 @@ export async function buildRunRows(db: TenantDb, periodId: string, processTypeId
       regularIncomeYtd: ctx && ctx.months > 0 ? ctx.bruto : baseSalary,
       regularIuranYtd: ctx && ctx.months > 0 ? ctx.iuran : 0,
       regularMonthsYtd: ctx && ctx.months > 0 ? ctx.months : 1,
+      // F-04 BPA-AUDIT-53 — konteks true-up masa pajak terakhir (run SALARY
+      // Desember/leaver): Σ bruto + Σ iuran pensiun + Σ PPh21 dipotong YTD.
+      ...(lastTaxPeriod
+        ? {
+            lastTaxPeriod: true,
+            brutoYtd: tCtx?.bruto ?? 0,
+            iuranYtd: tCtx?.iuran ?? 0,
+            taxWithheldYtd: tCtx?.withheld ?? 0,
+          }
+        : {}),
     });
   }
 

@@ -131,14 +131,14 @@ export function PayrollParametersPage() {
                     <NumField label={t("JKK")} value={String(reg.jkkRate * 100)} onChange={(v) => setReg({ ...reg, jkkRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("JKM")} value={String(reg.jkmRate * 100)} onChange={(v) => setReg({ ...reg, jkmRate: num(v) / 100 })} suffix="%" />
                     <div />
-                    <NumField label={t("JKP Pegawai (PP 6/2025)", "JKP Employee (GR 6/2025)")} value={String((reg.jkpEmployeeRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpEmployeeRate: num(v) / 100 })} suffix="%" />
-                    <NumField label={t("JKP Perusahaan", "JKP Company")} value={String((reg.jkpCompanyRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpCompanyRate: num(v) / 100 })} suffix="%" />
-                    <NumField label={t("Cap Gaji JKP", "JKP Salary Cap")} value={String(reg.jkpSalaryCap ?? 0)} onChange={(v) => setReg({ ...reg, jkpSalaryCap: num(v) })} money />
+                    <NumField label={t("JKP Pegawai (0% — PP 6/2025)", "JKP Employee (0% — GR 6/2025)")} value={String((reg.jkpEmployeeRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpEmployeeRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("JKP Rekomposisi JKK (informatif)", "JKP JKK Reallocation (informative)")} value={String((reg.jkpCompanyRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpCompanyRate: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Cap Upah JKP", "JKP Salary Cap")} value={String(reg.jkpSalaryCap ?? 0)} onChange={(v) => setReg({ ...reg, jkpSalaryCap: num(v) })} money />
                   </div>
                   <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
                     {t(
-                      "Jaminan Kehilangan Pekerjaan (PP 6/2025): total iuran 0,46% dari upah s.d. plafon — 0,24% dipotong dari pekerja (pengurang penghasilan bruto PPh21), 0,22% beban perusahaan. Manfaat diklaim pekerja saat PHK (aktifkan komponen JKP_C/JKP_E di template gaji).",
-                      "Unemployment insurance (GR 6/2025): total 0.46% of capped wage — 0.24% deducted from the employee (PPh21 income reduction), 0.22% employer cost. Claimed by the worker on termination (enable JKP_C/JKP_E in wage templates).",
+                      "Jaminan Kehilangan Pekerjaan (PP 6/2025 Ps.11): iuran 0,36% dari upah s.d. plafon = 0,22% ditanggung APBN + 0,14% REKOMPOSISI iuran JKK yang sudah dibayar perusahaan. TIDAK ADA potongan pekerja (0%) dan TIDAK ADA beban iuran baru perusahaan — nilai 0,14% di sini informatif utk rekap BPJS. Manfaat diklaim pekerja saat PHK.",
+                      "Unemployment insurance (GR 6/2025 Art.11): 0.36% of capped wage = 0.22% government (APBN) + 0.14% reallocated from the already-paid JKK premium. NO employee deduction (0%) and NO new employer cost — the 0.14% here is informative for the BPJS recap. Claimed by the worker on termination.",
                     )}
                   </p>
                 </CardContent>

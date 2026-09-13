@@ -3,7 +3,9 @@
 // Status PTKP karyawan diturunkan dari data keluarga (EmployeeFamily) yang
 // tersimpan sebagai tanggungan, sesuai peraturan perpajakan Indonesia:
 //
-//   · UU PPh Pasal 7 ayat (1) + PMK 168/2023 (berlaku sejak TA 2024):
+//   · UU PPh Pasal 7 ayat (1) + PMK 101/2016 (besaran PTKP — masih berlaku
+//     s.d. TA 2026; PMK 168/2023 adalah aturan TEKNIS PPh21/TER, BUKAN
+//     pengatur besaran PTKP — F-08 BPA-AUDIT-53):
 //     - PTKP diri WP: Rp 54.000.000 (TK/0)
 //     - Kawin (suami/istri tanggungan): +Rp 4.500.000 → K/0
 //     - Setiap tanggungan: +Rp 4.500.000, PALING BANYAK 3 ORANG.

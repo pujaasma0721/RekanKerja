@@ -129,6 +129,15 @@ export interface EngineRow {
   regularIncomeYtd?: number;
   regularIuranYtd?: number;
   regularMonthsYtd?: number;
+  // F-04 BPA-AUDIT-53 — true-up MASA PAJAK TERAKHIR (PMK 168/2023):
+  // run SALARY Desember ATAU period terakhir karyawan yang berhenti.
+  // brutoYtd/iuranYtd/taxWithheldYtd = Σ dari run Confirmed/Paid periode
+  // Jan s.d. SEBELUM period ini (dirakit payroll-service; run TERMINATION
+  // & YEAR_END_ADJ dikecualikan — pesangon dipajaki final terpisah).
+  lastTaxPeriod?: boolean;
+  brutoYtd?: number;
+  iuranYtd?: number;
+  taxWithheldYtd?: number;
 }
 
 export interface EngineItem {
@@ -164,6 +173,8 @@ export interface EngineLineResult {
   // D-4: peringatan mesin (bukan catatan slip) — mis. fallback TER →
   // dipersist oleh payroll-service sebagai ActivityLog agar ter-audit.
   warnings?: string[];
+  // F-04 BPA-AUDIT-53: baris ini dihitung dengan true-up masa pajak terakhir.
+  lastTaxPeriod?: boolean;
 }
 
 export interface EngineRunResult {
@@ -187,11 +198,15 @@ export function ptkpValueOf(taxStatus: string): number {
   return PTKP_ANNUAL[taxStatus] ?? PTKP_ANNUAL.TK0;
 }
 
-// Kategori TER (PP 58/2023): A = TK0-1/K0-1, B = TK2-3/K2-3/KI0-1, C = KI2-3.
+// Kategori TER (Lampiran PMK 168/2023 hlm. 9 — PTKP menentukan kategori):
+//   TER A = TK/0 (54jt); TK/1 & K/0 (58,5jt)
+//   TER B = TK/2 & K/1 (63jt); TK/3 & K/2 (67,5jt)   [+ K/I/0 (63jt), K/I/1 (67,5jt)]
+//   TER C = K/3 (72jt)                                [+ K/I/2 (72jt), K/I/3 (76,5jt)]
+// F-03 BPA-AUDIT-53: K1 salah di A (harus B), K3 salah di B (harus C).
 export function terCategoryOf(taxStatus: string): "A" | "B" | "C" {
-  if (["KI2", "KI3"].includes(taxStatus)) return "C";
-  if (["TK2", "TK3", "K2", "K3", "KI0", "KI1"].includes(taxStatus)) return "B";
-  return "A";
+  if (["K3", "KI2", "KI3"].includes(taxStatus)) return "C";
+  if (["TK2", "TK3", "K1", "K2", "KI0", "KI1"].includes(taxStatus)) return "B";
+  return "A"; // TK0, TK1, K0
 }
 
 export const TAX_STATUS_LABEL: Record<string, string> = {
@@ -553,7 +568,59 @@ export function runPayroll(
     let actualNetTax: number | null = null;
     let taxAllowance = 0;
 
-    if (supplementalCtx && irregularIncome > 0) {
+    // --- 5t. F-04 BPA-AUDIT-53 — MASA PAJAK TERAKHIR (PMK 168/2023) -------
+    // Run SALARY Desember ATAU period terakhir karyawan berhenti (leaver):
+    // PPh21 masa ini = PPh21 SETAHUN (Pasal 17 atas bruto setahun aktual −
+    // biaya jabatan 5% capped 6jt/TAHUN − iuran pensiun pegawai setahun −
+    // PTKP) DIKURANGI PPh21 yang telah dipotong masa pajak sebelumnya
+    // (YTD Jan–Nov + run suplemental, dirakit payroll-service). Seluruh
+    // penghasilan ireguler bulan ini ikut basis setahun (tidak dihitung
+    // progresif terpisah — PMK 168: Desember selalu Pasal 17 penuh).
+    // Catatan: zakat/sumbangan wajib resmi ikut pengurang neto — belum
+    // dimodelkan OneVity (komponen zakat dapat ditambahkan di masa depan).
+    const isLastTaxPeriod = row.lastTaxPeriod === true && opts.calculateTax;
+    const computeTrueUpOn = (bruto: number): TaxComputation => {
+      const annualBruto = (row.brutoYtd ?? 0) + bruto + irregularIncome;
+      const annualIuran = (row.iuranYtd ?? 0) + taxDeductibleIuran;
+      const biayaJabatanAnnual = Math.min(
+        annualBruto * reg.biayaJabatanRate,
+        reg.biayaJabatanCapMonthly * 12,
+      );
+      const pkpAnnual = Math.max(0, floorToThousand(annualBruto - annualIuran - biayaJabatanAnnual - ptkpValue));
+      const taxAnnual = progressiveTax(pkpAnnual, brackets, emp.hasNpwp);
+      return {
+        taxRegular: Math.max(0, Math.round(taxAnnual - (row.taxWithheldYtd ?? 0))),
+        taxIrregular: 0,
+        biayaJabatan: biayaJabatanAnnual,
+        terUsed: false,
+        terFallback: false,
+      };
+    };
+
+    if (isLastTaxPeriod) {
+      taxInfo = computeTrueUpOn(grossBeforeTax);
+      if (emp.processMethod === "NetToGross") {
+        // Gross-up iteratif: tunjangan pajak menambah bruto setahun → pajak
+        // tahunan naik → iterasi hingga konvergen (≤ 0,5 rupiah).
+        let extra = 0;
+        for (let i = 0; i < 30; i++) {
+          const t = computeTrueUpOn(grossBeforeTax + extra);
+          const nextExtra = t.taxRegular;
+          if (Math.abs(nextExtra - extra) < 0.5) { extra = nextExtra; taxInfo = t; break; }
+          extra = nextExtra;
+          taxInfo = computeTrueUpOn(grossBeforeTax + extra);
+        }
+        taxAllowance = Math.round(extra);
+        if (taxAllowance > 0) {
+          items.push({
+            code: "TAX_ALLOW", name: "Tunjangan PPh21 Ditanggung Perusahaan", wageType: "Compensation",
+            type: "Earning", incomeTaxMethod: "Regular", amount: taxAllowance,
+            note: "Gross-up pajak masa pajak terakhir (NetToGross)", sortOrder: sortOrder++,
+          });
+        }
+        actualNetTax = taxInfo.taxRegular;
+      }
+    } else if (supplementalCtx && irregularIncome > 0) {
       // --- 5a. K-1: run suplemental dengan konteks kumulatif masa pajak ---
       taxInfo = computeSupplementalTaxOn(irregularIncome);
       if (emp.processMethod === "NetToGross" && opts.calculateTax) {
@@ -608,12 +675,14 @@ export function runPayroll(
       items.push({
         code: "PPH21", name: "PPh21 (PPh Pasal 21)", wageType: "IncomeTax",
         type: "Deduction", incomeTaxMethod: "NonTaxable", amount: empTaxTotal,
-        note: taxInfo.terUsed
-          ? "Metode TER (PP 58/2023)"
+        note: isLastTaxPeriod
+          ? "Masa pajak terakhir — Pasal 17 atas penghasilan setahun dikurangi PPh21 yang telah dipotong (PMK 168/2023)"
+          : taxInfo.terUsed
+          ? "Metode TER (PMK 168/2023)"
           : taxInfo.terFallback
             ? "Progresif Pasal 17 (fallback — TER tidak ditemukan)"
             : irregularMonth
-              ? "Progresif Pasal 17 (bulan ireguler — PP 58/2023)"
+              ? "Progresif Pasal 17 (bulan ireguler — PMK 168/2023)"
               : "Progresif annualized",
         sortOrder: sortOrder++,
       });
@@ -647,6 +716,7 @@ export function runPayroll(
       actualNetTax,
       notes: row.prorateFactor < 1 ? `Prorata masa kerja ${(row.prorateFactor * 100).toFixed(0)}%` : null,
       ...(terWarnings.length ? { warnings: terWarnings } : {}),
+      ...(isLastTaxPeriod ? { lastTaxPeriod: true } : {}),
     };
     lines.push(line);
     totalBruto += line.bruto;

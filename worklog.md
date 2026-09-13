@@ -1088,3 +1088,26 @@ Stage Summary (matriks temuan — 4 KRITIS, 3 SEDANG, 4 RENDAH):
 - ✅ Patuh terverifikasi ulang: bracket Pasal 17 + non-NPWP ×1,2, biaya jabatan 5%/500rb-bl, basis TER=bruto, bulan ireguler→Pasal 17, iuran JHT+JP pengurang neto, formula kompensasi masa/12×upah, keguguran 1,5 bln, suami 2 hari, 40 jam (8×5/6×7) + ≤8 jam/hari, PKWT >5th 409+force, BPJS rates.
 - PRIORITAS REMEDIASI (bila "perbaiki"): R1 JKP segera (aktif) → R2 re-seed TER resmi → R3 mapping kategori → R4 true-up Desember → R5 kompensasi resign → R6 PPh kompensasi → R7 melahirkan 3+3 → R8 kutipan → R9 istirahat mingguan.
 - Laporan lengkap + bukti DB live + sumber: audit/BPA-AUDIT-53.md.
+
+---
+Task ID: 54
+Agent: orchestrator (Z.ai)
+Task: "perbaiki semua" — implementasi penuh remediasi audit BPA-AUDIT-53 (Task 49-52 vs peraturan pemerintah): R1-R9 (JKP PP 6/2025, tabel TER resmi, mapping kategori TER, true-up masa pajak terakhir, kompensasi PKWT resign, PPh final lapisan, cuti melahirkan 3+3, kutipan regulasi, istirahat mingguan).
+
+Work Log:
+- Riset sumber resmi: unduh PDF PMK 168/2023 dari pajak.go.id, ekstrak tabel TER Kategori A/B/C VERBATIM (hlm. 9-12; 44/40/41 lapisan, max 34% — bukan 36×3=108 seperti dugaan audit) + formula masa pajak terakhir.
+- F-02: modul sumber tunggal src/onevity/payroll/services/ter-official.ts; ganti tabel lama di prisma/seed.ts & provisioning.ts; migrasi scripts/migrate-audit53.ts (DELETE+INSERT 125 baris, id deterministik). Validasi silang 9 contoh resmi DJP dalam PDF — 9/9 cocok.
+- F-03: terCategoryOf dikoreksi — A: TK0/TK1/K0 · B: TK2/TK3/K1/K2/KI0/KI1 · C: K3/KI2/KI3 (K1 dari A→B, K3 dari B→C).
+- F-04: true-up masa pajak terakhir di payroll-engine (computeTrueUpOn + jalur NetToGross iteratif) + konteks YTD (bruto/iuran/dipotong) di buildRunRows dari run Confirmed/Paid non-TERMINATION/YEAR_END_ADJ; deteksi Desember (endDate month=11, BUKAN max-endDate — bug heuristik pertama salah memicu true-up di Sep, ditemukan via E2E run Sep totalTax=0, diperbaiki) + leaver (status≠Active/endDate).
+- F-01: struktur JKP PP 6/2025 Ps.11 benar (0,36% = 0,22% APBN + 0,14% rekomposisi JKK): provisioning tanpa JKP_C/JKP_E + rate 0/0.0014; migrate-jkp.ts ditulis ulang (UPDATE regulasi + nonaktifkan komponen + DELETE item template DEFAULT/BS); schema-tenant.prisma default baru + db:generate; UI parameter + rekap BPJS (header + jkpNote informatif) + preview default.
+- F-05/F-06: settlement-service — gate !isResignation dihapus (PP 35 Ps.17 salah satu pihak); finalTerminationTax(base, hasNpwp) tarif lapisan + non-NPWP ×120%; baris PKWT_TAX terpisah; PKWT_KOMP → SeveranceFinal (find-or-create di migrasi).
+- F-07: CT-LAHIR-P 3+3 bersyarat (entitlement 3, max 6, allowAdvance) + gerbang surat dokter di leave-service submitRequest; gerbang memakai BULAN KALENDER (bug konversi ÷21 ditemukan saat E2E: 3 bln kalender ≈ 3,1 satuan — salah memicu gerbang & maxPer; diperbaiki dengan calMonthsOf).
+- F-08: kutipan ptkp-auto.ts (PMK 101/2016 sumber PTKP), deskripsi CT-LAHIR/CT-GUGUR-I (UU 13/2003 Ps.93), CT-LAHIR-P (UU KIA Ps.4(3)(a)), header settlement (PP 36/2021).
+- F-09: assertWeeklyHours menolak cycle tanpa hari Off (rata-rata ≥1 hari istirahat/minggu, UU 13 Ps.79(2)).
+- Parity: step "audit53" + label jkp direvisi + 5 marker gap (terOfficial/terOld/jkpFixed/maternity3/pkwtFinal).
+- Verifikasi: migrasi 3 tenant sukses; checkParityGap {gap:false, readySchemas:3}; uji engine terisolasi true-up EKSAK (216.250; over-withheld→0) + mapping 12/12; API E2E: run Sep normal (progresif, tanpa JKP), run Desember true-up ter-plumbing (YTD 3 bln<PTKP→0, benar; data uji dibersihkan + run Sep dikembalikan Draft), cuti 6bln tanpa surat DITOLAK/dengan surat DIBUAT (dibersihkan), settlement resign MII00013 (PKWT_KOMP 57.712.500 + PKWT_TAX 771.250 = 10%×7.712.500 eksak), jadwal 7-hari-kerja DITOLAK; browser: Parameter Pajak (JKP 0%/0,14% + teks benar) & Jenis Cuti (3 bln + Ps.4(3)(a)) render, tanpa error console, mobile 390px tanpa overflow, footer ada; lint & tsc bersih; dev.log tanpa 500.
+
+Stage Summary:
+- SELURUH temuan BPA-AUDIT-53 R1-R9 terimplementasi & terverifikasi (F-10 dipertahankan by design; F-11 catatan review tahunan). Parity 3/3 tenant hijau.
+- Artefak: audit/BPA-FIX-54.md (dokumentasi remediasi), ter-official.ts (sumber tunggal tabel TER resmi), migrate-audit53.ts, migrate-jkp.ts revisi.
+- Angka kunci tervalidasi: TER resmi 125 baris (contoh DJP 9/9); true-up Desember eksak; PKWT final 10% lapisan eksak; JKP 0% pekerja + 0,14% rekomposisi (0 potongan THP tidak sah dihilangkan).

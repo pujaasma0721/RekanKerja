@@ -25,6 +25,16 @@ function assertWeeklyHours(
   const cycleDays = days.length;
   const weeklyAvg = Math.round((sumMinutes * 7) / cycleDays);
   const workdaysPerWeek = (workdays * 7) / cycleDays;
+  // F-09 BPA-AUDIT-53 — UU 13/2003 Ps.79 ayat (2): WAJIB 1 hari istirahat
+  // mingguan. Cycle tanpa hari Off/Holiday (mis. 7 hari kerja × 6 jam =
+  // 2520 menit — lolos batas pola 6 hari sebelumnya) ditolak: rata-rata
+  // hari libur per minggu harus ≥ 1 (proporsi cycle × 7).
+  const offPerWeek = ((cycleDays - workdays) * 7) / cycleDays;
+  if (offPerWeek < 0.99) {
+    throw new Error(
+      `Cycle ${cycleDays} hari tanpa hari istirahat mingguan (UU 13/2003 Ps.79(2) — wajib ≥1 hari Off/Libur per minggu). Tambahkan tipe hari Off ke cycle.`,
+    );
+  }
   // pola 6 hari kerja × 7 jam (UU 13/2003 Ps.77(1)(b)): toleransi pembulatan
   // (6.0 tepat, bukan hanya > 6.02) & tiap hari kerja ≤ 7 jam.
   const sixDayPattern = workdaysPerWeek >= 5.98 && maxDayMinutes <= 420;

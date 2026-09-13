@@ -149,7 +149,9 @@ export async function GET(req: NextRequest) {
           jpEmployeeRate: 0.01, jpCompanyRate: 0.02, jpSalaryCap: 10_547_400,
           jkkRate: 0.0024, jkmRate: 0.003,
           jpkCompanyRate: 0.04, jpkEmployeeRate: 0.01, jpkSalaryCap: 12_000_000,
-          jkpCompanyRate: 0.0022, jkpEmployeeRate: 0.0024, jkpSalaryCap: 5_000_000,
+          // F-01 BPA-AUDIT-53 — JKP PP 6/2025: 0% pekerja (tanpa potongan),
+          // 0,14% rekomposisi JKK (informatif — bukan beban iuran baru).
+          jkpCompanyRate: 0.0014, jkpEmployeeRate: 0, jkpSalaryCap: 5_000_000,
           nonNpwpSurcharge: 0.2, useTer: false,
         };
 

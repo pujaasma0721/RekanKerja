@@ -711,13 +711,13 @@ model PayrollRegulation {
   jpkCompanyRate         Float     @default(0.04)
   jpkEmployeeRate        Float     @default(0.01)
   jpkSalaryCap           Float     @default(12000000)
-  // Task 52-c — JKP (Jaminan Kehilangan Pekerjaan, PP 6/2025): iuran 0,22%
-  // pemberi kerja + 0,24% pekerja dari upah bulanan, batas upah Rp 5.000.000.
-  // Iuran pekerja = potongan THP & pengurang penghasilan bruto PPh21 (perlakuan
-  // iuran jaminan sosial seperti JP); iuran perusahaan = beban non-objek PPh21.
-  // Manfaat diklaim pekerja saat PHK — checklist offboarding + surat keterangan.
-  jkpEmployeeRate        Float     @default(0.0024)
-  jkpCompanyRate         Float     @default(0.0022)
+  // Task 52-c — JKP (Jaminan Kehilangan Pekerjaan, PP 6/2025): manfaat
+  // diklaim pekerja saat PHK — checklist offboarding + surat keterangan.
+  // F-01 BPA-AUDIT-53 — JKP PP 6/2025 Ps.11: TANPA iuran pekerja (0);
+  // jkpCompanyRate 0,0014 = porsi rekomposisi JKK (informatif laporan BPJS,
+  // bukan beban iuran baru).
+  jkpEmployeeRate        Float     @default(0)
+  jkpCompanyRate         Float     @default(0.0014)
   jkpSalaryCap           Float     @default(5000000)
   nonNpwpSurcharge       Float     @default(0.2)
   useTer                 Boolean   @default(false)

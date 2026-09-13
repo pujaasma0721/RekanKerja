@@ -11,9 +11,10 @@
 //   (f) THR prorata — masa kerja tahun berjalan/12 × upah (≥1 th → penuh)
 //   (g) penggantian hak — bonus pro-rata (opsional)
 //   (h) potongan — sisa pinjaman karyawan aktif + saldo cuti negatif
-//   (i) PPh21 FINAL (UU 36/2008 Pasal 17(1)(d) / PP 68/2009 Pasal 5(3)):
-//       0-50jt 0% · 50-100jt 10% · 100-500jt 20% · >500jt 25%
-//       atas kelompok pesangon (pesangon + uang pisah + penggantian hak).
+//   (i) PPh21 FINAL (UU 36/2008 Ps.17(1)(d) jo. PP 36/2021 — menggantikan
+//       PP 68/2009): 0% ≤50jt · 10% >50–100jt · 20% >100–500jt · 25% >500jt
+//       (+×120% non-NPWP) atas kelompok pesangon (pesangon + uang pisah +
+//       penggantian hak); kompensasi PKWT dipajaki final terpisah (PKWT_TAX).
 //
 // Hasil breakdown dipetakan ke EmployeeComponentAssignment Specific
 // (period × ProcessType TERMINATION) — komponen standar find-or-create:
@@ -74,6 +75,10 @@ export interface SettlementResult {
   taxBase: number;
   taxBrackets: SettlementTaxBracketRow[];
   tax: number;
+  /** F-06 BPA-AUDIT-53 — PPh final lapisan atas uang kompensasi PKWT */
+  pkwtKomp: number;
+  pkwtTaxBrackets: SettlementTaxBracketRow[];
+  pkwtTax: number;
   /** total potongan non-pajak (pinjaman + cuti negatif) */
   deductions: number;
   /** grand net = gross − deductions − tax */
@@ -121,7 +126,9 @@ function pesangonMonthsFor(totalMonths: number): number {
   return 0;
 }
 
-// PPh21 FINAL kelompok pesangon (UU 36/2008 — iuran final, tanpa PTKP).
+// PPh21 FINAL kelompok pesangon (UU 36/2008 Ps.17(1)(d) jo. PP 36/2021 —
+// iuran final, tanpa PTKP). F-06 BPA-AUDIT-53: non-NPWP dikenai tarif
+// ×120% (UU 36/2008 Ps.21(3)(b) — PP 38/2009 Ps.17(1)(d)).
 const FINAL_TAX_BRACKETS: { lower: number; upper: number | null; rate: number }[] = [
   { lower: 0, upper: 50_000_000, rate: 0 },
   { lower: 50_000_000, upper: 100_000_000, rate: 0.1 },
@@ -129,12 +136,13 @@ const FINAL_TAX_BRACKETS: { lower: number; upper: number | null; rate: number }[
   { lower: 500_000_000, upper: null, rate: 0.25 },
 ];
 
-export function finalTerminationTax(base: number): { tax: number; brackets: SettlementTaxBracketRow[] } {
+export function finalTerminationTax(base: number, hasNpwp = true): { tax: number; brackets: SettlementTaxBracketRow[] } {
+  const surcharge = hasNpwp ? 1 : 1.2;
   const brackets: SettlementTaxBracketRow[] = [];
   let tax = 0;
   for (const b of FINAL_TAX_BRACKETS) {
     const taxable = Math.max(0, Math.min(base, b.upper ?? Infinity) - b.lower);
-    const t = Math.round(taxable * b.rate);
+    const t = Math.round(taxable * b.rate * surcharge);
     brackets.push({ lowerLimit: b.lower, upperLimit: b.upper, rate: b.rate, taxable, tax: t });
     tax += t;
   }
@@ -254,7 +262,7 @@ export async function computeTerminationSettlement(
   const pesangon = isResignation ? 0 : Math.round(pesangonMonths * upah * multiplier);
   if (isResignation) {
     notes.push(
-      "Penggantian hak (UU 13/2003 Ps.156(2)(c)) utk Resignation/Retirement — tanpa pesangon/UPMK, tanpa uang pisah, tanpa THR prorata (bukan PHK); upah bulan terakhir dibayar terpisah via run SALARY",
+      "Penggantian hak (UU 13/2003 Ps.156(2)(c)) utk Resignation/Retirement — tanpa pesangon/UPMK, tanpa uang pisah, tanpa THR prorata (bukan PHK); uang KOMPENSASI PKWT tetap dibayarkan (PP 35/2021 Ps.17 — “salah satu pihak” mencakup pengunduran diri); upah bulan terakhir dibayar terpisah via run SALARY",
     );
   } else if (pesangon > 0) {
     rows.push({
@@ -306,15 +314,14 @@ export async function computeTerminationSettlement(
     rows.push({ code: "THR_PRORATA", label: "THR Prorata", kind: "Earning", amount: thrAmount, note: thrNote });
   }
 
-  // --- (d2) uang kompensasi PKWT — Task 52-b (PP 35/2021 Ps.15-16) ---
-  // Pekerja PKWT yang hubungan kerjanya BERAKHIR (jangka waktu habis / PHK /
-  // selesainya pekerjaan) berhak: 1 bulan upah per 12 bulan masa kerja,
-  // PRORATA utk masa kerja < 12 bulan (Ps.16 ayat 1). Nilai TIDAK termasuk
-  // objek PPh (final 0%) — dikeluarkan dari kelompok pesangon di blok (i)
-  // dan komponen wage-nya NonTaxable. Resignation TIDAK berhak (bukan
-  // pengakhiran oleh pemberi kerja / jangka waktu).
+  // --- (d2) uang kompensasi PKWT — Task 52-b + F-05 BPA-AUDIT-53 (PP 35/2021 Ps.15-17) ---
+  // PP 35/2021 Ps.17: "Dalam hal SALAH SATU PIHAK mengakhiri hubungan kerja
+  // sebelum berakhirnya jangka waktu PKWT, pengusaha wajib memberikan uang
+  // kompensasi" — mencakup PENGUNDURAN DIRI (pengakhiran oleh pekerja),
+  // bukan hanya PHK/kontrak habis. 1 bulan upah per 12 bulan masa kerja,
+  // PRORATA utk masa kerja < 12 bulan (Ps.16 ayat 1).
   const isPkwt = PKWT_STATUSES.has(assignment.employmentStatus ?? "");
-  if (!isResignation && isPkwt) {
+  if (isPkwt) {
     const kompensasiFactor = Math.round((tenure.totalMonths / 12) * 100) / 100;
     const kompensasi = Math.round((tenure.totalMonths / 12) * upah);
     if (kompensasi > 0) {
@@ -323,7 +330,7 @@ export async function computeTerminationSettlement(
         label: "Uang Kompensasi PKWT",
         kind: "Earning",
         amount: kompensasi,
-        note: `PKWT (${assignment.employmentStatus}) — ${tenure.totalMonths} bln masa kerja / 12 = ${kompensasiFactor} bln × ${fmtRp(upah)} — PP 35/2021 Ps.15; PPh final 0% (Ps.16)`,
+        note: `PKWT (${assignment.employmentStatus}${isResignation ? ", diakhiri pekerja" : ""}) — ${tenure.totalMonths} bln masa kerja / 12 = ${kompensasiFactor} bln × ${fmtRp(upah)} — PP 35/2021 Ps.15-16 (Ps.17: salah satu pihak, termasuk pengunduran diri)`,
       });
     } else {
       notes.push("Uang kompensasi PKWT: masa kerja < 1 bulan — belum berhak (PP 35/2021 Ps.16)");
@@ -437,26 +444,52 @@ export async function computeTerminationSettlement(
   }
 
   // --- (i) PPh21 final atas kelompok pesangon ---
-  // (pesangon + uang pisah + seluruh penggantian hak — PP 68/2009 Pasal 5(3))
-  // Task 52-b — uang kompensasi PKWT DIKECUALIKAN dari basis pajak final
-  // (PP 35/2021 Ps.16: bukan objek PPh — potongan 0%).
+  // (pesangon + uang pisah + seluruh penggantian hak — PP 36/2021):
+  // 0% ≤50jt · 10% >50–100jt · 20% >100–500jt · 25% >500jt (+×120% non-NPWP).
+  // Uang kompensasi PKWT dipajaki final SECARA TERPISAH (blok i2 — F-06):
+  // diperlakukan pada kelompok penggantian hak yang sama tarif lapisannya.
+  const profile = await db.employeePayrollProfile.findUnique({
+    where: { employeeId },
+    select: { hasNpwp: true },
+  });
+  const hasNpwp = profile?.hasNpwp ?? true;
   const pesangonGroup = rows
     .filter((r) => r.kind === "Earning" && r.code !== "PKWT_KOMP")
     .reduce((s, r) => s + r.amount, 0);
-  const { tax, brackets } = finalTerminationTax(pesangonGroup);
+  const { tax, brackets } = finalTerminationTax(pesangonGroup, hasNpwp);
   if (tax > 0) {
     rows.push({
       code: "PHK_TAX",
       label: "PPh21 Final PHK",
       kind: "Deduction",
       amount: tax,
-      note: `Iuran final atas ${fmtRp(pesangonGroup)}: 0-50jt 0% · 50-100jt 10% · 100-500jt 20% · >500jt 25% (UU 36/2008)`,
+      note: `Tarif final atas ${fmtRp(pesangonGroup)}: 0-50jt 0% · 50-100jt 10% · 100-500jt 20% · >500jt 25% (PP 36/2021)${hasNpwp ? "" : " · non-NPWP ×120%"}`,
+    });
+  }
+
+  // --- (i2) F-06 BPA-AUDIT-53 — PPh final lapisan atas uang kompensasi PKWT ---
+  // PP 36/2021 mengenakan PPh final atas "uang pesangon, uang penggantian
+  // hak" — uang kompensasi PKWT (PP 35/2021 Ps.17) lazim diperlakukan pada
+  // kelompok ini (bukan objek Pasal 17 progresif). Lapisan: 0/10/20/25%
+  // (+×120% non-NPWP) — sebelumnya di-hardcode 0% untuk semua besaran
+  // (under-withholding utk kompensasi > Rp50jt: PKWT ≥5 th × upah ≥10jt).
+  const pkwtKomp = rows
+    .filter((r) => r.code === "PKWT_KOMP" && r.kind === "Earning")
+    .reduce((s, r) => s + r.amount, 0);
+  const { tax: pkwtTax, brackets: pkwtTaxBrackets } = finalTerminationTax(pkwtKomp, hasNpwp);
+  if (pkwtTax > 0) {
+    rows.push({
+      code: "PKWT_TAX",
+      label: "PPh21 Final atas Kompensasi PKWT",
+      kind: "Deduction",
+      amount: pkwtTax,
+      note: `Tarif final atas ${fmtRp(pkwtKomp)}: 0-50jt 0% · 50-100jt 10% · 100-500jt 20% · >500jt 25% (PP 36/2021 — kelompok penggantian hak)${hasNpwp ? "" : " · non-NPWP ×120%"}`,
     });
   }
 
   const gross = rows.filter((r) => r.kind === "Earning").reduce((s, r) => s + r.amount, 0);
-  const deductions = rows.filter((r) => r.kind === "Deduction" && r.code !== "PHK_TAX").reduce((s, r) => s + r.amount, 0);
-  const net = gross - deductions - tax;
+  const deductions = rows.filter((r) => r.kind === "Deduction" && r.code !== "PHK_TAX" && r.code !== "PKWT_TAX").reduce((s, r) => s + r.amount, 0);
+  const net = gross - deductions - tax - pkwtTax;
 
   if (reason) notes.push(`Alasan PA: ${reason}`);
 
@@ -476,6 +509,9 @@ export async function computeTerminationSettlement(
     taxBase: pesangonGroup,
     taxBrackets: brackets,
     tax,
+    pkwtKomp,
+    pkwtTaxBrackets,
+    pkwtTax,
     deductions,
     net,
     notes,
@@ -503,12 +539,15 @@ const SETTLEMENT_COMPONENTS: SettlementCompDef[] = [
   { code: "THR_PRORATA", name: "THR Prorata (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
   { code: "CUTI_CASH", name: "Uang Pengganti Cuti (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
   { code: "BONUS_PRO_RATA", name: "Bonus Pro-rata (PHK)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
-  // Task 52-b — uang kompensasi PKWT (PP 35/2021 Ps.15-16): NonTaxable →
-  // engine tidak memotong pajak & tidak masuk basis PPh final settlement.
-  { code: "PKWT_KOMP", name: "Uang Kompensasi PKWT (PP 35/2021)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "NonTaxable", accountDebitCode: "5102" },
+  // Task 52-b + F-06 BPA-AUDIT-53 — uang kompensasi PKWT (PP 35/2021
+  // Ps.15-17): SeveranceFinal → engine payroll TIDAK memotong pajak
+  // progresif atas baris ini (PPh final lapisan dihitung settlement-service
+  // sebagai baris PKWT_TAX — kelompok penggantian hak PP 36/2021).
+  { code: "PKWT_KOMP", name: "Uang Kompensasi PKWT (PP 35/2021)", type: "Earning", wageType: "Compensation", incomeTaxMethod: "SeveranceFinal", accountDebitCode: "5102" },
   { code: "PHK_POT_CUTI", name: "Potongan Cuti Lebih (PHK)", type: "Deduction", wageType: "Deduction", incomeTaxMethod: "NonTaxable", accountCreditCode: "2105" },
   { code: "PHK_POT_LOAN", name: "Potongan Sisa Pinjaman (PHK)", type: "Deduction", wageType: "Deduction", incomeTaxMethod: "NonTaxable", accountCreditCode: "2104" },
   { code: "PHK_TAX", name: "PPh21 Final PHK", type: "Deduction", wageType: "FinalTax", incomeTaxMethod: "NonTaxable", accountCreditCode: "2102" },
+  { code: "PKWT_TAX", name: "PPh21 Final atas Kompensasi PKWT", type: "Deduction", wageType: "FinalTax", incomeTaxMethod: "NonTaxable", accountCreditCode: "2102" },
 ];
 
 /** Temukan/buat komponen wage standar settlement — idempoten per kode. */
