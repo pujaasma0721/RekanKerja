@@ -43,7 +43,7 @@ export interface EssEmployee {
   employmentStatus: string | null;
   taxId: string | null;
   bpjsHealth: string | null;
-  bpjsEmpskill: string | null;
+  bpjsEmpSkill: string | null;
 }
 
 export interface EssMe {

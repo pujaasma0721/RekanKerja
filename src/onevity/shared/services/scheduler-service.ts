@@ -49,6 +49,7 @@ import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { db as platformDb } from "@/lib/db";
 import { getTenantClient, type TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/onevity/shared/services/email-defaults";
 import { notifyEmailEvent, type EmailRecipient } from "@/onevity/shared/services/email-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
@@ -601,6 +602,16 @@ async function jobDocumentExpiryReminders(db: TenantDb): Promise<{ docs: number;
   }
 
   const hrTo = await hrRecipients(db);
+  // Task 55 — docNumber tersimpan TERENKRIPSI (52-d): dekripsi di batas
+  // pemakaian. Best-effort per baris: nilai tak terbaca (kunci vault belum
+  // termuat) → fallback label generik, pengingat tetap terkirim (isi email
+  // TIDAK membocorkan ciphertext mentah — jangan tampilkan enc:… ke user).
+  let tcDoc: ReturnType<typeof tenantCryptoForDb> | null = null;
+  try {
+    tcDoc = tenantCryptoForDb(db);
+  } catch {
+    tcDoc = null; // client tanpa brand (transaksi?) — fallback label
+  }
   let sent = 0;
   let notif = 0;
   for (const doc of docs) {
@@ -610,7 +621,19 @@ async function jobDocumentExpiryReminders(db: TenantDb): Promise<{ docs: number;
     const empNo = doc.employee?.employeeNo ?? "-";
     const nama = doc.employee?.fullName ?? "-";
     const tanggal = fmtDate(doc.expiresAt);
-    const docNo = doc.docNumber?.trim() || `${doc.docType}-${doc.id.slice(-6).toUpperCase()}`;
+    // Task 55 — dekripsi nomor dokumen (best-effort): gagal/kunci tak termuat
+    // → label generik, JANGAN pernah menulis ciphertext mentah ke pesan.
+    let plainDocNo: string | null = doc.docNumber;
+    if (plainDocNo && tcDoc) {
+      try {
+        plainDocNo = tcDoc.decryptText(plainDocNo);
+      } catch {
+        plainDocNo = null;
+      }
+    } else if (plainDocNo && /^enc:v[12]:/.test(plainDocNo)) {
+      plainDocNo = null; // tanpa konteks crypto → jangan bocorkan ciphertext
+    }
+    const docNo = plainDocNo?.trim() || `${doc.docType}-${doc.id.slice(-6).toUpperCase()}`;
     const statusText = days >= 0 ? `${days} hari lagi` : `lewat ${Math.abs(days)} hari`;
 
     const key = `reminder:doc:${doc.id}:30`;

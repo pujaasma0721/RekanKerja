@@ -148,15 +148,20 @@ export async function primeTenantCrypto(schema: string): Promise<void> {
     setVaultDataKey(schema, typeof hex === "string" && /^[0-9a-f]{64}$/i.test(hex) ? Buffer.from(hex, "hex") : null);
     vaultPrimed.add(schema);
   } catch (e) {
-    // Tabel belum ada / kolom belum termigrasi → jalur legacy (bukan error).
+    // Tabel belum ada / kolom belum termigrasi → jalur legacy (bukan error):
+    // NULL PERMANEN (schema ini memang tanpa vault) — tandai primed agar tidak
+    // di-query ulang tiap request.
     const code = (e as { code?: string }).code;
     if (code === "42P01" /* undefined_table */ || code === "42703" /* undefined_column */) {
       setVaultDataKey(schema, null);
       vaultPrimed.add(schema);
       return;
     }
-    // Gangguan koneksi — jangan tandai primed, coba lagi nanti.
-    setVaultDataKey(schema, null);
+    // Task 55 — gangguan koneksi sementara: JANGAN pin-null (bug lama:
+    // setVaultDataKey memanggil vaultPrimed.add sehingga SATU error transien
+    // membuat proses gagal membaca enc:v2 → 500 sampai restart). Biarkan
+    // cache kosong & schema TIDAK primed → request berikutnya prime ulang;
+    // pembacaan tetap fail-closed (throw) selama kunci belum termuat.
     console.warn(`[field-crypto] prime kunci vault schema ${schema} gagal (dicoba ulang nanti): ${code ?? (e instanceof Error ? e.message : String(e))}`);
   } finally {
     await c.end().catch(() => {});
@@ -397,6 +402,16 @@ function makeContext(schema: string): FieldCrypto {
     schema,
     encryptText(plain) {
       if (plain == null || plain === "") return plain == null ? null : "";
+      // Task 55 — GUARD DOUBLE-ENCRYPTION (akar bug "direktori menampilkan
+      // enc:v2:…"): bila input SUDAH bernilai terenkripsi (round-trip dari
+      // serializer lama yang pernah bocor ciphertext — vektor historis pra-43-f),
+      // tulis APA ADANYA (idempoten). Tanpa guard ini nilai mendapat lapisan
+      // kedua: decryptText melepas lapisan luar lalu "mengembalikan" ciphertext
+      // lapisan dalam seolah plaintext → UI menampilkan enc:… mentah.
+      // NIK/NPWP/rekening/BPJS dokumen tidak pernah sah dimulai "enc:" — nilai
+      // seperti itu pasti ciphertext; script migrate-unwrap-double-enc merapikan
+      // data historis yang sudah berlapis.
+      if (isEncrypted(String(plain))) return String(plain);
       return encrypt("t", String(plain));
     },
     decryptText(stored) {

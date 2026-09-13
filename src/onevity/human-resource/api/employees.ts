@@ -495,7 +495,25 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ employee }, { status: 201 });
+    // Task 55 — respons bentuk READ-PATH (pola PATCH employee-detail): PII
+    // terenkripsi by createEmployeeWithAssignment → dekripsi di batas
+    // serializer. Wizard kini hanya memakai id/nomor/nama, tapi konsumen
+    // respons ini tidak boleh menerima ciphertext mentah (vec. round-trip
+    // menulis ulang → double-encryption).
+    const tcResp = tenantCryptoForDb(db);
+    return NextResponse.json(
+      {
+        employee: {
+          ...employee,
+          nationalId: tcResp.decryptText(employee.nationalId),
+          taxId: tcResp.decryptText(employee.taxId),
+          bankAccount: tcResp.decryptText(employee.bankAccount),
+          bpjsHealth: employee.bpjsHealth == null ? null : tcResp.decryptText(employee.bpjsHealth),
+          bpjsEmpSkill: employee.bpjsEmpSkill == null ? null : tcResp.decryptText(employee.bpjsEmpSkill),
+        },
+      },
+      { status: 201 },
+    );
   } catch (e) {
     // FK prisma (P2003) → 400 ramah (fix M-06d: bukan 500)
     if ((e as { code?: string })?.code === "P2003") {

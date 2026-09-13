@@ -192,6 +192,10 @@ const STEPS: Step[] = [
   // 168/2023 (44/40/41 lapisan, max 34%) + F-07 cuti melahirkan 3+3 UU KIA
   // Ps.4(3)(a) + F-08 kutipan deskripsi + F-06 komponen PKWT_KOMP/PKWT_TAX.
   { key: "audit53", label: "Task 54/F-02 — tabel TER resmi PMK 168/2023 + cuti melahirkan 3+3 + PKWT final tax", run: (s) => import("../../../../scripts/migrate-audit53").then((m) => m.main(s)) },
+  // Task 55: repair double-encryption PII (bug "direktori menampilkan
+  // enc:v2:…"): buka lapisan ganda → tulis ulang satu lapis. Guard kini ada
+  // di encryptText; langkah ini merapikan data historis pra-guard (idempoten).
+  { key: "unwrap-double-enc", label: "Task 55 — buka enkripsi berlapis ganda (PII direktori enc:… mentah)", run: (s) => import("../../../../scripts/migrate-unwrap-double-enc").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

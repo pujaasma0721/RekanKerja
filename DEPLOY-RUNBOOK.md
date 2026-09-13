@@ -220,6 +220,7 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 | 26 | `jkp` (**BARU T52**) | Task 52-c — JKP PP 6/2025: kolom `PayrollRegulation.jkpEmployeeRate/jkpCompanyRate/jkpSalaryCap` (default 0,24%/0,22%/5jt — DEFAULT mengisi baris lama) + komponen `JKP_C`/`JKP_E` (formula JKP_BASE×rate) + item template DEFAULT/BS. |
 | 27 | `encrypt-pii` (**BARU T52**) | Task 52-d — enkripsi PII lanjutan: `Employee.bpjsHealth/bpjsEmpSkill`, `EmployeeDocument.docNumber`, `MedicalClaimLine.treatment` → `enc:v1:t` (idempoten; registry rekey 63 kolom). |
 | 28 | `whistleblow` (**BARU T52**) | Task 52-f — tabel `WhistleblowReport` (CREATE IF NOT EXISTS + 4 index) — kanal whistleblowing TPKS UU 12/2022. |
+| 29 | `unwrap-double-enc` (**BARU T55**) | Task 55 — buka PII/nilai berlapis-ganda pra-guard (bug "direktori menampilkan enc:… mentah"; skrip `migrate-unwrap-double-enc.ts` pindai 63 kolom registry, maks 5 lapis, idempoten). Guard akar masalah ada di `encryptText` (input `enc:` ditulis apa adanya). |
 
 ### 5.2.1 Enkripsi uang modul claim — catatan perilaku (Task 44 / M-8)
 

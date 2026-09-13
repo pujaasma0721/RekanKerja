@@ -54,8 +54,10 @@ export async function GET(req: Request) {
         employmentStatus: a?.employmentStatus ?? null,
         taxId: tenantCryptoForDb(db).decryptText(emp.taxId),
         // Task 52-d — no. BPJS terenkripsi (migrate-encrypt-pii) — dekripsi utk profil sendiri.
+        // Task 55 — kunci respons dibetulkan bpjsEmpSkill (semula "bpjsEmpskill"
+        // casing salah; ESS lama tidak membacanya — kini konsisten dgn serializer lain).
         bpjsHealth: tenantCryptoForDb(db).decryptText(emp.bpjsHealth),
-        bpjsEmpskill: tenantCryptoForDb(db).decryptText(emp.bpjsEmpSkill),
+        bpjsEmpSkill: tenantCryptoForDb(db).decryptText(emp.bpjsEmpSkill),
       },
       companyName: emp.company?.name ?? null,
       role: m.actor.appUserRole,

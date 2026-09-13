@@ -140,8 +140,12 @@ const toMemberRow = (tc: FieldCrypto, mv: MoneyView, employeeNo: string, emp: Me
   birthDate: emp.birthDate,
   address: emp.address,
   city: emp.city,
-  bpjsTk: emp.bpjsEmpSkill,
-  bpjsKes: emp.bpjsHealth,
+  // Task 55 — no. kartu BPJS tersimpan terenkripsi (Task 52-d) — dekripsi
+  // di batas serializer; tanpa ini file upload BPJS berisi enc:v2:… mentah
+  // (diterima sistem BPJS sebagai nomor kartu tidak sah). Legacy plaintext
+  // diloloskan apa adanya oleh decryptText.
+  bpjsTk: tc.decryptText(emp.bpjsEmpSkill),
+  bpjsKes: tc.decryptText(emp.bpjsHealth),
   joinDate: emp.joinDate,
   employmentStatus: emp.assignments[0]?.employmentStatus ?? "Permanent",
   positionName: positionFallback ?? emp.position?.title ?? null,

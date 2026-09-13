@@ -206,7 +206,7 @@ export function EssProfile({ me }: EssProfileProps) {
                   <InfoRow label={t("BPJS Kesehatan", "BPJS Health")} value={e.bpjsHealth} />
                 </div>
                 <div>
-                  <InfoRow label={t("BPJS Ketenagakerjaan", "BPJS Employment")} value={e.bpjsEmpskill} />
+                  <InfoRow label={t("BPJS Ketenagakerjaan", "BPJS Employment")} value={e.bpjsEmpSkill} />
                 </div>
               </div>
               <p className="mt-3 flex items-start gap-2 rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
