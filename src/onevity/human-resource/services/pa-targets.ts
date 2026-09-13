@@ -10,6 +10,10 @@ export interface StructuralTargets {
   positionId?: string;
   orgUnitId?: string;
   gradeId?: string;
+  // Task 64 — target penempatan fisik utk Transfer/Mutation: pindah office/
+  // lokasi menengah bulan mencipta segmen prorate di run payroll.
+  companyOfficeId?: string;
+  workLocationId?: string;
 }
 
 export interface GradeRange {
@@ -80,11 +84,25 @@ export async function resolveStructuralTargets(
     }
   }
 
+  // ---- Task 64 — office / lokasi kerja (Transfer/Mutation) ----
+  const officeId = nonEmpty(detail.companyOfficeId);
+  if (officeId) {
+    const o = await db.companyOffice.findUnique({ where: { id: officeId }, select: { id: true } });
+    if (!o) throw new PATargetError(`Kantor tujuan tidak dikenal (id "${officeId}") — periksa kembali detail dokumen`);
+    targets.companyOfficeId = o.id;
+  }
+  const locId = nonEmpty(detail.workLocationId);
+  if (locId) {
+    const l = await db.workLocation.findUnique({ where: { id: locId }, select: { id: true } });
+    if (!l) throw new PATargetError(`Lokasi kerja tujuan tidak dikenal (id "${locId}") — periksa kembali detail dokumen`);
+    targets.workLocationId = l.id;
+  }
+
   // deteksi no-op (K-01): PA struktural wajib punya minimal satu target valid —
   // tolak keras saat process, jangan tandai Processed diam-diam tanpa efek.
-  if (opts.requireTarget && !targets.positionId && !targets.orgUnitId && !targets.gradeId) {
+  if (opts.requireTarget && !targets.positionId && !targets.orgUnitId && !targets.gradeId && !targets.companyOfficeId && !targets.workLocationId) {
     throw new PATargetError(
-      "Perubahan struktural tanpa target: dokumen Promotion/Demotion/Transfer/Mutation wajib memiliki posisi, unit, atau grade tujuan yang valid sebelum diproses",
+      "Perubahan struktural tanpa target: dokumen Promotion/Demotion/Transfer/Mutation wajib memiliki posisi, unit, grade, kantor, atau lokasi tujuan yang valid sebelum diproses",
     );
   }
 
