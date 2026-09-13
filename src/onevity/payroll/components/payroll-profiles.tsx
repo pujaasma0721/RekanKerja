@@ -23,6 +23,17 @@ import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN,
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
+/**
+ * Task 58 — GUARD TAMPILAN (defense in depth): nilai teks PII dari respons
+ * API TIDAK PERNAH boleh dirender bila masih berupa ciphertext (enc:…).
+ * Backend sudah self-healing (unwrapDeep field-crypto — sisa double-encryption
+ * historis dilepas otomatis di batas serializer); guard ini menjaga bila ada
+ * respons stale/cache lama yang lolos — tampilkan kosong, bukan karakter enc:.
+ */
+function safeText(v: string | null | undefined): string {
+  return v != null && !v.startsWith("enc:") ? v : "";
+}
+
 export function PayrollProfilesPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
@@ -94,7 +105,7 @@ export function PayrollProfilesPage() {
                         <TableCell className="text-xs font-bold">{fmtIDR(r.baseSalary)}</TableCell>
                         <TableCell>
                           {r.profile?.npwp ? (
-                            <span className="font-mono text-[11px] font-semibold">{r.profile.npwp}</span>
+                            <span className="font-mono text-[11px] font-semibold">{safeText(r.profile.npwp) || t("—", "—")}</span>
                           ) : (
                             <Badge variant="outline" className="border-rose-300 bg-rose-50 text-[9px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400">{t("Non-NPWP +20%", "Non-NPWP +20%")}</Badge>
                           )}
@@ -140,7 +151,7 @@ export function PayrollProfilesPage() {
                           {r.profile?.bankName ? (
                             <div className="flex items-center gap-1">
                               <Wallet className="h-3 w-3 text-stone-400" />
-                              <span>{r.profile.bankName} <span className="font-mono text-[10px] text-stone-400">{r.profile.bankAccount}</span></span>
+                              <span>{r.profile.bankName} <span className="font-mono text-[10px] text-stone-400">{safeText(r.profile.bankAccount)}</span></span>
                             </div>
                           ) : "—"}
                         </TableCell>
@@ -291,7 +302,9 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
   const rowKey = row?.employeeId ?? "none";
   if (key !== rowKey) {
     setKey(rowKey);
-    setNpwp(row?.profile?.npwp ?? "");
+    // Task 58: safeText — nilai enc: (respons stale lama) tidak pernah masuk
+    // input edit (mencegah ciphertext tersimpan ulang saat admin menekan simpan).
+    setNpwp(safeText(row?.profile?.npwp));
     setHasNpwp(row?.profile?.hasNpwp ?? true);
     setTaxStatus(row?.profile?.taxStatus ?? "TK0");
     setDependents(String(row?.profile?.dependents ?? 0));
@@ -299,7 +312,7 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
     setProcessMethod(row?.profile?.processMethod ?? "GrossToNet");
     setWageTemplateId(row?.profile?.wageTemplateId ?? "");
     setBankName(row?.profile?.bankName ?? "");
-    setBankAccount(row?.profile?.bankAccount ?? "");
+    setBankAccount(safeText(row?.profile?.bankAccount));
   }
 
   const submit = async () => {

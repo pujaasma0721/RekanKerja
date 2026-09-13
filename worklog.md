@@ -1237,3 +1237,23 @@ Work Log:
 Stage Summary:
 - Restore otomatis siap deploy — bug sumber (Task 57) + repair data satu paket.
 - Deployment prod: parity pipeline dipicu manual (env diag sementara) → step restore jalan → env diag dibersihkan lagi (pm2 delete+start+save).
+
+---
+Task ID: 59
+Agent: orchestrator (Z.ai)
+Task: Laporan user "kolom NPWP dan bank pada menu employee payroll data masih memunculkan karakter encryption" — diagnosis end-to-end + hardening agar ciphertext MUSTAHIL tampil.
+
+Work Log:
+- DIAGNOSIS menyeluruh (login owner MII + curl + browser): payroll-profiles GET mengembalikan NPWP/rekening TERDEKRIPSI benar ('091485262345', 'BNI 848850308'); halaman ?m=payroll&v=profiles render benar; dialog edit nilai asli; DB scan diag-scan-double-enc 5379 nilai = 0 double-enc / 0 gagal; ekspor bank CSV + SPT + XLSX direktori = 0 enc:; MoneyVault MII terkunci (openUntil null, dataKey ada — kunci termuat proses). TIDAK TER-REPRODUKSI di state sekarang.
+- Analisis akar historis: ciphertext di UI hanya bisa lahir dari double-encryption (decryptText melepas 1 lapis → lapisan dalam dirender). Vektor T55 sudah ditutup di SISI TULIS (guard idempoten encryptText) + migrasi unwrap + 3 kebocoran serializer — namun jalur BACA masih single-layer: sisa data double-enc (mis. respons stale/cache browser lama, atau data tenant lain yang belum tersentuh migrasi) tetap bocor ciphertext mentah.
+- HARDENING 1 — src/onevity/shared/lib/field-crypto.ts: SELF-HEALING READ. Helper unwrapDeep di makeContext: setelah dekripsi 1 lapis, plaintext masih enc:… → unwrap berlapis MAKS 5 (mirror migrate-unwrap-double-enc; kunci dibaca per lapis via readKey → v1-di-dalam-v2 pun terbaca; gagal auth-tag → berhenti, pass-through legacy utuh). Dipanggil dari decrypt() inti → SEMUA jalur (decryptText/decryptMoney/decryptJson walker/maskNik/maskNpwp) otomatis self-healing.
+- HARDENING 2 — payroll-profiles.tsx: safeText() (nilai berawalan enc: → kosong) di sel NPWP, sel Bank, dan init dialog (input NPWP/No Rekening) — nilai enc: dari respons stale TIDAK PERNAH dirender DAN tidak masuk input edit (mencegah ciphertext tersimpan ulang saat admin menekan simpan — vektor round-trip T55).
+- VERIFIKASI scripts/test-unwrap-selfhealing.ts (dataKey vault MII asli): 10/10 lulus — 2 lapis/3 lapis PII → plaintext; uang 2 lapis → angka asli; walker decryptJson; maskNpwp; regresi 1-lapis & legacy plaintext utuh.
+- E2E browser ulang: tabel (NPWP 091485262345, BNI 848850308, gaji Rp 0 vault-locked), dialog edit nilai asli, 0 'enc:' di seluruh halaman. tsc ✓ lint ✓ dev.log bersih.
+- KESIMPULAN utk user: nilai yang dilihat kemungkinan halaman STALE (dimuat sebelum fix T55/restart server) — refresh paksa tab preview. Dengan hardening ini, apapun sisa datanya, UI tidak akan pernah menampilkan karakter enc: lagi.
+
+Stage Summary:
+- Jalur baca field-crypto kini SELF-HEALING (unwrap berlapis maks 5, lintas versi kunci) + guard render frontend — ciphertext enc:… mustahil sampai layar.
+- Semua jalur diverifikasi bersih: API payroll-profiles, UI tabel+dialog, ekspor bank CSV/SPT/XLSX, DB (0 double-enc).
+- Artefak: scripts/test-unwrap-selfhealing.ts (verifikasi read-only, dataKey vault asli).
+- CATATAN REBASE: Task 59 dikerjakan paralel dgn 57b (restore uang MII) — keduanya utuh; 57b menyentuh scripts/restore-mii-payroll-money.ts + parity-runner, 59 menyentuh field-crypto unwrapDeep + payroll-profiles guard — tanpa tumpang-tindih file.

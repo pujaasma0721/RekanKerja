@@ -364,6 +364,34 @@ function makeContext(schema: string): FieldCrypto {
     return [prefix, kind, iv.toString("base64"), tag.toString("base64"), ct.toString("base64")].join(":");
   };
 
+  /**
+   * Task 58 — SELF-HEALING READ: plaintext masih enc:… (double-encryption
+   * historis) → unwrap berlapis, maks 5 (mirror migrate-unwrap-double-enc).
+   * Lapisan dalam boleh beda versi kunci (v1 di dalam v2) — kunci dibaca
+   * per lapis via readKey. Gagal dekripsi lapis dalam (bukan nilai terenkripsi
+   * kita / auth tag tak cocok) → BERHENTI dan kembalikan apa adanya — perilaku
+   * pass-through lama tetap utuh (plaintext legacy tak pernah tersentuh).
+   */
+  const unwrapDeep = (pt: string): string => {
+    let value = pt;
+    for (let layer = 0; layer < 5 && isEncrypted(value); layer++) {
+      const parts = value.split(":");
+      if (parts.length !== 6) break; // bukan format sah → plaintext, berhenti
+      try {
+        const key = readKey(parts[1]!);
+        const iv = Buffer.from(parts[3]!, "base64");
+        const tag = Buffer.from(parts[4]!, "base64");
+        const ct = Buffer.from(parts[5]!, "base64");
+        const d = createDecipheriv("aes-256-gcm", key, iv);
+        d.setAuthTag(tag);
+        value = Buffer.concat([d.update(ct), d.final()]).toString("utf8");
+      } catch {
+        break; // auth tag tak cocok → sisa string = plaintext sesungguhnya
+      }
+    }
+    return value;
+  };
+
   const decrypt = (stored: string): { kind: "t" | "n"; value: string } => {
     const parts = stored.split(":");
     // enc:v1|v2:kind:iv:tag:ct → 6 segmen
@@ -382,7 +410,11 @@ function makeContext(schema: string): FieldCrypto {
       const decipher = createDecipheriv("aes-256-gcm", key, iv);
       decipher.setAuthTag(tag);
       const pt = Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
-      return { kind, value: pt };
+      // Task 58 — SELF-HEALING READ (belang & suspenders pasca-T55): bila
+      // plaintext hasil satu lapis MASIH enc:… (sisa double-encryption
+      // historis yang belum tersentuh migrate-unwrap-double-enc), unwrap
+      // berlapis otomatis — UI tidak pernah melihat ciphertext mentah.
+      return { kind, value: unwrapDeep(pt) };
     } catch {
       throw new Error(
         `[field-crypto:${schema}] gagal dekripsi (auth tag tidak cocok — kata sandi brankas sudah ` +
