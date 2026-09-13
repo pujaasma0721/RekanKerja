@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo, currentSessionVersion,
 } from "@/onevity/shared/lib/auth";
-import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug } from "@/onevity/shared/lib/provisioning";
+import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
 import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
@@ -80,36 +80,61 @@ export async function POST(req: NextRequest) {
     const schemaName = schemaNameForSlug(slug);
 
     // 1) schema PostgreSQL + tabel + referensi (komponen gaji, pajak, TER, akun, benefit)
-    await provisionTenantSchema(schemaName);
-    const tenantDb = getTenantClient(schemaName);
+    // Semua kegagalan SETELAH schema dibuat → drop schema agar TIDAK tertinggal
+    // setengah jadi (registrasi ulang slug sama menabrak seed duplikat unik,
+    // kasus nyata: Lookup(category,code) saat workspace SAYONE dibuat).
     try {
-      await seedTenantReference(tenantDb);
-      // Record Company (profil perusahaan) langsung dibuat saat registrasi:
-      // kode dari form → prefix nomor karyawan (MII00001) & template import;
-      // detail profil (NPWP, alamat, dll) dilengkapi lewat menu Profil Perusahaan.
-      await tenantDb.company.create({ data: { code: companyCode, name: workspaceName, shortName: companyCode } });
+      await provisionTenantSchema(schemaName);
+      const tenantDb = getTenantClient(schemaName);
+      try {
+        await seedTenantReference(tenantDb);
+        // Record Company (profil perusahaan) langsung dibuat saat registrasi:
+        // kode dari form → prefix nomor karyawan (MII00001) & template import;
+        // detail profil (NPWP, alamat, dll) dilengkapi lewat menu Profil Perusahaan.
+        await tenantDb.company.create({ data: { code: companyCode, name: workspaceName, shortName: companyCode } });
+      } finally {
+        await tenantDb.$disconnect();
+      }
     } catch (e) {
-      // seed gagal → drop schema agar tidak setengah jadi
-      const { Client } = await import("pg");
-      const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL });
-      await c.connect();
-      await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
-      await c.end();
+      await dropTenantSchema(schemaName);
       throw e;
     }
 
-    // 2) registry platform — companyCode tersimpan utk tampilan workspace & fallback prefix
-    const tenant = await db.tenant.create({ data: { name: workspaceName, companyCode, slug, schemaName } });
-    const user = await db.user.create({
-      data: { email, name: fullName, passwordHash: hashPassword(password) },
-    });
-    await db.userTenant.create({ data: { userId: user.id, tenantId: tenant.id, role: "OWNER" } });
+    // 2) registry platform — companyCode tersimpan utk tampilan workspace & fallback prefix.
+    // Gagal di sini (setelah DB tenant siap) → rollback: drop schema tenant agar
+    // registry & DB tetap konsisten (tidak ada orphan schema tanpa Tenant).
+    let tenant: Awaited<ReturnType<typeof db.tenant.create>>;
+    try {
+      tenant = await db.tenant.create({ data: { name: workspaceName, companyCode, slug, schemaName } });
+    } catch (e) {
+      await dropTenantSchema(schemaName);
+      throw e;
+    }
+    let userId: string | null = null;
+    try {
+      const user = await db.user.create({
+        data: { email, name: fullName, passwordHash: hashPassword(password) },
+      });
+      userId = user.id;
+      await db.userTenant.create({ data: { userId: user.id, tenantId: tenant.id, role: "OWNER" } });
+    } catch (e) {
+      // Gagal buat user/membership → rollback TOTAL: bersihkan user/tenant/schema
+      // agar tidak ada registry tanpa owner ataupun schema orphan.
+      if (userId) {
+        await db.userTenant.deleteMany({ where: { userId } }).catch(() => {});
+        await db.user.delete({ where: { id: userId } }).catch(() => {});
+      }
+      await db.tenant.delete({ where: { id: tenant.id } }).catch(() => {});
+      await dropTenantSchema(schemaName);
+      throw e;
+    }
+    if (!userId) throw new Error("user gagal dibuat");
 
-    const info = (await buildSessionInfo(user.id, tenant.id))!;
+    const info = (await buildSessionInfo(userId, tenant.id))!;
     const res = NextResponse.json(info, { status: 201 });
     // T1-SECURITY: token membawa sessionVersion (user baru = 0, dibaca utk aman).
-    const sv = await currentSessionVersion(user.id);
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(user.id, tenant.id, sv), sessionCookieOptions());
+    const sv = await currentSessionVersion(userId);
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(userId, tenant.id, sv), sessionCookieOptions());
     return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

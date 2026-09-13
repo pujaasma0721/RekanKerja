@@ -38,6 +38,28 @@ export async function uniqueSlug(baseSlug: string, excludeTenantId?: string): Pr
 }
 
 /**
+ * Gagal-bersih: HAPUS schema tenant (beserta seluruh isinya) dari DB.
+ * Dipakai bila provisioning/registrasi gagal SETELAH schema dibuat — schema
+ * setengah jadi TIDAK BOLEH tertinggal (registrasi ulang dengan slug sama
+ * akan menabrak seed duplikat unik, mis. Lookup(category,code)).
+ * Aman dipanggil untuk schema yang tidak ada (IF EXISTS). Never-throw.
+ */
+export async function dropTenantSchema(schemaName: string): Promise<void> {
+  // Validasi ketat: hanya identifier schema buatan sendiri (hasil
+  // schemaNameForSlug) yang boleh masuk query — anti SQL injection.
+  if (!/^tenant_[a-z0-9_]+$/.test(schemaName)) return;
+  const c = new Client({ connectionString: process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity" });
+  try {
+    await c.connect();
+    await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+  } catch {
+    // never-throw — pembersih terbaik; kegagalan drop tidak menimpa error asli
+  } finally {
+    await c.end().catch(() => {});
+  }
+}
+
+/**
  * Buat schema tenant + seluruh tabel (idempotent). Gagal di tengah → schema di-drop.
  */
 export async function provisionTenantSchema(schemaName: string): Promise<void> {

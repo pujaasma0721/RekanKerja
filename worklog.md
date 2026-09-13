@@ -1284,3 +1284,21 @@ Work Log:
 Stage Summary:
 - Registrasi workspace di prod normal kembali; fresh deploy lama sekarang self-heal kolom Task 58 otomatis saat boot.
 - Belajaran: penambahan kolom PLATFORM (schema.prisma root) wajib disertai prisma db push di deploy — db:generate saja hanya untuk client.
+
+---
+Task ID: 58-c
+Agent: orchestrator (Z.ai)
+Task: Lengkapi cleanup provisioning — drop schema tenant otomatis saat registrasi gagal SETELAH schema dibuat (kasus nyata workspace SAYONE).
+
+Work Log:
+- Kasus nyata: percobaan registrasi SAYONE pra-fix companyCode berhasil provision schema + seed, lalu gagal di tenant.create (kolom companyCode belum ada) → schema setengah jadi TERTINGGAL (cleanup lama hanya membungkus blok seed). Registrasi ulang slug sama menabrak duplikat unik Lookup(category,code).
+- provisioning.ts: helper dropTenantSchema(schemaName) — DROP SCHEMA IF EXISTS ... CASCADE, never-throw, guard regex ^tenant_[a-z0-9_]+$ (anti SQL injection).
+- register route: cleanup diperluas ke SELURUH tahap setelah schema ada:
+  1) provision + seed + company.create → gagal = drop schema;
+  2) tenant.create → gagal = drop schema (tak ada orphan schema tanpa Tenant);
+  3) user.create / userTenant.create → gagal = rollback TOTAL (hapus UserTenant + User + Tenant + drop schema) — registry tak pernah menyisakan tenant tanpa owner.
+- Bonus: tenantDb.$disconnect kini di finally (koneksi tidak bocor saat seed gagal).
+
+Stage Summary:
+- Registrasi gagal di titik mana pun SETELAH schema dibuat kini selalu gagal-bersih; percobaan ulang dengan slug sama langsung berhasil tanpa perlu intervensi DB manual.
+- tsc ✓; deploy prod menyusul.
