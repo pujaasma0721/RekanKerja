@@ -223,6 +223,28 @@ export async function applyAssignmentChange(
       notes: opts.notes ?? null,
     },
   });
+  // Task 64-fix — patch-maju: override berlaku dari eff KEDepAN juga — versi
+  // SETELAH base yang masih membawa nilai LAMA pada field yang di-override
+  // diperbarui dengan nilai baru (versi penerus yang berbeda secara sengaja
+  // dipertahankan). Contoh: transfer eff 12 Sep tetap berlaku di versi Okt
+  // meskipun PA kenaikan gaji (eff 1 Okt) diproses lebih dulu.
+  for (const later of all.slice(idx + 1)) {
+    const laterData: Record<string, unknown> = {};
+    if (overrides.orgUnitId != null && later.orgUnitId === base.orgUnitId && merged.orgUnitId !== later.orgUnitId) laterData.orgUnitId = merged.orgUnitId;
+    if (overrides.positionId != null && later.positionId === base.positionId && merged.positionId !== later.positionId) laterData.positionId = merged.positionId;
+    if (overrides.gradeId != null && later.gradeId === base.gradeId && merged.gradeId !== later.gradeId) laterData.gradeId = merged.gradeId;
+    if (overrides.managerId !== undefined && later.managerId === base.managerId && merged.managerId !== later.managerId) laterData.managerId = merged.managerId;
+    if (overrides.companyOfficeId !== undefined && later.companyOfficeId === base.companyOfficeId && merged.companyOfficeId !== later.companyOfficeId) laterData.companyOfficeId = merged.companyOfficeId;
+    if (overrides.workLocationId !== undefined && later.workLocationId === base.workLocationId && merged.workLocationId !== later.workLocationId) laterData.workLocationId = merged.workLocationId;
+    if (overrides.employmentStatus != null && later.employmentStatus === base.employmentStatus && merged.employmentStatus !== later.employmentStatus) laterData.employmentStatus = merged.employmentStatus;
+    if (overrides.workShift != null && later.workShift === base.workShift && merged.workShift !== later.workShift) laterData.workShift = merged.workShift;
+    if (overrides.baseSalary !== undefined && decryptBaseSalary(tcr, later.baseSalary) === baseBase && merged.baseSalary !== baseBase) {
+      laterData.baseSalary = tcr.encryptMoney(merged.baseSalary);
+    }
+    if (Object.keys(laterData).length > 0) {
+      await db.employeeAssignment.update({ where: { id: later.id }, data: laterData });
+    }
+  }
   // dorong snapshot parameter penempatan pada Employee (dimensi approval berjenjang)
   await syncEmployeePlacementSnapshot(db, employeeId);
   return { changed: true, assignment };
