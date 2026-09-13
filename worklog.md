@@ -1346,3 +1346,19 @@ Work Log:
 
 Stage Summary:
 - Money Vault SAYONE aktif: semua data uang kini enc:v2 dgn kunci sandi asmaree.007; baca/tulis via gate vault terverifikasi dua arah (terbuka = nilai asli, terkunci = null). Sandi TIDAK dicatat di mana pun (konvensi).
+
+---
+Task ID: 62
+Agent: orchestrator (Z.ai)
+Task: Isi period payroll + jalankan run payroll pertama SAYONE (uji alur gaji end-to-end via UI API).
+
+Work Log:
+- Period: 2026-09 "September 2026" (1–30 Sep, Monthly, sptMonth/Year 9/2026) — POST /payroll-periods OK.
+- Run: PR-2026-09-SAL-01 (SALARY, allEmployee, calculateTax) — POST /payroll-runs → Draft.
+- PATCH action=calculate: 500 karyawan dalam 3,1 detik — bruto Rp 6.304.237.200, potongan Rp 550.980.997, PPh21 Rp 362.330.579, net Rp 5.753.256.203.
+- PATCH action=confirm: status → Confirmed; jurnal JV-2026-0001 terpasang otomatis (26 baris agregat per akun) — BALANCED: debit = kredit = Rp 13.090.715.065 (beban gaji+tunjangan+BPJS perusahaan vs net payable + pajak + kewajiban).
+- Enkripsi terverifikasi pasca-run: PayrollRunLine.bruto 500/500 enc:v2:, PayrollRun.totalBruto/totalNet enc:v2:, nominal jurnal enc:v2: (kunci vault SAYONE aktif selama kalkulasi).
+- Run dibiarkan status Confirmed — markPaid sengaja diserahkan ke user via UI utk menguji alur terakhir.
+
+Stage Summary:
+- Alur gaji end-to-end SAYONE terbukti: period → run → kalkulasi (500 kar) → confirm + jurnal berimbang → semua nominal tersimpan enc:v2 dgn kunci vault; tidak ada error.
