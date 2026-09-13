@@ -52,7 +52,9 @@ export async function main(schemas?: string[]): Promise<void> {
           'thh_' || md5(random()::text || clock_timestamp()::text),
           p."employeeId",
           p."wageTemplateId",
-          LEAST(COALESCE(e."joinDate", p."createdAt"), p."createdAt"),
+          -- NOTE: EmployeePayrollProfile TIDAK punya kolom createdAt (model/DDL/
+          -- DB nyata) — jangan referensikan. Fallback: joinDate karyawan, lalu NOW().
+          COALESCE(e."joinDate", CURRENT_TIMESTAMP),
           'Initial'
         FROM "EmployeePayrollProfile" p
         JOIN "Employee" e ON e."id" = p."employeeId"

@@ -1450,3 +1450,42 @@ Work Log:
 
 Stage Summary:
 - Run payroll kini benar utk perubahan mid-period: office pindah 16 Sep → tunjangan rule office lama 15 hari + office baru 15 hari; template baru efektif 1 Okt → run September tetap template lama; gaji naik efektif 1 Okt → run September tetap gaji lama (basis BPJS rata-rata tertimbang bila gaji berubah mid-period).
+
+---
+Task ID: 64 (RESTORASI — entri asli hilang saat rebase paralel; commit e33fee5)
+Agent: orchestrator (Z.ai)
+Task: Menu Payroll Runs & Results — ketika detail run dipilih, tambahkan LAPORAN BULANAN PAYROLL LENGKAP dalam Excel (permintaan user: "pada menu Payroll Runs & Results, ketika detail dipilih, tambahkan report bulanan payroll lengkap di excel").
+
+Work Log:
+- BACKEND src/onevity/payroll/api/reports-monthly.ts (BARU) + thin route src/app/api/onevity/payroll-reports/monthly/route.ts: GET ?runId=&export=xlsx → workbook 5 sheet via toXlsxMulti:
+  1. Ringkasan — identitas perusahaan (nama/kode/NPWP/alamat/telepon) + run (runNo/periode/tipe/status/tanggal hitung-konfirmasi-bayar) + totals (bruto/potongan/PPh21/THP format "Rp n") + jumlah karyawan + UMP/UMK warning + "Dicetak … oleh <aktor>" + baris PERHATIAN bila vault terkunci.
+  2. Rekap Gaji — per karyawan: No/NoKaryawan/Nama/Unit/Jabatan/PTKP + KOLOM KOMPONEN DINAMIS (penghasilan dulu lalu potongan, header unik nama+kode) + Total Bruto/Potongan/PPh21/THP + baris TOTAL. Nomor = number murni → numFmt #,##0.
+  3. Detail Komponen — audit format panjang: satu baris per item per karyawan.
+  4. Rekap Komponen — agregat per komponen (jumlah karyawan + total nominal).
+  5. Pembayaran — NPWP + bank + no. rekening (PII terdekripsi) + PPh21 + THP + baris TOTAL.
+- Guard: requireMenuAction payroll:runs op:export; status Draft/Cancelled → 400; runId tak dikenal → 404; tanpa sesi → 401. Uang via getMoneyView(...).dec0 (vault tertutup → 0); NPWP/rekening = PII decrypt tanpa gate. Tanpa ?export= → preview JSON ringkas. ActivityLog ekspor + filename onevity-payroll-bulanan-<runNo>-<tanggal>.xlsx.
+- FRONTEND: MonthlyReportExportButton di payroll-report-buttons.tsx (anchor pola Register); dipasang di payroll-run-detail.tsx utk run Confirmed || Paid dengan canOp(export).
+- E2E scripts/tmp-t64-e2e-monthly.ts: 25 assert LULUS (5 sheet; 42 karyawan + TOTAL; 26 kolom Rekap Gaji; 616 baris Detail Komponen; 17 komponen; konsistensi silang THP 531.745.241; NPWP/rekening asli terdekripsi; guard 404/401/400; 0 ciphertext enc: bocor).
+- BROWSER (agent-browser): tombol "Laporan Bulanan (XLSX)" tampil di detail run Paid, klik = unduhan sukses, console bersih, responsif 390px; screenshot audit/t64-run-detail-monthly.png + t64-run-detail-desktop.png.
+
+Stage Summary:
+- Detail run Payroll Runs & Results kini punya laporan bulanan payroll XLSX lengkap 5 sheet — ter-gate vault uang & PII, tercatat di ActivityLog. (Entri ini dipulihkan sesi Task 65 — entri asli e33fee5 hilang saat konflik rebase paralel.)
+- Artefak: scripts/tmp-t64-e2e-monthly.ts; audit/t64-run-detail-monthly.png, audit/t64-run-detail-desktop.png.
+
+---
+Task ID: 65
+Agent: orchestrator (Z.ai)
+Task: Sinkronisasi pull (user: "pull") + perbaikan bug migrasi paralel + verifikasi fitur Excel pasca-refactor.
+
+Work Log:
+- git pull --rebase: e33fee5..d88277c fast-forward (575 insert) — masuk: (a) e33fee5 Task 64 laporan bulanan Excel 5 sheet + tombol UI + E2E; (b) 8b83e3e Task 63 template wajib + PayrollRunLog + baca gaji per-period; (c) 2ae8444 Task 64 template upah effective-dated + prorate segmen mid-period; (d) d88277c PA meneruskan companyOfficeId/workLocationId ke assignment.
+- REGENERASI PRISMA CLIENT: pull membawa model baru (EmployeeWageTemplateHistory, PayrollRunLog) tapi client lokal belum digenerate → 8 error TS2339 "Property does not exist on TenantDb" → `bun run db:generate` → tsc bersih.
+- BUG DITEMUKAN & DIPERBAIKI (scripts/migrate-wage-template-history.ts): backfill SQL referensi p."createdAt" padahal EmployeePayrollProfile TIDAK PERNAH punya kolom tsb (model/DDL/DB nyata) → migrasi GAGAL parse (42703) di semua tenant; efek: tabel EmployeeWageTemplateHistory hanya ter-create di cahaya (CREATE jalan dulu) lalu loop abort → MII & sentra TANPA tabel → jalur kalkulasi run payroll (payroll-service.ts:131) akan crash. Fix: validFrom backfill = COALESCE(e."joinDate", CURRENT_TIMESTAMP).
+- Jalankan migrasi pasca-fix: tabel WTH kini ada di 3/3 schema; backfill cahaya 0 (tanpa profil), MII 42 baris, sentra 0. PayrollRunLog sudah 3/3 (Task 63 jalan bersih).
+- VERIFIKASI PASCA-REFACTOR: E2E tmp-t64-e2e-monthly.ts (login MII → run Paid PR-2026-08-SAL-01 42 kar → export xlsx 45.625 byte): SEMUA TES LULUS ✔ — 5 sheet, 26 kolom Rekap Gaji, 616 baris Detail, 17 komponen, konsistensi THP 531.745.241 lintas sheet, NPWP/rekening terdekripsi, 0 ciphertext, guard 401/404 ✓ (laporan Excel Task 64 tetap utuh di atas engine prorate-segmen baru).
+- Restorasi entri worklog Task 64 (Excel) yang hilang saat rebase paralel (lihat entri RESTORASI di atas). Cleanup script scratch sesi ini (tmp-check-tenant-cols, tmp-cols).
+- tsc ✓ · lint ✓ · dev.log bersih (endpoint payroll 200).
+
+Stage Summary:
+- Repo lokal kini sinkron + SEHAT: prisma client tergenerate, tabel WTH/RunLog ada di semua tenant schema, migrasi idempoten berfungsi, dan fitur laporan bulanan XLSX terverifikasi lulus penuh di atas kode hasil pull.
+- Fix penting utk developer paralel: JANGAN referensikan kolom createdAt pada EmployeePayrollProfile (tidak ada di model/DDL/DB).
