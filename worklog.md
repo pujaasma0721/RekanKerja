@@ -1270,3 +1270,17 @@ Work Log:
 
 Stage Summary:
 - Kap dinaikkan; rerun parity akan memperbaiki 40 npwp (idempoten untuk sisanya).
+
+---
+Task ID: 58-b
+Agent: orchestrator (Z.ai)
+Task: Fix prod "Invalid prisma.tenant.create(): The column companyCode does not exist" saat membuat workspace baru.
+
+Work Log:
+- Akar: Task 58 menambah kolom Tenant.companyCode di schema.prisma + form registrasi, tapi deploy hanya db:generate (regen client) — TANPA prisma db push → DDL tidak pernah diterapkan ke platform DB prod.
+- Perbaikan langsung: `prisma db push` ke platform DB prod (kolom TEXT nullable — diff minimal, tanpa data loss).
+- Pencegahan (konvensi K-6): skrip scripts/migrate-platform-company-code.ts (idempoten, cek information_schema dulu) + didaftarkan sebagai parity step `platform-company-code` (PLATFORM-level, main() tanpa arg schemas) + gap check di checkParityGap (informasi_schema kolom Tenant.companyCode; kegagalan koneksi platform TIDAK jadi false positive).
+
+Stage Summary:
+- Registrasi workspace di prod normal kembali; fresh deploy lama sekarang self-heal kolom Task 58 otomatis saat boot.
+- Belajaran: penambahan kolom PLATFORM (schema.prisma root) wajib disertai prisma db push di deploy — db:generate saja hanya untuk client.

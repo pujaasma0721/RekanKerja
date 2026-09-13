@@ -199,6 +199,11 @@ const STEPS: Step[] = [
   // Task 57: pulihkan data uang MII yang tertimpa 0 oleh bug rerun parity
   // encrypt (kini diperbaiki) — idempoten, no-op bila data sudah utuh.
   { key: "restore-mii-payroll-money", label: "Task 57 — pulihkan nilai uang MII (baseSalary/komponen/run) pasca-bug rerun encrypt", run: (s) => import("../../../../scripts/restore-mii-payroll-money").then((m) => m.main(s)) },
+  // Task 58-b: kolom platform Tenant.companyCode (form registrasi workspace).
+  // Deploy lama tanpa `prisma db push` kehilangan DDL ini → prisma.tenant.create()
+  // gagal "The column companyCode does not exist in the current database".
+  // PLATFORM-level (bukan per-tenant) — dijalankan sekali per pipeline, idempoten.
+  { key: "platform-company-code", label: "Task 58-b — DDL platform: kolom Tenant.companyCode (registrasi workspace)", run: () => import("../../../../scripts/migrate-platform-company-code").then((m) => m.main()) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -276,6 +281,13 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'WhistleblowReport' AND table_schema = ANY($1::text[])`,
     );
+    // Task 58-b — gap PLATFORM (bukan per-tenant): kolom Tenant.companyCode.
+    // Kegagalan koneksi platform TIDAK boleh jadi false positive → anggap OK.
+    let companyCodeOk = true;
+    try {
+      const cc = await platform.$queryRaw<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM information_schema.columns WHERE table_name = 'Tenant' AND column_name = 'companyCode'`;
+      companyCodeOk = (cc[0]?.n ?? 0) > 0;
+    } catch { /* platform DB tak terjangkau — jangan blokir parity */ }
     // Task 52-d — kolom PII lanjutan: nilai plaintext tersisa = gap (sekuensial).
     const piiPlainOk =
       (await rowSchemas("Employee", `("bpjsHealth" IS NOT NULL AND "bpjsHealth" NOT LIKE 'enc:%') OR ("bpjsEmpSkill" IS NOT NULL AND "bpjsEmpSkill" NOT LIKE 'enc:%')`)) +
@@ -297,6 +309,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (pkwtFinalOk < schemas.length) reasons.push(`${schemas.length - pkwtFinalOk} tenant PKWT_KOMP belum SeveranceFinal (F-06)`);
     if (piiPlainOk > 0) reasons.push(`${piiPlainOk} tenant dengan PII lanjutan masih plaintext (Task 52-d)`);
     if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
+    if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk) };
   } finally {
     await c.end();
