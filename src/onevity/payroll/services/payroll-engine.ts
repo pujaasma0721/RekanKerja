@@ -115,6 +115,28 @@ export interface EngineLoanDue {
   amount: number;
 }
 
+/**
+ * Task 64 — segmen efektif karyawan dalam satu period payroll: satu versi
+ * penempatan × versi template upah yang berlaku pada rentang hari tertentu.
+ * Dibentuk payroll-service dari EmployeeAssignment + EmployeeWageTemplateHistory
+ * yang menyentuh period; engine mengevaluasi komponen versi tiap segmen
+ * (konteks rule & gaji segmennya sendiri), prorate bobot hari, lalu menggabung
+ * per kode komponen. BPJS memakai rata-rata tertimbang (plafon per segmen),
+ * PPh21 dihitung dari total bruto gabungan (TER bulanan).
+ */
+export interface EngineSegment {
+  days: number; // hari kalender segmen dalam period (inklusif)
+  baseSalary: number; // gaji pokok versi segmen (plaintext number)
+  templateId?: string | null; // versi template segmen (dipakai service, engine abaikan)
+  orgUnitCode?: string | null;
+  positionCode?: string | null;
+  gradeCode?: string | null;
+  officeCode?: string | null;
+  workLocationCode?: string | null;
+  employmentStatus?: string | null;
+  components: { comp: EngineComponent; overrideAmount?: number }[];
+}
+
 /** Task 63 — entri log kejadian run payroll (parameter kurang / anomali / skip). */
 export interface RunLogEntry {
   employeeId?: string | null;
@@ -148,6 +170,13 @@ export interface EngineRow {
   brutoYtd?: number;
   iuranYtd?: number;
   taxWithheldYtd?: number;
+  // Task 64 — segmen efektif (multi-versi penempatan/template dalam period).
+  // Bila terisi DAN hasOverride false, komponen dievaluasi per segmen
+  // (row.components diabaikan); bila tidak, jalur tunggal lama dipakai
+  // persis seperti sebelumnya (karyawan dgn komponen override one-off
+  // selalu jalur tunggal — nilai Specific tidak boleh terpengaruh segmen).
+  segments?: EngineSegment[];
+  hasOverride?: boolean;
 }
 
 export interface EngineItem {
@@ -387,13 +416,20 @@ export function runPayroll(
     const computedByCode: Record<string, number> = {};
 
     // --- 1. Basis BPJS dari regulasi (variabel formula) ---
-    const jhtBase = emp.baseSalary;
-    const jpBase = Math.min(emp.baseSalary, reg.jpSalaryCap);
-    const jpkBase = Math.min(emp.baseSalary, reg.jpkSalaryCap);
-    const jkkBase = emp.baseSalary;
-    const jkmBase = emp.baseSalary;
+    // Task 64 — segmen: basis BPJS = rata-rata tertimbang hari (plafon per
+    // segmen, cap total diterapkan setelah rata-rata). Jalur tunggal (tanpa
+    // segmen): persis nilai lama (emp.baseSalary).
+    const segs = row.segments;
+    const segDayTotal = segs?.reduce((s, x) => s + x.days, 0) ?? 0;
+    const wavg = (pick: (s: EngineSegment) => number): number =>
+      segs && segDayTotal > 0 ? segs.reduce((s, x) => s + pick(x) * x.days, 0) / segDayTotal : emp.baseSalary;
+    const jhtBase = wavg((s) => s.baseSalary);
+    const jpBase = Math.min(wavg((s) => Math.min(s.baseSalary, reg.jpSalaryCap)), reg.jpSalaryCap);
+    const jpkBase = Math.min(wavg((s) => Math.min(s.baseSalary, reg.jpkSalaryCap)), reg.jpkSalaryCap);
+    const jkkBase = wavg((s) => s.baseSalary);
+    const jkmBase = wavg((s) => s.baseSalary);
     // Task 52-c — basis JKP: upah dibatasi plafon (PP 6/2025: Rp 5jt default).
-    const jkpBase = Math.min(emp.baseSalary, reg.jkpSalaryCap);
+    const jkpBase = Math.min(wavg((s) => Math.min(s.baseSalary, reg.jkpSalaryCap)), reg.jkpSalaryCap);
 
     const baseEnv: Record<string, number> = {
       BASE_SALARY: emp.baseSalary,
@@ -416,37 +452,128 @@ export function runPayroll(
     const ruleCtx = ruleContextOf(emp);
     const workingSet = row.components.filter((c) => c.comp.wageType !== "IncomeTax");
     let sortOrder = 0;
-    for (const { comp, overrideAmount } of workingSet) {
-      if (comp.calcMethod === "Tax") continue;
-      let amount: number;
-      let ruleNote: string | null = null;
-      if (overrideAmount != null) {
-        amount = overrideAmount;
-      } else {
-        const base = comp.calcMethod === "Fixed"
-          ? comp.amount
-          : evalFormula(comp.formula ?? "0", { ...baseEnv, ...computedByCode });
-        const matched = (comp.rules?.length ?? 0) > 0 ? matchFirstRule(comp.rules ?? [], ruleCtx) : null;
-        if (matched) {
-          amount = applyRuleAmount(matched.rule.actionType, matched.rule.value, base);
-          ruleNote = `Aturan: ${matched.rule.name}`;
-        } else {
-          amount = base;
+    // Task 64 — evaluasi komponen per segmen efektif (kenaikan gaji/template/
+    // pindah office di tengah period): setiap segmen dievaluasi dengan konteks
+    // rule & gaji versinya sendiri, hasilnya DIJUMLAHKAN per kode komponen
+    // (prorate = bobot hari segmen). Formula antar-komponen (TOTAL_*, dsb.)
+    // antar segmen mengalir via computedByCode — nilai sementara, hasil akhir
+    // tetap diambil dari segmen TERAKHIR (versi aktif). Khusus komponen
+    // Specific/override (one-off, bukan formula) hanya dievaluasi SEKALI di
+    // segmen pertama agar tidak dobel-hitung antar segmen.
+    const merged = new Map<string, EngineItem>();
+    // Task 64 — kode yang pernah diberi override (Specific/Periodic one-off)
+    // DIKUNCI: segmen berikutnya tidak boleh menghitung ulang/menimpanya.
+    const overriddenCodes = new Set<string>();
+    if (segs && segs.length > 0 && segDayTotal > 0 && !row.hasOverride) {
+      for (let si = 0; si < segs.length; si++) {
+        const sg = segs[si];
+        const isLast = si === segs.length - 1;
+        const segFactor = sg.days / segDayTotal;
+        const segCtx: RuleContext = {
+          ...ruleCtx,
+          orgUnit: sg.orgUnitCode ?? ruleCtx.orgUnit,
+          position: sg.positionCode ?? ruleCtx.position,
+          grade: sg.gradeCode ?? ruleCtx.grade,
+          office: sg.officeCode ?? ruleCtx.office,
+          workLocation: sg.workLocationCode ?? ruleCtx.workLocation,
+          employmentStatus: sg.employmentStatus ?? ruleCtx.employmentStatus,
+        };
+        const segEnv: Record<string, number> = { ...baseEnv, BASE_SALARY: sg.baseSalary, BPJS_BASE: sg.baseSalary, PRORATE: segFactor };
+        for (const { comp, overrideAmount } of sg.components) {
+          if (comp.wageType === "IncomeTax" || comp.calcMethod === "Tax") continue;
+          // Override dikunci di segmen tempat ia didefinisikan — segmen lain skip.
+          if (overrideAmount != null) overriddenCodes.add(comp.code);
+          else if (overriddenCodes.has(comp.code)) continue;
+          let amount: number;
+          let ruleNote: string | null = null;
+          if (overrideAmount != null) {
+            amount = overrideAmount;
+          } else {
+            const base = comp.calcMethod === "Fixed"
+              ? comp.amount
+              : evalFormula(comp.formula ?? "0", { ...segEnv, ...computedByCode });
+            const matched = (comp.rules?.length ?? 0) > 0 ? matchFirstRule(comp.rules ?? [], segCtx) : null;
+            if (matched) {
+              amount = applyRuleAmount(matched.rule.actionType, matched.rule.value, base);
+              ruleNote = `Aturan: ${matched.rule.name}`;
+            } else {
+              amount = base;
+            }
+          }
+          if (comp.prorated && segFactor < 1) {
+            amount *= segFactor;
+          }
+          amount = roundAmount(amount, comp);
+          if (!isLast) {
+            // Segmen non-terakhir: hanya dorong nilai antara utk formula
+            // segmen berikutnya; komponen Specific (override) TIDAK ditumpuk
+            // antar segmen (one-off).
+            if (overrideAmount == null) computedByCode[comp.code] = amount;
+            continue;
+          }
+          // Segmen terakhir (versi aktif): non-formula dijumlahkan antar segmen;
+          // formula & override ambil nilai segmen terakhir apa adanya.
+          if (overrideAmount != null) {
+            amount = roundAmount(overrideAmount, comp);
+          } else if (comp.calcMethod === "Fixed") {
+            const prevAmt = merged.get(comp.code)?.amount ?? 0;
+            amount = roundAmount(prevAmt + amount, comp);
+          }
+          const note = ruleNote
+            ?? (comp.prorated && segFactor < 1 ? `Prorata ${(segFactor * 100).toFixed(0)}%` : null);
+          const prev = merged.get(comp.code);
+          if (prev) {
+            prev.amount = amount;
+            if (note) prev.note = prev.note ? `${prev.note}; ${note}` : note;
+          } else {
+            merged.set(comp.code, {
+              code: comp.code, name: comp.name, wageType: comp.wageType, type: comp.type,
+              incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
+              jamsostekBasis: comp.jamsostekBasis ?? null,
+              note,
+            });
+          }
+          computedByCode[comp.code] = amount;
         }
       }
-      if (comp.prorated && row.prorateFactor < 1) {
-        amount *= row.prorateFactor;
+    } else {
+      for (const { comp, overrideAmount } of workingSet) {
+        if (comp.calcMethod === "Tax") continue;
+        let amount: number;
+        let ruleNote: string | null = null;
+        if (overrideAmount != null) {
+          amount = overrideAmount;
+        } else {
+          const base = comp.calcMethod === "Fixed"
+            ? comp.amount
+            : evalFormula(comp.formula ?? "0", { ...baseEnv, ...computedByCode });
+          const matched = (comp.rules?.length ?? 0) > 0 ? matchFirstRule(comp.rules ?? [], ruleCtx) : null;
+          if (matched) {
+            amount = applyRuleAmount(matched.rule.actionType, matched.rule.value, base);
+            ruleNote = `Aturan: ${matched.rule.name}`;
+          } else {
+            amount = base;
+          }
+        }
+        if (comp.prorated && row.prorateFactor < 1) {
+          amount *= row.prorateFactor;
+        }
+        amount = roundAmount(amount, comp);
+        const item: EngineItem = {
+          code: comp.code, name: comp.name, wageType: comp.wageType, type: comp.type,
+          incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
+          jamsostekBasis: comp.jamsostekBasis ?? null,
+          note: ruleNote
+            ?? (comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null),
+        };
+        items.push(item);
+        computedByCode[comp.code] = amount;
       }
-      amount = roundAmount(amount, comp);
-      const item: EngineItem = {
-        code: comp.code, name: comp.name, wageType: comp.wageType, type: comp.type,
-        incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
-        jamsostekBasis: comp.jamsostekBasis ?? null,
-        note: ruleNote
-          ?? (comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null),
-      };
-      items.push(item);
-      computedByCode[comp.code] = amount;
+    }
+    const items2 = [...merged.values()];
+    for (const it of items2) {
+      computedByCode[it.code] = it.amount;
+      items.push(it);
     }
 
     // --- 3. Pinjaman (Loan) — potongan NonTaxable ---

@@ -206,6 +206,7 @@ const STEPS: Step[] = [
   { key: "platform-company-code", label: "Task 58-b — DDL platform: kolom Tenant.companyCode (registrasi workspace)", run: () => import("../../../../scripts/migrate-platform-company-code").then((m) => m.main()) },
   // Task 63: tabel PayrollRunLog (log kejadian run payroll — parameter kurang/anomali).
   { key: "payroll-run-log", label: "Task 63 — tabel PayrollRunLog (log kejadian run payroll)", run: (s) => import("../../../../scripts/migrate-payroll-run-log").then((m) => m.main(s)) },
+  { key: "wage-template-history", label: "Task 64 — riwayat template upah effective-dated + backfill", run: (s) => import("../../../../scripts/migrate-wage-template-history").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -295,6 +296,11 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'PayrollRunLog' AND table_schema = ANY($1::text[])`,
     );
+    // Task 64 — riwayat template upah effective-dated: tabel belum ada = gap.
+    const wageHistOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'EmployeeWageTemplateHistory' AND table_schema = ANY($1::text[])`,
+    );
     // Task 52-d — kolom PII lanjutan: nilai plaintext tersisa = gap (sekuensial).
     const piiPlainOk =
       (await rowSchemas("Employee", `("bpjsHealth" IS NOT NULL AND "bpjsHealth" NOT LIKE 'enc:%') OR ("bpjsEmpSkill" IS NOT NULL AND "bpjsEmpSkill" NOT LIKE 'enc:%')`)) +
@@ -318,7 +324,8 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk) };
+    if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk) };
   } finally {
     await c.end();
   }

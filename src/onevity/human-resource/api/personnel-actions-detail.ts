@@ -3,7 +3,7 @@ import { requireTenant, requireMutator, UNAUTHORIZED_MSG, type TenantActor, type
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { applyAssignmentChange, closeCurrentAssignment } from "@/onevity/human-resource/services/assignment";
+import { applyAssignmentChange, closeCurrentAssignment, applyWageTemplateChange } from "@/onevity/human-resource/services/assignment";
 import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { resolveStructuralTargets, PATargetError, type StructuralTargets } from "@/onevity/human-resource/services/pa-targets";
 import { findActiveDelegation } from "@/onevity/shared/services/approval-engine";
@@ -430,6 +430,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           }
           // tutup assignment aktif pada tanggal akhir kerja
           await closeCurrentAssignment(tx, action.employeeId, endDate);
+        }
+
+        // Task 64 — perubahan template upah via PA (promosi/mutasi/kenaikan
+        // jabatan sering mengubah paket komponen upah): tulis riwayat
+        // effective-dated — run payroll membaca versi BERLAKU pada period.
+        if (!isTermination && detail.newWageTemplateId !== undefined) {
+          await applyWageTemplateChange(
+            tx,
+            action.employeeId,
+            detail.newWageTemplateId ? String(detail.newWageTemplateId) : null,
+            { effectiveDate, reason: action.type, sourceDocNo: action.docNo, notes: action.reason ?? null },
+          );
         }
 
         // ===== 26-b P0 — aritmetika kontrak PKWT (PP 35/2021) =====

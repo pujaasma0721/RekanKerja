@@ -1397,24 +1397,56 @@ Stage Summary:
 ---
 Task ID: 64
 Agent: orchestrator (Z.ai)
-Task: Menu Payroll Runs & Results — ketika detail run dipilih, tambahkan LAPORAN BULANAN PAYROLL LENGKAP dalam Excel (permintaan user: "pada menu Payroll Runs & Results, ketika detail dipilih, tambahkan report bulanan payroll lengkap di excel").
+Task: Template upah ber-history (effective-dated) + prorate per segmen saat perubahan di tengah period (pindah office/promosi/ganti template mid-month).
 
 Work Log:
-- BACKEND src/onevity/payroll/api/reports-monthly.ts (BARU) + thin route src/app/api/onevity/payroll-reports/monthly/route.ts: GET ?runId=&export=xlsx → workbook 5 sheet via toXlsxMulti:
-  1. Ringkasan — identitas perusahaan (Company: nama/kode/NPWP/alamat/telepon) + run (runNo/periode/tipe/status/tanggal hitung-konfirmasi-bayar) + totals (bruto/potongan/PPh21/THP format "Rp n") + jumlah karyawan + UMP/UMK warning + "Dicetak … oleh <aktor>" + baris PERHATIAN bila vault terkunci.
-  2. Rekap Gaji — per karyawan: No/NoKaryawan/Nama/Unit/Jabatan/PTKP + KOLOM KOMPOEN DINAMIS (satu kolom per komponen run — penghasilan dulu lalu potongan, header unik nama+kode bila tabrakan) + Total Bruto/Potongan/PPh21/THP + baris TOTAL (jumlah per kolom). Nomor = number murni → numFmt #,##0 otomatis & dapat dijumlah di Excel.
-  3. Detail Komponen — audit format panjang: satu baris per item per karyawan (kode/komponen/kategori/jenis upah/metode pajak/catatan/nominal).
-  4. Rekap Komponen — agregat per komponen (jumlah karyawan + total nominal).
-  5. Pembayaran — NPWP + bank + no. rekening (PII terdekripsi, pola payroll-run-export) + PPh21 + THP + baris TOTAL.
-- Guard: requireMenuAction payroll:runs op:export (file berisi PII + nilai penuh — sama dgn file transfer bank, audit 42 K-2); status Draft/Cancelled → 400 (pola register); runId tak dikenal → 404; tanpa sesi → 401. Uang seluruhnya via getMoneyView(...).dec0 (vault tertutup → 0 — keputusan pemilik produk Task 56, konsisten register/bank/BPJS); NPWP/rekening = PII → tenantCryptoForDb decryptText tanpa gate. Tanpa ?export= → preview JSON ringkas (meta/totals/components). ActivityLog "Ekspor XLSX laporan bulanan payroll run <no> (n karyawan)" try/catch (schema legacy-safe). Filename: onevity-payroll-bulanan-<runNo>-<tanggal>.xlsx.
-- FRONTEND: MonthlyReportExportButton baru di payroll-report-buttons.tsx (anchor pola Register — aria-label + compact variant); dipasang di payroll-run-detail.tsx sebagai blok mandiri `(status Confirmed || Paid) && canOp(export)` antara grup export Confirmed dan grup slip/jurnal — tampil utk run Confirmed maupun Paid (register/bank/BPJS hanya Confirmed; laporan bulanan justru paling dibutuhkan setelah dibayar).
-- E2E scripts/tmp-t64-e2e-monthly.ts (login owner MII + select-tenant → runs → download → baca workbook exceljs → 25 assert): SEMUA LULUS — 5 sheet; 42 karyawan + baris TOTAL; 26 kolom Rekap Gaji (komponen dinamis: Gaji Pokok, Tunjangan Jabatan/Keluarga/Transport/Makan, BPJS…); 616 baris Detail Komponen; 17 komponen Rekap; konsistensi silang THP Rekap Gaji = Pembayaran = Ringkasan (531.745.241); bruto 604.903.508; NPWP/rekening asli terdekripsi (contoh MII00013: NPWP 095779436728, BNI 981045524); guard 404/401/400-Draft ✓; 0 ciphertext enc: bocor.
-- Dua jalur vault terverifikasi: (a) TERKUNCI → semua nominal 0 + baris PERHATIAN muncul di Ringkasan (run tes pertama); (b) nilai riil — vault lokal MII lama tak diketahui sandinya + lockout percobaan (kandidat worklog salah semua) → jalankan skrip RESMI proyek scripts/reset-vault-demo.ts (5.379 nilai v2→v1 legacy TANPA kehilangan data, baris vault dihapus — state demo default per konvensi Task 47) + restart dev server → mode legacy → nilai riil mengalir penuh.
-- BROWSER (agent-browser): login → workspace MII → detail run Paid → tombol "Laporan Bulanan (XLSX)" tampil dgn href benar + aria-label; klik = unduhan sukses (ActivityLog 09:35:14); console/error bersih; responsif 390px tombol tetap tampil; screenshot audit/t64-run-detail-monthly.png + t64-run-detail-desktop.png.
-- tsc ✓ (src) · lint ✓ · dev.log bersih (semua 200).
-- CATATAN: error tsc scripts/seed-sayone-via-ui.ts vs seed-sayone-phase2.ts (duplicate identifier) = kode ter-commit sesi paralel (Task 60) — TIDAK disentuh sesi ini.
+- KRITIK USER VALID #2: wage template masih nilai tunggal di profil — kenaikan jabatan mid-year yang mengganti paket komponen upah tak punya riwayat; dan tunjangan ber-param office (rule) dihitung dari office versi AKHIR saja meski karyawan pindah di tengah bulan (harusnya X hari office lama + Y hari baru).
+- Schema+DDL+migrasi: EmployeeWageTemplateHistory (employeeId, wageTemplateId, validFrom/validTo EKSKLUSIF, changeReason, sourceDocNo) — schema-tenant.prisma, tenant-ddl.sql, scripts/migrate-wage-template-history.ts (parity step `wage-template-history` + gap check; BACKFILL 1 baris Initial per profil existing, validFrom=joinDate → tenant lama tetap punya versi terbaca).
+- Helper applyWageTemplateChange() (assignment.ts): close open baris (validTo = eff−1 hari) + create baru; idempoten; aman backdate (menolak close bila eff ≤ validFrom baris aktif).
+- Wiring tulis: PATCH payroll-profiles (ganti template → ManualEdit hari ini; profil baru → baris Initial validFrom joinDate); PersonnelAction Processed (detail.newWageTemplateId → reason=type PA, sourceDocNo) — promosi/mutasi via PA kini otomatis menulis riwayat template.
+- payroll-service buildRunRowsWithLog: template efektif period dibaca dari riwayat (validFrom ≤ periodEnd, versi TERBARU yang sudah mulai — baris masa depan TIDAK terbaca); validasi wajib-template kini pada versi efektif; pembangunan SEGMEN efektif = belah period pada setiap perubahan assignment/template yang jatuh di dalam period (union titik belah, urut; atribut segmen = office/unit/posisi/gaji/status assignment versi itu + template versi itu; template efektif pada titik belah penempatan dihitung dari riwayat utk data lama).
+- payroll-engine: EngineSegment (days/baseSalary/templateId/kode konteks/components) + row.segments + row.hasOverride; bila segmen aktif: komponen non-Tax dievaluasi PER SEGMEN (konteks rule & BASE_SALARY segmennya sendiri, PRORATE = bobot hari segmen), hasil digabung per kode; basis BPJS = rata-rata tertimbang hari dgn plafon per segmen (JP/JPK/JKP cap setelah rata-rata); PPh21 tetap atas bruto gabungan (TER bulanan). Karyawan dengan komponen override (Specific/Periodic) SENGAJA jalur tunggal (versi aktif) — nilai one-off tidak boleh terpengaruh segmen. Log info SEGMENTS per karyawan multi-segmen (rincian hari/office/gaji).
+- Typecheck bersih; parity step idempoten (fresh tenant dari DDL, tenant existing via backfill).
 
 Stage Summary:
-- Detail run Payroll Runs & Results kini punya laporan bulanan payroll XLSX lengkap 5 sheet (ringkasan perusahaan+run, rekap gaji per karyawan per komponen, detail audit, rekap komponen, pembayaran+NPWP+rekening) — otomatis ter-gate vault uang & PII, tercatat di ActivityLog.
-- State lokal dev: vault MII direset ke legacy via skrip resmi (password lama tak terdokumentasi + lockout) — data uang tetap utuh & kini terlihat tanpa brankas di local.
-- Artefak: scripts/tmp-t64-e2e-monthly.ts; audit/t64-run-detail-monthly.png, audit/t64-run-detail-desktop.png.
+- Run payroll kini benar utk perubahan mid-period: office pindah 16 Sep → tunjangan rule office lama 15 hari + office baru 15 hari; template baru efektif 1 Okt → run September tetap template lama; gaji naik efektif 1 Okt → run September tetap gaji lama (basis BPJS rata-rata tertimbang bila gaji berubah mid-period).
+- Konfirmasi dr riwayat paralel: seeder TELAH dikerjakan developer lain utk tenant SAYONE (Task 60 + 60b: scripts/seed-sayone-via-ui.ts via alur UI API — 500 karyawan, 30 org, 50 posisi, 23 kantor, 36 lokasi, 8 grade, 12 jobs + keluarga/pendidikan/pengalaman) dilanjutkan Task 61 (Money Vault SAYONE) dan Task 62 (run payroll pertama) — pekerjaan tsb TIDAK disentuh/dimodifikasi sesi ini.
+- Tugas tertunda lain dr sesi ini ternyata JUGA telah diselesaikan sesi paralel: f51dbb6 (Task 59 fix ciphertext NPWP/rekening + 59b kap unwrap 20 lapis), b153c41 (Task 57b restore uang MII), 58-b (kolom companyCode prod), 58-c (cleanup provisioning).
+- Catatan ini sendiri = satu-satunya perubahan sesi ini.
+
+Stage Summary:
+- Seeder HR base: DIBATALKAN oleh user; tuntas dikerjakan developer lain (Task 60/60b) — sesi ini tidak menulis baris kode seeder pun.
+- [RENUMBER saat rebase: awalnya dicatat sbg Task 60 pembatalan, tapi Task 60-62 telah dipakai sesi paralel → 63.]
+
+---
+Task ID: 63
+Agent: orchestrator (Z.ai)
+Task: Template upah jadi parameter wajib run SALARY + tabel PayrollRunLog (log kejadian run) + baca gaji dari versi penempatan yang berlaku pada period.
+
+Work Log:
+- KRITIK USER VALID: run payroll SAYONE sebelumnya jalan meski 0 profil payroll (NPWP/bank/template kosong) — template diam-diam fallback DEFAULT; gaji dibaca dari assignment TERBARU (take 1 orderBy validFrom desc) tanpa melihat period → kenaikan gaji efektif Juli akan bocor ke run Juni.
+- schema-tenant.prisma + tenant-ddl.sql + scripts/migrate-payroll-run-log.ts (parity step `payroll-run-log` + gap check): tabel PayrollRunLog (runId, employee*, level warning|error|info, code, message).
+- payroll-service buildRunRowsWithLog: SALARY run WAJIB template upah → tanpa template SKIP + log error NO_WAGE_TEMPLATE; tanpa profil → log warning NO_PAYROLL_PROFILE; gaji kosong/0 → SKIP + log error NO_BASE_SALARY; tanpa penempatan berlaku → log NO_ACTIVE_ASSIGNMENT; suplemental tanpa komponen → log info SKIPPED. Log disimpan di transaksi kalkulasi (ganti semua per hitung ulang).
+- Task 63c: query employee mengambil SEMUA versi penempatan yang menyentuh period (validFrom ≤ periodEnd, validTo null/≥ periodStart); versi dipakai = validFrom tertinggi ≤ periodEnd → riwayat kenaikan upah via PA SalaryAdjustment (applyAssignmentChange menutup lama + buat versi baru) kini terbaca benar per period.
+- payroll-run GET: include logs; payroll-runs PATCH calculate: + logCounts (error/warning/info); UI payroll-run-detail: kartu "Log Run" dgn badge jumlah per level + toast peringatan bila ada karyawan ter-skip.
+- Reversi run test SAYONE (PR-2026-09-SAL-01, dgn kondisi salah): jurnal → Reversed, 26 saldo Account dikembalikan (dekripsi enc:v2 dgn dataKey vault), run → Cancelled, period → Draft. Run ulang akan memakai aturan baru.
+
+Stage Summary:
+- Payroll menolak karyawan tanpa template upah (bukan fallback diam-diam), semua kejadian tercatat di tab Log Run, dan pembacaan gaji berbasis riwayat penempatan per period.
+
+---
+Task ID: 64
+Agent: orchestrator (Z.ai)
+Task: Template upah ber-history (effective-dated) + prorate per segmen saat perubahan di tengah period (pindah office/promosi/ganti template mid-month).
+
+Work Log:
+- KRITIK USER VALID #2: wage template masih nilai tunggal di profil — kenaikan jabatan mid-year yang mengganti paket komponen upah tak punya riwayat; dan tunjangan ber-param office (rule) dihitung dari office versi AKHIR saja meski karyawan pindah di tengah bulan (harusnya X hari office lama + Y hari baru).
+- Schema+DDL+migrasi: EmployeeWageTemplateHistory (employeeId, wageTemplateId, validFrom/validTo EKSKLUSIF, changeReason, sourceDocNo) — schema-tenant.prisma, tenant-ddl.sql, scripts/migrate-wage-template-history.ts (parity step `wage-template-history` + gap check; BACKFILL 1 baris Initial per profil existing, validFrom=joinDate → tenant lama tetap punya versi terbaca).
+- Helper applyWageTemplateChange() (assignment.ts): close open baris (validTo = eff−1 hari) + create baru; idempoten; aman backdate (menolak close bila eff ≤ validFrom baris aktif).
+- Wiring tulis: PATCH payroll-profiles (ganti template → ManualEdit hari ini; profil baru → baris Initial validFrom joinDate); PersonnelAction Processed (detail.newWageTemplateId → reason=type PA, sourceDocNo) — promosi/mutasi via PA kini otomatis menulis riwayat template.
+- payroll-service buildRunRowsWithLog: template efektif period dibaca dari riwayat (validFrom ≤ periodEnd, versi TERBARU yang sudah mulai — baris masa depan TIDAK terbaca); validasi wajib-template kini pada versi efektif; pembangunan SEGMEN efektif = belah period pada setiap perubahan assignment/template yang jatuh di dalam period (union titik belah, urut; atribut segmen = office/unit/posisi/gaji/status assignment versi itu + template versi itu; template efektif pada titik belah penempatan dihitung dari riwayat utk data lama).
+- payroll-engine: EngineSegment (days/baseSalary/templateId/kode konteks/components) + row.segments + row.hasOverride; bila segmen aktif: komponen non-Tax dievaluasi PER SEGMEN (konteks rule & BASE_SALARY segmennya sendiri, PRORATE = bobot hari segmen), hasil digabung per kode; basis BPJS = rata-rata tertimbang hari dgn plafon per segmen (JP/JPK/JKP cap setelah rata-rata); PPh21 tetap atas bruto gabungan (TER bulanan). Karyawan dengan komponen override (Specific/Periodic) SENGAJA jalur tunggal (versi aktif) — nilai one-off tidak boleh terpengaruh segmen. Log info SEGMENTS per karyawan multi-segmen (rincian hari/office/gaji).
+- Typecheck bersih; parity step idempoten (fresh tenant dari DDL, tenant existing via backfill).
+
+Stage Summary:
+- Run payroll kini benar utk perubahan mid-period: office pindah 16 Sep → tunjangan rule office lama 15 hari + office baru 15 hari; template baru efektif 1 Okt → run September tetap template lama; gaji naik efektif 1 Okt → run September tetap gaji lama (basis BPJS rata-rata tertimbang bila gaji berubah mid-period).

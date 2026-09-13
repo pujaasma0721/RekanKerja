@@ -219,3 +219,50 @@ export const CHANGE_REASON_LABEL: Record<string, string> = {
   ExtendProbation: "Perpanjangan Probation",
   ManualEdit: "Perubahan Manual",
 };
+
+// ============ Task 64 — riwayat template upah effective-dated ============
+
+/**
+ * Tulis pergantian template upah karyawan sebagai riwayat berperiode: baris
+ * aktif lama ditutup (validTo = efektif − 1 hari — validTo EKSKLUSIF seperti
+ * EmployeeAssignment) dan baris baru dibuka (validFrom = efektif). Idempoten:
+ * bila template efektif pada tanggal tsb sudah sama, tidak menulis apa pun.
+ * `eff` boleh backdated (retroaktif) — pembacaan run payroll selalu menilai
+ * versi berdasarkan rentang [validFrom, validTo).
+ */
+export async function applyWageTemplateChange(
+  db: DbOrTx,
+  employeeId: string,
+  wageTemplateId: string | null,
+  opts: { effectiveDate: Date; reason: string; sourceDocNo?: string | null; notes?: string | null },
+): Promise<{ changed: boolean }> {
+  const eff = new Date(opts.effectiveDate);
+  eff.setHours(0, 0, 0, 0);
+  const open = await db.employeeWageTemplateHistory.findFirst({
+    where: { employeeId, validTo: null },
+    orderBy: { validFrom: "desc" },
+  });
+  if (open) {
+    const openFrom = new Date(open.validFrom);
+    openFrom.setHours(0, 0, 0, 0);
+    // Idempoten: template efektif sudah sama → tidak ada perubahan.
+    if (open.wageTemplateId === wageTemplateId && openFrom.getTime() <= eff.getTime()) return { changed: false };
+    // Jangan tutup bila efektif ≤ mulai baris aktif (data anomali/backdate
+    // sebelum baris aktif) — hindari validTo < validFrom.
+    if (eff > openFrom) {
+      const closeTo = new Date(eff.getTime() - 86_400_000);
+      await db.employeeWageTemplateHistory.update({ where: { id: open.id }, data: { validTo: closeTo } });
+    }
+  }
+  await db.employeeWageTemplateHistory.create({
+    data: {
+      employeeId,
+      wageTemplateId,
+      validFrom: eff,
+      changeReason: opts.reason,
+      sourceDocNo: opts.sourceDocNo ?? null,
+      notes: opts.notes ?? null,
+    },
+  });
+  return { changed: true };
+}

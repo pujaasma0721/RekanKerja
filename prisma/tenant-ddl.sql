@@ -679,6 +679,21 @@ CREATE TABLE "PayrollRunLog" (
     CONSTRAINT "PayrollRunLog_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable (Task 64 — riwayat template upah effective-dated)
+CREATE TABLE "EmployeeWageTemplateHistory" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "wageTemplateId" TEXT,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "changeReason" TEXT NOT NULL DEFAULT 'Initial',
+    "sourceDocNo" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmployeeWageTemplateHistory_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "PayrollJournal" (
     "id" TEXT NOT NULL,
@@ -2176,6 +2191,10 @@ CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
 -- CreateIndex
 CREATE INDEX "PayrollRunLog_runId_idx" ON "PayrollRunLog"("runId");
 
+-- CreateIndex (Task 64)
+CREATE INDEX "EmployeeWageTemplateHistory_employeeId_validFrom_idx" ON "EmployeeWageTemplateHistory"("employeeId", "validFrom");
+CREATE INDEX "EmployeeWageTemplateHistory_wageTemplateId_idx" ON "EmployeeWageTemplateHistory"("wageTemplateId");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollRunLine_runId_employeeId_key" ON "PayrollRunLine"("runId", "employeeId");
 
@@ -2637,6 +2656,12 @@ ALTER TABLE "WageTemplateItem" ADD CONSTRAINT "WageTemplateItem_wageComponentId_
 
 -- AddForeignKey
 ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (Task 64 — riwayat template upah)
+ALTER TABLE "EmployeeWageTemplateHistory" ADD CONSTRAINT "EmployeeWageTemplateHistory_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeWageTemplateHistory" ADD CONSTRAINT "EmployeeWageTemplateHistory_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;

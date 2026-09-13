@@ -4,6 +4,7 @@ import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
+import { applyWageTemplateChange } from "@/onevity/human-resource/services/assignment";
 import {
   applyPtkpAutoToAll,
   derivePtkpFromFamily,
@@ -164,6 +165,32 @@ export async function PATCH(req: NextRequest) {
     const profile = existing
       ? await db.employeePayrollProfile.update({ where: { employeeId: b.employeeId }, data, include: { wageTemplate: true } })
       : await db.employeePayrollProfile.create({ data: { ...data, employeeId: b.employeeId }, include: { wageTemplate: true } });
+
+    // Task 64 — pergantian template = riwayat effective-dated (kenaikan jabatan
+    // mid-year tidak merusak run bulan sebelumnya). Efektif: hari ini; backdate
+    // via Personnel Action. Profil BARU: baris riwayat pertama menutup celah
+    // riwayat (validFrom = joinDate). Ganti template + perubahan lain (npwp,
+    // rekening, PTKP) tetap di-update langsung — hanya template ber-versioning.
+    if (b.wageTemplateId !== undefined) {
+      if (existing) {
+        await applyWageTemplateChange(db, b.employeeId, data.wageTemplateId ?? null, {
+          effectiveDate: new Date(),
+          reason: "ManualEdit",
+          notes: "Diubah via Profil Payroll",
+        });
+      } else {
+        const emp = await db.employee.findUnique({ where: { id: b.employeeId }, select: { joinDate: true } });
+        await db.employeeWageTemplateHistory.create({
+          data: {
+            employeeId: b.employeeId,
+            wageTemplateId: data.wageTemplateId ?? null,
+            validFrom: emp?.joinDate ?? new Date(),
+            changeReason: "Initial",
+            notes: "Profil payroll dibuat",
+        },
+        });
+      }
+    }
 
     // Task 49/50: jejak audit — sumber PTKP + snapshot vs pengisian awal.
     const nextYear = new Date().getFullYear() + 1;

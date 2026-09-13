@@ -3,6 +3,7 @@
 // Dipakai oleh API routes dan seed.
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";import { runPayroll, workingDaysBetween, EngineRow, EngineComponent, EngineBracket,
+  EngineSegment,
   // Task 63 — bentuk entri log kejadian run (disimpan ke tabel PayrollRunLog).
   RunLogEntry,
   EngineTer, EngineRegulation, EngineRunResult,
@@ -106,7 +107,7 @@ export async function buildRunRowsWithLog(
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error("Period payroll tidak ditemukan");
 
-  const [processType, profiles, components, templates, periodic, specific, loans, rules] = await Promise.all([
+  const [processType, profiles, components, templates, periodic, specific, loans, rules, templateHist] = await Promise.all([
     db.processType.findUnique({ where: { id: processTypeId } }),
     db.employeePayrollProfile.findMany({ where: { active: true }, include: { employee: true } }),
     db.wageComponent.findMany({ where: { active: true, OR: [{ validTo: null }, { validTo: { gte: period.startDate } }] } }),
@@ -125,6 +126,9 @@ export async function buildRunRowsWithLog(
       where: { active: true, OR: [{ validTo: null }, { validTo: { gte: period.startDate } }] },
       orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
     }),
+    // Task 64 — riwayat template upah effective-dated (versi per karyawan;
+    // dibaca penuh — satu baris awal + baris perubahan, volume kecil).
+    db.employeeWageTemplateHistory.findMany(),
   ]);
   if (!processType) throw new Error("Process type tidak ditemukan");
 
@@ -210,6 +214,16 @@ export async function buildRunRowsWithLog(
     const arr = loansByEmp.get(l.employeeId) ?? [];
     arr.push(l);
     loansByEmp.set(l.employeeId, arr);
+  }
+  // Task 64 — riwayat template per karyawan (urut validFrom asc).
+  const templateHistByEmp = new Map<string, typeof templateHist>();
+  for (const h of templateHist) {
+    const arr = templateHistByEmp.get(h.employeeId) ?? [];
+    arr.push(h);
+    templateHistByEmp.set(h.employeeId, arr);
+  }
+  for (const arr of templateHistByEmp.values()) {
+    arr.sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
   }
 
   const workingDays = workingDaysBetween(period.startDate, period.endDate);
@@ -330,14 +344,18 @@ export async function buildRunRowsWithLog(
   periodEndDay.setHours(0, 0, 0, 0);
 
   for (const emp of activeEmployees) {
-    // Task 63c — versi penempatan BERLAKU utk period ini: validFrom tertinggi
-    // yang ≤ akhir period (query sudah memfilter validFrom ≤ periodEnd & rentang
-    // menyentuh period). Bila karyawan hanya punya penempatan yang MULAI setelah
-    // period (data anomali) → skip + log.
+    // Task 63c/64 — ambil SEMUA versi penempatan yang menyentuh period (urut
+    // validFrom ASC). Versi berlaku utk header = validFrom tertinggi ≤ akhir
+    // period; versi-versi lain menjadi SEGMEN efektif (Task 64) bila ada
+    // perubahan di tengah period. Bila karyawan hanya punya penempatan yang
+    // MULAI setelah period (data anomali) → skip + log.
     const allAssignments = emp.assignments;
+    const periodAssignments = isTerminationRun
+      ? allAssignments
+      : [...allAssignments].sort((a, b) => new Date(a.validFrom).getTime() - new Date(b.validFrom).getTime());
     const assignment = isTerminationRun
       ? allAssignments[0]
-      : allAssignments.find((a) => new Date(a.validFrom) <= periodEndDay) ?? null;
+      : [...periodAssignments].reverse().find((a) => new Date(a.validFrom) <= periodEndDay) ?? null;
     if (!assignment) {
       log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "warning", code: "NO_ACTIVE_ASSIGNMENT", message: "Tidak ada versi penempatan yang berlaku pada period ini — dilewati" });
       continue; // tidak punya penempatan aktif → dilewati
@@ -369,9 +387,19 @@ export async function buildRunRowsWithLog(
     if (!profile) {
       log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "warning", code: "NO_PAYROLL_PROFILE", message: "Profil payroll belum dibuat — PTKP default TK0 & metode GrossToNet dipakai" });
     }
-    // Task 63b — template upah = PARAMETER WAJIB run SALARY. Tanpa template →
-    // karyawan TIDAK diproses + log error (dulu diam-diam memakai template DEFAULT).
-    if (isSalaryRun && !profile?.wageTemplateId) {
+    // Task 64 — riwayat template: versi BERLAKU pada period = baris terakhir
+    // dengan validFrom ≤ akhir period (baris berikutnya yang belum efektif
+    // TIDAK BOLEH terbaca — kenaikan jabatan bulan depan tidak bocor ke run
+    // bulan ini). Backfill Initial menjamin profil lama tetap punya versi.
+    const histList = templateHistByEmp.get(emp.id) ?? [];
+    const histStarted = histList.filter((h) => new Date(h.validFrom) <= periodEndDay);
+    const effectiveTemplateId =
+      histStarted.length > 0
+        ? histStarted[histStarted.length - 1].wageTemplateId
+        : (profile?.wageTemplateId ?? null);
+    // Task 63b/64 — template upah = PARAMETER WAJIB run SALARY: versi efektif
+    // pada period (dari riwayat) yang wajib ada — bukan sekadar profil sekarang.
+    if (isSalaryRun && !effectiveTemplateId) {
       log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "error", code: "NO_WAGE_TEMPLATE", message: "Template upah belum ditetapkan pada Profil Payroll — karyawan TIDAK diproses (tetapkan template di menu Profil Payroll)" });
       continue;
     }
@@ -409,6 +437,58 @@ export async function buildRunRowsWithLog(
       const leaverFactor = Math.max(0, Math.min(1, worked / Math.max(1, totalDays)));
       prorateFactor = Math.min(prorateFactor, leaverFactor);
       if (prorateFactor >= 0.999) prorateFactor = 1;
+    }
+
+    // Task 64 — bangun segmen efektif karyawan pada period: gabung versi
+    // penempatan (assignment) × versi template (riwayat). Setiap perubahan
+    // efektif yang jatuh DI DALAM period membelah segmen; atribut tiap segmen
+    // konsisten (office/gaji/status dari assignment, template dari riwayat).
+    type AsgVers = (typeof periodAssignments)[number];
+    type PaySegment = {
+      from: Date; to: Date; days: number;
+      assignment: AsgVers;
+      templateId: string | null;
+    };
+    const segments: PaySegment[] = [];
+    if (isSalaryRun && !isTerminationRun) {
+      const dayOf = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+      const breaks: { t: Date; a: AsgVers | null; tid?: string | null }[] = [
+        ...periodAssignments
+          .filter((a) => dayOf(a.validFrom) > periodStartDay && dayOf(a.validFrom) <= periodEndDay)
+          .map((a) => ({ t: dayOf(a.validFrom), a: a as AsgVers, tid: undefined as string | null | undefined })),
+        ...histList
+          .filter((h) => dayOf(h.validFrom) > periodStartDay && dayOf(h.validFrom) <= periodEndDay)
+          .map((h) => ({ t: dayOf(h.validFrom), a: null as AsgVers | null, tid: h.wageTemplateId })),
+      ].sort((x, y) => x.t.getTime() - y.t.getTime());
+      if (breaks.length > 0) {
+        // Versi awal (sebelum titik belah pertama): penempatan pertama yang
+        // menyentuh period + template berlaku s.d. awal period.
+        let curAsg: AsgVers = periodAssignments[0];
+        const startedBeforePeriod = histList.filter((h) => dayOf(h.validFrom) <= periodStartDay);
+        let curTid: string | null =
+          startedBeforePeriod.length > 0
+            ? startedBeforePeriod[startedBeforePeriod.length - 1].wageTemplateId
+            : (profile?.wageTemplateId ?? null);
+        let cursor = periodStartDay;
+        for (const br of breaks) {
+          if (cursor < br.t) {
+            const days = Math.round((br.t.getTime() - cursor.getTime()) / 86_400_000);
+            if (days > 0) segments.push({ from: cursor, to: br.t, days, assignment: curAsg, templateId: curTid });
+            cursor = br.t;
+          }
+          if (br.a) curAsg = br.a;
+          if (br.tid !== undefined) {
+            curTid = br.tid;
+          } else {
+            // Belah dari perubahan penempatan: template efektif pada titik ini
+            // dihitung dari riwayat (menangani data lama tanpa baris riwayat).
+            const startedAt = histList.filter((h) => dayOf(h.validFrom) <= br.t);
+            if (startedAt.length > 0) curTid = startedAt[startedAt.length - 1].wageTemplateId;
+          }
+        }
+        const days = Math.round((periodEndDay.getTime() - cursor.getTime()) / 86_400_000) + 1;
+        if (days > 0) segments.push({ from: cursor, to: periodEndDay, days, assignment: curAsg, templateId: curTid });
+      }
     }
 
     // Komponen dari template profil (fallback: template DEFAULT).
@@ -455,6 +535,56 @@ export async function buildRunRowsWithLog(
     if (!isSalaryRun && compList.length === 0) {
       log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "info", code: "SKIPPED", message: `Tidak ada komponen transaksi (Specific) untuk run ${processType.code} — dilewati` });
       continue;
+    }
+
+    // Task 64 — komponen override (Specific/Periodic) menandai jalur TUNGGAL:
+    // nilai one-off tidak boleh terpengaruh pembagian segmen.
+    const hasOverride = compList.some((x) => x.overrideAmount != null);
+    // Komponen PER SEGMEN (hanya utk run salary non-termination dgn >1 segmen
+    // dan tanpa override): tiap segmen diberi daftar komponen dari template
+    // versinya + Periodic milik karyawan (nilai Periodic konstan antar segmen).
+    const segmentsPayload: EngineSegment[] | undefined =
+      isSalaryRun && !isTerminationRun && !hasOverride && segments.length > 1
+        ? segments.map((sg) => {
+            const tpl = sg.templateId
+              ? (templateById.get(sg.templateId) ?? templateByCode.get("DEFAULT"))
+              : templateByCode.get("DEFAULT");
+            const seenSeg = new Set<string>();
+            const segComps: { comp: EngineComponent; overrideAmount?: number }[] = [];
+            if (tpl) {
+              for (const item of tpl.items) {
+                const c = components.find((x) => x.id === item.wageComponentId);
+                if (!c || seenSeg.has(c.code)) continue;
+                seenSeg.add(c.code);
+                segComps.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)) });
+              }
+            }
+            for (const p of periodicByEmp.get(emp.id) ?? []) {
+              const c = components.find((x) => x.id === p.wageComponentId);
+              if (!c || seenSeg.has(c.code)) continue;
+              seenSeg.add(c.code);
+              segComps.push({ comp: toEngineComponent(c, rulesByComp.get(c.id)), overrideAmount: p.amount });
+            }
+            const asg = sg.assignment;
+            return {
+              days: sg.days,
+              baseSalary: tc.decryptMoney(asg.baseSalary) ?? 0,
+              templateId: sg.templateId,
+              orgUnitCode: asg.orgUnit?.code ?? null,
+              positionCode: asg.position?.code ?? null,
+              gradeCode: asg.grade?.code ?? null,
+              officeCode: asg.companyOffice?.code ?? null,
+              workLocationCode: asg.workLocation?.code ?? null,
+              employmentStatus: asg.employmentStatus,
+              components: segComps,
+            };
+          })
+        : undefined;
+    if (segmentsPayload && segmentsPayload.length > 1) {
+      const rincian = segmentsPayload
+        .map((s) => `${s.days} hari (office ${s.officeCode ?? "-"}, gaji ${Math.round(s.baseSalary)})`)
+        .join(" + ");
+      log({ employeeId: emp.id, employeeNo: emp.employeeNo, employeeName: emp.fullName, level: "info", code: "SEGMENTS", message: `${segmentsPayload.length} segmen efektif dihitung prorate: ${rincian}` });
     }
 
     // Angsuran pinjaman jatuh tempo dalam period — hanya dipotong di run salary.
@@ -524,6 +654,10 @@ export async function buildRunRowsWithLog(
       loans: loanDues,
       workingDays,
       prorateFactor,
+      // Task 64 — segmen efektif: bila karyawan mengalami perubahan di tengah
+      // period (tanpa override), engine mengevaluasi per segmen; header
+      // (employee/baseSalary) tetap versi AKHIR period utk pajak & tampilan.
+      ...(segmentsPayload && segmentsPayload.length > 1 ? { segments: segmentsPayload, hasOverride: false } : { hasOverride }),
       // K-1: konteks regular YTD (run suplemental; fallback gaji bulanan profil).
       regularIncomeYtd: ctx && ctx.months > 0 ? ctx.bruto : baseSalary,
       regularIuranYtd: ctx && ctx.months > 0 ? ctx.iuran : 0,

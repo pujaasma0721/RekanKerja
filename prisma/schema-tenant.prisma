@@ -247,6 +247,7 @@ model Employee {
   assignments          EmployeeAssignment[]
   managedAssignments   EmployeeAssignment[]          @relation("AssignmentManager")
   payrollProfile       EmployeePayrollProfile?
+  wageTemplateHistory  EmployeeWageTemplateHistory[]
   loans                EmployeeLoan[]
   runLines             PayrollRunLine[]
   componentAssignments EmployeeComponentAssignment[]
@@ -630,6 +631,7 @@ model WageTemplate {
 
   items    WageTemplateItem[]
   profiles EmployeePayrollProfile[]
+  history  EmployeeWageTemplateHistory[]
 }
 
 model WageTemplateItem {
@@ -669,6 +671,29 @@ model EmployeePayrollProfile {
 
   employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   wageTemplate WageTemplate? @relation(fields: [wageTemplateId], references: [id])
+}
+
+// Task 64 — riwayat template upah per karyawan (effective-dated, pola sama
+// dengan EmployeeAssignment utk gaji): setiap pergantian template (Profil
+// Payroll / PA promosi-mutasi) menutup baris lama (validTo = efektif − 1 µs)
+// dan membuka baris baru (validFrom = efektif). Run payroll membaca versi
+// BERLAKU pada period — kenaikan jabatan di tengah tahun tidak merusak run
+// bulan sebelumnya. Baris dgn validTo null = versi aktif sekarang.
+model EmployeeWageTemplateHistory {
+  id             String    @id @default(cuid())
+  employeeId     String
+  wageTemplateId String?
+  validFrom      DateTime  @default(now())
+  validTo        DateTime?
+  changeReason   String    @default("Initial") // Initial|Promotion|Demotion|Transfer|Mutation|ChangeStatus|ManualEdit|PersonnelAction
+  sourceDocNo    String? // PersonnelAction docNo (jika via PA)
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  wageTemplate WageTemplate? @relation(fields: [wageTemplateId], references: [id])
+
+  @@index([employeeId, validFrom])
 }
 
 // Bracket pajak progresif (UU HPP) + penalti non-NPWP — ber-dating.
