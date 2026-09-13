@@ -17,7 +17,9 @@
 - Enkripsi field: format `enc:v1:<t|n>:<iv>:<tag>:<ct>` via field-crypto.ts;
   decrypt HANYA di batas serializer API (decryptJson) atau di service saat
   menghitung — tidak pernah di query/sort SQL.
-- Push hanya saat user bilang "push". Commit boleh tiap task.
+- Push SELALU otomatis setiap selesai melakukan perubahan (commit + push, tanpa
+  menunggu perintah "push" dari user). Commit boleh tiap task. [DIUBAH 2026-09-13
+  atas perintah user; sebelumnya: push hanya saat user bilang "push"]
 - OOM guard: maks 2 subagent paralel berat (pelajaran task 41).
 
 ## Lingkungan Dev (pemulihan pasca-rollback #3, 2026-09-12)
