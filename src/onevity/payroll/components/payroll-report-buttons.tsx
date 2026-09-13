@@ -99,3 +99,19 @@ export function PayrollRegisterExportButton({ runId, runNo, compact }: { runId: 
     </a>
   );
 }
+
+// Task 64 — laporan payroll bulanan LENGKAP: 5 sheet (Ringkasan, Rekap Gaji
+// per komponen, Detail Komponen, Rekap Komponen, Pembayaran & Pajak).
+export function MonthlyReportExportButton({ runId, runNo, compact }: { runId: string; runNo?: string; compact?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <a
+      href={`/api/onevity/payroll-reports/monthly?runId=${runId}&export=xlsx`}
+      className={btnCls(compact)}
+      aria-label={t("Unduh laporan bulanan payroll run {no}", "Download monthly payroll report for run {no}", { no: runNo ?? runId })}
+    >
+      <FileSpreadsheet className={compact ? "h-3 w-3" : "h-4 w-4"} />
+      {compact ? t("Bulanan") : t("Laporan Bulanan (XLSX)", "Monthly Report (XLSX)")}
+    </a>
+  );
+}

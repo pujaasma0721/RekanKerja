@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle } from "lucide-react";
 import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
-import { BpjsExportButton, PayrollRegisterExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
+import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/onevity/shared/lib/i18n";
 
@@ -162,6 +162,9 @@ export function PayrollRunDetailPage() {
                   <PayrollRegisterExportButton runId={run.id} />
                 )}
               </>
+            )}
+            {(run.status === "Confirmed" || run.status === "Paid") && perms.canOp("payroll", "runs", "export") && (
+              <MonthlyReportExportButton runId={run.id} runNo={run.runNo} />
             )}
             {(run.status === "Confirmed" || run.status === "Paid") && (
               <>

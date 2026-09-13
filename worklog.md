@@ -1393,3 +1393,28 @@ Work Log:
 
 Stage Summary:
 - Payroll menolak karyawan tanpa template upah (bukan fallback diam-diam), semua kejadian tercatat di tab Log Run, dan pembacaan gaji berbasis riwayat penempatan per period.
+
+---
+Task ID: 64
+Agent: orchestrator (Z.ai)
+Task: Menu Payroll Runs & Results — ketika detail run dipilih, tambahkan LAPORAN BULANAN PAYROLL LENGKAP dalam Excel (permintaan user: "pada menu Payroll Runs & Results, ketika detail dipilih, tambahkan report bulanan payroll lengkap di excel").
+
+Work Log:
+- BACKEND src/onevity/payroll/api/reports-monthly.ts (BARU) + thin route src/app/api/onevity/payroll-reports/monthly/route.ts: GET ?runId=&export=xlsx → workbook 5 sheet via toXlsxMulti:
+  1. Ringkasan — identitas perusahaan (Company: nama/kode/NPWP/alamat/telepon) + run (runNo/periode/tipe/status/tanggal hitung-konfirmasi-bayar) + totals (bruto/potongan/PPh21/THP format "Rp n") + jumlah karyawan + UMP/UMK warning + "Dicetak … oleh <aktor>" + baris PERHATIAN bila vault terkunci.
+  2. Rekap Gaji — per karyawan: No/NoKaryawan/Nama/Unit/Jabatan/PTKP + KOLOM KOMPOEN DINAMIS (satu kolom per komponen run — penghasilan dulu lalu potongan, header unik nama+kode bila tabrakan) + Total Bruto/Potongan/PPh21/THP + baris TOTAL (jumlah per kolom). Nomor = number murni → numFmt #,##0 otomatis & dapat dijumlah di Excel.
+  3. Detail Komponen — audit format panjang: satu baris per item per karyawan (kode/komponen/kategori/jenis upah/metode pajak/catatan/nominal).
+  4. Rekap Komponen — agregat per komponen (jumlah karyawan + total nominal).
+  5. Pembayaran — NPWP + bank + no. rekening (PII terdekripsi, pola payroll-run-export) + PPh21 + THP + baris TOTAL.
+- Guard: requireMenuAction payroll:runs op:export (file berisi PII + nilai penuh — sama dgn file transfer bank, audit 42 K-2); status Draft/Cancelled → 400 (pola register); runId tak dikenal → 404; tanpa sesi → 401. Uang seluruhnya via getMoneyView(...).dec0 (vault tertutup → 0 — keputusan pemilik produk Task 56, konsisten register/bank/BPJS); NPWP/rekening = PII → tenantCryptoForDb decryptText tanpa gate. Tanpa ?export= → preview JSON ringkas (meta/totals/components). ActivityLog "Ekspor XLSX laporan bulanan payroll run <no> (n karyawan)" try/catch (schema legacy-safe). Filename: onevity-payroll-bulanan-<runNo>-<tanggal>.xlsx.
+- FRONTEND: MonthlyReportExportButton baru di payroll-report-buttons.tsx (anchor pola Register — aria-label + compact variant); dipasang di payroll-run-detail.tsx sebagai blok mandiri `(status Confirmed || Paid) && canOp(export)` antara grup export Confirmed dan grup slip/jurnal — tampil utk run Confirmed maupun Paid (register/bank/BPJS hanya Confirmed; laporan bulanan justru paling dibutuhkan setelah dibayar).
+- E2E scripts/tmp-t64-e2e-monthly.ts (login owner MII + select-tenant → runs → download → baca workbook exceljs → 25 assert): SEMUA LULUS — 5 sheet; 42 karyawan + baris TOTAL; 26 kolom Rekap Gaji (komponen dinamis: Gaji Pokok, Tunjangan Jabatan/Keluarga/Transport/Makan, BPJS…); 616 baris Detail Komponen; 17 komponen Rekap; konsistensi silang THP Rekap Gaji = Pembayaran = Ringkasan (531.745.241); bruto 604.903.508; NPWP/rekening asli terdekripsi (contoh MII00013: NPWP 095779436728, BNI 981045524); guard 404/401/400-Draft ✓; 0 ciphertext enc: bocor.
+- Dua jalur vault terverifikasi: (a) TERKUNCI → semua nominal 0 + baris PERHATIAN muncul di Ringkasan (run tes pertama); (b) nilai riil — vault lokal MII lama tak diketahui sandinya + lockout percobaan (kandidat worklog salah semua) → jalankan skrip RESMI proyek scripts/reset-vault-demo.ts (5.379 nilai v2→v1 legacy TANPA kehilangan data, baris vault dihapus — state demo default per konvensi Task 47) + restart dev server → mode legacy → nilai riil mengalir penuh.
+- BROWSER (agent-browser): login → workspace MII → detail run Paid → tombol "Laporan Bulanan (XLSX)" tampil dgn href benar + aria-label; klik = unduhan sukses (ActivityLog 09:35:14); console/error bersih; responsif 390px tombol tetap tampil; screenshot audit/t64-run-detail-monthly.png + t64-run-detail-desktop.png.
+- tsc ✓ (src) · lint ✓ · dev.log bersih (semua 200).
+- CATATAN: error tsc scripts/seed-sayone-via-ui.ts vs seed-sayone-phase2.ts (duplicate identifier) = kode ter-commit sesi paralel (Task 60) — TIDAK disentuh sesi ini.
+
+Stage Summary:
+- Detail run Payroll Runs & Results kini punya laporan bulanan payroll XLSX lengkap 5 sheet (ringkasan perusahaan+run, rekap gaji per karyawan per komponen, detail audit, rekap komponen, pembayaran+NPWP+rekening) — otomatis ter-gate vault uang & PII, tercatat di ActivityLog.
+- State lokal dev: vault MII direset ke legacy via skrip resmi (password lama tak terdokumentasi + lockout) — data uang tetap utuh & kini terlihat tanpa brankas di local.
+- Artefak: scripts/tmp-t64-e2e-monthly.ts; audit/t64-run-detail-monthly.png, audit/t64-run-detail-desktop.png.
