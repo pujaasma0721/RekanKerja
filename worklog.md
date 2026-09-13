@@ -1504,3 +1504,37 @@ Work Log:
 
 Stage Summary:
 - Repo lokal kini di 034aada: prorate per-komponen (kalender/hari kerja) + backdate chain versi effective-dated aktif; DB 3/3 tenant sinkron (kolom prorateBasis); semua jalur inti terverifikasi sehat tanpa perubahan kode aplikasi dari sesi ini (hanya worklog + eksekusi migrasi idempoten).
+- Fix penting utk developer paralel: JANGAN referensikan kolom createdAt pada EmployeePayrollProfile (tidak ada di model/DDL/DB).
+
+---
+Task ID: 64c
+Agent: Buffy (Codebuff)
+Date: 2026-09-13
+Status: DONE
+
+Task 64c — Basis prorata per komponen + perbaikan effective-dated backdate
+- WageComponent.prorateBasis (null/Calendar vs WorkingDays): DDL tenant-ddl.sql,
+  migrasi parity scripts/migrate-wage-component-prorate-basis.ts (7/7 tenant OK).
+- countScheduledWorkingDaysPure (attendance-service): hitung hari kerja jadwal
+  murni (cycle WorkSchedule + overlay HolidayDate; fallback Sen-Jum).
+- payroll-service: prefetch jadwal/libur sekali, hitung hari kerja period penuh,
+  masa kerja, dan per segmen; engine terapkan faktor per-basis di kedua jalur
+  (tunggal + segmen; Fixed prorate antar segmen diakumulasi via fixedAcc).
+- UI wage-components.tsx: pilihan "Hari Kalender / Hari Kerja (Jadwal)" muncul
+  saat Prorata aktif; API POST/PATCH menerima prorateBasis.
+- Fix jalur tunggal: template efektif dibaca dari riwayat effective-dated
+  (sebelumnya profil — perubahan template mid-period terlewat di jalur override).
+- Fix backdate applyAssignmentChange/applyWageTemplateChange: perubahan ber-tanggal
+  lampau menyisip versi dengan NILAI YANG BERLAKU pada tanggal efektif (bukan
+  nilai versi terbuka terakhir yang bisa ber-future-date) + patch-maju override
+  ke versi berikutnya yang masih bernilai lama. Bukti E2E SAYONE00002: PA gaji
+  eff 1 Okt diproses dulu, lalu PA transfer eff 12 Sep → run Sep gaji tetap
+  6.555.000 (2 segmen 11h OF-03 + 19h OF-01), run Okt 7.055.000; bocor Okt ke
+  Sep tidak terjadi lagi.
+- Deploy lesson: build turbopack di server bisa stale — PM2 menjalankan
+  .next/standalone; deploy WAJIB `rm -rf .next` sebelum build (stale cache
+  membuat fix tidak pernah aktif meski git sudah baru).
+- Bukti WorkingDays: T_TRF (1,5jt, basis Hari Kerja) 8 hari kerja/22 → 545.455
+  vs kalender 11/30 → 550.000. Komponen demo T_TRF/rule/TPL_TRF di SAYONE;
+  rantai SAYONE00001 dirapikan via PA koreksi (PA-2026-0007/0008).
+Commits: 9e8565a, 6141cbd, 034aada
