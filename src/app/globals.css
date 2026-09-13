@@ -318,6 +318,30 @@ html[data-module] ::selection {
   background: var(--ov-accent-mist);
 }
 
+/* Task 64f — TEMA TOPBAR AKTIF: seluruh sistem --ov-accent-* (ov-hero,
+   ov-glow, ov-fill, ov-tile, ov-soft, text-gradient-accent, …) mengikuti
+   --accent-live, menang atas override per-modul html[data-module=…]. */
+html[data-accent="1"],
+html[data-module][data-accent="1"] {
+  --ov-accent: var(--accent-live);
+  --ov-accent-strong: var(--accent-live);
+  --ov-accent-solid: var(--accent-live);
+  --ov-accent-deep: var(--accent-live-deep);
+  --ov-accent-ink: var(--accent-live-deep);
+  --ov-accent-soft: rgb(var(--accent-live-rgb) / 0.10);
+  --ov-accent-mist: rgb(var(--accent-live-rgb) / 0.16);
+  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.30);
+  --ov-accent-glow: rgb(var(--accent-live-rgb) / 0.28);
+  --ov-accent-fg: var(--accent-live-fg);
+}
+html.dark[data-accent="1"],
+html.dark[data-module][data-accent="1"] {
+  --ov-accent-soft: rgb(var(--accent-live-rgb) / 0.12);
+  --ov-accent-mist: rgb(var(--accent-live-rgb) / 0.18);
+  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.30);
+  --ov-accent-glow: rgb(var(--accent-live-rgb) / 0.22);
+}
+
 /* Utilitas aksen modul — dipakai komponen halaman; varian hover:/dark: otomatis */
 @utility ov-text-accent {
   color: var(--ov-accent-strong);

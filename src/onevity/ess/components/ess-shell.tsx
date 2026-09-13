@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/onevity/shared/lib/api";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { useUiMode } from "@/onevity/shared/lib/store";
+import { useAccentTheme, applyAccentTheme } from "@/onevity/shared/lib/accent-theme";
 import { useI18n, locActivity } from "@/onevity/shared/lib/i18n";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
 import { ChangePasswordDialog } from "@/onevity/shared/components/shell/change-password-dialog";
@@ -236,6 +237,13 @@ export function EssShell() {
     root.dataset.module = "payroll";
     return () => { delete root.dataset.module; };
   }, []);
+
+  // Task 64f — tema aksen pilihan pengguna (topbar admin) juga berlaku di ESS:
+  // hydrate dari localStorage + terapkan ulang saat tema light/dark berganti.
+  const { accent: accentId, hydrate: hydrateAccent } = useAccentTheme();
+  const { resolvedTheme: essResolvedTheme } = useTheme();
+  useEffect(() => { hydrateAccent(); }, [hydrateAccent]);
+  useEffect(() => { if (essResolvedTheme) applyAccentTheme(accentId); }, [essResolvedTheme, accentId]);
 
   // lock scroll + Escape saat bottom sheet mobile terbuka (pola admin)
   useEffect(() => {
