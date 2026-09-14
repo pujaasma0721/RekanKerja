@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, History } from "lucide-react";
-import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse } from "@/onevity/payroll/components/payroll-types";
+import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse, SalaryHistoryEntry, TemplateHistoryEntry } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
@@ -179,28 +179,36 @@ export function PayrollProfilesPage() {
 
       <ProfileDialog row={editing} templates={templatesApi.data?.templates ?? []} onClose={() => { setEditing(null); refresh(); }} />
       <SyncPtkpDialog open={syncOpen} onClose={() => { setSyncOpen(false); refresh(); }} />
-      <PayrollHistoryDialog row={histRow} onClose={() => setHistRow(null)} />
+      <PayrollHistoryDialog row={histRow} templates={templatesApi.data?.templates ?? []} onClose={() => setHistRow(null)} onCorrected={refresh} />
     </div>
   );
 }
 
-// ============ Task 64d — Dialog Riwayat Gaji & Template Upah per karyawan ============
+// ============ Dialog Riwayat Gaji & Template Upah per karyawan ============
+// Task 64e — tiap baris timeline bisa DIKOREKSI LANGSUNG (ikon pensil):
+// untuk salah ketik nilai/tanggal pada versi tanpa movement proses. Perubahan
+// proses (kenaikan/promosi/transfer) tetap lewat Personnel Action / Profil Payroll.
 
-function PayrollHistoryDialog({ row, onClose }: { row: ProfileRow | null; onClose: () => void }) {
+function PayrollHistoryDialog({ row, templates, onClose, onCorrected }: { row: ProfileRow | null; templates: TemplateRow[]; onClose: () => void; onCorrected: () => void }) {
   const { t } = useI18n();
   const [data, setData] = useState<PayrollHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [key, setKey] = useState("");
+  // Task 64e — koreksi baris: { kind, entry } aktif → dialog koreksi terbuka.
+  const [corr, setCorr] = useState<{ kind: "salary" | "template"; entry: SalaryHistoryEntry | TemplateHistoryEntry } | null>(null);
+  // Tick → re-fetch timeline setelah satu baris dikoreksi.
+  const [tick, setTick] = useState(0);
 
   const empId = row?.employeeId ?? "closed";
-  if (key !== empId) {
-    setKey(empId);
+  const fetchKey = `${empId}:${tick}`;
+  if (key !== fetchKey) {
+    setKey(fetchKey);
     setData(null);
     if (row) {
       setLoading(true);
       fetch(`/api/onevity/payroll-profiles?history=1&employeeId=${row.employeeId}`)
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error("gagal memuat"))))
-        .then((d: PayrollHistoryResponse) => setData(d))
+        .then((d: PayrollHistoryResponse) => { setData(d); setCorr(null); })
         .catch(() => toast.error(t("Gagal memuat riwayat", "Failed to load history")))
         .finally(() => setLoading(false));
     }
@@ -250,6 +258,9 @@ function PayrollHistoryDialog({ row, onClose }: { row: ProfileRow | null; onClos
                         <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(s.validFrom, s.validTo)}</span>
                         <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(s.reason)}</Badge>
                         {s.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{s.sourceDocNo}</span>}
+                        <button onClick={() => setCorr({ kind: "salary", entry: s })} className="ml-auto rounded p-0.5 text-stone-300 hover:text-brand dark:text-stone-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
+                          <Pencil className="h-3 w-3" />
+                        </button>
                       </div>
                       <p className="text-sm font-bold">{fmtIDR(s.baseSalary)}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{s.positionName ?? ""}{s.officeCode ? ` · ${s.officeCode}` : ""}</span></p>
                       {s.notes && <p className="text-[10px] italic text-stone-400">{s.notes}</p>}
@@ -271,6 +282,9 @@ function PayrollHistoryDialog({ row, onClose }: { row: ProfileRow | null; onClos
                         <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(h.validFrom, h.validTo)}</span>
                         <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(h.reason)}</Badge>
                         {h.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{h.sourceDocNo}</span>}
+                        <button onClick={() => setCorr({ kind: "template", entry: h })} className="ml-auto rounded p-0.5 text-stone-300 hover:text-brand dark:text-stone-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
+                          <Pencil className="h-3 w-3" />
+                        </button>
                       </div>
                       <p className="text-sm font-bold">{h.templateName ?? t("(tanpa template)", "(no template)")}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{h.templateCode ?? ""}</span></p>
                       {h.notes && <p className="text-[10px] italic text-stone-400">{h.notes}</p>}
@@ -284,6 +298,131 @@ function PayrollHistoryDialog({ row, onClose }: { row: ProfileRow | null; onClos
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t("Tutup", "Close")}</Button>
+        </DialogFooter>
+      </DialogContent>
+      {/* Task 64e — koreksi langsung baris (salah ketik nilai/tanggal). */}
+      <HistoryRowCorrectDialog
+        corr={corr}
+        templates={templates}
+        onClose={() => setCorr(null)}
+        onSaved={() => { setCorr(null); setTick((x) => x + 1); onCorrected(); }}
+      />
+    </Dialog>
+  );
+}
+
+// ============ Task 64e — Dialog koreksi satu baris riwayat ============
+
+function HistoryRowCorrectDialog({ corr, templates, onClose, onSaved }: {
+  corr: { kind: "salary" | "template"; entry: SalaryHistoryEntry | TemplateHistoryEntry } | null;
+  templates: TemplateRow[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  const [baseSalary, setBaseSalary] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validTo, setValidTo] = useState("");
+  const [validToOpen, setValidToOpen] = useState(false);
+  const [wageTemplateId, setWageTemplateId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [key, setKey] = useState("");
+
+  const rowKey = corr ? `${corr.kind}:${corr.entry.id}` : "none";
+  if (key !== rowKey) {
+    setKey(rowKey);
+    const e = corr?.entry;
+    setBaseSalary(e && corr?.kind === "salary" ? String((e as SalaryHistoryEntry).baseSalary) : "");
+    setValidFrom(e ? new Date(e.validFrom).toISOString().slice(0, 10) : "");
+    setValidTo(e?.validTo ? new Date(e.validTo).toISOString().slice(0, 10) : "");
+    setValidToOpen(!e?.validTo);
+    setWageTemplateId(e && corr?.kind === "template" ? ((e as TemplateHistoryEntry).templateId ?? "") : "");
+    setNotes(e?.notes ?? "");
+  }
+
+  const submit = async () => {
+    if (!corr) return;
+    setBusy(true);
+    try {
+      await apiSend("/api/onevity/payroll-profiles", "PUT", {
+        kind: corr.kind,
+        rowId: corr.entry.id,
+        ...(corr.kind === "salary" ? { baseSalary: Number(baseSalary) } : { wageTemplateId }),
+        validFrom,
+        validTo: validToOpen ? null : (validTo || null),
+        notes: notes.trim() || null,
+      });
+      toast.success(t("Baris riwayat dikoreksi", "History row corrected"));
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={!!corr} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Pencil className="h-4 w-4 ov-text-accent" />
+            {corr?.kind === "salary" ? t("Koreksi Gaji Pokok", "Correct Base Salary") : t("Koreksi Template Upah", "Correct Wage Template")}
+          </DialogTitle>
+        </DialogHeader>
+        {corr && (
+          <div className="grid gap-3">
+            <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/50">
+              {t(
+                "Koreksi langsung untuk salah ketik — TIDAK mencatat versi baru. Untuk kenaikan/promosi/transfer gunakan Personnel Action atau Profil Payroll.",
+                "Direct fix for typos — does NOT record a new version. For raises/promotions/transfers use Personnel Action or Payroll Profile.",
+              )}
+            </div>
+            {corr.kind === "salary" ? (
+              <div>
+                <Label className="text-xs">{t("Gaji Pokok", "Base Salary")}</Label>
+                <Input type="number" min={0} value={baseSalary} onChange={(e) => setBaseSalary(e.target.value)} className="mt-1.5" />
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs">{t("Template Upah", "Wage Template")}</Label>
+                <Select value={wageTemplateId} onValueChange={setWageTemplateId}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("Pilih template…", "Choose template…")} /></SelectTrigger>
+                  <SelectContent>
+                    {templates.filter((x) => x.active).map((x) => (
+                      <SelectItem key={x.id} value={x.id}>{x.name} ({x.code})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">{t("Berlaku Dari", "Valid From")}</Label>
+                <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs">{t("Berlaku Sampai", "Valid To")}</Label>
+                {validToOpen ? (
+                  <button type="button" onClick={() => setValidToOpen(false)} className="mt-1.5 h-9 w-full rounded-lg border border-dashed border-stone-300 text-[11px] font-bold text-stone-400 hover:border-stone-400 dark:border-stone-700">
+                    {t("Masih berlaku (terbuka) — klik untuk batasi", "Still active (open) — click to set an end")}
+                  </button>
+                ) : (
+                  <div className="mt-1.5 flex items-center gap-1">
+                    <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} className="flex-1" />
+                    <button type="button" onClick={() => { setValidToOpen(true); setValidTo(""); }} className="rounded-lg border border-stone-200 px-2 py-2 text-[10px] font-bold text-stone-400 hover:text-stone-600 dark:border-stone-700" title={t("Buat terbuka kembali", "Reopen (no end date)")}>
+                      {t("Terbuka", "Open")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">{t("Catatan", "Notes")}</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("Alasan koreksi…", "Reason for correction…")} className="mt-1.5" />
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…", "Saving…") : t("Simpan Koreksi", "Save Correction")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

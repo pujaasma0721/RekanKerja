@@ -1569,3 +1569,28 @@ Work Log:
 
 Stage Summary:
 - Repo lokal kini di 1530c02: tema aksen global + layar auth bertema + riwayat gaji/template di modul payroll aktif; jalur inti (login → payroll → detail → ekspor Excel) terverifikasi end-to-end tanpa error; tanpa perubahan kode aplikasi dari sesi ini (hanya worklog).
+
+---
+Task ID: 64g
+Agent: Buffy (Codebuff)
+Date: 2026-09-14
+
+Task: Koreksi langsung baris riwayat gaji & template upah (tanpa movement)
+
+User question: "kalau ada kesalahan pada data gaji/history basic salary atau template upah, dimana editnya, sedangkan karyawan tersebut belum ada movement yang mengharuskan perubahan kedua tempat tsb"
+
+Implementation:
+- `correctAssignmentRow` + `correctTemplateHistoryRow` (assignment.ts): edit
+  SATU baris riwayat (nilai gaji terenkripsi, template, validFrom/validTo,
+  catatan) dengan guard rantai versi — validTo <= validFrom ditolak, tabrakan
+  dengan versi tetangga ditolak (validTo eksklusif).
+- PUT /api/onevity/payroll-profiles: kind=salary|template + rowId; guard Money
+  Vault (nilai gaji hanya bisa dikoreksi saat vault terbuka — mencegah overwrite
+  masked 0); validasi angka; ActivityLog per koreksi.
+- UI: Payroll → Profil Payroll → Riwayat (ikon jam) → ikon pensil per baris
+  timeline (gaji & template) → dialog koreksi (nilai/template, rentang tanggal
+  dengan mode "terbuka", catatan alasan). Timeline auto-reload; tabel utama
+  ikut refresh.
+- Pembedaan tegas: koreksi = perbaiki salah ketik versi lama (TANPA versi
+  baru); kenaikan/promosi/transfer = tetap via Personnel Action / Profil
+  Payroll (effective-dated, prorate segmen).

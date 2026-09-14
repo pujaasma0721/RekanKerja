@@ -258,6 +258,84 @@ export async function closeCurrentAssignment(db: DbOrTx, employeeId: string, val
   });
 }
 
+/**
+ * Koreksi langsung SATU baris riwayat gaji (EmployeeAssignment) — untuk salah
+ * ketik nilai/tanggal pada versi yang tidak punya movement proses di belakangnya
+ * (bukan mengganti hasil PA/kenaikan — itu lewat Personnel Action).
+ * Guard rantai: validFrom < validTo tetangga (null = terbuka) — mencegah
+ * rantai versi rusak (validTo < validFrom) akibat edit tanggal.
+ */
+export async function correctAssignmentRow(
+  db: DbOrTx,
+  rowId: string,
+  patch: { baseSalary?: number; validFrom?: Date; validTo?: Date | null; notes?: string | null },
+  tcr: FieldCrypto,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const row = await db.employeeAssignment.findUnique({ where: { id: rowId } });
+  if (!row) return { ok: false, error: "Baris riwayat tidak ditemukan" };
+  const all = await db.employeeAssignment.findMany({
+    where: { employeeId: row.employeeId },
+    orderBy: { validFrom: "asc" },
+  });
+  const i = all.findIndex((r) => r.id === rowId);
+  const prev = i > 0 ? all[i - 1] : null;
+  const next = i >= 0 && i < all.length - 1 ? all[i + 1] : null;
+
+  const nf = patch.validFrom ?? new Date(row.validFrom);
+  const nt = patch.validTo === undefined ? (row.validTo ? new Date(row.validTo) : null) : patch.validTo;
+  if (nt && nt.getTime() <= nf.getTime()) return { ok: false, error: "Tanggal berakhir harus setelah tanggal mulai" };
+  // validFrom tidak boleh menabrak versi sebelumnya (validTo prev eksklusif = nf berarti mulai keesokan harinya sah)
+  if (prev && new Date(prev.validTo ?? nf).getTime() > nf.getTime())
+    return { ok: false, error: "Tanggal mulai bentrok dengan versi sebelumnya" };
+  // validTo tidak boleh melewati mulai versi berikutnya (eksklusif: = mulai next sah)
+  if (next && nt && new Date(next.validFrom).getTime() < nt.getTime())
+    return { ok: false, error: "Tanggal berakhir melewati awal versi berikutnya" };
+
+  const data: Record<string, unknown> = {};
+  if (patch.baseSalary !== undefined) data.baseSalary = tcr.encryptMoney(patch.baseSalary);
+  if (patch.validFrom !== undefined) data.validFrom = nf;
+  if (patch.validTo !== undefined) data.validTo = nt;
+  if (patch.notes !== undefined) data.notes = patch.notes;
+  await db.employeeAssignment.update({ where: { id: rowId }, data });
+  return { ok: true };
+}
+
+/**
+ * Koreksi langsung SATU baris riwayat template upah (EmployeeWageTemplateHistory)
+ * — guard rantai sama dengan correctAssignmentRow.
+ */
+export async function correctTemplateHistoryRow(
+  db: DbOrTx,
+  rowId: string,
+  patch: { wageTemplateId?: string | null; validFrom?: Date; validTo?: Date | null; notes?: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const row = await db.employeeWageTemplateHistory.findUnique({ where: { id: rowId } });
+  if (!row) return { ok: false, error: "Baris riwayat tidak ditemukan" };
+  const all = await db.employeeWageTemplateHistory.findMany({
+    where: { employeeId: row.employeeId },
+    orderBy: { validFrom: "asc" },
+  });
+  const i = all.findIndex((r) => r.id === rowId);
+  const prev = i > 0 ? all[i - 1] : null;
+  const next = i >= 0 && i < all.length - 1 ? all[i + 1] : null;
+
+  const nf = patch.validFrom ?? new Date(row.validFrom);
+  const nt = patch.validTo === undefined ? (row.validTo ? new Date(row.validTo) : null) : patch.validTo;
+  if (nt && nt.getTime() <= nf.getTime()) return { ok: false, error: "Tanggal berakhir harus setelah tanggal mulai" };
+  if (prev && new Date(prev.validTo ?? nf).getTime() > nf.getTime())
+    return { ok: false, error: "Tanggal mulai bentrok dengan versi sebelumnya" };
+  if (next && nt && new Date(next.validFrom).getTime() < nt.getTime())
+    return { ok: false, error: "Tanggal berakhir melewati awal versi berikutnya" };
+
+  const data: Record<string, unknown> = {};
+  if (patch.wageTemplateId !== undefined) data.wageTemplateId = patch.wageTemplateId;
+  if (patch.validFrom !== undefined) data.validFrom = nf;
+  if (patch.validTo !== undefined) data.validTo = nt;
+  if (patch.notes !== undefined) data.notes = patch.notes;
+  await db.employeeWageTemplateHistory.update({ where: { id: rowId }, data });
+  return { ok: true };
+}
+
 export const CHANGE_REASON_LABEL: Record<string, string> = {
   Initial: "Penempatan Awal",
   Promotion: "Promosi",

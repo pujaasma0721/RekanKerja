@@ -4,7 +4,11 @@ import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { PTKP_ANNUAL } from "@/onevity/payroll/services/payroll-engine";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
-import { applyWageTemplateChange } from "@/onevity/human-resource/services/assignment";
+import {
+  applyWageTemplateChange,
+  correctAssignmentRow,
+  correctTemplateHistoryRow,
+} from "@/onevity/human-resource/services/assignment";
 import {
   applyPtkpAutoToAll,
   derivePtkpFromFamily,
@@ -266,6 +270,63 @@ export async function PATCH(req: NextRequest) {
     });
     // 28-c: response profil di-dekripsi (bentuk lama utk UI).
     return NextResponse.json({ profile: { ...profile, npwp: tcW.decryptText(profile.npwp), bankAccount: tcW.decryptText(profile.bankAccount) } });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+// PUT /api/onevity/payroll-profiles — KOREKSI LANGSUNG SATU BARIS RIWAYAT
+// (salah ketik nilai/tanggal pada versi tanpa movement proses — bukan pengganti
+// Personnel Action untuk kenaikan/promosi). Guard rantai versi di service layer;
+// setiap koreksi meninggalkan ActivityLog (audit).
+// Body: { kind: "salary", rowId, baseSalary?, validFrom?, validTo?, notes? }
+//     | { kind: "template", rowId, wageTemplateId?, validFrom?, validTo?, notes? }
+export async function PUT(req: NextRequest) {
+  try {
+    const m = await requireMenuAction(req, "payroll:profiles", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+    const b = await req.json();
+    if (!b.rowId || (b.kind !== "salary" && b.kind !== "template")) {
+      return NextResponse.json({ error: "kind ('salary'|'template') dan rowId wajib" }, { status: 400 });
+    }
+    const parseDate = (v: unknown): Date | undefined =>
+      v == null || v === "" ? undefined : new Date(String(v));
+    const tcr = tenantCryptoForDb(db);
+    // Guard vault: koreksi nilai gaji hanya saat Money Vault terbuka —
+    // mencegah admin menimpa nilai asli dengan 0 (tampilan masked).
+    if (b.kind === "salary" && b.baseSalary !== undefined) {
+      const mv = await moneyViewForReq(req, db);
+      if (!mv.canSee) return NextResponse.json({ error: "Buka Money Vault untuk mengoreksi nilai gaji" }, { status: 403 });
+      const n = Number(b.baseSalary);
+      if (!Number.isFinite(n) || n < 0) return NextResponse.json({ error: "Nilai gaji tidak valid" }, { status: 400 });
+    }
+    let r: { ok: true } | { ok: false; error: string };
+    if (b.kind === "salary") {
+      r = await correctAssignmentRow(db, String(b.rowId), {
+        ...(b.baseSalary !== undefined ? { baseSalary: Number(b.baseSalary) } : {}),
+        ...(b.validFrom !== undefined ? { validFrom: parseDate(b.validFrom)! } : {}),
+        ...(b.validTo !== undefined ? { validTo: b.validTo === null ? null : parseDate(b.validTo)! } : {}),
+        ...(b.notes !== undefined ? { notes: b.notes } : {}),
+      }, tcr);
+    } else {
+      r = await correctTemplateHistoryRow(db, String(b.rowId), {
+        ...(b.wageTemplateId !== undefined ? { wageTemplateId: b.wageTemplateId === "" ? null : String(b.wageTemplateId) } : {}),
+        ...(b.validFrom !== undefined ? { validFrom: parseDate(b.validFrom)! } : {}),
+        ...(b.validTo !== undefined ? { validTo: b.validTo === null ? null : parseDate(b.validTo)! } : {}),
+        ...(b.notes !== undefined ? { notes: b.notes } : {}),
+      });
+    }
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    await db.activityLog.create({
+      data: {
+        action: "Updated",
+        entity: b.kind === "salary" ? "EmployeeAssignment" : "EmployeeWageTemplateHistory",
+        entityId: String(b.rowId),
+        detail: `Koreksi manual baris riwayat ${b.kind === "salary" ? "gaji pokok" : "template upah"} (tanpa movement)`,
+      },
+    });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
