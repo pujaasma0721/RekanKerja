@@ -85,6 +85,17 @@ export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams.get("q")?.trim();
     // 45-b: resolve gerbang vault SEKALI di luar .map (getMoneyView async).
     const moneyViewG = await moneyViewForReq(req, db);
+    // Task 64h — template VALID HARI INI per karyawan (baris riwayat terakhir
+    // dgn validFrom ≤ hari ini) — sumber kebenaran utk tampilan read-only di
+    // dialog edit profil (bukan pointer mentah profil yang bisa telat).
+    const nowDay = new Date(); nowDay.setHours(23, 59, 59, 999);
+    const histAll = await db.employeeWageTemplateHistory.findMany({
+      where: { employeeId: { in: await db.employee.findMany({ where: { status: "Active", ...(q ? { OR: [{ fullName: { contains: q } }, { employeeNo: { contains: q } }] } : {}) }, select: { id: true } }).then((l) => l.map((x) => x.id)) }, validFrom: { lte: nowDay } },
+      orderBy: { validFrom: "asc" },
+      include: { wageTemplate: { select: { name: true } } },
+    });
+    const effTpl = new Map<string, { id: string | null; name: string | null }>();
+    for (const h of histAll) effTpl.set(h.employeeId, { id: h.wageTemplateId, name: h.wageTemplate?.name ?? null });
     const employees = await db.employee.findMany({
       where: {
         status: "Active",
@@ -122,6 +133,8 @@ export async function GET(req: NextRequest) {
         // 56: dec0 — vault tertutup → 0 (bukan null/"—"; nilai asli muncul
         // otomatis setelah unlock via event onevity:vault-changed).
         baseSalary: a ? mv.dec0(a.baseSalary) : 0,
+        // Task 64h — template efektif hari ini (dari riwayat) + penanda read-only.
+        effectiveTemplate: effTpl.get(e.id) ?? { id: p?.wageTemplateId ?? null, name: p?.wageTemplate?.name ?? null },
         profile: p
           ? {
               id: p.id,
@@ -165,6 +178,21 @@ export async function PATCH(req: NextRequest) {
 
     const b = await req.json();
     if (!b.employeeId) return NextResponse.json({ error: "employeeId wajib" }, { status: 400 });
+    // Task 64h — pergantian template TIDAK lewat dialog profil: template yang
+    // dipakai payroll = versi valid hari ini dari RIWAYAT (hanya berubah via
+    // Personnel Action atau koreksi baris riwayat). PATCH yang mengirim
+    // wageTemplateId berbeda dari versi efektif → ditolak dengan pesan jelas.
+    if (b.wageTemplateId !== undefined) {
+      const nowDay = new Date(); nowDay.setHours(23, 59, 59, 999);
+      const cur = await db.employeeWageTemplateHistory.findFirst({
+        where: { employeeId: b.employeeId, validFrom: { lte: nowDay } },
+        orderBy: { validFrom: "desc" },
+      });
+      const sent = b.wageTemplateId === "" ? null : String(b.wageTemplateId);
+      if ((cur?.wageTemplateId ?? null) !== sent) {
+        return NextResponse.json({ error: "Template upah mengikuti riwayat yang berlaku hari ini — ubah via Personnel Action (kenaikan jabatan) atau koreksi baris di Riwayat" }, { status: 400 });
+      }
+    }
 
     const validStatus = Object.keys(PTKP_ANNUAL);
     const taxStatus = b.taxStatus ?? undefined;

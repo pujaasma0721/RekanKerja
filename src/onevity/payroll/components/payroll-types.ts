@@ -137,6 +137,8 @@ export interface ProfileRow {
     bankName: string | null; bankAccount: string | null;
   } | null;
   ptkpSuggestion: PtkpSuggestion;
+  /** Task 64h — template valid hari ini dari riwayat (sumber tampilan read-only). */
+  effectiveTemplate?: { id: string | null; name: string | null };
 }
 
 /** Task 64d — riwayat gaji & template upah per karyawan (modul Payroll). */

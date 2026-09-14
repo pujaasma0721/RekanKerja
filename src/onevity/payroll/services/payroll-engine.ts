@@ -507,6 +507,14 @@ export function runPayroll(
           // Override dikunci di segmen tempat ia didefinisikan — segmen lain skip.
           if (overrideAmount != null) overriddenCodes.add(comp.code);
           else if (overriddenCodes.has(comp.code)) continue;
+          // Task 64h — GAJI POKOK TIDAK DIPRORATA antar versi: baris slip
+          // BasicSalary selalu = gaji versi berlaku pada AKHIR period (aturan
+          // bisnis: perubahan gaji di tengah bulan berlaku penuh pada run
+          // period-end, bukan dibagi hari). Segmen non-terakhir hanya menyuplai
+          // nilai antara utk formula segmen berikutnya.
+          if (comp.wageType === "BasicSalary") {
+            if (!isLast) { computedByCode[comp.code] = sg.baseSalary; continue; }
+          }
           let amount: number;
           let ruleNote: string | null = null;
           if (overrideAmount != null) {
@@ -523,7 +531,7 @@ export function runPayroll(
               amount = base;
             }
           }
-          if (comp.prorated) {
+          if (comp.prorated && comp.wageType !== "BasicSalary") {
             // Task 64b — faktor per basis: "WorkingDays" memakai rasio hari kerja
             // jadwal segmen terhadap total hari kerja period; lainnya hari kalender.
             const f = comp.prorateBasis === "WorkingDays" && segWdTotal > 0 && sg.workingDays != null
@@ -558,7 +566,8 @@ export function runPayroll(
               : `Prorata per segmen (${segs!.map((s) => s.days).join(" + ")} hari)`;
           }
           const note = ruleNote
-            ?? (comp.prorated && segFactor < 1 ? `Prorata ${(segFactor * 100).toFixed(0)}%` : null);
+            ?? (comp.prorated && comp.wageType !== "BasicSalary" && segFactor < 1 ? `Prorata ${(segFactor * 100).toFixed(0)}%` : null)
+            ?? (comp.wageType === "BasicSalary" && segs!.length > 1 ? "Gaji pokok = versi berlaku akhir period (tidak diprorata)" : null);
           const prev = merged.get(comp.code);
           if (prev) {
             prev.amount = amount;
@@ -593,9 +602,11 @@ export function runPayroll(
             amount = base;
           }
         }
-        if (comp.prorated) {
+        if (comp.prorated && comp.wageType !== "BasicSalary") {
           // Task 64b — basis "WorkingDays": faktor = hari kerja period / hari
           // kalender period; basis lain (null/Calendar) = faktor kalender lama.
+          // Task 64h — BasicSalary dikecualikan: gaji pokok selalu penuh versi
+          // akhir period (aturan bisnis), tidak ikut faktor prorata apa pun.
           const f = comp.prorateBasis === "WorkingDays" ? periodWdFactor : row.prorateFactor;
           if (f < 1) amount *= f;
         }
@@ -605,7 +616,7 @@ export function runPayroll(
           incomeTaxMethod: comp.incomeTaxMethod, amount, sortOrder: sortOrder++,
           jamsostekBasis: comp.jamsostekBasis ?? null,
           note: ruleNote
-            ?? (comp.prorated && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null),
+            ?? (comp.prorated && comp.wageType !== "BasicSalary" && row.prorateFactor < 1 ? `Prorata ${(row.prorateFactor * 100).toFixed(0)}%` : null),
         };
         items.push(item);
         computedByCode[comp.code] = amount;

@@ -177,7 +177,7 @@ export function PayrollProfilesPage() {
         </CardContent>
       </Card>
 
-      <ProfileDialog row={editing} templates={templatesApi.data?.templates ?? []} onClose={() => { setEditing(null); refresh(); }} />
+      <ProfileDialog row={editing} onClose={() => { setEditing(null); refresh(); }} />
       <SyncPtkpDialog open={syncOpen} onClose={() => { setSyncOpen(false); refresh(); }} />
       <PayrollHistoryDialog row={histRow} templates={templatesApi.data?.templates ?? []} onClose={() => setHistRow(null)} onCorrected={refresh} />
     </div>
@@ -538,7 +538,7 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ============ Dialog: Data payroll per karyawan ============
 
-function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; templates: TemplateRow[]; onClose: () => void }) {
+function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () => void }) {
   const { t } = useI18n();
   const [npwp, setNpwp] = useState("");
   const [hasNpwp, setHasNpwp] = useState(true);
@@ -546,7 +546,6 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
   const [dependents, setDependents] = useState("0");
   const [ptkpSource, setPtkpSource] = useState<"auto" | "manual">("manual");
   const [processMethod, setProcessMethod] = useState("GrossToNet");
-  const [wageTemplateId, setWageTemplateId] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -563,7 +562,6 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
     setDependents(String(row?.profile?.dependents ?? 0));
     setPtkpSource(row?.profile?.ptkpSource ?? "manual");
     setProcessMethod(row?.profile?.processMethod ?? "GrossToNet");
-    setWageTemplateId(row?.profile?.wageTemplateId ?? "");
     setBankName(row?.profile?.bankName ?? "");
     setBankAccount(safeText(row?.profile?.bankAccount));
   }
@@ -579,7 +577,8 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
         ptkpSource,
         ...(ptkpSource === "manual" ? { taxStatus, dependents: Number(dependents) || 0 } : {}),
         processMethod,
-        wageTemplateId: wageTemplateId || null,
+        // Task 64h — template TIDAK diedit di sini: yang dipakai payroll =
+        // versi valid hari ini dari riwayat (via Personnel Action / koreksi Riwayat).
         bankName: bankName.trim() || null,
         bankAccount: bankAccount.trim() || null,
       });
@@ -743,16 +742,20 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
               </SelectContent>
             </Select>
           </div>
+          {/* Task 64h — template READ-ONLY: payroll memakai versi valid hari ini
+              dari riwayat; pergantian hanya via Personnel Action / koreksi Riwayat. */}
           <div>
-            <Label className="text-xs">{t("Template Upah")}</Label>
-            <Select value={wageTemplateId} onValueChange={setWageTemplateId}>
-              <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("Pilih template", "Select template")} /></SelectTrigger>
-              <SelectContent>
-                {templates.map((tpl) => (
-                  <SelectItem key={tpl.id} value={tpl.id}>{tpl.name} ({tpl.items.length} {t("komponen", "components")})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-xs">{t("Template Upah (berlaku hari ini)", "Wage Template (effective today)")}</Label>
+            <div className="mt-1.5 flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/50">
+              <span className="text-[13px] font-bold">{row.effectiveTemplate?.name ?? row.profile?.wageTemplateName ?? t("— belum ada —", "— none —")}</span>
+              <span className="text-[10px] text-stone-400">{t("read-only", "read-only")}</span>
+            </div>
+            <p className="mt-1 text-[10px] leading-snug text-stone-400">
+              {t(
+                "Diambil dari riwayat template yang berlaku hari ini. Ganti template via Personnel Action (kenaikan jabatan) atau koreksi baris di Riwayat.",
+                "Taken from the template history effective today. Change it via Personnel Action (promotion) or by correcting the row in History.",
+              )}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -1594,3 +1594,32 @@ Implementation:
 - Pembedaan tegas: koreksi = perbaiki salah ketik versi lama (TANPA versi
   baru); kenaikan/promosi/transfer = tetap via Personnel Action / Profil
   Payroll (effective-dated, prorate segmen).
+
+---
+Task ID: 64h
+Agent: Buffy (Codebuff)
+Date: 2026-09-14
+
+Task: Aturan bisnis — template upah read-only di dialog profil; basic salary tidak prorate
+
+User: "template upah pada edit Employee Payroll Data harus tidak bisa dilakukan
+karena data mengambil template valid per hari ini. Basic salary walau berubah di
+tengah bulan sifatnya tidak prorate — ambil gaji terbaru dilihat dari period
+end date proses payroll."
+
+Implementation:
+1. Engine (payroll-engine.ts): komponen wageType=BasicSalary DIKECUALIKAN dari
+   prorata antar segmen & faktor prorate period — segmen non-terakhir hanya
+   menyuplai nilai antara; baris slip = gaji versi berlaku AKHIR period (=
+   header, yang sudah dibaca validFrom tertinggi ≤ period end). Note slip:
+   "Gaji pokok = versi berlaku akhir period (tidak diprorata)".
+   BPJS tetap rata-rata tertimbang hari antar segmen (regulasi).
+2. GET payroll-profiles: effectiveTemplate per karyawan = baris riwayat
+   template terakhir dgn validFrom ≤ hari ini (bukan pointer mentah profil).
+3. PATCH payroll-profiles: wageTemplateId yang BERBEDA dari versi efektif →
+   400 dengan arahan (Personnel Action / koreksi Riwayat). Sama nilainya
+   (idempoten) → lolos.
+4. UI ProfileDialog: field Template Upah jadi read-only (nilai = versi hari
+   ini + hint cara mengganti); submit tidak lagi mengirim wageTemplateId.
+
+Commits: see git log
