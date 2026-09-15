@@ -176,3 +176,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => die(e instanceof Error ? e.message : String(e)));
+
+// modul (hindari konflik identifier global dgn skrip e2e lain)
+export {}
