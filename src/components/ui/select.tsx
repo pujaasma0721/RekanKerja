@@ -161,44 +161,59 @@ function SelectContent({
   const [noResults, setNoResults] = React.useState(false)
 
   // Highlight teks cocok (CSS Custom Highlight API) — tanpa mengubah DOM.
+  // CATATAN: registry menerima objek Highlight (new Highlight(...ranges)),
+  // BUKAN Set — salah tipe melempar TypeError & menjatuhkan halaman.
   React.useLayoutEffect(() => {
     const CSSAny = CSS as unknown as {
-      highlights?: Map<string, Set<Range>>
+      highlights?: Map<string, unknown>
+      Highlight?: new (...ranges: Range[]) => unknown
     }
-    const highlights = CSSAny?.highlights
-    if (!highlights) return // browser tanpa dukungan → filter tetap bekerja normal
+    const registry = CSSAny?.highlights
+    const HighlightCtor = CSSAny?.Highlight
+    if (!registry || typeof HighlightCtor !== "function")
+      return // browser tanpa dukungan → filter tetap bekerja normal
     const root = contentRef.current
     const q = query.trim()
-    highlights.delete("select-match")
+    registry.delete("select-match")
     if (!searchable || !root || !q) return
-    const ranges: Range[] = []
-    const lower = q.toLowerCase()
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        if (!node.nodeValue || !node.nodeValue.toLowerCase().includes(lower))
-          return NodeFilter.FILTER_REJECT
-        const parent = node.parentElement
-        if (!parent || parent.closest('[data-slot="select-search"]'))
-          return NodeFilter.FILTER_REJECT
-        return NodeFilter.FILTER_ACCEPT
-      },
-    })
-    let node = walker.nextNode()
-    while (node) {
-      const value = node.nodeValue ?? ""
-      const lowerValue = value.toLowerCase()
-      let idx = lowerValue.indexOf(lower)
-      while (idx !== -1) {
-        const range = document.createRange()
-        range.setStart(node, idx)
-        range.setEnd(node, idx + q.length)
-        ranges.push(range)
-        idx = lowerValue.indexOf(lower, idx + q.length)
+    try {
+      const ranges: Range[] = []
+      const lower = q.toLowerCase()
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.nodeValue || !node.nodeValue.toLowerCase().includes(lower))
+            return NodeFilter.FILTER_REJECT
+          const parent = node.parentElement
+          if (!parent || parent.closest('[data-slot="select-search"]'))
+            return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      let node = walker.nextNode()
+      while (node) {
+        const value = node.nodeValue ?? ""
+        const lowerValue = value.toLowerCase()
+        let idx = lowerValue.indexOf(lower)
+        while (idx !== -1) {
+          // toLowerCase() bisa mengubah panjang (mis. İ → i̇) — indeks
+          // melewati batas node akan melempar; lewati node seperti ini.
+          const end = idx + q.length
+          if (end > value.length) break
+          const range = document.createRange()
+          range.setStart(node, idx)
+          range.setEnd(node, end)
+          ranges.push(range)
+          idx = lowerValue.indexOf(lower, end)
+        }
+        node = walker.nextNode()
       }
-      node = walker.nextNode()
+      if (ranges.length)
+        registry.set("select-match", new HighlightCtor(...ranges))
+    } catch (err) {
+      // Highlight gagal (quirk browser dsb.) → biarkan tanpa highlight,
+      // JANGAN pernah menjatuhkan halaman.
+      console.error("select search highlight failed:", err)
     }
-    if (ranges.length)
-      highlights.set("select-match", new Set(ranges))
   }, [query, searchable, noResults, children])
 
   // Dropdown ditutup → portal unmount → reset query agar buka berikutnya bersih.
