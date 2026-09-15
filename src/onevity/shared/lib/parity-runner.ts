@@ -330,11 +330,17 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
     // Task 64k — kolom PasswordPolicy.idleTimeoutMinutes belum ada = gap.
+    // Penyebut = jumlah schema yang PUNYA tabel PasswordPolicy (tenant sampah
+    // tanpa tabel tsb tidak pernah bisa punya kolom → jangan jadi gap permanen).
+    const policyTableOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'PasswordPolicy' AND table_schema = ANY($1::text[])`,
+    );
     const idleTimeoutOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
        WHERE table_name = 'PasswordPolicy' AND column_name = 'idleTimeoutMinutes' AND table_schema = ANY($1::text[])`,
     );
-    if (idleTimeoutOk < schemas.length) reasons.push(`${schemas.length - idleTimeoutOk} tenant tanpa kolom PasswordPolicy.idleTimeoutMinutes (Task 64k)`);
+    if (idleTimeoutOk < policyTableOk) reasons.push(`${policyTableOk - idleTimeoutOk} tenant tanpa kolom PasswordPolicy.idleTimeoutMinutes (Task 64k)`);
     return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk) };
   } finally {
     await c.end();
