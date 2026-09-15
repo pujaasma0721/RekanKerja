@@ -208,6 +208,9 @@ const STEPS: Step[] = [
   { key: "payroll-run-log", label: "Task 63 — tabel PayrollRunLog (log kejadian run payroll)", run: (s) => import("../../../../scripts/migrate-payroll-run-log").then((m) => m.main(s)) },
   { key: "wage-template-history", label: "Task 64 — riwayat template upah effective-dated + backfill", run: (s) => import("../../../../scripts/migrate-wage-template-history").then((m) => m.main(s)) },
   { key: "wage-component-prorate-basis", label: "Task 64b — basis prorata per komponen (kalender vs hari kerja)", run: (s) => import("../../../../scripts/migrate-wage-component-prorate-basis").then((m) => m.main(s)) },
+  // Task 64k: idle timeout sesi per tenant — kolom PasswordPolicy.idleTimeoutMinutes
+  // (0 = nonaktif). Append-only kronologis.
+  { key: "password-idle-timeout", label: "Task 64k — kolom PasswordPolicy.idleTimeoutMinutes (idle timeout sesi per tenant)", run: (s) => import("../../../../scripts/migrate-password-idle-timeout").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -326,7 +329,13 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk) };
+    // Task 64k — kolom PasswordPolicy.idleTimeoutMinutes belum ada = gap.
+    const idleTimeoutOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'PasswordPolicy' AND column_name = 'idleTimeoutMinutes' AND table_schema = ANY($1::text[])`,
+    );
+    if (idleTimeoutOk < schemas.length) reasons.push(`${schemas.length - idleTimeoutOk} tenant tanpa kolom PasswordPolicy.idleTimeoutMinutes (Task 64k)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk) };
   } finally {
     await c.end();
   }

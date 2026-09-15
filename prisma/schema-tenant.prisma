@@ -1220,6 +1220,9 @@ model PasswordPolicy {
   maxFailedAttempts Int @default(5)
   lockoutMinutes    Int @default(15)
 
+  // ---- sesi (Task 64k): batas idle sebelum sesi dimatikan client ----
+  idleTimeoutMinutes Int @default(0) // 0 = nonaktif
+
   updatedById String? // AppUser admin terakhir menyimpan
   updatedAt   DateTime @updatedAt
 }

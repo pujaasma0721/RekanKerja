@@ -31,6 +31,8 @@ export interface SessionInfo {
   workspaces: SessionTenant[];
   /** status umur kata sandi (Task 33) — opsional, best-effort dari /api/auth/me */
   password?: SessionPasswordStatus;
+  /** Task 64k — batas idle sesi workspace aktif (menit; tidak ada/null = nonaktif) */
+  idleTimeoutMinutes?: number;
 }
 export type SessionStatus = "loading" | "anonymous" | "select-tenant" | "ready";
 
@@ -46,6 +48,10 @@ interface SessionState {
   info: SessionInfo | null;
   busy: boolean; // login/register/select-tenant/verify MFA sedang berjalan
   error: string | null;
+  /** Task 64k — true bila sesi berakhir (kedaluwarsa/idle) → UI menampilkan pesan di layar login. */
+  expired: boolean;
+  /** Task 64k — alasan sesi berakhir (utk pesan AuthScreen). */
+  expiredReason: "timeout" | "idle" | null;
   load: () => Promise<void>;
   login: (email: string, password: string) => Promise<LoginResult>;
   register: (input: { workspaceName: string; companyCode: string; fullName: string; email: string; password: string }) => Promise<boolean>;
@@ -54,6 +60,8 @@ interface SessionState {
   verifyMfa: (mfaToken: string, token: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
+  /** Task 64k — tandai sesi berakhir (dipanggil interceptor 401 & timer idle). */
+  expire: (reason: "timeout" | "idle") => void;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
@@ -67,7 +75,7 @@ async function postJson<T>(url: string, body: unknown): Promise<{ ok: boolean; s
 }
 
 function applyInfo(info: SessionInfo): Partial<SessionState> {
-  return { info, status: info.tenant ? ("ready" as const) : ("select-tenant" as const) };
+  return { info, status: info.tenant ? ("ready" as const) : ("select-tenant" as const), expired: false };
 }
 
 export const useSession = create<SessionState>((set) => ({
@@ -75,6 +83,8 @@ export const useSession = create<SessionState>((set) => ({
   info: null,
   busy: false,
   error: null,
+  expired: false,
+  expiredReason: null,
   clearError: () => set({ error: null }),
 
   load: async () => {
@@ -84,10 +94,10 @@ export const useSession = create<SessionState>((set) => ({
         const info = (await res.json()) as SessionInfo;
         set(applyInfo(info));
       } else {
-        set({ status: "anonymous", info: null });
+        set({ status: "anonymous", info: null, expired: false, expiredReason: null });
       }
     } catch {
-      set({ status: "anonymous", info: null });
+      set({ status: "anonymous", info: null, expired: false, expiredReason: null });
     }
   },
 
@@ -150,6 +160,13 @@ export const useSession = create<SessionState>((set) => ({
     } catch {
       // abaikan — cookie lokal tetap dibersihkan via status
     }
-    set({ status: "anonymous", info: null, error: null });
+    set({ status: "anonymous", info: null, error: null, expired: false, expiredReason: null });
+  },
+
+  expire: (reason) => {
+    // Revokasi lokal: token di browser tetap ada tapi tidak sah (server menolak
+    // via exp/idle policy) — status anonymous menampilkan AuthScreen; flag
+    // `expired` memicu pesan "Sesi berakhir" pada layar login.
+    set({ status: "anonymous", info: null, error: null, expired: true, expiredReason: reason });
   },
 }));

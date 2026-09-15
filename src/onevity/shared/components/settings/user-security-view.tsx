@@ -826,6 +826,8 @@ export function PasswordPolicyPanel() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <PolicyNumber label={t("Batas Percobaan Gagal", "Failed Attempt Limit")} value={draft.maxFailedAttempts} onChange={(v) => set("maxFailedAttempts", v)} min={0} max={20} suffix={t("kali", "times")} />
               <PolicyNumber label={t("Durasi Kunci Akun", "Account Lock Duration")} value={draft.lockoutMinutes} onChange={(v) => set("lockoutMinutes", v)} min={0} max={720} suffix={t("menit", "minutes")} />
+              {/* Task 64k — idle timeout sesi (0 = nonaktif) */}
+              <PolicyNumber label={t("Batas Idle Sesi", "Session Idle Timeout")} value={draft.idleTimeoutMinutes} onChange={(v) => set("idleTimeoutMinutes", v)} min={0} max={480} suffix={t("menit (0 = nonaktif)", "minutes (0 = off)")} />
             </div>
             <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
               {t("Melewati batas → akun terkunci sementara (login ditolak sampai waktu habis atau admin mereset sandi).", "Exceeding the limit → the account is temporarily locked (sign-in denied until the time expires or an admin resets the password).")}

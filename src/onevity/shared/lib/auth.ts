@@ -1,7 +1,7 @@
 // OneVity SaaS auth — password (scrypt) + session cookie (HMAC-SHA256, httpOnly).
 // Session payload: { uid, tid, exp } — tid = tenant terpilih (setelah login / select-tenant).
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { db } from "@/lib/db";
+import { db, db as platformDb } from "@/lib/db";
 
 export const SESSION_COOKIE = "onevity_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 hari
@@ -158,6 +158,8 @@ export interface SessionInfo {
   user: SessionUser;
   tenant: SessionTenant | null;
   workspaces: SessionTenant[];
+  /** Task 64k — batas idle sesi workspace aktif (menit; 0/null = nonaktif). */
+  idleTimeoutMinutes?: number | null;
 }
 
 export async function buildSessionInfo(userId: string, tenantId: string | null): Promise<SessionInfo | null> {
@@ -179,6 +181,28 @@ export async function buildSessionInfo(userId: string, tenantId: string | null):
 
   const tenant = tenantId ? (workspaces.find((w) => w.id === tenantId) ?? null) : null;
   return { user, tenant, workspaces };
+}
+
+/**
+ * Task 64k — batas idle sesi workspace aktif (menit; 0/null = nonaktif).
+ * Best-effort: gagal (schema tak terjangkau, tabel lama) → null — fitur idle
+ * timeout mati, sisanya tidak terpengaruh.
+ */
+export async function idleTimeoutOfSession(userId: string, tenantId: string | null): Promise<number | null> {
+  if (!tenantId) return null;
+  try {
+    const m = await platformDb.userTenant.findFirst({
+      where: { userId, tenantId },
+      select: { tenant: { select: { schemaName: true, status: true } } },
+    });
+    if (!m || m.tenant.status !== "ACTIVE") return null;
+    const { getTenantClient } = await import("./tenant-db");
+    const { getTenantPolicy } = await import("../services/password-security");
+    const policy = await getTenantPolicy(getTenantClient(m.tenant.schemaName));
+    return policy.idleTimeoutMinutes > 0 ? policy.idleTimeoutMinutes : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getSessionFromRequest(req: Request): Promise<{ payload: SessionPayload; info: SessionInfo } | null> {

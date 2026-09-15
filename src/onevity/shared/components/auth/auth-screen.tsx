@@ -158,7 +158,7 @@ function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: st
 
 export function AuthScreen() {
   const { t } = useI18n();
-  const { busy, error, login, register, verifyMfa, clearError } = useSession();
+  const { busy, error, expired, expiredReason, login, register, verifyMfa, clearError } = useSession();
 
   const [tab, setTab] = useState<AuthTab>("login");
   const [formError, setFormError] = useState<string | null>(null);
@@ -178,7 +178,13 @@ export function AuthScreen() {
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState<string | null>(null);
 
-  const shownError = formError ?? error;
+  // Task 64k — sesi berakhir (kedaluwarsa/idle) → pesan di atas error form.
+  const sessionEndedMsg = expired
+    ? expiredReason === "idle"
+      ? t("Sesi berakhir karena tidak ada aktivitas — silakan masuk kembali.", "Your session ended due to inactivity — please sign in again.")
+      : t("Sesi Anda telah berakhir — silakan masuk kembali.", "Your session has expired — please sign in again.")
+    : null;
+  const shownError = formError ?? error ?? sessionEndedMsg;
   const otpShownError = otpError ?? error;
 
   const switchTab = (next: AuthTab) => {

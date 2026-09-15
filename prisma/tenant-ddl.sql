@@ -920,6 +920,7 @@ CREATE TABLE "PasswordPolicy" (
     "historyCount" INTEGER NOT NULL DEFAULT 6,
     "maxFailedAttempts" INTEGER NOT NULL DEFAULT 5,
     "lockoutMinutes" INTEGER NOT NULL DEFAULT 15,
+    "idleTimeoutMinutes" INTEGER NOT NULL DEFAULT 0,
     "updatedById" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

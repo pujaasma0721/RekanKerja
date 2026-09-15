@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, buildSessionInfo, currentSessionVersion, freshSessionToken, sessionCookieOptions,
+  SESSION_COOKIE, buildSessionInfo, currentSessionVersion, freshSessionToken, idleTimeoutOfSession, sessionCookieOptions,
 } from "@/onevity/shared/lib/auth";
 import { passwordStatusOfSession, touchLastLogin } from "@/onevity/shared/services/password-security";
 
@@ -29,10 +29,13 @@ export async function finishLogin(userId: string): Promise<NextResponse> {
 
   await touchLastLogin(user.email, tid, user.id);
   const pwStatus = await passwordStatusOfSession(user.id, tid, user.email);
+  // Task 64k — batas idle workspace terpilih utk timer sesi client.
+  const idleTimeoutMinutes = await idleTimeoutOfSession(user.id, tid);
 
   const res = NextResponse.json({
     ...finalInfo,
     ...(pwStatus ? { password: pwStatus } : {}),
+    ...(idleTimeoutMinutes != null ? { idleTimeoutMinutes } : {}),
   });
   // T1-SECURITY: token membawa sessionVersion user (dicek server-side saat verify;
   // dibaca raw agar juga benar pada proses dev dengan Prisma client cache lama).

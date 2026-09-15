@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { useAccentTheme, applyAccentTheme } from "@/onevity/shared/lib/accent-theme";
+import { useSessionLifecycle } from "@/onevity/shared/lib/session-lifecycle";
 import { AuthScreen } from "./auth-screen";
 import { TenantSelect } from "./tenant-select";
 
@@ -14,6 +15,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const { status, load } = useSession();
   const { t } = useI18n();
   const bootstrapped = useRef(false);
+  // Task 64k — keepalive sliding refresh + idle timeout + intersep 401 global.
+  useSessionLifecycle();
 
   useEffect(() => {
     if (bootstrapped.current) return; // guard double-invoke StrictMode

@@ -28,6 +28,8 @@ function parsePolicyBody(b: Record<string, unknown>): Partial<PasswordPolicyData
   if (b.historyCount !== undefined) p.historyCount = clampInt(b.historyCount, 0, 24, DEFAULT_PASSWORD_POLICY.historyCount);
   if (b.maxFailedAttempts !== undefined) p.maxFailedAttempts = clampInt(b.maxFailedAttempts, 0, 20, DEFAULT_PASSWORD_POLICY.maxFailedAttempts);
   if (b.lockoutMinutes !== undefined) p.lockoutMinutes = clampInt(b.lockoutMinutes, 0, 1440, DEFAULT_PASSWORD_POLICY.lockoutMinutes);
+  // Task 64k — idle timeout sesi: 0 = nonaktif; maksimum 8 jam (480 menit).
+  if (b.idleTimeoutMinutes !== undefined) p.idleTimeoutMinutes = clampInt(b.idleTimeoutMinutes, 0, 480, DEFAULT_PASSWORD_POLICY.idleTimeoutMinutes);
   for (const k of ["requireUppercase", "requireLowercase", "requireNumber", "requireSpecial", "blockUsername", "blockName", "blockCommon"] as const) {
     if (b[k] !== undefined) p[k] = Boolean(b[k]);
   }

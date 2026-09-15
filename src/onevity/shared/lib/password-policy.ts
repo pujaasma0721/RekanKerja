@@ -31,6 +31,8 @@ export interface PasswordPolicyData {
   historyCount: number;
   maxFailedAttempts: number;
   lockoutMinutes: number;
+  /** Task 64k — batas idle sesi (menit, 0 = nonaktif); client mematikan sesi setelah N menit tanpa interaksi. */
+  idleTimeoutMinutes: number;
 }
 
 /** Kebijakan default — nilai seed migrasi & fallback saat baris belum ada. */
@@ -52,6 +54,7 @@ export const DEFAULT_PASSWORD_POLICY: PasswordPolicyData = {
   historyCount: 6,
   maxFailedAttempts: 5,
   lockoutMinutes: 15,
+  idleTimeoutMinutes: 0,
 };
 
 // ---------- daftar kata sandi umum + brand (blockCommon) ----------
