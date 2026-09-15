@@ -1657,3 +1657,22 @@ Perubahan:
 
 Verifikasi: tsc --noEmit bersih, eslint bersih, build 159 rute sukses, health
 200 lokal & publik. Commit 0925d55, deploy file langsung ke .15 + rebuild + pm2 restart.
+
+---
+Task ID: 64i-c
+Agent: Buffy (Codebuff)
+Date: 2026-09-15
+Title: Fix "This page couldn't load" saat mengetik di search dropdown
+
+Akar: 64i-b mendaftarkan new Set(ranges) ke CSS.highlights — registry wajib
+objek Highlight (new Highlight(...ranges)). TypeError di layout effect →
+React unmount halaman.
+
+Perbaikan (commit 0e08ea6):
+- registry.set("select-match", new Highlight(...ranges)) via cek constructor
+- Guard end > value.length (toLowerCase bisa mengubah panjang, mis. İ→i̇)
+- try/catch seluruh pipeline highlight → gagal highlight tak pernah menjatuhkan
+  halaman; filter & pemilihan tetap berfungsi.
+
+Verifikasi: tsc + eslint bersih, build EXIT:0 di .15, pm2 restart, health 200
+lokal & publik.
