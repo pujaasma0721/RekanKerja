@@ -83,14 +83,24 @@ async function main(): Promise<void> {
   const sep = (periods.body.periods ?? []).find((p: any) => p.name?.toLowerCase().includes("sep") && new Date(p.startDate).getFullYear() === 2026);
   if (!sep) die("period Sep tidak ditemukan");
   const runs = await get(`/api/onevity/payroll-runs?periodId=${sep.id}`);
-  const run = (runs.body.runs ?? []).find((r: any) => r.processType?.code === "SALARY" && r.status === "Confirmed");
-  if (!run) die("tidak ada run SALARY Sep berstatus Confirmed untuk uji");
-  console.log(`RUN ${run.runNo} (Confirmed, ${run.employeeCount} karyawan)`);
+  const run = (runs.body.runs ?? []).find((r: any) => r.processType?.code === "SALARY" && (r.status === "Confirmed" || r.status === "Calculated"));
+  if (!run) die("tidak ada run SALARY Sep berstatus Confirmed/Calculated untuk uji");
+  console.log(`RUN ${run.runNo} (${run.status}, ${run.employeeCount} karyawan)`);
 
-  // 3) Karyawan uji + snapshot kontrol
-  const det0 = await fetchRun(run.id);
-  const line0 = lineOf(det0.run, EMP_NO);
+  // 3) Karyawan uji + snapshot kontrol (+ bersihkan sisa uji sebelumnya)
+  let det0 = await fetchRun(run.id);
+  let line0 = lineOf(det0.run, EMP_NO);
   if (!line0) die(`${EMP_NO} tidak ada di run`);
+  if ((line0.items ?? []).some((i: any) => i.code === TEST_CODE)) {
+    // Sisa uji sebelumnya masih menempel di run → recalc sekali tanpa assignment
+    // supaya snapshot bersih.
+    console.log("STALE ITEM terdeteksi — recalc pembersihan awal…");
+    const purge = await patch("/api/onevity/payroll-runs", { id: run.id, action: "recalcEmployees", employeeIds: [line0.employeeId] });
+    if (purge.status !== 200) die(`purge recalc ${purge.status}: ${JSON.stringify(purge.body).slice(0, 200)}`);
+    det0 = await fetchRun(run.id);
+    line0 = lineOf(det0.run, EMP_NO);
+    if (!line0) die(`${EMP_NO} hilang setelah purge`);
+  }
   const control = (det0.run.lines as any[]).find((l) => l.employeeId !== line0.employeeId);
   if (!control) die("tidak ada baris kontrol");
   const snapControl = { net: control.net, bruto: control.bruto };
