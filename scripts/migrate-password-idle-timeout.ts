@@ -22,17 +22,34 @@ export async function main(schemas?: string[]): Promise<void> {
   await c.connect();
   try {
     for (const schema of list) {
-      await c.query(`SET search_path TO "${schema}"`);
-      const exists = await c.query(
-        `SELECT 1 FROM information_schema.columns
-          WHERE table_schema = $1 AND table_name = 'PasswordPolicy' AND column_name = 'idleTimeoutMinutes'`,
-        [schema],
-      );
-      if (exists.rowCount === 0) {
-        await c.query(`ALTER TABLE "PasswordPolicy" ADD COLUMN "idleTimeoutMinutes" INTEGER NOT NULL DEFAULT 0`);
-        console.log(`[${schema}] kolom PasswordPolicy.idleTimeoutMinutes ditambahkan`);
-      } else {
-        console.log(`[${schema}] kolom PasswordPolicy.idleTimeoutMinutes sudah ada (idempoten)`);
+      // Per-schem search_path dipulihkan tiap iterasi — SET tanpa LOCAL menempel
+      // pada sesi dan bisa bocor ke iterasi berikutnya bila dilewati try/catch.
+      try {
+        await c.query(`SET search_path TO "${schema}"`);
+        const hasTable = await c.query(
+          `SELECT 1 FROM information_schema.tables
+            WHERE table_schema = $1 AND table_name = 'PasswordPolicy'`,
+          [schema],
+        );
+        if (hasTable.rowCount === 0) {
+          console.log(`[${schema}] tabel PasswordPolicy belum ada — lewati (bukan tenant aktif)`);
+          continue;
+        }
+        const exists = await c.query(
+          `SELECT 1 FROM information_schema.columns
+            WHERE table_schema = $1 AND table_name = 'PasswordPolicy' AND column_name = 'idleTimeoutMinutes'`,
+          [schema],
+        );
+        if (exists.rowCount === 0) {
+          await c.query(`ALTER TABLE "PasswordPolicy" ADD COLUMN "idleTimeoutMinutes" INTEGER NOT NULL DEFAULT 0`);
+          console.log(`[${schema}] kolom PasswordPolicy.idleTimeoutMinutes ditambahkan`);
+        } else {
+          console.log(`[${schema}] kolom PasswordPolicy.idleTimeoutMinutes sudah ada (idempoten)`);
+        }
+      } catch (e) {
+        // Satu tenant bermasalah tidak boleh menghentikan tenant lain (perilaku
+        // parity: per-step never-throw; di dalam step, per-schema never-throw).
+        console.error(`[${schema}] GAGAL: ${e instanceof Error ? e.message : String(e)} — lanjut`);
       }
     }
   } finally {
