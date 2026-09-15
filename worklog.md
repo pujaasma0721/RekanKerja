@@ -1726,3 +1726,36 @@ Bug yang ketemu & diperbaiki saat tes:
 3. Guard M-8 component-assignments menolak Specific saat run Confirmed →
    dilonggarkan (hanya Paid yang ditolak).
 4. Dua skrip e2e konflik identifier global → jadikan modul (export {}).
+
+---
+Task ID: 64k
+Agent: Buffy (Codebuff)
+Date: 2026-09-16
+Title: Session lifecycle — sliding refresh + idle timeout per tenant + intercept 401 global
+
+Implementasi:
+- Sliding refresh: /api/auth/me menerbitkan token segar (cookie ulang) bila sisa
+  umur token < 50% — pengguna aktif tidak ter-logout kaku di hari ke-7.
+- Idle timeout per tenant: PasswordPolicy.idleTimeoutMinutes (0=nonaktif, maks
+  480 menit) — client mematikan sesi setelah N menit tanpa interaksi
+  (keydown/pointer/wheel/touch/scroll), logout server dipanggil dulu.
+- Intercept 401 global (session-lifecycle.ts, dipasang di AuthGate): fetch dibungkus;
+  401 saat sesi ready → expire() → AuthScreen dengan pesan "Sesi berakhir…"
+  (idle vs kedaluwarsa dibedakan).
+- Konfigurasi: field "Batas Idle Sesi" di panel Kebijakan Kata Sandi
+  (Settings > Keamanan > Percobaan Login Gagal).
+- DDL: scripts/migrate-password-idle-timeout.ts (idempoten, per-schema
+  never-throw, lewati schema tanpa tabel PasswordPolicy) + parity step
+  "password-idle-timeout" + tenant-ddl.sql + schema-tenant.prisma.
+- Gap detection: penyebut = schema yang PUNYA tabel PasswordPolicy (tenant
+  sampah tenant_demouser0229 tanpa tabel tidak jadi gap permanen).
+
+Files: src/onevity/shared/lib/auth.ts, session-store.ts, session-lifecycle.ts (baru),
+password-policy.ts, api/login-flow.ts, api/password-policy.ts, components/auth/
+auth-gate.tsx, auth-screen.tsx, components/settings/user-security-view.tsx,
+src/app/api/auth/me/route.ts, lib/parity-runner.ts, prisma/{tenant-ddl.sql,
+schema-tenant.prisma}, scripts/migrate-password-idle-timeout.ts (baru).
+
+Commits: bcb073f (fitur), acc6ff9 (fix migrasi tahan tenant sampah), 24ae96b
+(fix deteksi gap). Deploy .15: build EXIT:0, parity boot "7 tenant sudah
+paritas", health 200 lokal & publik.
