@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw } from "lucide-react";
 import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
@@ -32,6 +33,10 @@ export function PayrollRunDetailPage() {
   // 26-b P0 — dialog kirim slip + pilihan proteksi password (sandi NIK)
   const [sendOpen, setSendOpen] = useState(false);
   const [sendPwd, setSendPwd] = useState(false);
+  // Task 64j — hitung ulang PARSIAL (run Confirmed): pilih karyawan → recalc.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [recalcBusy, setRecalcBusy] = useState(false);
+  const [recalcResult, setRecalcResult] = useState<{ recalculated: number; skipped: string[]; newJournalNo: string | null } | null>(null);
 
   const { data, loading, error, refresh } = useApi<RunDetail>(params.id ? `/api/onevity/payroll-run?id=${params.id}` : null);
 
@@ -109,6 +114,36 @@ export function PayrollRunDetailPage() {
   const lines = run.lines.filter((l) =>
     !q || l.employeeNo.toLowerCase().includes(q.toLowerCase()) || l.employeeName.toLowerCase().includes(q.toLowerCase())
   );
+  // Task 64j — recalc parsial hanya tersedia pada run Confirmed (belum Paid).
+  const canRecalc = run.status === "Confirmed" && perms.canOp("payroll", "runs", "calculate");
+
+  const toggleSelect = (id: string, checked: boolean | "indeterminate") => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked === true) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const submitRecalc = async () => {
+    if (!data || selectedIds.size === 0) return;
+    if (!window.confirm(t(
+      "Hitung ulang {n} karyawan terpilih? Efek konfirmasi (jurnal, potongan pinjaman, penandaan klaim/lembur) untuk karyawan terpilih akan DIBALIK lalu dihitung ulang; run kembali ke status Terhitung dan menunggu konfirmasi ulang.",
+      "Recalculate {n} selected employees? Confirmation effects (journal, loan deductions, claim/overtime marking) for the selected employees will be REVERSED and recomputed; the run returns to Calculated awaiting re-confirmation.",
+      { n: String(selectedIds.size) },
+    ))) return;
+    setRecalcBusy(true);
+    try {
+      const res = await apiSend<{ recalculated: number; skipped: string[]; newJournalNo: string | null }>(
+        "/api/onevity/payroll-runs", "PATCH",
+        { id: data.run.id, action: "recalcEmployees", employeeIds: [...selectedIds] },
+      );
+      setRecalcResult(res);
+      setSelectedIds(new Set());
+      refresh();
+    } catch (e) { toast.error((e as Error).message); } finally { setRecalcBusy(false); }
+  };
   // Task 63 — log kejadian run + hitungan per level utk badge tab Log.
   const runLogs: RunLog[] = data.logs ?? [];
   const logErrors = runLogs.filter((l) => l.level === "error").length;
@@ -189,6 +224,28 @@ export function PayrollRunDetailPage() {
           </div>
         }
       />
+
+      {/* Task 64j — hasil hitung ulang parsial */}
+      {recalcResult && (
+        <Card className="mb-4 rounded-2xl border-emerald-200 bg-emerald-50/70 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <CardContent className="flex items-start gap-3 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
+                {t("{n} karyawan dihitung ulang — run kembali ke status Terhitung, konfirmasi ulang untuk mengunci.", "{n} employees recalculated — run returned to Calculated, re-confirm to lock.", { n: String(recalcResult.recalculated) })}
+              </p>
+              <p className="mt-0.5 text-[11.5px] text-emerald-700/80 dark:text-emerald-400/80">
+                {t("Jurnal lama dibalik", "Old journal reversed")}
+                {recalcResult.newJournalNo ? ` · ${t("jurnal draft baru {no} menunggu konfirmasi ulang", "new draft journal {no} awaiting re-confirmation", { no: recalcResult.newJournalNo })}` : ""}
+                {recalcResult.skipped.length > 0 && ` · ${t("dilewati: {list}", "skipped: {list}", { list: recalcResult.skipped.join(", ") })}`}
+              </p>
+            </div>
+            <button type="button" onClick={() => setRecalcResult(null)} className="shrink-0 rounded-md p-1 text-emerald-700/60 transition hover:text-emerald-900 dark:text-emerald-400/60 dark:hover:text-emerald-300" aria-label={t("Tutup", "Close")}>
+              <XCircle className="h-4 w-4" />
+            </button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ringkasan */}
       {run.status !== "Draft" && (
@@ -283,9 +340,21 @@ export function PayrollRunDetailPage() {
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-4 py-3 dark:border-stone-800">
             <p className="text-[13px] font-bold">{t("Hasil per Karyawan", "Results per Employee")} {run.status !== "Draft" && `(${run.lines.length})`}</p>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-9 pl-9 text-xs" />
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Task 64j — aksi recalc karyawan terpilih (hanya run Confirmed) */}
+              {canRecalc && selectedIds.size > 0 && (
+                <>
+                  <span className="text-[11px] font-bold text-brand-deep dark:text-brand/85">{selectedIds.size} {t("dipilih", "selected")}</span>
+                  <Button onClick={submitRecalc} disabled={recalcBusy} size="sm" className="h-8 gap-1.5 bg-brand font-bold hover:bg-brand/70">
+                    <RefreshCw className={cn("h-3.5 w-3.5", recalcBusy && "animate-spin")} />
+                    {recalcBusy ? t("Menghitung ulang…", "Recalculating…") : t("Hitung Ulang Terpilih", "Recalculate Selected")}
+                  </Button>
+                </>
+              )}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-9 pl-9 text-xs" />
+              </div>
             </div>
           </div>
           {run.status === "Draft" ? (
@@ -297,6 +366,22 @@ export function PayrollRunDetailPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    {canRecalc && (
+                      <TableHead className="w-9">
+                        <Checkbox
+                          checked={lines.length > 0 && lines.every((l) => selectedIds.has(l.employeeId))}
+                          onCheckedChange={(v) => {
+                            const on = v === true;
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              for (const l of lines) { if (on) next.add(l.employeeId); else next.delete(l.employeeId); }
+                              return next;
+                            });
+                          }}
+                          aria-label={t("Pilih semua", "Select all")}
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Posisi")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("PTKP")}</TableHead>
@@ -309,7 +394,16 @@ export function PayrollRunDetailPage() {
                 </TableHeader>
                 <TableBody>
                   {lines.map((l) => (
-                    <TableRow key={l.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => setSlipLine(l)}>
+                    <TableRow key={l.id} className={cn("cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60", canRecalc && selectedIds.has(l.employeeId) && "bg-brand/5 dark:bg-brand/10")} onClick={() => setSlipLine(l)}>
+                      {canRecalc && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.has(l.employeeId)}
+                            onCheckedChange={(v) => toggleSelect(l.employeeId, v)}
+                            aria-label={t("Pilih {name}", "Select {name}", { name: l.employeeName })}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <p className="text-[13px] font-bold">{l.employeeName}</p>
                         <p className="font-mono text-[10px] text-stone-400">{l.employeeNo}{l.notes ? ` · ${l.notes}` : ""}</p>
@@ -332,7 +426,7 @@ export function PayrollRunDetailPage() {
                 </TableBody>
                 <TableBody>
                   <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                    <TableCell colSpan={3} className="text-xs font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
+                    <TableCell colSpan={canRecalc ? 4 : 3} className="text-xs font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(run.totalTax)}</TableCell>

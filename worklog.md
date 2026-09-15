@@ -1676,3 +1676,31 @@ Perbaikan (commit 0e08ea6):
 
 Verifikasi: tsc + eslint bersih, build EXIT:0 di .15, pm2 restart, health 200
 lokal & publik.
+
+---
+Task ID: 64j
+Agent: Buffy (Codebuff)
+Date: 2026-09-15
+Title: Hitung ulang PARSIAL per karyawan pada run Confirmed (belum Paid)
+
+Use case: komponen upah/assignment baru di-upload belakangan untuk satu/beberapa
+karyawan — tanpa membatalkan run & tanpa menghitung ulang semua karyawan.
+
+Perubahan:
+- payroll-service.ts: recalcEmployeesForConfirmedRun(db, runId, employeeIds, actor)
+  — kunci run (updateMany bersyarat, serialisasi), reversal efek samping confirm
+  HANYA karyawan terpilih (LoanInstallment Deducted→Pending + buku pinjaman
+  dikembalikan; BenefitClaim/OvertimeOrder/LeaveEncashment/TravelClaim yang
+  ditandai paidRunNo/transferredRunNo run INI → status asal), komputasi ulang
+  engine penuh di memori, ganti PayrollRunLine/Item karyawan terpilih (baris
+  lain utuh), total header = gabungan, log run digabung, jurnal lama → Reversed
+  (saldo COA dikembalikan), jurnal baru digenerate dari hasil gabungan.
+  Run kembali berstatus Calculated → wajib konfirmasi ulang (audit trail).
+  Run Paid ditolak (koreksi via run koreksi/rapel).
+- payroll-runs.ts: PATCH action "recalcEmployees" (guard op:calculate,
+  validasi employeeIds array).
+- payroll-run-detail.tsx: checkbox per baris karyawan (kolom muncul hanya pada
+  run Confirmed + hak calculate), select-all, tombol "Hitung Ulang Terpilih"
+  dengan konfirmasi, banner hasil (n dihitung, jurnal baru, daftar skip).
+
+Verifikasi: tsc + eslint bersih.

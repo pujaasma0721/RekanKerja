@@ -1127,6 +1127,278 @@ export async function confirmRun(db: TenantDb, runId: string): Promise<void> {
   }
 }
 
+/**
+ * Task 64j — HITUNG ULANG PARSIAL per karyawan pada run yang sudah Confirmed
+ * (belum Paid). Use case: komponen upah/assignment baru di-upload belakangan
+ * untuk BEBERAPA karyawan — tanpa membatalkan run & tanpa menghitung ulang
+ * semua. Setelah recalc, run KEMBALI berstatus Calculated (menunggu konfirmasi
+ * ulang) agar alur audit tetap terjaga.
+ *
+ * Urutan aman (semua dalam SATU $transaction, serialisasi via updateMany
+ * bersyarat seperti calculateAndSaveRun):
+ *   1. Kunci run (status Confirmed, belum Paid) — bila berubah, gagurkan.
+ *   2. REVERSAL efek samping confirm hanya untuk karyawan terpilih:
+ *      - LoanInstallment Deducted milik run ini → Pending (pinjaman karyawan
+ *        lain tidak disentuh); paidAmount/outstanding dikembalikan.
+ *      - Klaim/lembur/encashment/travel yang ditandai Paid oleh RUN INI
+ *        (paidRunNo/transferredRunNo = run.runNo) → status asal, agar confirm
+ *        ulang menandai ulang dengan benar (hanya yang relevan karyawan
+ *        terpilih; penandaan lain-lain memang per-run & idempoten).
+ *   3. Komputasi ulang SELURUH run di memori (engine murni) — baris karyawan
+ *      terpilih diganti, baris karyawan lain dipertahankan apa adanya.
+ *   4. Ganti PayrollRunLine/Item karyawan terpilih, gabung total header,
+ *      status run → Calculated.
+ *   5. Jurnal lama run → Reversed (saldo COA dikembalikan); jurnal baru
+ *      digenerate ulang dari hasil gabungan. Jurnal reversasi terpisah.
+ *
+ * Catatan PAID: run Paid ditolak (uang sudah keluar — koreksi via run koreksi).
+ */
+export async function recalcEmployeesForConfirmedRun(
+  db: TenantDb,
+  runId: string,
+  employeeIds: string[],
+  actorName: string,
+): Promise<{ recalculated: number; skipped: string[]; newJournalNo: string | null }> {
+  if (!employeeIds.length) throw new Error("Pilih minimal satu karyawan untuk dihitung ulang");
+  const run = await db.payrollRun.findUnique({
+    where: { id: runId },
+    include: {
+      period: true,
+      processType: true,
+      lines: { include: { items: true } },
+    },
+  });
+  if (!run) throw new Error("Run payroll tidak ditemukan");
+  if (run.status === "Paid") {
+    throw new Error("Run sudah dibayar — koreksi via run koreksi/rapel, bukan hitung ulang");
+  }
+  if (run.status !== "Confirmed") {
+    throw new Error("Hitung ulang parsial hanya untuk run yang sudah dikonfirmasi (status: " + run.status + ")");
+  }
+  const tc = tenantCryptoForDb(db);
+  const dm = (v: string | null | undefined) => tc.decryptMoney(v) ?? 0;
+  // M-8: kolom buku pinjaman NOT NULL (String) — encryptMoney non-null.
+  const encLoan = (n: number | null | undefined): string => tc.encryptMoney(n ?? 0) ?? "0";
+
+  // Karyawan terpilih harus ada di run (barisnya yang akan diganti).
+  const targetLines = run.lines.filter((l) => employeeIds.includes(l.employeeId));
+  const skipped = employeeIds.filter((id) => !run.lines.some((l) => l.employeeId === id));
+  if (targetLines.length === 0) {
+    throw new Error("Karyawan terpilih tidak memiliki baris hasil pada run ini");
+  }
+  const targetIds = targetLines.map((l) => l.employeeId);
+  const targetLineIds = targetLines.map((l) => l.id);
+
+  // --- Fase 1: komputasi murni seluruh run (tanpa mutasi) ---
+  const [reg, brackets, ter, built] = await Promise.all([
+    getActiveRegulation(db),
+    getBrackets(db),
+    getTerRates(db),
+    buildRunRowsWithLog(db, run.periodId, run.processTypeId),
+  ]);
+  const result = runPayroll(built.rows, reg, brackets, ter, { calculateTax: run.calculateTax });
+  const umkWarnings = await computeUmkWarnings(db, run.period, built.rows);
+  const newRowByEmp = new Map(result.lines.map((l) => [l.employeeId, l]));
+  const recalcIds: string[] = [];
+  const stillMissing: string[] = [];
+  for (const id of targetIds) {
+    if (newRowByEmp.has(id)) recalcIds.push(id);
+    else stillMissing.push(id);
+  }
+  // Karyawan terpilih yang kini TIDAK lagi terproses engine (mis. template
+  // dipindah/assignment ditutup): baris lama tetap dipertahankan — penghapusan
+  // baris run final harus lewat pembatalan run, bukan efek samping recalc.
+  skipped.push(...stillMissing.map((id) => {
+    const l = targetLines.find((tl) => tl.employeeId === id);
+    return l ? `${l.employeeNo} (tidak lagi terproses — baris lama dipertahankan)` : id;
+  }));
+  if (recalcIds.length === 0) {
+    throw new Error("Tidak ada karyawan terpilih yang bisa dihitung ulang (lihat pesan skip)");
+  }
+
+  // --- Fase 2: persist atomik ---
+  await db.$transaction(async (tx) => {
+    // 1. Kunci run — serialisasi terhadap confirm/calculate/recalc paralel.
+    const locked = await tx.payrollRun.updateMany({
+      where: { id: runId, status: "Confirmed" },
+      data: { status: "Calculated" },
+    });
+    if (locked.count !== 1) {
+      throw new Error("Status run berubah — muat ulang halaman dan coba lagi");
+    }
+
+    // 2a. Reversal angsuran pinjaman karyawan terpilih yang dipotong run ini.
+    const targetNoSet = new Set(targetLines.map((l) => l.employeeId));
+    const deducted = await tx.loanInstallment.findMany({
+      where: { status: "Deducted", deductedRunNo: run.runNo },
+      include: { loan: { select: { id: true, employeeId: true, paidAmount: true, outstanding: true, status: true } } },
+    });
+    for (const inst of deducted) {
+      if (!inst.loan || !targetNoSet.has(inst.loan.employeeId)) continue;
+      const amt = dm(inst.amount);
+      const paid = Math.max(0, dm(inst.loan.paidAmount) - amt);
+      const outstanding = dm(inst.loan.outstanding) + amt;
+      await tx.loanInstallment.update({
+        where: { id: inst.id },
+        data: { status: "Pending", periodCode: null, deductedRunNo: null },
+      });
+      await tx.employeeLoan.update({
+        where: { id: inst.loan.id },
+        data: {
+          paidAmount: encLoan(paid),
+          outstanding: encLoan(outstanding),
+          status: outstanding > 0 && inst.loan.status === "PaidOff" ? "Active" : inst.loan.status,
+        },
+      });
+    }
+
+    // 2b. Reversal penandaan Paid lintas modul yang dibuat RUN INI —
+    // hanya karyawan terpilih (paidRunNo/transferredRunNo = run ini adalah
+    // jejak eksklusif run, jadi reversal tidak mungkin menyentuh run lain).
+    await tx.benefitClaim.updateMany({
+      where: { paidRunNo: run.runNo, employeeId: { in: recalcIds } },
+      data: { status: "Scheduled", paidRunNo: null },
+    });
+    await tx.overtimeOrder.updateMany({
+      where: { paidRunNo: run.runNo, employeeId: { in: recalcIds } },
+      data: { status: "Approved", paidRunNo: null },
+    });
+    await tx.leaveEncashment.updateMany({
+      where: { transferredRunNo: run.runNo, employeeId: { in: recalcIds } },
+      data: { status: "Transferred", transferredRunNo: null },
+    });
+    await tx.travelClaim.updateMany({
+      where: { paidRunNo: run.runNo, employeeId: { in: recalcIds } },
+      data: { status: "Transferred", paidRunNo: null },
+    });
+
+    // 3. Ganti baris karyawan terpilih; baris karyawan lain dibiarkan utuh.
+    await tx.payrollRunLine.deleteMany({ where: { id: { in: targetLineIds } } });
+    for (const id of recalcIds) {
+      const line = newRowByEmp.get(id)!;
+      const umk = umkWarnings.get(id);
+      const created = await tx.payrollRunLine.create({
+        data: {
+          runId,
+          employeeId: line.employeeId,
+          employeeNo: line.employeeNo,
+          employeeName: line.employeeName,
+          orgUnitName: line.orgUnitName,
+          positionName: line.positionName,
+          ptkpStatus: line.ptkpStatus,
+          ptkpValue: line.ptkpValue,
+          bruto: tc.encryptMoney(line.bruto),
+          deduction: tc.encryptMoney(line.deduction),
+          taxRegular: tc.encryptMoney(line.taxRegular),
+          taxIrregular: tc.encryptMoney(line.taxIrregular),
+          net: tc.encryptMoney(line.net),
+          actualNetTax: tc.encryptMoney(line.actualNetTax),
+          notes: line.notes,
+          umkWarning: umk != null,
+          umkJson: umk != null ? JSON.stringify(umk) : null,
+        },
+      });
+      if (line.items.length) {
+        await tx.payrollRunItem.createMany({
+          data: line.items.map((it) => ({
+            lineId: created.id,
+            code: it.code, name: it.name, wageType: it.wageType, type: it.type,
+            incomeTaxMethod: it.incomeTaxMethod, amount: tc.encryptMoney(it.amount), note: it.note, sortOrder: it.sortOrder,
+          })),
+        });
+      }
+    }
+
+    // 4. Header run: total gabungan (baris lama + baris baru karyawan terpilih).
+    const allLines = await tx.payrollRunLine.findMany({ where: { runId }, select: { bruto: true, deduction: true, taxRegular: true, taxIrregular: true, net: true } });
+    const sum = (pick: (l: { bruto: string | null; deduction: string | null; taxRegular: string | null; taxIrregular: string | null; net: string | null }) => string | null) =>
+      allLines.reduce((s, l) => s + dm(pick(l)), 0);
+    const totalBruto = sum((l) => l.bruto);
+    const totalDeduction = sum((l) => l.deduction);
+    const totalTax = sum((l) => (l.taxRegular != null || l.taxIrregular != null ? (dm(l.taxRegular) + dm(l.taxIrregular)).toString() : null));
+    const totalNet = sum((l) => l.net);
+    await tx.payrollRun.update({
+      where: { id: runId },
+      data: {
+        status: "Calculated",
+        employeeCount: allLines.length,
+        totalBruto: tc.encryptMoney(totalBruto),
+        totalDeduction: tc.encryptMoney(totalDeduction),
+        totalTax: tc.encryptMoney(totalTax),
+        totalNet: tc.encryptMoney(totalNet),
+        calculatedAt: new Date(),
+      },
+    });
+
+    // 4b. Log run: buang log lama karyawan terpilih, simpan log karyawan lain,
+    // tambahkan log karyawan terpilih dari hasil baru (pola calculateAndSaveRun).
+    const oldLogs = await tx.payrollRunLog.findMany({ where: { runId } });
+    const keepLogs = oldLogs.filter((l) => !l.employeeId || !recalcIds.includes(l.employeeId));
+    await tx.payrollRunLog.deleteMany({ where: { runId } });
+    const newLogs = [
+      ...keepLogs.map((l) => ({
+        runId, employeeId: l.employeeId, employeeNo: l.employeeNo, employeeName: l.employeeName,
+        level: l.level, code: l.code, message: l.message,
+      })),
+      ...built.logs
+        .filter((l) => l.employeeId != null && recalcIds.includes(l.employeeId))
+        .map((l) => ({
+          runId, employeeId: l.employeeId ?? null, employeeNo: l.employeeNo ?? null,
+          employeeName: l.employeeName ?? null, level: l.level, code: l.code, message: l.message,
+        })),
+    ];
+    if (newLogs.length) await tx.payrollRunLog.createMany({ data: newLogs });
+
+    // 4c. Reversal jurnal lama run → saldo COA dikembalikan, jurnal ditandai Reversed.
+    const oldJournal = await tx.payrollJournal.findUnique({
+      where: { runId },
+      include: { lines: true },
+    });
+    if (oldJournal && oldJournal.status !== "Reversed") {
+      const accounts = await tx.account.findMany({ include: { accountGroup: true } });
+      const accTypeByCode = new Map(accounts.map((a) => [a.code, a.accountGroup?.accountType ?? null]));
+      for (const jl of oldJournal.lines) {
+        const at = accTypeByCode.get(jl.accountCode);
+        if (!at) continue;
+        const amt = dm(jl.amount);
+        if (amt === 0) continue;
+        const isDebitNatural = at === "Asset" || at === "Expense";
+        const delta = jl.position === "Debit" ? amt : -amt;
+        await tx.account.update({
+          where: { code: jl.accountCode },
+          data: { balance: { increment: isDebitNatural ? -delta : delta } },
+        });
+      }
+      await tx.payrollJournal.update({ where: { id: oldJournal.id }, data: { status: "Reversed" } });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        action: "Recalculated", entity: "PayrollRun", entityId: runId,
+        detail:
+          `Run ${run.runNo} dihitung ulang PARSIAL (${recalcIds.length} karyawan: ` +
+          `${targetLines.filter((l) => recalcIds.includes(l.employeeId)).map((l) => l.employeeNo).join(", ")}) oleh ${actorName} — ` +
+          `jurnal lama dibalik, pinjaman/klaim/lembur/encashment/travel karyawan terpilih dikembalikan ke status semula; run menunggu konfirmasi ulang`,
+      },
+    });
+  });
+
+  // 5. Jurnal baru dari hasil gabungan (di luar transaksi — pola confirmRun).
+  //    generateJournalForRun idempoten per runId & menolak run non-Confirmed,
+  //    jadi sementara kembalikan status run ke Confirmed untuk pemanggilannya,
+  //    lalu set KEMBALI ke Calculated (target akhir tetap Calculated).
+  let newJournalNo: string | null = null;
+  await db.payrollRun.update({ where: { id: runId }, data: { status: "Confirmed" } });
+  try {
+    const journal = await generateJournalForRun(db, runId);
+    newJournalNo = journal.journalNo;
+  } finally {
+    await db.payrollRun.update({ where: { id: runId }, data: { status: "Calculated" } });
+  }
+
+  return { recalculated: recalcIds.length, skipped, newJournalNo };
+}
+
 // Generate nomor run: PR-{period.code}-{typeCode3}-{seq}
 export async function nextRunNo(db: TenantDb, periodCode: string, typeCode: string): Promise<string> {
   const prefix = `PR-${periodCode}-${typeCode.slice(0, 3).toUpperCase()}`;

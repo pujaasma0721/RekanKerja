@@ -4,7 +4,7 @@ import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
-import { nextRunNo, calculateAndSaveRun, confirmRun } from "@/onevity/payroll/services/payroll-service";
+import { nextRunNo, calculateAndSaveRun, confirmRun, recalcEmployeesForConfirmedRun } from "@/onevity/payroll/services/payroll-service";
 import { notifyEmailEvent, approverEmailsOf, sendPayslipEmail } from "@/onevity/shared/services/email-service";
 import { sendWa } from "@/onevity/shared/services/wa-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
@@ -117,18 +117,20 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH /api/onevity/payroll-runs — action: calculate | confirm | markPaid |
-//       cancel | send-slips  { id | runId }
+//       cancel | send-slips | recalcEmployees  { id | runId }
 // Task 32-d: guard hak AKSI menu per pengguna — op:calculate / op:confirm /
 // op:markPaid / op:cancel pada payroll:runs; send-slips → op:export (T10).
+// Task 64j: recalcEmployees (hitung ulang parsial run Confirmed) → op:calculate
+// (membutuhkan hak menghitung; hasil kembali ke status Calculated).
 // Body dibaca SEKALI sebelum guard (aksi menentukan op menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json();
     if (!(b.id || b.runId) || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
-    if (!["calculate", "confirm", "markPaid", "cancel", "send-slips"].includes(b.action)) {
+    if (!["calculate", "confirm", "markPaid", "cancel", "send-slips", "recalcEmployees"].includes(b.action)) {
       return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
     }
-    const m = b.action === "calculate"
+    const m = b.action === "calculate" || b.action === "recalcEmployees"
       ? await requireMenuAction(req, "payroll:runs", "op:calculate")
       : b.action === "confirm"
         ? await requireMenuAction(req, "payroll:runs", "op:confirm")
@@ -269,6 +271,16 @@ export async function PATCH(req: NextRequest) {
       }
       case "send-slips": {
         return handleSendSlips(db, actor, run.id, b.slipPassword);
+      }
+      // Task 64j — hitung ulang PARSIAL: hanya karyawan terpilih pada run
+      // Confirmed (belum Paid). Kembalikan ringkasan + daftar skip utk UI.
+      case "recalcEmployees": {
+        const ids: unknown = b.employeeIds;
+        if (!Array.isArray(ids) || ids.length === 0 || ids.some((x) => typeof x !== "string" || !x.trim())) {
+          return NextResponse.json({ error: "employeeIds (array id karyawan) wajib diisi" }, { status: 400 });
+        }
+        const res = await recalcEmployeesForConfirmedRun(db, run.id, ids as string[], actor.name);
+        return NextResponse.json({ ok: true, ...res });
       }
       default:
         return NextResponse.json({ error: `Action tidak dikenal: ${b.action}` }, { status: 400 });
