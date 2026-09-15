@@ -1704,3 +1704,25 @@ Perubahan:
   dengan konfirmasi, banner hasil (n dihitung, jurnal baru, daftar skip).
 
 Verifikasi: tsc + eslint bersih.
+
+---
+Task ID: 64j-test
+Agent: Buffy (Codebuff)
+Date: 2026-09-15
+Title: E2E prod recalc parsial — 16/16 PASS
+
+scripts/e2e-recalc-partial.ts: login+vault → run PR-2026-09-SAL-08 (484 karyawan)
+→ komponen Specific Rp 777.000 upload terlambat utk SAYONE00003 → recalcEmployees
+→ verifikasi (status Calculated, item muncul, bruto +777rb penuh, THP +660.450
+setelah PPh21, kontrol & employeeCount tak berubah, jurnal lama Reversed + baru
+JV-2026-0004 Posted) → cleanup (hapus assignment → recalc ulang → item hilang,
+THP kembali persis, run dikonfirmasi ulang). Komponen uji dihapus.
+
+Bug yang ketemu & diperbaiki saat tes:
+1. Jurnal baru tak pernah dibuat — PayrollJournal.runId unik; jurnal Reversed
+   masih menempel pada run → generateJournalForRun idempoten menemukannya.
+   Fix: unlink runId setelah Reversed (jejak tetap via kolom runNo teks).
+2. Recalc kedua ditolak pada run Calculated → kini didukung (recalc beruntun).
+3. Guard M-8 component-assignments menolak Specific saat run Confirmed →
+   dilonggarkan (hanya Paid yang ditolak).
+4. Dua skrip e2e konflik identifier global → jadikan modul (export {}).
