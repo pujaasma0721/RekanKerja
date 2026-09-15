@@ -52,17 +52,18 @@ export async function POST(req: NextRequest) {
     const comp = await db.wageComponent.findUnique({ where: { id: b.wageComponentId } });
     if (!comp) return NextResponse.json({ error: "Komponen tidak ditemukan" }, { status: 404 });
 
-    // M-8 (MAJOR): komponen Specific untuk period × processType yang run-nya sudah
-    // Confirmed/Paid tidak akan pernah dibayar — run final tak dapat dihitung
-    // ulang, dan run baru period+type yang sama ditolak guard duplikat →
-    // komponen terjebak. Tolak di muka (pilih period/jenis proses lain).
+    // M-8 (MAJOR, revisi Task 64j): komponen Specific untuk period × processType
+    // yang run-nya sudah PAID tidak akan pernah dibayar (run paid tidak bisa
+    // dihitung ulang) → tolak di muka. Run berstatus Confirmed KINI BOLEH —
+    // fitur hitung ulang parsial (recalcEmployees) memungkinkan memasukkan
+    // komponen terlambat ke run yang sudah dikonfirmasi (belum dibayar).
     if (kind === "Specific") {
-      const finalRun = await db.payrollRun.findFirst({
-        where: { periodId: b.periodId, processTypeId: b.processTypeId, status: { in: ["Confirmed", "Paid"] } },
+      const paidRun = await db.payrollRun.findFirst({
+        where: { periodId: b.periodId, processTypeId: b.processTypeId, status: "Paid" },
       });
-      if (finalRun) {
+      if (paidRun) {
         return NextResponse.json(
-          { error: `Run ${finalRun.runNo} untuk period × jenis proses ini sudah ${finalRun.status === "Paid" ? "dibayar" : "dikonfirmasi"} — komponen khusus tidak akan pernah diproses; pilih period/jenis proses lain` },
+          { error: `Run ${paidRun.runNo} untuk period × jenis proses ini sudah dibayar — komponen khusus tidak akan pernah diproses; buat run koreksi/rapel pada period lain` },
           { status: 400 }
         );
       }

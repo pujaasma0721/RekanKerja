@@ -114,8 +114,9 @@ export function PayrollRunDetailPage() {
   const lines = run.lines.filter((l) =>
     !q || l.employeeNo.toLowerCase().includes(q.toLowerCase()) || l.employeeName.toLowerCase().includes(q.toLowerCase())
   );
-  // Task 64j — recalc parsial hanya tersedia pada run Confirmed (belum Paid).
-  const canRecalc = run.status === "Confirmed" && perms.canOp("payroll", "runs", "calculate");
+  // Task 64j — recalc parsial tersedia pada run Confirmed maupun Calculated
+  // (recalc beruntun tanpa wajib konfirmasi ulang di antaranya), belum Paid.
+  const canRecalc = (run.status === "Confirmed" || run.status === "Calculated") && perms.canOp("payroll", "runs", "calculate");
 
   const toggleSelect = (id: string, checked: boolean | "indeterminate") => {
     setSelectedIds((prev) => {

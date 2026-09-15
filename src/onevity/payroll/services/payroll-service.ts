@@ -1172,8 +1172,10 @@ export async function recalcEmployeesForConfirmedRun(
   if (run.status === "Paid") {
     throw new Error("Run sudah dibayar — koreksi via run koreksi/rapel, bukan hitung ulang");
   }
-  if (run.status !== "Confirmed") {
-    throw new Error("Hitung ulang parsial hanya untuk run yang sudah dikonfirmasi (status: " + run.status + ")");
+  // Task 64j-fix: Calculated juga boleh — recalc beruntun tanpa wajib
+  // konfirmasi ulang di antaranya (mis. tambah komponen lagi setelah recalc).
+  if (run.status !== "Confirmed" && run.status !== "Calculated") {
+    throw new Error("Hitung ulang parsial hanya untuk run Confirmed/Calculated (status: " + run.status + ")");
   }
   const tc = tenantCryptoForDb(db);
   const dm = (v: string | null | undefined) => tc.decryptMoney(v) ?? 0;
@@ -1220,7 +1222,7 @@ export async function recalcEmployeesForConfirmedRun(
   await db.$transaction(async (tx) => {
     // 1. Kunci run — serialisasi terhadap confirm/calculate/recalc paralel.
     const locked = await tx.payrollRun.updateMany({
-      where: { id: runId, status: "Confirmed" },
+      where: { id: runId, status: { in: ["Confirmed", "Calculated"] } },
       data: { status: "Calculated" },
     });
     if (locked.count !== 1) {
@@ -1349,27 +1351,35 @@ export async function recalcEmployeesForConfirmedRun(
     ];
     if (newLogs.length) await tx.payrollRunLog.createMany({ data: newLogs });
 
-    // 4c. Reversal jurnal lama run → saldo COA dikembalikan, jurnal ditandai Reversed.
+    // 4c. Reversal jurnal lama run → saldo COA dikembalikan, jurnal ditandai
+    // Reversed. PayrollJournal.runId UNIK (1-1 dengan run) — jurnal lama HARUS
+    // di-unlink (runId=null, jejak runNo tetap di teks) agar jurnal baru hasil
+    // gabungan bisa dibuat setelah recalc; tanpa ini generateJournalForRun
+    // idempoten menemukan jurnal lama & tidak pernah membuat yang baru
+    // (bug ditemukan saat E2E 64j: recalc kedua tanpa jurnal baru).
     const oldJournal = await tx.payrollJournal.findUnique({
       where: { runId },
       include: { lines: true },
     });
-    if (oldJournal && oldJournal.status !== "Reversed") {
-      const accounts = await tx.account.findMany({ include: { accountGroup: true } });
-      const accTypeByCode = new Map(accounts.map((a) => [a.code, a.accountGroup?.accountType ?? null]));
-      for (const jl of oldJournal.lines) {
-        const at = accTypeByCode.get(jl.accountCode);
-        if (!at) continue;
-        const amt = dm(jl.amount);
-        if (amt === 0) continue;
-        const isDebitNatural = at === "Asset" || at === "Expense";
-        const delta = jl.position === "Debit" ? amt : -amt;
-        await tx.account.update({
-          where: { code: jl.accountCode },
-          data: { balance: { increment: isDebitNatural ? -delta : delta } },
-        });
+    if (oldJournal) {
+      if (oldJournal.status !== "Reversed") {
+        const accounts = await tx.account.findMany({ include: { accountGroup: true } });
+        const accTypeByCode = new Map(accounts.map((a) => [a.code, a.accountGroup?.accountType ?? null]));
+        for (const jl of oldJournal.lines) {
+          const at = accTypeByCode.get(jl.accountCode);
+          if (!at) continue;
+          const amt = dm(jl.amount);
+          if (amt === 0) continue;
+          const isDebitNatural = at === "Asset" || at === "Expense";
+          const delta = jl.position === "Debit" ? amt : -amt;
+          await tx.account.update({
+            where: { code: jl.accountCode },
+            data: { balance: { increment: isDebitNatural ? -delta : delta } },
+          });
+        }
+        await tx.payrollJournal.update({ where: { id: oldJournal.id }, data: { status: "Reversed" } });
       }
-      await tx.payrollJournal.update({ where: { id: oldJournal.id }, data: { status: "Reversed" } });
+      await tx.payrollJournal.update({ where: { id: oldJournal.id }, data: { runId: null } });
     }
 
     await tx.activityLog.create({
