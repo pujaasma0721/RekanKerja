@@ -14,6 +14,9 @@
  *    memilih item terfokus (prilaku Radix), Escape menghapus pencarian dulu —
  *    Escape kedua menutup dropdown.
  *  - State pencarian otomatis direset saat dropdown ditutup.
+ *  - Teks yang cocok di-HIGHLIGHT lewat CSS Custom Highlight API
+ *    (::highlight(select-match)) — range-only, DOM tak diubah sama sekali.
+ *    Fallback browser lama: tidak ada highlight (filter tetap jalan normal).
  *
  * Implementasi aman terhadap Radix: handler keydown milik kita dipasang lewat
  * contentProps (dieksekusi SEBELUM handler internal Radix, yang skip bila
@@ -156,6 +159,47 @@ function SelectContent({
   const contentRef = React.useRef<HTMLDivElement | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const [noResults, setNoResults] = React.useState(false)
+
+  // Highlight teks cocok (CSS Custom Highlight API) — tanpa mengubah DOM.
+  React.useLayoutEffect(() => {
+    const CSSAny = CSS as unknown as {
+      highlights?: Map<string, Set<Range>>
+    }
+    const highlights = CSSAny?.highlights
+    if (!highlights) return // browser tanpa dukungan → filter tetap bekerja normal
+    const root = contentRef.current
+    const q = query.trim()
+    highlights.delete("select-match")
+    if (!searchable || !root || !q) return
+    const ranges: Range[] = []
+    const lower = q.toLowerCase()
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue || !node.nodeValue.toLowerCase().includes(lower))
+          return NodeFilter.FILTER_REJECT
+        const parent = node.parentElement
+        if (!parent || parent.closest('[data-slot="select-search"]'))
+          return NodeFilter.FILTER_REJECT
+        return NodeFilter.FILTER_ACCEPT
+      },
+    })
+    let node = walker.nextNode()
+    while (node) {
+      const value = node.nodeValue ?? ""
+      const lowerValue = value.toLowerCase()
+      let idx = lowerValue.indexOf(lower)
+      while (idx !== -1) {
+        const range = document.createRange()
+        range.setStart(node, idx)
+        range.setEnd(node, idx + q.length)
+        ranges.push(range)
+        idx = lowerValue.indexOf(lower, idx + q.length)
+      }
+      node = walker.nextNode()
+    }
+    if (ranges.length)
+      highlights.set("select-match", new Set(ranges))
+  }, [query, searchable, noResults, children])
 
   // Dropdown ditutup → portal unmount → reset query agar buka berikutnya bersih.
   React.useEffect(() => {

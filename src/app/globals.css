@@ -49,6 +49,18 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Task 64i — highlight teks yang cocok di dropdown pencarian (CSS Custom
+   Highlight API: painting-only, DOM tidak diubah). Mengikuti tema aksen. */
+::highlight(select-match) {
+  background-color: color-mix(in oklab, var(--accent-live) 24%, transparent);
+  color: var(--accent-live-deep);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--accent-live) 55%, transparent);
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
 /* ============================================================
    OneVity Design Tokens
    Brand: premium emerald + warm stone neutrals + obsidian shell
