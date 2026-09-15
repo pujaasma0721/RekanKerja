@@ -1623,3 +1623,17 @@ Implementation:
    ini + hint cara mengganti); submit tidak lagi mengirim wageTemplateId.
 
 Commits: see git log
+
+---
+Task ID: 64i
+Agent: Buffy (Freebuff)
+Scope: UI global — searchable dropdown
+- src/components/ui/select.tsx: semua <Select> kini punya kolom pencarian
+  (sticky di atas daftar, filter live case-insensitive, grup/label ikut
+  sembunyi, footer "Tidak ada hasil", Escape hapus cari dulu baru tutup,
+  Enter pilih kandidat teratas, ArrowUp/Down/Home/End antar item tampak).
+  Typeahead bawaan Radix dinetralkan (preventDefault sebelum handler internal);
+  opt-out per pemakaian: <Select searchable={false}>. API & styling existing
+  tidak berubah; 62 file pemakai tak tersentuh.
+- Backup: branch backup/pre-searchable-dropdown + backups/ui-select.tsx.bak-*
+Commits: see git log
