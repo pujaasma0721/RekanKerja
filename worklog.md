@@ -1637,3 +1637,23 @@ Scope: UI global — searchable dropdown
   tidak berubah; 62 file pemakai tak tersentuh.
 - Backup: branch backup/pre-searchable-dropdown + backups/ui-select.tsx.bak-*
 Commits: see git log
+
+---
+Task ID: 64i-b
+Agent: Buffy (Codebuff)
+Date: 2026-09-15
+Title: Highlight teks cocok pada pencarian dropdown
+
+Perubahan:
+- src/components/ui/select.tsx: efek useLayoutEffect baru yang membangun Range
+  untuk setiap kemunculan query pada node teks item (TreeWalker + case-insensitive),
+  lalu mendaftarkannya ke CSS.highlights.set("select-match", ...). CSS Custom
+  Highlight API → painting-only, DOM/children React tidak diubah sama sekali
+  (aman terhadap reconciliasi & ItemText copy Radix). Bersih tiap render/query kosong.
+- src/app/globals.css: rule ::highlight(select-match) — background color-mix
+  accent-live 24%, teks accent-live-deep, underline tipis, font-weight 600 →
+  highlight mengikuti tema aksen yang dipilih di topbar. Fallback browser lama:
+  tidak ada highlight, filter tetap normal.
+
+Verifikasi: tsc --noEmit bersih, eslint bersih, build 159 rute sukses, health
+200 lokal & publik. Commit 0925d55, deploy file langsung ke .15 + rebuild + pm2 restart.
