@@ -1788,3 +1788,34 @@ paritas", health 200 lokal & publik.
 
 Files: src/onevity/shared/lib/provisioning.ts, lib/parity-runner.ts,
 scripts/migrate-tenant-schema-integrity.ts (baru). Commit 4d80795.
+
+---
+Task ID: 64m
+Agent: Buffy (Codebuff)
+Date: 2026-09-16
+Title: Mail server sendiri di .15 (mail.sayone.my.id) + OneVity SAYONE terhubung
+
+Infrastruktur:
+- Postfix (25/587 submission+STARTTLS) + Dovecot 2.4 (SASL via
+  /var/spool/postfix/private/auth, POP3S 995, mail_driver=maildir,
+  mail_inbox_path=~/Maildir/INBOX — Dovecot 2.4 mengganti nama setting lama)
+  + OpenDKIM (2048-bit, milter localhost:12301).
+- Mailbox: notifikasi@sayone.my.id (user sistem, nologin).
+- DNS (Cloudflare): A mail → 103.171.152.115, MX → mail.sayone.my.id,
+  SPF ip4/ip6 -all, DKIM mail._domainkey.
+- TLS: Let's Encrypt via certbot dns-cloudflare (DNS-01 — port 80 inbound
+  diblok ISP MyRepublic; token CF di /etc/letsencrypt/.secrets, chmod 600,
+  deploy hook restart postfix+dovecot, expiry 2026-12-15).
+- Outbound: IPv4:25 DIBLOK ISP; IPv6:25 TERBUKA → smtp_address_preference=ipv6.
+  Gmail (MX IPv6) status=sent 250 OK ✓. Yahoo/mail-tester (IPv4-only MX) deferred.
+- Inbound 25 diblok ISP (terima email dari luar tidak bisa — tidak dibutuhkan
+  untuk notifikasi).
+
+Integrasi OneVity:
+- E2E scripts/e2e-smtp-connect.ts: login owner → PUT email-config SAYONE
+  (mail.sayone.my.id:587 STARTTLS, user "notifikasi", from
+  notifikasi@sayone.my.id) → POST test → lastTestOk=true.
+- Catatan: faillock mengunci akun notifikasi setelah percobaan gagal
+  (password salah dari tes awal) — faillock --reset + chpasswd memulihkan.
+
+Commits: 3236779 (script E2E).
