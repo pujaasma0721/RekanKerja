@@ -151,13 +151,14 @@ export function publicBaseUrlOf(req: { headers: { get(name: string): string | nu
 }
 
 /**
- * Slug tenant dari client tenant (brand schema `tenant_<slug>` → potong prefix).
- * Dipakai menyusun token checklist publik (tenant ikut dalam token).
+ * Slug tenant dari client tenant (brand schema `tenant_<slug>` → potong prefix,
+ * underscore → strip; slug registry memakai strip). Dipakai menyusun token
+ * checklist publik (tenant ikut dalam token).
  */
 export function tenantSlugOf(db: TenantDb): string {
   const schema = (db as unknown as Record<string, unknown>)[TENANT_SCHEMA_BRAND];
   if (typeof schema !== "string" || !schema.startsWith("tenant_")) return "";
-  return schema.slice("tenant_".length);
+  return schema.slice("tenant_".length).replace(/_/g, "-");
 }
 
 // ---------- otorisasi centang per bagian ----------

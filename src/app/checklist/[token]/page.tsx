@@ -1,11 +1,11 @@
 "use client";
 // OneVity — Halaman checklist publik (Task 65) ==========================
-// Dibuka dari link di email checklist per bagian. Tanpa login: token HMAC
-// (khusus satu proses + satu bagian) diverifikasi server per request.
-// Penerima email melihat daftar tugas bagiannya & mencentang Done / Na.
+// Dibuka dari link di email checklist per bagian: /checklist/<token>
+// (token HMAC khusus satu proses + satu bagian, diverifikasi server per
+// request). Penerima email melihat daftar tugas bagiannya & mencentang.
 // =====================================================================
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Check, CircleDashed, ListChecks, Mail, MinusCircle } from "lucide-react";
 
 interface TaskRow { id: string; seq: number; title: string; status: string; notes: string | null; completedAt: string | null }
@@ -22,9 +22,9 @@ interface ChecklistData {
 const STATUS_LABEL: Record<string, string> = { Done: "Selesai", Pending: "Menunggu", Na: "Tidak berlaku" };
 
 export default function PublicChecklistPage() {
-  const params = useSearchParams();
-  const token = params.get("token") ?? "";
-  const tenant = params.get("t") ?? "";
+  const params = useParams<{ token: string }>();
+  const token = typeof params.token === "string" ? params.token : "";
+  const tenant = ""; // slug ikut dalam token — API resolve via token
 
   const [data, setData] = useState<ChecklistData | null>(null);
   const [error, setError] = useState<string | null>(null);

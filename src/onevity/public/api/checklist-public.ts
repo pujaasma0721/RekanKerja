@@ -12,9 +12,15 @@ import { db as platformDb } from "@/lib/db";
 // =====================================================================
 
 async function resolveTenant(tenantSlug: string) {
-  return platformDb.tenant.findUnique({
+  const bySlug = await platformDb.tenant.findUnique({
     where: { slug: tenantSlug },
-    select: { schemaName: true },
+    select: { slug: true, schemaName: true },
+  });
+  if (bySlug) return bySlug;
+  // token lama membawa nama schema (tenant_xxx) → cocokkan via schemaName
+  return platformDb.tenant.findUnique({
+    where: { schemaName: tenantSlug.startsWith("tenant_") ? tenantSlug : `tenant_${tenantSlug}` },
+    select: { slug: true, schemaName: true },
   });
 }
 
@@ -59,16 +65,15 @@ async function readProcess(db: TenantDb, kind: "onboarding" | "offboarding", pro
   };
 }
 
-// GET /api/public/checklist?token=…&t=slug — baca checklist bagian
+// GET /api/public/checklist?token=…[&t=slug opsional] — baca checklist bagian
 export async function GET(req: NextRequest) {
   try {
     const token = req.nextUrl.searchParams.get("token");
-    const tenantSlug = req.nextUrl.searchParams.get("t") ?? "";
     const p = verifyChecklistToken(token);
-    if (!p.ok || !tenantSlug) {
+    if (!p.ok) {
       return NextResponse.json({ error: "Tautan tidak valid" }, { status: 400 });
     }
-    const tenant = await resolveTenant(tenantSlug);
+    const tenant = await resolveTenant(req.nextUrl.searchParams.get("t") ?? p.tenantSlug);
     if (!tenant) return NextResponse.json({ error: "Tenant tidak dikenal" }, { status: 404 });
     const db = getTenantClient(tenant.schemaName);
 
@@ -89,16 +94,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/public/checklist — centang tugas {token, tenant, taskId, status, notes?}
+// POST /api/public/checklist — centang tugas {token, taskId, status, notes?}
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
     const p = verifyChecklistToken(String(b.token ?? ""));
-    const tenantSlug = String(b.tenant ?? "");
-    if (!p.ok || !tenantSlug) {
+    if (!p.ok) {
       return NextResponse.json({ error: "Tautan tidak valid" }, { status: 400 });
     }
-    const tenant = await resolveTenant(tenantSlug);
+    const tenant = await resolveTenant(String(b.tenant ?? "") || p.tenantSlug);
     if (!tenant) return NextResponse.json({ error: "Tenant tidak dikenal" }, { status: 404 });
     const db = getTenantClient(tenant.schemaName);
 
