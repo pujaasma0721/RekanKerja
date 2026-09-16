@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/onevity/ess/api/ess-auth";
 import { listBalances, listRequests, submitRequest, FEMALE_ONLY_LEAVE } from "@/onevity/leave/services/leave-service";
 import { notifyEvent } from "@/onevity/shared/services/notification-service";
+import { notifyEmailEvent, approverEmailsOf } from "@/onevity/shared/services/email-service";
 import { dispatchWebhookEvent } from "@/onevity/shared/services/webhook-service";
 
 // GET — saldo cuti tahun berjalan + riwayat permintaan saya.
@@ -132,6 +133,18 @@ export async function POST(req: Request) {
     void (async () => {
       try {
         const type = await db.leaveType.findUnique({ where: { id: typeId }, select: { name: true } });
+        // Task 64m-b — paritas EMAIL dgn jalur admin (leave/api/requests.ts):
+        // submit dari ESS kini juga mengirim email ke approver (Task 34).
+        // Sebelumnya ESS hanya in-app + webhook → approver tanpa email.
+        notifyEmailEvent(db, {
+          event: "leave.submitted",
+          to: await approverEmailsOf(db, employeeId),
+          data: {
+            nama: fullName, docNo: res.docNo, jenisCuti: type?.name ?? "-",
+            periode: `${dateFrom} → ${dateTo}`, jumlahHari: String(res.workingDays),
+            alasan: reason || "-",
+          },
+        });
         await notifyEvent(db, {
           to: "nextApprover", docType: "Leave", docNo: res.docNo,
           title: `Pengajuan cuti ${res.docNo} menunggu persetujuan Anda`,
