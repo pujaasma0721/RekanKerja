@@ -66,6 +66,7 @@ export async function main(schemas?: string[] | ((msg: string) => void), log: (m
   const base = process.env.TENANT_DB_BASE_URL;
   if (!base) throw new Error("TENANT_DB_BASE_URL kosong");
   const url = new URL(base);
+  const urlBase = `${url.protocol}//${url.username}:${url.password}@${url.host}${url.pathname}`;
 
   // daftar schema: parameter parity-runner → fallback registry platform DB
   let list: string[] = list0;
@@ -85,7 +86,7 @@ export async function main(schemas?: string[] | ((msg: string) => void), log: (m
   let errors = 0;
 
   for (const schema of list) {
-    const client = new Client({ connectionString: `${base}${url.search}&schema=${schema}` });
+    const client = new Client({ connectionString: `${urlBase}?schema=${schema}&connection_limit=2` });
     try {
       await client.connect();
       if (await ensureTable(client, schema, "Onboarding")) created += 1;
