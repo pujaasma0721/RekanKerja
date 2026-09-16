@@ -1819,3 +1819,56 @@ Integrasi OneVity:
   (password salah dari tes awal) — faillock --reset + chpasswd memulihkan.
 
 Commits: 3236779 (script E2E).
+
+---
+Task ID: 64n
+Agent: Buffy (Codebuff)
+Date: 2026-09-16
+
+## Notifikasi email alur kerja (leave.submitted) — E2E OK di prod
+
+- Temuan bug: submit cuti via ESS (`src/onevity/ess/api/leave.ts`) hanya memicu
+  notifikasi in-app + webhook, TIDAK email. Diperbaiki: panggil `notifyEmailEvent`
+  (event `leave.submitted`) pada submit ESS — selaras dengan jalur modul Leave.
+- Deploy: scp + build + pm2 restart di .15.
+- Uji E2E asli: login ESS karyawan SAYONE00001 (Dewi Wibowo B.) → POST
+  pengajuan cuti → LR-2026-004 dibuat → EmailLog `leave.submitted` status=Sent
+  ke approver (pujaas007@gmail.com) → Postfix: status=sent 250 OK via Gmail IPv6 MX.
+- Regresi: `scripts/e2e-leave-notify.ts` (login ESS → submit cuti → cek EmailLog).
+- Catatan: 2 pengajuan cuti uji (LR-2026-003/004) masih pending approval di
+  SAYONE — bisa dibatalkan dari UI jika tidak dipakai; email approver sengaja
+  diarahkan ke Gmail test untuk verifikasi.
+
+---
+Task ID: 65
+Agent: Buffy (Freebuff)
+Date: 2026-09-16
+
+## Checklist Onboarding/Offboarding per Bagian + Email + Link Publik
+
+### Permintaan user
+1. Offboarding clearance checklist + onboarding harus ada checklist (penyediaan user, meja, tlp, dll)
+2. Checklist di-EMAIL ke masing-masing bagian
+3. Tiap bagian hanya bisa mencentang tugas bagiannya sendiri
+
+### Implementasi (commit 85e9c91 + dffefef + 816e5aa)
+- **Model baru**: `Onboarding` + `OnboardingTask` (mirror Offboarding/Task) + kolom `OffboardingTask.completedVia` — schema-tenant.prisma + tenant-ddl.sql
+- **checklist-service.ts**: katalog bagian (Supervisor/IT/GA/Finance/HR/Payroll), penerima email per bagian disimpan di `Lookup(category ChecklistDeptEmail)`, token HMAC (kind.slug.processId.dept.mac, kunci = SESSION_SECRET), otorisasi `canTouchDept` (Admin/HR/OWNER = koordinator; role AppUser IT/GA/dll = hanya bagiannya)
+- **checklist-email.ts**: email per bagian berisi daftar tugasnya + link checklist publik unik per bagian (`/checklist/<token>`) — via notifyEmailEvent fire-and-forget
+- **4 template email default**: onboarding.checklist, onboarding.completed, offboarding.checklist, offboarding.completed (+EVENT_PLACEHOLDERS)
+- **API onboarding**: list/create (auto checklist 8 tugas bawaan: IT user+laptop, GA meja+kartu, HR kontrak+BPJS, Supervisor orientasi, Payroll data gaji), detail + viewer.allowedDepts, PATCH task/addTask/removeTask/resendEmail/complete/cancel; auto-complete + email HR saat semua tuntas
+- **Offboarding**: create kini kirim email per bagian; PATCH task dibatasi per bagian (server-side 403)
+- **Auto-create onboarding** saat karyawan baru dibuat (employees.ts POST hook, gagal tidak menggagalkan karyawan)
+- **Checklist publik**: `/api/public/checklist` GET/POST (token HMAC, hanya tugas bagian tsb) + halaman `/checklist/[token]` tanpa login
+- **UI**: modul "Checklist Onboarding" di HR → Karyawan (menu baru ClipboardCheck), dialog penerima email per bagian, centang in-app dengan tombol Done/Na/Pending + jejak "email:IT" vs nama AppUser
+- **Parity step** `checklist-tables` (migrate-checklist-tables.ts, idempoten, never-throw) + seed template via migrate-email-config
+
+### Deploy .15
+- Fresh clone → npm install --legacy-peer-deps → build → migrate (12 tabel + 6 kolom completedVia) → seed 12 template → cutover folder + pm2 restart
+- Health 200 lokal (3001) & publik; parity boot "6 tenant sudah paritas"
+
+### E2E terbukti (prod SAYONE)
+- Onboarding Dewi Wibowo B. (SAYONE00001) → 8 tugas, EmailLog `onboarding.checklist` ×4 **Sent** → postfix 250 OK gsmtp
+- Offboarding karyawan kedua → EmailLog `offboarding.checklist` ×6 **Sent**
+- Link publik `/checklist/<token>`: GET 200 (daftar tugas bagian IT saja), POST centang Done → DB `completedVia=email:IT` ✓ (tes di-rollback ke Pending)
+- Bug ketemu & diperbaiki: token slug underscore→strip, halaman baca token dari path param, resolve tenant fallback schemaName
