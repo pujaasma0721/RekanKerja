@@ -1759,3 +1759,32 @@ schema-tenant.prisma}, scripts/migrate-password-idle-timeout.ts (baru).
 Commits: bcb073f (fitur), acc6ff9 (fix migrasi tahan tenant sampah), 24ae96b
 (fix deteksi gap). Deploy .15: build EXIT:0, parity boot "7 tenant sudah
 paritas", health 200 lokal & publik.
+
+---
+Task ID: 64l
+Agent: Buffy (Codebuff)
+Date: 2026-09-16
+Title: Proteksi konsistensi schema tenant (verifikasi provisioning + self-heal parity)
+
+Latar: tenant_demouser0229 (sudah dihapus Task sebelumnya) lolos dibuat saat
+tenant-ddl.sql belum memuat tabel PasswordPolicy (Task 33 belakangan) → schema
+cacat permanen: getTenantPolicy fallback diam-diam, gap parity permanen.
+
+Proteksi dua arah:
+- provisionTenantSchema: verifikasi tabel kritis (Employee/PayrollRun/
+  PasswordPolicy/WorkSchedule) SETELAH seluruh DDL — hilang → GAGAL-BERSIH
+  (schema di-drop, registrasi gagal jelas). Tenant baru tak bisa cacat lagi.
+- Parity step "tenant-schema-integrity": heal tenant existing — tabel kritis
+  hilang dibuat ulang dari blok CREATE TABLE tenant-ddl.sql (sumber tunggal,
+  idempoten, per-schema never-throw). CRITICAL_TENANT_TABLES + helper
+  missingCriticalTables diekspor dari provisioning.ts.
+- checkParityGap: tabel kritis hilang kini terdeteksi sebagai gap (menggantikan
+  asumsi lama "tabel pasti ada").
+
+Uji: skrip heal dijalankan di prod pada schema uji tenant_uji_integritas yang
+sengaja dibuat cacat (hanya Employee) → PayrollRun, PasswordPolicy, WorkSchedule
+dibuat ulang ✓ → schema uji dihapus. Build EXIT:0, parity boot "6 tenant sudah
+paritas", health 200 lokal & publik.
+
+Files: src/onevity/shared/lib/provisioning.ts, lib/parity-runner.ts,
+scripts/migrate-tenant-schema-integrity.ts (baru). Commit 4d80795.
