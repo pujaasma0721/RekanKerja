@@ -211,6 +211,10 @@ const STEPS: Step[] = [
   // Task 64k: idle timeout sesi per tenant — kolom PasswordPolicy.idleTimeoutMinutes
   // (0 = nonaktif). Append-only kronologis.
   { key: "password-idle-timeout", label: "Task 64k — kolom PasswordPolicy.idleTimeoutMinutes (idle timeout sesi per tenant)", run: (s) => import("../../../../scripts/migrate-password-idle-timeout").then((m) => m.main(s)) },
+  // Task 64l: integritas schema tenant — heal tabel kritis yang hilang
+  // (PasswordPolicy dll.) dari blok CREATE TABLE tenant-ddl.sql. Latar: tenant
+  // demouser0229 cacat permanen (dibuat pra-Task 33 tanpa tabel policy).
+  { key: "tenant-schema-integrity", label: "Task 64l — heal tabel kritis hilang (Employee/PayrollRun/PasswordPolicy/WorkSchedule)", run: (s) => import("../../../../scripts/migrate-tenant-schema-integrity").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -341,6 +345,17 @@ export async function checkParityGap(): Promise<ParityGap> {
        WHERE table_name = 'PasswordPolicy' AND column_name = 'idleTimeoutMinutes' AND table_schema = ANY($1::text[])`,
     );
     if (idleTimeoutOk < policyTableOk) reasons.push(`${policyTableOk - idleTimeoutOk} tenant tanpa kolom PasswordPolicy.idleTimeoutMinutes (Task 64k)`);
+    // Task 64l — tabel kritis hilang di schema registry mana pun = gap (heal
+    // dijalankan step tenant-schema-integrity; masih hilang → sisa gap terlapor).
+    // Penyebut schemas.length penuh: schema cacat di-heal step 64l hingga lengkap,
+    // sehingga tidak ada gap permanen seperti kasus tenant_demouser0229 dulu.
+    for (const t of ["Employee", "PayrollRun", "PasswordPolicy", "WorkSchedule"]) {
+      const have = await q(
+        `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+         WHERE table_name = '${t}' AND table_schema = ANY($1::text[])`,
+      );
+      if (have < schemas.length) reasons.push(`${schemas.length - have} tenant tanpa tabel ${t} (Task 64l)`);
+    }
     return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk) };
   } finally {
     await c.end();

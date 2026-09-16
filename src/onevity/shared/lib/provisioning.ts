@@ -60,6 +60,35 @@ export async function dropTenantSchema(schemaName: string): Promise<void> {
 }
 
 /**
+ * Tabel inti yang WAJIB ada di setiap schema tenant setelah provisioning.
+ * Dipakai verifikasi pasca-DDL (provisionTenantSchema) & deteksi gap parity
+ * (checkParityGap). Tabel hilang = schema setengah jadi → provisioning gagal-
+ * bersih (drop), tenant existing di-heal parity runner.
+ */
+export const CRITICAL_TENANT_TABLES = [
+  "Employee", "PayrollRun", "PasswordPolicy", "WorkSchedule",
+] as const;
+
+/**
+ * Daftar tabel kritis yang HILANG pada satu schema tenant (pg Client).
+ * Return [] bila semua utuh. Never-throw (error koneksi → anggap bermasalah?
+ * tidak — caller memutuskan; di sini null = tidak bisa memeriksa).
+ */
+export async function missingCriticalTables(c: { query: (sql: string, params?: unknown[]) => Promise<{ rows: Array<{ missing: string }> }> }, schemaName: string): Promise<string[] | null> {
+  try {
+    const placeholders = CRITICAL_TENANT_TABLES.map((_, i) => `$${i + 2}`).join(",");
+    const r = await c.query(
+      `SELECT t.name AS missing FROM unnest(ARRAY[${placeholders}]::text[]) AS t(name)
+       WHERE to_regclass($1 || '.' || '"' || t.name || '"') IS NULL`,
+      [`"${schemaName}"`, ...CRITICAL_TENANT_TABLES],
+    );
+    return r.rows.map((x) => x.missing);
+  } catch {
+    return null; // tidak bisa memeriksa (koneksi/izin) — caller memutuskan
+  }
+}
+
+/**
  * Buat schema tenant + seluruh tabel (idempotent). Gagal di tengah → schema di-drop.
  */
 export async function provisionTenantSchema(schemaName: string): Promise<void> {
@@ -94,6 +123,22 @@ export async function provisionTenantSchema(schemaName: string): Promise<void> {
         CREATE UNIQUE INDEX IF NOT EXISTS "uniq_payrollrun_active"
         ON "PayrollRun"("processTypeId","periodId")
         WHERE "status" <> 'Cancelled'`);
+
+      // ---- Proteksi konsistensi (Task 64l) — verifikasi tabel kritis ----
+      // tenant_demouser0229 dulu lolos provisioning TANPA PasswordPolicy (DDL
+      // lama pra-Task 33) → tenant bocor: getTenantPolicy fallback diam-diam,      // parity gap permanen. Sekarang: tabel kritis hilang = provisioning
+      // GAGAL-BERSIH (schema di-drop → registrasi gagal jelas, bukan tenant
+      // cacat yang tersisa). Pemeriksaan SETELAH seluruh DDL.
+      const missing = await missingCriticalTables(c, schemaName);
+      if (missing === null) {
+        throw new Error("Verifikasi tabel kritis gagal dijalankan (koneksi DB)");
+      }
+      if (missing.length > 0) {
+        throw new Error(
+          `Provisioning schema ${schemaName} menghasilkan tabel kritis hilang: ${missing.join(", ")} ` +
+          `(tenant-ddl.sql tidak sinkron dengan kode — periksa prisma/tenant-ddl.sql)`,
+        );
+      }
     }
   } catch (e) {
     await c.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => {});
