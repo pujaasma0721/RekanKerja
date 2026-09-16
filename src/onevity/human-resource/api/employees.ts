@@ -495,6 +495,27 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Task 65 — proses onboarding checklist OTOMATIS saat karyawan baru
+    // dibuat (penyediaan user/meja/telepon/dll. per bagian) + email checklist
+    // ke tiap bagian. Gagal email/tugas tidak menggagalkan pembuatan karyawan.
+    try {
+      const { createOnboardingWithTasks, emailOnboardingChecklist } = await import("@/onevity/human-resource/api/onboarding");
+      const ob = await createOnboardingWithTasks(db, { employeeId: employee.id, startDate: joinDate, note: "Dibuat otomatis saat karyawan baru" });
+      const deptCount = await emailOnboardingChecklist(db, ob.id, req);
+      await db.activityLog.create({
+        data: {
+          appUserId: actor.appUserId,
+          action: "Created",
+          entity: "Onboarding",
+          entityId: ob.id,
+          employeeId: employee.id,
+          detail: `Checklist onboarding otomatis dibuat (${ob.tasks.length} tugas, email ke ${deptCount} bagian)`,
+        },
+      });
+    } catch (obErr) {
+      console.error("[onboarding] auto-create gagal (karyawan tetap dibuat):", obErr);
+    }
+
     // Task 55 — respons bentuk READ-PATH (pola PATCH employee-detail): PII
     // terenkripsi by createEmployeeWithAssignment → dekripsi di batas
     // serializer. Wizard kini hanya memakai id/nomor/nama, tapi konsumen

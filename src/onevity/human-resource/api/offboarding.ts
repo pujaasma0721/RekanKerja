@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import type { DbOrTx } from "@/onevity/human-resource/services/assignment";
+import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { buildOffboardingDetail } from "@/onevity/human-resource/api/offboarding-detail";
+import { sendChecklistEmails } from "@/onevity/shared/services/checklist-email";
+import { tenantSlugOf } from "@/onevity/shared/services/checklist-service";
 
 // OneVity — Offboarding (proses karyawan keluar): daftar + buat manual.
 // Checklist clearance + exit interview + pelacakan penyelesaian. Proses juga
@@ -135,6 +138,23 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/** Kirim email checklist clearance per bagian (Task 65 — mirror onboarding). */
+export async function emailOffboardingChecklist(db: TenantDb, offboardingId: string, req: NextRequest): Promise<number> {
+  const detail = await buildOffboardingDetail(db, offboardingId);
+  if (!detail) return 0;
+  return sendChecklistEmails(db, {
+    kind: "offboarding",
+    processId: offboardingId,
+    tenantSlug: tenantSlugOf(db),
+    employee: { fullName: detail.employee.fullName, employeeNo: detail.employee.employeeNo },
+    position: detail.employee.position?.title ?? null,
+    orgUnit: detail.employee.orgUnit?.name ?? null,
+    date: detail.lastDay,
+    tasks: detail.tasks.map((t) => ({ seq: t.seq, title: t.title, owner: t.owner })),
+    req,
+  });
+}
+
 // POST /api/onevity/offboarding — buat proses manual {employeeId, lastDay?, reason?}
 export async function POST(req: NextRequest) {
   try {
@@ -174,12 +194,15 @@ export async function POST(req: NextRequest) {
       reason: b.reason?.trim() ? String(b.reason).trim() : null,
     });
 
+    // Task 65 — email checklist clearance ke tiap bagian yang punya tugas
+    const deptCount = await emailOffboardingChecklist(db, created.id, req);
+
     await db.activityLog.create({
       data: {
         appUserId: actor.appUserId,
         action: "Created", entity: "Offboarding", entityId: created.id,
         employeeId: b.employeeId,
-        detail: `Proses offboarding dibuat untuk ${employee.fullName} (${employee.employeeNo}) oleh ${actor.appUsername ?? actor.name} — ${created.tasks.length} tugas clearance`,
+        detail: `Proses offboarding dibuat untuk ${employee.fullName} (${employee.employeeNo}) oleh ${actor.appUsername ?? actor.name} — ${created.tasks.length} tugas clearance, email ke ${deptCount} bagian`,
       },
     });
 

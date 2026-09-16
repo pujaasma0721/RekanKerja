@@ -119,6 +119,8 @@ const HR_NAV: NavGroup[] = [
   { section: "employee", label: "Karyawan", children: [
     { id: "directory", label: "Direktori Karyawan", icon: Users },
     { id: "wizard", label: "Onboarding Karyawan", icon: UserPlus },
+    // Task 65 — checklist onboarding per bagian (email + link publik)
+    { id: "onboarding-checklist", label: "Checklist Onboarding", icon: ClipboardCheck },
     { id: "disciplinary", label: "Catatan Disiplin", icon: Scale },
     { id: "documents", label: "Dokumen Karyawan", icon: FolderOpen },
     // 27-b — inventaris aset perusahaan (penugasan + pengembalian)

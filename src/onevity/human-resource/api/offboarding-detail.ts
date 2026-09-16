@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
+import { canTouchDept, deptLabelOf } from "@/onevity/shared/services/checklist-service";
 
 // OneVity — Detail offboarding: baca + seluruh aksi proses (tugas clearance,
 // exit interview, selesai/batal, edit dasar, hapus bila dibatalkan).
@@ -174,6 +175,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (act === "task") {
       const task = ob.tasks.find((t) => t.id === b.taskId);
       if (!task) return NextResponse.json({ error: "Tugas tidak ditemukan pada proses ini" }, { status: 404 });
+      // Task 65 — tiap bagian hanya boleh mencentang tugasnya sendiri;
+      // Admin/HR (koordinator) bebas mencentang semua bagian.
+      if (!canTouchDept({ role: m.actor.role, appUserRole: m.actor.appUserRole }, task.owner)) {
+        return NextResponse.json(
+          { error: `Tugas ini milik bagian ${deptLabelOf(task.owner)} — hanya bagian tersebut (atau Admin/HR) yang bisa mengubah` },
+          { status: 403 },
+        );
+      }
       const status = String(b.status ?? "");
       if (!["Done", "Pending", "Na"].includes(status)) {
         return NextResponse.json({ error: "Status tugas tidak valid (Done/Pending/Na)" }, { status: 400 });

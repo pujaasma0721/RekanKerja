@@ -76,6 +76,11 @@ export interface MenuOpDef {
 export const MENU_OPS: Record<string, MenuOpDef[]> = {
   // HR — kotak persetujuan personnel action
   "hr:inbox": [{ key: "approve", label: "Menyetujui / menolak pengajuan", hint: "Aksi Setujui & Tolak di kotak persetujuan" }],
+
+  // Task 65 — checklist onboarding/offboarding: centang lintas bagian khusus koordinator
+  "hr:onboarding-checklist": [
+    { key: "coordinate", label: "Koordinator checklist", hint: "Mencentang tugas semua bagian, tambah/hapus tugas, tutup proses" },
+  ],
   "hr:all": [{ key: "approve", label: "Menyetujui / menolak pengajuan", hint: "Aksi Setujui & Tolak pada daftar semua pengajuan" }],
 
   // Payroll — proses run & benefit

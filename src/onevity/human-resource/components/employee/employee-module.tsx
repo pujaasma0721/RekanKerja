@@ -6,6 +6,7 @@ import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
 import { OffboardingModule } from "@/onevity/human-resource/components/offboarding/offboarding-module";
+import { OnboardingChecklistModule } from "@/onevity/human-resource/components/onboarding/onboarding-checklist-module";
 import { EmployeeDirectory as DirectoryView } from "@/onevity/human-resource/components/employee/employee-directory";
 import { EmployeeDocumentsView } from "@/onevity/human-resource/components/employee/employee-documents";
 // wave 27 stub — diisi Task 27-b (Aset) & Task 27-f (Pengumuman)
@@ -41,6 +42,8 @@ export function EmployeeModule({ view }: { view: string }) {
   if (view === "assets") return <AssetsModule />;
   if (view === "announcements") return <AnnouncementsView />;
   if (view === "offboarding") return <OffboardingModule />;
+  // Task 65 — checklist onboarding per bagian (proses penyambutan karyawan baru)
+  if (view === "onboarding-checklist") return <OnboardingChecklistModule />;
   if (view === "detail") return <EmployeeDetail />;
   return <DirectoryView />;
 }

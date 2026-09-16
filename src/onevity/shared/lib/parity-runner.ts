@@ -215,6 +215,7 @@ const STEPS: Step[] = [
   // (PasswordPolicy dll.) dari blok CREATE TABLE tenant-ddl.sql. Latar: tenant
   // demouser0229 cacat permanen (dibuat pra-Task 33 tanpa tabel policy).
   { key: "tenant-schema-integrity", label: "Task 64l — heal tabel kritis hilang (Employee/PayrollRun/PasswordPolicy/WorkSchedule)", run: (s) => import("../../../../scripts/migrate-tenant-schema-integrity").then((m) => m.main(s)) },
+  { key: "checklist-tables", label: "Task 65 — tabel Onboarding/OnboardingTask + OffboardingTask.completedVia", run: (s) => import("../../../../scripts/migrate-checklist-tables").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

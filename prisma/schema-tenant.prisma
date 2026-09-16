@@ -269,6 +269,7 @@ model Employee {
   letters              LetterDocument[]
   letterRequests       LetterRequest[]
   offboardings         Offboarding[]
+  onboardings          Onboarding[]
 
   // ===== wave 27: aset / pengumuman / tukar shift =====
   assetAssignments        AssetAssignment[]
@@ -2421,6 +2422,7 @@ model OffboardingTask {
   status        String    @default("Pending") // Pending|Done|Na
   completedAt   DateTime?
   completedById String? // AppUser id (plain)
+  completedVia  String? // "app" | "email:<dept>" — sumber centang (Task 65)
   notes         String?
 
   offboarding Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
@@ -2431,6 +2433,45 @@ model OffboardingTask {
 // ====================================================================
 // ============ WAVE 27/28 — gap audit domain-first (GAP-ANALYSIS-DEEP) ============
 // ====================================================================
+
+// ---- Task 65: Onboarding checklist — proses penyambutan karyawan baru ----
+// Mirror Offboarding: dibuat OTOMATIS saat karyawan baru dibuat (wizard) atau
+// manual oleh HR. Checklist per bagian (IT/GA/Finance/HR/Supervisor) — tiap
+// bagian menerima EMAIL berisi daftar tugasnya + link checklist yang hanya
+// mengizinkan mencentang tugas bagian itu sendiri (token HMAC per bagian).
+model Onboarding {
+  id          String    @id @default(cuid())
+  employeeId  String
+  startDate   DateTime?
+  note        String?
+  status      String    @default("Open") // Open|Completed|Cancelled
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  tasks    OnboardingTask[]
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+model OnboardingTask {
+  id            String    @id @default(cuid())
+  onboardingId  String
+  seq           Int       @default(0)
+  title         String
+  owner         String? // IT | HR | Finance | Supervisor | GA
+  status        String    @default("Pending") // Pending|Done|Na
+  completedAt   DateTime?
+  completedById String? // AppUser id (plain)
+  completedVia  String? // "app" | "email:<tokenPrefix>" — jejak sumber centang
+  notes         String?
+
+  onboarding Onboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@index([onboardingId])
+}
 
 // ---- 27-a P0: import log mesin absen (sidik jari/face) ----
 // Audit batch import — file log mentah mesin dibaca, didedupe, ditulis ke

@@ -187,6 +187,27 @@ export const DEFAULT_TEMPLATES: { event: string; label: string; notifyEmployee: 
     subject: "[D-{{days}}] Payroll periode {{periode}} gajian {{date}}",
     body: "Halo Tim HR,\n\nPeriode payroll {{periode}} ({{code}}) dijadwalkan gajian pada {{date}} — {{days}} hari lagi — dan belum ada run yang dikonfirmasi.\n\nMohon mulai proses payroll agar pembayaran tepat waktu.\n\n---\nEmail otomatis scheduler OneVity HRIS — tidak perlu dibalas.",
   },
+  // ============ Task 65: checklist onboarding/offboarding per bagian ============
+  {
+    event: "onboarding.checklist", label: "Onboarding — Checklist Bagian Baru", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "[Checklist Onboarding] Tugas bagian {{bagian}} untuk {{nama}} ({{employeeNo}})",
+    body: "Halo Tim {{bagian}},\n\nKaryawan baru berikut memerlukan penyiapan dari bagian Anda:\n- Nama: {{nama}} ({{employeeNo}})\n- Posisi: {{posisi}}\n- Unit: {{unit}}\n- Mulai kerja: {{tanggal}}\n\nTugas bagian {{bagian}}:\n{{daftarTugas}}\n\nCentang status tugas Anda melalui tautan berikut (tanpa login, khusus bagian {{bagian}}):\n{{link}}\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "onboarding.completed", label: "Onboarding — Checklist Selesai", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[Selesai] Checklist onboarding {{nama}} ({{employeeNo}})",
+    body: "Halo Tim HR,\n\nSeluruh checklist onboarding untuk karyawan berikut telah selesai:\n- Nama: {{nama}} ({{employeeNo}})\n- Posisi: {{posisi}}\n- Unit: {{unit}}\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "offboarding.checklist", label: "Offboarding — Checklist Bagian Baru", notifyEmployee: false, notifyApprover: false, notifyHrd: false,
+    subject: "[Checklist Offboarding] Tugas bagian {{bagian}} untuk {{nama}} ({{employeeNo}})",
+    body: "Halo Tim {{bagian}},\n\nKaryawan berikut akan keluar dan memerlukan clearance dari bagian Anda:\n- Nama: {{nama}} ({{employeeNo}})\n- Posisi: {{posisi}}\n- Unit: {{unit}}\n- Hari terakhir: {{tanggal}}\n\nTugas bagian {{bagian}}:\n{{daftarTugas}}\n\nCentang status clearance Anda melalui tautan berikut (tanpa login, khusus bagian {{bagian}}):\n{{link}}\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
+  {
+    event: "offboarding.completed", label: "Offboarding — Checklist Selesai", notifyEmployee: false, notifyApprover: false, notifyHrd: true,
+    subject: "[Selesai] Checklist offboarding {{nama}} ({{employeeNo}})",
+    body: "Halo Tim HR,\n\nSeluruh checklist offboarding/clearance untuk karyawan berikut telah tuntas:\n- Nama: {{nama}} ({{employeeNo}})\n- Posisi: {{posisi}}\n- Unit: {{unit}}\n\n---\nEmail otomatis sistem OneVity HRIS — tidak perlu dibalas.",
+  },
 ];
 
 /** Parameter `schemas` → daftar schema dinamis dari registry tenant (parity-runner). */

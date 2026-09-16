@@ -42,7 +42,7 @@ export interface SessionPayload {
 // Fail-fast produksi (T1-SECURITY): tanpa SESSION_SECRET yang eksplisit, token
 // bisa dipalsukan karena fallback secret dev hard-coded. Di production kita
 // MENOLAK menyala (throw saat modul dimuat) — bukan melanjutkan dengan rahasia lemah.
-function sessionSecret(): string {
+export function sessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === "production") {

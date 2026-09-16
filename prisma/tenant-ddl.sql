@@ -482,6 +482,21 @@ CREATE TABLE "EmployeePayrollProfile" (
 );
 
 -- CreateTable
+CREATE TABLE "EmployeeWageTemplateHistory" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "wageTemplateId" TEXT,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validTo" TIMESTAMP(3),
+    "changeReason" TEXT NOT NULL DEFAULT 'Initial',
+    "sourceDocNo" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmployeeWageTemplateHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "TaxBracket" (
     "id" TEXT NOT NULL,
     "bracketType" TEXT NOT NULL DEFAULT 'Income',
@@ -525,8 +540,8 @@ CREATE TABLE "PayrollRegulation" (
     "jpkCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.04,
     "jpkEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0.01,
     "jpkSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 12000000,
-    "jkpEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0024,
-    "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0022,
+    "jkpEmployeeRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "jkpCompanyRate" DOUBLE PRECISION NOT NULL DEFAULT 0.0014,
     "jkpSalaryCap" DOUBLE PRECISION NOT NULL DEFAULT 5000000,
     "nonNpwpSurcharge" DOUBLE PRECISION NOT NULL DEFAULT 0.2,
     "useTer" BOOLEAN NOT NULL DEFAULT false,
@@ -572,6 +587,21 @@ CREATE TABLE "PayrollRun" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PayrollRun_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PayrollRunLog" (
+    "id" TEXT NOT NULL,
+    "runId" TEXT NOT NULL,
+    "employeeId" TEXT,
+    "employeeNo" TEXT,
+    "employeeName" TEXT,
+    "level" TEXT NOT NULL DEFAULT 'warning',
+    "code" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PayrollRunLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -663,36 +693,6 @@ CREATE TABLE "EmployeeComponentAssignment" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "EmployeeComponentAssignment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "PayrollRunLog" (
-    "id" TEXT NOT NULL,
-    "runId" TEXT NOT NULL,
-    "employeeId" TEXT,
-    "employeeNo" TEXT,
-    "employeeName" TEXT,
-    "level" TEXT NOT NULL DEFAULT 'warning',
-    "code" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PayrollRunLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable (Task 64 — riwayat template upah effective-dated)
-CREATE TABLE "EmployeeWageTemplateHistory" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "wageTemplateId" TEXT,
-    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "validTo" TIMESTAMP(3),
-    "changeReason" TEXT NOT NULL DEFAULT 'Initial',
-    "sourceDocNo" TEXT,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "EmployeeWageTemplateHistory_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1895,9 +1895,40 @@ CREATE TABLE "OffboardingTask" (
     "status" TEXT NOT NULL DEFAULT 'Pending',
     "completedAt" TIMESTAMP(3),
     "completedById" TEXT,
+    "completedVia" TEXT,
     "notes" TEXT,
 
     CONSTRAINT "OffboardingTask_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Onboarding" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3),
+    "note" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Onboarding_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OnboardingTask" (
+    "id" TEXT NOT NULL,
+    "onboardingId" TEXT NOT NULL,
+    "seq" INTEGER NOT NULL DEFAULT 0,
+    "title" TEXT NOT NULL,
+    "owner" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "completedAt" TIMESTAMP(3),
+    "completedById" TEXT,
+    "completedVia" TEXT,
+    "notes" TEXT,
+
+    CONSTRAINT "OnboardingTask_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2176,6 +2207,9 @@ CREATE UNIQUE INDEX "WageTemplate_code_key" ON "WageTemplate"("code");
 CREATE UNIQUE INDEX "EmployeePayrollProfile_employeeId_key" ON "EmployeePayrollProfile"("employeeId");
 
 -- CreateIndex
+CREATE INDEX "EmployeeWageTemplateHistory_employeeId_validFrom_idx" ON "EmployeeWageTemplateHistory"("employeeId", "validFrom");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PayrollRegulation_code_key" ON "PayrollRegulation"("code");
 
 -- CreateIndex
@@ -2188,14 +2222,10 @@ CREATE UNIQUE INDEX "PayrollRun_runNo_key" ON "PayrollRun"("runNo");
 CREATE INDEX "PayrollRun_periodId_processTypeId_idx" ON "PayrollRun"("periodId", "processTypeId");
 
 -- CreateIndex
-CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
-
--- CreateIndex
 CREATE INDEX "PayrollRunLog_runId_idx" ON "PayrollRunLog"("runId");
 
--- CreateIndex (Task 64)
-CREATE INDEX "EmployeeWageTemplateHistory_employeeId_validFrom_idx" ON "EmployeeWageTemplateHistory"("employeeId", "validFrom");
-CREATE INDEX "EmployeeWageTemplateHistory_wageTemplateId_idx" ON "EmployeeWageTemplateHistory"("wageTemplateId");
+-- CreateIndex
+CREATE INDEX "PayrollRunLine_employeeId_idx" ON "PayrollRunLine"("employeeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PayrollRunLine_runId_employeeId_key" ON "PayrollRunLine"("runId", "employeeId");
@@ -2447,6 +2477,15 @@ CREATE INDEX "Offboarding_status_idx" ON "Offboarding"("status");
 CREATE INDEX "OffboardingTask_offboardingId_idx" ON "OffboardingTask"("offboardingId");
 
 -- CreateIndex
+CREATE INDEX "Onboarding_employeeId_idx" ON "Onboarding"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "Onboarding_status_idx" ON "Onboarding"("status");
+
+-- CreateIndex
+CREATE INDEX "OnboardingTask_onboardingId_idx" ON "OnboardingTask"("onboardingId");
+
+-- CreateIndex
 CREATE INDEX "MachineImportBatch_importedAt_idx" ON "MachineImportBatch"("importedAt");
 
 -- CreateIndex
@@ -2659,14 +2698,14 @@ ALTER TABLE "WageTemplateItem" ADD CONSTRAINT "WageTemplateItem_wageComponentId_
 -- AddForeignKey
 ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey (Task 64 — riwayat template upah)
+-- AddForeignKey
+ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "EmployeeWageTemplateHistory" ADD CONSTRAINT "EmployeeWageTemplateHistory_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeWageTemplateHistory" ADD CONSTRAINT "EmployeeWageTemplateHistory_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeePayrollProfile" ADD CONSTRAINT "EmployeePayrollProfile_wageTemplateId_fkey" FOREIGN KEY ("wageTemplateId") REFERENCES "WageTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MinimumWage" ADD CONSTRAINT "MinimumWage_companyOfficeId_fkey" FOREIGN KEY ("companyOfficeId") REFERENCES "CompanyOffice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -2676,6 +2715,9 @@ ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_periodId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_processTypeId_fkey" FOREIGN KEY ("processTypeId") REFERENCES "ProcessType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PayrollRunLog" ADD CONSTRAINT "PayrollRunLog_runId_fkey" FOREIGN KEY ("runId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PayrollRunLine" ADD CONSTRAINT "PayrollRunLine_runId_fkey" FOREIGN KEY ("runId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2913,6 +2955,12 @@ ALTER TABLE "Offboarding" ADD CONSTRAINT "Offboarding_employeeId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "OffboardingTask" ADD CONSTRAINT "OffboardingTask_offboardingId_fkey" FOREIGN KEY ("offboardingId") REFERENCES "Offboarding"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Onboarding" ADD CONSTRAINT "Onboarding_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OnboardingTask" ADD CONSTRAINT "OnboardingTask_onboardingId_fkey" FOREIGN KEY ("onboardingId") REFERENCES "Onboarding"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnnouncementRead" ADD CONSTRAINT "AnnouncementRead_announcementId_fkey" FOREIGN KEY ("announcementId") REFERENCES "Announcement"("id") ON DELETE CASCADE ON UPDATE CASCADE;
