@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { requireScoped, isEmployeeInScope, resolveAccessScope } from "@/onevity/shared/services/access-scope";
-import { applyAssignmentChange, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/onevity/human-resource/services/assignment";
+import { applyAssignmentChange, correctJobRow, CHANGE_REASON_LABEL, decryptBaseSalary } from "@/onevity/human-resource/services/assignment";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
 import { computePkwtInfo } from "@/onevity/human-resource/services/pkwt";
@@ -197,6 +197,8 @@ export async function GET(req: NextRequest) {
       })),
       assignments: assignments.map((a) => ({
         id: a.id,
+        // Task 69 — id versi untuk koreksi baris per langkah riwayat (PUT).
+        rowId: a.id,
         validFrom: a.validFrom,
         validTo: a.validTo,
         changeReason: a.changeReason,
@@ -205,6 +207,11 @@ export async function GET(req: NextRequest) {
         notes: a.notes,
         employmentStatus: a.employmentStatus,
         workShift: a.workShift,
+        // Task 69 — id penempatan per versi utk prefill dialog koreksi.
+        orgUnitId: a.orgUnitId,
+        positionId: a.positionId,
+        gradeId: a.gradeId,
+        managerId: a.managerId,
         // M-9 / 42-e: riwayat gaji hanya utk full/self — limited → null.
         // 45-b: gerbang vault — masked → null.
         baseSalary: (piiScope === "limited" || !mv.canSee) ? null : decryptBaseSalary(tcD, a.baseSalary),
@@ -330,16 +337,22 @@ export async function PATCH(req: NextRequest) {
     const employee = await db.employee.update({ where: { id }, data });
 
     // perubahan data pekerjaan → catat sebagai riwayat baru
+    // Task 69: dialog "Ubah Penempatan" kirim effectiveDate (boleh backdated —
+    // applyAssignmentChange menyisip versi tengah rantai dengan aman) + catatan.
     const hasJobChange = JOB_FIELDS.some((f) => b[f] !== undefined) || b.baseSalary !== undefined;
     let historyNote = "";
     if (hasJobChange) {
+      const eff = b.effectiveDate ? new Date(String(b.effectiveDate)) : new Date();
+      if (Number.isNaN(eff.getTime())) return NextResponse.json({ error: "Tanggal efektif tidak valid" }, { status: 400 });
       const overrides: Record<string, unknown> = {};
       for (const f of JOB_FIELDS) if (b[f] !== undefined) overrides[f] = b[f] || null;
       if (b.baseSalary !== undefined) overrides.baseSalary = Number(b.baseSalary);
       const res = await applyAssignmentChange(db, id, overrides, {
         reason: "ManualEdit",
-        effectiveDate: new Date(),
-        notes: "Perubahan data pekerjaan dari halaman profil",
+        effectiveDate: eff,
+        notes: typeof b.changeNote === "string" && b.changeNote.trim()
+          ? b.changeNote.trim()
+          : "Perubahan data pekerjaan dari halaman profil",
       });
       historyNote = res.changed ? " — perubahan pekerjaan tercatat di riwayat" : "";
     }
@@ -359,6 +372,46 @@ export async function PATCH(req: NextRequest) {
         bpjsEmpSkill: tcW.decryptText(employee.bpjsEmpSkill),
       },
     });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+// PUT /api/onevity/employee-detail — KOREKSI LANGSUNG SATU BARIS RIWAYAT
+// PENEMPATAN (Task 69). Untuk salah input human error pada versi tanpa movement
+// proses di belakangnya — BUKAN pengganti Personnel Action (promosi/transfer
+// resmi tetap lewat PA; kenaikan gaji lewat Profil Payroll / PA SalaryAdjustment).
+// Guard rantai versi di service layer; setiap koreksi meninggalkan ActivityLog.
+// Body: { rowId, orgUnitId?, positionId?, gradeId?, managerId?, employmentStatus?,
+//         workShift?, validFrom?, validTo?, notes? }
+export async function PUT(req: NextRequest) {
+  try {
+    const m = await requireMenuAction(req, "hr:directory", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+    const b = await req.json();
+    if (!b.rowId) return NextResponse.json({ error: "rowId wajib" }, { status: 400 });
+    const parseDate = (v: unknown): Date | undefined =>
+      v == null || v === "" ? undefined : new Date(String(v));
+    const r = await correctJobRow(db, String(b.rowId), {
+      ...(b.orgUnitId !== undefined ? { orgUnitId: b.orgUnitId === "" ? null : String(b.orgUnitId) } : {}),
+      ...(b.positionId !== undefined ? { positionId: b.positionId === "" ? null : String(b.positionId) } : {}),
+      ...(b.gradeId !== undefined ? { gradeId: b.gradeId === "" ? null : String(b.gradeId) } : {}),
+      ...(b.managerId !== undefined ? { managerId: b.managerId === "" ? null : String(b.managerId) } : {}),
+      ...(b.employmentStatus !== undefined ? { employmentStatus: String(b.employmentStatus) } : {}),
+      ...(b.workShift !== undefined ? { workShift: String(b.workShift) } : {}),
+      ...(b.validFrom !== undefined ? { validFrom: parseDate(b.validFrom)! } : {}),
+      ...(b.validTo !== undefined ? { validTo: b.validTo === null ? null : parseDate(b.validTo)! } : {}),
+      ...(b.notes !== undefined ? { notes: b.notes } : {}),
+    });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    await db.activityLog.create({
+      data: {
+        action: "Updated", entity: "EmployeeAssignment", entityId: String(b.rowId),
+        detail: "Koreksi manual baris riwayat penempatan (tanpa movement)",
+      },
+    });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -301,6 +301,59 @@ export async function correctAssignmentRow(
 }
 
 /**
+ * Koreksi langsung SATU baris riwayat PENEMPATAN (EmployeeAssignment) untuk field
+ * pekerjaan non-upah — salah input posisi/unit/grade/atasan/status/shift pada
+ * versi tanpa movement proses di belakangnya (human error, bukan pengganti
+ * Personnel Action). Guard rantai sama dengan correctAssignmentRow; nilai baris
+ * DILUAR patch dipertahankan apa adanya. Setiap koreksi meninggalkan ActivityLog
+ * di pemanggil (API layer).
+ */
+export async function correctJobRow(
+  db: DbOrTx,
+  rowId: string,
+  patch: {
+    orgUnitId?: string | null; positionId?: string | null; gradeId?: string | null;
+    managerId?: string | null; employmentStatus?: string; workShift?: string;
+    validFrom?: Date; validTo?: Date | null; notes?: string | null;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const row = await db.employeeAssignment.findUnique({ where: { id: rowId } });
+  if (!row) return { ok: false, error: "Baris riwayat tidak ditemukan" };
+  const all = await db.employeeAssignment.findMany({
+    where: { employeeId: row.employeeId },
+    orderBy: { validFrom: "asc" },
+  });
+  const i = all.findIndex((r) => r.id === rowId);
+  const prev = i > 0 ? all[i - 1] : null;
+  const next = i >= 0 && i < all.length - 1 ? all[i + 1] : null;
+
+  const nf = patch.validFrom ?? new Date(row.validFrom);
+  const nt = patch.validTo === undefined ? (row.validTo ? new Date(row.validTo) : null) : patch.validTo;
+  if (nt && nt.getTime() <= nf.getTime()) return { ok: false, error: "Tanggal berakhir harus setelah tanggal mulai" };
+  if (prev && new Date(prev.validTo ?? nf).getTime() > nf.getTime())
+    return { ok: false, error: "Tanggal mulai bentrok dengan versi sebelumnya" };
+  if (next && nt && new Date(next.validFrom).getTime() < nt.getTime())
+    return { ok: false, error: "Tanggal berakhir melewati awal versi berikutnya" };
+
+  const data: Record<string, unknown> = {};
+  if (patch.orgUnitId !== undefined) data.orgUnitId = patch.orgUnitId || null;
+  if (patch.positionId !== undefined) data.positionId = patch.positionId || null;
+  if (patch.gradeId !== undefined) data.gradeId = patch.gradeId || null;
+  if (patch.managerId !== undefined) data.managerId = patch.managerId || null;
+  if (patch.employmentStatus !== undefined) data.employmentStatus = patch.employmentStatus;
+  if (patch.workShift !== undefined) data.workShift = patch.workShift;
+  if (patch.validFrom !== undefined) data.validFrom = nf;
+  if (patch.validTo !== undefined) data.validTo = nt;
+  if (patch.notes !== undefined) data.notes = patch.notes;
+  if (Object.keys(data).length === 0) return { ok: true };
+  await db.employeeAssignment.update({ where: { id: rowId }, data });
+  // snapshot penempatan Employee hanya relevan bila baris yang dikoreksi adalah
+  // versi AKTIF (validTo null) — mirror applyAssignmentChange.
+  if (row.validTo === null) await syncEmployeePlacementSnapshot(db, row.employeeId);
+  return { ok: true };
+}
+
+/**
  * Koreksi langsung SATU baris riwayat template upah (EmployeeWageTemplateHistory)
  * — guard rantai sama dengan correctAssignmentRow.
  */

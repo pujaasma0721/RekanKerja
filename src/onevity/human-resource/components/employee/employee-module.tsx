@@ -1,7 +1,8 @@
 "use client";
 // OneVity — Modul Karyawan: direktori, profil detail multi-tab
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate, fmtDateLong, tenure, genderLabel } from "@/onevity/shared/lib/api";
+const todayISO = () => new Date().toISOString().slice(0, 10); // Task 69 — default tgl efektif
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { OnboardingWizard, DisciplinaryPage } from "@/onevity/human-resource/components/employee/employee-wizard";
@@ -30,6 +31,7 @@ import {
   Users, Search, ChevronLeft, ChevronRight, ArrowLeft, Mail, Phone, MapPin, Pencil,
   User, Briefcase, Heart, GraduationCap, History, Scale, Plus, Trash2, Calendar, IdCard,
   Landmark, Banknote, Clock3, ArrowRight, Building2, FileText, LogOut, OctagonX, FileWarning,
+  ClipboardEdit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -52,6 +54,7 @@ export function EmployeeModule({ view }: { view: string }) {
 // Riwayat penempatan kerja (EmployeeAssignment)
 interface AssignmentHistory {
   id: string;
+  rowId: string; // Task 69 — id versi utk koreksi baris (PUT employee-detail)
   validFrom: string;
   validTo: string | null;
   changeReason: string;
@@ -65,6 +68,11 @@ interface AssignmentHistory {
   position: { title: string; code: string } | null;
   grade: { code: string; name: string } | null;
   managerName: string | null;
+  // Task 69 — id mentah per versi utk prefill dialog koreksi/ubah penempatan
+  orgUnitId: string | null;
+  positionId: string | null;
+  gradeId: string | null;
+  managerId: string | null;
 }
 
 interface DetailEmp {
@@ -134,6 +142,12 @@ function EmployeeDetail() {
   const openOffboarding = obBanner.data?.offboardings.find((o) => o.status === "Open") ?? null;
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState("personal");
+  // Task 69 — perbaikan data pekerjaan tanpa Personnel Action (human error):
+  // "Ubah Penempatan" (versi baru riwayat) + koreksi baris riwayat per langkah.
+  const canUpdate = perms.can("hr", "directory", "update");
+  const [placementOpen, setPlacementOpen] = useState(false);
+  const [corrRow, setCorrRow] = useState<AssignmentHistory | null>(null);
+  const opts = useApi<PlacementOpts>(params.id ? "/api/onevity/employee-options" : null);
   // 26-a — riwayat surat karyawan (LetterDocument by employee) + katalog template layanan
   const letters = useApi<{ letters: LetterRow[]; templates: ServiceTemplateRow[] }>(
     params.id ? `/api/onevity/letters?employeeId=${params.id}` : null,
@@ -189,6 +203,12 @@ function EmployeeDetail() {
               {perms.can("hr", "directory", "update") && (
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
                   <Pencil className="h-3.5 w-3.5" /> {t("Edit Data", "Edit Data")}
+                </Button>
+              )}
+              {/* Task 69 — perbaikan penempatan tanpa Personnel Action */}
+              {perms.can("hr", "directory", "update") && (
+                <Button variant="outline" size="sm" onClick={() => setPlacementOpen(true)} className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
+                  <ClipboardEdit className="h-3.5 w-3.5" /> {t("Ubah Penempatan", "Change Placement")}
                 </Button>
               )}
             </div>
@@ -380,7 +400,7 @@ function EmployeeDetail() {
                   </div>
                 </CardContent>
               </Card>
-              <AssignmentTimeline assignments={e.assignments} />
+              <AssignmentTimeline assignments={e.assignments} canUpdate={canUpdate} onCorrect={setCorrRow} />
             </div>
             <div className="space-y-4">
               <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
@@ -578,6 +598,26 @@ function EmployeeDetail() {
       </Tabs>
 
       <EditEmployeeDialog open={editOpen} setOpen={(v) => { setEditOpen(v); if (!v) refresh(); }} employee={e} />
+      {/* Task 69 — ubah penempatan aktif (tanpa PA; tercatat sbg riwayat ManualEdit) */}
+      {canUpdate && placementOpen && (
+        <PlacementChangeDialog
+          open={placementOpen}
+          setOpen={setPlacementOpen}
+          employee={e}
+          opts={opts.data ?? null}
+          onSaved={() => refresh()}
+        />
+      )}
+      {/* Task 69 — koreksi satu baris riwayat (salah ketik; tanpa movement); key=rowId → form prefill ulang per baris */}
+      {corrRow && (
+        <CorrectJobRowDialog
+          key={corrRow.rowId}
+          row={corrRow}
+          onClose={() => setCorrRow(null)}
+          opts={opts.data ?? null}
+          onSaved={() => refresh()}
+        />
+      )}
 
       {/* 26-a — dialog terbitkan surat layanan (pilih jenis + keperluan + pratinjau live) */}
       <EmployeeLetterIssueDialog
@@ -611,7 +651,10 @@ const REASON_TONE: Record<string, string> = {
   ManualEdit: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
 };
 
-function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] }) {
+// Task 69 — timeline riwayat pekerjaan: tiap langkah menandai field apa yang
+// berubah vs periode sebelumnya (chip), dan (bila boleh) bisa dikoreksi bila
+// datanya salah ketik/human error — tanpa perlu Personnel Action.
+function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments: AssignmentHistory[]; canUpdate: boolean; onCorrect?: (a: AssignmentHistory) => void }) {
   const { t } = useI18n();
   if (assignments.length === 0) return null;
   const period = (a: AssignmentHistory) =>
@@ -695,6 +738,18 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
                     </div>
                   )}
                   {a.notes && <p className="mt-2 text-[11px] italic text-stone-400">{a.notes}</p>}
+                  {canUpdate && onCorrect && (
+                    <div className="mt-2.5 flex justify-end border-t border-dashed border-stone-200 pt-2 dark:border-stone-800">
+                      <button
+                        type="button"
+                        onClick={() => onCorrect(a)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
+                        title={t("Perbaiki data langkah ini bila salah ketik", "Fix a typo in this step's data")}
+                      >
+                        <Pencil className="h-3 w-3" /> {t("Koreksi", "Correct")}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             );
@@ -1058,3 +1113,263 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
     </Dialog>
   );
 }
+
+// Task 69 — dialog "Ubah Penempatan" — perbaikan penempatan aktif TANPA Personnel
+// Action (kesalahan input saat onboarding/wizard dsb). Terkirim sebagai versi
+// riwayat BARU dengan alasan "Perubahan Manual" (ManualEdit), jejak lengkap
+// (kronologis, bisa diaudit) dan tidak mengubah versi lama.
+type PlacementOpts = { orgUnits: { id: string; name: string }[]; positions: { id: string; title: string; orgUnitId: string | null }[]; grades: { id: string; code: string; name: string }[]; managers: { id: string; fullName: string; employeeNo: string }[] };
+
+function PlacementChangeDialog({ open, setOpen, employee, opts, onSaved }: {
+  open: boolean; setOpen: (v: boolean) => void; employee: DetailEmp; opts: PlacementOpts | null; onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  // prefill berjalan via useState initializer (bukan effect — react-hooks rule)
+  const formInit = () => {
+    const a = employee.assignments.find((x) => x.validTo === null);
+    return {
+      effectiveDate: todayISO(),
+      orgUnitId: a?.orgUnitId ?? "none",
+      positionId: a?.positionId ?? "none",
+      gradeId: a?.gradeId ?? "none",
+      managerId: a?.managerId ?? "none",
+      baseSalary: a?.baseSalary != null ? String(a.baseSalary) : "",
+      notes: "",
+    };
+  };
+  const [form, setForm] = useState(formInit);
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const cur = employee.assignments.find((a) => a.validTo === null) ?? null;
+
+  const submit = async () => {
+    if (!cur) return;
+    if (!form.effectiveDate) return void toast.error(t("Tanggal efektif wajib diisi"));
+    const body: Record<string, unknown> = { employeeId: employee.id, effectiveDate: form.effectiveDate, notes: form.notes || "Koreksi penempatan tanpa PA" };
+    if (form.orgUnitId !== "none") body.orgUnitId = form.orgUnitId;
+    if (form.positionId !== "none") body.positionId = form.positionId;
+    if (form.gradeId !== "none") body.gradeId = form.gradeId;
+    if (form.managerId !== "none") body.managerId = form.managerId;
+    if (form.baseSalary && Number(form.baseSalary) !== cur.baseSalary) body.baseSalary = Number(form.baseSalary);
+    setBusy(true);
+    try {
+      await apiSend("/api/onevity/employee-detail", "PUT", body);
+      toast.success(t("Penempatan diperbarui — tercatat sebagai Perubahan Manual di riwayat", "Placement updated — recorded as a Manual Change in work history"));
+      setOpen(false);
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("Gagal menyimpan"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ClipboardEdit className="h-4 w-4 ov-text-accent" /> {t("Ubah Penempatan (Tanpa PA)", "Change Placement (No PA)")}
+          </DialogTitle>
+        </DialogHeader>
+        {!cur ? (
+          <p className="text-sm text-stone-500">{t("Tidak ada penempatan aktif.", "No active placement.")}</p>
+        ) : (
+          <>
+            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-stone-500 dark:text-stone-400">
+              {t(
+                "Perbaikan penempatan tanpa Personnel Action — hanya isi field yang salah. Perubahan tercatat sebagai versi riwayat baru (Perubahan Manual), bisa diaudit.",
+                "Placement fix without a personnel action — fill only the wrong fields. Recorded as a new history version (Manual Change), fully auditable.",
+              )}
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs">{t("Tanggal Efektif", "Effective Date")}</Label>
+                <Input type="date" value={form.effectiveDate} onChange={(e) => set("effectiveDate", e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs">{t("Unit Kerja", "Org Unit")}</Label>
+                <Select value={form.orgUnitId} onValueChange={(v) => set("orgUnitId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.orgUnits.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Posisi", "Position")}</Label>
+                <Select value={form.positionId} onValueChange={(v) => set("positionId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Grade", "Grade")}</Label>
+                <Select value={form.gradeId} onValueChange={(v) => set("gradeId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Atasan Langsung", "Direct Manager")}</Label>
+                <Select value={form.managerId} onValueChange={(v) => set("managerId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Upah Pokok (Rp)", "Base Salary (IDR)")}</Label>
+                <Input inputMode="numeric" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value.replace(/[^\d]/g, ""))} placeholder={t("— tidak diubah", "— unchanged")} className="mt-1.5 font-mono" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">{t("Catatan", "Notes")}</Label>
+                <Input value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder={t("Koreksi penempatan tanpa PA", "Placement fix without PA")} className="mt-1.5" />
+              </div>
+            </div>
+          </>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy || !cur} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Task 69 — koreksi SATU baris riwayat (nilai salah ketik di masa lalu; tanpa
+// movement): guard server menolak mengubah baris aktif — gunakan "Ubah
+// Penempatan". Field dikosongkan = tidak diubah.
+function CorrectJobRowDialog({ row, onClose, opts, onSaved }: {
+  row: AssignmentHistory | null; onClose: () => void; opts: PlacementOpts | null; onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const formInit = (r: AssignmentHistory | null) => ({
+    effectiveDate: r ? r.validFrom.slice(0, 10) : "",
+    orgUnitId: "none",
+    positionId: "none",
+    gradeId: "none",
+    managerId: "none",
+    baseSalary: "",
+    notes: "",
+  });
+  // prefill dari row terpilih via initializer — dialog di-mount kondisional oleh
+  // parent dgn key=rowId, jadi state baru terbentuk tiap ganti baris (tanpa effect)
+  const [form, setForm] = useState(() => formInit(row));
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    if (!row) return;
+    const body: Record<string, unknown> = { rowId: row.rowId, notes: form.notes || null };
+    if (form.effectiveDate && form.effectiveDate !== row.validFrom.slice(0, 10)) body.effectiveDate = form.effectiveDate;
+    if (form.orgUnitId !== "none") body.orgUnitId = form.orgUnitId;
+    if (form.positionId !== "none") body.positionId = form.positionId;
+    if (form.gradeId !== "none") body.gradeId = form.gradeId;
+    if (form.managerId !== "none") body.managerId = form.managerId;
+    if (form.baseSalary) body.baseSalary = Number(form.baseSalary);
+    setBusy(true);
+    try {
+      await apiSend("/api/onevity/employee-detail", "PUT", body);
+      toast.success(t("Baris riwayat dikoreksi", "History row corrected"));
+      onClose();
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("Gagal menyimpan"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-4 w-4 ov-text-accent" /> {t("Koreksi Riwayat", "Correct History")}{row ? ` · ${row.validFrom.slice(0, 10)}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {row && (
+          <>
+            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-stone-500 dark:text-stone-400">
+              {t(
+                "Perbaiki nilai salah ketik pada langkah riwayat ini. Field dikosongkan / “tidak diubah” = tetap. Baris aktif tidak bisa dikoreksi di sini — gunakan “Ubah Penempatan”.",
+                "Fix a typo in this history step. Empty / “unchanged” fields stay as-is. The active row can't be corrected here — use “Change Placement”.",
+              )}
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs">{t("Mulai Berlaku", "Valid From")}</Label>
+                <Input type="date" value={form.effectiveDate} onChange={(e) => set("effectiveDate", e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs">{t("Unit Kerja", "Org Unit")}</Label>
+                <Select value={form.orgUnitId} onValueChange={(v) => set("orgUnitId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.orgUnits.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Posisi", "Position")}</Label>
+                <Select value={form.positionId} onValueChange={(v) => set("positionId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Grade", "Grade")}</Label>
+                <Select value={form.gradeId} onValueChange={(v) => set("gradeId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.grades.map((g) => <SelectItem key={g.id} value={g.id}>{g.code} — {g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Atasan Langsung", "Direct Manager")}</Label>
+                <Select value={form.managerId} onValueChange={(v) => set("managerId", v)}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("— tidak diubah", "— unchanged")}</SelectItem>
+                    {opts?.managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.fullName} ({m.employeeNo})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{t("Upah Pokok (Rp)", "Base Salary (IDR)")}</Label>
+                <Input inputMode="numeric" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value.replace(/[^\d]/g, ""))} placeholder={t("Kosong = tetap", "Empty = keep")} className="mt-1.5 font-mono" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">{t("Alasan Koreksi", "Correction Reason")}</Label>
+                <Input value={form.notes} onChange={(e) => set("notes", e.target.value)} className="mt-1.5" />
+              </div>
+            </div>
+          </>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t("Batal")}</Button>
+          <Button onClick={submit} disabled={busy} className="font-bold">{busy ? t("Menyimpan…") : t("Simpan Koreksi")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export { EmployeeDetail };

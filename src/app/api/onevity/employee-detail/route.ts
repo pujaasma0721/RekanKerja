@@ -1,2 +1,3 @@
 // Thin route — logika handler ada di src/onevity/human-resource/api/employee-detail.ts
-export { GET, PATCH } from "@/onevity/human-resource/api/employee-detail";
+// Task 69 — PUT: koreksi satu baris riwayat penempatan (human error, tanpa PA).
+export { GET, PATCH, PUT } from "@/onevity/human-resource/api/employee-detail";
