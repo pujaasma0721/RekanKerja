@@ -72,3 +72,5 @@ async function main() {
 }
 
 main().catch((e) => { console.error("E2E GAGAL:", e.message); process.exit(1); });
+
+export {}; // module scope — hindari tabrakan deklarasi global antar-skrip E2E

@@ -154,12 +154,13 @@ function EmployeeDetail() {
         <ArrowLeft className="h-4 w-4" /> {t("Kembali ke Direktori", "Back to Directory")}
       </button>
 
-      {/* header card */}
-      <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <div className="h-20 ov-hero" />
-        <CardContent className="relative p-6 pt-0">
-          <div className="-mt-12 flex flex-wrap items-end justify-between gap-4">
-            <div className="flex items-end gap-4">
+      {/* header card — hero penuh satu warna aksen (selaras card welcome dashboard) */}
+      <Card className="relative mb-4 overflow-hidden rounded-3xl border-0 ov-hero ov-glow text-white">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-white/5 blur-3xl" />
+        <CardContent className="relative p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
               <EmployeeAvatar
                 name={e.fullName}
                 photoUrl={e.photoUrl}
@@ -167,36 +168,36 @@ function EmployeeDetail() {
                 status={e.status}
                 showStatus
                 className="shadow-lg"
-                ringClassName="ring-4 ring-white dark:ring-stone-900"
+                ringClassName="ring-4 ring-white/30"
               />
-              <div className="pb-1">
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{e.fullName}</h1>
+                  <h1 className="truncate text-xl font-extrabold text-white sm:text-2xl">{e.fullName}</h1>
                   <StatusPill status={e.status} />
                 </div>
-                <p className="mt-0.5 text-xs text-stone-500">
+                <p className="mt-1 text-xs text-white/80">
                   <span className="font-mono font-bold">{e.employeeNo}</span> · {e.position?.title ?? "—"} · {e.orgUnit?.name ?? "—"}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="text-[10px]">{e.employmentStatus}</Badge>
-                  {e.grade && <Badge>{t("Grade {code}", "Grade {code}", { code: e.grade.code })}</Badge>}
-                  <Badge variant="secondary" className="text-[10px]">{t("Masa kerja {t}", "Tenure {t}", { t: tenure(e.joinDate) })}</Badge>
+                  <Badge className="border border-white/25 bg-white/15 text-[10px] text-white backdrop-blur">{e.employmentStatus}</Badge>
+                  {e.grade && <Badge className="border-white/25 bg-white/15 text-white backdrop-blur">{t("Grade {code}", "Grade {code}", { code: e.grade.code })}</Badge>}
+                  <Badge className="border border-white/25 bg-white/15 text-[10px] text-white backdrop-blur">{t("Masa kerja {t}", "Tenure {t}", { t: tenure(e.joinDate) })}</Badge>
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 pb-1">
+            <div className="flex gap-2">
               {perms.can("hr", "directory", "update") && (
-                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
                   <Pencil className="h-3.5 w-3.5" /> {t("Edit Data", "Edit Data")}
                 </Button>
               )}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <ContactChip icon={Mail} text={e.email ?? "—"} />
-            <ContactChip icon={Phone} text={e.phone ?? "—"} />
-            <ContactChip icon={MapPin} text={e.city ?? "—"} />
-            <ContactChip icon={Banknote} text={fmtIDR(e.baseSalary)} />
+            <ContactChip icon={Mail} text={e.email ?? "—"} tone="solid" />
+            <ContactChip icon={Phone} text={e.phone ?? "—"} tone="solid" />
+            <ContactChip icon={MapPin} text={e.city ?? "—"} tone="solid" />
+            <ContactChip icon={Banknote} text={fmtIDR(e.baseSalary)} tone="solid" />
           </div>
         </CardContent>
       </Card>
@@ -704,7 +705,16 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
   );
 }
 
-function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
+function ContactChip({ icon: Icon, text, tone = "outline" }: { icon: React.ElementType; text: string; tone?: "outline" | "solid" }) {
+  if (tone === "solid") {
+    // di atas hero penuh — kaca putih translusen
+    return (
+      <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
+        <Icon className="h-3.5 w-3.5 shrink-0 text-white" />
+        <span className="truncate">{text}</span>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
       <Icon className="h-3.5 w-3.5 shrink-0 ov-text-accent" />

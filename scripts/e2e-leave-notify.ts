@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   console.log(`    jenis dipilih: ${t.name ?? t.typeName ?? t.id} (saldo ${t.balance ?? "?"})`);
 
   // 3. Submit cuti 1 hari, 14 hari ke depan (hindari tabrakan dgn pengajuan lama)
-  const d = new Date(Date.now() + 14 * 864e5);
+  const d = new Date(Date.now() + 21 * 864e5);
   const iso = d.toISOString().slice(0, 10);
   const req = await api("/api/onevity/ess/leave", {
     method: "POST",
