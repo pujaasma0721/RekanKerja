@@ -80,6 +80,14 @@ export async function GET(req: NextRequest) {
     const db = m.db;
 
     const employeeId = req.nextUrl.searchParams.get("employeeId");
+    // Sort server-side (Task 76): whitelist — kolom langsung + nama via orderBy relasi.
+    // Progress (checklist) diurut client-side (computed dari tasks).
+    const OFF_SORT = { lastDay: "lastDay", status: "status", source: "source", createdAt: "createdAt" } as const;
+    const spO = req.nextUrl.searchParams;
+    const sortRawO = spO.get("sortBy");
+    const sortColO = (sortRawO && (OFF_SORT as Record<string, string>)[sortRawO]) || "createdAt";
+    const sortDirO: "asc" | "desc" = spO.get("sortDir") === "desc" ? "desc" : spO.get("sortDir") === "asc" ? "asc" : sortColO === "createdAt" ? "desc" : "asc";
+    const orderByO = sortRawO === "employee" ? { employee: { fullName: sortDirO } } : { [sortColO]: sortDirO };
     const offboardings = await db.offboarding.findMany({
       where: employeeId ? { employeeId } : undefined,
       include: {
@@ -100,7 +108,7 @@ export async function GET(req: NextRequest) {
         },
         tasks: { select: { status: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: orderByO,
     });
 
     // PA sumber — personnelActionId plain string (tanpa FK) → resolve manual
@@ -110,7 +118,7 @@ export async function GET(req: NextRequest) {
       : [];
     const paMap = new Map(sourcePAs.map((p) => [p.id, p]));
 
-    const rows = offboardings.map((o) => {
+    let rows = offboardings.map((o) => {
       const cur = o.employee.assignments[0] ?? null;
       const { assignments: _a, ...emp } = o.employee as typeof o.employee & { assignments?: unknown[] };
       const done = o.tasks.filter((t) => t.status === "Done").length;
@@ -128,6 +136,17 @@ export async function GET(req: NextRequest) {
         taskStats: { total: o.tasks.length, done },
       };
     });
+    // Sort in-memory utk kolom posisi (assignment aktif = relasi to-many, tak bisa orderBy SQL)
+    if (sortRawO === "position") {
+      rows = [...rows].sort((a, b) => {
+        const va = a.employee.position?.title ?? null;
+        const vb = b.employee.position?.title ?? null;
+        if (va == null && vb != null) return 1;
+        if (vb == null && va != null) return -1;
+        const c = (va ?? "").localeCompare(vb ?? "", "id", { numeric: true });
+        return sortDirO === "asc" ? c : -c;
+      });
+    }
 
     const statusCounts: Record<string, number> = { Open: 0, Completed: 0, Cancelled: 0 };
     for (const r of rows) statusCounts[r.status] = (statusCounts[r.status] ?? 0) + 1;

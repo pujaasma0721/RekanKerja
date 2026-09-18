@@ -4,7 +4,7 @@
 // Resignation/Termination/Retirement diproses, atau manual dari daftar.
 import { useState } from "react";
 import { useApi, apiSend, fmtDate, fmtDateTime, initials, avatarColor, paTypeLabelSafe, tenure } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, useTableSort, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -137,7 +137,13 @@ function OffboardingList() {
   const perms = useMenuPerms();
   const [status, setStatus] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const { data, loading, refresh } = useApi<{ offboardings: OffRow[]; statusCounts: Record<string, number>; total: number }>("/api/onevity/offboarding");
+  // Task 76 — state sort server-side
+  const [offSortKey, setOffSortKey] = useState<"employee" | "position" | "lastDay" | "source" | "status">("lastDay");
+  const [offSortDir, setOffSortDir] = useState<ServerSortDir>("desc");
+  const { data, loading, refresh } = useApi<{ offboardings: OffRow[]; statusCounts: Record<string, number>; total: number }>(
+    `/api/onevity/offboarding?sortBy=${offSortKey}&sortDir=${offSortDir}`,
+    [offSortKey, offSortDir],
+  );
 
   const sc = data?.statusCounts ?? {};
   const statCards: [string, string, string, number][] = [
@@ -146,15 +152,15 @@ function OffboardingList() {
     ["Cancelled", "Dibatalkan", "Cancelled", sc.Cancelled ?? 0],
   ];
   const rows = (data?.offboardings ?? []).filter((r) => status === "all" || r.status === status);
+  // Task 76 — sort SERVER-SIDE kecuali progress (computed dari tasks) → client-side.
   const sort = useTableSort(rows, {
-    employee: (r) => r.employee.fullName,
-    nip: (r) => r.employee.employeeNo,
-    position: (r) => r.employee.position?.title ?? null,
-    lastDay: (r) => r.lastDay,
-    source: (r) => r.sourcePA?.docNo ?? null,
     progress: (r) => (r.taskStats.total > 0 ? r.taskStats.done / r.taskStats.total : 0),
-    status: (r) => r.status,
-  }, { defaultKey: "lastDay", defaultDir: "desc" });
+  });
+  const clickSortOff = (k: "employee" | "position" | "lastDay" | "source" | "status") => {
+    const n = nextServerSort(offSortKey, offSortDir, k);
+    setOffSortKey(n.sortBy as typeof offSortKey);
+    setOffSortDir(n.sortDir);
+  };
 
   return (
     <div>
@@ -196,16 +202,16 @@ function OffboardingList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    {sort.head("employee", t("Karyawan", "Employee"), "min-w-40 text-[11px] font-bold")}
-                    {sort.head("position", t("Posisi & Unit", "Position & Unit"), "text-[11px] font-bold")}
-                    {sort.head("lastDay", t("Hari Terakhir", "Last Day"), "text-[11px] font-bold")}
-                    {sort.head("source", t("Sumber", "Source"), "text-[11px] font-bold")}
+                    <ServerSortHead label={t("Karyawan", "Employee")} active={offSortKey === "employee"} dir={offSortDir} onClick={() => clickSortOff("employee")} className="min-w-40 text-[11px] font-bold" />
+                    <ServerSortHead label={t("Posisi & Unit", "Position & Unit")} active={offSortKey === "position"} dir={offSortDir} onClick={() => clickSortOff("position")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Hari Terakhir", "Last Day")} active={offSortKey === "lastDay"} dir={offSortDir} onClick={() => clickSortOff("lastDay")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Sumber", "Source")} active={offSortKey === "source"} dir={offSortDir} onClick={() => clickSortOff("source")} className="text-[11px] font-bold" />
                     {sort.head("progress", t("Checklist"), "min-w-36 text-[11px] font-bold")}
-                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                    <ServerSortHead label={t("Status")} active={offSortKey === "status"} dir={offSortDir} onClick={() => clickSortOff("status")} className="text-[11px] font-bold" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((r) => {
+                  {rows.map((r) => {
                     const pct = r.taskStats.total > 0 ? (r.taskStats.done / r.taskStats.total) * 100 : 0;
                     const allDone = r.taskStats.total > 0 && r.taskStats.done === r.taskStats.total;
                     return (

@@ -3,7 +3,7 @@
 // (padanan TravelRequest.jsp + Destination detail + Cash Advance)
 import { Fragment, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,25 +57,24 @@ export function TravelRequestsPage() {
     purpose: "", remark: "", advanceAmount: "", advanceNote: "",
   });
 
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di service).
+  const [sortKey, setSortKey] = useState<"doc" | "employee" | "plan" | "template" | "destinations" | "advance" | "status">("doc");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+
   const api = useApi<{ requests: TravelRequestRowUI[]; stats: { total: number; submitted: number; approved: number; rejected: number; cancelled: number; withClaim: number; overdueSettlement: number; advanceTotal: number } }>(
-    `/api/onevity/travel/requests?status=${statusFilter}`,
+    `/api/onevity/travel/requests?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`,
+    [statusFilter, sortKey, sortDir],
   );
   const master = useApi<{ templates: TemplateRowUI[]; zones: ZoneRowUI[]; employees: EmployeeOption[] }>("/api/onevity/travel/templates");
 
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()) || r.purpose.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
-
-  // Task 72 — sorting kolom tabel pengajuan perjalanan (default: terbaru)
-  const sort = useTableSort(requests, {
-    doc: (r) => r.docNo,
-    employee: (r) => r.fullName,
-    plan: (r) => r.dateFrom,
-    template: (r) => r.templateName,
-    destinations: (r) => (r.destinations[0]?.city ?? null),
-    advance: (r) => r.advanceAmount,
-    status: (r) => r.status,
-  }, { defaultKey: "doc", defaultDir: "desc" });
 
   const zones = master.data?.zones ?? [];
   const templates = (master.data?.templates ?? []).filter((t) => t.active);
@@ -187,18 +186,18 @@ export function TravelRequestsPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    {sort.head("doc", t("Nomor", "No."))}
-                    {sort.head("employee", t("Karyawan"))}
-                    {sort.head("plan", t("Rencana", "Plan"))}
-                    {sort.head("template", "Template")}
-                    {sort.head("destinations", t("Destinasi", "Destinations"), "hidden md:table-cell")}
-                    {sort.head("advance", t("Uang Muka", "Advance"), "text-right")}
-                    {sort.head("status", t("Status"))}
+                    <ServerSortHead label={t("Nomor", "No.")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} />
+                    <ServerSortHead label={t("Rencana", "Plan")} active={sortKey === "plan"} dir={sortDir} onClick={() => clickSort("plan")} />
+                    <ServerSortHead label="Template" active={sortKey === "template"} dir={sortDir} onClick={() => clickSort("template")} />
+                    <ServerSortHead label={t("Destinasi", "Destinations")} active={sortKey === "destinations"} dir={sortDir} onClick={() => clickSort("destinations")} className="hidden md:table-cell" />
+                    <ServerSortHead label={t("Uang Muka", "Advance")} active={sortKey === "advance"} dir={sortDir} onClick={() => clickSort("advance")} className="text-right" />
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} />
                     <TableHead className="text-right">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((r) => (
+                  {requests.map((r) => (
                     <Fragment key={r.id}>
                       <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === r.docNo ? null : r.docNo)}>
                         <TableCell className="p-2">

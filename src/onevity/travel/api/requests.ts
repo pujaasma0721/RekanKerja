@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     const requests = await listTravelRequests(db, {
       status: sp.get("status") ?? "all",
       employeeId: sp.get("employeeId") ?? undefined,
+      sortBy: sp.get("sortBy") ?? undefined,
+      sortDir: sp.get("sortDir") ?? undefined,
     });
     const stats = {
       total: requests.length,

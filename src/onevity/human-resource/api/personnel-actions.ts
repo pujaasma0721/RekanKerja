@@ -27,6 +27,18 @@ export async function GET(req: NextRequest) {
     }
     if (mine) where.status = "Submitted";
 
+    // Sort server-side (Task 76): whitelist — kolom langsung + nama karyawan via
+    // orderBy relasi (SQL). Progress diurut client-side (computed dari layers).
+    const PA_SORT = {
+      doc: "docNo", type: "type", effective: "effectiveDate", status: "status", createdAt: "createdAt",
+    } as const;
+    const sortRaw = sp.get("sortBy");
+    const sortCol = (sortRaw && (PA_SORT as Record<string, string>)[sortRaw]) || "createdAt";
+    const sortDir: "asc" | "desc" = sp.get("sortDir") === "desc" ? "desc" : sp.get("sortDir") === "asc" ? "asc" : sortCol === "createdAt" ? "desc" : "asc";
+    const orderBy = sortRaw === "employee"
+      ? { employee: { fullName: sortDir } }
+      : { [sortCol]: sortDir };
+
     const [actionsRaw, counts] = await Promise.all([
       db.personnelAction.findMany({
         where,
@@ -45,7 +57,7 @@ export async function GET(req: NextRequest) {
           },
           layers: { orderBy: { layerNo: "asc" }, include: { approver: { select: { fullName: true, role: true } } } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
       }),
       db.personnelAction.groupBy({ by: ["status"], _count: true }),
     ]);

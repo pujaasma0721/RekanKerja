@@ -3,7 +3,7 @@
 // detail baris D/C, ekspor CSV, backfill run lama yang belum diposting.
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDateTime } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, useTableSort, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,24 +25,35 @@ interface JournalsData {
 export function PayrollJournalsPage() {
   const { navigate } = useNav();
   const { t } = useI18n();
-  const { data, loading, refresh } = useApi<JournalsData>("/api/onevity/payroll-journals");
   const [detail, setDetail] = useState<JournalRow & { lines: JournalLine[] } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const journals = data?.journals ?? [];
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API.
+  // Kolom debit/kredit/lines masih diurut client-side (nilai terenkripsi diurut
+  // in-memory di server atas seluruh baris, tapi tetap dalam response yang sama).
+  const [sortKey, setSortKey] = useState<"journal" | "date" | "run" | "desc" | "lines" | "debit" | "credit" | "status">("date");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+  const SERVER_SORT = new Set(["journal", "date", "run", "desc", "status"]);
+  const { data, loading, refresh } = useApi<JournalsData>(
+    `/api/onevity/payroll-journals?sortBy=${SERVER_SORT.has(sortKey) ? sortKey : "date"}&sortDir=${sortDir}`,
+    [sortKey, sortDir],
+  );
 
-  // Task 72 — sorting kolom tabel jurnal
+  const journals = data?.journals ?? [];
+  const missing = data?.missingRuns ?? [];
+
+  // Kolom lines/debit/kredit tetap diurut client-side (nilai terenkripsi didekripsi
+  // di response; dataset = seluruh jurnal tenant karena endpoint full-list).
   const sort = useTableSort(journals, {
-    journal: (j) => j.journalNo,
-    date: (j) => j.journalDate,
-    run: (j) => j.runNo,
-    desc: (j) => j.description,
     lines: (j) => j._count.lines,
     debit: (j) => j.totalDebit,
     credit: (j) => j.totalCredit,
-    status: (j) => j.status,
-  }, { defaultKey: "date", defaultDir: "desc" });
-  const missing = data?.missingRuns ?? [];
+  });
 
   const openDetail = async (j: JournalRow) => {
     try {
@@ -118,13 +129,13 @@ export function PayrollJournalsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                        {sort.head("journal", t("Jurnal", "Journal"), "text-[11px] font-bold")}
-                        {sort.head("run", t("Sumber Run", "Source Run"), "text-[11px] font-bold")}
-                        {sort.head("desc", t("Deskripsi"), "text-[11px] font-bold")}
+                        <ServerSortHead label={t("Jurnal", "Journal")} active={sortKey === "journal"} dir={sortDir} onClick={() => clickSort("journal")} className="text-[11px] font-bold" />
+                        <ServerSortHead label={t("Sumber Run", "Source Run")} active={sortKey === "run"} dir={sortDir} onClick={() => clickSort("run")} className="text-[11px] font-bold" />
+                        <ServerSortHead label={t("Deskripsi")} active={sortKey === "desc"} dir={sortDir} onClick={() => clickSort("desc")} className="text-[11px] font-bold" />
                         {sort.head("lines", t("Baris", "Lines"), "text-center text-[11px] font-bold")}
                         {sort.head("debit", t("Debit"), "text-right text-[11px] font-bold")}
                         {sort.head("credit", t("Kredit", "Credit"), "text-right text-[11px] font-bold")}
-                        {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                        <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                         <TableHead className="w-[150px]" />
                       </TableRow>
                     </TableHeader>

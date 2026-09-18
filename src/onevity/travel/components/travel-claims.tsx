@@ -4,7 +4,7 @@
 // Entertainment+Guest) + formula Total = rincian + rugi kurs − (a) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import {
@@ -87,8 +87,18 @@ export function TravelClaimsPage() {
   // klaim diajukan → di-rebind server ke klaim baru).
   const [files, setFiles] = useState<File[]>([]);
 
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di service).
+  const [sortKey, setSortKey] = useState<"doc" | "employee" | "basis" | "total" | "journal" | "status">("doc");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+
   const api = useApi<{ claims: TravelClaimRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
-    `/api/onevity/travel/claims?status=${statusFilter}`,
+    `/api/onevity/travel/claims?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`,
+    [statusFilter, sortKey, sortDir],
   );
   const detailApi = useApi<{ claims: TravelClaimRowUI[] }>(`/api/onevity/travel/claims?status=all`);
   const approvedRequests = useApi<{ requests: TravelRequestRowUI[] }>("/api/onevity/travel/requests?status=Approved");
@@ -97,16 +107,6 @@ export function TravelClaimsPage() {
   const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
-
-  // Task 72 — sorting kolom tabel settlement perjalanan (default: terbaru)
-  const sort = useTableSort(claims, {
-    doc: (c) => c.docNo,
-    employee: (c) => c.fullName,
-    basis: (c) => c.templateName,
-    total: (c) => c.totalSettlement,
-    journal: (c) => c.journalNo,
-    status: (c) => c.status,
-  }, { defaultKey: "doc", defaultDir: "desc" });
 
   const expenseTypes = master.data?.expenseTypes ?? [];
   const typeByCode = useMemo(() => new Map(expenseTypes.map((t) => [t.code, t])), [expenseTypes]);
@@ -300,16 +300,16 @@ export function TravelClaimsPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    {sort.head("doc", t("Nomor", "No."))}
-                    {sort.head("employee", t("Karyawan"))}
-                    {sort.head("basis", t("Basis", "Basis"), "hidden md:table-cell")}
-                    {sort.head("total", t("Total Settlement", "Total Settlement"), "text-right")}
-                    {sort.head("journal", t("Jurnal", "Journal"), "hidden lg:table-cell")}
-                    {sort.head("status", t("Status"))}
+                    <ServerSortHead label={t("Nomor", "No.")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} />
+                    <ServerSortHead label={t("Basis", "Basis")} active={sortKey === "basis"} dir={sortDir} onClick={() => clickSort("basis")} className="hidden md:table-cell" />
+                    <ServerSortHead label={t("Total Settlement", "Total Settlement")} active={sortKey === "total"} dir={sortDir} onClick={() => clickSort("total")} className="text-right" />
+                    <ServerSortHead label={t("Jurnal", "Journal")} active={sortKey === "journal"} dir={sortDir} onClick={() => clickSort("journal")} className="hidden lg:table-cell" />
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((c) => (
+                  {claims.map((c) => (
                     <Fragment key={c.id}>
                       <TableRow key={c.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === c.docNo ? null : c.docNo)}>
                         <TableCell className="p-2">

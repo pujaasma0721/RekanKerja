@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
     const claims = await listTravelClaims(db, {
       status: sp.get("status") ?? "all",
       employeeId: sp.get("employeeId") ?? undefined,
+      sortBy: sp.get("sortBy") ?? undefined,
+      sortDir: sp.get("sortDir") ?? undefined,
     }, mv);
     // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
     const attachMap = await attachmentsByEntityIds(db, "TravelClaim", claims.map((c) => c.id));

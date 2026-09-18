@@ -369,13 +369,24 @@ export interface TravelRequestRow {
   approval: ChainSummary | null;
 }
 
-export async function listTravelRequests(db: TenantDb, opts: { status?: string; employeeId?: string } = {}): Promise<TravelRequestRow[]> {
+export async function listTravelRequests(db: TenantDb, opts: { status?: string; employeeId?: string; sortBy?: string; sortDir?: string } = {}): Promise<TravelRequestRow[]> {
   const where: { status?: string; employeeId?: string } = {};
   if (opts.status && opts.status !== "all") where.status = opts.status;
   if (opts.employeeId) where.employeeId = opts.employeeId;
+  // Sort server-side (Task 76): kolom langsung & relasi via orderBy Prisma (SQL,
+  // seluruh data); kolom DTO terenkripsi (advance) via sort in-memory atas hasil
+  // akhir — endpoint ini full-list (tanpa take/skip), jadi tetap lintas seluruh data.
+  const REQ_SORT = {
+    doc: { col: "docNo" }, plan: { col: "dateFrom" }, status: { col: "status" },
+    employee: { rel: "employee", field: "fullName" },
+    template: { rel: "template", field: "name" },
+    destinations: { dto: "dest" }, advance: { dto: "advance" },
+  } as const;
+  const reqSort = opts.sortBy && (REQ_SORT as Record<string, (typeof REQ_SORT)[keyof typeof REQ_SORT]>)[opts.sortBy];
+  const sortDir: "asc" | "desc" = opts.sortDir === "desc" ? "desc" : "asc";
   const rows = await db.travelRequest.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: reqSort && "col" in reqSort ? { [reqSort.col]: sortDir } : { createdAt: "desc" },
     include: {
       employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
       template: true,
@@ -387,7 +398,7 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
   const chainMap = await attachChainSummaries(db, "Travel", rows.map((r) => ({ id: r.id })));
   // 44-d (M-8): advance terenkripsi — dekripsi sebelum dijumlahkan.
   const tcReq = tenantCryptoForDb(db);
-  return rows.map((r) => {
+  const out = rows.map((r) => {
     const advanceAmount = sumActiveAdvances(tcReq, r.advances);
     const activeClaim = r.claims.find((c) => c.status !== "Rejected" && c.status !== "Cancelled") ?? null;
     const due = new Date(r.dateTo);
@@ -415,6 +426,20 @@ export async function listTravelRequests(db: TenantDb, opts: { status?: string; 
       approval: chainMap.get(r.id) ?? null,
     };
   });
+  // Sort in-memory utk kolom DTO (destinasi kota pertama / advance terenkripsi)
+  if (reqSort && "dto" in reqSort) {
+    const acc = reqSort.dto === "advance"
+      ? (x: TravelRequestRow) => x.advanceAmount
+      : (x: TravelRequestRow) => x.destinations[0]?.city ?? null;
+    out.sort((a, b) => {
+      const va = acc(a), vb = acc(b);
+      if (va == null && vb != null) return 1;
+      if (vb == null && va != null) return -1;
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "id", { numeric: true });
+      return sortDir === "asc" ? c : -c;
+    });
+  }
+  return out;
 }
 
 export interface DecideResult {
@@ -829,13 +854,23 @@ export interface TravelClaimRow {
  *  45-b: mv (MoneyView) WAJIB — gerbang vault uang: kolom uang → null saat
  *  masked; kalkulasi internal (formula settlement/validasi/jurnal) TIDAK lewat
  *  sini — tetap raw tc di service lain. */
-export async function listTravelClaims(db: TenantDb, opts: { status?: string; employeeId?: string } = {}, mv: MoneyView): Promise<TravelClaimRow[]> {
+export async function listTravelClaims(db: TenantDb, opts: { status?: string; employeeId?: string; sortBy?: string; sortDir?: string } = {}, mv: MoneyView): Promise<TravelClaimRow[]> {
   const where: { status?: string; employeeId?: string } = {};
   if (opts.status && opts.status !== "all") where.status = opts.status;
   if (opts.employeeId) where.employeeId = opts.employeeId;
+  // Sort server-side (Task 76): pola sama dgn listTravelRequests — kolom langsung
+  // & relasi via orderBy Prisma; kolom terenkripsi (settlement/payable) in-memory.
+  const CLAIM_SORT = {
+    doc: { col: "docNo" }, claimDate: { col: "claimDate" }, status: { col: "status" }, journal: { col: "journalNo" },
+    employee: { rel: "employee", field: "fullName" },
+    template: { rel: "template", field: "name" }, basis: { rel: "template", field: "name" },
+    total: { dto: "total" }, advance: { dto: "advance" },
+  } as const;
+  const clSort = opts.sortBy && (CLAIM_SORT as Record<string, (typeof CLAIM_SORT)[keyof typeof CLAIM_SORT]>)[opts.sortBy];
+  const sortDir: "asc" | "desc" = opts.sortDir === "desc" ? "desc" : "asc";
   const rows = await db.travelClaim.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: clSort && "col" in clSort ? { [clSort.col]: sortDir } : { createdAt: "desc" },
     include: {
       employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
       template: true,
@@ -850,7 +885,7 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
   // (g = null saat masked — kalkulasi line di bawah tetap atas angka raw).
   const tc = tenantCryptoForDb(db);
   const g = (n: number) => (mv.canSee ? n : null);
-  return rows.map((c) => ({
+  const out = rows.map((c) => ({
     id: c.id, docNo: c.docNo, requestDocNo: c.request?.docNo ?? null,
     employeeId: c.employeeId, employeeNo: c.employee.employeeNo, fullName: c.employee.fullName,
     orgUnitName: c.employee.assignments[0]?.orgUnit?.name ?? null,
@@ -869,6 +904,20 @@ export async function listTravelClaims(db: TenantDb, opts: { status?: string; em
     expenseKinds: [...new Set(c.expenses.map((e) => e.kind))],
     approval: chainMap.get(c.id) ?? null,
   }));
+  // Sort in-memory utk kolom DTO terenkripsi (masked → 0 dianggap bawah pada asc).
+  if (clSort && "dto" in clSort) {
+    const acc = clSort.dto === "total"
+      ? (x: TravelClaimRow) => x.totalSettlement
+      : (x: TravelClaimRow) => x.advanceAmount;
+    out.sort((a, b) => {
+      const va = acc(a), vb = acc(b);
+      if (va == null && vb != null) return 1;
+      if (vb == null && va != null) return -1;
+      const c = (va ?? 0) - (vb ?? 0);
+      return sortDir === "asc" ? c : -c;
+    });
+  }
+  return out;
 }
 
 export async function getClaimDetail(db: TenantDb, id: string) {

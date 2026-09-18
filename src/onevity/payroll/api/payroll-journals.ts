@@ -49,8 +49,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ journal: mv.json(journal) });
     }
 
+    // Sort server-side (Task 76): whitelist kolom langsung via orderBy Prisma;
+    // nominal terenkripsi (debit/kredit) & _count lines diurut in-memory di UI-fetch
+    // berikut (endpoint full-list, tanpa take/skip → tetap lintas seluruh data).
+    const spJ = req.nextUrl.searchParams;
+    const JOURNAL_SORT = { journal: "journalNo", date: "journalDate", run: "runNo", desc: "description", status: "status" } as const;
+    const sortColJ = (spJ.get("sortBy") && (JOURNAL_SORT as Record<string, string>)[spJ.get("sortBy")!]) || "createdAt";
+    const sortDirJ: "asc" | "desc" = spJ.get("sortDir") === "desc" ? "desc" : spJ.get("sortDir") === "asc" ? "asc" : sortColJ === "createdAt" ? "desc" : "asc";
     const journals = await db.payrollJournal.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { [sortColJ]: sortDirJ },
       include: { _count: { select: { lines: true } } },
     });
 
