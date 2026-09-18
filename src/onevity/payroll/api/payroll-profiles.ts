@@ -83,6 +83,17 @@ export async function GET(req: NextRequest) {
     if (req.nextUrl.searchParams.get("history") === "1") return await historyHandler(req, db);
 
     const q = req.nextUrl.searchParams.get("q")?.trim();
+    // Task 75 — sorting server-side (pola Task 74): whitelist ketat.
+    // • Langsung (nama/nip) → orderBy Prisma sebelum ambil data.
+    // • Kolom profil/penempatan (gaji terenkripsi, unit, posisi, grade, npwp, ptkp,
+    //   metode, template, bank) → sort in-memory setelah serializer (SELURUH baris
+    //   terfilter, sebelum dikirim — daftar ini tak berhalaman, jadi cukup sort akhir).
+    const DIRECT_SORT_PP = new Set(["fullName", "employeeNo"]);
+    const sortByParam = req.nextUrl.searchParams.get("sortBy") ?? "";
+    const sortDirParam = req.nextUrl.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const ppOrderBy: Record<string, unknown> = DIRECT_SORT_PP.has(sortByParam)
+      ? { [sortByParam]: sortDirParam }
+      : { employeeNo: "asc" };
     // 45-b: resolve gerbang vault SEKALI di luar .map (getMoneyView async).
     const moneyViewG = await moneyViewForReq(req, db);
     // Task 64h — template VALID HARI INI per karyawan (baris riwayat terakhir
@@ -110,7 +121,7 @@ export async function GET(req: NextRequest) {
           take: 1,
         },
       },
-      orderBy: { employeeNo: "asc" },
+      orderBy: ppOrderBy,
     });
     const rows = employees.map((e) => {
       const a = e.assignments[0];
@@ -155,6 +166,38 @@ export async function GET(req: NextRequest) {
         ptkpSuggestion,
       };
     });
+
+    // Task 75 — sort kolom profil/penempatan (in-memory, nulls terakhir, tie-break NIP)
+    if (!DIRECT_SORT_PP.has(sortByParam) && sortByParam) {
+      const cmpDir = sortDirParam === "desc" ? -1 : 1;
+      const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+      const keyOf = (r: (typeof rows)[number]): string | number | null => {
+        switch (sortByParam) {
+          case "unit": return r.orgUnitName;
+          case "position": return r.positionName;
+          case "grade": return r.gradeName;
+          case "salary": return r.baseSalary; // number (masked vault → 0)
+          case "npwp": return r.profile?.hasNpwp ? 0 : 1;
+          case "ptkp": return r.profile?.taxStatus ?? null;
+          case "method": return r.profile?.processMethod ?? null;
+          case "template": return r.profile?.wageTemplateName ?? null;
+          case "bank": return r.profile?.bankName ?? null;
+          default: return null;
+        }
+      };
+      const isNum = sortByParam === "salary" || sortByParam === "npwp";
+      rows.sort((x, y) => {
+        const kx = keyOf(x);
+        const ky = keyOf(y);
+        const xNull = kx == null || (isNum && (kx as number) === 0);
+        const yNull = ky == null || (isNum && (ky as number) === 0);
+        if (xNull && yNull) return collator.compare(x.employeeNo, y.employeeNo);
+        if (xNull) return 1;
+        if (yNull) return -1;
+        const c = isNum ? (kx as number) - (ky as number) : collator.compare(String(kx), String(ky));
+        return c * cmpDir || collator.compare(x.employeeNo, y.employeeNo);
+      });
+    }
     return NextResponse.json({ employees: rows });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

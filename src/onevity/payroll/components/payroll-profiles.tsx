@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, History } from "lucide-react";
+import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, History, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse, SalaryHistoryEntry, TemplateHistoryEntry } from "@/onevity/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -38,26 +38,41 @@ function safeText(v: string | null | undefined): string {
 export function PayrollProfilesPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
-  const { data, loading, refresh } = useApi<{ employees: ProfileRow[] }>(`/api/onevity/payroll-profiles${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+  // Task 75 — sorting SERVER-SIDE (pola Task 74): sortBy/sortDir dikirim ke API —
+  // urutan menjangkau seluruh karyawan aktif, bukan hanya baris yang sudah di-fetch.
+  const [sortKey, setSortKey] = useState<string | null>("employee");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: string) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
+  const SORT_API: Record<string, string> = {
+    employee: "fullName", nip: "employeeNo", salary: "salary", npwp: "npwp",
+    ptkp: "ptkp", method: "method", template: "template", bank: "bank",
+  };
+  const sortQs = (sortKey && SORT_API[sortKey] ? `&sortBy=${SORT_API[sortKey]}&sortDir=${sortDir}` : "");
+  const { data, loading, refresh } = useApi<{ employees: ProfileRow[] }>(
+    `/api/onevity/payroll-profiles?q=${encodeURIComponent(q ?? "")}${sortQs}`, [q, sortKey, sortDir],
+  );
   const templatesApi = useApi<{ templates: TemplateRow[] }>("/api/onevity/wage-templates");
   const [editing, setEditing] = useState<ProfileRow | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
   // Task 64d — riwayat gaji & template per karyawan (dialog dari tombol baris).
-  const [histRow, setHistRow] = useState<ProfileRow | null>(null);
+  const [histRow, setHistRow] = useState<ProfileRow | null>(null);  const rows = data?.employees ?? [];
+  const sortedRows = rows;
 
-  const rows = data?.employees ?? [];
-
-  // Task 72 — sorting kolom tabel profil payroll
-  const sort = useTableSort(rows, {
-    employee: (r) => r.fullName,
-    nip: (r) => r.employeeNo,
-    salary: (r) => r.baseSalary,
-    npwp: (r) => (r.profile?.hasNpwp ? 0 : 1),
-    ptkp: (r) => r.profile?.taxStatus ?? null,
-    method: (r) => r.profile?.processMethod ?? null,
-    template: (r) => r.profile?.wageTemplateName ?? null,
-    bank: (r) => r.profile?.bankName ?? null,
-  }, { defaultKey: "employee", defaultDir: "asc" });
+  // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
+  const sortHead = (k: string, label: React.ReactNode, className?: string) => (
+    <TableHead className={className}>
+      <button type="button" onClick={() => toggleSort(k)} title="Klik untuk urutkan"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70">
+        {label}
+        {sortKey === k ? (
+          sortDir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />
+        ) : <ArrowUpDown className="h-3 w-3 shrink-0 opacity-35" />}
+      </button>
+    </TableHead>
+  );
 
   return (
     <div>
@@ -93,18 +108,18 @@ export function PayrollProfilesPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
-                    {sort.head("salary", t("Gaji Pokok"), "text-[11px] font-bold")}
-                    {sort.head("npwp", t("NPWP"), "text-[11px] font-bold")}
-                    {sort.head("ptkp", t("PTKP"), "text-[11px] font-bold")}
-                    {sort.head("method", t("Metode", "Method"), "text-[11px] font-bold")}
-                    {sort.head("template", t("Template"), "text-[11px] font-bold")}
-                    {sort.head("bank", t("Bank"), "text-[11px] font-bold")}
+                    {sortHead("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sortHead("salary", t("Gaji Pokok"), "text-[11px] font-bold")}
+                    {sortHead("npwp", t("NPWP"), "text-[11px] font-bold")}
+                    {sortHead("ptkp", t("PTKP"), "text-[11px] font-bold")}
+                    {sortHead("method", t("Metode", "Method"), "text-[11px] font-bold")}
+                    {sortHead("template", t("Template"), "text-[11px] font-bold")}
+                    {sortHead("bank", t("Bank"), "text-[11px] font-bold")}
                     <TableHead className="w-14" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((r) => {
+                  {sortedRows.map((r) => {
                     const auto = r.profile?.ptkpSource === "auto";
                     // T50: auto + beda saran → perubahan TERTUNDA (berlaku 1 Jan
                     // tahun depan) — bukan perubahan hari ini.

@@ -3,7 +3,6 @@
 // hitung, konfirmasi, tandai dibayar, export CSV
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDateTime } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -17,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift } from "lucide-react";
+import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { BonusMassalDialog } from "@/onevity/payroll/components/bonus-massal-dialog";
 import { PeriodRow, ProcessTypeRow, RunRow } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
@@ -34,8 +33,16 @@ export function PayrollRunsPage() {
   const [bonusOpen, setBonusOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const url = `/api/onevity/payroll-runs${periodFilter !== "all" || statusFilter !== "all" ? `?${new URLSearchParams({ ...(periodFilter !== "all" ? { periodId: periodFilter } : {}), ...(statusFilter !== "all" ? { status: statusFilter } : {}) }).toString()}` : ""}`;
-  const { data, loading, refresh } = useApi<{ runs: RunRow[] }>(url);
+  // Task 75 — sorting SERVER-SIDE (pola Task 74): sortBy/sortDir dikirim ke API.
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (k: string) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
+
+  const url = `/api/onevity/payroll-runs${periodFilter !== "all" || statusFilter !== "all" || sortKey ? `?${new URLSearchParams({ ...(periodFilter !== "all" ? { periodId: periodFilter } : {}), ...(statusFilter !== "all" ? { status: statusFilter } : {}), ...(sortKey ? { sortBy: sortKey, sortDir } : {}) }).toString()}` : ""}`;
+  const { data, loading, refresh } = useApi<{ runs: RunRow[] }>(url, [periodFilter, statusFilter, sortKey, sortDir]);
   const periodsApi = useApi<{ periods: PeriodRow[] }>("/api/onevity/payroll-periods");
 
   const act = async (run: RunRow, action: "calculate" | "confirm" | "markPaid" | "cancel") => {
@@ -62,18 +69,20 @@ export function PayrollRunsPage() {
   };
 
   const runs = data?.runs ?? [];
+  const sortedRows = runs;
 
-  // Task 72 — sorting kolom tabel run (asc/desc via header)
-  const sort = useTableSort(runs, {
-    runNo: (r) => r.runNo,
-    period: (r) => r.period.name,
-    type: (r) => r.processType.name,
-    status: (r) => r.status,
-    employees: (r) => r.employeeCount,
-    bruto: (r) => r.totalBruto,
-    tax: (r) => r.totalTax,
-    net: (r) => r.totalNet,
-  }, { defaultKey: "runNo", defaultDir: "desc" });
+  // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
+  const sortHead = (k: string, label: React.ReactNode, className?: string) => (
+    <TableHead className={className}>
+      <button type="button" onClick={() => toggleSort(k)} title="Klik untuk urutkan"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70">
+        {label}
+        {sortKey === k ? (
+          sortDir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />
+        ) : <ArrowUpDown className="h-3 w-3 shrink-0 opacity-35" />}
+      </button>
+    </TableHead>
+  );
 
   return (
     <div>
@@ -134,19 +143,19 @@ export function PayrollRunsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    {sort.head("runNo", t("Run"), "text-[11px] font-bold")}
-                    {sort.head("period", t("Period"), "text-[11px] font-bold")}
-                    {sort.head("type", t("Jenis Proses", "Process Type"), "text-[11px] font-bold")}
-                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
-                    {sort.head("employees", t("Karyawan"), "text-center text-[11px] font-bold")}
-                    {sort.head("bruto", t("Bruto", "Gross"), "text-right text-[11px] font-bold")}
-                    {sort.head("tax", t("PPh21"), "text-right text-[11px] font-bold")}
-                    {sort.head("net", t("THP", "Net Pay"), "text-right text-[11px] font-bold")}
+                    {sortHead("runNo", t("Run"), "text-[11px] font-bold")}
+                    {sortHead("period", t("Period"), "text-[11px] font-bold")}
+                    {sortHead("type", t("Jenis Proses", "Process Type"), "text-[11px] font-bold")}
+                    {sortHead("status", t("Status"), "text-[11px] font-bold")}
+                    {sortHead("employees", t("Karyawan"), "text-center text-[11px] font-bold")}
+                    {sortHead("bruto", t("Bruto", "Gross"), "text-right text-[11px] font-bold")}
+                    {sortHead("tax", t("PPh21"), "text-right text-[11px] font-bold")}
+                    {sortHead("net", t("THP", "Net Pay"), "text-right text-[11px] font-bold")}
                     <TableHead className="w-[290px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((r) => (
+                  {sortedRows.map((r) => (
                     <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{r.runNo}</p>

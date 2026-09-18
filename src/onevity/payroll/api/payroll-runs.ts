@@ -19,6 +19,26 @@ export async function GET(req: NextRequest) {
 
     const periodId = req.nextUrl.searchParams.get("periodId");
     const status = req.nextUrl.searchParams.get("status");
+
+    // Task 75 — sorting server-side (whitelist; kolom relasi via orderBy nested).
+    // Default tetap createdAt desc (run terbaru dulu).
+    const RUN_SORT = new Set(["runNo", "period", "type", "status", "employees", "bruto", "tax", "net", "createdAt"]);
+    const sortByParam = req.nextUrl.searchParams.get("sortBy") ?? "";
+    const sortDirParam = req.nextUrl.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const dir = sortDirParam;
+    let orderBy: Record<string, unknown>[] = [{ createdAt: "desc" }];
+    if (RUN_SORT.has(sortByParam)) {
+      switch (sortByParam) {
+        case "period": orderBy = [{ period: { startDate: dir } }]; break;
+        case "type": orderBy = [{ processType: { name: dir } }]; break;
+        case "employees": orderBy = [{ lines: { _count: dir } }]; break;
+        // total uang terenkripsi — tak bisa diurut DB; sort in-memory setelah decrypt
+        case "bruto": case "tax": case "net": orderBy = [{ createdAt: "desc" }]; break;
+        default: orderBy = [{ [sortByParam]: dir }, { createdAt: "desc" }];
+      }
+    }
+    const needsMoneySort = sortByParam === "bruto" || sortByParam === "tax" || sortByParam === "net";
+
     const runs = await db.payrollRun.findMany({
       where: {
         ...(periodId ? { periodId } : {}),
@@ -29,11 +49,23 @@ export async function GET(req: NextRequest) {
         processType: true,
         _count: { select: { lines: true } },
       },
-      orderBy: [{ createdAt: "desc" }],
+      orderBy,
     });
     // 28-c: dekripsi total uang run di batas serializer (angka utk frontend).
     // 45-b: gate vault (requireTenant → resolve via sesi; masked → null).
-    return NextResponse.json({ runs: (await moneyViewForReq(req, db)).json(runs) });
+    const dec = (await moneyViewForReq(req, db)).json(runs) as (typeof runs);
+
+    // Task 75 — sort kolom uang (in-memory atas nilai terdekripsi; masked → 0 paling bawah)
+    if (needsMoneySort) {
+      const moneyKey = (r: (typeof runs)[number]): number =>
+        sortByParam === "bruto" ? Number(r.totalBruto) || 0
+        : sortByParam === "tax" ? Number(r.totalTax) || 0
+        : Number(r.totalNet) || 0;
+      const cmpDir = sortDirParam === "desc" ? -1 : 1;
+      dec.sort((x, y) => (moneyKey(x) - moneyKey(y)) * cmpDir
+        || (x.runNo < y.runNo ? -1 : x.runNo > y.runNo ? 1 : 0));
+    }
+    return NextResponse.json({ runs: dec });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

@@ -107,3 +107,5 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => { console.error("E2E GAGAL:", e.message); process.exit(1); });
+
+export {} // module scope — hindari bentrok deklarasi antar skrip E2E
