@@ -33,6 +33,26 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/onevity/shared/lib/i18n"
 
 // ---------------------------------------------------------------------------
+// Task 68 — injeksi runtime rule ::highlight(select-match).
+// Parser CSS Turbopack/Lightning CSS tidak mengenali pseudo-element
+// ::highlight() (Task 64i) — error parse mematikan seluruh globals.css dan
+// menjatuhkan SEMUA halaman (500). Rule yang sama dipasang lewat elemen
+// <style> sekali per dokumen: tetap theme-aware (var(--accent-live) di
+// :root berubah saat tema aksen berganti) dan tidak pernah membuat app
+// crash bila browser tidak mendukung Custom Highlight API.
+// ---------------------------------------------------------------------------
+if (typeof document !== "undefined" && !document.getElementById("ov-select-match-style")) {
+  const style = document.createElement("style")
+  style.id = "ov-select-match-style"
+  style.textContent =
+    "::highlight(select-match){background-color:color-mix(in oklab,var(--accent-live) 24%,transparent);" +
+    "color:var(--accent-live-deep);text-decoration:underline;" +
+    "text-decoration-color:color-mix(in oklab,var(--accent-live) 55%,transparent);" +
+    "text-underline-offset:2px;border-radius:2px;font-weight:600}"
+  document.head.appendChild(style)
+}
+
+// ---------------------------------------------------------------------------
 // Konteks pencarian — satu state query per <Select> (dibagikan ke Content).
 // ---------------------------------------------------------------------------
 interface SelectSearchCtx {

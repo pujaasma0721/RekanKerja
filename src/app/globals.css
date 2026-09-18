@@ -50,16 +50,12 @@
 }
 
 /* Task 64i — highlight teks yang cocok di dropdown pencarian (CSS Custom
-   Highlight API: painting-only, DOM tidak diubah). Mengikuti tema aksen. */
-::highlight(select-match) {
-  background-color: color-mix(in oklab, var(--accent-live) 24%, transparent);
-  color: var(--accent-live-deep);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, var(--accent-live) 55%, transparent);
-  text-underline-offset: 2px;
-  border-radius: 2px;
-  font-weight: 600;
-}
+   Highlight API: painting-only, DOM tidak diubah). Mengikuti tema aksen.
+   Task 68: rule ::highlight() DIPINDAH ke runtime injection di
+   src/components/ui/select.tsx — parser CSS Turbopack/Lightning CSS tidak
+   mengenali pseudo-element ::highlight() (error parse mematikan seluruh
+   globals.css → seluruh halaman 500). Injeksi <style> runtime tetap
+   theme-aware (var(--accent-live)) dan hanya sekali per dokumen. */
 
 /* ============================================================
    OneVity Design Tokens
