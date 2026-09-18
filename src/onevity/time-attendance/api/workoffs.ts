@@ -15,6 +15,19 @@ export async function GET(req: NextRequest) {
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
     const status = req.nextUrl.searchParams.get("status");
+    // Task 76 — sort server-side (whitelist; default terbaru dulu)
+    const sortByParam = req.nextUrl.searchParams.get("sortBy") ?? "";
+    const sortDirParam = req.nextUrl.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const dir = sortDirParam;
+    const WO_SORT: Record<string, Record<string, unknown>[]> = {
+      doc: [{ docNo: dir }],
+      employee: [{ employee: { fullName: dir } }],
+      date: [{ dateFrom: dir }, { docNo: dir }],
+      duration: [{ allDay: dir }],
+      pay: [{ paid: dir }],
+      deduct: [{ deductLeave: dir }],
+      status: [{ status: dir }],
+    };
     const [permits, dayTypes] = await Promise.all([
       db.workOffPermission.findMany({
         where: status && status !== "all" ? { status } : {},
@@ -22,7 +35,7 @@ export async function GET(req: NextRequest) {
           employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
           dayType: { select: { code: true, name: true } },
         },
-        orderBy: [{ dateFrom: "desc" }, { docNo: "desc" }],
+        orderBy: WO_SORT[sortByParam] ?? [{ dateFrom: "desc" }, { docNo: "desc" }],
       }),
       db.workDayType.findMany({ where: { active: true }, select: { id: true, code: true, name: true }, orderBy: { code: "asc" } }),
     ]);

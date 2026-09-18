@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
       status,
       employeeId: sp.get("employeeId") ?? undefined,
       year: sp.get("year") ? Number(sp.get("year")) : undefined,
+      sortBy: sp.get("sortBy") ?? undefined,
+      sortDir: sp.get("sortDir") === "desc" ? "desc" : sp.get("sortDir") === "asc" ? "asc" : undefined,
     });
     const stats = {
       total: requests.length,

@@ -961,9 +961,19 @@ export interface ClaimRow {
  *  submitClaim/decideClaim (kalkulasi plafon/jurnal) TIDAK lewat fungsi ini. */
 export async function listClaims(
   db: TenantDb,
-  input: { state?: string; year?: number; employeeId?: string; typeId?: string; includeLines?: boolean },
+  input: { state?: string; year?: number; employeeId?: string; typeId?: string; includeLines?: boolean; sortBy?: string; sortDir?: "asc" | "desc" },
   mv: MoneyView,
 ): Promise<ClaimRow[]> {
+  // Task 76 — sort server-side (whitelist; default terbaru dulu). Kolom uang
+  // (bill/approved) terenkripsi → tetap diurut client-side di komponen.
+  const dir = input.sortDir === "desc" ? "desc" : "asc";
+  const CLAIM_SORT: Record<string, Record<string, unknown>[]> = {
+    doc: [{ docNo: dir }],
+    employee: [{ employee: { fullName: dir } }],
+    type: [{ type: { name: dir } }],
+    date: [{ claimDate: dir }, { docNo: dir }],
+    status: [{ state: dir }],
+  };
   const rows = await db.medicalClaim.findMany({
     where: {
       ...(input.state && input.state !== "all" ? { state: input.state } : {}),
@@ -981,7 +991,7 @@ export async function listClaims(
       type: { select: { code: true, name: true } },
       lines: input.includeLines ? true : false,
     },
-    orderBy: [{ claimDate: "desc" }, { docNo: "desc" }],
+    orderBy: CLAIM_SORT[input.sortBy ?? ""] ?? [{ claimDate: "desc" }, { docNo: "desc" }],
     take: 500,
   });
   const chainMap = await attachChainSummaries(db, "Medical", rows.map((r) => ({ id: r.id })));

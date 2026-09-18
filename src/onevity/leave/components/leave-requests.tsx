@@ -3,7 +3,7 @@
 // hari kerja dihitung dari jadwal absensi, saldo & HP kembali kerja otomatis.
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,26 +57,23 @@ export function LeaveRequestsPage() {
     dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
   });
 
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di service).
+  const [sortKey, setSortKey] = useState<"doc" | "employee" | "type" | "dateFrom" | "workingDays" | "remaining" | "backToWork" | "status">("dateFrom");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
   const api = useApi<{ requests: RequestRowUI[]; stats: { total: number; submitted: number; approved: number; rejected: number; cancelled: number; massLeave: number; pendingDays: number; approvedDays: number } }>(
-    `/api/onevity/leave/requests?status=${statusFilter}`,
+    `/api/onevity/leave/requests?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`,
+    [statusFilter, sortKey, sortDir],
   );
   const typesApi = useApi<{ types: LeaveTypeRow[]; employees: EmployeeOption[] }>("/api/onevity/leave/types");
 
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
-
-  // Task 72 — sorting kolom tabel pengajuan cuti (default: terbaru)
-  const sort = useTableSort(requests, {
-    doc: (r) => r.docNo,
-    employee: (r) => r.fullName,
-    type: (r) => r.leaveTypeName,
-    dateFrom: (r) => r.dateFrom,
-    workingDays: (r) => r.workingDays,
-    remaining: (r) => r.remainingAtRequest,
-    backToWork: (r) => r.backToWorkDate,
-    status: (r) => r.status,
-  }, { defaultKey: "dateFrom", defaultDir: "desc" });
 
   // preview auto-compute saat form berubah (debounce)
   useEffect(() => {
@@ -193,19 +190,19 @@ export function LeaveRequestsPage() {
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    {sort.head("doc", t("Dokumen", "Document"), "text-[11px] font-bold")}
-                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
-                    {sort.head("type", t("Jenis"), "text-[11px] font-bold")}
-                    {sort.head("dateFrom", t("Rentang", "Range"), "text-[11px] font-bold")}
-                    {sort.head("workingDays", t("Hari Kerja", "Working Days"), "text-right text-[11px] font-bold")}
-                    {sort.head("remaining", t("Sisa Saldo", "Remaining Balance"), "text-right text-[11px] font-bold")}
-                    {sort.head("backToWork", t("Kembali Kerja", "Back to Work"), "text-[11px] font-bold")}
-                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                    <ServerSortHead label={t("Dokumen", "Document")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Jenis")} active={sortKey === "type"} dir={sortDir} onClick={() => clickSort("type")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Rentang", "Range")} active={sortKey === "dateFrom"} dir={sortDir} onClick={() => clickSort("dateFrom")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Hari Kerja", "Working Days")} active={sortKey === "workingDays"} dir={sortDir} onClick={() => clickSort("workingDays")} className="text-right text-[11px] font-bold" />
+                    <ServerSortHead label={t("Sisa Saldo", "Remaining Balance")} active={sortKey === "remaining"} dir={sortDir} onClick={() => clickSort("remaining")} className="text-right text-[11px] font-bold" />
+                    <ServerSortHead label={t("Kembali Kerja", "Back to Work")} active={sortKey === "backToWork"} dir={sortDir} onClick={() => clickSort("backToWork")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((r) => (
+                  {requests.map((r) => (
                     <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>

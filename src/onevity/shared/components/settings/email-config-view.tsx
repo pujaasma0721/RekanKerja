@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
 import { PageHeader, StatusPill, LoadingRows } from "@/onevity/shared/components/ui-kit";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -540,7 +541,18 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
 
 function LogsPanel() {
   const { t } = useI18n();
-  const { data, loading, refresh } = useApi<{ logs: EmailLogRow[]; total: number; stats: Record<string, number> }>("/api/onevity/email-logs?limit=100");
+  // Task 76 — sort server-side: kolom whitelist dikirim ke API.
+  const [sortKey, setSortKey] = useState<"createdAt" | "event" | "toEmail" | "subject" | "status">("createdAt");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+  const { data, loading, refresh } = useApi<{ logs: EmailLogRow[]; total: number; stats: Record<string, number> }>(
+    `/api/onevity/email-logs?limit=100&sortBy=${sortKey}&sortDir=${sortDir}`,
+    [sortKey, sortDir],
+  );
 
   const stats = data?.stats ?? {};
   const logs = data?.logs ?? [];
@@ -593,11 +605,11 @@ function LogsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Waktu", "Time")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">Event</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Tujuan", "Recipient")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Subjek", "Subject")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    <ServerSortHead label={t("Waktu", "Time")} active={sortKey === "createdAt"} dir={sortDir} onClick={() => clickSort("createdAt")} className="text-[11px] font-bold" />
+                    <ServerSortHead label="Event" active={sortKey === "event"} dir={sortDir} onClick={() => clickSort("event")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Tujuan", "Recipient")} active={sortKey === "toEmail"} dir={sortDir} onClick={() => clickSort("toEmail")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Subjek", "Subject")} active={sortKey === "subject"} dir={sortDir} onClick={() => clickSort("subject")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>

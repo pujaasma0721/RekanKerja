@@ -3,7 +3,7 @@
 // (padanan EmpOvertimeWrit.jsp + approval) dengan multiplier PP 35/2021.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { useTableSort, nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,25 +48,26 @@ export function AttendanceOvertimePage() {
   const [form, setForm] = useState({ employeeId: "", overtimeDate: new Date().toISOString().slice(0, 10), timeFrom: "17:00", timeTo: "20:00", letterNo: "", reason: "" });
   const [busy, setBusy] = useState(false);
 
-  const api = useApi<{ orders: OvertimeRow[]; stats: { total: number; pending: number; approved: number; paid: number; rejected: number; paidMinutes: number; approvedPay: number } }>(`/api/onevity/attendance/overtime?status=${statusFilter}`);
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di route).
+  // "pay" tidak disort server (estPay dihitung after-fetch) — tetap sort client via hook.
+  const [sortKey, setSortKey] = useState<"order" | "employee" | "date" | "category" | "plan" | "actual" | "verified" | "pay" | "status">("date");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+  const api = useApi<{ orders: OvertimeRow[]; stats: { total: number; pending: number; approved: number; paid: number; rejected: number; paidMinutes: number; approvedPay: number } }>(`/api/onevity/attendance/overtime?status=${statusFilter}${sortKey !== "pay" ? `&sortBy=${sortKey}&sortDir=${sortDir}` : ""}`);
   const employeesApi = useApi<{ employees: EmployeeOption[] }>("/api/onevity/attendance/clocking");
 
   const orders = useMemo(() => (api.data?.orders ?? []).filter((o) =>
     !query || o.employee.fullName.toLowerCase().includes(query.toLowerCase()) || o.orderNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
 
-  // Task 72 — sorting kolom tabel lembur (asc/desc via header)
+  // Task 72 — sorting kolom tabel lembur (fallback client utk kolom "pay")
   const sort = useTableSort(orders, {
-    order: (o) => o.orderNo,
-    employee: (o) => o.employee.fullName,
-    date: (o) => o.overtimeDate,
-    category: (o) => o.dayCategory,
-    plan: (o) => o.planMinutes,
-    actual: (o) => o.actualMinutes,
-    verified: (o) => o.verifiedMinutes,
     pay: (o) => o.estPay,
-    status: (o) => o.status,
-  }, { defaultKey: "date", defaultDir: "desc" });
+  }, { defaultKey: "pay", defaultDir: "desc" });
 
   const submit = async () => {
     setBusy(true);
@@ -165,20 +166,20 @@ export function AttendanceOvertimePage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    {sort.head("order", "Order", "text-[11px] font-bold")}
-                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
-                    {sort.head("date", t("Tanggal"), "text-[11px] font-bold")}
-                    {sort.head("category", t("Kategori Hari", "Day Category"), "text-[11px] font-bold")}
-                    {sort.head("plan", t("Rencana", "Plan"), "text-right text-[11px] font-bold")}
-                    {sort.head("actual", t("Aktual", "Actual"), "text-right text-[11px] font-bold")}
-                    {sort.head("verified", t("Terverifikasi", "Verified"), "text-right text-[11px] font-bold")}
+                    <ServerSortHead label="Order" active={sortKey === "order"} dir={sortDir} onClick={() => clickSort("order")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Kategori Hari", "Day Category")} active={sortKey === "category"} dir={sortDir} onClick={() => clickSort("category")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Rencana", "Plan")} active={sortKey === "plan"} dir={sortDir} onClick={() => clickSort("plan")} className="text-right text-[11px] font-bold" />
+                    <ServerSortHead label={t("Aktual", "Actual")} active={sortKey === "actual"} dir={sortDir} onClick={() => clickSort("actual")} className="text-right text-[11px] font-bold" />
+                    <ServerSortHead label={t("Terverifikasi", "Verified")} active={sortKey === "verified"} dir={sortDir} onClick={() => clickSort("verified")} className="text-right text-[11px] font-bold" />
                     {sort.head("pay", t("Estimasi Upah", "Est. Pay"), "text-right text-[11px] font-bold")}
-                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                     <TableHead className="w-32" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((o) => (
+                  {(sortKey === "pay" ? sort.sorted : orders).map((o) => (
                     <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{o.orderNo}</p>

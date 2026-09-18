@@ -12,7 +12,6 @@
 // (pola menu-perms-context); menu itu sendiri sudah difilter AppShell.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, ChevronLeft, ChevronRight, Download, ScrollText, X, User } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Download, ScrollText, X, User, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, locActivity } from "@/onevity/shared/lib/i18n";
 
@@ -97,6 +96,25 @@ export function ActivityLogView() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [offset, setOffset] = useState(0);
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist),
+  // urutan menembus seluruh data — bukan hanya halaman yang dimuat.
+  const [sortKey, setSortKey] = useState<"time" | "actor" | "employee" | "action" | "entity">("time");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "time" ? "desc" : "asc"); }
+  };
+  // header kolom dengan state server — ikon & aksi dari sortKey/sortDir
+  const sortHead = (key: typeof sortKey, label: string, cls?: string) => (
+    <TableHead className={cls}>
+      <button onClick={() => toggleSort(key)} className="inline-flex items-center gap-1 hover:text-stone-600 dark:hover:text-stone-300" aria-label={`${label} — ${sortKey === key && sortDir === "asc" ? "descending" : "ascending"}`}>
+        {label}
+        {sortKey === key
+          ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />)
+          : <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />}
+      </button>
+    </TableHead>
+  );
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // live search — debounce 300ms
@@ -114,8 +132,10 @@ export function ActivityLogView() {
     if (employeeId !== "all") sp.set("employeeId", employeeId);
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
+    sp.set("sortBy", sortKey);
+    sp.set("sortDir", sortDir);
     return `/api/onevity/activity-logs?${sp.toString()}`;
-  }, [debouncedQ, action, entity, employeeId, from, to, offset]);
+  }, [debouncedQ, action, entity, employeeId, from, to, offset, sortKey, sortDir]);
 
   const { data, loading, error } = useApi<LogsResp>(url, [url]);
   const emps = useApi<{ employees: { id: string; fullName: string; employeeNo: string }[] }>(
@@ -123,15 +143,6 @@ export function ActivityLogView() {
   );
 
   const rows = data?.logs ?? [];
-
-  // Task 72 — sorting kolom log aktivitas (default: terbaru)
-  const sort = useTableSort(rows, {
-    time: (r) => r.createdAt,
-    actor: (r) => r.appUser?.fullName ?? (r.actorType === "system" ? "system" : null),
-    employee: (r) => r.employee?.fullName ?? null,
-    action: (r) => r.action,
-    entity: (r) => r.entity,
-  }, { defaultKey: "time", defaultDir: "desc" });
   const total = data?.total ?? 0;
   const from_ = total === 0 ? 0 : offset + 1;
   const to_ = Math.min(offset + PAGE_SIZE, total);
@@ -272,16 +283,16 @@ export function ActivityLogView() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                 <TableRow className="hover:bg-transparent">
-                  {sort.head("time", t("Waktu", "Time"), "h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sort.head("actor", t("Aktor", "Actor"), "h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sort.head("employee", t("Karyawan"), "h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 md:table-cell")}
-                  {sort.head("action", t("Aksi", "Action"), "h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sort.head("entity", t("Entitas", "Entity"), "h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 sm:table-cell")}
+                  {sortHead("time", t("Waktu", "Time"), "h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sortHead("actor", t("Aktor", "Actor"), "h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sortHead("employee", t("Karyawan"), "h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 md:table-cell")}
+                  {sortHead("action", t("Aksi", "Action"), "h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sortHead("entity", t("Entitas", "Entity"), "h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 sm:table-cell")}
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Detail")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sort.sorted.map((r) => (
+                {rows.map((r) => (
                   <TableRow key={r.id} className="align-top transition-colors hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
                     <TableCell className="py-3 pr-4">
                       <p className="text-[12.5px] font-semibold text-stone-700 dark:text-stone-200">

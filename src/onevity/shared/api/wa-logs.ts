@@ -20,8 +20,17 @@ export async function GET(req: NextRequest) {
     if (event) where.event = event;
     if (status) where.status = status;
 
+    // Task 76 — sort server-side (whitelist; default terbaru dulu)
+    const sortByParam = url.searchParams.get("sortBy") ?? "";
+    const sortDirParam = url.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const WA_SORT: Record<string, string> = { createdAt: "createdAt", event: "event", toPhone: "toPhone", status: "status" };
+    const waOrderBy: Record<string, unknown>[] = [
+      ...(WA_SORT[sortByParam] ? [{ [WA_SORT[sortByParam]]: sortDirParam }] : []),
+      { createdAt: "desc" },
+    ];
+
     const [logs, total, byStatus] = await Promise.all([
-      db.waLog.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, skip: offset }),
+      db.waLog.findMany({ where, orderBy: waOrderBy, take: limit, skip: offset }),
       db.waLog.count({ where }),
       db.waLog.groupBy({ by: ["status"], _count: { _all: true }, where: status ? { status } : undefined }),
     ]);

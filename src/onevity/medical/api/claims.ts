@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
       employeeId: sp.get("employeeId") ?? undefined,
       typeId: sp.get("typeId") ?? undefined,
       includeLines,
+      sortBy: sp.get("sortBy") ?? undefined,
+      sortDir: sp.get("sortDir") === "desc" ? "desc" : sp.get("sortDir") === "asc" ? "asc" : undefined,
     }, mv);
     // T16-ATTACH: sertai metadata lampiran per klaim (badge "lampiran n" + preview).
     const attachMap = await attachmentsByEntityIds(db, "MedicalClaim", claims.map((c) => c.id));

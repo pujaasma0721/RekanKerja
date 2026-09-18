@@ -11,7 +11,15 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const limit = Math.max(1, Math.min(200, Math.floor(Number(url.searchParams.get("limit")) || 50)));
-    const logs = await db.emailLog.findMany({ orderBy: { createdAt: "desc" }, take: limit });
+    // Task 76 — sort server-side (whitelist; default terbaru dulu)
+    const sortByParam = url.searchParams.get("sortBy") ?? "";
+    const sortDirParam = url.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const EMAIL_SORT: Record<string, string> = { createdAt: "createdAt", event: "event", toEmail: "toEmail", subject: "subject", status: "status" };
+    const emailOrderBy: Record<string, unknown>[] = [
+      ...(EMAIL_SORT[sortByParam] ? [{ [EMAIL_SORT[sortByParam]]: sortDirParam }] : []),
+      { createdAt: "desc" },
+    ];
+    const logs = await db.emailLog.findMany({ orderBy: emailOrderBy, take: limit });
     const total = await db.emailLog.count();
 
     const byStatus = await db.emailLog.groupBy({ by: ["status"], _count: { _all: true } });

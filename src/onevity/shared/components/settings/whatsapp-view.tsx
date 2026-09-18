@@ -9,6 +9,7 @@
 // =======================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -547,8 +548,16 @@ function LogsPanel() {
   const [status, setStatus] = useState("all");
   const [event, setEvent] = useState("all");
   const [page, setPage] = useState(0);
+  // Task 76 — sort server-side: kolom whitelist dikirim ke API.
+  const [sortKey, setSortKey] = useState<"createdAt" | "event" | "toPhone" | "status">("createdAt");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
   const PAGE = 50;
-  const url = `/api/onevity/wa-logs?limit=${PAGE}&offset=${page * PAGE}&status=${status === "all" ? "" : status}&event=${encodeURIComponent(event === "all" ? "" : event)}`;
+  const url = `/api/onevity/wa-logs?limit=${PAGE}&offset=${page * PAGE}&status=${status === "all" ? "" : status}&event=${encodeURIComponent(event === "all" ? "" : event)}&sortBy=${sortKey}&sortDir=${sortDir}`;
   const { data, loading, refresh } = useApi<{ logs: WaLogRow[]; total: number; stats: Record<string, number>; events: string[] }>(url);
 
   const stats = data?.stats ?? {};
@@ -627,10 +636,10 @@ function LogsPanel() {
                 <Table>
                   <TableHeader className="sticky top-0 z-10">
                     <TableRow className="bg-stone-50 dark:bg-stone-900">
-                      <TableHead className="text-[11px] font-bold">{t("Waktu", "Time")}</TableHead>
-                      <TableHead className="text-[11px] font-bold">Event</TableHead>
-                      <TableHead className="text-[11px] font-bold">{t("Nomor", "Number")}</TableHead>
-                      <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                      <ServerSortHead label={t("Waktu", "Time")} active={sortKey === "createdAt"} dir={sortDir} onClick={() => clickSort("createdAt")} className="text-[11px] font-bold" />
+                      <ServerSortHead label="Event" active={sortKey === "event"} dir={sortDir} onClick={() => clickSort("event")} className="text-[11px] font-bold" />
+                      <ServerSortHead label={t("Nomor", "Number")} active={sortKey === "toPhone"} dir={sortDir} onClick={() => clickSort("toPhone")} className="text-[11px] font-bold" />
+                      <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                       <TableHead className="text-[11px] font-bold">{t("Pesan / Error", "Message / Error")}</TableHead>
                     </TableRow>
                   </TableHeader>

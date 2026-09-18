@@ -1907,3 +1907,133 @@ Work Log:
 Stage Summary:
 - GitHub HEAD kini benar-benar sehat: fresh clone → install → dev → jalan (dua fatal 500 beruntun diperbaiki: 57c2a45 CSS ::highlight, c4d18ab export sort helper).
 - Lingkungan lokal: dev server jalan (watch-dev.sh double-fork), PostgreSQL 3 tenant demo, sort server-side terverifikasi end-to-end.
+Task ID: 65b
+Agent: Buffy (Codebuff)
+Date: 2026-09-16
+## Isi penerima email checklist per bagian SAYONE + resend (API)
+- PUT /api/onevity/checklist-recipients ×6 bagian (Supervisor/IT/GA/Finance/HR/Payroll) → pujaas007@gmail.com (sementara, untuk verifikasi)
+- PATCH onboarding/[id] {action:"resendEmail"} → 5 bagian dikirimi (Onboarding tidak punya tugas Finance)
+- Verifikasi: EmailLog 5/5 Sent; Postfix 4×250 OK + 1×550-5.7.25 (PTR IPv6 belum ada — Gmail bounce acak; solusi: minta ISP MyRepublic set PTR 2402:8780:1134:245:be24:11ff:fe92:2bdb → mail.sayone.my.id)
+- Skrip: scripts/e2e-checklist-recipients.ts (commit e8401e7)
+
+---
+Task ID: 66
+Agent: Buffy (Codebuff)
+Date: 2026-09-17
+## Header detail karyawan → hero card full aksen (commit 1626a6d)
+- EmployeeDetail header card: strip ov-hero tipis → card penuh ov-hero+ov-glow (rounded-3xl, glow blur putih) selaras card welcome dashboard HR
+- Teks/badge/garis putih; avatar ring putih translusen; tombol Edit glass
+- ContactChip: prop tone="solid" (kaca putih) untuk hero; varian outline lama tetap
+- Fix tsc: export {} di 4 skrip E2E (deklarasi global bentrok)
+- Deploy .15: clone fresh 1626a6d + copy node_modules lama (repo tanpa lockfile; npm ci tak bisa dipakai), build OK, cutover, health=200, rollback tersimpan di onevity-rollback-0917
+
+---
+Task ID: 67
+Agent: Buffy (Codebuff)
+Date: 2026-09-17
+## Lockfile untuk deploy .15 (commit e73c9c1 + d9d5e0d)
+- package-lock.json (v3, 1077 pkgs) di-commit — refresh via npm install --package-lock-only --legacy-peer-deps
+- .npmrc legacy-peer-deps=true — repo punya konflik peer-deps; tanpa ini npm ci ERESOLVE di clone fresh
+- Validasi di .15: clone fresh d9d5e0d + npm ci polos → 977 packages OK (1m38s), folder tes dihapus
+- Pola deploy .15 berikutnya: git clone → npm ci → db:generate → build → cutover PM2 (tidak perlu copy node_modules lagi)
+
+---
+Task ID: 68
+Agent: Buffy (Codebuff)
+Date: 2026-09-17
+## deploy.sh — deploy otomatis .15 satu perintah (commit b037d79)
+- Alur: preflight (pm2/env/.env/repo-url) → lock anti-dobel → clone fresh → npm ci → db:generate → build → cutover mv → healthcheck 12×5s → rollback otomatis jika gagal setelah cutover → sisakan 3 rollback
+- Token repo TIDAK di-commit: dibaca dari ~/.onevity-deploy.conf (600) di server / fallback remote git folder aktif; log: ~/onevity-deploy.log
+- Tes: preflight gagal-OK (app dir fiktif, exit 1); deploy penuh sukses — d9d5e0d aktif, health 200 (attempt-2); bug exit-2 cleanup glob (pipefail) diperbaiki dengan || true
+- Terpasang di .15: /home/puja/deploy.sh (update: git pull lalu scp ulang)
+- Pemakaian: ssh puja@192.168.1.15 '/home/puja/deploy.sh'
+
+---
+Task ID: 70
+Agent: Buffy (Codebuff)
+Date: 2026-09-18
+Task: E2E prod — ubah penempatan SAYONE tanpa PA, cek timeline & prorate payroll
+Status: DONE (PASS)
+
+Hasil:
+- PATCH /api/onevity/employee-detail (org+gaji, effectiveDate mid-month) →
+  timeline bertambah 1 langkah "Perubahan Manual" (ManualEdit) ✓
+- Run Confirmed PR-2026-09-SAL-08 dihitung ulang PARSIAL via recalcEmployees ✓
+- BASIC = penuh gaji versi period end 13.228.000 (tidak diprorata) ✓
+- JHT-CO = 466.003 = 3,7% × wavg 2 segmen (18×12.228.000 + 12×13.228.000)/30
+  = prorate segmen harian terbukti persis ✓
+- Rollback otomatis ke baseline + residu uji dibersihkan dari DB; run
+  dikembalikan ke Confirmed.
+
+Pelajaran teknis:
+- Batas versi: validTo tengah malam = hari itu milik versi BERIKUTNYA
+  (partisi engine: cursor inclusive pada hari pertama tiap versi).
+- applyAssignmentChange no-op bila target == versi yang berlaku pada
+  effectiveDate (bukan hanya baris aktif) — pilih tanggal efektif > validFrom
+  baris aktif saat uji.
+- Skrip: scripts/e2e-transfer-no-pa.ts (commit bce9f5b).
+
+---
+Task ID: 71
+Agent: Buffy
+Date: 2026-09-18
+
+## Periode Payroll: pembuatan 12 bulan otomatis + preview + TA period user-defined
+- POST payroll-periods `bulk:true`: 12 period bulanan 1 tahun dalam 1 transaksi; bulan sudah ada/beririsan dilewati (idempoten, 200 bila 0 dibuat); pola TA window opsional (tgl mulai/selesai + offset bulan).
+- Dialog "Period Baru": 2 mode (Satu Period / 12 Bulan Sekaligus) dengan preview tabel 12 bulan + status akan dibuat/sudah ada/beririsan sebelum simpan.
+- TA window user-defined: bisa diisi saat bulk create; tombol "Ubah TA" per baris (PATCH taStartDate/taEndDate, null = hapus window); validasi urutan tanggal di POST & PATCH.
+- DELETE payroll-periods (batch, guard: Open + tanpa run/klaim/assignment, 409 bila ditolak).
+- E2E prod SAYONE: 12 period 2027 dibuat ✓ pola TA 26 bln lalu → 25 bln ini ✓ TA terbalik ditolak 400 ✓ TA lintas bulan 5 Jan→4 Feb tersimpan ✓ null menghapus window ✓ bulk ulang dilewati semua ✓ DELETE bersih 12 ✓ (scripts/e2e-bulk-periods.ts)
+- Commit: 3c0deed, 9566b08; deploy .15 health 200.
+
+---
+Task ID: 73
+Agent: Buffy
+Date: 2026-09-18
+
+## Sorting asc/desc di semua tabel mode list
+- Hook shared `useTableSort` (src/onevity/shared/lib/use-table-sort.tsx): klik header urut asc → desc; ikon ArrowUp/Down/UpDown; null selalu di bawah; angka numerik, teks localeCompare "id" (numeric collation — NIP urut alami).
+- Header kolom jadi tombol (hover, title tooltip) — aksesibilitas keyboard tetap.
+- Diterapkan ke 25 tabel utama: HR (direktori karyawan 9 kolom, posisi, level, kantor, lokasi kerja, offboarding, pengajuan PA), Payroll (periode, run, profil, transaksi komponen, jurnal, klaim benefit, komponen upah, rekap SPT, UMP/UMK), TA (izin, lembur, penugasan jadwal, hari libur), Leave (pengajuan, saldo), Medical (klaim, jenis benefit), Travel (pengajuan, settlement), Settings (log aktivitas, pengguna).
+- Default sort masuk akal per tabel: transaksi terbaru dulu (doc/tanggal desc), master alfabetis (nama/kode asc); SPT default PPh21 terbesar; run & period terbaru dulu.
+- Catatan: direktori karyawan server-side paginated (25/hal) → sorting berlaku per halaman; halaman lain full-list sehingga sorting menyeluruh.
+- Lint/typecheck bersih untuk kode baru (error tersisa = pre-existing di dialog lama, diverifikasi via git stash).
+- Commit: 25ac85d; deploy .15 health 200.
+
+---
+Task ID: 74
+Agent: Buffy
+Date: 2026-09-18
+
+## Sorting server-side direktori karyawan (lintas halaman)
+- GET /api/onevity/employees terima sortBy/sortDir (whitelist ketat, sortDir invalid → asc).
+- Kolom langsung (nama/nip/status/join/kontrak): orderBy Prisma di DB sebelum take/skip.
+- Kolom penempatan (posisi/unit/grade/status kerja/gaji terenkripsi): tidak bisa orderBy Prisma
+  via relasi to-many → server sort in-memory SELURUH hasil terfilter setelah flatten/decrypt,
+  lalu slice halaman; nulls/0-gaji selalu di bawah; tie-break NIP.
+- UI direktori kirim sortBy/sortDir (map kolom UI→API) + reset offset saat ganti sort;
+  header pakai state server (ikon ↑/↓/↕ sama dengan tabel lain).
+- E2E prod SAYONE (500 karyawan, 20 hal × 25): NIP asc hal1 1..25 → hal2 26..50 bersambung ✓;
+  NIP desc hal1 500..476 ✓; Nama asc alfabetis lintas halaman ✓; Gaji desc (vault di-unlock)
+  hal1 min 14.874.000 ≥ hal2 max 14.834.000 ✓; fallback asc ✓ — scripts/e2e-directory-sort.ts
+- Commit: 63cb481 (+ skrip E2E); deploy .15 health 200.
+
+---
+Task ID: 75
+Agent: Buffy
+Date: 2026-09-18
+
+## Sort server-side untuk Profil Payroll & Run Payroll (pola Task 74)
+- payroll-profiles GET: sortBy/sortDir whitelist — nama/nip via orderBy Prisma;
+  gaji terenkripsi, unit, posisi, grade, npwp, ptkp, metode, template, bank diurut
+  in-memory atas seluruh baris terfilter setelah serializer (nulls terakhir, tie-break NIP).
+- UI Payroll Profiles: sortKey/sortDir state server-side, satu fetch gabungan dengan
+  pencarian (q), header pakai helper sortHead (ikon ↑/↓/↕ konsisten).
+- payroll-runs GET: orderBy dinamis + nested relasi (period.startDate, processType.name,
+  lines._count), default createdAt desc; total uang terenkripsi (bruto/tax/net) diurut
+  in-memory setelah dekripsi; UI Run diubah ke state server (useTableSort dilepas).
+- E2E prod SAYONE (500 karyawan aktif): NIP asc ✓ nama desc ✓ gaji desc 16,45jt→4,95jt ✓
+  PTKP asc (K0..TK3) ✓ fallback invalid ✓; Run: runNo desc ✓ THP asc ✓ periode asc ✓
+  — scripts/e2e-payroll-sort.ts
+- Juga: export {} pada skrip E2E agar tsc memperlakukannya sebagai module (tidak bentrok).
+- Commit: 3c7c248, 8d1f0a2; deploy .15 health 200.

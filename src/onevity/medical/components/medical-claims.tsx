@@ -3,7 +3,7 @@
 // (padanan MedicalBenefitClaim.jsp + wizard ESS MyMedicalExpenseClaim.jsp).
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { useTableSort, nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import {
@@ -72,8 +72,18 @@ export function MedicalClaimsPage() {
   // klaim diajukan → di-rebind server ke klaim baru).
   const [files, setFiles] = useState<File[]>([]);
 
+  // Task 76 — sorting SERVER-SIDE utk kolom teks/tanggal (whitelist di service).
+  // Kolom uang (bill/approved) terenkripsi → tetap diurut client-side via hook.
+  const [sortKey, setSortKey] = useState<"doc" | "employee" | "type" | "date" | "bill" | "approved" | "status">("date");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+  const serverSorted = sortKey === "bill" || sortKey === "approved";
   const api = useApi<{ claims: ClaimUI[]; stats: { total: number; submitted: number; approved: number; settled: number; settledAmount: number } }>(
-    `/api/onevity/medical/claims?state=${statusFilter}`,
+    `/api/onevity/medical/claims?state=${statusFilter}${serverSorted ? "" : `&sortBy=${sortKey}&sortDir=${sortDir}`}`,
   );
   const detailApi = useApi<{ claims: ClaimUI[] }>(`/api/onevity/medical/claims?state=all&includeLines=1`, [statusFilter]);
   const master = useApi<{ types: BenefitTypeUI[] }>("/api/onevity/medical/types");
@@ -83,16 +93,11 @@ export function MedicalClaimsPage() {
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
 
-  // Task 72 — sorting kolom tabel klaim medis (default: terbaru)
+  // Task 72 — sorting client utk kolom uang (fallback)
   const sort = useTableSort(claims, {
-    doc: (c) => c.docNo,
-    employee: (c) => c.fullName,
-    type: (c) => c.typeName,
-    date: (c) => c.claimDate,
     bill: (c) => c.totalBill,
     approved: (c) => c.totalApproved,
-    status: (c) => c.state,
-  }, { defaultKey: "date", defaultDir: "desc" });
+  }, { defaultKey: "bill", defaultDir: "desc" });
 
   const employees = balanceMeta.data?.employees ?? [];
   const types = (master.data?.types ?? []).filter((t) => t.active);
@@ -247,17 +252,17 @@ export function MedicalClaimsPage() {
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
                     <TableHead className="w-8" />
-                    {sort.head("doc", t("No. Dokumen", "Doc. No."))}
-                    {sort.head("employee", t("Karyawan"))}
-                    {sort.head("type", t("Jenis"))}
-                    {sort.head("date", t("Tanggal"))}
+                    <ServerSortHead label={t("No. Dokumen", "Doc. No.")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} />
+                    <ServerSortHead label={t("Jenis")} active={sortKey === "type"} dir={sortDir} onClick={() => clickSort("type")} />
+                    <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} />
                     {sort.head("bill", t("Tagihan", "Bill"), "text-right")}
                     {sort.head("approved", "Approved", "text-right")}
-                    {sort.head("status", t("Status"))}
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((c) => {
+                  {(serverSorted ? sort.sorted : claims).map((c) => {
                     const open = expanded === c.id;
                     const detail = open ? detailOf(c.id) : null;
                     return (

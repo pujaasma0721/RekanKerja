@@ -18,8 +18,20 @@ export async function GET(req: NextRequest) {
     if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
 
     const status = req.nextUrl.searchParams.get("status");
-    // T5-TA-FIX (D-6a): estimasi upah memakai rule (minimum + rounding interval),
-    // konsisten dgn rekap uang recapPeriod/transfer — bukan hardcode 30 menit.
+    // Task 76 — sort server-side (whitelist; default terbaru dulu)
+    const sortByParam = req.nextUrl.searchParams.get("sortBy") ?? "";
+    const sortDirParam = req.nextUrl.searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const dir = sortDirParam;
+    const OT_SORT: Record<string, Record<string, unknown>[]> = {
+      order: [{ orderNo: dir }],
+      employee: [{ employee: { fullName: dir } }],
+      date: [{ overtimeDate: dir }, { orderNo: dir }],
+      category: [{ dayCategory: dir }],
+      plan: [{ planMinutes: dir }],
+      actual: [{ actualMinutes: dir }],
+      verified: [{ verifiedMinutes: dir }],
+      status: [{ status: dir }],
+    };
     const rule = await getRule(db);
     const orders = await db.overtimeOrder.findMany({
       where: status && status !== "all" ? { status } : {},
@@ -31,7 +43,7 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: [{ overtimeDate: "desc" }, { orderNo: "desc" }],
+      orderBy: OT_SORT[sortByParam] ?? [{ overtimeDate: "desc" }, { orderNo: "desc" }],
     });
 
     // T15-CHAIN-EXT: ringkasan approval berjenjang per order (badge "Jenjang X/Y"

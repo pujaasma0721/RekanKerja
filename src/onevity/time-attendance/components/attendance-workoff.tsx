@@ -3,7 +3,7 @@
 // EmployeeWorkOff.jsp) — paid/unpaid, potong cuti, approval.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
-import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
+import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,23 +53,20 @@ export function AttendanceWorkoffPage() {
     paid: true, deductLeave: true, reason: "", documentNote: "",
   });
 
-  const api = useApi<{ permits: WorkoffRow[]; stats: { total: number; pending: number; approved: number; paid: number; unpaid: number; deductLeave: number; totalDays: number } }>(`/api/onevity/attendance/workoffs?status=${statusFilter}`);
+  // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di route).
+  const [sortKey, setSortKey] = useState<"doc" | "employee" | "date" | "duration" | "pay" | "deduct" | "status">("date");
+  const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+  const clickSort = (k: typeof sortKey) => {
+    const n = nextServerSort(sortKey, sortDir, k);
+    setSortKey(n.sortBy as typeof sortKey);
+    setSortDir(n.sortDir);
+  };
+  const api = useApi<{ permits: WorkoffRow[]; stats: { total: number; pending: number; approved: number; paid: number; unpaid: number; deductLeave: number; totalDays: number } }>(`/api/onevity/attendance/workoffs?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`);
   const employeesApi = useApi<{ employees: EmployeeOption[] }>("/api/onevity/attendance/clocking");
 
   const permits = useMemo(() => (api.data?.permits ?? []).filter((p) =>
     !query || p.employee.fullName.toLowerCase().includes(query.toLowerCase()) || p.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
-
-  // Task 72 — sorting kolom tabel izin (asc/desc via header)
-  const sort = useTableSort(permits, {
-    doc: (p) => p.docNo,
-    employee: (p) => p.employee.fullName,
-    date: (p) => p.dateFrom,
-    duration: (p) => p.allDay ? 1 : 0,
-    pay: (p) => (p.paid ? 0 : 1),
-    deduct: (p) => (p.deductLeave ? 0 : 1),
-    status: (p) => p.status,
-  }, { defaultKey: "date", defaultDir: "desc" });
 
   const submit = async () => {
     setBusy(true);
@@ -170,18 +167,18 @@ export function AttendanceWorkoffPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    {sort.head("doc", t("Dokumen", "Document"), "text-[11px] font-bold")}
-                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
-                    {sort.head("date", t("Tanggal"), "text-[11px] font-bold")}
-                    {sort.head("duration", t("Durasi", "Duration"), "text-[11px] font-bold")}
-                    {sort.head("pay", t("Upah", "Pay"), "text-[11px] font-bold")}
-                    {sort.head("deduct", t("Potong Cuti", "Deduct Leave"), "text-[11px] font-bold")}
-                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                    <ServerSortHead label={t("Dokumen", "Document")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Durasi", "Duration")} active={sortKey === "duration"} dir={sortDir} onClick={() => clickSort("duration")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Upah", "Pay")} active={sortKey === "pay"} dir={sortDir} onClick={() => clickSort("pay")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Potong Cuti", "Deduct Leave")} active={sortKey === "deduct"} dir={sortDir} onClick={() => clickSort("deduct")} className="text-[11px] font-bold" />
+                    <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
                     <TableHead className="w-32" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sort.sorted.map((p) => (
+                  {permits.map((p) => (
                     <TableRow key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{p.docNo}</p>

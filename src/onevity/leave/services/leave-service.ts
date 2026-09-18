@@ -801,8 +801,22 @@ export interface RequestRow {
 
 export async function listRequests(
   db: TenantDb,
-  filter: { status?: string; employeeId?: string; year?: number; limit?: number } = {},
+  filter: { status?: string; employeeId?: string; year?: number; limit?: number; sortBy?: string; sortDir?: "asc" | "desc" } = {},
 ): Promise<RequestRow[]> {
+  // Task 76 — sort server-side (whitelist; default terbaru dulu). Kolom relasi
+  // via to-one: nama karyawan (employee), nama jenis cuti (leaveType).
+  const dir = filter.sortDir === "desc" ? "desc" : "asc";
+  const LEAVE_SORT: Record<string, Record<string, unknown>[]> = {
+    doc: [{ docNo: dir }],
+    employee: [{ employee: { fullName: dir } }],
+    type: [{ leaveType: { name: dir } }],
+    dateFrom: [{ dateFrom: dir }, { dateTo: dir }],
+    workingDays: [{ workingDays: dir }],
+    remaining: [{ remainingAtRequest: dir }],
+    backToWork: [{ backToWorkDate: { sort: dir, nulls: "last" } }],
+    status: [{ status: dir }],
+  };
+  const leaveOrderBy = LEAVE_SORT[filter.sortBy ?? ""] ?? [{ requestDate: "desc" }, { docNo: "desc" }];
   const rows = await db.leaveRequest.findMany({
     where: {
       ...(filter.status && filter.status !== "all" ? { status: filter.status } : {}),
@@ -818,7 +832,7 @@ export async function listRequests(
       },
       leaveType: { select: { name: true, code: true, paid: true } },
     },
-    orderBy: [{ requestDate: "desc" }, { docNo: "desc" }],
+    orderBy: leaveOrderBy,
     take: filter.limit ?? 500,
   });
   const chainMap = await attachChainSummaries(db, "Leave", rows.map((r) => ({ id: r.id })));

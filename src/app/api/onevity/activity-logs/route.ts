@@ -34,6 +34,24 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Math.max(Number(sp.get("limit") ?? 50) || 50, 1), 200);
     const offset = Math.max(Number(sp.get("offset") ?? 0) || 0, 0);
 
+    // Task 76 — sort server-side (whitelist ketat; default terbaru dulu).
+    // Semua kolom bisa orderBy Prisma langsung — appUser/employee relasi to-one.
+    // nulls:"last" → baris tanpa aktor/karyawan (aktor SISTEM) selalu paling bawah.
+    const sortByParam = sp.get("sortBy") ?? "";
+    const sortDirParam = sp.get("sortDir") === "desc" ? "desc" : "asc";
+    const dir = sortDirParam;
+    const LOG_SORT: Record<string, Record<string, unknown>> = {
+      time: { createdAt: dir },
+      actor: { appUser: { fullName: { sort: dir, nulls: "last" } } },
+      employee: { employee: { fullName: { sort: dir, nulls: "last" } } },
+      action: { action: dir },
+      entity: { entity: dir },
+    };
+    const logOrderBy: Record<string, unknown>[] = [
+      ...(LOG_SORT[sortByParam] ? [LOG_SORT[sortByParam]] : []),
+      { createdAt: "desc" },
+    ];
+
     const where: Record<string, unknown> = {};
     if (action && action !== "all") where.action = action;
     if (entity && entity !== "all") where.entity = entity;
@@ -60,7 +78,7 @@ export async function GET(req: NextRequest) {
       const rows = await g.db.activityLog.findMany({
         where,
         include,
-        orderBy: { createdAt: "desc" },
+        orderBy: logOrderBy,
         take: 5000,
       });
       await g.db.activityLog.create({
@@ -94,7 +112,7 @@ export async function GET(req: NextRequest) {
 
     // ---------- halaman biasa: data + agregat filter ----------
     const [logs, total, actionAgg, entityAgg] = await Promise.all([
-      db.activityLog.findMany({ where, include, orderBy: { createdAt: "desc" }, take: limit, skip: offset }),
+      db.activityLog.findMany({ where, include, orderBy: logOrderBy, take: limit, skip: offset }),
       db.activityLog.count({ where }),
       db.activityLog.groupBy({ by: ["action"], where, _count: true }),
       db.activityLog.groupBy({ by: ["entity"], where, _count: true }),
