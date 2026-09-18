@@ -1891,3 +1891,19 @@ Work Log:
 Stage Summary:
 - Repo = origin/main (57c2a45): pull PENUH + compile PULIH — namun kode GitHub apa adanya (e178372) TIDAK bisa jalan sebelum fix CSS ini (500 di semua halaman); fresh clone/start kini aman.
 - Lingkungan sandbox dipulihkan total: PostgreSQL 3 tenant demo + akun + parity 0 gap; dev server dijaga watch-dev.sh (double-fork); fitur inti (laporan bulanan XLSX) terverifikasi end-to-end di atas data hasil restore.
+
+---
+Task ID: 68b
+Agent: orchestrator (Z.ai)
+Task: Fix fatal kedua pasca-pull — export nextServerSort/ServerSortHead/ServerSortDir hilang dari use-table-sort (kommit 75dc4cd sesi paralel mengimpor helper yang tak pernah dikommit).
+
+Work Log:
+- SETELAH push 715d1f1, remote maju sendiri (75dc4cd — sort server-side utk travel/jurnal payroll/personnel actions/offboarding) → rebase masuk → GET / 500 LAGI.
+- Error: "Export nextServerSort doesn't exist in target module" — 5 konsumen (travel-requests, travel-claims, payroll-journals, actions-module, offboarding-module) mengimpor { nextServerSort, ServerSortHead, ServerSortDir } dari @/onevity/shared/lib/use-table-sort, tapi file itu hanya mengekspor useTableSort (Task 72, sisi-klien). Sesi paralel lupa mengommit update file helper-nya.
+- FIX (c4d18ab): tambahkan ke use-table-sort.tsx — ServerSortDir type, nextServerSort(currentKey, currentDir, clickedKey) → { sortBy, sortDir } (kolom sama → balik arah; kolom baru → "asc", semantik konsisten pola Task 75 payroll-profiles), + komponen ServerSortHead ({label, active, dir, onClick, className}) = TableHead + tombol ikon ↑/↓/↕ dgn aria-sort (pola visual identik useTableSort.head). Tidak mengubah ekspor lama.
+- VERIFIKASI: tsc bersih; GET / pulih 200; browser — halaman Jurnal Payroll render header sortable, klik "Sumber Run" → GET payroll-journals?sortBy=run&sortDir=asc 200 ✓ (semantik kolom-baru="asc" terbukti); console bersih setelah clear (error lama = buffer sebelum fix).
+- Pelajaran pola berulang: dua bug fatal berturut-turut (0925d55 CSS, 75dc4cd import) = sesi paralel mengommit TANPA menjalankan app/compiler sekali pun. Golden rule baru: sebelum push, minimal GET / + tsc.
+
+Stage Summary:
+- GitHub HEAD kini benar-benar sehat: fresh clone → install → dev → jalan (dua fatal 500 beruntun diperbaiki: 57c2a45 CSS ::highlight, c4d18ab export sort helper).
+- Lingkungan lokal: dev server jalan (watch-dev.sh double-fork), PostgreSQL 3 tenant demo, sort server-side terverifikasi end-to-end.
