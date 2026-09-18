@@ -286,13 +286,30 @@ export async function GET(req: NextRequest) {
     // gabungkan dengan cakupan skema akses (AND)
     const scoped: Record<string, unknown> = Object.keys(scopeCond).length > 0 ? { AND: [where, scopeCond] } : where;
 
+    // Task 74 — sorting server-side: sort lintas SELURUH data sebelum take/skip.
+    // Kolom diizinkan via whitelist (tidak ada string mentah dari client masuk orderBy).
+    // • Kolom langsung (nama/nip/status/join/kontrak) → orderBy Prisma (sort di DB).
+    // • Kolom penempatan (posisi/unit/grade/status kerja/gaji terenkripsi) → tidak
+    //   bisa lewat orderBy Prisma (relasi to-one via to-many + gaji terenkripsi):
+    //   diurut in-memory di server atas SELURUH hasil terfilter, lalu di-slice
+    //   ke halaman — klien tetap menerima satu halaman.
+    const DIRECT_SORT = new Set(["fullName", "employeeNo", "status", "joinDate", "contractEnd"]);
+    const PLACEMENT_SORT = new Set(["position", "unit", "grade", "employmentStatus", "baseSalary"]);
+    const sortByParam = sp.get("sortBy") ?? "";
+    const sortDirParam = sp.get("sortDir") === "desc" ? "desc" : "asc";
+    const usePlacementSort = PLACEMENT_SORT.has(sortByParam);
+    const orderBy: Record<string, unknown>[] = DIRECT_SORT.has(sortByParam)
+      ? [{ [sortByParam]: sortDirParam }, { employeeNo: "asc" }]
+      : [{ status: "asc" }, { employeeNo: "asc" }];
+
     const [employeesRaw, total, statusAgg, empStatusAgg] = await Promise.all([
       db.employee.findMany({
         where: scoped,
         include: CURRENT_ASSIGNMENT_INCLUDE,
-        orderBy: [{ status: "asc" }, { employeeNo: "asc" }],
-        take: limit,
-        skip: offset,
+        orderBy,
+        // kolom penempatan: ambil semua baris terfilter (sort in-memory di bawah);
+        // kolom langsung: paginate di DB seperti biasa
+        ...(usePlacementSort ? {} : { take: limit, skip: offset }),
       }),
       db.employee.count({ where: scoped }),
       db.employee.groupBy({ by: ["status"], where: scoped, _count: true }),
@@ -318,7 +335,40 @@ export async function GET(req: NextRequest) {
     // → null saat masked (pola M-9: field tetap ada, nilai null).
     const moneyViewG = await moneyViewForReq(req, db);
     const tcList = tenantCryptoForDb(db);
-    const employees = employeesRaw.map((e) => {
+
+    // Task 74 — slice halaman untuk sort kolom penempatan (setelah flatten/decrypt
+    // agar gaji terenkripsi & judul posisi bisa dibandingkan; nulls selalu terakhir).
+    let pageRaw = employeesRaw;
+    if (usePlacementSort) {
+      const cmpDir = sortDirParam === "desc" ? -1 : 1;
+      const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+      const keyOf = (e: (typeof employeesRaw)[number]): string | number => {
+        const a = e.assignments[0];
+        switch (sortByParam) {
+          case "position": return a?.position?.title ?? "";
+          case "unit": return a?.orgUnit?.name ?? "";
+          case "grade": return a?.grade?.code ?? "";
+          case "employmentStatus": return a?.employmentStatus ?? "";
+          case "baseSalary": return decryptBaseSalary(tcList, a?.baseSalary ?? null);
+          default: return "";
+        }
+      };
+      const isNum = sortByParam === "baseSalary";
+      const sorted = [...employeesRaw].sort((x, y) => {
+        const kx = keyOf(x);
+        const ky = keyOf(y);
+        const xEmpty = isNum ? kx === 0 : kx === "";
+        const yEmpty = isNum ? ky === 0 : ky === "";
+        if (xEmpty && yEmpty) return collator.compare(x.employeeNo, y.employeeNo);
+        if (xEmpty) return 1; // null/0-gaji selalu di bawah
+        if (yEmpty) return -1;
+        const c = isNum ? (kx as number) - (ky as number) : collator.compare(kx as string, ky as string);
+        return c * cmpDir || collator.compare(x.employeeNo, y.employeeNo);
+      });
+      pageRaw = sorted.slice(offset, offset + limit);
+    }
+
+    const employees = pageRaw.map((e) => {
       const flat = flattenEmployee(e, tcList);
       // strip array dari response agar payload ramping
       const { assignments, ...rest } = flat as Record<string, unknown>;

@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, ChevronLeft, ChevronRight, UserPlus, Users, X, LayoutGrid, Table2 as TableIcon,
   Building2, GraduationCap, Wallet, CalendarClock, Mail, Phone, ArrowUpRight, User,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -101,6 +102,16 @@ export function EmployeeDirectory() {
   const [quick, setQuick] = useState<EmployeeRow | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Task 74 — sorting SERVER-SIDE: sort lintas seluruh data sebelum paginasi.
+  // State sort dipakai oleh useMemo url (di bawah) — offset di-reset saat ganti sort.
+  const [sortKey, setSortKey] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: string) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+    setOffset(0);
+  };
+
   // live search — debounce 300ms
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -115,28 +126,44 @@ export function EmployeeDirectory() {
     if (unit !== "all") sp.set("unit", unit);
     if (empStatus !== "all") sp.set("employmentStatus", empStatus);
     if (contractDue != null) sp.set("contractExpiring", String(contractDue));
+    // Task 74 — kirim sort ke server (map kolom UI → kolom API)
+    const SORT_API: Record<string, string> = {
+      name: "fullName", nip: "employeeNo", position: "position", unit: "unit",
+      grade: "grade", empStatus: "employmentStatus", salary: "baseSalary",
+      join: "joinDate", status: "status", contract: "contractEnd",
+    };
+    if (sortKey && SORT_API[sortKey]) {
+      sp.set("sortBy", SORT_API[sortKey]);
+      sp.set("sortDir", sortDir);
+    }
     return `/api/onevity/employees?${sp.toString()}`;
-  }, [debouncedQ, status, unit, empStatus, contractDue, offset]);
+  }, [debouncedQ, status, unit, empStatus, contractDue, offset, sortKey, sortDir]);
 
   const { data, loading, error, refresh } = useApi<DirectoryResp>(url, [debouncedQ, status, unit, empStatus, contractDue, offset]);
   const units = useApi<OrgUnitsLiteResp>("/api/onevity/org-units");
 
   const rows = data?.employees ?? [];
   const total = data?.total ?? 0;
+  const sortedRows = rows;
 
-  // Task 72 — sorting kolom tabel (asc/desc klik header; null selalu di bawah)
-  const { sorted: sortedRows, head } = useTableSort(rows, {
-    name: (e) => e.fullName,
-    nip: (e) => e.employeeNo,
-    position: (e) => e.position?.title ?? null,
-    unit: (e) => e.orgUnit?.name ?? null,
-    grade: (e) => e.grade?.code ?? null,
-    empStatus: (e) => e.employmentStatus,
-    contract: (e) => contractDaysLeft(e.contractEnd),
-    salary: (e) => e.baseSalary,
-    join: (e) => e.joinDate,
-    status: (e) => e.status,
-  }, { defaultKey: "name", defaultDir: "asc" });
+  // Header sort memakai state server-side (Task 74) — ikon & aksi dari sortKey/sortDir
+  const sortHead = (k: string, label: React.ReactNode, className?: string) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => toggleSort(k)}
+        title="Klik untuk urutkan"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70"
+      >
+        {label}
+        {sortKey === k ? (
+          sortDir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 shrink-0 opacity-35" />
+        )}
+      </button>
+    </TableHead>
+  );
   const stats = data?.stats;
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + PAGE_SIZE, total);
@@ -334,15 +361,15 @@ export function EmployeeDirectory() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                 <TableRow className="hover:bg-transparent">
-                  {head("name", t("Karyawan"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400")}
-                  {head("position", t("Posisi"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400")}
-                  {head("unit", t("Unit", "Unit"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell")}
-                  {head("grade", t("Grade"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400")}
-                  {head("empStatus", t("Status Kerja", "Employment Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400")}
-                  {head("contract", t("Masa Kontrak", "Contract"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] hidden text-stone-400 sm:table-cell")}
-                  {head("salary", t("Gaji Pokok"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell")}
-                  {head("join", t("Masa Kerja", "Tenure"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell")}
-                  {head("status", t("Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400")}
+                  {sortHead("name", t("Karyawan"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400")}
+                  {sortHead("position", t("Posisi"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400")}
+                  {sortHead("unit", t("Unit", "Unit"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell")}
+                  {sortHead("grade", t("Grade"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400")}
+                  {sortHead("empStatus", t("Status Kerja", "Employment Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400")}
+                  {sortHead("contract", t("Masa Kontrak", "Contract"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] hidden text-stone-400 sm:table-cell")}
+                  {sortHead("salary", t("Gaji Pokok"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell")}
+                  {sortHead("join", t("Masa Kerja", "Tenure"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell")}
+                  {sortHead("status", t("Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400")}
                 </TableRow>
               </TableHeader>
               <TableBody>
