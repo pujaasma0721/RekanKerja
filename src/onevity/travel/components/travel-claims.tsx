@@ -4,6 +4,7 @@
 // Entertainment+Guest) + formula Total = rincian + rugi kurs − (a) live.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import {
@@ -96,6 +97,16 @@ export function TravelClaimsPage() {
   const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel settlement perjalanan (default: terbaru)
+  const sort = useTableSort(claims, {
+    doc: (c) => c.docNo,
+    employee: (c) => c.fullName,
+    basis: (c) => c.templateName,
+    total: (c) => c.totalSettlement,
+    journal: (c) => c.journalNo,
+    status: (c) => c.status,
+  }, { defaultKey: "doc", defaultDir: "desc" });
 
   const expenseTypes = master.data?.expenseTypes ?? [];
   const typeByCode = useMemo(() => new Map(expenseTypes.map((t) => [t.code, t])), [expenseTypes]);
@@ -289,16 +300,16 @@ export function TravelClaimsPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    <TableHead>{t("Nomor", "No.")}</TableHead>
-                    <TableHead>{t("Karyawan")}</TableHead>
-                    <TableHead className="hidden md:table-cell">{t("Basis", "Basis")}</TableHead>
-                    <TableHead className="text-right">{t("Total Settlement", "Total Settlement")}</TableHead>
-                    <TableHead className="hidden lg:table-cell">{t("Jurnal", "Journal")}</TableHead>
-                    <TableHead>{t("Status")}</TableHead>
+                    {sort.head("doc", t("Nomor", "No."))}
+                    {sort.head("employee", t("Karyawan"))}
+                    {sort.head("basis", t("Basis", "Basis"), "hidden md:table-cell")}
+                    {sort.head("total", t("Total Settlement", "Total Settlement"), "text-right")}
+                    {sort.head("journal", t("Jurnal", "Journal"), "hidden lg:table-cell")}
+                    {sort.head("status", t("Status"))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {claims.map((c) => (
+                  {sort.sorted.map((c) => (
                     <Fragment key={c.id}>
                       <TableRow key={c.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === c.docNo ? null : c.docNo)}>
                         <TableCell className="p-2">

@@ -3,6 +3,7 @@
 // hitung, konfirmasi, tandai dibayar, export CSV
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDateTime } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -61,6 +62,18 @@ export function PayrollRunsPage() {
   };
 
   const runs = data?.runs ?? [];
+
+  // Task 72 — sorting kolom tabel run (asc/desc via header)
+  const sort = useTableSort(runs, {
+    runNo: (r) => r.runNo,
+    period: (r) => r.period.name,
+    type: (r) => r.processType.name,
+    status: (r) => r.status,
+    employees: (r) => r.employeeCount,
+    bruto: (r) => r.totalBruto,
+    tax: (r) => r.totalTax,
+    net: (r) => r.totalNet,
+  }, { defaultKey: "runNo", defaultDir: "desc" });
 
   return (
     <div>
@@ -121,19 +134,19 @@ export function PayrollRunsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Run")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Period")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jenis Proses", "Process Type")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
-                    <TableHead className="text-center text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Bruto", "Gross")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("PPh21")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("THP", "Net Pay")}</TableHead>
+                    {sort.head("runNo", t("Run"), "text-[11px] font-bold")}
+                    {sort.head("period", t("Period"), "text-[11px] font-bold")}
+                    {sort.head("type", t("Jenis Proses", "Process Type"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
+                    {sort.head("employees", t("Karyawan"), "text-center text-[11px] font-bold")}
+                    {sort.head("bruto", t("Bruto", "Gross"), "text-right text-[11px] font-bold")}
+                    {sort.head("tax", t("PPh21"), "text-right text-[11px] font-bold")}
+                    {sort.head("net", t("THP", "Net Pay"), "text-right text-[11px] font-bold")}
                     <TableHead className="w-[290px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {runs.map((r) => (
+                  {sort.sorted.map((r) => (
                     <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{r.runNo}</p>

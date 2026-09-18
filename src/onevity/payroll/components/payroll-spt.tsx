@@ -3,6 +3,7 @@
 // ekspor CSV 1721-A1 + bukti potong bulanan siap upload Coretax.
 import { useState } from "react";
 import { useApi, fmtIDR, fmtIDRShort } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,21 @@ export function PayrollSptPage() {
 
   const { data, loading } = useApi<SptReportData>(`/api/onevity/payroll-spt?year=${year}`);
   const report = data;
+
+  // Task 72 — sorting kolom tabel rekap SPT (default: PPh21 terbesar)
+  const sptSort = useTableSort(report?.employees, {
+    employee: (r) => r.employeeName,
+    nip: (r) => r.employeeNo,
+    ptkp: (r) => r.taxStatus,
+    regular: (r) => r.incomeRegular,
+    irregular: (r) => r.incomeIrregular,
+    biayaJabatan: (r) => r.biayaJabatan,
+    jstk: (r) => r.iuranJstk,
+    pkp: (r) => r.pkp,
+    pph21: (r) => r.pph21Annual,
+    withheld: (r) => r.taxWithheld,
+    delta: (r) => r.delta,
+  }, { defaultKey: "pph21", defaultDir: "desc" });
   const totals = report?.totals;
 
   const confirmedPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Processed" || p.status === "Closed" || p.status === "Locked");
@@ -174,20 +190,20 @@ export function PayrollSptPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                      <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                      <TableHead className="text-[11px] font-bold">{t("PTKP")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Bruto Reguler", "Regular Gross")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Bruto Irreguler", "Irregular Gross")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Biaya Jabatan", "Employment Expense")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Iuran JSTK", "JSTK Contributions")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Neto / PKP", "Net / PKP")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("PPh21 Setahun", "Annual PPh21")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Dipotong", "Withheld")}</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold">{t("Kurang/(Lebih)", "Under/(Over)")}</TableHead>
+                      {sptSort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                      {sptSort.head("ptkp", t("PTKP"), "text-[11px] font-bold")}
+                      {sptSort.head("regular", t("Bruto Reguler", "Regular Gross"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("irregular", t("Bruto Irreguler", "Irregular Gross"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("biayaJabatan", t("Biaya Jabatan", "Employment Expense"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("jstk", t("Iuran JSTK", "JSTK Contributions"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("pkp", t("Neto / PKP", "Net / PKP"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("pph21", t("PPh21 Setahun", "Annual PPh21"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("withheld", t("Dipotong", "Withheld"), "text-right text-[11px] font-bold")}
+                      {sptSort.head("delta", t("Kurang/(Lebih)", "Under/(Over)"), "text-right text-[11px] font-bold")}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {report.employees.map((r) => (
+                    {sptSort.sorted.map((r) => (
                       <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                         <TableCell>
                           <p className="text-[13px] font-semibold">{r.employeeName}</p>

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { CalendarRange, Plus, Lock, ChevronRight, PencilLine } from "lucide-react";
 import { PeriodRow } from "@/onevity/payroll/components/payroll-types";
 import { useI18n, loc } from "@/onevity/shared/lib/i18n";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 
 export function PayrollPeriodsPage() {
   const { navigate } = useNav();
@@ -21,6 +22,17 @@ export function PayrollPeriodsPage() {
   const { data, loading, refresh } = useApi<{ periods: PeriodRow[] }>("/api/onevity/payroll-periods");
   const [open, setOpen] = useState(false);
   const [taEdit, setTaEdit] = useState<PeriodRow | null>(null);
+
+  // Task 72 — sorting kolom tabel period (asc/desc via header)
+  const sort = useTableSort(data?.periods, {
+    name: (p) => p.name,
+    code: (p) => p.code,
+    start: (p) => p.startDate,
+    taStart: (p) => p.taStartDate,
+    tax: (p) => p.sptYear * 100 + p.sptMonth,
+    runs: (p) => p._count.runs,
+    status: (p) => p.status,
+  }, { defaultKey: "start", defaultDir: "desc" });
 
   const closePeriod = async (p: PeriodRow) => {
     try {
@@ -54,17 +66,17 @@ export function PayrollPeriodsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Period")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jendela Payroll", "Payroll Window")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jendela Kehadiran (TA)", "Attendance Window (TA)")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Bulan Pajak", "Tax Month")}</TableHead>
-                    <TableHead className="text-center text-[11px] font-bold">{t("Run")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("name", t("Period"), "text-[11px] font-bold")}
+                    {sort.head("start", t("Jendela Payroll", "Payroll Window"), "text-[11px] font-bold")}
+                    {sort.head("taStart", t("Jendela Kehadiran (TA)", "Attendance Window (TA)"), "text-[11px] font-bold")}
+                    {sort.head("tax", t("Bulan Pajak", "Tax Month"), "text-[11px] font-bold")}
+                    {sort.head("runs", t("Run"), "text-center text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-40" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(data?.periods ?? []).map((p) => (
+                  {sort.sorted.map((p) => (
                     <TableRow key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="text-[13px] font-bold">{loc(p.name)}</p>

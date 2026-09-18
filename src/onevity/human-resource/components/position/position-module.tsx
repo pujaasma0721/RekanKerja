@@ -2,6 +2,7 @@
 // OneVity — Modul Posisi & Grading: list, job library, grades
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, initials, avatarColor } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -81,6 +82,17 @@ function PositionList() {
     };
   }, [data]);
 
+  const sort = useTableSort(data?.positions, {
+    title: (p) => p.title,
+    code: (p) => p.code,
+    job: (p) => p.job?.title ?? null,
+    unit: (p) => p.orgUnit?.name ?? null,
+    grade: (p) => p.grade?.code ?? null,
+    occupancy: (p) => (p.headcount ? p.filled / p.headcount : 0),
+    holder: (p) => p.employees[0]?.fullName ?? null,
+    status: (p) => (p.active ? 0 : 1),
+  }, { defaultKey: "title", defaultDir: "asc" });
+
   return (
     <div>
       <PageHeader
@@ -136,18 +148,18 @@ function PositionList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="min-w-40 text-[11px] font-bold">{t("Posisi")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">Job</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Unit Organisasi")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Grade")}</TableHead>
-                    <TableHead className="min-w-32 text-[11px] font-bold">{t("Okupasi", "Occupancy")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Pemegang", "Holder")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("title", t("Posisi"), "min-w-40 text-[11px] font-bold")}
+                    {sort.head("job", "Job", "text-[11px] font-bold")}
+                    {sort.head("unit", t("Unit Organisasi"), "text-[11px] font-bold")}
+                    {sort.head("grade", t("Grade"), "text-[11px] font-bold")}
+                    {sort.head("occupancy", t("Okupasi", "Occupancy"), "min-w-32 text-[11px] font-bold")}
+                    {sort.head("holder", t("Pemegang", "Holder"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-20 text-[11px] font-bold">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.positions.map((p) => (
+                  {sort.sorted.map((p) => (
                     <TableRow key={p.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => setSelected(p)}>
                       <TableCell>
                         <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{p.title}</p>

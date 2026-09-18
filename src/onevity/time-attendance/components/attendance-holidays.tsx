@@ -4,6 +4,7 @@
 // Overlay engine: tanggal di sini menang atas cycle jadwal (resolveDayType).
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,13 @@ export function AttendanceHolidaysPage() {
 
   const api = useApi<HolidaysResponse>(`/api/onevity/attendance/holidays?year=${year}`, [year]);
   const holidays = api.data?.holidays ?? [];
+
+  // Task 72 — sorting kolom tabel libur (default: tanggal terdekat)
+  const sort = useTableSort(holidays, {
+    date: (h) => h.date,
+    name: (h) => h.name,
+    kind: (h) => h.kind,
+  }, { defaultKey: "date", defaultDir: "asc" });
 
   // peta cepat date → libur (utk grid kalender)
   const byDate = useMemo(() => {
@@ -212,15 +220,15 @@ export function AttendanceHolidaysPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                      <TableHead className="text-[11px] font-bold">{t("Tanggal", "Date")}</TableHead>
+                      {sort.head("date", t("Tanggal", "Date"), "text-[11px] font-bold")}
                       <TableHead className="text-[11px] font-bold">{t("Hari", "Day")}</TableHead>
-                      <TableHead className="text-[11px] font-bold">{t("Nama Libur", "Holiday Name")}</TableHead>
-                      <TableHead className="text-[11px] font-bold">{t("Jenis", "Kind")}</TableHead>
+                      {sort.head("name", t("Nama Libur", "Holiday Name"), "text-[11px] font-bold")}
+                      {sort.head("kind", t("Jenis", "Kind"), "text-[11px] font-bold")}
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {holidays.map((h) => {
+                    {sort.sorted.map((h) => {
                       const d = new Date(`${h.date}T00:00:00`);
                       const isToday = h.date === todayIso;
                       return (

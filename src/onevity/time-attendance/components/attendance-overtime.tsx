@@ -3,6 +3,7 @@
 // (padanan EmpOvertimeWrit.jsp + approval) dengan multiplier PP 35/2021.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +54,19 @@ export function AttendanceOvertimePage() {
   const orders = useMemo(() => (api.data?.orders ?? []).filter((o) =>
     !query || o.employee.fullName.toLowerCase().includes(query.toLowerCase()) || o.orderNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel lembur (asc/desc via header)
+  const sort = useTableSort(orders, {
+    order: (o) => o.orderNo,
+    employee: (o) => o.employee.fullName,
+    date: (o) => o.overtimeDate,
+    category: (o) => o.dayCategory,
+    plan: (o) => o.planMinutes,
+    actual: (o) => o.actualMinutes,
+    verified: (o) => o.verifiedMinutes,
+    pay: (o) => o.estPay,
+    status: (o) => o.status,
+  }, { defaultKey: "date", defaultDir: "desc" });
 
   const submit = async () => {
     setBusy(true);
@@ -151,20 +165,20 @@ export function AttendanceOvertimePage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">Order</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Tanggal")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Kategori Hari", "Day Category")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Rencana", "Plan")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Aktual", "Actual")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Terverifikasi", "Verified")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Estimasi Upah", "Est. Pay")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("order", "Order", "text-[11px] font-bold")}
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("date", t("Tanggal"), "text-[11px] font-bold")}
+                    {sort.head("category", t("Kategori Hari", "Day Category"), "text-[11px] font-bold")}
+                    {sort.head("plan", t("Rencana", "Plan"), "text-right text-[11px] font-bold")}
+                    {sort.head("actual", t("Aktual", "Actual"), "text-right text-[11px] font-bold")}
+                    {sort.head("verified", t("Terverifikasi", "Verified"), "text-right text-[11px] font-bold")}
+                    {sort.head("pay", t("Estimasi Upah", "Est. Pay"), "text-right text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-32" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((o) => (
+                  {sort.sorted.map((o) => (
                     <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{o.orderNo}</p>

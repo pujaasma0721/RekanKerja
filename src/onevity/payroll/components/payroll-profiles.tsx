@@ -7,6 +7,7 @@
 // pada refresh 1 Januari tahun berikutnya (hint "→ {s} pada 1 Jan {yr+1}").
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,18 @@ export function PayrollProfilesPage() {
 
   const rows = data?.employees ?? [];
 
+  // Task 72 — sorting kolom tabel profil payroll
+  const sort = useTableSort(rows, {
+    employee: (r) => r.fullName,
+    nip: (r) => r.employeeNo,
+    salary: (r) => r.baseSalary,
+    npwp: (r) => (r.profile?.hasNpwp ? 0 : 1),
+    ptkp: (r) => r.profile?.taxStatus ?? null,
+    method: (r) => r.profile?.processMethod ?? null,
+    template: (r) => r.profile?.wageTemplateName ?? null,
+    bank: (r) => r.profile?.bankName ?? null,
+  }, { defaultKey: "employee", defaultDir: "asc" });
+
   return (
     <div>
       <PageHeader
@@ -80,18 +93,18 @@ export function PayrollProfilesPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Gaji Pokok")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("NPWP")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("PTKP")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Metode", "Method")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Template")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Bank")}</TableHead>
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("salary", t("Gaji Pokok"), "text-[11px] font-bold")}
+                    {sort.head("npwp", t("NPWP"), "text-[11px] font-bold")}
+                    {sort.head("ptkp", t("PTKP"), "text-[11px] font-bold")}
+                    {sort.head("method", t("Metode", "Method"), "text-[11px] font-bold")}
+                    {sort.head("template", t("Template"), "text-[11px] font-bold")}
+                    {sort.head("bank", t("Bank"), "text-[11px] font-bold")}
                     <TableHead className="w-14" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r) => {
+                  {sort.sorted.map((r) => {
                     const auto = r.profile?.ptkpSource === "auto";
                     // T50: auto + beda saran → perubahan TERTUNDA (berlaku 1 Jan
                     // tahun depan) — bukan perubahan hari ini.

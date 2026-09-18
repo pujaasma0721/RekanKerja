@@ -3,6 +3,7 @@
 // EmployeeWorkOff.jsp) — paid/unpaid, potong cuti, approval.
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,17 @@ export function AttendanceWorkoffPage() {
   const permits = useMemo(() => (api.data?.permits ?? []).filter((p) =>
     !query || p.employee.fullName.toLowerCase().includes(query.toLowerCase()) || p.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel izin (asc/desc via header)
+  const sort = useTableSort(permits, {
+    doc: (p) => p.docNo,
+    employee: (p) => p.employee.fullName,
+    date: (p) => p.dateFrom,
+    duration: (p) => p.allDay ? 1 : 0,
+    pay: (p) => (p.paid ? 0 : 1),
+    deduct: (p) => (p.deductLeave ? 0 : 1),
+    status: (p) => p.status,
+  }, { defaultKey: "date", defaultDir: "desc" });
 
   const submit = async () => {
     setBusy(true);
@@ -158,18 +170,18 @@ export function AttendanceWorkoffPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Tanggal")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Durasi", "Duration")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Upah", "Pay")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Potong Cuti", "Deduct Leave")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("doc", t("Dokumen", "Document"), "text-[11px] font-bold")}
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("date", t("Tanggal"), "text-[11px] font-bold")}
+                    {sort.head("duration", t("Durasi", "Duration"), "text-[11px] font-bold")}
+                    {sort.head("pay", t("Upah", "Pay"), "text-[11px] font-bold")}
+                    {sort.head("deduct", t("Potong Cuti", "Deduct Leave"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-32" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {permits.map((p) => (
+                  {sort.sorted.map((p) => (
                     <TableRow key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-500">{p.docNo}</p>

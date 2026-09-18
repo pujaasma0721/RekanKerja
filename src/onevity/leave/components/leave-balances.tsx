@@ -3,6 +3,7 @@
 // (padanan Employee Leave Information + Generate + Leave Adjustment)
 import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,22 @@ export function LeaveBalancesPage() {
     if (typeFilter !== "all" && b.leaveTypeCode !== typeFilter) return false;
     return !query || b.fullName.toLowerCase().includes(query.toLowerCase()) || b.employeeNo.toLowerCase().includes(query.toLowerCase());
   }), [api.data, query, typeFilter]);
+
+  // Task 72 — sorting kolom tabel saldo cuti
+  const sort = useTableSort(balances, {
+    employee: (b) => b.fullName,
+    nip: (b) => b.employeeNo,
+    type: (b) => b.leaveTypeName,
+    period: (b) => b.periodLabel,
+    carried: (b) => b.carriedOver,
+    earned: (b) => b.earned,
+    adjustment: (b) => b.adjustment,
+    forfeited: (b) => b.forfeited,
+    cashed: (b) => b.cashed,
+    taken: (b) => b.taken,
+    applied: (b) => b.applied,
+    remaining: (b) => b.remaining,
+  }, { defaultKey: "employee", defaultDir: "asc" });
 
   const generate = async () => {
     setBusy(true);
@@ -135,22 +152,22 @@ export function LeaveBalancesPage() {
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jenis Cuti", "Leave Type")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Periode")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(a) Carry-over")}>{t("a · Carry")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(b) Earned prorata", "(b) Earned prorated")}>{t("b · Earned")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(c) Penyesuaian", "(c) Adjustment")}>{t("c · Adj")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(d) Hangus 31-12", "(d) Forfeited Dec 31")}>{t("d · Hangus", "d · Forfeit")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(e) Diuangkan", "(e) Cashed out")}>{t("e · Cash")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(f) Terpakai (lampau)", "(f) Taken (past)")}>{t("f · Terpakai", "f · Taken")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold" title={t("(g) Disetujui mendatang", "(g) Approved upcoming")}>{t("g · Akan", "g · Upcoming")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Saldo", "Balance")}</TableHead>
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("type", t("Jenis Cuti", "Leave Type"), "text-[11px] font-bold")}
+                    {sort.head("period", t("Periode"), "text-[11px] font-bold")}
+                    {sort.head("carried", t("a · Carry"), "text-right text-[11px] font-bold")}
+                    {sort.head("earned", t("b · Earned"), "text-right text-[11px] font-bold")}
+                    {sort.head("adjustment", t("c · Adj"), "text-right text-[11px] font-bold")}
+                    {sort.head("forfeited", t("d · Hangus", "d · Forfeit"), "text-right text-[11px] font-bold")}
+                    {sort.head("cashed", t("e · Cash"), "text-right text-[11px] font-bold")}
+                    {sort.head("taken", t("f · Terpakai", "f · Taken"), "text-right text-[11px] font-bold")}
+                    {sort.head("applied", t("g · Akan", "g · Upcoming"), "text-right text-[11px] font-bold")}
+                    {sort.head("remaining", t("Saldo", "Balance"), "text-right text-[11px] font-bold")}
                     <TableHead className="w-16" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {balances.map((b) => (
+                  {sort.sorted.map((b) => (
                     <TableRow key={b.balanceId ?? b.employeeId + b.leaveTypeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{b.employeeNo}</p>

@@ -2,6 +2,7 @@
 // OneVity — PERUSAHAAN & ORGANISASI › Kantor & Lokasi Kerja: master company office + work location (CRUD)
 import { useEffect, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,18 @@ function OfficesTab({ offices, loading, error, refresh }: {
   offices: OfficeRow[]; loading: boolean; error: string | null; refresh: () => void;
 }) {
   const { t } = useI18n();
+
+  // Task 72 — sorting kolom tabel kantor (asc/desc via header)
+  const sort = useTableSort(offices, {
+    office: (o) => o.name,
+    code: (o) => o.code,
+    city: (o) => o.city || null,
+    npwp: (o) => o.npwp || null,
+    address: (o) => o.address || null,
+    employees: (o) => o.employeeCount,
+    locations: (o) => o.locationCount,
+    status: (o) => (o.active ? 0 : 1),
+  }, { defaultKey: "office", defaultDir: "asc" });
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OfficeRow | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -204,18 +217,18 @@ function OfficesTab({ offices, loading, error, refresh }: {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Kantor", "Office")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Kota", "City")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">NPWP</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Alamat")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Lokasi", "Location")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("office", t("Kantor", "Office"), "text-[11px] font-bold")}
+                    {sort.head("city", t("Kota", "City"), "text-[11px] font-bold")}
+                    {sort.head("npwp", "NPWP", "text-[11px] font-bold")}
+                    {sort.head("address", t("Alamat"), "text-[11px] font-bold")}
+                    {sort.head("employees", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("locations", t("Lokasi", "Location"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {offices.map((o) => (
+                  {sort.sorted.map((o) => (
                     <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
@@ -299,6 +312,14 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Task 72 — sorting kolom tabel lokasi kerja
+  const sortLoc = useTableSort(locations, {
+    location: (l) => l.name,
+    parent: (l) => l.office?.name ?? null,
+    city: (l) => l.city || null,
+    employees: (l) => l.employeeCount,
+  }, { defaultKey: "location", defaultDir: "asc" });
+
   const handleDelete = async () => {
     if (!editing) return;
     setDeleting(true);
@@ -342,15 +363,15 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Lokasi", "Location")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Kantor Induk", "Parent Office")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Kota", "City")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
+                    {sortLoc.head("location", t("Lokasi", "Location"), "text-[11px] font-bold")}
+                    {sortLoc.head("parent", t("Kantor Induk", "Parent Office"), "text-[11px] font-bold")}
+                    {sortLoc.head("city", t("Kota", "City"), "text-[11px] font-bold")}
+                    {sortLoc.head("employees", t("Karyawan"), "text-[11px] font-bold")}
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {locations.map((l) => (
+                  {sortLoc.sorted.map((l) => (
                     <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">

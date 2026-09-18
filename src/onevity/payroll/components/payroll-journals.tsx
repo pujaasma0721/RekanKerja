@@ -3,6 +3,7 @@
 // detail baris D/C, ekspor CSV, backfill run lama yang belum diposting.
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDateTime } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +30,18 @@ export function PayrollJournalsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const journals = data?.journals ?? [];
+
+  // Task 72 — sorting kolom tabel jurnal
+  const sort = useTableSort(journals, {
+    journal: (j) => j.journalNo,
+    date: (j) => j.journalDate,
+    run: (j) => j.runNo,
+    desc: (j) => j.description,
+    lines: (j) => j._count.lines,
+    debit: (j) => j.totalDebit,
+    credit: (j) => j.totalCredit,
+    status: (j) => j.status,
+  }, { defaultKey: "date", defaultDir: "desc" });
   const missing = data?.missingRuns ?? [];
 
   const openDetail = async (j: JournalRow) => {
@@ -105,18 +118,18 @@ export function PayrollJournalsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                        <TableHead className="text-[11px] font-bold">{t("Jurnal", "Journal")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Sumber Run", "Source Run")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Deskripsi")}</TableHead>
-                        <TableHead className="text-center text-[11px] font-bold">{t("Baris", "Lines")}</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">{t("Debit")}</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">{t("Kredit", "Credit")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                        {sort.head("journal", t("Jurnal", "Journal"), "text-[11px] font-bold")}
+                        {sort.head("run", t("Sumber Run", "Source Run"), "text-[11px] font-bold")}
+                        {sort.head("desc", t("Deskripsi"), "text-[11px] font-bold")}
+                        {sort.head("lines", t("Baris", "Lines"), "text-center text-[11px] font-bold")}
+                        {sort.head("debit", t("Debit"), "text-right text-[11px] font-bold")}
+                        {sort.head("credit", t("Kredit", "Credit"), "text-right text-[11px] font-bold")}
+                        {sort.head("status", t("Status"), "text-[11px] font-bold")}
                         <TableHead className="w-[150px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {journals.map((j) => (
+                      {sort.sorted.map((j) => (
                         <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => openDetail(j)}>
                           <TableCell>
                             <p className="font-mono text-[11px] font-bold ov-text-accent">{j.journalNo}</p>

@@ -3,6 +3,7 @@
 // khusus/periodik + rapel/back-pay retroaktif lintas period (P4).
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtDate } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +30,15 @@ export function PayrollTransactionsPage() {
 
   const loansApi = useApi<{ loans: LoanRow[] }>("/api/onevity/loans");
   const compsApi = useApi<{ assignments: CompAssignmentRow[] }>("/api/onevity/component-assignments");
+
+  // Task 72 — sorting kolom tabel transaksi komponen
+  const compSort = useTableSort(compsApi.data?.assignments, {
+    employee: (a) => a.employee.fullName,
+    component: (a) => a.wageComponent.name,
+    kind: (a) => a.kind,
+    basedDate: (a) => a.basedDate,
+    amount: (a) => a.amount,
+  }, { defaultKey: "employee", defaultDir: "asc" });
 
   return (
     <div>
@@ -86,16 +96,16 @@ export function PayrollTransactionsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                        <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Komponen")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Berlaku", "Effective")}</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">{t("Nilai", "Value")}</TableHead>
+                        {compSort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                        {compSort.head("component", t("Komponen"), "text-[11px] font-bold")}
+                        {compSort.head("kind", t("Jenis"), "text-[11px] font-bold")}
+                        {compSort.head("basedDate", t("Berlaku", "Effective"), "text-[11px] font-bold")}
+                        {compSort.head("amount", t("Nilai", "Value"), "text-right text-[11px] font-bold")}
                         <TableHead className="w-14" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(compsApi.data?.assignments ?? []).map((a) => (
+                      {compSort.sorted.map((a) => (
                         <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                           <TableCell>
                             <p className="text-[13px] font-bold">{a.employee.fullName}</p>

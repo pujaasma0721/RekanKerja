@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useApi, fmtIDR, fmtDate, tenure, genderLabel } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +123,20 @@ export function EmployeeDirectory() {
 
   const rows = data?.employees ?? [];
   const total = data?.total ?? 0;
+
+  // Task 72 — sorting kolom tabel (asc/desc klik header; null selalu di bawah)
+  const { sorted: sortedRows, head } = useTableSort(rows, {
+    name: (e) => e.fullName,
+    nip: (e) => e.employeeNo,
+    position: (e) => e.position?.title ?? null,
+    unit: (e) => e.orgUnit?.name ?? null,
+    grade: (e) => e.grade?.code ?? null,
+    empStatus: (e) => e.employmentStatus,
+    contract: (e) => contractDaysLeft(e.contractEnd),
+    salary: (e) => e.baseSalary,
+    join: (e) => e.joinDate,
+    status: (e) => e.status,
+  }, { defaultKey: "name", defaultDir: "asc" });
   const stats = data?.stats;
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + PAGE_SIZE, total);
@@ -319,19 +334,19 @@ export function EmployeeDirectory() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400">{t("Karyawan")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400">{t("Posisi")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell">{t("Unit", "Unit")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400">{t("Grade")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400">{t("Status Kerja", "Employment Status")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] hidden text-stone-400 sm:table-cell">{t("Masa Kontrak", "Contract")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell">{t("Gaji Pokok")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell">{t("Masa Kerja", "Tenure")}</TableHead>
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400">{t("Status")}</TableHead>
+                  {head("name", t("Karyawan"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[240px] text-stone-400")}
+                  {head("position", t("Posisi"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[170px] text-stone-400")}
+                  {head("unit", t("Unit", "Unit"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[150px] hidden text-stone-400 md:table-cell")}
+                  {head("grade", t("Grade"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[80px] text-stone-400")}
+                  {head("empStatus", t("Status Kerja", "Employment Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-stone-400")}
+                  {head("contract", t("Masa Kontrak", "Contract"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] hidden text-stone-400 sm:table-cell")}
+                  {head("salary", t("Gaji Pokok"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[110px] text-right hidden text-stone-400 lg:table-cell")}
+                  {head("join", t("Masa Kerja", "Tenure"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[100px] hidden text-stone-400 sm:table-cell")}
+                  {head("status", t("Status"), "h-11 text-[11px] font-semibold tracking-wider uppercase min-w-[105px] text-stone-400")}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((e) => (
+                {sortedRows.map((e) => (
                   <TableRow
                     key={e.id}
                     onClick={() => setQuick(e)}

@@ -4,6 +4,7 @@
 // Resignation/Termination/Retirement diproses, atau manual dari daftar.
 import { useState } from "react";
 import { useApi, apiSend, fmtDate, fmtDateTime, initials, avatarColor, paTypeLabelSafe, tenure } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -145,6 +146,15 @@ function OffboardingList() {
     ["Cancelled", "Dibatalkan", "Cancelled", sc.Cancelled ?? 0],
   ];
   const rows = (data?.offboardings ?? []).filter((r) => status === "all" || r.status === status);
+  const sort = useTableSort(rows, {
+    employee: (r) => r.employee.fullName,
+    nip: (r) => r.employee.employeeNo,
+    position: (r) => r.employee.position?.title ?? null,
+    lastDay: (r) => r.lastDay,
+    source: (r) => r.sourcePA?.docNo ?? null,
+    progress: (r) => (r.taskStats.total > 0 ? r.taskStats.done / r.taskStats.total : 0),
+    status: (r) => r.status,
+  }, { defaultKey: "lastDay", defaultDir: "desc" });
 
   return (
     <div>
@@ -186,16 +196,16 @@ function OffboardingList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="min-w-40 text-[11px] font-bold">{t("Karyawan", "Employee")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Posisi & Unit", "Position & Unit")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Hari Terakhir", "Last Day")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Sumber", "Source")}</TableHead>
-                    <TableHead className="min-w-36 text-[11px] font-bold">{t("Checklist")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("employee", t("Karyawan", "Employee"), "min-w-40 text-[11px] font-bold")}
+                    {sort.head("position", t("Posisi & Unit", "Position & Unit"), "text-[11px] font-bold")}
+                    {sort.head("lastDay", t("Hari Terakhir", "Last Day"), "text-[11px] font-bold")}
+                    {sort.head("source", t("Sumber", "Source"), "text-[11px] font-bold")}
+                    {sort.head("progress", t("Checklist"), "min-w-36 text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r) => {
+                  {sort.sorted.map((r) => {
                     const pct = r.taskStats.total > 0 ? (r.taskStats.done / r.taskStats.total) * 100 : 0;
                     const allDone = r.taskStats.total > 0 && r.taskStats.done === r.taskStats.total;
                     return (

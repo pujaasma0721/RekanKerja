@@ -19,6 +19,7 @@
 // =====================================================================
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, initials } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { EmptyState, LoadingRows, StatusPill } from "@/onevity/shared/components/ui-kit";
 import { PasswordInput, PasswordRuleChecklist, PasswordStrengthBar } from "@/onevity/shared/components/password-ui";
@@ -120,6 +121,16 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
   const employees = empData?.employees ?? [];
   const users = data?.users ?? [];
 
+  // Task 72 — sorting kolom tabel pengguna (asc/desc via header)
+  const sort = useTableSort(users, {
+    user: (u) => u.fullName,
+    username: (u) => u.username,
+    role: (u) => u.role,
+    lastLogin: (u) => u.lastLogin,
+    password: (u) => u.passwordChangedAt,
+    status: (u) => (u.active ? 0 : 1),
+  }, { defaultKey: "user", defaultDir: "asc" });
+
   const removeUser = async (u: AppUserRow) => {
     try {
       await apiSend(`/api/onevity/app-users?id=${u.id}`, "DELETE");
@@ -161,16 +172,16 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
             <Table>
               <TableHeader>
                 <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                  <TableHead className="text-[11px] font-bold">{t("Pengguna", "User")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">Role</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Login Terakhir", "Last Login")}</TableHead>
+                  {sort.head("user", t("Pengguna", "User"), "text-[11px] font-bold")}
+                  {sort.head("role", "Role", "text-[11px] font-bold")}
+                  {sort.head("lastLogin", t("Login Terakhir", "Last Login"), "text-[11px] font-bold")}
                   <TableHead className="text-[11px] font-bold">{t("Kata Sandi")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                  {sort.head("status", t("Status"), "text-[11px] font-bold")}
                   <TableHead className="w-36" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => {
+                {sort.sorted.map((u) => {
                   const age = passwordAge(u.passwordChangedAt, policy);
                   const linked = employees.find((e) => e.id === u.employeeId);
                   return (

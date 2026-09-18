@@ -3,6 +3,7 @@
 // (padanan MedicalBenefitClaim.jsp + wizard ESS MyMedicalExpenseClaim.jsp).
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, apiUpload } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import {
@@ -81,6 +82,17 @@ export function MedicalClaimsPage() {
   const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel klaim medis (default: terbaru)
+  const sort = useTableSort(claims, {
+    doc: (c) => c.docNo,
+    employee: (c) => c.fullName,
+    type: (c) => c.typeName,
+    date: (c) => c.claimDate,
+    bill: (c) => c.totalBill,
+    approved: (c) => c.totalApproved,
+    status: (c) => c.state,
+  }, { defaultKey: "date", defaultDir: "desc" });
 
   const employees = balanceMeta.data?.employees ?? [];
   const types = (master.data?.types ?? []).filter((t) => t.active);
@@ -235,17 +247,17 @@ export function MedicalClaimsPage() {
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
                     <TableHead className="w-8" />
-                    <TableHead>{t("No. Dokumen", "Doc. No.")}</TableHead>
-                    <TableHead>{t("Karyawan")}</TableHead>
-                    <TableHead>{t("Jenis")}</TableHead>
-                    <TableHead>{t("Tanggal")}</TableHead>
-                    <TableHead className="text-right">{t("Tagihan", "Bill")}</TableHead>
-                    <TableHead className="text-right">Approved</TableHead>
-                    <TableHead>{t("Status")}</TableHead>
+                    {sort.head("doc", t("No. Dokumen", "Doc. No."))}
+                    {sort.head("employee", t("Karyawan"))}
+                    {sort.head("type", t("Jenis"))}
+                    {sort.head("date", t("Tanggal"))}
+                    {sort.head("bill", t("Tagihan", "Bill"), "text-right")}
+                    {sort.head("approved", "Approved", "text-right")}
+                    {sort.head("status", t("Status"))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {claims.map((c) => {
+                  {sort.sorted.map((c) => {
                     const open = expanded === c.id;
                     const detail = open ? detailOf(c.id) : null;
                     return (

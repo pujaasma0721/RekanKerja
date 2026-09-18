@@ -2,6 +2,7 @@
 // OneVity — Modul Personnel Action: inbox, all documents, detail workflow
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate, fmtDateTime, fmtIDR, initials, avatarColor, paTypeLabelSafe } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useNav } from "@/onevity/shared/lib/store";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { useI18n } from "@/onevity/shared/lib/i18n";
@@ -207,6 +208,14 @@ function AllDocuments() {
   }, [q, status, type]);
 
   const { data, loading, refresh } = useApi<{ actions: PA[]; statusCounts: Record<string, number> }>(url);
+  const paSort = useTableSort(data?.actions, {
+    doc: (a) => a.docNo,
+    employee: (a) => a.employee.fullName,
+    type: (a) => a.type,
+    effective: (a) => a.effectiveDate,
+    progress: (a) => (a.layers.length > 0 ? a.layers.filter((l) => l.status === "Approved").length / a.layers.length : 0),
+    status: (a) => a.status,
+  }, { defaultKey: "doc", defaultDir: "desc" });
   const sc = data?.statusCounts ?? {};
 
   const statCards: [string, string, number][] = [
@@ -277,16 +286,16 @@ function AllDocuments() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="min-w-36 text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Efektif", "Effective")}</TableHead>
-                    <TableHead className="min-w-28 text-[11px] font-bold">Progress</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {paSort.head("doc", t("Dokumen", "Document"), "min-w-36 text-[11px] font-bold")}
+                    {paSort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {paSort.head("type", t("Jenis"), "text-[11px] font-bold")}
+                    {paSort.head("effective", t("Efektif", "Effective"), "text-[11px] font-bold")}
+                    {paSort.head("progress", "Progress", "min-w-28 text-[11px] font-bold")}
+                    {paSort.head("status", t("Status"), "text-[11px] font-bold")}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.actions.map((a) => (
+                  {paSort.sorted.map((a) => (
                     <TableRow key={a.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("actions", "all", { id: a.id })}>
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-600 dark:text-stone-400">{a.docNo}</p>

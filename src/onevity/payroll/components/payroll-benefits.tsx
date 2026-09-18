@@ -4,6 +4,7 @@
 // (pay-in-payroll) atau kas langsung + master jenis benefit.
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { useNav } from "@/onevity/shared/lib/store";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
@@ -66,6 +67,17 @@ export function PayrollBenefitsPage() {
   const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
 
   const claimsApi = useApi<{ claims: BenefitClaimRow[]; stats: BenefitStats }>(`/api/onevity/benefit-claims?status=${statusFilter}`);
+
+  // Task 72 — sorting kolom tabel klaim benefit
+  const sort = useTableSort(claimsApi.data?.claims, {
+    claim: (c) => c.claimNo,
+    employee: (c) => c.employee.fullName,
+    type: (c) => c.benefitType.name,
+    date: (c) => c.claimDate,
+    amount: (c) => c.approvedAmount || c.amount,
+    limit: (c) => c.limitRemaining,
+    status: (c) => c.status,
+  }, { defaultKey: "date", defaultDir: "desc" });
   const typesApi = useApi<{ types: BenefitTypeRow[] }>("/api/onevity/benefit-types");
   const stats = claimsApi.data?.stats;
 
@@ -159,18 +171,18 @@ export function PayrollBenefitsPage() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10">
                       <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                        <TableHead className="text-[11px] font-bold">{t("Klaim", "Claim")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Jenis Benefit", "Benefit Type")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Tanggal")}</TableHead>
-                        <TableHead className="text-right text-[11px] font-bold">{t("Nilai", "Value")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Limit")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                        {sort.head("claim", t("Klaim", "Claim"), "text-[11px] font-bold")}
+                        {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                        {sort.head("type", t("Jenis Benefit", "Benefit Type"), "text-[11px] font-bold")}
+                        {sort.head("date", t("Tanggal"), "text-[11px] font-bold")}
+                        {sort.head("amount", t("Nilai", "Value"), "text-right text-[11px] font-bold")}
+                        {sort.head("limit", t("Limit"), "text-[11px] font-bold")}
+                        {sort.head("status", t("Status"), "text-[11px] font-bold")}
                         <TableHead className="text-right text-[11px] font-bold">{t("Aksi")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(claimsApi.data?.claims ?? []).map((c) => (
+                      {sort.sorted.map((c) => (
                         <ClaimRow key={c.id} claim={c}
                           onReject={() => setRejectTarget(c)}
                           onSchedule={() => setScheduleTarget(c)}

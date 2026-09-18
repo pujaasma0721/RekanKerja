@@ -3,6 +3,7 @@
 // hari kerja dihitung dari jadwal absensi, saldo & HP kembali kerja otomatis.
 import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +65,18 @@ export function LeaveRequestsPage() {
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel pengajuan cuti (default: terbaru)
+  const sort = useTableSort(requests, {
+    doc: (r) => r.docNo,
+    employee: (r) => r.fullName,
+    type: (r) => r.leaveTypeName,
+    dateFrom: (r) => r.dateFrom,
+    workingDays: (r) => r.workingDays,
+    remaining: (r) => r.remainingAtRequest,
+    backToWork: (r) => r.backToWorkDate,
+    status: (r) => r.status,
+  }, { defaultKey: "dateFrom", defaultDir: "desc" });
 
   // preview auto-compute saat form berubah (debounce)
   useEffect(() => {
@@ -180,19 +193,19 @@ export function LeaveRequestsPage() {
               <Table>
                 <TableHeader className="sticky top-0 z-10">
                   <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
-                    <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Rentang", "Range")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Hari Kerja", "Working Days")}</TableHead>
-                    <TableHead className="text-right text-[11px] font-bold">{t("Sisa Saldo", "Remaining Balance")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Kembali Kerja", "Back to Work")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("doc", t("Dokumen", "Document"), "text-[11px] font-bold")}
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("type", t("Jenis"), "text-[11px] font-bold")}
+                    {sort.head("dateFrom", t("Rentang", "Range"), "text-[11px] font-bold")}
+                    {sort.head("workingDays", t("Hari Kerja", "Working Days"), "text-right text-[11px] font-bold")}
+                    {sort.head("remaining", t("Sisa Saldo", "Remaining Balance"), "text-right text-[11px] font-bold")}
+                    {sort.head("backToWork", t("Kembali Kerja", "Back to Work"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {requests.map((r) => (
+                  {sort.sorted.map((r) => (
                     <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>

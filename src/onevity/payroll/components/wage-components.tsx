@@ -3,6 +3,7 @@
 // (wageType 13-way, incomeTaxMethod, formula, prorata, iuran perusahaan)
 import { useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,18 @@ export function WageComponentsPage() {
   const [q, setQ] = useState("");
   const url = `/api/onevity/wage-components${typeFilter !== "all" || q ? `?${new URLSearchParams({ ...(typeFilter !== "all" ? { type: typeFilter } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`;
   const { data, loading, refresh } = useApi<{ components: WageCompFull[]; typeCounts: Record<string, number> }>(url);
+
+  // Task 72 — sorting kolom tabel komponen upah
+  const sort = useTableSort(data?.components, {
+    code: (c) => c.code,
+    name: (c) => c.name,
+    type: (c) => c.type,
+    value: (c) => c.calcMethod === "Formula" ? 0 : c.amount,
+    tax: (c) => c.incomeTaxMethod,
+    rules: (c) => c.ruleCount ?? 0,
+    thp: (c) => (c.includeInTHP ? 0 : 1),
+    active: (c) => (c.active ? 0 : 1),
+  }, { defaultKey: "code", defaultDir: "asc" });
   const [dialog, setDialog] = useState<{ open: boolean; comp: WageCompFull | null }>({ open: false, comp: null });
   const [rulesDialog, setRulesDialog] = useState<{ open: boolean; comp: WageCompFull | null }>({ open: false, comp: null });
 
@@ -88,19 +101,19 @@ export function WageComponentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Kode")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Nama Komponen", "Component Name")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Klasifikasi", "Classification")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Nilai / Formula", "Value / Formula")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Metode Pajak", "Tax Method")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Aturan", "Rules")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("THP", "Net Pay")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Aktif")}</TableHead>
+                    {sort.head("code", t("Kode"), "text-[11px] font-bold")}
+                    {sort.head("name", t("Nama Komponen", "Component Name"), "text-[11px] font-bold")}
+                    {sort.head("type", t("Klasifikasi", "Classification"), "text-[11px] font-bold")}
+                    {sort.head("value", t("Nilai / Formula", "Value / Formula"), "text-[11px] font-bold")}
+                    {sort.head("tax", t("Metode Pajak", "Tax Method"), "text-[11px] font-bold")}
+                    {sort.head("rules", t("Aturan", "Rules"), "text-[11px] font-bold")}
+                    {sort.head("thp", t("THP", "Net Pay"), "text-[11px] font-bold")}
+                    {sort.head("active", t("Aktif"), "text-[11px] font-bold")}
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.components.map((c) => (
+                  {sort.sorted.map((c) => (
                     <TableRow key={c.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell className="font-mono text-[11px] font-bold text-stone-500">{c.code}</TableCell>
                       <TableCell className="text-[13px] font-bold">{c.name}</TableCell>

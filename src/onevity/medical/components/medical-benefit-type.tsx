@@ -3,6 +3,7 @@
 // (padanan MedicalBenefitTypeDetail.jsp ±60 atribut → atribut kunci).
 import { useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { EntityRulesButton, EntityRulesDialog, type EntityRuleTarget } from "@/onevity/shared/components/entity-rules-dialog";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +53,15 @@ export function MedicalBenefitTypePage() {
   const [rulesTarget, setRulesTarget] = useState<EntityRuleTarget | null>(null);
 
   const types = api.data?.types ?? [];
+
+  // Task 72 — sorting kolom tabel jenis benefit medis
+  const sort = useTableSort(types, {
+    name: (bt) => bt.name,
+    code: (bt) => bt.code,
+    limit: (bt) => (bt.limitRule === "NOMINAL" ? Number(bt.limitValue) || 0 : 0),
+    freq: (bt) => (bt.freqUnlimited ? 0 : Number(bt.freqValue) || 0),
+    active: (bt) => (bt.active ? 0 : 1),
+  }, { defaultKey: "name", defaultDir: "asc" });
 
   const openNew = () => { setForm(emptyForm); setDialog(true); };
   const openEdit = (t: BenefitTypeUI) => {
@@ -126,9 +136,9 @@ export function MedicalBenefitTypePage() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                   <TableRow>
-                    <TableHead>{t("Jenis")}</TableHead>
-                    <TableHead>Limit</TableHead>
-                    <TableHead>{t("Frekuensi", "Frequency")}</TableHead>
+                    {sort.head("name", t("Jenis"))}
+                    {sort.head("limit", "Limit")}
+                    {sort.head("freq", t("Frekuensi", "Frequency"))}
                     <TableHead>{t("Sisa Saldo", "Remaining Balance")}</TableHead>
                     <TableHead>Dependent</TableHead>
                     <TableHead className="text-right">{t("Saldo / Klaim", "Balances / Claims")}</TableHead>
@@ -137,7 +147,7 @@ export function MedicalBenefitTypePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {types.map((bt) => (
+                  {sort.sorted.map((bt) => (
                     <TableRow key={bt.id} className={cn(!bt.active && "opacity-50")}>
                       <TableCell>
                         <p className="font-semibold">{bt.name}</p>

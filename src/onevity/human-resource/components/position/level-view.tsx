@@ -2,6 +2,7 @@
 // OneVity — POSISI & JABATAN › Level Jabatan: master position level (PL1..PLn) + CRUD
 import { useEffect, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,6 +125,13 @@ export function PositionLevelView() {
   const [deleting, setDeleting] = useState(false);
 
   const levels = data?.levels ?? [];
+  const sort = useTableSort(levels, {
+    level: (l) => l.name,
+    order: (l) => l.sortOrder,
+    positions: (l) => l.positionCount,
+    employees: (l) => l.employeeCount,
+    status: (l) => l.active ? 0 : 1,
+  }, { defaultKey: "order", defaultDir: "asc" });
   const totalEmployees = levels.reduce((a, l) => a + l.employeeCount, 0);
 
   const toggleActive = async (l: LevelRow) => {
@@ -189,16 +197,16 @@ export function PositionLevelView() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Level")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Urutan", "Order")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Posisi")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
+                    {sort.head("level", t("Level"), "text-[11px] font-bold")}
+                    {sort.head("order", t("Urutan", "Order"), "text-[11px] font-bold")}
+                    {sort.head("positions", t("Posisi"), "text-[11px] font-bold")}
+                    {sort.head("employees", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("status", t("Status"), "text-[11px] font-bold")}
                     <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {levels.map((l) => (
+                  {sort.sorted.map((l) => (
                     <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">

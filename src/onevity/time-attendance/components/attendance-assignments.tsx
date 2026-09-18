@@ -3,6 +3,7 @@
 // (padanan EmpWorkSchedule.jsp) + anchor Senin + non-clocking.
 import { useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,15 @@ export function AttendanceAssignmentsPage() {
   const filtered = active.filter((a) =>
     !query || a.employee.fullName.toLowerCase().includes(query.toLowerCase()) || a.employee.employeeNo.toLowerCase().includes(query.toLowerCase())
   );
+
+  // Task 72 — sorting kolom tabel penugasan jadwal
+  const sort = useTableSort(filtered, {
+    employee: (a) => a.employee.fullName,
+    schedule: (a) => a.schedule.name,
+    cycle: (a) => a.schedule.cycleDays,
+    validFrom: (a) => a.validFrom,
+    clocking: (a) => (a.clockingRequired ? 0 : 1),
+  }, { defaultKey: "employee", defaultDir: "asc" });
   const scheduledIds = new Set(active.map((a) => a.employeeId));
   const unassigned = employees.filter((e) => !scheduledIds.has(e.id));
 
@@ -143,16 +153,16 @@ export function AttendanceAssignmentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Jadwal", "Schedule")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">Cycle</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Berlaku Sejak", "Valid Since")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">Clocking</TableHead>
+                    {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
+                    {sort.head("schedule", t("Jadwal", "Schedule"), "text-[11px] font-bold")}
+                    {sort.head("cycle", "Cycle", "text-[11px] font-bold")}
+                    {sort.head("validFrom", t("Berlaku Sejak", "Valid Since"), "text-[11px] font-bold")}
+                    {sort.head("clocking", "Clocking", "text-[11px] font-bold")}
                     <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.slice(0, 100).map((a) => (
+                  {sort.sorted.slice(0, 100).map((a) => (
                     <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                       <TableCell>
                         <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.employee.fullName}</p>

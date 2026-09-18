@@ -7,6 +7,7 @@
 // CRUD penuh — tombol ter-gate hak aksi payroll:parameters (menu-perms-context).
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +52,15 @@ export function MinimumWageTab() {
   const years = data?.years ?? [];
   const currentYear = year ?? years[0] ?? new Date().getFullYear();
   const wages = useMemo(() => (data?.wages ?? []).filter((w) => w.year === currentYear), [data, currentYear]);
+
+  // Task 72 — sorting kolom tabel UMP/UMK
+  const sort = useTableSort(wages, {
+    year: (w) => w.year,
+    office: (w) => w.companyOffice?.name ?? null,
+    label: (w) => w.label,
+    amount: (w) => w.monthlyAmount,
+    active: (w) => (w.active ? 0 : 1),
+  }, { defaultKey: "office", defaultDir: "asc" });
   const hasDefault = wages.some((w) => w.companyOfficeId === null);
 
   const toggle = async (w: WageRow) => {
@@ -117,16 +127,16 @@ export function MinimumWageTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
-                  <TableHead className="text-[11px] font-bold">{t("Tahun", "Year")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Kantor", "Office")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Label")}</TableHead>
-                  <TableHead className="text-right text-[11px] font-bold">{t("Jumlah / Bulan", "Amount / Month")}</TableHead>
-                  <TableHead className="text-[11px] font-bold">{t("Aktif")}</TableHead>
+                  {sort.head("year", t("Tahun", "Year"), "text-[11px] font-bold")}
+                  {sort.head("office", t("Kantor", "Office"), "text-[11px] font-bold")}
+                  {sort.head("label", t("Label"), "text-[11px] font-bold")}
+                  {sort.head("amount", t("Jumlah / Bulan", "Amount / Month"), "text-right text-[11px] font-bold")}
+                  {sort.head("active", t("Aktif"), "text-[11px] font-bold")}
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {wages.map((w) => (
+                {sort.sorted.map((w) => (
                   <TableRow key={w.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
                     <TableCell className="font-mono text-xs font-bold">{w.year}</TableCell>
                     <TableCell>

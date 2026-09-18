@@ -12,6 +12,7 @@
 // (pola menu-perms-context); menu itu sendiri sudah difilter AppShell.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,6 +123,15 @@ export function ActivityLogView() {
   );
 
   const rows = data?.logs ?? [];
+
+  // Task 72 — sorting kolom log aktivitas (default: terbaru)
+  const sort = useTableSort(rows, {
+    time: (r) => r.createdAt,
+    actor: (r) => r.appUser?.fullName ?? (r.actorType === "system" ? "system" : null),
+    employee: (r) => r.employee?.fullName ?? null,
+    action: (r) => r.action,
+    entity: (r) => r.entity,
+  }, { defaultKey: "time", defaultDir: "desc" });
   const total = data?.total ?? 0;
   const from_ = total === 0 ? 0 : offset + 1;
   const to_ = Math.min(offset + PAGE_SIZE, total);
@@ -262,16 +272,16 @@ export function ActivityLogView() {
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Waktu", "Time")}</TableHead>
-                  <TableHead className="h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Aktor", "Actor")}</TableHead>
-                  <TableHead className="h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 md:table-cell">{t("Karyawan")}</TableHead>
-                  <TableHead className="h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Aksi", "Action")}</TableHead>
-                  <TableHead className="h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 sm:table-cell">{t("Entitas", "Entity")}</TableHead>
+                  {sort.head("time", t("Waktu", "Time"), "h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sort.head("actor", t("Aktor", "Actor"), "h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sort.head("employee", t("Karyawan"), "h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 md:table-cell")}
+                  {sort.head("action", t("Aksi", "Action"), "h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
+                  {sort.head("entity", t("Entitas", "Entity"), "h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 sm:table-cell")}
                   <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Detail")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {sort.sorted.map((r) => (
                   <TableRow key={r.id} className="align-top transition-colors hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
                     <TableCell className="py-3 pr-4">
                       <p className="text-[12.5px] font-semibold text-stone-700 dark:text-stone-200">

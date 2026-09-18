@@ -3,6 +3,7 @@
 // (padanan TravelRequest.jsp + Destination detail + Cash Advance)
 import { Fragment, useMemo, useState } from "react";
 import { useApi, apiSend } from "@/onevity/shared/lib/api";
+import { useTableSort } from "@/onevity/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/onevity/shared/lib/menu-perms-context";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/onevity/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,17 @@ export function TravelRequestsPage() {
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()) || r.purpose.toLowerCase().includes(query.toLowerCase()),
   ), [api.data, query]);
+
+  // Task 72 — sorting kolom tabel pengajuan perjalanan (default: terbaru)
+  const sort = useTableSort(requests, {
+    doc: (r) => r.docNo,
+    employee: (r) => r.fullName,
+    plan: (r) => r.dateFrom,
+    template: (r) => r.templateName,
+    destinations: (r) => (r.destinations[0]?.city ?? null),
+    advance: (r) => r.advanceAmount,
+    status: (r) => r.status,
+  }, { defaultKey: "doc", defaultDir: "desc" });
 
   const zones = master.data?.zones ?? [];
   const templates = (master.data?.templates ?? []).filter((t) => t.active);
@@ -175,18 +187,18 @@ export function TravelRequestsPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
                     <TableHead className="w-8" />
-                    <TableHead>{t("Nomor", "No.")}</TableHead>
-                    <TableHead>{t("Karyawan")}</TableHead>
-                    <TableHead>{t("Rencana", "Plan")}</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead className="hidden md:table-cell">{t("Destinasi", "Destinations")}</TableHead>
-                    <TableHead className="text-right">{t("Uang Muka", "Advance")}</TableHead>
-                    <TableHead>{t("Status")}</TableHead>
+                    {sort.head("doc", t("Nomor", "No."))}
+                    {sort.head("employee", t("Karyawan"))}
+                    {sort.head("plan", t("Rencana", "Plan"))}
+                    {sort.head("template", "Template")}
+                    {sort.head("destinations", t("Destinasi", "Destinations"), "hidden md:table-cell")}
+                    {sort.head("advance", t("Uang Muka", "Advance"), "text-right")}
+                    {sort.head("status", t("Status"))}
                     <TableHead className="text-right">{t("Aksi")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {requests.map((r) => (
+                  {sort.sorted.map((r) => (
                     <Fragment key={r.id}>
                       <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === r.docNo ? null : r.docNo)}>
                         <TableCell className="p-2">
