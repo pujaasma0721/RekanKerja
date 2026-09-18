@@ -74,3 +74,72 @@ export function useTableSort<T>(
 
   return { sorted, key, dir, toggle, head };
 }
+
+// Task 76 — sorting SERVER-SIDE helpers ====================================
+// nextServerSort + ServerSortHead untuk tabel besar yang di-sort di API
+// (sortBy/sortDir dikirim ke endpoint, whitelist di service) sehingga
+// urutan menjangkau SELURUH dataset, bukan hanya baris yang ter-fetch.
+//
+// (Task 68) Helper ini DIPULIHKAN: commit 75dc4cd (sesi paralel) mengimpor
+// nextServerSort/ServerSortHead/ServerSortDir dari modul ini, namun file
+// ini tidak pernah dikirim bersama commit tersebut → error "Export
+// nextServerSort doesn't exist in target module" mematikan SEMUA halaman
+// (GET / 500). Semantik mengikuti pola Task 75 (payroll-profiles):
+// kolom sama diklik → balik arah; kolom baru → mulai dari "asc".
+//
+// Pemakaian:
+//   const [sortKey, setSortKey] = useState("doc");
+//   const [sortDir, setSortDir] = useState<ServerSortDir>("desc");
+//   const clickSort = (k: string) => {
+//     const n = nextServerSort(sortKey, sortDir, k);
+//     setSortKey(n.sortBy as typeof sortKey);
+//     setSortDir(n.sortDir);
+//   };
+//   <ServerSortHead label={t("Nomor")} active={sortKey === "doc"} dir={sortDir}
+//     onClick={() => clickSort("doc")} />
+export type ServerSortDir = "asc" | "desc";
+
+/** State sort berikutnya dari klik header (server-side). */
+export function nextServerSort(
+  currentKey: string | null,
+  currentDir: ServerSortDir,
+  clickedKey: string,
+): { sortBy: string; sortDir: ServerSortDir } {
+  if (clickedKey === currentKey) {
+    return { sortBy: clickedKey, sortDir: currentDir === "asc" ? "desc" : "asc" };
+  }
+  return { sortBy: clickedKey, sortDir: "asc" };
+}
+
+/** Header kolom sortable server-side — state dikelola pemanggil (bukan hook). */
+export function ServerSortHead({
+  label,
+  active,
+  dir,
+  onClick,
+  className,
+}: {
+  label: ReactNode;
+  active: boolean;
+  dir: ServerSortDir;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <TableHead className={className} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={onClick}
+        title="Klik untuk urutkan"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70"
+      >
+        {label}
+        {active ? (
+          dir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 shrink-0 opacity-35" />
+        )}
+      </button>
+    </TableHead>
+  );
+}
