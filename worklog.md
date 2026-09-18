@@ -2037,3 +2037,19 @@ Date: 2026-09-18
   — scripts/e2e-payroll-sort.ts
 - Juga: export {} pada skrip E2E agar tsc memperlakukannya sebagai module (tidak bentrok).
 - Commit: 3c7c248, 8d1f0a2; deploy .15 health 200.
+
+---
+Task ID: 77
+Agent: Buffy (Codebuff)
+Date: 2026-09-19
+## E2E sort server-side tabel hasil audit (travel/jurnal/PA/offboarding + log/leave/TA/medical)
+
+- Skrip: scripts/e2e-server-sort-audit.ts — login + 25 pengujian urutan (asc/desc) atas 12 endpoint hasil audit.
+- PASS semua endpoint berdata: ActivityLog (createdAt desc, action asc), EmailLog (toEmail asc, subject desc),
+  WaLog (toPhone asc), Leave (employee asc, workingDays desc), PayrollJournal (journalNo desc, runNo asc),
+  PA (docNo desc, employee.fullName asc), Offboarding (employee asc, lastDay desc).
+- Endpoint tanpa data di prod SAYONE (overtime, workoff, medical claims, travel req/claim) tetap 200 →
+  query orderBy whitelist tereksekusi valid di DB (kolom salah = 500); pola sort identik dgn endpoint berdata.
+- Checker collation-aware: pelanggaran hanya bila localeCompare(id) DAN code-unit compare sepakat arah salah
+  (PG byte-order menaruh '[' sebelum huruf; JS menimbang tanda baca beda — bukan bug aplikasi).
+- Ekstraksi nested key (employee.fullName) untuk PA/Offboarding.
