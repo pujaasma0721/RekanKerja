@@ -153,6 +153,40 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE /api/onevity/payroll-periods — hapus period uji/tertinggal (batch).
+// Guard: hanya Open, tanpa run, dan tidak dirujuk klaim benefit/assignment komponen.
+export async function DELETE(req: NextRequest) {
+  try {
+    const m = await requireMutator(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
+    const b = await req.json();
+    const ids: string[] = Array.isArray(b.ids) ? b.ids : b.id ? [b.id] : [];
+    if (ids.length === 0) return NextResponse.json({ error: "ids wajib" }, { status: 400 });
+
+    const deletable = await db.payrollPeriod.findMany({
+      where: { id: { in: ids }, status: "Open", runs: { none: {} }, benefitClaims: { none: {} }, componentAssignments: { none: {} } },
+      select: { id: true, code: true },
+    });
+    if (deletable.length < ids.length) {
+      const rejected = ids.length - deletable.length;
+      return NextResponse.json(
+        { error: `${rejected} period tidak bisa dihapus (punya run/klaim/assignment, atau tidak berstatus Open)` },
+        { status: 409 }
+      );
+  }
+
+    const del = await db.payrollPeriod.deleteMany({ where: { id: { in: deletable.map((p) => p.id) } } });
+    await db.activityLog.create({
+      data: { action: "Deleted", entity: "PayrollPeriod", entityId: deletable[0]?.id ?? "-", detail: `${del.count} period dihapus (${deletable.map((p) => p.code).join(", ")})` },
+    });
+    return NextResponse.json({ deleted: del.count });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
 // PATCH /api/onevity/payroll-periods — update status/notes/processDate
 export async function PATCH(req: NextRequest) {
   try {
