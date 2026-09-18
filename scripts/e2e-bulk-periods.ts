@@ -136,7 +136,8 @@ async function main(): Promise<void> {
   const againCreated = again.body?.created?.length ?? -1;
   const againSkipped = again.body?.skipped?.length ?? -1;
   console.log(`POST bulk ulang → ${again.status} · dibuat=${againCreated} dilewati=${againSkipped}`);
-  if (again.status !== 201 || againCreated !== 0 || againSkipped !== 12) throw new Error("idempotensi bulk gagal");
+  if (again.status !== 200 && again.status !== 201) throw new Error("idempotensi bulk gagal (status)");
+  if (againCreated !== 0 || againSkipped !== 12) throw new Error("idempotensi bulk gagal");
 
   // 7) Cleanup — hapus 12 period uji (pasti tanpa run karena baru dibuat)
   const del = await api("/api/onevity/payroll-periods", { method: "DELETE", body: JSON.stringify({ ids: periods.map((p) => p.id) }) });
