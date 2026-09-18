@@ -2053,3 +2053,22 @@ Date: 2026-09-19
 - Checker collation-aware: pelanggaran hanya bila localeCompare(id) DAN code-unit compare sepakat arah salah
   (PG byte-order menaruh '[' sebelum huruf; JS menimbang tanda baca beda — bukan bug aplikasi).
 - Ekstraksi nested key (employee.fullName) untuk PA/Offboarding.
+
+---
+Task ID: 69
+Agent: orchestrator (Z.ai)
+Task: Proyek Flutter baru di hris-mobile — aplikasi HRIS mobile employee-centric modern-interaktif (permintaan user: desain UI fintech/social, semua fitur employee dari modul OneVity).
+
+Work Log:
+- FLUTTER SDK 3.32.2 diinstal di /home/z/flutter (unduh tarball 1.4GB — sandbox sebelumnya tidak punya Flutter) + provider package. flutter create di hris-mobile (org id.onevity, platform android+ios).
+- FITUR (dipetakan dari modul ESS OneVity + modul terkait karyawan): splash → login → shell bottom-nav 4 tab + FAB "Ajukan" tengah. 14 halaman: Beranda (sapaan personal, kartu presensi gradasi dgn jam hidup + tombol clock in/out satu-tap + chip shift/lokasi, stat sisa cuti/lembur/klaim, teaser THP + privacy toggle, pintasan, pengumuman), Presensi (ring statistik + kalender bulanan custom dgn titik status berwarna + detail hari + riwayat), Cuti (saldo per jenis dgn ring, form date-range, riwayat + timeline persetujuan berjenjang), Slip Gaji (YTD card, 12 periode, detail komponen penghasilan/potongan/PPh21 + privacy), Klaim (form + filter status + timeline), Pengajuan (lembur dgn estimasi upah / workoff / dinas + uang muka), Surat (4 jenis + riwayat), Pengumuman (feed kategori + pin + detail), Tukar Shift (jadwal + tawaran), Aset Saya, Whistleblow (hero jaminan anonimitas + form + kode pelacakan), Profil (kartu kepegawaian + masa kerja + keluarga + dokumen + pengaturan dark/privacy), Notifikasi.
+- ARSITEKTUR: core/ (design system theme emerald+amber Material 3, format rupiah/tanggal-ID, 12 widget reusable termasuk ring custom-painter + timeline + kalender), data/ (models 20+ entitas, seed demo realistis relatif hari ini, AppState ChangeNotifier — semua aksi bermutasi state: clockIn/Out hitung jam+lembur+notifikasi, submitLeave/Claim/Overtime/Workoff/Travel/Swap/Letter/Whistleblow dgn validasi & pesan ramah), features/ (14 file per modul). Tanpa dependensi berat (kalender/ring/timeline custom) — hanya provider.
+- DESAIN employee-centric: bahasa Indonesia personal ("kamu", emoji, copy hangat "Waktu healing juga penting"), nominal besar fintech-style, bottom-sheet semua form, chip status berwarna, dark mode penuh + mode privasi nominal (blur Rp ••••), sapaan waktu, empty-state yang manusiawi.
+- KUALITAS: flutter analyze = "No issues found!" (0 error/warning/info setelah iterasi fix: 4 ikon tidak-ada diganti, SheetHeader key param, record-list const, brighten Color channel API baru). flutter test = "All tests passed!" (smoke E2E: splash→login→shell→navigasi tab→clock-in/out→notifikasi→privacy). Pembelajaran: HrisApp menyediakan provider internal — test harus read dari elemen DALAM app (MainShell), bukan wrapper luar.
+- Nama app: Android label + iOS CFBundleDisplayName = "OneVity HRIS".
+- APK build tidak bisa di sandbox (tanpa Android SDK) — analyze + widget test headless jadi verifikasi.
+- README.md lengkap: fitur, arsitektur, cara jalan, next-step integrasi backend OneVity (ganti seed dgn /api/onevity/ess/*).
+- 86 file di-commit & push (cf7fb9c). hris-mobile/build terabaikan .gitignore Flutter.
+
+Stage Summary:
+- hris-mobile kini berisi aplikasi Flutter HRIS mobile lengkap & sehat (analyze 0 issue, test lulus): 14 modul employee self-service OneVity dalam UX fintech-grade — siap disambungkan ke backend ESS OneVity di iterasi berikutnya.
