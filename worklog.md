@@ -1872,3 +1872,22 @@ Date: 2026-09-16
 - Offboarding karyawan kedua → EmailLog `offboarding.checklist` ×6 **Sent**
 - Link publik `/checklist/<token>`: GET 200 (daftar tugas bagian IT saja), POST centang Done → DB `completedVia=email:IT` ✓ (tes di-rollback ke Pending)
 - Bug ketemu & diperbaiki: token slug underscore→strip, halaman baca token dari path param, resolve tenant fallback schemaName
+
+---
+Task ID: 68
+Agent: orchestrator (Z.ai)
+Task: Sinkronisasi pull github (user: "pull github") — 9449c19..e178372 + PEMULIHAN LINGKUNGAN SETELAH RESET SANDBOX + fix fatal CSS.
+
+Work Log:
+- git pull --rebase: 9449c19..e178372 (94 file, +20.895/−383) — masuk: (a) d47228a koreksi riwayat penempatan tanpa PA; (b) bce9f5b E2E perubahan penempatan manual bukti prorate segmen; (c) 3c0deed/9566b08/630b47f bulk 12-bulan periode payroll + DELETE dgn guard referensial + window TA user-defined; (d) 25ac85d sort klik-asc/desc di tabel utama semua modul; (e) 63cb481/329f44d/3c7c248/e178372 sort server-side lintas halaman (direktori/profiles/runs); (f) modul Onboarding checklist (tabel + email + token publik /checklist/[token]) + restore-demo diperluas.
+- RESET SANDBOX TERDETEKSI: semua artefak runtime hilang — mini-services/postgres/data kosong (initdb baru = SEMUA data tenant hilang), .env ter-revert ke template SQLite lama, dev.log & watchdog mati; timestamp FS Sep 18 22:46. File kode & git repo utuh.
+- PEMULIHAN LINGKUNGAN (urut): (1) .env ditulis ulang — PLATFORM_DB_URL + TENANT_DB_BASE_URL ke embedded PG 127.0.0.1:5432/onevity (pola DEPLOY-RUNBOOK §5.1); (2) start mini-services/postgres (initdb + pg_ctl, port 5432); (3) bun run db:push (schema platform) + bun run db:generate; (4) bun run scripts/restore-demo.ts — 3 tenant demo dipulihkan (MII 44 karyawan + payroll + attendance, Cahaya, Sentra) + owner/admin akun demo; (5) migrasi password-security (warning di restore) + checklist-tables + password-idle-timeout + tenant-schema-integrity — semua idempoten sukses; (6) parity runner in-process saat boot: 0 gap.
+- BUG FATAL DITEMUKAN & DIPERBAIKI (57c2a45): globals.css memuat rule ::highlight(select-match) (commit 0925d55 sesi paralel, CSS Custom Highlight API Task 64i) — parser CSS Turbopack/Lightning CSS TIDAK mengenali pseudo-element ::highlight() → error parse mematikan seluruh globals.css → SEMUA halaman 500 (GET / 500). Fix: rule dipindah ke runtime injection <style id=ov-select-match-style> di src/components/ui/select.tsx (sekali per dokumen, tetap theme-aware var(--accent-live), guard typeof document, tidak pernah crash). GET / pulih 200.
+- POLA PROSES PERSISTEN DITEMUKAN: proses background bun/node dibunuh saat tool-call berakhir KECUALI yatim ke init — watch-dev.sh (watchdog restart loop dev server) kini dinyalakan via double-fork orphans (( setsid bash -c 'exec …' & )) → bertahan antar tool-call. Postgres & smtp-catcher mini-services tetap jalan.
+- FILE UNTRACKED SISA SESI PARALEL DIPETAKAN: prisma/{dump-job-data,restore-assignments,schema-legacy-sqlite}, scripts/migrate-to-postgres, src/components/onevity/, src/lib/onevity/, beberapa view HR — diverifikasi TIDAK diimport kode tracked mana pun (match hanyalah string URL API) = dead code lokal, tidak mempengaruhi repo; dibiarkan tak tersentuh (artefak sesi lain).
+- VERIFIKASI BROWSER (agent-browser): login hrd@mii.co.id → workspace MII → modul Payroll → Proses & Hasil → detail PR-2026-08-SAL-01 → tombol "Laporan Bulanan (XLSX)" tampil → klik = GET payroll-reports/monthly?export=xlsx 200 ✓ · console 0 error ✓. (Data demo hasil restore — runId baru cmu7jxo67…)
+- tsc bersih · lint jalan · push 57c2a45.
+
+Stage Summary:
+- Repo = origin/main (57c2a45): pull PENUH + compile PULIH — namun kode GitHub apa adanya (e178372) TIDAK bisa jalan sebelum fix CSS ini (500 di semua halaman); fresh clone/start kini aman.
+- Lingkungan sandbox dipulihkan total: PostgreSQL 3 tenant demo + akun + parity 0 gap; dev server dijaga watch-dev.sh (double-fork); fitur inti (laporan bulanan XLSX) terverifikasi end-to-end di atas data hasil restore.
