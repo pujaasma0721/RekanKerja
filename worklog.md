@@ -2224,3 +2224,28 @@ Work Log:
 
 Stage Summary:
 - Pengajuan klaim dari mobile kini TERBUKA penuh (mode live): tab Medis (jenis + sisa plafon real-time dari previewClaim, dependent, tanggal perawatan, kwitansi opsional, peringatan plafon amber) dan tab Travel (dasar klaim dinas Approved / mandiri template, baris biaya multi dgn batas jenis, jendela tanggal sesuai rentang trip) — keduanya tersimpan ke backend dengan docNo di SnackBar hijau + error ramah merah/amber; mode demo & seluruh halaman lain tidak berubah. analyze 0 isu, 8/8 test lulus, uji nyata: MC-2026-012 & CL-2026-007.
+
+---
+Task ID: 71
+Agent: Z.ai (orkestrator utama)
+Task: Buka pengajuan klaim medis & travel via mobile apps/ESS (sebelumnya hanya-baca).
+
+Work Log:
+- Eksplorasi: ess/api/claims.ts (GET read-only), medical-service (submitClaim+previewClaim: guard M-2/M-8/K-1..K-3, approval chain Medical), travel-service (createClaim: guard M-2/K-2/M-5, settlement B1/B2, chain TravelClaim), pola ESS POST (ess/api/leave.ts), guard vault uang aktor ESS.
+- Keputusan desain: ESS TIDAK menegakkan upload lampiran kwitansi (endpoint /api/onevity/attachments ter-guard menu HR — pekerja ESS tanpa akses) → klaim ESS = deklarasi pekerja; notifikasi approver menyebut verifikasi kwitansi fisik; approver bisa Return. Guard lampiran jalur admin tetap utuh.
+- Backend baru: src/onevity/ess/api/claims-medical.ts + claims-travel.ts + 2 thin route (/api/onevity/ess/claims/{medical,travel}).
+  * GET medical: jenis aktif + snapshot saldo per jenis via previewClaim (remainingForClaim termasuk reservasi menunggu; limitRule UNLIMITED → UI ∞); vault gate mv (masked → 0).
+  * POST medical: submitClaim (submit=true, aktor AppUser ESS) + notifikasi in-app/email/webhook approver + respons receiptNote.
+  * GET travel: request Approved milik sendiri TANPA klaim aktif (listTravelRequests) + template aktif + jenis biaya aktif (batas + needDocs).
+  * POST travel: createClaim (requestId → template & jendwa tanggal dari request; mandiri → templateCode wajib) + notifikasi approver.
+- ESS web: ess-claims.tsx dirombak — 2 dialog pengajuan (Medis: jenis+saldo+multi-baris perawatan+dependent+peringatan plafon; Travel: dasar klaim request/mandiri+multi-baris biaya+lanjutan pihak lain/rugi kurs), ess-api.ts+ess-types.ts typed. Fix bug: Radix SelectItem melarang value "" → sentinel __mandiri__.
+- Flutter (delegasi Task 71-m subagent): 4 method API + model baru + loadClaimForms + submitClaim live + submitTravelClaim + form sheet 2 tab Medis|Travel (sisa plafon, dependent, baris biaya dinamis dengan rentang tanggal request).
+- E2E curl (login hrd@mii.co.id → MII): buat+approve TR-2026-007 → POST klaim travel linked CL-2026-006 (3 baris, settlement 2,9jt vs advance 2,5jt → b 400rb, chain 1 jenjang Sri Wahyuni); POST klaim medis MC-2026-011 (Gigi & Mulut 1,25jt); guard over-plafon menolak 6jt vs sisa 3,75jt (termasuk reservasi); list /ess/claims tampil.
+- E2E browser (agent-browser, ESS web mode Karyawan): dialog medis → submit MC-2026-013 (350rb,Medical Umum); dialog travel mandiri → CL-2026-008 (275rb); linked TR-2026-008 (Bandung, advance 400rb) → CL-2026-009 setelah guard tanggal trip menolak 19 Sep (luar rentang 13–16 Sep) → perbaiki 15 Sep; verifikasi 390px mobile viewport; dev.log bersih.
+- Flutter: analyze "No issues found!", test 8/8 lulus. Web: eslint + tsc bersih.
+- Commit edeadcc → push GitHub main.
+
+Stage Summary:
+- Pengajuan klaim medis & travel kini TERBUKA dari ESS web + aplikasi mobile (sebelumnya hanya-baca): seluruh guard bisnis jalur admin tetap berlaku (plafon pool + reservasi, dedupe kwitansi, frekuensi, rentang tanggal trip, satu klaim aktif per request, formula settlement server, approval berjenjang + notifikasi).
+- Klaim ESS tanpa upload lampiran (deklarasi) — verifikasi kwitansi fisik oleh approver/HR (bisa Return); kebijakan ini terdokumentasi di kode.
+- Bukti E2E: MC-2026-011..013, CL-2026-006..009 di tenant MII (demo data berguna utk review approval flow).
