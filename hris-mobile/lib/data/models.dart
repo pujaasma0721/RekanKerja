@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/format.dart';
+
 /// ============ Model data seluruh modul ESS OneVity ============
 /// Field lama dipertahankan agar seed demo tetap kompatibel;
 /// field opsional (nullable / default) = data dari backend live
@@ -80,7 +82,15 @@ class Workspace {
   Workspace(this.id, this.name, this.companyCode, this.slug, this.role);
 }
 
-enum AttendanceStatus { present, late, absent, leave, holiday, weekend, workoff }
+enum AttendanceStatus {
+  present,
+  late,
+  absent,
+  leave,
+  holiday,
+  weekend,
+  workoff,
+}
 
 class AttendanceRecord {
   final DateTime date;
@@ -137,7 +147,10 @@ class LeaveBalance {
   final double? available;
   final int applied;
 
-  LeaveBalance(this.type, this.entitled, this.used, {
+  LeaveBalance(
+    this.type,
+    this.entitled,
+    this.used, {
     this.typeId,
     this.code,
     this.unit,
@@ -192,7 +205,12 @@ class PayComponent {
   final int amount;
   final bool isDeduction;
   final String note;
-  PayComponent(this.name, this.amount, {this.isDeduction = false, this.note = ''});
+  PayComponent(
+    this.name,
+    this.amount, {
+    this.isDeduction = false,
+    this.note = '',
+  });
 }
 
 class Payslip {
@@ -211,7 +229,13 @@ class Payslip {
   final int? totalDeductions;
   final String? employeeName;
 
-  Payslip(this.year, this.month, this.thp, this.gross, this.tax, this.components, {
+  Payslip(
+    this.year,
+    this.month,
+    this.thp,
+    this.gross,
+    this.tax,
+    this.components, {
     this.lineId,
     this.periodName,
     this.status,
@@ -220,8 +244,10 @@ class Payslip {
     this.employeeName,
   });
 
-  List<PayComponent> get penghasilan => components.where((c) => !c.isDeduction).toList();
-  List<PayComponent> get potongan => components.where((c) => c.isDeduction).toList();
+  List<PayComponent> get penghasilan =>
+      components.where((c) => !c.isDeduction).toList();
+  List<PayComponent> get potongan =>
+      components.where((c) => c.isDeduction).toList();
 
   String get labelPeriode => periodName ?? '';
 }
@@ -244,7 +270,15 @@ class Claim {
   final int? advanceAmount; // uang muka (travel)
   final int? settlementAmount; // pertanggungjawaban (travel)
 
-  Claim(this.id, this.type, this.provider, this.description, this.date, this.amount, this.status, this.steps, {
+  Claim(
+    this.id,
+    this.type,
+    this.provider,
+    this.description,
+    this.date,
+    this.amount,
+    this.status,
+    this.steps, {
     this.docNo,
     this.approvedAmount,
     this.submittedAt,
@@ -268,7 +302,16 @@ class MyRequest {
   // ---- tambahan dari backend live ----
   final String? docNo;
 
-  MyRequest(this.id, this.kind, this.date, this.title, this.detail, this.status, this.submittedAt, {this.docNo});
+  MyRequest(
+    this.id,
+    this.kind,
+    this.date,
+    this.title,
+    this.detail,
+    this.status,
+    this.submittedAt, {
+    this.docNo,
+  });
 }
 
 class LetterTemplate {
@@ -293,7 +336,12 @@ class LetterRequest {
   final DateTime? issuedAt;
   final String? rejectReason;
 
-  LetterRequest(this.id, this.type, this.purpose, this.status, this.requestedAt, {
+  LetterRequest(
+    this.id,
+    this.type,
+    this.purpose,
+    this.status,
+    this.requestedAt, {
     this.reqNo,
     this.templateKey,
     this.notes,
@@ -317,7 +365,14 @@ class Announcement {
   final bool readByMe;
   final int totalReads;
 
-  Announcement(this.id, this.title, this.body, this.category, this.author, this.publishedAt, this.pinned, {
+  Announcement(
+    this.id,
+    this.title,
+    this.body,
+    this.category,
+    this.author,
+    this.publishedAt,
+    this.pinned, {
     this.code,
     this.readByMe = false,
     this.totalReads = 0,
@@ -340,7 +395,14 @@ class AssetItem {
   final String? notes;
   final int? value;
 
-  AssetItem(this.id, this.name, this.code, this.serial, this.category, this.assignedAt, this.status, {
+  AssetItem(
+    this.id,
+    this.name,
+    this.code,
+    this.serial,
+    this.category,
+    this.assignedAt,
+    this.status, {
     this.dueAt,
     this.returnedAt,
     this.returnCondition,
@@ -356,7 +418,14 @@ class WhistleblowReport {
   final String description;
   final DateTime submittedAt;
   final String status;
-  WhistleblowReport(this.id, this.ticket, this.category, this.description, this.submittedAt, this.status);
+  WhistleblowReport(
+    this.id,
+    this.ticket,
+    this.category,
+    this.description,
+    this.submittedAt,
+    this.status,
+  );
 }
 
 class SwapOffer {
@@ -373,7 +442,14 @@ class SwapOffer {
   final String? reason;
   final String? decisionNote;
 
-  SwapOffer(this.id, this.myDate, this.myShift, this.colleague, this.colleagueDate, this.colleagueShift, this.status, {
+  SwapOffer(
+    this.id,
+    this.myDate,
+    this.myShift,
+    this.colleague,
+    this.colleagueDate,
+    this.colleagueShift,
+    this.status, {
     this.code,
     this.reason,
     this.decisionNote,
@@ -419,7 +495,9 @@ class SwapMyShift {
 
   String get label =>
       scheduleName ??
-      (holidayName != null ? 'Libur — $holidayName' : (dayTypeName ?? 'Tidak ada jadwal'));
+      (holidayName != null
+          ? 'Libur — $holidayName'
+          : (dayTypeName ?? 'Tidak ada jadwal'));
 }
 
 class AppNotification {
@@ -429,7 +507,14 @@ class AppNotification {
   final DateTime at;
   final String kind;
   bool read;
-  AppNotification(this.id, this.title, this.body, this.at, this.kind, this.read);
+  AppNotification(
+    this.id,
+    this.title,
+    this.body,
+    this.at,
+    this.kind,
+    this.read,
+  );
 }
 
 class ShiftSchedule {
@@ -459,6 +544,117 @@ class DashboardKpi {
   });
 }
 
+/// Jenis benefit klaim medis + snapshot saldo plafon (backend live:
+/// GET /ess/claims/medical — jalur previewClaim, aturan plafon ikut dievaluasi).
+class MedClaimTypeInfo {
+  final String typeId;
+  final String code;
+  final String name;
+  final String limitRule; // NOMINAL | FACTOR | UNLIMITED
+  final bool needReceipt;
+  final bool dependentEnabled;
+  final bool freqUnlimited;
+  final int freqValue;
+  final double
+  remainingForClaim; // sisa plafon siap klaim (net reservasi menunggu)
+  final double pendingReserved;
+  final int claimCountYear;
+  final double benefitAmount;
+
+  const MedClaimTypeInfo({
+    required this.typeId,
+    required this.code,
+    required this.name,
+    this.limitRule = '',
+    this.needReceipt = true,
+    this.dependentEnabled = false,
+    this.freqUnlimited = true,
+    this.freqValue = 0,
+    this.remainingForClaim = 0,
+    this.pendingReserved = 0,
+    this.claimCountYear = 0,
+    this.benefitAmount = 0,
+  });
+
+  bool get unlimited => limitRule == 'UNLIMITED';
+}
+
+/// Pengajuan dinas milik saya yang bisa diklaim (Approved & tanpa klaim aktif).
+class TravelRequestOption {
+  final String requestId;
+  final String docNo;
+  final DateTime dateFrom;
+  final DateTime dateTo;
+  final int days;
+  final String purpose;
+  final List<String> destinations;
+  final String templateCode;
+  final String templateName;
+  final int advanceAmount;
+
+  const TravelRequestOption({
+    required this.requestId,
+    required this.docNo,
+    required this.dateFrom,
+    required this.dateTo,
+    this.days = 0,
+    this.purpose = '',
+    this.destinations = const [],
+    this.templateCode = '',
+    this.templateName = '',
+    this.advanceAmount = 0,
+  });
+
+  /// Rentang tanggal perjalanan singkat: "10–14 Sep 2026".
+  String get rentangPendek {
+    String fmt(DateTime d) => '${d.day} ${bulanID[d.month - 1]} ${d.year}';
+    final sameMonth =
+        dateFrom.year == dateTo.year && dateFrom.month == dateTo.month;
+    if (sameMonth) {
+      return '${dateFrom.day}–${fmt(dateTo)}';
+    }
+    return '${fmt(dateFrom)} – ${fmt(dateTo)}';
+  }
+}
+
+/// Template klaim perjalanan (untuk klaim mandiri tanpa pengajuan dinas).
+class TravelTemplateOption {
+  final String code;
+  final String name;
+  const TravelTemplateOption(this.code, this.name);
+}
+
+/// Jenis biaya klaim perjalanan (mis. L-HOTEL, L-TRANSPORT).
+class TravelExpenseTypeOption {
+  final String code;
+  final String name;
+  final String kind; // GENERAL | ALLOWANCE | ENTERTAINMENT | MILEAGE
+  final bool needDocs;
+  final double limitAmount;
+  final bool unlimited;
+
+  const TravelExpenseTypeOption({
+    required this.code,
+    required this.name,
+    this.kind = 'GENERAL',
+    this.needDocs = false,
+    this.limitAmount = 0,
+    this.unlimited = false,
+  });
+}
+
+/// Gabungan data form klaim travel dari backend (GET /ess/claims/travel).
+class TravelClaimFormData {
+  final List<TravelRequestOption> requests;
+  final List<TravelTemplateOption> templates;
+  final List<TravelExpenseTypeOption> expenseTypes;
+  const TravelClaimFormData({
+    this.requests = const [],
+    this.templates = const [],
+    this.expenseTypes = const [],
+  });
+}
+
 /// Hasil satu langkah proses login / cek sesi.
 enum LoginStage { done, mfaRequired, pickTenant, error }
 
@@ -468,5 +664,11 @@ class LoginResult {
   final String? mfaToken;
   final List<Workspace> workspaces;
   final Workspace? tenant;
-  const LoginResult(this.stage, {this.error, this.mfaToken, this.workspaces = const [], this.tenant});
+  const LoginResult(
+    this.stage, {
+    this.error,
+    this.mfaToken,
+    this.workspaces = const [],
+    this.tenant,
+  });
 }

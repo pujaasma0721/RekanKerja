@@ -11,11 +11,17 @@ import type {
   EssClockResult,
   EssLeaveData,
   EssLeaveSubmitInput,
+  EssMedicalClaimFormData,
+  EssMedicalClaimSubmitInput,
+  EssMedicalClaimSubmitResult,
   EssMe,
   EssNotificationsData,
   EssOvertimeInput,
   EssPayslipDetail,
   EssSubmitResult,
+  EssTravelClaimFormData,
+  EssTravelClaimSubmitInput,
+  EssTravelClaimSubmitResult,
   EssWorkoffInput,
 } from "./ess-types";
 
@@ -106,6 +112,19 @@ export const submitClock = (body: EssClockInput) =>
 // ============ POST permintaan surat layanan (26-a) ============
 export const submitLetterRequest = (body: { templateKey: string; purpose?: string; notes?: string }) =>
   apiSend<EssSubmitResult>(`${ESS_BASE}/letters`, "POST", body);
+
+// ============ GET/POST pengajuan klaim medis & travel (Task 71) ============
+export const fetchMedicalClaimForm = () =>
+  essGet<EssMedicalClaimFormData>("/claims/medical");
+
+export const submitMedicalClaim = (body: EssMedicalClaimSubmitInput) =>
+  apiSend<EssMedicalClaimSubmitResult>(`${ESS_BASE}/claims/medical`, "POST", body);
+
+export const fetchTravelClaimForm = () =>
+  essGet<EssTravelClaimFormData>("/claims/travel");
+
+export const submitTravelClaim = (body: EssTravelClaimSubmitInput) =>
+  apiSend<EssTravelClaimSubmitResult>(`${ESS_BASE}/claims/travel`, "POST", body);
 
 export const markNotifRead = (payload: { id?: string; all?: boolean }) =>
   apiSend<unknown>(`${ESS_BASE}/notifications/read`, "POST", payload);

@@ -22,7 +22,8 @@ class OneVityApi {
     return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
   }
 
-  static DateTime? _isoOpt(String? s) => (s == null || s.isEmpty) ? null : DateTime.parse(s);
+  static DateTime? _isoOpt(String? s) =>
+      (s == null || s.isEmpty) ? null : DateTime.parse(s);
 
   static TimeOfDay? _timeOpt(String? s) {
     if (s == null || s.isEmpty) return null;
@@ -38,15 +39,27 @@ class OneVityApi {
 
   static String _status(String? s) => (s ?? '').trim().toLowerCase();
 
-  static int _int(dynamic v, [int fallback = 0]) =>
-      v == null ? fallback : (v is num ? v.round() : int.tryParse(v.toString()) ?? fallback);
+  static int _int(dynamic v, [int fallback = 0]) => v == null
+      ? fallback
+      : (v is num ? v.round() : int.tryParse(v.toString()) ?? fallback);
 
-  static double _dbl(dynamic v, [double fallback = 0]) =>
-      v == null ? fallback : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? fallback);
+  static double _dbl(dynamic v, [double fallback = 0]) => v == null
+      ? fallback
+      : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? fallback);
 
   static const _bulanIdx = {
-    'JANUARI': 1, 'FEBRUARI': 2, 'MARET': 3, 'APRIL': 4, 'MEI': 5, 'JUNI': 6,
-    'JULI': 7, 'AGUSTUS': 8, 'SEPTEMBER': 9, 'OKTOBER': 10, 'NOVEMBER': 11, 'DESEMBER': 12,
+    'JANUARI': 1,
+    'FEBRUARI': 2,
+    'MARET': 3,
+    'APRIL': 4,
+    'MEI': 5,
+    'JUNI': 6,
+    'JULI': 7,
+    'AGUSTUS': 8,
+    'SEPTEMBER': 9,
+    'OKTOBER': 10,
+    'NOVEMBER': 11,
+    'DESEMBER': 12,
   };
 
   /// "AGUSTUS 2026" → (2026, 8); gagal → (0, 0).
@@ -61,16 +74,19 @@ class OneVityApi {
   }
 
   static Workspace _workspace(Map j) => Workspace(
-        j['id'] as String,
-        (j['name'] ?? '') as String,
-        j['companyCode'] as String?,
-        j['slug'] as String?,
-        (j['role'] ?? '') as String,
-      );
+    j['id'] as String,
+    (j['name'] ?? '') as String,
+    j['companyCode'] as String?,
+    j['slug'] as String?,
+    (j['role'] ?? '') as String,
+  );
 
   LoginResult _sessionResult(Map b) {
     if (b['mfaRequired'] == true) {
-      return LoginResult(LoginStage.mfaRequired, mfaToken: b['mfaToken'] as String?);
+      return LoginResult(
+        LoginStage.mfaRequired,
+        mfaToken: b['mfaToken'] as String?,
+      );
     }
     final workspaces = (b['workspaces'] as List? ?? [])
         .whereType<Map>()
@@ -122,7 +138,9 @@ class OneVityApi {
   Future<void> logout() async {
     try {
       await client.postJson('/api/auth/logout', {});
-    } catch (_) {/* best effort */}
+    } catch (_) {
+      /* best effort */
+    }
     client.sessionCookie = null;
   }
 
@@ -229,7 +247,9 @@ class OneVityApi {
 
   // ================= ESS: PRESENSI =================
 
-  Future<(List<AttendanceRecord>, AttendanceSummary)> attendance([String? month]) async {
+  Future<(List<AttendanceRecord>, AttendanceSummary)> attendance([
+    String? month,
+  ]) async {
     final q = month == null ? null : {'month': month};
     final b = await client.getJson('/api/onevity/ess/attendance', q);
     final days = (b['days'] as List? ?? []).whereType<Map>();
@@ -267,7 +287,12 @@ class OneVityApi {
     return (records, summary);
   }
 
-  Future<(String, String)> clock(String direction, {double? lat, double? lng, String? note}) async {
+  Future<(String, String)> clock(
+    String direction, {
+    double? lat,
+    double? lng,
+    String? note,
+  }) async {
     final b = await client.postJson('/api/onevity/ess/clock', {
       'direction': direction,
       if (lat != null) 'latitude': lat,
@@ -308,7 +333,8 @@ class OneVityApi {
           submittedAt: DateTime.now(),
           docNo: m['docNo'] as String?,
           typeId: m['typeId'] as String?,
-          currentApprover: ((m['approval'] as Map?)?['currentApproverName']) as String?,
+          currentApprover:
+              ((m['approval'] as Map?)?['currentApproverName']) as String?,
         ),
     ];
     return (balances, requests);
@@ -353,7 +379,9 @@ class OneVityApi {
 
   /// Rincian satu slip (dipanggil saat dibuka).
   Future<Payslip> payslipDetail(String lineId, Payslip header) async {
-    final b = await client.getJson('/api/onevity/ess/payslips/detail', {'lineId': lineId});
+    final b = await client.getJson('/api/onevity/ess/payslips/detail', {
+      'lineId': lineId,
+    });
     final comps = [
       for (final m in (b['items'] as List? ?? []).whereType<Map>())
         PayComponent(
@@ -385,37 +413,155 @@ class OneVityApi {
     final out = <Claim>[];
     for (final m in (b['medical'] as List? ?? []).whereType<Map>()) {
       final submitted = _isoOpt(m['submittedAt'] as String?) ?? DateTime.now();
-      out.add(Claim(
-        (m['docNo'] ?? '') as String,
-        (m['typeName'] ?? '') as String,
-        'Klaim Medis',
-        (m['typeName'] ?? '') as String,
-        submitted,
-        _int(m['bill']),
-        _status(m['status'] as String?),
-        const [],
-        docNo: m['docNo'] as String?,
-        approvedAmount: m['approved'] == null ? null : _int(m['approved']),
-        submittedAt: submitted,
-      ));
+      out.add(
+        Claim(
+          (m['docNo'] ?? '') as String,
+          (m['typeName'] ?? '') as String,
+          'Klaim Medis',
+          (m['typeName'] ?? '') as String,
+          submitted,
+          _int(m['bill']),
+          _status(m['status'] as String?),
+          const [],
+          docNo: m['docNo'] as String?,
+          approvedAmount: m['approved'] == null ? null : _int(m['approved']),
+          submittedAt: submitted,
+        ),
+      );
     }
     for (final m in (b['travel'] as List? ?? []).whereType<Map>()) {
-      out.add(Claim(
-        (m['docNo'] ?? '') as String,
-        'Perjalanan Dinas',
-        'Travel',
-        (m['purpose'] ?? '') as String,
-        DateTime.now(),
-        _int(m['advance']),
-        _status(m['status'] as String?),
-        const [],
-        docNo: m['docNo'] as String?,
-        isTravel: true,
-        advanceAmount: _int(m['advance']),
-        settlementAmount: m['settlement'] == null ? null : _int(m['settlement']),
-      ));
+      out.add(
+        Claim(
+          (m['docNo'] ?? '') as String,
+          'Perjalanan Dinas',
+          'Travel',
+          (m['purpose'] ?? '') as String,
+          DateTime.now(),
+          _int(m['advance']),
+          _status(m['status'] as String?),
+          const [],
+          docNo: m['docNo'] as String?,
+          isTravel: true,
+          advanceAmount: _int(m['advance']),
+          settlementAmount: m['settlement'] == null
+              ? null
+              : _int(m['settlement']),
+        ),
+      );
     }
     return out;
+  }
+
+  // ================= ESS: PENGAJUAN KLAIM (medis & travel) =================
+
+  /// Jenis benefit medis aktif + snapshot sisa plafon (form pengajuan).
+  Future<List<MedClaimTypeInfo>> medicalClaimTypes() async {
+    final b = await client.getJson('/api/onevity/ess/claims/medical');
+    return [
+      for (final m in (b['types'] as List? ?? []).whereType<Map>())
+        MedClaimTypeInfo(
+          typeId: (m['typeId'] ?? '') as String,
+          code: (m['code'] ?? '') as String,
+          name: (m['name'] ?? '') as String,
+          limitRule: (m['limitRule'] ?? '') as String,
+          needReceipt: m['needReceipt'] == true,
+          dependentEnabled: m['dependentEnabled'] == true,
+          freqUnlimited: m['freqUnlimited'] == true,
+          freqValue: _int(m['freqValue']),
+          remainingForClaim: _dbl(m['remainingForClaim']),
+          pendingReserved: _dbl(m['pendingReserved']),
+          claimCountYear: _int(m['claimCountYear']),
+          benefitAmount: _dbl(m['benefitAmount']),
+        ),
+    ];
+  }
+
+  /// Ajukan klaim medis untuk diri sendiri / dependent.
+  /// `lines` mengikuti kontrak backend:
+  /// `{treatedName, treatment, treatmentDate, receiptNo, physician,
+  ///   hospital, billAmount, approvedAmount}` (angka int).
+  /// Respons 201 berisi docNo — dikembalikan ke pemanggil.
+  Future<String> submitMedicalClaim({
+    required String typeId,
+    required DateTime claimDate,
+    required List<Map<String, dynamic>> lines,
+    bool forDependent = false,
+    String? note,
+  }) async {
+    final b = await client.postJson('/api/onevity/ess/claims/medical', {
+      'typeId': typeId,
+      'claimDate': _ymd(claimDate),
+      'forDependent': forDependent,
+      if (note != null && note.isNotEmpty) 'note': note,
+      'lines': lines,
+    });
+    return (b['docNo'] ?? '') as String;
+  }
+
+  /// Data form klaim perjalanan dinas: pengajuan Approved yang belum
+  /// diklaim, template (klaim mandiri), dan daftar jenis biaya.
+  Future<TravelClaimFormData> travelClaimForm() async {
+    final b = await client.getJson('/api/onevity/ess/claims/travel');
+    return TravelClaimFormData(
+      requests: [
+        for (final m in (b['requests'] as List? ?? []).whereType<Map>())
+          TravelRequestOption(
+            requestId: (m['requestId'] ?? m['id'] ?? '') as String,
+            docNo: (m['docNo'] ?? '') as String,
+            dateFrom: _date(m['dateFrom'] as String),
+            dateTo: _date(m['dateTo'] as String),
+            days: _int(m['days']),
+            purpose: (m['purpose'] ?? '') as String,
+            destinations: [
+              for (final d in (m['destinations'] as List? ?? [])) d.toString(),
+            ],
+            templateCode: (m['templateCode'] ?? '') as String,
+            templateName: (m['templateName'] ?? '') as String,
+            advanceAmount: _int(m['advanceAmount']),
+          ),
+      ],
+      templates: [
+        for (final m in (b['templates'] as List? ?? []).whereType<Map>())
+          TravelTemplateOption(
+            (m['code'] ?? '') as String,
+            (m['name'] ?? '') as String,
+          ),
+      ],
+      expenseTypes: [
+        for (final m in (b['expenseTypes'] as List? ?? []).whereType<Map>())
+          TravelExpenseTypeOption(
+            code: (m['code'] ?? '') as String,
+            name: (m['name'] ?? '') as String,
+            kind: (m['kind'] ?? '') as String,
+            needDocs: m['needDocs'] == true,
+            limitAmount: _dbl(m['limitAmount']),
+            unlimited: m['unlimited'] == true,
+          ),
+      ],
+    );
+  }
+
+  /// Ajukan klaim/settlement perjalanan dinas. Dengan `requestId` →
+  /// template & jendela tanggal dari pengajuan dinas; tanpa request
+  /// (klaim mandiri) → `templateCode` wajib. Respons 201 berisi docNo.
+  Future<String> submitTravelClaim({
+    String? requestId,
+    String? templateCode,
+    String? remark,
+    required List<Map<String, dynamic>> expenses,
+    double otherCompanyExp = 0,
+    double exchangeLoss = 0,
+  }) async {
+    final b = await client.postJson('/api/onevity/ess/claims/travel', {
+      if (requestId != null && requestId.isNotEmpty) 'requestId': requestId,
+      if (requestId == null || requestId.isEmpty)
+        'templateCode': templateCode ?? '',
+      if (remark != null && remark.isNotEmpty) 'remark': remark,
+      'expenses': expenses,
+      'otherCompanyExp': otherCompanyExp,
+      'exchangeLoss': exchangeLoss,
+    });
+    return (b['docNo'] ?? '') as String;
   }
 
   // ================= ESS: LEMBUR / WORKOFF =================
@@ -452,7 +598,9 @@ class OneVityApi {
 
   /// Papan tukar shift untuk satu tanggal: jadwal saya + kandidat rekan.
   Future<(SwapMyShift, List<SwapCandidate>)> swapBoard(DateTime date) async {
-    final b = await client.getJson('/api/onevity/ess/swap', {'date': _ymd(date)});
+    final b = await client.getJson('/api/onevity/ess/swap', {
+      'date': _ymd(date),
+    });
     final m = (b['myShift'] as Map?)?.cast<String, dynamic>() ?? const {};
     final dt = m['dayType'] as Map?;
     final candidates = [
@@ -484,20 +632,23 @@ class OneVityApi {
     final out = <SwapOffer>[];
     for (final key in ['mine', 'toMe']) {
       for (final m in ((b[key] as List?) ?? []).whereType<Map>()) {
-        final reqName = (((m['requester'] as Map?)?['fullName']) ?? '') as String;
+        final reqName =
+            (((m['requester'] as Map?)?['fullName']) ?? '') as String;
         final tgtName = (((m['target'] as Map?)?['fullName']) ?? '') as String;
-        out.add(SwapOffer(
-          (m['id'] ?? '') as String,
-          _date(m['swapDate'] as String),
-          (m['requesterScheduleName'] ?? '') as String,
-          key == 'mine' ? tgtName : reqName,
-          _date(m['swapDate'] as String),
-          (m['targetScheduleName'] ?? '') as String,
-          _status(m['status'] as String?),
-          code: (m['code'] ?? '') as String,
-          reason: m['reason'] as String?,
-          decisionNote: m['decisionNote'] as String?,
-        ));
+        out.add(
+          SwapOffer(
+            (m['id'] ?? '') as String,
+            _date(m['swapDate'] as String),
+            (m['requesterScheduleName'] ?? '') as String,
+            key == 'mine' ? tgtName : reqName,
+            _date(m['swapDate'] as String),
+            (m['targetScheduleName'] ?? '') as String,
+            _status(m['status'] as String?),
+            code: (m['code'] ?? '') as String,
+            reason: m['reason'] as String?,
+            decisionNote: m['decisionNote'] as String?,
+          ),
+        );
       }
     }
     return out;
@@ -516,7 +667,10 @@ class OneVityApi {
   }
 
   Future<void> cancelSwap(String id) async {
-    await client.patchJson('/api/onevity/ess/swap', {'id': id, 'action': 'cancel'});
+    await client.patchJson('/api/onevity/ess/swap', {
+      'id': id,
+      'action': 'cancel',
+    });
   }
 
   // ================= ESS: SURAT =================
@@ -550,7 +704,11 @@ class OneVityApi {
     return (templates, requests);
   }
 
-  Future<void> submitLetter({required String templateKey, String? purpose, String? notes}) async {
+  Future<void> submitLetter({
+    required String templateKey,
+    String? purpose,
+    String? notes,
+  }) async {
     await client.postJson('/api/onevity/ess/letters', {
       'templateKey': templateKey,
       if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
@@ -559,7 +717,8 @@ class OneVityApi {
   }
 
   /// Unduh PDF surat yang sudah terbit (status Issued).
-  Future<http.Response> letterPdf(String id) => client.getRaw('/api/onevity/ess/letters/$id/pdf');
+  Future<http.Response> letterPdf(String id) =>
+      client.getRaw('/api/onevity/ess/letters/$id/pdf');
 
   // ================= ESS: PENGUMUMAN =================
 
@@ -619,20 +778,22 @@ class OneVityApi {
     for (final key in ['active', 'history']) {
       for (final m in ((b[key] as List?) ?? []).whereType<Map>()) {
         final a = (m['asset'] as Map?) ?? const {};
-        out.add(AssetItem(
-          (m['id'] ?? '') as String,
-          (a['name'] ?? '') as String,
-          (a['code'] ?? '') as String,
-          (a['serialNumber'] ?? '—') as String,
-          (a['category'] ?? '') as String,
-          _isoOpt(m['assignedAt'] as String?) ?? DateTime.now(),
-          key == 'active' ? 'Dipakai' : 'Dikembalikan',
-          dueAt: _isoOpt(m['dueAt'] as String?),
-          returnedAt: _isoOpt(m['returnedAt'] as String?),
-          returnCondition: m['returnCondition'] as String?,
-          notes: m['notes'] as String?,
-          value: a['value'] == null ? null : _int(a['value']),
-        ));
+        out.add(
+          AssetItem(
+            (m['id'] ?? '') as String,
+            (a['name'] ?? '') as String,
+            (a['code'] ?? '') as String,
+            (a['serialNumber'] ?? '—') as String,
+            (a['category'] ?? '') as String,
+            _isoOpt(m['assignedAt'] as String?) ?? DateTime.now(),
+            key == 'active' ? 'Dipakai' : 'Dikembalikan',
+            dueAt: _isoOpt(m['dueAt'] as String?),
+            returnedAt: _isoOpt(m['returnedAt'] as String?),
+            returnCondition: m['returnCondition'] as String?,
+            notes: m['notes'] as String?,
+            value: a['value'] == null ? null : _int(a['value']),
+          ),
+        );
       }
     }
     return out;
@@ -665,8 +826,10 @@ class OneVityApi {
       'description': description,
       'anonymous': anonymous,
       if (incidentDate != null) 'incidentDate': _ymd(incidentDate),
-      if (reporterContact != null && reporterContact.isNotEmpty) 'reporterContact': reporterContact,
-      if (involvedHint != null && involvedHint.isNotEmpty) 'involvedHint': involvedHint,
+      if (reporterContact != null && reporterContact.isNotEmpty)
+        'reporterContact': reporterContact,
+      if (involvedHint != null && involvedHint.isNotEmpty)
+        'involvedHint': involvedHint,
       if (location != null && location.isNotEmpty) 'location': location,
     });
     return (b['ticketNo'] ?? 'WB-????') as String;

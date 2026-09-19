@@ -270,3 +270,125 @@ export interface EssSubmitResult {
   docNo: string;
   status: string;
 }
+
+// ============ 9b. GET/POST /ess/claims/medical (pengajuan klaim medis) ============
+/** Jenis benefit medis aktif + snapshot saldo (form pengajuan klaim ESS). */
+export interface EssMedicalClaimType {
+  typeId: string;
+  code: string;
+  name: string;
+  limitRule: string; // UNLIMITED | NOMINAL | FACTOR | WAGE_COMPONENT
+  needReceipt: boolean;
+  dependentEnabled: boolean;
+  freqUnlimited: boolean;
+  freqValue: number;
+  freqPeriod: string;
+  benefitAmount: number;
+  remaining: number;
+  /** sisa plafon yang benar untuk klaim (termasuk reservasi klaim menunggu) */
+  remainingForClaim: number;
+  pendingReserved: number;
+  depRemaining: number;
+  claimPool: string;
+  claimCountYear: number;
+}
+
+export interface EssMedicalClaimFormData {
+  types: EssMedicalClaimType[];
+  year: number;
+}
+
+/** satu baris perawatan pada pengajuan klaim medis. */
+export interface EssMedicalClaimLineInput {
+  treatedName: string;
+  treatment?: string;
+  treatmentDate?: string;
+  receiptNo?: string;
+  physician?: string;
+  hospital?: string;
+  billAmount: number;
+}
+
+export interface EssMedicalClaimSubmitInput {
+  typeId: string;
+  claimDate: string;
+  forDependent?: boolean;
+  note?: string;
+  lines: EssMedicalClaimLineInput[];
+}
+
+export interface EssMedicalClaimSubmitResult {
+  docNo: string;
+  state: string;
+  totalBill: number;
+  totalApproved: number;
+  remainingAfter: number;
+  approvalLevels: number;
+  firstApprover: string | null;
+  receiptNote: string;
+}
+
+// ============ 9c. GET/POST /ess/claims/travel (pengajuan klaim travel) ============
+/** Pengajuan dinas Approved milik saya yang belum punya klaim aktif. */
+export interface EssTravelClaimRequestOption {
+  requestId: string;
+  docNo: string;
+  dateFrom: string;
+  dateTo: string;
+  days: number;
+  purpose: string | null;
+  destinations: string[];
+  templateCode: string;
+  templateName: string;
+  costCenter: string | null;
+  advanceAmount: number;
+}
+
+export interface EssTravelTemplateOption {
+  code: string;
+  name: string;
+  settlementMethod: string;
+}
+
+export interface EssTravelExpenseTypeOption {
+  code: string;
+  name: string;
+  kind: string;
+  needDocs: boolean;
+  limitAmount: number;
+  unlimited: boolean;
+}
+
+export interface EssTravelClaimFormData {
+  requests: EssTravelClaimRequestOption[];
+  templates: EssTravelTemplateOption[];
+  expenseTypes: EssTravelExpenseTypeOption[];
+}
+
+export interface EssTravelExpenseInput {
+  expenseCode: string;
+  expenseDate?: string;
+  description?: string;
+  amount: number;
+}
+
+export interface EssTravelClaimSubmitInput {
+  requestId?: string;
+  templateCode?: string;
+  remark?: string;
+  expenses: EssTravelExpenseInput[];
+  otherCompanyExp?: number;
+  exchangeLoss?: number;
+}
+
+export interface EssTravelClaimSubmitResult {
+  docNo: string;
+  totalSettlement: number;
+  totalExpenses: number;
+  payableEmployee: number;
+  payableCompany: number;
+  advanceAmount: number;
+  approvalLevels: number;
+  firstApprover: string | null;
+  receiptNote: string;
+}
