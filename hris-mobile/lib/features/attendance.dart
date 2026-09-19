@@ -18,15 +18,34 @@ class AttendancePage extends StatefulWidget {
 class _AttendancePageState extends State<AttendancePage> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selected;
+  bool _monthLoading = false;
+
+  /// Pindah bulan — live: ambil data bulan terpilih dari backend (dengan
+  /// indikator memuat tipis); demo: seed lokal tinggal difilter ulang.
+  Future<void> _goMonth(DateTime m) async {
+    final app = context.read<AppState>();
+    final nm = DateTime(m.year, m.month);
+    setState(() => _month = nm);
+    if (!app.isLive) return;
+    setState(() => _monthLoading = true);
+    try {
+      await app.setAttendanceMonth(nm);
+    } finally {
+      if (mounted) setState(() => _monthLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final stats = app.monthStats(_month);
-    final records = app.attendance
-        .where((r) => r.date.year == _month.year && r.date.month == _month.month)
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    final records =
+        app.attendance
+            .where(
+              (r) => r.date.year == _month.year && r.date.month == _month.month,
+            )
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
 
     final selRecord = _selected == null
         ? null
@@ -34,97 +53,158 @@ class _AttendancePageState extends State<AttendancePage> {
 
     return Scaffold(
       appBar: AppBar(title: Text('Presensi Saya')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+      body: Column(
         children: [
-          // ===== Ring statistik =====
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: AppTheme.heroGradient,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                Ring(
-                  progress: stats.hadir + stats.terlambat == 0
-                      ? 0
-                      : (stats.hadir + stats.terlambat) / _workdays(_month),
-                  size: 92,
-                  stroke: 9,
-                  color: Colors.white,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+          // Indikator tipis saat memuat data bulan / refresh global (live saja).
+          if (app.isLive && (_monthLoading || app.busy))
+            const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => app.refreshAll(),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                children: [
+                  // ===== Ring statistik =====
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.heroGradient,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      children: [
+                        Ring(
+                          progress: stats.hadir + stats.terlambat == 0
+                              ? 0
+                              : (stats.hadir + stats.terlambat) /
+                                    _workdays(_month),
+                          size: 92,
+                          stroke: 9,
+                          color: Colors.white,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${stats.hadir + stats.terlambat}',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  height: 1,
+                                ),
+                              ),
+                              Text(
+                                '/ ${_workdays(_month)} hari',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _miniStat(
+                                Icons.check_circle_rounded,
+                                '${stats.hadir} hari',
+                                'Hadir tepat waktu',
+                                Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              _miniStat(
+                                Icons.history_rounded,
+                                '${stats.terlambat} hari',
+                                'Terlambat',
+                                Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              _miniStat(
+                                Icons.local_fire_department_rounded,
+                                durasi(stats.lemburMenit),
+                                'Total lembur',
+                                Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ===== Kartu ringkasan kecil =====
+                  Row(
                     children: [
-                      Text(
-                        '${stats.hadir + stats.terlambat}',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, height: 1),
+                      Expanded(
+                        child: StatTile(
+                          icon: Icons.event_busy_rounded,
+                          color: const Color(0xFF0369A1),
+                          value: '${stats.cuti} hari',
+                          label: 'Cuti',
+                        ),
                       ),
-                      Text(
-                        '/ ${_workdays(_month)} hari',
-                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.8)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: StatTile(
+                          icon: Icons.cancel_outlined,
+                          color: const Color(0xFFBE123C),
+                          value: '${stats.absen} hari',
+                          label: 'Tanpa keterangan',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: StatTile(
+                          icon: Icons.timelapse_rounded,
+                          color: const Color(0xFF7C3AED),
+                          value: durasi(stats.totalMenit),
+                          label: 'Total jam kerja',
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _miniStat(Icons.check_circle_rounded, '${stats.hadir} hari', 'Hadir tepat waktu', Colors.white),
-                      const SizedBox(height: 8),
-                      _miniStat(Icons.history_rounded, '${stats.terlambat} hari', 'Terlambat', Colors.white),
-                      const SizedBox(height: 8),
-                      _miniStat(Icons.local_fire_department_rounded, durasi(stats.lemburMenit), 'Total lembur', Colors.white),
-                    ],
+
+                  // ===== Kalender =====
+                  const SectionTitle('Kalender Kehadiran'),
+                  _CalendarCard(
+                    month: _month,
+                    statusFor: (d) => app.attendance
+                        .where((r) => r.date == d)
+                        .firstOrNull
+                        ?.status,
+                    onSelected: (d) => setState(() => _selected = d),
+                    onPrev: () =>
+                        _goMonth(DateTime(_month.year, _month.month - 1)),
+                    onNext: () =>
+                        _goMonth(DateTime(_month.year, _month.month + 1)),
                   ),
-                ),
-              ],
+
+                  // ===== Detail hari terpilih =====
+                  if (selRecord != null) ...[
+                    const SizedBox(height: 14),
+                    _DayDetailCard(rec: selRecord),
+                  ],
+
+                  // ===== Riwayat =====
+                  const SectionTitle('Riwayat Terbaru'),
+                  if (records.isEmpty)
+                    const EmptyState(
+                      icon: Icons.event_available_rounded,
+                      title: 'Belum ada data bulan ini',
+                      subtitle:
+                          'Presensi akan muncul di sini setelah kamu mulai bekerja.',
+                    )
+                  else
+                    ...records.take(12).map((r) => _RecordTile(rec: r)),
+                ],
+              ),
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // ===== Kartu ringkasan kecil =====
-          Row(
-            children: [
-              Expanded(child: StatTile(icon: Icons.event_busy_rounded, color: const Color(0xFF0369A1), value: '${stats.cuti} hari', label: 'Cuti')),
-              const SizedBox(width: 10),
-              Expanded(child: StatTile(icon: Icons.cancel_outlined, color: const Color(0xFFBE123C), value: '${stats.absen} hari', label: 'Tanpa keterangan')),
-              const SizedBox(width: 10),
-              Expanded(child: StatTile(icon: Icons.timelapse_rounded, color: const Color(0xFF7C3AED), value: durasi(stats.totalMenit), label: 'Total jam kerja')),
-            ],
-          ),
-
-          // ===== Kalender =====
-          const SectionTitle('Kalender Kehadiran'),
-          _CalendarCard(
-            month: _month,
-            statusFor: (d) => app.attendance
-                .where((r) => r.date == d)
-                .firstOrNull
-                ?.status,
-            onSelected: (d) => setState(() => _selected = d),
-            onPrev: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
-            onNext: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
-          ),
-
-          // ===== Detail hari terpilih =====
-          if (selRecord != null) ...[
-            const SizedBox(height: 14),
-            _DayDetailCard(rec: selRecord),
-          ],
-
-          // ===== Riwayat =====
-          const SectionTitle('Riwayat Terbaru'),
-          if (records.isEmpty)
-            const EmptyState(
-              icon: Icons.event_available_rounded,
-              title: 'Belum ada data bulan ini',
-              subtitle: 'Presensi akan muncul di sini setelah kamu mulai bekerja.',
-            )
-          else
-            ...records.take(12).map((r) => _RecordTile(rec: r)),
         ],
       ),
     );
@@ -139,8 +219,22 @@ class _AttendancePageState extends State<AttendancePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white, height: 1)),
-              Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7))),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
             ],
           ),
         ),
@@ -154,10 +248,14 @@ class _AttendancePageState extends State<AttendancePage> {
     var last = DateTime(m.year, m.month + 1, 0);
     if (m.year == now.year && m.month == now.month) last = now;
     var count = 0;
-    for (var d = DateTime(m.year, m.month, 1);
-        d.isBefore(last.add(const Duration(days: 1)));
-        d = d.add(const Duration(days: 1))) {
-      if (d.weekday != DateTime.saturday && d.weekday != DateTime.sunday) count++;
+    for (
+      var d = DateTime(m.year, m.month, 1);
+      d.isBefore(last.add(const Duration(days: 1)));
+      d = d.add(const Duration(days: 1))
+    ) {
+      if (d.weekday != DateTime.saturday && d.weekday != DateTime.sunday) {
+        count++;
+      }
     }
     return count;
   }
@@ -185,6 +283,7 @@ class _CalendarCard extends StatelessWidget {
     AttendanceStatus.leave: Color(0xFF0284C7),
     AttendanceStatus.absent: Color(0xFFE11D48),
     AttendanceStatus.holiday: Color(0xFF7C3AED),
+    AttendanceStatus.workoff: Color(0xFFB45309), // hari kompensasi (WF)
   };
 
   @override
@@ -210,44 +309,67 @@ class _CalendarCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(onPressed: onPrev, icon: const Icon(Icons.chevron_left_rounded, size: 24)),
+              IconButton(
+                onPressed: onPrev,
+                icon: const Icon(Icons.chevron_left_rounded, size: 24),
+              ),
               Expanded(
                 child: Text(
                   periodeID(month.year, month.month),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right_rounded, size: 24)),
+              IconButton(
+                onPressed: onNext,
+                icon: const Icon(Icons.chevron_right_rounded, size: 24),
+              ),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-                .map((d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Theme.of(context).hintColor),
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).hintColor,
                         ),
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
           const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, mainAxisSpacing: 6),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 6,
+            ),
             itemCount: leading + daysInMonth,
             itemBuilder: (context, i) {
               if (i < leading) return const SizedBox.shrink();
               final day = i - leading + 1;
               final date = DateTime(month.year, month.month, day);
-              final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
+              final isToday =
+                  date.year == today.year &&
+                  date.month == today.month &&
+                  date.day == today.day;
               final st = statusFor(date);
               final dot = _dotColors[st];
-              final isWeekend = date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+              final isWeekend =
+                  date.weekday == DateTime.saturday ||
+                  date.weekday == DateTime.sunday;
 
               return GestureDetector(
                 onTap: () => onSelected(date),
@@ -263,12 +385,16 @@ class _CalendarCard extends StatelessWidget {
                         '$day',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isToday ? FontWeight.w900 : FontWeight.w600,
+                          fontWeight: isToday
+                              ? FontWeight.w900
+                              : FontWeight.w600,
                           color: isToday
                               ? Colors.white
                               : isWeekend
-                                  ? Theme.of(context).hintColor.withValues(alpha: 0.6)
-                                  : null,
+                              ? Theme.of(
+                                  context,
+                                ).hintColor.withValues(alpha: 0.6)
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -295,7 +421,14 @@ class _CalendarCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 6, height: 6, decoration: BoxDecoration(color: e.value, shape: BoxShape.circle)),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: e.value,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       switch (e.key) {
@@ -304,9 +437,14 @@ class _CalendarCard extends StatelessWidget {
                         AttendanceStatus.leave => 'Cuti',
                         AttendanceStatus.absent => 'Absen',
                         AttendanceStatus.holiday => 'Libur',
+                        AttendanceStatus.workoff => 'WF',
                         _ => '',
                       },
-                      style: TextStyle(fontSize: 9.5, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: Theme.of(context).hintColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -342,28 +480,90 @@ class _DayDetailCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   tanggalID(rec.date, withDay: true),
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              StatusChip(switch (rec.status) {
-                AttendanceStatus.present => 'approved',
-                AttendanceStatus.late => 'pending',
-                AttendanceStatus.leave => 'submitted',
-                AttendanceStatus.absent => 'rejected',
-                _ => 'cancelled',
-              }, compact: true),
+              rec.status == AttendanceStatus.workoff
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB45309).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'WF · Kompensasi',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFB45309),
+                        ),
+                      ),
+                    )
+                  : StatusChip(switch (rec.status) {
+                      AttendanceStatus.present => 'approved',
+                      AttendanceStatus.late => 'pending',
+                      AttendanceStatus.leave => 'submitted',
+                      AttendanceStatus.absent => 'rejected',
+                      _ => 'cancelled',
+                    }, compact: true),
             ],
           ),
           const Divider(height: 20),
           Row(
             children: [
-              Expanded(child: InfoRow('Jam masuk', rec.checkIn != null ? jamID(rec.checkIn!) : '—', icon: Icons.login_rounded)),
-              Expanded(child: InfoRow('Jam pulang', rec.checkOut != null ? jamID(rec.checkOut!) : '—', icon: Icons.logout_rounded)),
+              Expanded(
+                child: InfoRow(
+                  'Jam masuk',
+                  rec.checkIn != null ? jamID(rec.checkIn!) : '—',
+                  icon: Icons.login_rounded,
+                ),
+              ),
+              Expanded(
+                child: InfoRow(
+                  'Jam pulang',
+                  rec.checkOut != null ? jamID(rec.checkOut!) : '—',
+                  icon: Icons.logout_rounded,
+                ),
+              ),
             ],
           ),
+          if (rec.lateMinutes > 0)
+            InfoRow(
+              'Terlambat',
+              durasi(rec.lateMinutes),
+              icon: Icons.schedule_rounded,
+            ),
+          if (rec.earlyMinutes > 0)
+            InfoRow(
+              'Pulang lebih cepat',
+              durasi(rec.earlyMinutes),
+              icon: Icons.logout_rounded,
+            ),
+          if (rec.workMinutes > 0)
+            InfoRow(
+              'Total jam kerja',
+              durasi(rec.workMinutes),
+              icon: Icons.timelapse_rounded,
+            ),
           if (rec.overtimeMinutes > 0)
-            InfoRow('Lembur', durasi(rec.overtimeMinutes), icon: Icons.local_fire_department_rounded),
-          if (rec.location != null) InfoRow('Lokasi', rec.location!, icon: Icons.location_on_outlined),
+            InfoRow(
+              'Lembur',
+              durasi(rec.overtimeMinutes),
+              icon: Icons.local_fire_department_rounded,
+            ),
+          if (rec.dayTypeCode != null &&
+              rec.dayTypeCode!.isNotEmpty &&
+              rec.status != AttendanceStatus.present &&
+              rec.status != AttendanceStatus.late)
+            InfoRow('Tipe hari', rec.dayTypeCode!, icon: Icons.today_rounded),
+          if (rec.location != null)
+            InfoRow('Lokasi', rec.location!, icon: Icons.location_on_outlined),
         ],
       ),
     );
@@ -384,6 +584,7 @@ class _RecordTile extends StatelessWidget {
       AttendanceStatus.absent => (const Color(0xFFE11D48), 'Absen'),
       AttendanceStatus.holiday => (const Color(0xFF7C3AED), 'Libur'),
       AttendanceStatus.weekend => (Colors.grey, 'Akhir pekan'),
+      AttendanceStatus.workoff => (const Color(0xFFB45309), 'WF'),
     };
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -403,11 +604,19 @@ class _RecordTile extends StatelessWidget {
             children: [
               Text(
                 '${rec.date.day}',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, height: 1),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
               ),
               Text(
                 bulanID[rec.date.month - 1].substring(0, 3),
-                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Theme.of(context).hintColor),
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).hintColor,
+                ),
               ),
             ],
           ),
@@ -420,20 +629,43 @@ class _RecordTile extends StatelessWidget {
                   rec.checkIn != null
                       ? '${jamID(rec.checkIn!)} – ${rec.checkOut != null ? jamID(rec.checkOut!) : 'berjalan'}'
                       : label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  rec.overtimeMinutes > 0 ? 'Lembur ${durasi(rec.overtimeMinutes)}' : (rec.location ?? '—'),
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor, fontWeight: FontWeight.w500),
+                  rec.overtimeMinutes > 0
+                      ? 'Lembur ${durasi(rec.overtimeMinutes)}'
+                      : (rec.location ??
+                            (rec.dayTypeCode != null &&
+                                    rec.dayTypeCode!.isNotEmpty
+                                ? rec.dayTypeCode!
+                                : '—')),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).hintColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(999)),
-            child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: color)),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
           ),
         ],
       ),

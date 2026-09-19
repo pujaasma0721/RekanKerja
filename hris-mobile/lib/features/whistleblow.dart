@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/format.dart';
 import '../core/widgets.dart';
 import '../data/app_state.dart';
+import '../data/models.dart';
+import '../data/onevity_api.dart';
 
 /// Kanal pelaporan pelanggaran — jaminan anonimitas & keberanian bicara.
 class WhistleblowPage extends StatefulWidget {
@@ -19,6 +21,11 @@ class _WhistleblowPageState extends State<WhistleblowPage> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    // Live: hanya tampilkan laporan yang benar-benar dikirim dari aplikasi ini
+    // (seed demo tidak ikut tampil saat terhubung ke server).
+    final items =
+        app.isLive ? app.whistleblows.where((w) => _isFromThisApp(w)).toList() : app.whistleblows;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Lapor Aman')),
       body: ListView(
@@ -67,14 +74,14 @@ class _WhistleblowPageState extends State<WhistleblowPage> {
               'Setiap laporan dapat kode pelacakan; kamu bisa memantau progres investigasinya di bawah.'),
 
           const SectionTitle('Laporan Saya'),
-          if (app.whistleblows.isEmpty)
+          if (items.isEmpty)
             const EmptyState(
               icon: Icons.verified_user_rounded,
               title: 'Belum ada laporan',
               subtitle: 'Semoga tempat kerja selalu sehat. Bila ada yang janggal, laporkan di sini.',
             )
           else
-            ...app.whistleblows.map((w) => Container(
+            ...items.map((w) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -143,6 +150,12 @@ class _WhistleblowPageState extends State<WhistleblowPage> {
     );
   }
 
+  /// Laporan yang dikirim aplikasi ini memakai nomor urut lokal AppState
+  /// (_nextId, mulai dari 100); seed demo memakai id "WB-01" dst — jadi di
+  /// mode live cukup tampilkan yang nomornya ≥ 100.
+  static bool _isFromThisApp(WhistleblowReport w) =>
+      (int.tryParse(w.id.split('-').last) ?? 0) >= 100;
+
   Widget _point(BuildContext context, IconData icon, String title, String desc) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -178,81 +191,158 @@ class _WhistleblowPageState extends State<WhistleblowPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheet) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: _ReportSheet(anon: _anonymous, onAnon: (v) => setSheet(() => _anonymous = v)),
-        ),
+      builder: (_) => _ReportSheet(
+        initialAnon: _anonymous,
+        onAnonChanged: (v) => _anonymous = v,
       ),
     );
   }
 }
 
-class _ReportSheet extends StatelessWidget {
-  final bool anon;
-  final ValueChanged<bool> onAnon;
-  const _ReportSheet({required this.anon, required this.onAnon});
+class _ReportSheet extends StatefulWidget {
+  final bool initialAnon;
+  final ValueChanged<bool> onAnonChanged;
+  const _ReportSheet({required this.initialAnon, required this.onAnonChanged});
 
-  static const categories = [
-    'Kekerasan / Pelecehan',
-    'Benturan Kepentingan',
-    'Penipuan / Fraud',
-    'Pelanggaran K3',
-    'Pencemaran Nama Baik',
-    'Lainnya',
-  ];
+  @override
+  State<_ReportSheet> createState() => _ReportSheetState();
+}
+
+class _ReportSheetState extends State<_ReportSheet> {
+  late bool _anon = widget.initialAnon;
+  String? _catCode;
+  final _desc = TextEditingController();
+  final _location = TextEditingController();
+  final _contact = TextEditingController();
+  DateTime? _incidentDate;
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _desc.dispose();
+    _location.dispose();
+    _contact.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final code = _catCode;
+    final label = code == null ? '' : (OneVityApi.wbCategories[code] ?? code);
+    final desc = _desc.text.trim();
+    if (code == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih kategori yang paling mendekati kejadiannya ya 🙏')),
+      );
+      return;
+    }
+    if (desc.length < 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tuliskan kronologi minimal 20 karakter agar bisa ditindaklanjuti ya 🙏')),
+      );
+      return;
+    }
+    if (_incidentDate != null && _incidentDate!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tanggal kejadian tidak boleh di masa depan.')),
+      );
+      return;
+    }
+    setState(() => _sending = true);
+    final err = await context.read<AppState>().submitWhistleblow(
+          category: label,
+          categoryCode: code,
+          description: desc,
+          anonymous: _anon,
+          incidentDate: _incidentDate,
+          contact: _anon || _contact.text.trim().isEmpty ? null : _contact.text.trim(),
+          location: _location.text.trim().isEmpty ? null : _location.text.trim(),
+        );
+    if (!mounted) return;
+    if (err != null) {
+      // Gagal — sheet tetap terbuka supaya tulisanmu tidak hilang.
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Laporan terkirim — kode pelacakan ada di "Laporan Saya" & notifikasi. Terima kasih sudah berani bicara 🛡️')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    String cat = categories.first;
-    final desc = TextEditingController();
-    return StatefulBuilder(
-      builder: (context, setSheet) => SingleChildScrollView(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SheetHeader('Buat Laporan', subtitle: 'Sampaikan dengan jujur — lapangan wajib diisi'),
+            const SheetHeader('Buat Laporan', subtitle: 'Sampaikan dengan jujur — identitasmu dilindungi'),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final c in categories)
+                // 7 kategori resmi OneVity (kode ↔ label Indonesia).
+                for (final e in OneVityApi.wbCategories.entries)
                   ChoiceChip(
-                    label: Text(c),
-                    selected: cat == c,
-                    onSelected: (_) => setSheet(() => cat = c),
+                    label: Text(e.value),
+                    selected: _catCode == e.key,
+                    onSelected: (_) => setState(() => _catCode = e.key),
                   ),
               ],
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: desc,
+              controller: _desc,
               maxLines: 5,
+              maxLength: 4000,
               decoration: const InputDecoration(
                 hintText: 'Ceritakan kejadiannya: apa, kapan, di mana, siapa yang terlibat…',
+                helperText: 'Minimal 20 karakter',
+                counterStyle: TextStyle(fontSize: 10),
               ),
             ),
             const SizedBox(height: 12),
+            _dateField(context),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _location,
+              decoration: const InputDecoration(hintText: 'Lokasi kejadian (opsional) — gedung / area / online'),
+            ),
+            // Kontak hanya relevan bila tidak anonim — jangan pernah
+            // merekam kontak pada laporan anonim.
+            if (!_anon) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _contact,
+                decoration: const InputDecoration(hintText: 'Kontak yang bisa dihubungi (opsional) — email / WA'),
+              ),
+            ],
+            const SizedBox(height: 12),
             InkWell(
-              onTap: () => onAnon(!anon),
+              onTap: () {
+                setState(() => _anon = !_anon);
+                widget.onAnonChanged(_anon);
+              },
               borderRadius: BorderRadius.circular(14),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: anon ? const Color(0xFF059669).withValues(alpha: 0.07) : Theme.of(context).inputDecorationTheme.fillColor,
+                  color: _anon ? const Color(0xFF059669).withValues(alpha: 0.07) : Theme.of(context).inputDecorationTheme.fillColor,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: anon ? const Color(0xFF059669) : Colors.transparent,
+                    color: _anon ? const Color(0xFF059669) : Colors.transparent,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      anon ? Icons.check_circle_rounded : Icons.circle_outlined,
+                      _anon ? Icons.check_circle_rounded : Icons.circle_outlined,
                       size: 21,
-                      color: anon ? const Color(0xFF059669) : Theme.of(context).hintColor,
+                      color: _anon ? const Color(0xFF059669) : Theme.of(context).hintColor,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -277,24 +367,69 @@ class _ReportSheet extends StatelessWidget {
                 backgroundColor: const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
               ),
-              onPressed: () {
-                if (desc.text.trim().length < 20) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Tuliskan kronologi minimal 20 karakter agar bisa ditindaklanjuti ya 🙏')),
-                  );
-                  return;
-                }
-                context.read<AppState>().submitWhistleblow(category: cat, description: desc.text.trim(), anonymous: anon);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Laporan terkirim. Terima kasih sudah berani bicara 🛡️')),
-                );
-              },
-              child: const Text('Kirim Laporan'),
+              onPressed: _sending ? null : _submit,
+              child: _sending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                    )
+                  : const Text('Kirim Laporan'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Tanggal kejadian — opsional, tidak boleh di masa depan.
+  Widget _dateField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tanggal kejadian (opsional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Theme.of(context).hintColor)),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final now = DateTime.now();
+            final d = await showDatePicker(
+              context: context,
+              initialDate: _incidentDate ?? now,
+              firstDate: now.subtract(const Duration(days: 365 * 5)),
+              lastDate: now, // kejadian tidak mungkin besok
+            );
+            if (d != null) setState(() => _incidentDate = d);
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).inputDecorationTheme.fillColor,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.event_rounded, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _incidentDate == null ? 'Tidak diisi' : tanggalID(_incidentDate!, withDay: true),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: _incidentDate == null ? Theme.of(context).hintColor : null,
+                    ),
+                  ),
+                ),
+                if (_incidentDate != null)
+                  GestureDetector(
+                    onTap: () => setState(() => _incidentDate = null),
+                    child: Icon(Icons.close_rounded, size: 16, color: Theme.of(context).hintColor),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

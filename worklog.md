@@ -2072,3 +2072,124 @@ Work Log:
 
 Stage Summary:
 - hris-mobile kini berisi aplikasi Flutter HRIS mobile lengkap & sehat (analyze 0 issue, test lulus): 14 modul employee self-service OneVity dalam UX fintech-grade — siap disambungkan ke backend ESS OneVity di iterasi berikutnya.
+
+---
+Task ID: 70-c
+Agent: general-purpose (payslip+letters wiring)
+Task: Wire lib/features/payslip.dart & letters.dart to live OneVity backend (lazy payslip detail, status chips, letter templates/submit/PDF download).
+
+Work Log:
+- Read worklog.md, app_state.dart, models.dart, onevity_api.dart, api_client.dart, core/{format,theme,widgets}.dart untuk memahami kontrak data.
+- payslip.dart (rewrite, tetap 1 file):
+  - Helper `_periodeLabel` (utamakan periodName "AGUSTUS 2026", fallback periodeID bila bulan 1-12, "Periode <tahun>" bila tak terparse) + `_bulanBadge` (bulan dari periodName via bulanID, fallback ikon kalender).
+  - List: `_PayslipTile` tampilkan chip status `_SlipStatusChip` (Paid→"Terbayar" hijau, Confirmed→"Terkonfirmasi" teal, dark-mode aware); nominal thp `privacy || thp==0` (brankas terkunci → "Rp ••••••"); subtitle live (components kosong) → "Ketuk untuk melihat rincian komponen"; demo subtitle tetap "X komponen · Y potongan".
+  - Guard `app.payslips.isEmpty` (hindari crash `.first`) → EmptyState.
+  - `_YtdCard`: masking brankas (thp==0 && gross==0 → ••••), label periode dari server, PPh 21 live (tax selalu 0 di list) otomatis disembunyikan agar tak menyesatkan.
+  - `PayslipDetailPage` → StatefulWidget: lazy load via `app.loadPayslipDetail(slip)` saat `lineId != null && components.isEmpty` (postFrameCallback); spinner card saat memuat; error → SnackBar + kartu "Coba Lagi"; komponen kosong → kartu info.
+  - Detail pills: Bruto / "Total Potongan" (totalDeductions, fallback label "PPh 21" pakai tax di demo) / Netto dalam Wrap (anti-overflow); hero menampilkan chip status + "Dibayar <tanggal>" (paidAt); signature memakai employee.companyName (fallback PT Mitra Industri Internasional).
+  - RefreshIndicator → app.refreshAll().
+- letters.dart (rewrite):
+  - Grid jenis surat: live dari `app.letterTemplates` (name + description subtitle, value = key; ikon/warna ditebak dari key/nama), demo tetap 4 hardcoded; card info bila live & templates kosong.
+  - Sheet form: `submitLetter(type: name, templateKey: key, purpose, notes)`; field notes opsional (live saja); tombol loading state ("Mengirim…" + spinner, disabled re-entry); error → SnackBar; sukses → pop + SnackBar (messenger di-capture sebelum pop).
+  - Riwayat: `reqNo` sebagai "No. …", purpose + tanggal, chip status lokal `_LetterStatusChip` (pending amber "Menunggu", approved teal "Disetujui", rejected merah "Ditolak", issued emerald "Terbit", + submitted/done utk demo), `rejectReason` kecil merah utk rejected, "Terbit <tgl> · Ref <no>" utk issued.
+  - Unduh PDF utk issued: `app.letterPdf(id)` → simpan getTemporaryDirectory() → share via `SharePlus.instance.share(ShareParams(files:[XFile], text))` (API baru share_plus 12; `Share.shareXFiles` deprecated di v12 — deviation dari snippet task demi analyzer bersih); progress state "Mengunduh…"; error ApiException/generic → SnackBar; nama file di-sanitize (refNo bisa mengandung "/").
+  - RefreshIndicator → app.refreshAll().
+- flutter analyze: payslip.dart & letters.dart 0 issue (error tersisa hanya di file agent lain: attendance/leave/swap/whistleblow — sedang diedit paralel).
+
+Stage Summary:
+- Slip gaji live berfungsi: list periode + status Terbayar/Terkonfirmasi + masking brankas, detail komponen lazy-load dengan retry, ringkasan Bruto/Total Potongan/Netto, pull-to-refresh.
+- Layanan surat live berfungsi: template dari server, submit + loading + error handling, riwayat dengan reqNo/status/alasan tolak/tanggal terbit, unduh & share PDF surat terbit.
+- Demo mode visual & perilaku lama dipertahankan (hardcoded types, komponen inline, status submitted/done).
+
+---
+Task ID: 70-b
+Agent: general-purpose (leave+requests+claims wiring)
+Task: Wire Cuti/Pengajuan/Klaim pages ke AppState live (submit await+loading, field live docNo/typeId/approver, info-vs-error SnackBar, RefreshIndicator).
+
+Work Log:
+- Baca worklog.md, app_state.dart, models.dart, onevity_api.dart (bentuk data live), core/widgets.dart (StatusChip/ApprovalTimeline/Ring), theme.dart, login.dart (pola tombol _busy).
+- lib/features/leave.dart:
+  * RefreshIndicator(onRefresh: app.refreshAll) + AlwaysScrollableScrollPhysics di list utama.
+  * Kartu saldo pakai getter b.sisa (double, live bisa 1,5 hari) — format _fmtHari ("12" / "1,5", koma desimal ID); ring pakai porsi terpakai (entitled-sisa)/entitled (aman utk demo & live); unit dari b.unit fallback "hari"; pesan ramah saat saldo kosong/belum termuat.
+  * Form pengajuan: pilihan jenis dari app.leaveBalances (15+ jenis live), tracking typeId+type, submit kirim keduanya ke app.submitLeave(type, typeId); tombol loading spinner; await + mounted check; sukses → pop+SnackBar, error → _showResult merah (sheet tetap terbuka).
+  * Riwayat: docNo ditampilkan di depan baris tanggal; status chip tetap; steps kosong (live) → baris "Menunggu: <currentApprover>" dengan ikon jam amber sebagai pengganti timeline; reason kosong disembunyikan.
+- lib/features/requests.dart:
+  * Ketiga form (lembur/workoff/dinas): await submit, tombol loading, pesan hasil via SnackBar — pesan berawalan "Pengajuan dinas ... belum dibuka" / "Pengajuan klaim baru dari aplikasi" = INFO (amber #B45309 + ikon info, sheet ditutup), selain itu error merah (sheet tetap terbuka agar bisa diperbaiki).
+  * Tile list: item live (docNo != null) render judul = label jenis, baris-2 = docNo, baris-3 = detail (dateLabel dari backend); item demo render seperti sebelumnya (title bebas + kindLabel · tanggalID).
+  * RefreshIndicator: app.refreshAll().
+- lib/features/claims.dart:
+  * Kartu klaim live: docNo + tanggal (submittedAt) sebagai meta; type = typeName; travel variant (isTravel) → ikon pesawat teal, judul "Perjalanan Dinas", box rincian "Uang muka" (advanceAmount) + "Pertanggungjawaban" (settlementAmount); "Disetujui: Rp ..." (approvedAmount, emerald) saat != null; deskripsi duplikat type disembunyikan; steps kosong → tanpa timeline.
+  * _ClaimStatusChip: status dikenal → StatusChip lama; status tak dikenal (mis. 'settled' → 'Selesai', 'paid' → 'Dibayar') → chip netral abu-abu (dark-mode aware).
+  * Filter "Selesai" mencakup done+settled; stat "Total terbayar" pakai approvedAmount ?? amount utk status approved/done/settled.
+  * Form klaim: await + loading; live mengembalikan pesan INFO → SnackBar amber (sheet ditutup); demo sukses → insert lokal + SnackBar sukses.
+  * RefreshIndicator: app.refreshAll().
+- Fix analyzer: tipe parameter helper _showResult ScaffoldMessenger → ScaffoldMessengerState.
+- Verifikasi: `dart analyze lib/features/leave.dart requests.dart claims.dart` = No issues found. `flutter analyze` proyek: sisa 5 error/warning hanya di home.dart/swap.dart/whistleblow.dart (file agen lain, diabaikan sesuai instruksi).
+
+Stage Summary:
+- Cuti, Pengajuan (lembur/workoff/dinas), dan Klaim kini dual-mode penuh: demo tetap seperti semula, live menampilkan data backend (saldo pecahan, docNo, approver aktif, klaim dinas advance/settlement) dengan submit async + loading + SnackBar beda gaya info (amber) vs error (merah), dan pull-to-refresh app.refreshAll() di ketiga halaman.
+
+---
+Task ID: 70-a
+Agent: general-purpose (attendance+home wiring)
+Task: Wire Presensi & Beranda ke mode live backend OneVity (hanya lib/features/attendance.dart + home.dart)
+
+Work Log:
+- attendance.dart: fix switch non-exhaustive — tambah case AttendanceStatus.workoff (label 'WF', warna amber-700 0xFFB45309 konsisten aksen lembur) di _RecordTile; tambah dot + legend 'WF' di kalender; _DayDetailCard chip custom "WF · Kompensasi" (tidak lagi jatuh ke 'cancelled').
+- attendance.dart: navigasi bulan → _goMonth() memanggil app.setAttendanceMonth(m); indikator LinearProgressIndicator tipis di atas body saat _monthLoading/app.busy (live saja; demo tetap instan).
+- attendance.dart: RefreshIndicator(onRefresh: app.refreshAll) membungkus ListView; riwayat live location==null → fallback dayTypeCode atau '—'; _DayDetailCard tampilkan InfoRow lateMinutes/earlyMinutes/workMinutes/dayTypeCode bila >0 (field live, demo tetap 0 → tak tampil).
+- home.dart: _ClockCard jadi StatefulWidget — clock in/out via await app.clockIn()/clockOut(), error → SnackBar floating, tombol menampilkan CircularProgressIndicator putih saat _busy (animasi & ikon play/stop/check dipertahankan); pakai app.isClockedIn/isClockedOut.
+- home.dart: live — chip shift dari app.myShiftInfo (scheduleName + timeIn–timeOut, fallback label/holiday), chip lokasi dari employee.office/companyName; baris chip KPI 'Hadir/Terlambat/Absen bulan ini' dari app.kpi (live saja).
+- home.dart: 3 StatTile live pakai app.kpi (leaveAvailable ± desimal via _fmtHari, overtimeHoursMonth→durasi, pendingMine 'pengajuan'); demo tetap nilai mock.
+- home.dart: section baru 'Pengajuanku terbaru' (max 3) dari app.requests — _RecentRequestTile toleran live (docNo sebagai judul, detail=dateLabel sebagai subtitle) & demo (title + tanggal + detail); status lowercase cocok StatusChip. Header greeting: subtitle posisi·unit difilter (live bisa kosong → companyName).
+- home.dart: _PayslipTeaser tahan app.payslips kosong (empty-state ramah), periodName live ('AGUSTUS 2026'), chip status Paid/Confirmed → 'Sudah dibayar'/'Terkonfirmasi', thp==0 di live → 'Rp ••••••' (privasi), foot line live pakai paidAt; wire action 'Lihat semua' → PayslipPage.
+- home.dart: RefreshIndicator(app.refreshAll) di ListView + bar LinearProgressIndicator tipis saat app.busy (tidak memblokir UI).
+- Verifikasi: dart format kedua file; flutter analyze → 0 isu di attendance.dart & home.dart (sisa 3 error ada di swap.dart & whistleblow.dart = scope agent lain, diabaikan sesuai instruksi). flutter test gagal compile karena error file agent lain (bukan file saya).
+
+Stage Summary:
+- Presensi & Beranda kini dual-mode penuh: demo berperilaku seperti sebelumnya, live menampilkan data backend (jadwal hari ini, KPI, ringkasan bulan, feed dokumen, payslip) dengan error-handling SnackBar, loading-state tombol, indikator refresh tipis, dan pull-to-refresh; attendance.dart & home.dart lolos flutter analyze tanpa error/warning/info.
+
+---
+Task ID: 70-d
+Agent: general-purpose (swap+announcements+notifications+assets+whistleblow+profile wiring)
+Task: Wire 6 halaman misc (tukar shift, pengumuman, notifikasi, aset, lapor aman, profil) ke AppState live/demo — fix 2 compile error + full live UX.
+
+Work Log:
+- swap.dart: compile error submitSwap (myDate:) → signature baru (date:/targetId:/colleague:/colleagueDate:). LIVE: sheet baru (_SwapSheetLive) alur lengkap date picker → app.loadSwapBoard(date) → kartu jadwal saya (myShiftInfo.label + timeIn/timeOut '08.00 – 17.00' + chip wajib presensi) → daftar kandidat swapCandidates (AppAvatar, fullName, employeeNo·unitName, chip timeLabel, tap select highlight) → field alasan → submitSwap(date, targetId, reason) + spinner + error SnackBar (sheet tetap terbuka saat gagal). Riwayat live: kartu per swap dgn code chip (TSK-xxxx), rekan+avatar+tanggal, box "Pengaju ⇄ Rekan tujuan" (aman utk mine & toMe), reason italic, decisionNote amber, StatusChip lowercase; tombol "Batalkan pengajuan" hanya status pending → dialog konfirmasi → app.cancelSwap(id) → SnackBar hasil/error. Halaman live: kartu pintasan "Cek jadwal & rekan tersedia" (menggantikan section schedule demo — app.schedule tidak diisi live) + RefreshIndicator(app.refreshAll). DEMO: layout & perilaku lama utuh (chips rekan + 2 tanggal → submitSwap(date, colleague, colleagueDate, reason:'Tukar jadwal')).
+- announcements.dart: sort pinned dulu lalu publishedAt desc; unread (readByMe false) → border emerald + titik + badge "Baru"; readByMe sync via detail page StatefulWidget → postFrameCallback app.markAnnouncementRead (optimistic). totalReads > 0 → "Dibaca N orang" di kartu & detail. author '' → kategori jadi sumber (avatar+teks, subtitle "Kategori pengumuman"); code ditampilkan kecil di detail. RefreshIndicator(app.refreshAll). Kategori 'Umum' ditambahkan ke catColors.
+- notifications.dart: markRead/markAllRead kini async → di-await di onPressed/onTap (optimistic, UI instan); kind 'system' dipetakan bell emerald; fallback kind tak dikenal → ikon bel netral (bukan info).
+- assets.dart: split aktif ('Dipakai'/belum returnedAt) vs riwayat ('Dikembalikan'/returnedAt) — section "Sedang Dipakai" + "Riwayat Pengembalian" (demo tanpa riwayat = layout lama flat). Info chips per aset: Sejak, Jatuh tempo (amber) bila dueAt, Dikembalikan tanggal, Kondisi (Good/Damaged/Lost → Baik/Rusak/Hilang), nilai via MoneyText (hormat privacyMode), notes italic. Header card adaptif (jumlah dipakai/dikembalikan); EmptyState saat kosong; RefreshIndicator.
+- whistleblow.dart: compile error submitWhistleblow → signature baru (category=label ID, categoryCode, description, anonymous, incidentDate, contact, location). Picker kategori = OneVityApi.wbCategories (7 kode↔label). Validasi: kategori wajib, deskripsi ≥20 (helper "Minimal 20 karakter" + maxLength 4000), incidentDate ≤ hari ini (picker lastDate: now + cek defensif). Field baru opsional: tanggal kejadian (bisa dihapus) & lokasi; kontak hanya muncul saat NON-anonim (anonim tak pernah mengirim kontak). Submit: await + spinner; error → SnackBar + sheet tetap terbuka; sukses → pop + SnackBar kode pelacakan (tiket backend tampil di riwayat lokal + notifikasi via AppState). Tone "Lapor Aman" dipertahankan (hero jaminan, anonim default ON). LIVE: daftar "Laporan Saya" difilter ke laporan hasil kirim aplikasi (id urut _nextId ≥ 100) agar seed demo tidak tampil sebagai laporan palsu di mode terhubung.
+- profile.dart: StatefulWidget. Kartu kepegawaian: Grade ditambah levelCode bila ada, baris baru Bergabung + Masa Kerja, atasan full-width. Section "Nomor Resmi" (NPWP/BPJS Kesehatan/BPJS Ketenagakerjaan, muncul hanya bila ada): default masked "••• ••••" + eye toggle per baris; privacyMode aktif → tetap masked (tap mata → SnackBar petunjuk). photoUrl live → foto profil dgn fallback AppAvatar. family & documents kosong (live) → EmptyState "Data keluarga & dokumen dikelola oleh HR". Logout: dialog → _loggingOut state (spinner "Mengeluarkan akun…") → await app.logout() → loggedIn flip → auto kembali ke login. Baris mode kecil: "Terhubung: {serverHost}" / "Mode Demo". RefreshIndicator(app.refreshAll). Sub privacy toggle copy disebut "nominal & nomor resmi".
+- Verifikasi: flutter analyze = "No issues found!" (0 error/info, seluruh project termasuk 6 file saya). flutter test: smoke test GAGAL di langkah splash→login (pumpAndSettle timeout) — terbukti BUKAN dari file saya: (a) dengan 6 file saya di-stash, test tetap gagal & malah ada compile error submitWhistleblow lama; (b) test lulus di HEAD bersih (task 69); (c) kegagalan ada di _splashUntilReady login.dart (loop menunggu app.restoring — masalah fake-vs-real time / prefs di test env, file agent lain). Tidak saya sentuh sesuai batasan.
+
+Stage Summary:
+- 6 halaman misc kini dual-mode (demo utuh + live via ESS API): tukar shift live end-to-end (board→kandidat→submit→cancel), pengumuman read-tracking, notifikasi system-kind, aset aktif/riwayat + kondisi/jatuh tempo/nilai, Lapor Aman 7 kategori resmi + validasi backend (20-4000 char, tanggal ≤ hari ini), profil live (grade+level, NPWP/BPJS masked, foto, logout loading, indikator server). flutter analyze bersih; 2 compile error feature lama (swap, whistleblow) fixed.
+
+---
+Task ID: 70
+Agent: Z.ai (orkestrator utama)
+Task: Sambungkan Flutter HRIS mobile (hris-mobile) ke backend OneVity https://onevity.sayone.my.id/
+
+Work Log:
+- Verifikasi deployment live: /api/health OK; seluruh route ESS (/api/onevity/ess/*) live (401 = perlu auth); auth di /api/auth/* (bukan NextAuth).
+- Eksplorasi kontrak ESS via subagent (Explore): guard requireEss (cookie onevity_session, AppUser→employeeId), 17 route ESS + whistleblowing; bentuk field tiap endpoint.
+- E2E curl ke dev lokal (login hrd@mii.co.id/onevity123 → select-tenant MII → /ess/me → /ess/dashboard → attendance → leave → payslips → clock IN/OUT → notifications/announcements/claims/assets/letters) — semua kontrak terkonfirmasi.
+- Arsitektur dua-mode: AppMode.demo|live; data live via OneVityApi (typed) + ApiClient (http + cookie sesi manual + capture Set-Cookie + pesan error ramah ID).
+- File baru: lib/data/api_client.dart, lib/data/onevity_api.dart (mapper JSON→model lengkap: me/dashboard/attendance/clock/leave/payslips+detail/claims/overtime/workoff/swap(board+submit+cancel)/letters(+PDF)/announcements/notifications/assets/whistleblow).
+- models.dart diperluas kompatibel (field lama tetap; tambahan live opsional: docNo/typeId/lineId/periodName/taxId/bpjs/dueAt/…, enum +workoff, model baru Workspace/SwapCandidate/SwapMyShift/DashboardKpi/LoginResult/LetterTemplate/AttendanceSummary).
+- app_state.dart dirombak: login live (MFA 2-langkah + pemilih workspace), restore sesi dari SharedPreferences, refreshAll paralel per-modul (tahan gagal, auto-logout bila 401 massal), seluruh mutasi jadi Future<String?> (pesan error), logout mencabut sesi server-side, seed khusus-demo dibersihkan saat masuk live.
+- login.dart baru: form email/sandi nyata, kartu MFA 6-digit, pemilih workspace, tombol Mode Demo, pengaturan server (long-press logo → base URL, dipersist), indikator host server.
+- Dependencies: +http, shared_preferences, path_provider, share_plus.
+- Wiring UI via 4 subagent paralel (70-a..70-d): attendance+home (clock async+loading, KPI live, kalender WF, RefreshIndicator); leave+requests+claims (typeId, saldo pecahan, chip status live, info-snackbar utk fitur yang belum dibuka); payslip+letters (detail lazy-load, PDF surat via SharePlus); swap+announcements+notifications+assets+whistleblow+profile (papan kandidat, baca pengumuman, NPWP/BPJS dimasker, logout).
+- Test: smoke_test diperbarui (mock prefs + Mode Demo + scrollUntilVisible); test/live_api_test.dart BARU — 7 test integrasi nyata ke localhost:3000 (auto-skip bila server mati).
+- Hasil: flutter analyze = No issues found; flutter test = 8/8 LULUS termasuk login live → me (Tri Handayani MII00004) → dashboard → attendance → leave(typeId) → payslip detail → logout-401.
+- Kontrak swap board diverifikasi manual (candidates MII00018/Ayu Yulianti dst).
+- README.md diperbarui (dokumentasi dua-mode, sumber data per modul, testing, keamanan).
+
+Stage Summary:
+- Aplikasi mobile kini benar-benar TERHUBUNG ke backend OneVity (default https://onevity.sayone.my.id; bisa dioverride utk dev).
+- Alur login lengkap: password → MFA (bila aktif) → pilih workspace → sesi persist 7 hari (restore otomatis saat app dibuka).
+- 13 modul menampilkan data nyata; aksi clock-in/out, cuti, lembur, workoff, tukar shift, surat (+PDF), whistleblow tersimpan ke DB perusahaan.
+- Klaim medis & travel: hanya-baca dari mobile (backend ESS belum menyediakan pengajuan) — ditampilkan jujur dengan arahan ke HR.
+- Mode demo dipertahankan sebagai fallback demo/presentasi.

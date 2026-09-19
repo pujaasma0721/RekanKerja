@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/format.dart';
 import '../core/widgets.dart';
 import '../data/app_state.dart';
+import '../data/models.dart';
 import 'announcements.dart';
 import 'assets.dart';
 import 'attendance.dart';
@@ -15,8 +16,17 @@ import 'requests.dart';
 import 'swap.dart';
 
 /// Tab "Saya": profil + hub seluruh fitur + pengaturan.
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  /// Nomor sensitif (NPWP/BPJS) yang sedang dibuka matainya.
+  final Set<String> _revealed = {};
+  bool _loggingOut = false;
 
   @override
   Widget build(BuildContext context) {
@@ -26,123 +36,190 @@ class ProfilePage extends StatelessWidget {
     final masaKerja = DateTime.now().difference(emp.joinDate);
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-        children: [
-          const SizedBox(height: 56),
+      body: RefreshIndicator(
+        onRefresh: () => app.refreshAll(),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+          children: [
+            const SizedBox(height: 56),
 
-          // ===== Kartu identitas =====
-          Row(
-            children: [
-              AppAvatar(emp.fullName, size: 72),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      emp.fullName,
-                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: -0.4),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      emp.position,
-                      style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: scheme.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(999),
+            // ===== Kartu identitas =====
+            Row(
+              children: [
+                _employeeAvatar(context, emp),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        emp.fullName,
+                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: -0.4),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        emp.position,
+                        style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: scheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              emp.employeeNo,
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: scheme.primary),
+                            ),
                           ),
-                          child: Text(
-                            emp.employeeNo,
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: scheme.primary),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF059669).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Aktif',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF059669)),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF059669).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text(
-                            'Aktif',
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF059669)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.qr_code_2_rounded, size: 26),
-                tooltip: 'Kartu digital karyawan',
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // ===== Kartu kepegawaian =====
-          _kepegawaianCard(context, emp, masaKerja),
-
-          const SectionTitle('Semua Layanan'),
-          _menuGrid(context),
-
-          const SectionTitle('Keluarga & Dokumen'),
-          Row(
-            children: [
-              Expanded(
-                child: _miniCard(
-                  context,
-                  Icons.family_restroom_rounded,
-                  '${emp.family.length} anggota',
-                  'Data keluarga terdaftar',
-                  const Color(0xFFDB2777),
-                  onTap: () => _showFamily(context, emp.family, scheme),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.qr_code_2_rounded, size: 26),
+                  tooltip: 'Kartu digital karyawan',
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _miniCard(
-                  context,
-                  Icons.folder_rounded,
-                  '${emp.documents.length} dokumen',
-                  'KTP, KK, ijazah, NPWP',
-                  const Color(0xFF0369A1),
-                  onTap: () => _showDocs(context, emp.documents),
-                ),
-              ),
-            ],
-          ),
-
-          const SectionTitle('Pengaturan'),
-          _settingsCard(context, app),
-          const SizedBox(height: 10),
-          _logoutCard(context, app),
-          const SizedBox(height: 20),
-          Center(
-            child: Text(
-              'OneVity HRIS Mobile v1.0.0 (demo UI)\nDibuat dengan ❤️ untuk pekerja Indonesia',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10.5, color: Theme.of(context).hintColor, height: 1.6),
+              ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+
+            // ===== Kartu kepegawaian =====
+            _kepegawaianCard(context, emp, masaKerja),
+
+            // ===== Nomor resmi (NPWP & BPJS) — disembunyikan default =====
+            if (_hasIdNumbers(emp)) ...[
+              const SectionTitle('Nomor Resmi'),
+              _idNumbersCard(context, app, emp),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Demi keamanan, nomor ini disembunyikan — ketuk ikon mata untuk menampilkannya.',
+                  style: TextStyle(fontSize: 10.5, height: 1.5, color: Theme.of(context).hintColor),
+                ),
+              ),
+            ],
+
+            const SectionTitle('Semua Layanan'),
+            _menuGrid(context),
+
+            const SectionTitle('Keluarga & Dokumen'),
+            if (emp.family.isEmpty && emp.documents.isEmpty)
+              // Live: data keluarga & dokumen tidak dibawakan ESS → HR.
+              const EmptyState(
+                icon: Icons.family_restroom_rounded,
+                title: 'Data keluarga & dokumen dikelola oleh HR',
+                subtitle: 'Butuh perubahan data? Hubungi tim HR — mereka siap membantu.',
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _miniCard(
+                      context,
+                      Icons.family_restroom_rounded,
+                      '${emp.family.length} anggota',
+                      'Data keluarga terdaftar',
+                      const Color(0xFFDB2777),
+                      onTap: () => _showFamily(context, emp.family, scheme),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _miniCard(
+                      context,
+                      Icons.folder_rounded,
+                      '${emp.documents.length} dokumen',
+                      'KTP, KK, ijazah, NPWP',
+                      const Color(0xFF0369A1),
+                      onTap: () => _showDocs(context, emp.documents),
+                    ),
+                  ),
+                ],
+              ),
+
+            const SectionTitle('Pengaturan'),
+            _settingsCard(context, app),
+            const SizedBox(height: 10),
+            _logoutCard(context, app),
+            const SizedBox(height: 14),
+
+            // Info mode sumber data — halus & kecil.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  app.isLive ? Icons.cloud_done_outlined : Icons.science_outlined,
+                  size: 12,
+                  color: Theme.of(context).hintColor.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  app.isLive ? 'Terhubung: ${app.serverHost}' : 'Mode Demo',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).hintColor.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'OneVity HRIS Mobile v1.0.0\nDibuat dengan ❤️ untuk pekerja Indonesia',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10.5, color: Theme.of(context).hintColor, height: 1.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _kepegawaianCard(BuildContext context, emp, Duration masaKerja) {
+  // ===== avatar: foto profil live (bila ada) dengan fallback inisial =====
+  Widget _employeeAvatar(BuildContext context, Employee emp) {
+    final url = emp.photoUrl;
+    if (url == null || url.isEmpty) return AppAvatar(emp.fullName, size: 72);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(72 * 0.34),
+      child: Image.network(
+        url,
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => AppAvatar(emp.fullName, size: 72),
+      ),
+    );
+  }
+
+  Widget _kepegawaianCard(BuildContext context, Employee emp, Duration masaKerja) {
     final years = (masaKerja.inDays / 365).floor();
     final months = ((masaKerja.inDays % 365) / 30).floor();
+    final grade = (emp.levelCode == null || emp.levelCode!.isEmpty)
+        ? emp.grade
+        : '${emp.grade} · ${emp.levelCode}';
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -164,8 +241,15 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _kv('Grade', emp.grade),
+              _kv('Grade', grade),
               _kv('Status', emp.employmentStatus),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _kv('Bergabung', tanggalID(emp.joinDate)),
+              _kv('Masa Kerja', '$years th $months bln'),
             ],
           ),
           const Divider(color: Colors.white24, height: 28),
@@ -184,28 +268,17 @@ class ProfilePage extends StatelessWidget {
                       children: [
                         AppAvatar(emp.manager, size: 26),
                         const SizedBox(width: 8),
-                        Text(
-                          emp.manager,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
+                        Expanded(
+                          child: Text(
+                            emp.manager,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'MASA KERJA',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white.withValues(alpha: 0.45), letterSpacing: 0.6),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$years th $months bln',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF6EE7B7)),
-                  ),
-                ],
               ),
             ],
           ),
@@ -227,6 +300,95 @@ class ProfilePage extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== nomor resmi (rahasia) =====
+
+  static bool _hasIdNumbers(Employee emp) =>
+      (emp.taxId ?? '').trim().isNotEmpty ||
+      (emp.bpjsHealth ?? '').trim().isNotEmpty ||
+      (emp.bpjsEmpSkill ?? '').trim().isNotEmpty;
+
+  Widget _idNumbersCard(BuildContext context, AppState app, Employee emp) {
+    final tax = (emp.taxId ?? '').trim();
+    final kesehatan = (emp.bpjsHealth ?? '').trim();
+    final ketenagakerjaan = (emp.bpjsEmpSkill ?? '').trim();
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.06)
+              : Colors.black.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Column(
+        children: [
+          if (tax.isNotEmpty) _secretRow(context, app, 'npwp', 'NPWP', Icons.badge_rounded, tax),
+          if (tax.isNotEmpty && kesehatan.isNotEmpty) const Divider(indent: 56),
+          if (kesehatan.isNotEmpty)
+            _secretRow(context, app, 'bpjs-health', 'BPJS Kesehatan', Icons.health_and_safety_rounded, kesehatan),
+          if ((tax.isNotEmpty || kesehatan.isNotEmpty) && ketenagakerjaan.isNotEmpty) const Divider(indent: 56),
+          if (ketenagakerjaan.isNotEmpty)
+            _secretRow(context, app, 'bpjs-emp', 'BPJS Ketenagakerjaan', Icons.construction_rounded, ketenagakerjaan),
+        ],
+      ),
+    );
+  }
+
+  /// Baris nomor sensitif: disembunyikan (•••) secara default; ikon mata
+  /// membuka per baris. Selama mode privasi global aktif → tetap tersembunyi.
+  Widget _secretRow(BuildContext context, AppState app, String key, String label, IconData icon, String value) {
+    final revealed = _revealed.contains(key) && !app.privacyMode;
+    final hint = Theme.of(context).hintColor;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          const SizedBox(width: 10),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(color: const Color(0xFF57534E).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(11)),
+            child: Icon(icon, size: 19, color: const Color(0xFF57534E)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(
+                  revealed ? value : '••• ••••',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: revealed ? null : hint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: revealed ? 'Sembunyikan' : 'Tampilkan',
+            icon: Icon(revealed ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 19, color: hint),
+            onPressed: () {
+              if (app.privacyMode) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Matikan "Sembunyikan nominal" di Pengaturan dulu untuk melihat nomor ini 🔒')),
+                );
+                return;
+              }
+              setState(() => revealed ? _revealed.remove(key) : _revealed.add(key));
+            },
           ),
         ],
       ),
@@ -329,7 +491,7 @@ class ProfilePage extends StatelessWidget {
             icon: Icons.visibility_off_rounded,
             color: const Color(0xFF57534E),
             label: 'Sembunyikan nominal',
-            sub: 'Privasi gaji di tempat umum',
+            sub: 'Privasi gaji & nomor resmi di tempat umum',
             value: app.privacyMode,
             onChanged: (_) => app.togglePrivacy(),
           ),
@@ -388,6 +550,29 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _logoutCard(BuildContext context, AppState app) {
+    // Sedang keluar (live: sesi di-revoke di server dulu) → tampil loading.
+    if (_loggingOut) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDC2626).withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.2)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFFDC2626)),
+            ),
+            SizedBox(width: 12),
+            Text('Mengeluarkan akun…', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
+          ],
+        ),
+      );
+    }
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -400,9 +585,13 @@ class ProfilePage extends StatelessWidget {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  app.logout();
+                  setState(() => _loggingOut = true);
+                  // Setelah selesai, loggedIn berubah → aplikasi otomatis
+                  // kembali ke halaman login.
+                  await app.logout();
+                  if (mounted) setState(() => _loggingOut = false);
                 },
                 child: const Text('Keluar'),
               ),
@@ -431,7 +620,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showFamily(BuildContext context, List family, scheme) {
+  void _showFamily(BuildContext context, List<FamilyMember> family, ColorScheme scheme) {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
@@ -465,7 +654,7 @@ class ProfilePage extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        f.birthDate != null ? tanggalID(f.birthDate) : '—',
+                        f.birthDate != null ? tanggalID(f.birthDate!) : '—',
                         style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
                       ),
                     ],
@@ -477,7 +666,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showDocs(BuildContext context, List docs) {
+  void _showDocs(BuildContext context, List<EmployeeDoc> docs) {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(

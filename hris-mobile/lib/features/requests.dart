@@ -7,6 +7,37 @@ import '../data/app_state.dart';
 import '../data/models.dart';
 
 /// Pengajuan lain: lembur, workoff, tukar shift, perjalanan dinas.
+
+/// Pesan INFO = fitur belum tersedia di mobile (bukan error teknis).
+bool _isInfoMsg(String m) =>
+    m.startsWith('Pengajuan dinas dari aplikasi mobile belum dibuka') ||
+    m.startsWith('Pengajuan klaim baru dari aplikasi');
+
+/// SnackBar hasil submit: INFO → amber + ikon info, error → merah.
+void _showResult(ScaffoldMessengerState messenger, String message) {
+  final info = _isInfoMsg(message);
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: info ? const Color(0xFFB45309) : const Color(0xFFBE123C),
+      duration: Duration(milliseconds: info ? 4500 : 3500),
+      content: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(info ? Icons.info_rounded : Icons.error_outline_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12.5, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class RequestsPage extends StatefulWidget {
   const RequestsPage({super.key});
 
@@ -50,81 +81,85 @@ class _RequestsPageState extends State<RequestsPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Semua Pengajuan')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
-        children: [
-          // Pintas aksi
-          Row(
-            children: [
-              Expanded(
-                child: QuickAction(
-                  icon: Icons.schedule_rounded,
-                  color: const Color(0xFFB45309),
-                  label: 'Ajukan Lembur',
-                  onTap: () => _overtimeForm(context),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QuickAction(
-                  icon: Icons.event_repeat_rounded,
-                  color: const Color(0xFF0369A1),
-                  label: 'Ajukan Workoff',
-                  onTap: () => _workoffForm(context),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QuickAction(
-                  icon: Icons.flight_takeoff_rounded,
-                  color: const Color(0xFF0E7490),
-                  label: 'Perjalanan Dinas',
-                  onTap: () => _travelForm(context),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 36,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final active = filters[i] == _filter;
-                final scheme = Theme.of(context).colorScheme;
-                return GestureDetector(
-                  onTap: () => setState(() => _filter = filters[i]),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: active ? scheme.primary : scheme.surface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: active ? null : Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                    ),
-                    child: Text(
-                      filters[i],
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: active ? Colors.white : null),
-                    ),
+      body: RefreshIndicator(
+        onRefresh: () => app.refreshAll(),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+          children: [
+            // Pintas aksi
+            Row(
+              children: [
+                Expanded(
+                  child: QuickAction(
+                    icon: Icons.schedule_rounded,
+                    color: const Color(0xFFB45309),
+                    label: 'Ajukan Lembur',
+                    onTap: () => _overtimeForm(context),
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: QuickAction(
+                    icon: Icons.event_repeat_rounded,
+                    color: const Color(0xFF0369A1),
+                    label: 'Ajukan Workoff',
+                    onTap: () => _workoffForm(context),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: QuickAction(
+                    icon: Icons.flight_takeoff_rounded,
+                    color: const Color(0xFF0E7490),
+                    label: 'Perjalanan Dinas',
+                    onTap: () => _travelForm(context),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 14),
 
-          if (list.isEmpty)
-            const EmptyState(
-              icon: Icons.assignment_outlined,
-              title: 'Tidak ada pengajuan',
-              subtitle: 'Filter kosong — coba pilih kategori lain atau buat pengajuan baru.',
-            )
-          else
-            ...list.map((r) => _RequestTile(r: r)),
-        ],
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final active = filters[i] == _filter;
+                  final scheme = Theme.of(context).colorScheme;
+                  return GestureDetector(
+                    onTap: () => setState(() => _filter = filters[i]),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: active ? scheme.primary : scheme.surface,
+                        borderRadius: BorderRadius.circular(999),
+                        border: active ? null : Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                      ),
+                      child: Text(
+                        filters[i],
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: active ? Colors.white : null),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            if (list.isEmpty)
+              const EmptyState(
+                icon: Icons.assignment_outlined,
+                title: 'Tidak ada pengajuan',
+                subtitle: 'Filter kosong — coba pilih kategori lain atau buat pengajuan baru.',
+              )
+            else
+              ...list.map((r) => _RequestTile(r: r)),
+          ],
+        ),
       ),
     );
   }
@@ -161,6 +196,11 @@ class _RequestTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _RequestsPageState.kindColor[r.kind]!;
+    // Item live (dashboard backend): docNo di subtitle, detail = label tanggal.
+    // Item demo: judul bebas + tanggal dari field date.
+    final live = r.docNo != null && r.docNo!.isNotEmpty;
+    final title = live ? (_RequestsPageState.kindLabel[r.kind] ?? r.title) : r.title;
+    final subtitle = live ? r.docNo! : '${_RequestsPageState.kindLabel[r.kind]} · ${tanggalID(r.date)}';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -190,23 +230,27 @@ class _RequestTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  r.title,
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_RequestsPageState.kindLabel[r.kind]} · ${tanggalID(r.date)}',
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  r.detail,
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600),
                 ),
+                if (r.detail.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    r.detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
+                  ),
+                ],
               ],
             ),
           ),
@@ -231,6 +275,7 @@ class _OvertimeSheetState extends State<_OvertimeSheet> {
   TimeOfDay _start = const TimeOfDay(hour: 17, minute: 15);
   TimeOfDay _end = const TimeOfDay(hour: 20, minute: 15);
   final _reason = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -258,6 +303,35 @@ class _OvertimeSheetState extends State<_OvertimeSheet> {
           _end = t;
         }
       });
+    }
+  }
+
+  Future<void> _submit() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (_reason.text.trim().isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Tulis dulu pekerjaan yang akan dikerjakan ya 🙂')),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final app = context.read<AppState>();
+    final msg = await app.submitOvertime(
+      date: _date,
+      start: _start,
+      end: _end,
+      reason: _reason.text.trim(),
+    );
+    if (!mounted) return;
+    if (msg == null) {
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pengajuan lembur terkirim — tetap jaga kesehatan! ☕')),
+      );
+    } else {
+      setState(() => _busy = false);
+      if (_isInfoMsg(msg)) Navigator.pop(context);
+      _showResult(messenger, msg);
     }
   }
 
@@ -352,20 +426,10 @@ class _OvertimeSheetState extends State<_OvertimeSheet> {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: () {
-              if (_reason.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tulis dulu pekerjaan yang akan dikerjakan ya 🙂')),
-                );
-                return;
-              }
-              context.read<AppState>().submitOvertime(date: _date, start: _start, end: _end, reason: _reason.text.trim());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pengajuan lembur terkirim — tetap jaga kesehatan! ☕')),
-              );
-            },
-            child: const Text('Kirim Pengajuan Lembur'),
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                : const Text('Kirim Pengajuan Lembur'),
           ),
         ],
       ),
@@ -384,11 +448,36 @@ class _WorkoffSheet extends StatefulWidget {
 class _WorkoffSheetState extends State<_WorkoffSheet> {
   DateTime _date = DateTime.now().add(const Duration(days: 2));
   final _reason = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
     _reason.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (_reason.text.trim().isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Sebutkan lembur yang dikompensasi ya 🙂')),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final app = context.read<AppState>();
+    final msg = await app.submitWorkoff(date: _date, reason: _reason.text.trim());
+    if (!mounted) return;
+    if (msg == null) {
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pengajuan workoff terkirim — istirahatmu berharga 😌')),
+      );
+    } else {
+      setState(() => _busy = false);
+      if (_isInfoMsg(msg)) Navigator.pop(context);
+      _showResult(messenger, msg);
+    }
   }
 
   @override
@@ -434,20 +523,10 @@ class _WorkoffSheetState extends State<_WorkoffSheet> {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: () {
-              if (_reason.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sebutkan lembur yang dikompensasi ya 🙂')),
-                );
-                return;
-              }
-              context.read<AppState>().submitWorkoff(date: _date, reason: _reason.text.trim());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pengajuan workoff terkirim — istirahatmu berharga 😌')),
-              );
-            },
-            child: const Text('Kirim Pengajuan Workoff'),
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                : const Text('Kirim Pengajuan Workoff'),
           ),
         ],
       ),
@@ -470,12 +549,43 @@ class _TravelSheetState extends State<_TravelSheet> {
   );
   final _dest = TextEditingController();
   final _purpose = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
     _dest.dispose();
     _purpose.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (_dest.text.trim().isEmpty || _purpose.text.trim().isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Lengkapi tujuan & keperluan dinas ya 🙂')),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final app = context.read<AppState>();
+    // Live: backend belum membuka pengajuan dinas dari mobile →
+    // mengembalikan pesan INFO (amber), bukan error.
+    final msg = await app.submitTravel(
+      range: _range,
+      destination: _dest.text.trim(),
+      purpose: _purpose.text.trim(),
+    );
+    if (!mounted) return;
+    if (msg == null) {
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pengajuan dinas terkirim — jangan lupa bon-nya ya! ✈️')),
+      );
+    } else {
+      setState(() => _busy = false);
+      if (_isInfoMsg(msg)) Navigator.pop(context);
+      _showResult(messenger, msg);
+    }
   }
 
   @override
@@ -532,24 +642,10 @@ class _TravelSheetState extends State<_TravelSheet> {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: () {
-              if (_dest.text.trim().isEmpty || _purpose.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Lengkapi tujuan & keperluan dinas ya 🙂')),
-                );
-                return;
-              }
-              context.read<AppState>().submitTravel(
-                    range: _range,
-                    destination: _dest.text.trim(),
-                    purpose: _purpose.text.trim(),
-                  );
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pengajuan dinas terkirim — jangan lupa bon-nya ya! ✈️')),
-              );
-            },
-            child: const Text('Kirim Pengajuan Dinas'),
+            onPressed: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                : const Text('Kirim Pengajuan Dinas'),
           ),
         ],
       ),

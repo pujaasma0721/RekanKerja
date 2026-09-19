@@ -19,6 +19,8 @@ class NotificationsPage extends StatelessWidget {
     'letter': (Icons.description_rounded, Color(0xFF0369A1)),
     'whistleblow': (Icons.shield_rounded, Color(0xFFDC2626)),
     'gamification': (Icons.emoji_events_rounded, Color(0xFFF59E0B)),
+    // Item dari backend live (ES OneVity).
+    'system': (Icons.notifications_active_rounded, Color(0xFF0891B2)),
   };
 
   @override
@@ -30,7 +32,10 @@ class NotificationsPage extends StatelessWidget {
         actions: [
           if (app.unreadCount > 0)
             TextButton(
-              onPressed: () => app.markAllRead(),
+              // markAllRead async — optimistic, tampilan langsung berubah.
+              onPressed: () async {
+                await app.markAllRead();
+              },
               child: const Text('Tandai dibaca', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             ),
         ],
@@ -47,7 +52,9 @@ class NotificationsPage extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, i) {
                 final n = app.notifications[i];
-                final (icon, color) = kindSpec[n.kind] ?? (Icons.info_rounded, Colors.grey);
+                // Kind tak dikenal (mis. jenis baru dari backend) → bel netral.
+                final (icon, color) = kindSpec[n.kind] ??
+                    (Icons.notifications_rounded, const Color(0xFF57534E));
                 return _NotifTile(
                   icon: icon,
                   color: color,
@@ -55,7 +62,10 @@ class NotificationsPage extends StatelessWidget {
                   body: n.body,
                   time: relatif(n.at),
                   read: n.read,
-                  onTap: () => app.markRead(n),
+                  onTap: () async {
+                    // markRead async — optimistic di AppState, UI instan.
+                    await app.markRead(n);
+                  },
                 );
               },
             ),

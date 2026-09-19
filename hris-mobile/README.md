@@ -2,37 +2,55 @@
 
 Aplikasi mobile **Employee-Centric Self-Service** untuk OneVity HR Suite — didesain agar pengalaman HR terasa menyenangkan dan personal layaknya aplikasi fintech/media sosial, bukan software kantor yang kaku.
 
-> **Status:** Demo UI dengan data seed realistis — arsitektur siap disambungkan ke backend OneVity (lihat *Integrasi* di bawah).
+> **Status:** ✅ **Terhubung ke backend OneVity** (default: `https://onevity.sayone.my.id`) — mode **Demo** tetap tersedia untuk mencoba tanpa server.
+
+## Dua Mode Aplikasi
+
+| | Mode **Live** | Mode **Demo** |
+|---|---|---|
+| Sumber data | REST API OneVity (`/api/onevity/ess/*`) | Seed lokal realistis |
+| Login | Email + sandi akun kantor → (MFA 6 digit bila aktif) → pilih workspace bila multi-perusahaan | Tombol *Coba Mode Demo* |
+| Presensi, cuti, lembur, workoff, tukar shift, surat, whistleblow | Nyata — tersimpan ke database perusahaan | Simulasi lokal |
+| Slip gaji, klaim, aset, pengumuman, notifikasi, profil | Nyata — dari server (hanya-baca) | Simulasi lokal |
+| Sesi | Cookie `onevity_session` (7 hari, tersimpan di perangkat) | — |
+
+Ganti server (dev ⇄ produksi): **tekan-lama logo "1V"** di halaman login → dialog Base URL. Bisa juga lewat build: `--dart-define=ONEVITY_API=https://...`.
 
 ## Fitur (dari modul OneVity)
 
-| Modul | Isi |
-|---|---|
-| 🏠 **Beranda** | Sapaan personal, kartu presensi satu-tap (jam hidup + status shift), sisa cuti, lembur bulan ini, teaser take-home pay (privacy mode), pintasan, pengumuman terbaru |
-| ☝️ **Presensi** | Ring statistik kehadiran, kalender bulanan interaktif (warna status), riwayat + detail lembur |
-| 🌴 **Cuti** | Saldo per jenis (ring), pengajuan dengan date-range, riwayat + timeline persetujuan berjenjang |
-| 💸 **Slip Gaji** | Daftar 12 periode, detail komponen penghasilan/potongan/PPh 21, mode privasi nominal |
-| 🏥 **Klaim** | Reimbursement medis (rawat jalan/inap/gigi/kacamata/persalinan), filter status, timeline |
-| 📋 **Pengajuan** | Lembur, workoff, perjalanan dinas (+ uang muka), tukar shift |
-| 📄 **Surat** | Permintaan surat keterangan kerja/gaji/pengalaman, keperluan, riwayat |
-| 📣 **Pengumuman** | Feed berita perusahaan dengan kategori & pin |
-| 🔁 **Tukar Shift** | Jadwal ke depan, tawaran tukar dengan rekan |
-| 💼 **Aset Saya** | Daftar aset perusahaan yang dipinjamkan |
-| 🛡️ **Lapor Aman** | Whistleblowing — jaminan anonimitas, kategori pelanggaran, kode pelacakan |
-| 👤 **Saya** | Profil & data kepegawaian, keluarga, dokumen, pengaturan (dark mode, privasi nominal, notifikasi) |
-| 🔔 **Notifikasi** | Pusat kabar persetujuan/payslip/pengingat + poin gamifikasi |
+| Modul | Isi | Sumber live |
+|---|---|---|
+| 🏠 **Beranda** | Sapaan personal, kartu presensi satu-tap, KPI (sisa cuti, menunggu persetujuan, kehadiran, lembur), teaser slip terbaru, feed pengajuan | `/ess/dashboard` |
+| ☝️ **Presensi** | Statistik ring, kalender bulanan interaktif (warna status + WF), riwayat + detail, navigasi bulan | `/ess/attendance`, `POST /ess/clock` |
+| 🌴 **Cuti** | Saldo per jenis (termasuk saldo pecahan), pengajuan date-range, riwayat + approver aktif | `/ess/leave` |
+| 💸 **Slip Gaji** | Daftar periode (status Terbayar/Terkonfirmasi), detail komponen lazy-load, mode privasi nominal | `/ess/payslips(+/detail)` |
+| 🏥 **Klaim** | Reimbursement medis + klaim perjalanan dinas (uang muka/pertanggungjawaban), filter status | `/ess/claims` |
+| 📋 **Pengajuan** | Lembur, workoff, perjalanan dinas | `POST /ess/overtime`, `/ess/workoff` |
+| 📄 **Surat** | Template dari server, permintaan + keperluan, **unduh PDF** surat terbit (share sheet) | `/ess/letters(+/pdf)` |
+| 📣 **Pengumuman** | Feed berita: pin, badge belum-baca, jumlah pembaca | `/ess/announcements` |
+| 🔁 **Tukar Shift** | Pilih tanggal → lihat jadwalmu → pilih rekan kandidat → ajukan/batalkan | `/ess/swap` |
+| 💼 **Aset Saya** | Aset aktif + riwayat pengembalian (kondisi, jatuh tempo) | `/ess/assets` |
+| 🛡️ **Lapor Aman** | Whistleblowing anonim — 7 kategori, tanggal insiden, kode tiket pelacakan | `POST /whistleblowing/report` |
+| 👤 **Saya** | Profil kepegawaian, NPWP/BPJS (masker + toggle), logout | `/ess/me` |
+| 🔔 **Notifikasi** | Pusat kabar persetujuan/payslip/pengingat | `/ess/notifications` |
+
+> Pengajuan **klaim medis** dan **perjalanan dinas** dari mobile belum dibuka backend ESS — aplikasi menampilkan statusnya secara lengkap dan mengarahkan ke HR/backoffice untuk pengajuan baru.
 
 ## Stack & Arsitektur
 
 - **Flutter 3.32** + Material 3, tema emerald + aksen amber (identitas OneVity)
-- **provider** untuk state management (`AppState` — semua aksi bermutasi state → UI interaktif penuh)
-- Tanpa dependensi berat: kalender, ring progress, timeline — semua custom-painted
+- **provider** untuk state; **http** + cookie sesi manual; **shared_preferences** (sesi & server), **path_provider + share_plus** (PDF surat)
 - Struktur:
   ```
   lib/
-  ├── app.dart / main.dart      # root + tema (light/dark)
-  ├── core/                     # design system: theme, format (rupiah/tanggal ID), widgets reusable
-  ├── data/                     # models, seed demo, AppState (ChangeNotifier)
+  ├── app.dart / main.dart
+  ├── core/                     # design system: theme, format ID, widgets reusable
+  ├── data/
+  │   ├── api_client.dart       # HTTP + cookie onevity_session + error ramah
+  │   ├── onevity_api.dart       # gateway bertipe + mapper JSON→model seluruh ESS
+  │   ├── app_state.dart        # AppState dua-mode (demo|live) + restore sesi
+  │   ├── models.dart           # model lintas modul (field live opsional)
+  │   └── mock_data.dart        # seed demo
   └── features/                 # 14 halaman per modul ESS
   ```
 
@@ -44,18 +62,23 @@ flutter pub get
 flutter run          # pilih emulator / device
 ```
 
-Login demo: tombol *Masuk Sekarang* (kredensial demo terisi otomatis).
+- **Mode Live:** masuk dengan akun kantor OneVity (mis. demo lokal: `hrd@mii.co.id` / `onevity123`).
+- **Mode Demo:** tombol *Coba Mode Demo* di halaman login.
 
-## Integrasi backend OneVity (next step)
+## Testing
 
-`lib/data/app_state.dart` adalah titik ganti tunggal:
-1. Ganti seed `mock_data.dart` dengan service API OneVity (`/api/onevity/ess/*` sudah tersedia di web: auth, clock, leave, claims, payslips, dsb.)
-2. Tambahkan `dio`/`http` + token sesi → mutasi `submit*()` cukup memanggil endpoint.
-3. Enkripsi uang & PII sudah ditangani backend (Money Vault + field-crypto) — mobile hanya menampilkan.
+```bash
+flutter analyze
+flutter test
+```
+
+- `test/smoke_test.dart` — E2E mode demo: splash → login → shell → navigasi → clock in/out.
+- `test/live_api_test.dart` — **integrasi nyata** ke backend lokal (`http://localhost:3000`, kode sama dengan produksi): login → pilih workspace → `/ess/me` → dashboard → presensi → cuti → slip + rincian → logout 401. Otomatis di-skip bila server tidak berjalan.
 
 ## Catatan desain
 
 - Bahasa utama: Indonesia (gaya ramah "kamu")
 - Nominal besar & tebal (fintech), chip status berwarna, radius 20–28, soft shadow
-- Dark mode penuh + **privacy mode** (sembunyikan nominal gaji)
+- Dark mode penuh + **privacy mode** (sembunyikan nominal gaji; nominal ter-mask server/vault tampil "•••")
 - Semua form memakai bottom-sheet — satu jempol cukup
+- Keamanan: sesi cookie httpOnly server-side + sessionVersion (logout mencabut semua token), MFA TOTP dua-langkah didukung
