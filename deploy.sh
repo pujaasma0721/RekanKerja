@@ -117,6 +117,11 @@ if ! mv "$BUILD_DIR" "$APP_DIR"; then
   mv "$ROLLBACK_DIR" "$APP_DIR"
   die "Gagal memindahkan folder build — folder lama dipulihkan"
 fi
+# Task 78: muat .env.local ke env proses SEBELUM restart — runtime standalone
+# Next TIDAK membaca .env.local dari folder app; env proses pm2 satu-satunya
+# sumber (diwarisi dari pm2 start awal + --update-env). Tanpa ini var baru
+# yang hanya ditambah di .env.local tidak pernah terbaca aplikasi.
+set -a; . "$APP_DIR/.env.local"; set +a
 pm2 restart "$PM2_APP" --update-env >/dev/null || rollback_now
 
 # ---------- 6. healthcheck ----------
