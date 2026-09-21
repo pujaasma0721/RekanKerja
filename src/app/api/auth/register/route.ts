@@ -5,6 +5,7 @@ import {
 } from "@/onevity/shared/lib/auth";
 import { provisionTenantSchema, seedTenantReference, schemaNameForSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
 import { hostTenantOf, requestHostOf } from "@/onevity/shared/lib/tenant-host";
+import { invalidateTenantHost } from "@/onevity/shared/lib/tenant-host-server";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
 import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
@@ -160,6 +161,11 @@ export async function POST(req: NextRequest) {
       throw e;
     }
     if (!userId) throw new Error("user gagal dibuat");
+
+    // Task 78d: bust cache negatif host — probe sebelum pendaftaran (oleh
+    // pendaftar sendiri di layar register) menyimpan "slug belum ada" 60 dtk;
+    // tanpa ini login pertama di alamat barunya bisa 404 sesaat.
+    invalidateTenantHost(slug);
 
     const info = (await buildSessionInfo(userId, tenant.id))!;
     const res = NextResponse.json(info, { status: 201 });
