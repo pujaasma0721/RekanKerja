@@ -2325,3 +2325,25 @@ di alamat mana pun. Kini:
 - kontrol login @sayone.sayone.my.id → 200 ✓
 - kontrol login @onevity.sayone.my.id (host utama) → 200 ✓
 - regresi scripts/e2e-subdomain-tenant.ts → 5/5 PASS ✓
+
+---
+Task ID: 78d
+Agent: Buffy (Codebuff)
+Date: 2026-09-21
+Status: DONE — alamat subdomain = kode perusahaan
+
+## Aturan baru
+slug = lowercase(companyCode): SAYONE → sayone.<base> (BUKAN turunan nama workspace).
+- Daftar via subdomain: subdomain WAJIB format kode (2–12, [a-z0-9]); companyCode
+  otomatis = upper(subdomain); kode form berbeda → 400; input kode terkunci di UI.
+- Daftar di host utama: slug = lowercase(kode dari form); preview alamat live.
+- Bentrok → 409 (kode = alamat = identitas; tanpa suffix -2/-3).
+- Record Company (tenant) dibuat dengan code/shortName = kode efektif.
+- FIX: bust cache negatif host saat registrasi (login pertama di alamat baru
+  tidak lagi 404 sesaat karena cache "slug belum ada" 60 dtk).
+
+## Bukti E2E prod (ed4c9af + e29dbbb)
+- Register via testco.sayone.my.id → tenant slug=testco, companyCode=TESTCO,
+  Company.code=TESTCO, owner login langsung auto-select TESTCO di alamatnya ✓
+- Login di subdomain tak terdaftar tetap 404 ✓
+- Tenant uji dibersihkan total (registry + schema tenant_testco) ✓
