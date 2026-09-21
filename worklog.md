@@ -2303,3 +2303,25 @@ Skrip: scripts/e2e-browser-subdomain.mjs (login UI asli, bukan inject cookie)
 
 Kesimpulan: pengalaman login + seluruh modul berfungsi normal via alamat
 tenant sayone.sayone.my.id — isolasi & guard utuh.
+
+---
+Task ID: 78c
+Agent: Buffy (Codebuff)
+Date: 2026-09-21
+Status: DONE — binding ketat user ke subdomain
+
+## Celah ditutup: login di subdomain semaangan
+Sebelumnya: subdomain tak terdaftar (slug tanpa Tenant, mis. tenantxyz.sayone.my.id)
+fallback ke perilaku lama → user ter-auto-select ke workspace-nya → bisa bekerja
+di alamat mana pun. Kini:
+- effectiveTenantIdOf: slug tanpa Tenant → tenantId null + fromHost true
+  (TIDAK pernah fallback tid cookie di host ber-subdomain)
+- login di subdomain tak terdaftar → 404 "Alamat workspace tidak dikenal"
+- select-tenant di subdomain tak terdaftar → 404 (pesan sama)
+- requireTenant/requireMutator tetap 401 di host tak dikenal (sudah benar sejak 78)
+
+## E2E prod (7637d6a ter-deploy)
+- login @tenantxyz.sayone.my.id → HTTP 404, TANPA set-cookie ✓
+- kontrol login @sayone.sayone.my.id → 200 ✓
+- kontrol login @onevity.sayone.my.id (host utama) → 200 ✓
+- regresi scripts/e2e-subdomain-tenant.ts → 5/5 PASS ✓
