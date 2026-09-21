@@ -20,6 +20,19 @@ export function baseDomains(): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Host UTAMA aplikasi (env ONEVITY_MAIN_HOSTS, dipisah koma) — mis.
+ * "onevity.sayone.my.id". Host ini DIKECUALIKAN dari pencocokan subdomain
+ * walau bentuknya seperti subdomain dari base domain (slug "onevity" tidak
+ * boleh diamankan oleh tenant mana pun — itu alamat utama platform).
+ */
+export function mainHosts(): string[] {
+  return (process.env.ONEVITY_MAIN_HOSTS ?? "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, ""))
+    .filter(Boolean);
+}
+
 export interface HostTenant {
   /** slug tenant dari subdomain (huruf kecil) — null bila host bukan subdomain tenant. */
   slug: string | null;
@@ -36,6 +49,8 @@ export function hostTenantOf(rawHost: string | null | undefined): HostTenant {
   const host = (rawHost ?? "").trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
   if (!host || bases.length === 0) return { slug: null, isBaseHost: false };
   if (bases.includes(host)) return { slug: null, isBaseHost: true };
+  // Host utama selalu netral (bukan subdomain tenant) — Task 78.
+  if (mainHosts().includes(host)) return { slug: null, isBaseHost: false };
   for (const base of bases) {
     if (host.endsWith(`.${base}`)) {
       const slug = host.slice(0, host.length - base.length - 1).replace(/\.$/, "");
