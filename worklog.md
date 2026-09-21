@@ -2249,3 +2249,36 @@ Stage Summary:
 - Pengajuan klaim medis & travel kini TERBUKA dari ESS web + aplikasi mobile (sebelumnya hanya-baca): seluruh guard bisnis jalur admin tetap berlaku (plafon pool + reservasi, dedupe kwitansi, frekuensi, rentang tanggal trip, satu klaim aktif per request, formula settlement server, approval berjenjang + notifikasi).
 - Klaim ESS tanpa upload lampiran (deklarasi) — verifikasi kwitansi fisik oleh approver/HR (bisa Return); kebijakan ini terdokumentasi di kode.
 - Bukti E2E: MC-2026-011..013, CL-2026-006..009 di tenant MII (demo data berguna utk review approval flow).
+
+---
+Task ID: 78
+Agent: Buffy (Codebuff)
+Date: 2026-09-21
+Status: DONE — subdomain per tenant aktif di prod
+
+## Alamat web per tenant (opsi ① subdomain)
+
+Setiap tenant kini punya alamat sendiri `<slug>.sayone.my.id`:
+- **proxy.ts** (Next.js 16, pengganti middleware.ts): tandai request subdomain tenant dengan header internal `x-onevity-tenant-host`.
+- **tenant-host.ts / tenant-host-server.ts**: parsing host (base domain, host utama, port) + resolve slug → Tenant via cache TTL 60 dtk.
+- **Auth**: `effectiveTenantIdOf()` — subdomain memaksa konteks tenant host; `me`/`login`/`mfa/verify`/`select-tenant`/`register` terintegrasi; `requireTenant`/`requireMutator` menolak (401) sesi tanpa akses di tenant host.
+- **Register via subdomain**: slug = subdomain (bentrok → 409), tab daftar otomatis hilang bila alamat sudah terpakai (`/api/auth/host-workspace`).
+- Login non-anggota di subdomain → 403 + sinyal `host` (redirect UI ke host utama).
+
+## Infra
+- DNS Cloudflare: wildcard A `*.sayone.my.id` → 103.171.152.115 (proxied).
+- SSL: wildcard Let's Encrypt `wildcard-sayone` (*.sayone.my.id + apex) via certbot manual DNS-01 (hook Cloudflare API `~/cf-dns-hooks/` di .6) + renewal hook reload nginx.
+- Nginx .6: server block wildcard → upstream onevity_backend (.15:3001), Host diteruskan.
+- Slug SAYONE di-rename `pt-sayone-integrasi-solusi` → `sayone` (tenant lama tidak tersentuh).
+- Env: `ONEVITY_BASE_DOMAINS=sayone.my.id`, `ONEVITY_MAIN_HOSTS=onevity.sayone.my.id` — host utama DIKECUALIKAN dari pencocokan subdomain.
+- deploy.sh: kini memuat `.env.local` ke env proses pm2 sebelum restart (runtime standalone Next tidak membaca .env.local — akar masalah env yang "tidak terbaca").
+
+## E2E (scripts/e2e-subdomain-tenant.ts — semua PASS)
+- host-workspace: main=null, sayone=sayone, unknown=slug tanpa tenant ✓
+- login via sayone.sayone.my.id → auto-select SAYONE, cookie sesi ✓
+- `me` konsisten tenant host ✓
+- select-tenant workspace lain via subdomain → 403 ✓
+- Login di host utama → perilaku lama (pilih workspace) ✓
+- Cert wildcard valid s/d Nov 2026, auto-renew ✓
+
+Komit: 92d6f02, b6b5441, 9b99cc3
