@@ -194,11 +194,14 @@ export async function buildSessionInfo(userId: string, tenantId: string | null):
 
 /**
  * Task 78 — tenant EFEKTIF untuk request ini:
- * 1. bila request datang lewat subdomain tenant (<slug>.<base>) → kembalikan
- *    id tenant subdomain itu (anggota? verifikasi pemanggil) — tid cookie
- *    workspace lain DIABAIKAN supaya data lintas-tenant tak pernah tercampur;
- * 2. selain itu → tid dari cookie (perilaku lama, host utama).
- * Return null = bukan subdomain tenant (host utama / host tak dikenal).
+ * 1. request lewat subdomain tenant yang TERDAFTAR (<slug>.<base> dgn Tenant
+ *    aktif) → kembalikan id tenant subdomain itu — tid cookie workspace lain
+ *    DIABAIKAN supaya data lintas-tenant tak pernah tercampur;
+ * 2. request lewat subdomain yang TIDAK terdaftar (parkiran/typo) → tenantId
+ *    null + fromHost true — TIDAK ada fallback tid cookie (user tidak bisa
+ *    memakai workspace-nya di subdomain semaannya);
+ * 3. selain itu (host utama / host luar base domain) → tid dari cookie
+ *    (perilaku lama).
  * Pemanggil WAJIB memverifikasi membership user terhadap id yang dikembalikan.
  */
 export async function effectiveTenantIdOf(
@@ -208,7 +211,7 @@ export async function effectiveTenantIdOf(
 ): Promise<{ tenantId: string | null; fromHost: boolean }> {
   const { resolveTenantByHost } = await import("./tenant-host-server");
   const { host, tenant } = await resolveTenantByHost(req);
-  if (host.slug && tenant) return { tenantId: tenant.id, fromHost: true };
+  if (host.slug) return { tenantId: tenant?.id ?? null, fromHost: true };
   return { tenantId: tid, fromHost: false };
 }
 

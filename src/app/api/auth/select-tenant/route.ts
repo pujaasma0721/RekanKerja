@@ -18,8 +18,12 @@ export async function POST(req: NextRequest) {
 
     // Task 78: di subdomain tenant, workspace terkunci ke host — percobaan
     // memilih workspace lain via API DITOLAK (403) walau user anggotanya.
+    // Subdomain TIDAK terdaftar (parkiran/typo) → 404 alamat tak dikenal.
     const eff = await effectiveTenantIdOf(payload.uid, null, req);
     if (eff.fromHost) {
+      if (!eff.tenantId) {
+        return NextResponse.json({ error: "Alamat workspace tidak dikenal. Masuk lewat alamat perusahaan Anda atau alamat utama." }, { status: 404 });
+      }
       if (tenantId !== eff.tenantId) {
         return NextResponse.json({ error: "Alamat ini khusus workspace lain" }, { status: 403 });
       }

@@ -32,7 +32,15 @@ export async function finishLogin(userId: string, req?: NextRequest): Promise<Ne
   let tid: string | null = null;
   if (req) {
     const eff = await effectiveTenantIdOf(userId, null, req);
-    if (eff.fromHost && eff.tenantId) {
+    if (eff.fromHost) {
+      // Subdomain TIDAK terdaftar (parkiran/typo) → login DITOLAK: user tidak
+      // boleh memakai workspace-nya di alamat semaangan (binding ketat).
+      if (!eff.tenantId) {
+        return NextResponse.json(
+          { error: "Alamat workspace tidak dikenal. Masuk lewat alamat perusahaan Anda atau alamat utama." },
+          { status: 404 },
+        );
+      }
       const member = await db.userTenant.findFirst({
         where: { userId, tenantId: eff.tenantId },
         select: { id: true },
