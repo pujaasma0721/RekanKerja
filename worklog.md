@@ -2282,3 +2282,24 @@ Setiap tenant kini punya alamat sendiri `<slug>.sayone.my.id`:
 - Cert wildcard valid s/d Nov 2026, auto-renew ✓
 
 Komit: 92d6f02, b6b5441, 9b99cc3
+
+---
+Task ID: 78b
+Agent: Buffy (Codebuff)
+Date: 2026-09-21
+Status: DONE — uji browser subdomain SAYONE semua PASS
+
+## Uji manual browser (headless Chrome + CDP) — sayone.sayone.my.id
+Skrip: scripts/e2e-browser-subdomain.mjs (login UI asli, bukan inject cookie)
+1. PASS  halaman login terbuka di subdomain (title: OneVity — Human Resource Base)
+2. PASS  form login terisi & disubmit via tombol submit form asli
+3. PASS  sesi aktif (/api/auth/me = 200 dari konteks halaman)
+4. PASS  shell aplikasi tampil (layar login hilang) — screenshot dashboard tersimpan
+5. PASS  workspace aktif = SAYONE (PT Sayone Integrasi Solusi) tanpa pilih workspace
+6. PASS  sweep 62 endpoint modul via sesi browser: 53× 200 (HR, Payroll, TA, Leave,
+         Medical, Travel, Settings, ESS-queue) + 9× ESS 403 = guard sesi AppUser
+         terpisah (ess-auth: akun platform tanpa tautan karyawan memang ditolak)
+7. PASS  logout → API data terlindungi (401)
+
+Kesimpulan: pengalaman login + seluruh modul berfungsi normal via alamat
+tenant sayone.sayone.my.id — isolasi & guard utuh.
