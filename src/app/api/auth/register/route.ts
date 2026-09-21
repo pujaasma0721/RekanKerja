@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo, currentSessionVersion,
 } from "@/onevity/shared/lib/auth";
-import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
+import { provisionTenantSchema, seedTenantReference, schemaNameForSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
 import { hostTenantOf, requestHostOf } from "@/onevity/shared/lib/tenant-host";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
@@ -45,15 +45,30 @@ export async function POST(req: NextRequest) {
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
 
-    // ---- Task 78: slug dari subdomain (bila ada) ----
+    // ---- Task 78d: alamat = KODE PERUSAHAAN (bukan nama workspace) ----
+    // slug tenant = lowercase(companyCode): SAYONE → sayone.<base>.
+    // Daftar via subdomain: subdomain WAJIB format kode ([a-z0-9], 2–12) —
+    // companyCode otomatis = upper(subdomain); kode dari form harus cocok.
     const { slug: hostSlug } = hostTenantOf(requestHostOf(req));
     let forcedSlug: string | null = null;
+    let forcedCode: string | null = null;
     if (hostSlug) {
-      if (!/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/.test(hostSlug)) {
-        return NextResponse.json({ error: "Alamat workspace tidak valid" }, { status: 400 });
+      if (!/^[a-z0-9]{2,12}$/.test(hostSlug)) {
+        return NextResponse.json(
+          { error: "Alamat workspace harus 2–12 huruf/angka tanpa tanda hubung — sama dengan kode perusahaan Anda." },
+          { status: 400 },
+        );
       }
       forcedSlug = hostSlug;
+      forcedCode = hostSlug.toUpperCase();
+      if (companyCode && companyCode !== forcedCode) {
+        return NextResponse.json(
+          { error: `Kode perusahaan harus ${forcedCode} — mengikuti alamat ${hostSlug}.` },
+          { status: 400 },
+        );
+      }
     }
+    const effectiveCode = forcedCode ?? companyCode;
 
     // M-3: pembatasan paling awal — SEMUA percobaan dihitung (termasuk payload
     // tidak valid) supaya probing/abuse terhenti sebelum menyentuh kebijakan
@@ -90,9 +105,9 @@ export async function POST(req: NextRequest) {
     const clash = await db.user.findUnique({ where: { email }, select: { id: true } });
     if (clash) return NextResponse.json({ error: "Email sudah terdaftar — silakan masuk" }, { status: 400 });
 
-    // Task 78: slug ditentukan subdomain (terkunci — TIDAK di-suffix -2/-3);
-    // bentrok → 409 agar pendaftar tahu alamatnya sudah dimiliki orang lain.
-    const slug = forcedSlug ? await assertSlugFree(forcedSlug) : await uniqueSlug(slugify(workspaceName));
+    // Task 78d: slug = lowercase(kode perusahaan) — bentrok → 409 (alamat =
+    // identitas, TIDAK pernah di-suffix -2/-3 karena harus tetap sama dengan kode).
+    const slug = await assertSlugFree(forcedSlug ?? effectiveCode.toLowerCase());
     const schemaName = schemaNameForSlug(slug);
 
     // 1) schema PostgreSQL + tabel + referensi (komponen gaji, pajak, TER, akun, benefit)
@@ -107,7 +122,7 @@ export async function POST(req: NextRequest) {
         // Record Company (profil perusahaan) langsung dibuat saat registrasi:
         // kode dari form → prefix nomor karyawan (MII00001) & template import;
         // detail profil (NPWP, alamat, dll) dilengkapi lewat menu Profil Perusahaan.
-        await tenantDb.company.create({ data: { code: companyCode, name: workspaceName, shortName: companyCode } });
+        await tenantDb.company.create({ data: { code: effectiveCode, name: workspaceName, shortName: effectiveCode } });
       } finally {
         await tenantDb.$disconnect();
       }
@@ -121,7 +136,7 @@ export async function POST(req: NextRequest) {
     // registry & DB tetap konsisten (tidak ada orphan schema tanpa Tenant).
     let tenant: Awaited<ReturnType<typeof db.tenant.create>>;
     try {
-      tenant = await db.tenant.create({ data: { name: workspaceName, companyCode, slug, schemaName } });
+      tenant = await db.tenant.create({ data: { name: workspaceName, companyCode: effectiveCode, slug, schemaName } });
     } catch (e) {
       await dropTenantSchema(schemaName);
       throw e;

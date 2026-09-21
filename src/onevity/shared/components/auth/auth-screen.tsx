@@ -166,27 +166,37 @@ export function AuthScreen() {
 
   // ---- Task 78: konteks subdomain — alamat <slug>.<base> yang sudah punya
   // workspace tidak bisa dipakai mendaftar ulang → tab daftar disembunyikan
-  // dan pendaftar diarahkan ke tab masuk.
-  const [hostExists, setHostExists] = useState(false);
+  // dan pendaftar diarahkan ke tab masuk. Task 78d: alamat = kode perusahaan —
+  // daftar via subdomain → kode otomatis dari alamat (terkunci).
+  const [hostInfo, setHostInfo] = useState<{ isTenantHost: boolean; exists: boolean; slug: string | null } | null>(null);
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
         const res = await fetch("/api/auth/host-workspace");
         if (!res.ok) return;
-        const d = (await res.json()) as { isTenantHost: boolean; exists: boolean };
-        if (alive) setHostExists(d.isTenantHost && d.exists);
+        const d = (await res.json()) as { isTenantHost: boolean; exists: boolean; slug: string | null };
+        if (alive) setHostInfo(d);
       } catch {
         // host utama / gagal cek → perilaku lama (tab daftar tampil)
       }
     })();
     return () => { alive = false; };
   }, []);
+  const hostRegister = hostInfo?.isTenantHost === true && hostInfo.exists === false;
+  const baseDomain = typeof window !== "undefined"
+    ? (window.location.hostname.split(".").length >= 3
+        ? window.location.hostname.split(".").slice(1).join(".")
+        : window.location.hostname)
+    : "";
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
   const [companyCode, setCompanyCode] = useState("");
+  // Task 78d — daftar via subdomain: kode TAMPILAN diturunkan dari alamat
+  // (tanpa setState di effect). Server mengikat kode dari host saat submit.
+  const companyCodeValue = hostRegister && hostInfo?.slug ? hostInfo.slug.toUpperCase() : companyCode;
   const [fullName, setFullName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -267,7 +277,8 @@ export function AuthScreen() {
   const submitRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
-    const code = sanitizeCode(companyCode);
+    // Task 78d: kode ikut alamat saat daftar via subdomain (hostRegister).
+    const code = sanitizeCode(companyCodeValue);
     const v = validateRegister(workspaceName.trim(), code, fullName.trim(), regEmail.trim(), regPassword);
     setFormError(v.message ? t(v.message, VALIDATION_EN[v.message]) : null);
     setInvalidFields(v.fields);
@@ -420,7 +431,7 @@ export function AuthScreen() {
                 {!mfaStep && (
                 <div className="mt-6 flex items-center gap-5 border-b border-stone-200 pb-5 dark:border-stone-800">
                   {(["login", "register"] as const)
-                    .filter((k) => k !== "register" || !hostExists) // Task 78: alamat sudah terpakai → tanpa tab daftar
+                    .filter((k) => k !== "register" || hostInfo?.exists !== true) // Task 78: alamat sudah terpakai → tanpa tab daftar
                     .map((k) => (
                     <button
                       key={k}
@@ -581,7 +592,7 @@ export function AuthScreen() {
                 )}
 
                 {/* ============ Tab Buat Workspace ============ */}
-                {tab === "register" && !hostExists && (
+                {tab === "register" && hostInfo?.exists !== true && (
                   <form className="mt-7 space-y-6" noValidate onSubmit={submitRegister}>
                     <UnderlineField
                       id="reg-workspace"
@@ -598,18 +609,33 @@ export function AuthScreen() {
                       id="reg-companycode"
                       label={t("Kode Perusahaan", "Company Code")}
                       placeholder="MII"
-                      maxLength={24}
+                      maxLength={12}
                       mono
                       hint={t(
-                        "2–12 huruf besar/angka — dipakai sebagai prefix nomor karyawan (mis. MII00001) dan identitas perusahaan Anda.",
-                        "2–12 uppercase letters/numbers — used as your employee number prefix (e.g. MII00001) and your company identity.",
+                        "2–12 huruf besar/angka — menjadi kode perusahaan, prefix nomor karyawan (mis. MII00001), DAN alamat workspace Anda.",
+                        "2–12 uppercase letters/numbers — becomes your company code, employee number prefix (e.g. MII00001), AND your workspace address.",
                       )}
-                      value={companyCode}
+                      value={companyCodeValue}
                       onChange={update("reg-companycode", setCompanyCode)}
-                      disabled={busy}
+                      disabled={busy || hostRegister}
                       invalid={isInvalid("reg-companycode")}
                       describedBy={describedBy("reg-companycode", "register-error")}
                     />
+                    {hostRegister ? (
+                      <p className="-mt-3 text-[11px] text-stone-400 dark:text-stone-500">
+                        {t(
+                          `Kode perusahaan otomatis mengikuti alamat: ${hostInfo?.slug?.toUpperCase() ?? ""}`,
+                          `Company code follows your address: ${hostInfo?.slug?.toUpperCase() ?? ""}`,
+                        )}
+                      </p>
+                    ) : (
+                      <p className="-mt-3 text-[11px] text-stone-400 dark:text-stone-500">
+                        {t("Alamat workspace:", "Workspace address:")}{" "}
+                        <span className="font-mono font-semibold text-stone-600 dark:text-stone-300">
+                          {(companyCode || "kode").toLowerCase()}.{baseDomain || "domain"}
+                        </span>
+                      </p>
+                    )}
                     <UnderlineField
                       id="reg-name"
                       label={t("Nama Lengkap", "Full Name")}
