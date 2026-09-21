@@ -3,7 +3,7 @@
 // URL = TENANT_DB_BASE_URL + ?schema=tenant_x (Prisma PostgreSQL default-schema).
 import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { db as platformDb } from "@/lib/db";
-import { readVerifiedSession } from "./auth";
+import { effectiveTenantIdOf, readVerifiedSession } from "./auth";
 import { TENANT_SCHEMA_BRAND, primeTenantCrypto } from "./field-crypto";
 
 export type TenantDb = TenantPrismaClient;
@@ -141,8 +141,14 @@ export async function requireTenant(req: Request): Promise<TenantDb | null> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return null;
 
+  // Task 78: subdomain tenant (<slug>.<base>) MEMAKSA konteks tenant host —
+  // tid cookie workspace lain diabaikan; sesi belum punya akses di tenant
+  // host (bukan anggota) → null → 401.
+  const { tenantId } = await effectiveTenantIdOf(payload.uid, payload.tid, req);
+  if (!tenantId) return null;
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId },
     select: { tenant: { select: { id: true, schemaName: true, status: true } } },
   });
   if (!membership || membership.tenant.status !== "ACTIVE") return null;
@@ -194,8 +200,12 @@ export async function requireMutator(req: Request): Promise<MutatorResult> {
   const payload = await readVerifiedSession(req);
   if (!payload?.uid || !payload.tid) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
 
+  // Task 78: subdomain tenant memaksa konteks tenant host (sama dgn requireTenant).
+  const { tenantId } = await effectiveTenantIdOf(payload.uid, payload.tid, req);
+  if (!tenantId) return { ok: false, status: 401, error: UNAUTHORIZED_MSG };
+
   const membership = await platformDb.userTenant.findFirst({
-    where: { userId: payload.uid, tenantId: payload.tid },
+    where: { userId: payload.uid, tenantId },
     select: {
       role: true,
       user: { select: { id: true, name: true, email: true } },

@@ -43,6 +43,12 @@ export interface LoginResult {
   mfaToken: string | null;
 }
 
+/** Task 78 — sinyal khusus login lewat subdomain tenant (tanpa cookie di-set). */
+interface LoginHostSignals {
+  host?: boolean; // user anggota workspace LAIN → arahkan ke alamat workspace-nya
+  noWorkspaces?: boolean; // pendaftaran via subdomain belum selesai → lanjut daftar
+}
+
 interface SessionState {
   status: SessionStatus;
   info: SessionInfo | null;
@@ -78,6 +84,22 @@ function applyInfo(info: SessionInfo): Partial<SessionState> {
   return { info, status: info.tenant ? ("ready" as const) : ("select-tenant" as const), expired: false };
 }
 
+/**
+ * Task 78 — URL host utama (tanpa subdomain) utk redirect UI.
+ * Host sekarang = subdomain berakhiran salah satu base domain (env
+ * ONEVITY_BASE_DOMAINS dibaca server via /api/auth/host-workspace — tapi ini
+ * butuh sinkronisasi; cukup strip SATU label pertama bila host punya ≥3 label
+ * dan bukan IP/localhost). Contoh: sayone.onevity.id → onevity.id.
+ */
+function workspacesHostUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const h = window.location.hostname;
+  const parts = h.split(".");
+  if (parts.length < 3) return null; // host utama / localhost — tidak perlu redirect
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h === "localhost") return null;
+  return `${window.location.protocol}//${parts.slice(1).join(".")}${window.location.port ? `:${window.location.port}` : ""}`;
+}
+
 export const useSession = create<SessionState>((set) => ({
   status: "loading",
   info: null,
@@ -103,12 +125,18 @@ export const useSession = create<SessionState>((set) => ({
 
   login: async (email, password) => {
     set({ busy: true, error: null });
-    const { ok, data } = await postJson<SessionInfo & { mfaRequired?: boolean; mfaToken?: string }>("/api/auth/login", {
+    const { ok, data } = await postJson<SessionInfo & { mfaRequired?: boolean; mfaToken?: string } & LoginHostSignals>("/api/auth/login", {
       email,
       password,
     });
     if (!ok) {
       set({ busy: false, error: data.error ?? "Gagal masuk" });
+      // Task 78: login lewat subdomain workspace lain → redirect ke host utama
+      // (di sana layar pilih workspace tersedia). Cookie TIDAK di-set server.
+      if (data.host) {
+        const primary = workspacesHostUrl();
+        if (primary) { window.location.href = primary; return { ok: false, mfaRequired: false, mfaToken: null }; }
+      }
       return { ok: false, mfaRequired: false, mfaToken: null };
     }
     // T17-MFA: password benar tapi akun ber-MFA → cookie belum di-set server;

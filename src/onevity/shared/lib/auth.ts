@@ -1,7 +1,9 @@
 // OneVity SaaS auth — password (scrypt) + session cookie (HMAC-SHA256, httpOnly).
-// Session payload: { uid, tid, exp } — tid = tenant terpilih (setelah login / select-tenant).
+// Session payload: { uid, tid, exp } — tid = tenant terpilih (setelah login /
+// select-tenant / AUTO dari subdomain — Task 78).
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db, db as platformDb } from "@/lib/db";
+import { hostTenantOf, requestHostOf } from "./tenant-host";
 
 export const SESSION_COOKIE = "onevity_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 hari
@@ -125,7 +127,14 @@ export async function bumpSessionVersion(userId: string): Promise<number> {
   return rows.length > 0 ? Number(rows[0]!.sessionVersion) : 0;
 }
 
-export function sessionCookieOptions() {
+/**
+ * Opsi cookie sesi. Task 78: cookie sengaja HOST-ONLY (tanpa atribut Domain)
+ * — sesi di sayone.<base> terisolasi dari acme.<base> DAN tidak pernah dikirim
+ * ke layanan lain yang kebetulan satu parent domain. Parameter req disediakan
+ * utk kebutuhan masa depan (mis. SSO lintas subdomain via Domain=<base>); saat
+ * ini tidak mengubah nilai opsi.
+ */
+export function sessionCookieOptions(_req?: { headers: { get(name: string): string | null } }) {
   return {
     httpOnly: true,
     // M-1 (audit 42): SameSite=Lax eksplisit (API same-origin; navigasi normal
@@ -184,6 +193,26 @@ export async function buildSessionInfo(userId: string, tenantId: string | null):
 }
 
 /**
+ * Task 78 — tenant EFEKTIF untuk request ini:
+ * 1. bila request datang lewat subdomain tenant (<slug>.<base>) → kembalikan
+ *    id tenant subdomain itu (anggota? verifikasi pemanggil) — tid cookie
+ *    workspace lain DIABAIKAN supaya data lintas-tenant tak pernah tercampur;
+ * 2. selain itu → tid dari cookie (perilaku lama, host utama).
+ * Return null = bukan subdomain tenant (host utama / host tak dikenal).
+ * Pemanggil WAJIB memverifikasi membership user terhadap id yang dikembalikan.
+ */
+export async function effectiveTenantIdOf(
+  userId: string,
+  tid: string | null,
+  req: { headers: { get(name: string): string | null } },
+): Promise<{ tenantId: string | null; fromHost: boolean }> {
+  const { resolveTenantByHost } = await import("./tenant-host-server");
+  const { host, tenant } = await resolveTenantByHost(req);
+  if (host.slug && tenant) return { tenantId: tenant.id, fromHost: true };
+  return { tenantId: tid, fromHost: false };
+}
+
+/**
  * Task 64k — batas idle sesi workspace aktif (menit; 0/null = nonaktif).
  * Best-effort: gagal (schema tak terjangkau, tabel lama) → null — fitur idle
  * timeout mati, sisanya tidak terpengaruh.
@@ -208,7 +237,9 @@ export async function idleTimeoutOfSession(userId: string, tenantId: string | nu
 export async function getSessionFromRequest(req: Request): Promise<{ payload: SessionPayload; info: SessionInfo } | null> {
   const payload = await readVerifiedSession(req);
   if (!payload) return null;
-  const info = await buildSessionInfo(payload.uid, payload.tid);
+  // Task 78: subdomain tenant memaksa konteks tenant host.
+  const { tenantId } = await effectiveTenantIdOf(payload.uid, payload.tid, req);
+  const info = await buildSessionInfo(payload.uid, tenantId);
   if (!info) return null;
   return { payload, info };
 }

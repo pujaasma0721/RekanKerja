@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  SESSION_COOKIE, freshSessionToken, sessionCookieOptions, buildSessionInfo, readVerifiedSession,
+  SESSION_COOKIE, effectiveTenantIdOf, freshSessionToken, sessionCookieOptions, buildSessionInfo, readVerifiedSession,
 } from "@/onevity/shared/lib/auth";
 
 // POST /api/auth/select-tenant { tenantId } — pilih workspace aktif untuk sesi ini
@@ -13,8 +13,18 @@ export async function POST(req: NextRequest) {
     if (!payload) return NextResponse.json({ error: "Belum masuk" }, { status: 401 });
 
     const b = await req.json().catch(() => ({}));
-    const tenantId = String(b.tenantId ?? "");
+    let tenantId = String(b.tenantId ?? "");
     if (!tenantId) return NextResponse.json({ error: "tenantId wajib diisi" }, { status: 400 });
+
+    // Task 78: di subdomain tenant, workspace terkunci ke host — percobaan
+    // memilih workspace lain via API DITOLAK (403) walau user anggotanya.
+    const eff = await effectiveTenantIdOf(payload.uid, null, req);
+    if (eff.fromHost) {
+      if (tenantId !== eff.tenantId) {
+        return NextResponse.json({ error: "Alamat ini khusus workspace lain" }, { status: 403 });
+      }
+      tenantId = eff.tenantId;
+    }
 
     const membership = await db.userTenant.findFirst({
       where: { userId: payload.uid, tenantId },
@@ -29,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json(info);
     // Token baru mempertahankan sessionVersion yang sudah terverifikasi.
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, tenantId, payload.sv), sessionCookieOptions());
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, tenantId, payload.sv), sessionCookieOptions(req));
     return res;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

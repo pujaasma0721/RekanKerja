@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ mfaRequired: true, mfaToken: signMfaToken(user.id) });
     }
 
-    return finishLogin(user.id);
+    return finishLogin(user.id, req); // Task 78: req utk auto-select subdomain
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

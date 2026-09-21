@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  SESSION_COOKIE, buildSessionInfo, currentSessionVersion, freshSessionToken,
+  SESSION_COOKIE, buildSessionInfo, currentSessionVersion, effectiveTenantIdOf, freshSessionToken,
   idleTimeoutOfSession, readVerifiedSession, sessionCookieOptions, SESSION_MAX_AGE,
 } from "@/onevity/shared/lib/auth";
 import { passwordStatusOfSession } from "@/onevity/shared/services/password-security";
@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
   try {
     const payload = await readVerifiedSession(req);
     if (!payload) return NextResponse.json({ error: "Belum masuk" }, { status: 401 });
-    const info = await buildSessionInfo(payload.uid, payload.tid);
+    // Task 78: subdomain tenant memaksa konteks tenant host.
+    const { tenantId } = await effectiveTenantIdOf(payload.uid, payload.tid, req);
+    const info = await buildSessionInfo(payload.uid, tenantId);
     if (!info) return NextResponse.json({ error: "Sesi tidak valid" }, { status: 401 });
     const pwStatus = info.user.email
       ? await passwordStatusOfSession(payload.uid, payload.tid, info.user.email)
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
     // ---- sliding refresh (Task 64k) ----
     if (payload.exp - Date.now() < REFRESH_THRESHOLD_MS) {
       const sv = await currentSessionVersion(payload.uid);
-      res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, payload.tid, sv), sessionCookieOptions());
+      res.cookies.set(SESSION_COOKIE, freshSessionToken(payload.uid, payload.tid, sv), sessionCookieOptions(req));
     }
     return res;
   } catch (e) {

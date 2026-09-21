@@ -246,7 +246,7 @@ export async function mfaVerify(req: NextRequest): Promise<NextResponse> {
 
     // kode benar → selesaikan login PERSIS seperti login 1-langkah (cookie + info)
     resetMfaFails(uid);
-    return finishLogin(uid);
+    return finishLogin(uid, req); // Task 78: req utk auto-select subdomain
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

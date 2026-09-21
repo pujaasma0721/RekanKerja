@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo, currentSessionVersion,
 } from "@/onevity/shared/lib/auth";
 import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug, uniqueSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
+import { hostTenantOf, requestHostOf } from "@/onevity/shared/lib/tenant-host";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { validatePassword } from "@/onevity/shared/lib/password-policy";
 import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
@@ -28,6 +29,9 @@ function clientIp(req: NextRequest): string {
 // → session cookie.
 // Task 33: kata sandi owner baru divalidasi KEBIJAKAN DEFAULT (kompleksitas
 // lengkap — sama aturan dengan menu Keamanan & Akses).
+// Task 78 (subdomain): daftar lewat <slug>.<base> → workspace TEPAT di alamat
+// itu: slug tenant = subdomain (BUKAN dari nama), slug bentrok → 409 (alamat
+// sudah dipakai tenant lain — pilih alamat lain), tanpa auto-pilih ganda.
 /** Sanitasi kode perusahaan → huruf besar A-Z0-9 (sama aturan prefix nomor karyawan). */
 function sanitizeCompanyCode(raw: string): string {
   return String(raw ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
@@ -40,6 +44,16 @@ export async function POST(req: NextRequest) {
     const fullName = String(b.fullName ?? "").trim();
     const email = String(b.email ?? "").trim().toLowerCase();
     const password = String(b.password ?? "");
+
+    // ---- Task 78: slug dari subdomain (bila ada) ----
+    const { slug: hostSlug } = hostTenantOf(requestHostOf(req));
+    let forcedSlug: string | null = null;
+    if (hostSlug) {
+      if (!/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/.test(hostSlug)) {
+        return NextResponse.json({ error: "Alamat workspace tidak valid" }, { status: 400 });
+      }
+      forcedSlug = hostSlug;
+    }
 
     // M-3: pembatasan paling awal — SEMUA percobaan dihitung (termasuk payload
     // tidak valid) supaya probing/abuse terhenti sebelum menyentuh kebijakan
@@ -76,7 +90,9 @@ export async function POST(req: NextRequest) {
     const clash = await db.user.findUnique({ where: { email }, select: { id: true } });
     if (clash) return NextResponse.json({ error: "Email sudah terdaftar — silakan masuk" }, { status: 400 });
 
-    const slug = await uniqueSlug(slugify(workspaceName));
+    // Task 78: slug ditentukan subdomain (terkunci — TIDAK di-suffix -2/-3);
+    // bentrok → 409 agar pendaftar tahu alamatnya sudah dimiliki orang lain.
+    const slug = forcedSlug ? await assertSlugFree(forcedSlug) : await uniqueSlug(slugify(workspaceName));
     const schemaName = schemaNameForSlug(slug);
 
     // 1) schema PostgreSQL + tabel + referensi (komponen gaji, pajak, TER, akun, benefit)
@@ -134,9 +150,21 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(info, { status: 201 });
     // T1-SECURITY: token membawa sessionVersion (user baru = 0, dibaca utk aman).
     const sv = await currentSessionVersion(userId);
-    res.cookies.set(SESSION_COOKIE, freshSessionToken(userId, tenant.id, sv), sessionCookieOptions());
+    res.cookies.set(SESSION_COOKIE, freshSessionToken(userId, tenant.id, sv), sessionCookieOptions(req));
     return res;
   } catch (e) {
+    if (e instanceof SlugTakenError) {
+      return NextResponse.json({ error: "Alamat workspace ini sudah dipakai — pilih alamat lain." }, { status: 409 });
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }
+}
+
+class SlugTakenError extends Error {
+  constructor() { super("slug taken"); }
+}
+async function assertSlugFree(slug: string): Promise<string> {
+  const clash = await db.tenant.findUnique({ where: { slug }, select: { id: true } });
+  if (clash) throw new SlugTakenError();
+  return slug;
 }

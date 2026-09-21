@@ -7,7 +7,7 @@
 // tab garis amber, CTA tinta hitam. Logika: useSession (login/registrasi +
 // provisioning tenant + T17-MFA langkah OTP 6 digit), validasi inline,
 // i18n ID/EN, a11y.
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { MotionConfig, motion } from "framer-motion";
 import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import { useSession } from "@/onevity/shared/lib/session-store";
@@ -163,6 +163,25 @@ export function AuthScreen() {
   const [tab, setTab] = useState<AuthTab>("login");
   const [formError, setFormError] = useState<string | null>(null);
   const [invalidFields, setInvalidFields] = useState<FieldId[]>([]);
+
+  // ---- Task 78: konteks subdomain — alamat <slug>.<base> yang sudah punya
+  // workspace tidak bisa dipakai mendaftar ulang → tab daftar disembunyikan
+  // dan pendaftar diarahkan ke tab masuk.
+  const [hostExists, setHostExists] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/auth/host-workspace");
+        if (!res.ok) return;
+        const d = (await res.json()) as { isTenantHost: boolean; exists: boolean };
+        if (alive) setHostExists(d.isTenantHost && d.exists);
+      } catch {
+        // host utama / gagal cek → perilaku lama (tab daftar tampil)
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -400,7 +419,9 @@ export function AuthScreen() {
                 {/* tab garis bawah editorial (disembunyikan saat langkah OTP) */}
                 {!mfaStep && (
                 <div className="mt-6 flex items-center gap-5 border-b border-stone-200 pb-5 dark:border-stone-800">
-                  {(["login", "register"] as const).map((k) => (
+                  {(["login", "register"] as const)
+                    .filter((k) => k !== "register" || !hostExists) // Task 78: alamat sudah terpakai → tanpa tab daftar
+                    .map((k) => (
                     <button
                       key={k}
                       type="button"
@@ -560,7 +581,7 @@ export function AuthScreen() {
                 )}
 
                 {/* ============ Tab Buat Workspace ============ */}
-                {tab === "register" && (
+                {tab === "register" && !hostExists && (
                   <form className="mt-7 space-y-6" noValidate onSubmit={submitRegister}>
                     <UnderlineField
                       id="reg-workspace"
