@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/tenant";
-import { requireMutator } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { getMoneyView } from "@/onevity/shared/lib/money-view";
 import { calculateAndSaveRun, nextRunNo } from "@/onevity/payroll/services/payroll-service";
@@ -23,7 +23,8 @@ interface RapelBreakdownRow {
 // pola Back Pay (fromPeriod → selisih → wageCode back pay).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu payroll:transactions (Baru rapel) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "payroll:transactions", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     // 28-c: item run historis & penulisan komponen rapel memakai field uang

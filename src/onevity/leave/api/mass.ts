@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listMassLeaves, createMassLeave } from "@/onevity/leave/services/leave-service";
 
 // GET /api/onevity/leave/mass — daftar cuti massal (SKB cuti bersama)
@@ -17,7 +18,8 @@ export async function GET(req: NextRequest) {
 // POST — buat cuti massal → generate baris permintaan per karyawan (status MassLeave)
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu leave:leave-mass (Baru) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "leave:leave-mass", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
     const b = await req.json();

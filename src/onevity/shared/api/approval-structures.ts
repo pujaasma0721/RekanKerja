@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { buildApprovalChain, APPROVAL_DOC_TYPES, isAmountDocType } from "@/onevity/shared/services/approval-engine";
 
 // ============ APPROVAL STRUKTUR BERJENJANG (Task 25) ============
@@ -140,7 +141,8 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/approval-structures { code, name, docType, kriteria…, levels[] }
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu Pengaturan (Baru) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "settings:approval", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -182,7 +184,8 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/approval-structures?id= — update field + ganti jenjang
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu Pengaturan (Ubah).
+    const m = await requireMenuAction(req, "settings:approval", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -232,7 +235,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/approval-structures?id=
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu Pengaturan (Hapus).
+    const m = await requireMenuAction(req, "settings:approval", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 

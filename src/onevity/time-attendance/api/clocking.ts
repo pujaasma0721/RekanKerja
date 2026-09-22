@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listDaily, regenerateDaily, recordClockLog } from "@/onevity/time-attendance/services/attendance-service";
 
 // GET /api/onevity/attendance/clocking?date=YYYY-MM-DD — rekap harian (padanan
@@ -46,10 +47,11 @@ export async function GET(req: NextRequest) {
 
 // POST — catat clock manual/web (padanan Temporary Employee Clocking):
 // body { employeeId, time: "HH:MM", direction, note } → log + rekap ulang.
-// Guard VIEWER + aktor sesi (requireMutator).
+// Guard hak AKSI menu attendance:clocking + VIEWER (requireMenuAction).
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu (input clock) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "attendance:clocking", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const dateParam = String(b.date ?? "");
@@ -73,10 +75,11 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — hitung ulang rekap satu tanggal (padanan "Refresh Clocking").
-// Guard VIEWER + aktor sesi (requireMutator) — regenerasi adalah operasi tulis.
+// Guard hak AKSI menu attendance:clocking + VIEWER (requireMenuAction) — regenerasi adalah operasi tulis.
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu (regenerasi rekap harian).
+    const m = await requireMenuAction(req, "attendance:clocking", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const b = await req.json();
     const dateParam = String(b.date ?? "");

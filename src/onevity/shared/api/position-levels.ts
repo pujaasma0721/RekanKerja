@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 // ============ POSITION LEVEL (level jabatan) ============
 
@@ -27,7 +28,8 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/position-levels
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu hr:levels (Baru) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "hr:levels", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -49,7 +51,8 @@ export async function POST(req: NextRequest) {
 // PATCH /api/onevity/position-levels
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu hr:levels (Ubah).
+    const m = await requireMenuAction(req, "hr:levels", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -69,7 +72,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/onevity/position-levels?id=
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu hr:levels (Hapus).
+    const m = await requireMenuAction(req, "hr:levels", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 

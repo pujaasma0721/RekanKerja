@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 
 const fmtDate = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 
@@ -26,7 +27,8 @@ export async function GET(req: NextRequest) {
 // POST /api/onevity/payroll-periods — buat period baru
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu payroll:periods (Baru) — dulu hanya role-check.
+    const m = await requireMenuAction(req, "payroll:periods", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -157,7 +159,8 @@ export async function POST(req: NextRequest) {
 // Guard: hanya Open, tanpa run, dan tidak dirujuk klaim benefit/assignment komponen.
 export async function DELETE(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu payroll:periods (Hapus).
+    const m = await requireMenuAction(req, "payroll:periods", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -190,7 +193,8 @@ export async function DELETE(req: NextRequest) {
 // PATCH /api/onevity/payroll-periods — update status/notes/processDate
 export async function PATCH(req: NextRequest) {
   try {
-    const m = await requireMutator(req);
+    // Task 79 — guard hak AKSI menu payroll:periods (Ubah — tutup/buka periode).
+    const m = await requireMenuAction(req, "payroll:periods", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
