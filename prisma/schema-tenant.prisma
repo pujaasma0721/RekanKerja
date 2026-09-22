@@ -1032,7 +1032,7 @@ model BenefitType {
   active             Boolean   @default(true)
   createdAt          DateTime  @default(now())
 
-  wageComponent WageComponent? @relation(fields: [wageComponentId], references: [id])
+  wageComponent WageComponent?    @relation(fields: [wageComponentId], references: [id])
   claims        BenefitClaim[]
   rules         BenefitTypeRule[]
 }
@@ -1895,18 +1895,18 @@ model TravelExpenseType {
 // karyawan (cth. limit hotel lebih tinggi utk manajemen senior).
 //   · actionType: SetLimit | AddLimit | Multiply terhadap limitAmount.
 model TravelExpenseTypeRule {
-  id                 String    @id @default(cuid())
+  id                  String    @id @default(cuid())
   travelExpenseTypeId String
-  name               String
-  priority           Int       @default(100)
-  conditions         String    @default("[]")
-  actionType         String    @default("SetLimit") // SetLimit|AddLimit|Multiply
-  amount             Float     @default(0)
-  notes              String?
-  active             Boolean   @default(true)
-  validFrom          DateTime  @default(now())
-  validTo            DateTime?
-  createdAt          DateTime  @default(now())
+  name                String
+  priority            Int       @default(100)
+  conditions          String    @default("[]")
+  actionType          String    @default("SetLimit") // SetLimit|AddLimit|Multiply
+  amount              Float     @default(0)
+  notes               String?
+  active              Boolean   @default(true)
+  validFrom           DateTime  @default(now())
+  validTo             DateTime?
+  createdAt           DateTime  @default(now())
 
   travelExpenseType TravelExpenseType @relation(fields: [travelExpenseTypeId], references: [id], onDelete: Cascade)
 }
@@ -2449,7 +2449,7 @@ model Onboarding {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  employee Employee      @relation(fields: [employeeId], references: [id])
+  employee Employee         @relation(fields: [employeeId], references: [id])
   tasks    OnboardingTask[]
 
   @@index([employeeId])
@@ -2722,4 +2722,68 @@ model WhistleblowReport {
   @@index([status])
   @@index([category])
   @@index([createdAt])
+}
+
+// ============ E-SIGN INTERNAL (Task 80) ============
+// Tanda tangan elektronik internal — bukti kriptografis di atas aksi approve:
+//   • SignatureKey     — pasangan kunci per pengguna (privat dibungkus dataKey
+//                        Money Vault, tak pernah dikirim ke klien)
+//   • SignatureRecord  — jejak tanda tangan: docHash SHA-256, signature
+//                        RSA-PSS base64, identitas + konteks, hash-chain per
+//                        tenant (ownHash = SHA-256(prevHash + record)) —
+//                        manipulasi historis terdeteksi saat verifikasi rantai.
+// Faktor tanda tangan: PIN personal (bcrypt, terpisah password login) / OTP
+// email 6 digit (5 menit, 3 percobaan). Halaman verifikasi publik /v/[id].
+model SignatureKey {
+  id                  String    @id @default(cuid())
+  appUserId           String    @unique
+  publicKey           String    // PEM SPKI RSA-2048
+  encryptedPrivateKey String    // PEM PKCS8 dienkripsi field-crypto tenant
+  algorithm           String    @default("RSA-PSS-SHA256")
+  status              String    @default("Active") // Active | Revoked
+  pinHash             String?   // bcrypt PIN tanda tangan (terpisah password login)
+  pinSetAt            DateTime?
+  createdAt           DateTime  @default(now())
+  rotatedAt           DateTime?
+}
+
+model SignatureRecord {
+  id              String   @id @default(cuid())
+  docType         String // LetterDocument | PersonnelAction | PayrollRun | …
+  docId           String
+  docRef          String // nomor dokumen human-readable (refNo / docNo)
+  docHash         String // hex SHA-256(snapshot + metadata)
+  snapshotJson    String   @default("{}") // snapshot identitas dokumen saat ttd
+  signature       String // base64 RSA-PSS over docHash
+  algorithm       String   @default("RSA-PSS-SHA256")
+  signerAppUserId String
+  signerName      String // snapshot nama saat ttd
+  signerRole      String? // snapshot peran (AppUser.role / platform role)
+  signedAt        DateTime @default(now())
+  signerIp        String?
+  signerUa        String?
+  // hash-chain per tenant — urutkan by createdAt; first record prevHash = GENESIS
+  prevHash        String
+  ownHash         String
+
+  @@index([docType, docId])
+  @@index([signerAppUserId])
+  @@index([signedAt])
+}
+
+// Challenge tanda tangan — PIN/OTP 6 digit (hash scrypt, bukan plaintext),
+// 5 menit, maks 3 percobaan, satu pemakaian. Baris lama dibuang lazy.
+model SignatureChallenge {
+  id          String   @id @default(cuid())
+  appUserId   String
+  docType     String
+  docId       String
+  codeHash    String // scrypt$ salt$ hash
+  purpose     String   @default("sign")
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([appUserId, createdAt])
 }

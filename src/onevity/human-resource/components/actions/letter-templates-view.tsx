@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake } from "lucide-react";
+import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint } from "lucide-react";
+import { EsignSignDialog } from "@/onevity/shared/components/esign/sign-dialog";
 import { cn } from "@/lib/utils";
 
 // ---------- tipe baris template (respons GET /api/onevity/letter-templates) ----------
@@ -156,6 +157,8 @@ export function LetterTemplatesView() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectBusy, setRejectBusy] = useState(false);
   const [issuingId, setIssuingId] = useState<string | null>(null);
+  // Task 80 — e-sign: dialog tanda tangan untuk surat yang sudah terbit
+  const [esignTarget, setEsignTarget] = useState<{ id: string; label: string } | null>(null);
 
   const templates = data?.templates ?? [];
   const disciplinary = templates.filter((x) => x.category === "Disciplinary");
@@ -421,11 +424,17 @@ export function LetterTemplatesView() {
                               </>
                             )}
                             {r.status === "Issued" && r.letterDocumentId && (
-                              <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold">
-                                <a href={`/api/onevity/letters/${r.letterDocumentId}/pdf?download=1`} download>
-                                  <FileDown className="h-3.5 w-3.5" /> {t("Unduh PDF", "Download PDF")}
-                                </a>
-                              </Button>
+                              <>
+                                {/* Task 80 — e-sign internal */}
+                                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold" onClick={() => setEsignTarget({ id: r.letterDocumentId as string, label: r.reqNo })}>
+                                  <Fingerprint className="h-3.5 w-3.5" /> {t("Tandatangani", "e-Sign")}
+                                </Button>
+                                <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold">
+                                  <a href={`/api/onevity/letters/${r.letterDocumentId}/pdf?download=1`} download>
+                                    <FileDown className="h-3.5 w-3.5" /> {t("Unduh PDF", "Download PDF")}
+                                  </a>
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -448,6 +457,15 @@ export function LetterTemplatesView() {
           onSaved={refresh}
         />
       )}
+
+      {/* Task 80 — dialog tanda tangan elektronik */}
+      <EsignSignDialog
+        open={!!esignTarget}
+        onOpenChange={(v) => { if (!v) setEsignTarget(null); }}
+        docType="LetterDocument"
+        docId={esignTarget?.id ?? ""}
+        docLabel={esignTarget?.label ?? ""}
+      />
 
       {/* dialog tolak permintaan surat (26-a) */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => { if (!v && !rejectBusy) { setRejectTarget(null); setRejectReason(""); } }}>

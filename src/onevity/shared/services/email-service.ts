@@ -281,6 +281,31 @@ export function notifyEmailEvent(db: TenantDb, input: NotifyInput): void {
   void dispatch(db, input).catch(() => { /* never */ });
 }
 
+/**
+ * Email sistem LANGSUNG (tanpa template) — Task 80 e-sign OTP: isi pesan
+ * dibangun pemanggil, status tercatat di EmailLog. Resolve {ok, message};
+ * tidak pernah throw. Dipakai untuk kode sensitif (jangan lewat template
+ * placeholder supaya kode tidak bocor ke template lain).
+ */
+export async function sendSystemEmail(
+  db: TenantDb,
+  input: { event: string; to: EmailRecipient; subject: string; body: string; secrets?: (string | null | undefined)[] },
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const cfgRow = await getActiveConfig(db);
+    if (!cfgRow || !cfgRow.active) return { ok: false, message: "Konfigurasi email belum aktif" };
+    const cfg = smtpOf(cfgRow);
+    if (!smtpReady(cfg)) return { ok: false, message: "SMTP belum dikonfigurasi" };
+    await smtpSend(cfg, input.to, input.subject, input.body);
+    await writeLog(db, { event: input.event, toEmail: input.to.email, subject: input.subject, status: "Sent", body: input.body, secrets: input.secrets });
+    return { ok: true, message: "Email terkirim" };
+  } catch (e) {
+    const msg = (e instanceof Error ? e.message : "unknown").slice(0, 300);
+    await writeLog(db, { event: input.event, toEmail: input.to.email, subject: input.subject, status: "Failed", error: msg, body: input.body, secrets: input.secrets }).catch(() => {});
+    return { ok: false, message: `Gagal: ${msg}` };
+  }
+}
+
 async function dispatch(db: TenantDb, input: NotifyInput): Promise<void> {
   try {
     const cfgRow = await getActiveConfig(db);

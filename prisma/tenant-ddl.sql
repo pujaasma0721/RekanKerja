@@ -2137,6 +2137,60 @@ CREATE TABLE "WhistleblowReport" (
     CONSTRAINT "WhistleblowReport_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "SignatureKey" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "publicKey" TEXT NOT NULL,
+    "encryptedPrivateKey" TEXT NOT NULL,
+    "algorithm" TEXT NOT NULL DEFAULT 'RSA-PSS-SHA256',
+    "status" TEXT NOT NULL DEFAULT 'Active',
+    "pinHash" TEXT,
+    "pinSetAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "rotatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "SignatureKey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SignatureRecord" (
+    "id" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "docId" TEXT NOT NULL,
+    "docRef" TEXT NOT NULL,
+    "docHash" TEXT NOT NULL,
+    "snapshotJson" TEXT NOT NULL DEFAULT '{}',
+    "signature" TEXT NOT NULL,
+    "algorithm" TEXT NOT NULL DEFAULT 'RSA-PSS-SHA256',
+    "signerAppUserId" TEXT NOT NULL,
+    "signerName" TEXT NOT NULL,
+    "signerRole" TEXT,
+    "signedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "signerIp" TEXT,
+    "signerUa" TEXT,
+    "prevHash" TEXT NOT NULL,
+    "ownHash" TEXT NOT NULL,
+
+    CONSTRAINT "SignatureRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SignatureChallenge" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "docType" TEXT NOT NULL,
+    "docId" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL DEFAULT 'sign',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SignatureChallenge_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2556,6 +2610,21 @@ CREATE INDEX "WhistleblowReport_category_idx" ON "WhistleblowReport"("category")
 
 -- CreateIndex
 CREATE INDEX "WhistleblowReport_createdAt_idx" ON "WhistleblowReport"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SignatureKey_appUserId_key" ON "SignatureKey"("appUserId");
+
+-- CreateIndex
+CREATE INDEX "SignatureRecord_docType_docId_idx" ON "SignatureRecord"("docType", "docId");
+
+-- CreateIndex
+CREATE INDEX "SignatureRecord_signerAppUserId_idx" ON "SignatureRecord"("signerAppUserId");
+
+-- CreateIndex
+CREATE INDEX "SignatureRecord_signedAt_idx" ON "SignatureRecord"("signedAt");
+
+-- CreateIndex
+CREATE INDEX "SignatureChallenge_appUserId_createdAt_idx" ON "SignatureChallenge"("appUserId", "createdAt");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
