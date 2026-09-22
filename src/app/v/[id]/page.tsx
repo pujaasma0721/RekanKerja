@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { BadgeCheck, ShieldAlert, FileSignature, Fingerprint } from "lucide-react";
 
 // ============ HALAMAN VERIFIKASI PUBLIK e-SIGN (Task 80) ====================
@@ -38,12 +39,13 @@ async function verify(id: string, host: string | null): Promise<{ data: VerifyPa
   }
 }
 
-export default async function VerifyPage({ params, headers }: {
+export default async function VerifyPage({ params }: {
   params: Promise<{ id: string }>;
-  headers: Headers;
 }) {
   const { id } = await params;
-  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  // Next 16 — headers() async; x-forwarded-host dari nginx/Cloudflare
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
   const { data, status } = await verify(id, host);
 
   const fmt = (iso?: string) => {
