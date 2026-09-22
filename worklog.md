@@ -2347,3 +2347,31 @@ slug = lowercase(companyCode): SAYONE → sayone.<base> (BUKAN turunan nama work
   Company.code=TESTCO, owner login langsung auto-select TESTCO di alamatnya ✓
 - Login di subdomain tak terdaftar tetap 404 ✓
 - Tenant uji dibersihkan total (registry + schema tenant_testco) ✓
+
+---
+Task ID: 79
+Agent: Buffy (Codebuff)
+Date: 2026-09-22
+Title: Guard hak aksi menu di 6 menu bercelah — audit 80 menu selesai
+Status: DONE — deployed .15 (47aa623) + E2E 16/16 PASS
+
+Audit kelengkapan access menu: editor Pengaturan→Keamanan & Akses dibangun dari
+sumber nav yang sama (semua menu pasti terdaftar), tapi enforcement API belum
+seragam. 55/80 menu sudah ter-guard requireMenuAction; 25 tanpa guard eksplisit
+→ dianalisis: read-only (aman), teralihkan guard lain (aman), dan 6 CELAH NYATA
+(mutation hanya role-check via requireMutator — user CUSTOM tanpa menu tetap
+bisa POST/PATCH/DELETE via API langsung).
+
+Celah ditutup — requireMutator diganti requireMenuAction per aksi CRUD:
+- settings:approval  → approval-structures, approval-templates, temporary-approvers (C/U/D ×3)
+- payroll:periods    → payroll-periods (C/U/D)
+- payroll:transactions → payroll-rapel (C)
+- leave:leave-mass   → mass (C)
+- attendance:clocking→ clocking (C = input clock, U = regenerate rekap)
+- hr:levels          → position-levels (C/U/D)
+
+E2E prod (scripts/e2e-menu-guard-403.ts): buat AppUser HR Staff + menu CUSTOM
+hanya hr:directory → login → 10 request mutasi ke 8 endpoint = 403 semua dengan
+pesan "tidak memiliki aksi ... pada menu <key>"; kontrol positif GET 200 (read
+tanpa guard menu & hr:directory diberikan). Cleanup penuh (menu cfg + AppUser +
+User platform).
