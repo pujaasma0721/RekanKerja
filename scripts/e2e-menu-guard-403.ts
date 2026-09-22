@@ -123,3 +123,5 @@ async function cleanupAndRun(owner: string, uid: string): Promise<void> {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
+
+export {}; // jadikan module — hindari collision global-scope antar skrip

@@ -224,7 +224,11 @@ export async function signDocument(req: NextRequest, ctx: EsignCtx, docType: str
 
   const signedAtIso = new Date().toISOString();
   const docRef = docRefOf(snap);
-  const docHash = computeDocHash({ docType, docId, docRef, snapshot: snap, signedAtIso, tenantSlug: ctx.tenantSlug });
+  // Task 80-fix: signedAt masuk SNAPSHOT (sumber tunggal hash) — kolom DB
+  // signedAt diisi now() DB yang bisa beda milidetik dari jam app, sehingga
+  // verifikasi yang menghitung ulang dari kolom selalu gagal.
+  const snapWithMeta = { ...snap, esign: { signedAt: signedAtIso, tenant: ctx.tenantSlug, alg: ESIGN_ALG } };
+  const docHash = computeDocHash({ docType, docId, docRef, snapshot: snapWithMeta, signedAtIso, tenantSlug: ctx.tenantSlug });
   const signature = signHash(docHash, privateKeyPem);
 
   const last = await db.signatureRecord.findFirst({ orderBy: { signedAt: "desc" }, select: { ownHash: true } });
@@ -234,7 +238,7 @@ export async function signDocument(req: NextRequest, ctx: EsignCtx, docType: str
   const rec = await db.signatureRecord.create({
     data: {
       docType, docId, docRef, docHash,
-      snapshotJson: JSON.stringify(snap), signature, algorithm: ESIGN_ALG,
+      snapshotJson: JSON.stringify(snapWithMeta), signature, algorithm: ESIGN_ALG,
       signerAppUserId: actor.appUserId, signerName: actor.name,
       signerRole: actor.appUserRole ?? actor.role,
       signerIp: req.headers.get("x-forwarded-for") ?? null,
@@ -272,9 +276,13 @@ export async function verifySignature(db: TenantDb, tenantSlug: string, id: stri
   if (!rec) return { found: false };
 
   const snap = JSON.parse(rec.snapshotJson || "{}") as Record<string, unknown>;
+  // Task 80-fix: signedAtIso dibaca dari SNAPSHOT (disimpan saat sign) — bukan
+  // kolom DB (now() DB ≠ jam app saat hash dibuat).
+  const meta = (snap.esign ?? {}) as { signedAt?: string };
+  const signedAtIso = meta.signedAt ?? rec.signedAt.toISOString();
   const docHash = computeDocHash({
     docType: rec.docType, docId: rec.docId, docRef: rec.docRef, snapshot: snap,
-    signedAtIso: rec.signedAt.toISOString(), tenantSlug,
+    signedAtIso, tenantSlug,
   });
   if (docHash !== rec.docHash) {
     return { found: true, valid: false, reason: "Metadata tanda tangan berubah sejak ditandatangani", tenantSlug };
