@@ -2465,3 +2465,17 @@ Detail:
 - handleSendSlips menerima req utk host QR.
 - Fix tsc: e2e-esign-pa typed row karyawan.
 Catatan: stamp hanya bila ttd VALID (verifySignature) — ttd rusak → PDF polos.
+
+---
+Task ID: 80f
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+Title: Tab Dokumen Terbit — semua surat terbit + badge status eSign + ttd satu tempat
+Commit: 3b00234
+Deploy: .15 (pm2 onevity)
+Detail:
+- GET /api/onevity/letters: + esign per surat (ttd sendiri / fallback ttd PA)
+- Template Surat: tab ketiga "Dokumen Terbit" — counter ttd/total, pencarian,
+  badge Sudah/Belum (via PA), Tandatangani/Unduh PDF/Verifikasi /v
+- Simulasi prod: surat 001/HR-PA/IX/2026 ditandatangani via alur tab baru —
+  badge berubah, PDF membawa QR, /v VALID, chain 16 ttd intact
