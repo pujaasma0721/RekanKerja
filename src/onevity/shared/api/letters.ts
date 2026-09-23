@@ -123,8 +123,7 @@ export async function letterPdfRoute(req: NextRequest, ctx: { params: Promise<{ 
 
     // Task 80b: stempel e-Sign + QR verifikasi bila surat sudah ditandatangani
     const { pdfStampFor } = await import("@/onevity/shared/services/esign-service");
-    const { tenantSlugOf } = await import("@/onevity/shared/services/checklist-service");
-    const esign = await pdfStampFor(db, tenantSlugOf(db), "LetterDocument", doc.id, req).catch((e) => {
+    const esign = await pdfStampFor(db, "LetterDocument", doc.id, req).catch((e) => {
       console.error("[esign-stamp] gagal:", e instanceof Error ? e.message : e);
       return null;
     });

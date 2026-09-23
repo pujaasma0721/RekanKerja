@@ -45,6 +45,9 @@ export async function resolveEsignCtx(req: NextRequest | Request): Promise<Esign
 }
 
 async function slugOfSchema(schema: string): Promise<string> {
+  // SATU sumber slug untuk sign & verifikasi: registry platform (Tenant.slug).
+  // JANGAN derivasi manual dari nama schema (strip underscore dsb.) — hasilnya
+  // bisa beda dengan slug saat hash dibuat → verifikasi selalu gagal.
   const { db: platformDb } = await import("@/lib/db");
   const row = await platformDb.tenant.findUnique({
     where: { schemaName: schema },
@@ -340,9 +343,11 @@ export function formatWib(iso: string): string {
  * host yang benar (subdomain tenant).
  */
 export async function pdfStampFor(
-  db: TenantDb, tenantSlug: string, docType: string, docId: string,
+  db: TenantDb, docType: string, docId: string,
   req: { headers: { get(name: string): string | null } },
 ): Promise<PdfEsignStamp | null> {
+  // slug HARUS sama dengan saat sign — resolusi dari schema via registry (satu sumber)
+  const tenantSlug = await slugOfSchema(schemaOfDb(db));
   const rec = await db.signatureRecord.findFirst({
     where: { docType, docId },
     orderBy: { signedAt: "desc" },
