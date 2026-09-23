@@ -2375,3 +2375,18 @@ hanya hr:directory → login → 10 request mutasi ke 8 endpoint = 403 semua den
 pesan "tidak memiliki aksi ... pada menu <key>"; kontrol positif GET 200 (read
 tanpa guard menu & hr:directory diberikan). Cleanup penuh (menu cfg + AppUser +
 User platform).
+
+---
+Task ID: 80-final
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+
+## eSign Fase 1 — final E2E & hardening
+- scripts/e2e-esign.ts: alur PIN deterministik (EmailLog sengaja meredaksi OTP —
+  redactEmailBody; E2E memakai set-pin + PIN sebagai faktor).
+- Uji replay disesuaikan: PIN = faktor statis (re-sign sah by design);
+  one-time code hanya jalur OTP (usedAt pada SignatureChallenge).
+- Bukti prod (sayone.sayone.my.id): 10/10 PASS — login, status, pilih dokumen,
+  challenge, set-pin, sign 201, verifikasi publik valid (signer, ref, chain),
+  halaman /v 200 "TANDA TANGAN VALID", re-sign, chain 5→6 utuh.
+- Deploy: fe7e12e (halaman /v via next/headers).

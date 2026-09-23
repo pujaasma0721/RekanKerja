@@ -65,19 +65,18 @@ async function main(): Promise<void> {
   const ch = (await rC.json()) as { ok: boolean; message: string; factor?: string };
   check("challenge (OTP email)", rC.status === 200 && ch.ok === true, ch.message);
 
-  // 5. ambil OTP dari EmailLog (owner punya akses log email via API settings)
-  const rLog = await fetch(`${BASE}/api/onevity/email-logs?limit=5&sortBy=createdAt&sortDir=desc`, { headers: { cookie } });
-  let code = "";
-  if (rLog.ok) {
-    const logs = (await rLog.json()) as { logs?: { event: string; body: string | null }[]; items?: { event: string; body: string | null }[] };
-    const rows = logs.logs ?? logs.items ?? [];
-    const hit = rows.find((x) => x.event === "esign.challenge" && x.body?.includes("Kode verifikasi"));
-    const m = hit?.body?.match(/\b(\d{6})\b/);
-    if (m) code = m[1];
-  }
-  check("OTP tercatat di EmailLog & terbaca", !!code, code ? `kode ${code}` : "tidak ketemu");
+  // 4. Faktor PIN (deterministik): set PIN khusus uji lalu sign dengan PIN itu.
+  //    EmailLog sengaja menyamarkan OTP (redactEmailBody) — jalur email tak bisa dipakai E2E.
+  const PIN = "471029";
+  const rSet = await fetch(`${BASE}/api/onevity/esign`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ action: "set-pin", pin: PIN }),
+  });
+  const rSetJ = (await rSet.json()) as { ok: boolean; message?: string };
+  check("set PIN tanda tangan", rSet.status === 200 && rSetJ.ok === true, rSetJ.message ?? `status ${rSet.status}`);
+  const code = PIN;
 
-  // 6. sign
+  // 6. sign (PIN sebagai faktor)
   const rSign = await fetch(`${BASE}/api/onevity/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType, docId, code }),
@@ -85,8 +84,6 @@ async function main(): Promise<void> {
   const sg = (await rSign.json()) as { ok: boolean; message: string; signatureId?: string };
   check("sign (201)", rSign.status === 201 && sg.ok && !!sg.signatureId, sg.message);
   const sigId = sg.signatureId ?? "";
-
-  // 7. verifikasi publik
   const rV = await fetch(`${BASE}/api/public/esign-verify?id=${sigId}`);
   const v = (await rV.json()) as { found: boolean; valid: boolean; chainIntact: boolean; signerName?: string; docRef?: string; chainLength?: number };
   check("verifikasi publik valid", rV.status === 200 && v.found && v.valid === true && v.chainIntact === true, `signer=${v.signerName} ref=${v.docRef} chain=${v.chainLength}`);
@@ -96,12 +93,18 @@ async function main(): Promise<void> {
   const html = await rPage.text();
   check("halaman /v render", rPage.status === 200 && html.includes("TANDA TANGAN VALID"), `status ${rPage.status}`);
 
-  // 9. duplikat OTP dipakai lagi → harus ditolak (satu pakai)
+  // 9. PIN = faktor statis: re-sign dengan PIN sama sah (by design) —
+  //    one-time code hanya berlaku di jalur OTP (usedAt di SignatureChallenge).
+  //    Nilai uji di sini: chain bertambah dan tetap utuh setelah ttd kedua.
   const rSign2 = await fetch(`${BASE}/api/onevity/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType, docId, code }),
   });
-  check("OTP satu-pakai (replay ditolak)", rSign2.status === 400, `status ${rSign2.status}`);
+  const sg2 = (await rSign2.json()) as { ok: boolean; signatureId?: string };
+  check("re-sign PIN sama (sah) — chain bertambah", rSign2.status === 201 && sg2.ok === true, `status ${rSign2.status}`);
+  const rV2 = await fetch(`${BASE}/api/public/esign-verify?id=${sg2.signatureId ?? ""}`);
+  const v2 = (await rV2.json()) as { valid: boolean; chainIntact: boolean; chainLength?: number };
+  check("chain utuh setelah ttd kedua", rV2.status === 200 && v2.valid && v2.chainIntact && (v2.chainLength ?? 0) > (v.chainLength ?? 0), `chain ${v.chainLength} → ${v2.chainLength}`);
 
   console.log(failures === 0 ? "\nSEMUA PASS" : `\n${failures} GAGAL`);
   process.exit(failures === 0 ? 0 : 1);
