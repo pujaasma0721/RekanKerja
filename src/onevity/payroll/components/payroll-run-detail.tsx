@@ -14,7 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, Wallet, Search, Receipt, BanknoteArrowDown, Users, BookOpen, Download, Mail, TriangleAlert, ScrollText, Info, XCircle, RefreshCw, FileSignature } from "lucide-react";
+import { EsignSignDialog } from "@/onevity/shared/components/esign/sign-dialog";
 import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE_LABEL } from "@/onevity/payroll/components/payroll-types";
 import { BankExportMenu } from "@/onevity/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/onevity/payroll/components/payroll-report-buttons";
@@ -33,6 +34,8 @@ export function PayrollRunDetailPage() {
   // 26-b P0 — dialog kirim slip + pilihan proteksi password (sandi NIK)
   const [sendOpen, setSendOpen] = useState(false);
   const [sendPwd, setSendPwd] = useState(false);
+  // Task 80d — eSign run: tanda tangan elektronik atas PayrollRun (PIN/OTP)
+  const [esignOpen, setEsignOpen] = useState(false);
   // Task 64j — hitung ulang PARSIAL (run Confirmed): pilih karyawan → recalc.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [recalcBusy, setRecalcBusy] = useState(false);
@@ -213,6 +216,12 @@ export function PayrollRunDetailPage() {
                     <Mail className={cn("h-4 w-4", sending && "animate-pulse")} /> {sending ? t("Mengirim slip…", "Sending slips…") : t("Kirim Semua Slip", "Email All Slips")}
                   </button>
                 )}
+                <button
+                  onClick={() => setEsignOpen(true)}
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-brand-deep transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-brand/85"
+                >
+                  <FileSignature className="h-4 w-4" /> {t("Tandatangani", "Sign Electronically")}
+                </button>
                 <button
                   onClick={() => navigate("payroll", "journals")}
                   className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300"
@@ -514,6 +523,16 @@ export function PayrollRunDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task 80d — dialog eSign atas run payroll (PIN/OTP) — bukti slip gaji */}
+      <EsignSignDialog
+        open={esignOpen}
+        onOpenChange={setEsignOpen}
+        docType="PayrollRun"
+        docId={run.id}
+        docLabel={`${run.runNo} · ${run.period.name}`}
+        onSigned={() => void refresh()}
+      />
 
       {/* Task 63 — log kejadian run (parameter kurang / anomali / info proses) */}
       {runLogs.length > 0 && (

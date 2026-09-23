@@ -29,7 +29,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ lineId: str
     // 45-b: gerbang vault uang — aktor sesi (userId+role platform); masked →
     // nilai uang PDF dirender "—" (identitas/tanggal tetap utuh).
     const mv = await getMoneyView(db, { userId: actor.userId, membershipRole: actor.role });
-    const built = await buildPayslipPdfByLineId(db, lineId, mv);
+    // Task 80d: stamp e-Sign run — PDF slip membawa QR ttd PayrollRun bila sudah ditandatangani.
+    const built = await buildPayslipPdfByLineId(db, lineId, mv, { esignReq: req });
     if (!built) return NextResponse.json({ error: "Slip gaji tidak ditemukan" }, { status: 404 });
 
     if (!canViewAll) {

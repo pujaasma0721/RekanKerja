@@ -193,6 +193,21 @@ export interface PayslipPdfResult {
 /** Opsi proteksi slip (26-b P0): userPassword = NIK karyawan (fallback employeeNo). */
 export interface PayslipPdfOptions {
   password?: string | null;
+  /** Task 80d: stamp e-Sign run (QR verifikasi) bila PayrollRun sudah ditandatangani. */
+  esignStamp?: EsignPayslipStamp | null;
+  /** Request asal (host utk URL QR) — wajib bila ingin stamp dihitung otomatis. */
+  esignReq?: { headers: { get(name: string): string | null } } | null;
+}
+
+/** Data stamp e-Sign untuk slip — dari esign-service.pdfStampFor("PayrollRun", runId). */
+export interface EsignPayslipStamp {
+  verifyUrl: string;
+  qrPng: Uint8Array;
+  signerName: string;
+  signerRole: string | null;
+  signedAtIso: string;
+  docRef: string;
+  docHashShort: string;
 }
 
 /**
@@ -353,6 +368,36 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
     y -= 16;
   }
 
+  // ================= BLOK e-SIGN RUN (Task 80d) =================
+  // Bila PayrollRun ditandatangani (valid kriptografis), cetak QR verifikasi
+  // + blok ttd — bukti bahwa slip ini berasal dari run yang sudah disahkan.
+  if (opts.esignStamp) {
+    const stamp = opts.esignStamp;
+    ensure(112);
+    y -= 6;
+    const qr = await doc.embedPng(stamp.qrPng as unknown as Parameters<typeof doc.embedPng>[0]);
+    // embedPng bisa menambah halaman via ensure internal — refresh `page` ke
+    // halaman TERAKHIR sebelum menggambar teks (pola letter-service 80c).
+    page = doc.getPage(doc.getPageCount() - 1);
+    page.drawImage(qr, { x: MARGIN, y: y - 78, width: 78, height: 78 });
+
+    const LX = MARGIN + 92; // kolom teks di kanan QR
+    page.drawRectangle({ x: LX, y: y - 80, width: 2, height: 86, color: ACCENT });
+    let ly = y;
+    txt("DITANDATANGANI SECARA ELEKTRONIK", LX + 10, ly, { size: 8, font: bold, color: ACCENT });
+    ly -= 12;
+    txt(`melalui OneVity e-Sign — Run ${stamp.docRef}`, LX + 10, ly, { size: 8, color: INK_SOFT });
+    ly -= 12;
+    txt(stamp.signerName + (stamp.signerRole ? ` · ${stamp.signerRole}` : ""), LX + 10, ly, { size: 9.5, font: bold });
+    ly -= 11;
+    txt(`Waktu tanda tangan: ${formatWibStamp(stamp.signedAtIso)}`, LX + 10, ly, { size: 8, color: INK_SOFT });
+    ly -= 11;
+    txt(`Hash: ${stamp.docHashShort}…`, LX + 10, ly, { size: 7.5, color: INK_SOFT });
+    ly -= 11;
+    txt(stamp.verifyUrl.length > 66 ? stamp.verifyUrl.slice(0, 63) + "..." : stamp.verifyUrl, LX + 10, ly, { size: 7.5, color: INK_SOFT });
+    y = ly - 12;
+  }
+
   // ================= TAKE HOME PAY =================
   ensure(64);
   const bandH = 34;
@@ -413,6 +458,15 @@ export async function buildPayslipPdf(slip: PayslipSlip, opts: PayslipPdfOptions
   };
 }
 
+/** "23 Sep 2026 10:24 WIB" — deterministik (UTC+7), tanpa locale host. */
+function formatWibStamp(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const wib = new Date(d.getTime() + 7 * 60 * 60_000);
+  return `${p(wib.getUTCDate())} ${bulan[wib.getUTCMonth()]} ${wib.getUTCFullYear()} ${p(wib.getUTCHours())}:${p(wib.getUTCMinutes())} WIB`;
+}
+
 /** Kata sandi pemilik acak per file (hex) — tidak pernah dibagikan. */
 function ownerSecret(): string {
   const rnd = new Uint8Array(16);
@@ -421,7 +475,10 @@ function ownerSecret(): string {
 }
 
 /** Muat data + bangun PDF satu line (gabungan praktis untuk route & email).
- *  45-b: mv WAJIB — thread dari aktor route (payslip.ts / send-slips). */
+ *  45-b: mv WAJIB — thread dari aktor route (payslip.ts / send-slips).
+ *  Task 80d: stamp esign run dihitung di sini (bukan caller) agar SETIAP PDF
+ *  slip dari run tertandatangani membawa QR — unduhan HR, unduh pemilik, dan
+ *  lampiran email massal konsisten. */
 export async function buildPayslipPdfByLineId(
   db: TenantDb,
   lineId: string,
@@ -430,5 +487,12 @@ export async function buildPayslipPdfByLineId(
 ): Promise<PayslipPdfResult & { slip: PayslipSlip } | null> {
   const slip = await loadPayslipSlip(db, lineId, mv);
   if (!slip) return null;
-  return { ...(await buildPayslipPdf(slip, opts)), slip };
+  let esignStamp: PayslipPdfOptions["esignStamp"] = null;
+  if (!opts.esignStamp && opts.esignReq) {
+    try {
+      const { pdfStampFor } = await import("@/onevity/shared/services/esign-service");
+      esignStamp = await pdfStampFor(db, "PayrollRun", slip.runId, opts.esignReq).catch(() => null);
+    } catch { /* stamp opsional — kegagalan tidak boleh menggagalkan slip */ }
+  }
+  return { ...(await buildPayslipPdf(slip, { ...opts, esignStamp: opts.esignStamp ?? esignStamp })), slip };
 }

@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     if (b.action === "send-slips") {
       const m = await requireMenuAction(req, "payroll:runs", "op:export");
       if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-      return handleSendSlips(m.db, m.actor, b.runId ?? b.id);
+      return handleSendSlips(req, m.db, m.actor, b.runId ?? b.id);
     }
     const m = await requireMenuAction(req, "payroll:runs", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
@@ -302,7 +302,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       case "send-slips": {
-        return handleSendSlips(db, actor, run.id, b.slipPassword);
+        return handleSendSlips(req, db, actor, run.id, b.slipPassword);
       }
       // Task 64j — hitung ulang PARSIAL: hanya karyawan terpilih pada run
       // Confirmed (belum Paid). Kembalikan ringkasan + daftar skip utk UI.
@@ -332,6 +332,7 @@ export async function PATCH(req: NextRequest) {
 // 45-b: aktor penuh (userId+role) — gerbang vault utk tampilan uang (net di
 // email/WA + PDF via mv; NIK utk kata sandi tetap raw — PII bukan uang).
 async function handleSendSlips(
+  req: NextRequest,
   db: TenantDb,
   actor: { appUserId: string | null; name: string; userId: string; role: string },
   runId: unknown,
@@ -412,7 +413,7 @@ async function handleSendSlips(
     await Promise.all(batch.map(async (line) => {
       // 26-b — kata sandi slip = NIK (fallback employeeNo), hanya saat proteksi aktif
       const slipPwd = protect ? (line.employeeNik?.trim() || line.employeeNo) : null;
-      const built = await buildPayslipPdfByLineId(db, line.id, mv, { password: slipPwd });
+      const built = await buildPayslipPdfByLineId(db, line.id, mv, { password: slipPwd, esignReq: req });
       if (!built) { skipped += 1; return; }
       const sendTask = sendPayslipEmail(db, {
         to: { email: line.employee?.email ?? "", name: line.employeeName },

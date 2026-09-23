@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   // 2. karyawan Active pertama
   const rEmp = await fetch(`${BASE}/api/onevity/employees?pageSize=5`, { headers: { cookie } });
   const empJ = (await rEmp.json()) as { employees?: { id: string; employeeNo: string; fullName: string; status?: string }[]; items?: { id: string; employeeNo: string; fullName: string }[] };
-  const emp = (empJ.employees ?? empJ.items ?? []).find((e) => (e as { status?: string }).status !== undefined ? e.status === "Active" : true);
+  interface EmpRow { status?: string; employeeNo?: string; fullName?: string; id?: string }
+  const emp = (empJ.employees ?? empJ.items ?? []).find((e) => (e as EmpRow).status !== undefined ? (e as EmpRow).status === "Active" : true);
   check("karyawan tersedia", !!emp, emp ? `${emp.employeeNo} ${emp.fullName}` : "tidak ada");
   if (!emp) process.exit(1);
 
