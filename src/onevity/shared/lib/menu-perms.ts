@@ -151,6 +151,12 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "export", label: "Mengekspor log aktivitas", hint: "Tombol Export CSV pada Log Aktivitas (Pengaturan)" },
   ],
 
+  // Settings — eSign (Task 80d): kelola kunci & PIN tanda tangan elektronik
+  "settings:esign": [
+    { key: "reset-pin", label: "Mereset PIN tanda tangan pengguna", hint: "Menghapus PIN eSign pengguna — kembali ke faktor OTP email" },
+    { key: "revoke", label: "Mencabut kunci tanda tangan", hint: "Mencabut kunci RSA pengguna — ttd lama tetap sah, ttd baru tertahan sampai kunci dibuat ulang" },
+  ],
+
   // HR — Dokumen & Surat (26-a): memutuskan permintaan surat karyawan (ESS)
   "hr:templates": [
     { key: "decide", label: "Menyetujui / menolak permintaan surat", hint: "Tab Permintaan Masuk pada menu Template Surat — terbitkan atau tolak permintaan surat karyawan" },

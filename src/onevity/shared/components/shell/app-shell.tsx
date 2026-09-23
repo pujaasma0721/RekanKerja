@@ -38,7 +38,7 @@ import {
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
-  MegaphoneOff, Siren, Eye, ClipboardCheck, Send,
+  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -264,6 +264,8 @@ export const SETTINGS_NAV: NavGroup[] = [
     { id: "api", label: "API & Integrasi", icon: Webhook },
     // 26-b P0 — viewer audit trail (data ActivityLog sudah terkumpul sejak lama)
     { id: "audit", label: "Log Aktivitas", icon: ScrollText },
+    // 80d — kelola kunci/PIN tanda tangan elektronik + audit rantai
+    { id: "esign", label: "eSign", icon: FileSignature },
   ] },
 ];
 

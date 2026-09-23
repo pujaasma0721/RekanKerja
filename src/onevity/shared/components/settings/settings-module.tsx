@@ -10,6 +10,7 @@ import { PasswordPolicyPanel, UsersPanel, MfaCard } from "@/onevity/shared/compo
 import { EmailConfigView } from "@/onevity/shared/components/settings/email-config-view";
 import { ApiKeysView } from "@/onevity/shared/components/settings/api-view";
 import { ActivityLogView } from "@/onevity/shared/components/settings/activity-log-view";
+import { EsignAdminView } from "@/onevity/shared/components/settings/esign-view";
 // wave 28 stub — diisi Task 28-a (Notifikasi WhatsApp)
 import { WhatsAppConfigView } from "@/onevity/shared/components/settings/whatsapp-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,8 @@ export function SettingsModule({ view }: { view: string }) {
   if (view === "api") return <ApiKeysView />;
   // 26-b P0 — viewer audit trail (menu Log Aktivitas)
   if (view === "audit") return <ActivityLogView />;
+  // 80d — kelola eSign: kunci & PIN per pengguna + audit rantai tanda tangan
+  if (view === "esign") return <EsignAdminView />;
   // wave 28 stub — kanal notifikasi WhatsApp (Task 28-a)
   if (view === "whatsapp") return <WhatsAppConfigView />;
   return <LookupPage />;
