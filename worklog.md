@@ -2445,3 +2445,23 @@ Date: 2026-09-23
   pencarian, paginasi, badge sah/putus).
 - E2E prod: keys summary (1 kunci, 1 PIN, 14 ttd), chainIntact=true,
   reset-pin bekerja (withPin 1→0, chain tetap utuh).
+
+---
+Task ID: 80e
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+Title: eSign + QR pada confirm run payroll (PayrollRun)
+Commit: 2549169
+Deploy: .15 (pm2 onevity)
+E2E: scripts/e2e-esign-payroll.ts — 12/12 PASS di prod
+Detail:
+- PayslipPdfOptions.esignStamp/esignReq; buildPayslipPdfByLineId menghitung
+  stamp PayrollRun otomatis → unduhan HR, unduh pemilik, dan lampiran email
+  send-slips konsisten membawa QR.
+- Blok stamp di payslip-pdf sebelum band THP: QR 78pt + teks DITANDATANGANI
+  SECARA ELEKTRONIK, run ref, penandatangan, waktu WIB, hash, URL /v.
+- Tombol Tandatangani + EsignSignDialog (PIN/OTP) di payroll-run-detail
+  untuk run Confirmed/Paid; onSigned → refresh detail.
+- handleSendSlips menerima req utk host QR.
+- Fix tsc: e2e-esign-pa typed row karyawan.
+Catatan: stamp hanya bila ttd VALID (verifySignature) — ttd rusak → PDF polos.
