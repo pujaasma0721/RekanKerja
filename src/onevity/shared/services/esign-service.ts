@@ -345,35 +345,44 @@ export function formatWib(iso: string): string {
 export async function pdfStampFor(
   db: TenantDb, docType: string, docId: string,
   req: { headers: { get(name: string): string | null } },
+  fallback?: { docType: string; docId: string },
 ): Promise<PdfEsignStamp | null> {
   // slug HARUS sama dengan saat sign — resolusi dari schema via registry (satu sumber)
   const tenantSlug = await slugOfSchema(schemaOfDb(db));
-  const rec = await db.signatureRecord.findFirst({
-    where: { docType, docId },
-    orderBy: { signedAt: "desc" },
-  });
-  if (!rec) return null;
+  const tryStamp = async (dt: string, did: string): Promise<PdfEsignStamp | null> => {
+    const rec = await db.signatureRecord.findFirst({
+      where: { docType: dt, docId: did },
+      orderBy: { signedAt: "desc" },
+    });
+    if (!rec) return null;
 
-  const v = await verifySignature(db, tenantSlug, rec.id);
-  if (!v.valid) return null; // ttd rusak → jangan mencap "valid" di PDF
+    const v = await verifySignature(db, tenantSlug, rec.id);
+    if (!v.valid) return null; // ttd rusak → jangan mencap "valid" di PDF
 
-  // host request langsung (BUKAN APP_PUBLIC_URL — QR harus ke alamat yang
-  // benar per tenant subdomain; /v sendiri tetap bisa verifikasi lintas host)
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
-  const proto = req.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("192.168.") ? "http" : "https");
-  const verifyUrl = `${proto}://${host}/v/${rec.id}`;
-  const QRCode = (await import("qrcode")).default;
-  const qrPng = await QRCode.toBuffer(verifyUrl, {
-    type: "png", margin: 0, width: 152, errorCorrectionLevel: "M",
-  });
-  const snap = JSON.parse(rec.snapshotJson || "{}") as { esign?: { signedAt?: string } };
-  return {
-    verifyUrl,
-    qrPng: new Uint8Array(qrPng),
-    signerName: rec.signerName,
-    signerRole: rec.signerRole,
-    signedAtIso: snap.esign?.signedAt ?? rec.signedAt.toISOString(),
-    docRef: rec.docRef,
-    docHashShort: rec.docHash.slice(0, 16),
+    // host request langsung (BUKAN APP_PUBLIC_URL — QR harus ke alamat yang
+    // benar per tenant subdomain; /v sendiri tetap bisa verifikasi lintas host)
+    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
+    const proto = req.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("192.168.") ? "http" : "https");
+    const verifyUrl = `${proto}://${host}/v/${rec.id}`;
+    const QRCode = (await import("qrcode")).default;
+    const qrPng = await QRCode.toBuffer(verifyUrl, {
+      type: "png", margin: 0, width: 152, errorCorrectionLevel: "M",
+    });
+    const snap = JSON.parse(rec.snapshotJson || "{}") as { esign?: { signedAt?: string } };
+    return {
+      verifyUrl,
+      qrPng: new Uint8Array(qrPng),
+      signerName: rec.signerName,
+      signerRole: rec.signerRole,
+      signedAtIso: snap.esign?.signedAt ?? rec.signedAt.toISOString(),
+      docRef: rec.docRef,
+      docHashShort: rec.docHash.slice(0, 16),
+    };
   };
+
+  // Task 80c: PDF surat PA = turunan PersonnelAction → bila suratnya sendiri
+  // belum ditandatangani, pakai ttd PA sumber (QR tetap membuktikan PA tsb).
+  const primary = await tryStamp(docType, docId);
+  if (primary || !fallback) return primary;
+  return tryStamp(fallback.docType, fallback.docId);
 }

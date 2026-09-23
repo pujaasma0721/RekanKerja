@@ -19,8 +19,9 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Clock3, CheckCircle2, XCircle, Send, Ban, Undo2, Zap, Loader2, FileText,
   User, Building2, BriefcaseBusiness, GraduationCap, Wallet, CalendarDays, History,
-  ChevronDown, CircleDot,
+  ChevronDown, CircleDot, FileSignature,
 } from "lucide-react";
+import { EsignSignDialog } from "@/onevity/shared/components/esign/sign-dialog";
 import { cn } from "@/lib/utils";
 import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
 
@@ -33,6 +34,8 @@ export function PADetail({ id }: { id: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   // Task 3-LETTERS: dialog terbitkan & cetak surat dari dokumen PA
   const [letterOpen, setLetterOpen] = useState(false);
+  // Task 80c: eSign — dialog tanda tangan elektronik atas dokumen PA
+  const [signOpen, setSignOpen] = useState(false);
 
   const pa = data?.action;
   const detail = useMemo(() => parseDetail(pa?.detailJson ?? null), [pa?.detailJson]);
@@ -161,6 +164,7 @@ export function PADetail({ id }: { id: string }) {
         onDecision={setDecision}
         onConfirm={setConfirm}
         onPrint={() => setLetterOpen(true)}
+        onSign={() => setSignOpen(true)}
       />
 
       {/* ===== two column: payload + activity | timeline ===== */}
@@ -277,6 +281,16 @@ export function PADetail({ id }: { id: string }) {
         />
       )}
 
+      {/* ===== Task 80c: dialog eSign atas dokumen PA (PIN/OTP) ===== */}
+      <EsignSignDialog
+        open={signOpen}
+        onOpenChange={setSignOpen}
+        docType="PersonnelAction"
+        docId={pa.id}
+        docLabel={pa.docNo}
+        onSigned={() => void refresh()}
+      />
+
       {/* ===== dialogs ===== */}
       {decision && (
         <DecisionDialog
@@ -340,7 +354,7 @@ function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
 }
 
 function WorkflowBar({
-  pa, canAct, curRole, busy, onRefresh, onDecision, onConfirm, onPrint,
+  pa, canAct, curRole, busy, onRefresh, onDecision, onConfirm, onPrint, onSign,
 }: {
   pa: PADetailType;
   canAct: boolean;
@@ -350,6 +364,7 @@ function WorkflowBar({
   onDecision: (v: "approve" | "reject") => void;
   onConfirm: (v: "process" | "cancel") => void;
   onPrint: () => void;
+  onSign: () => void;
 }) {
   const { t } = useI18n();
   const [busyLocal, setBusyLocal] = useState(false);
@@ -423,6 +438,13 @@ function WorkflowBar({
         {pa.status === "Approved" && (
           <Button onClick={() => onConfirm("process")} disabled={loading} className="h-11 gap-2 bg-gradient-to-r from-brand to-brand px-6 text-[15px] font-extrabold shadow-md shadow-brand/25 hover:from-brand hover:to-brand/70">
             <Zap className="h-5 w-5" /> {t("Proses Sekarang", "Process Now")}
+          </Button>
+        )}
+
+        {/* Task 80c: eSign — tanda tangan elektronik pada PA final (Approved/Processed) */}
+        {(pa.status === "Approved" || pa.status === "Processed") && (
+          <Button variant="outline" onClick={onSign} disabled={loading} className="h-11 gap-2 px-5 font-semibold">
+            <FileSignature className="h-4 w-4" /> {t("Tandatangani", "Sign Electronically")}
           </Button>
         )}
 

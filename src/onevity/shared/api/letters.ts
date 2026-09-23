@@ -121,9 +121,13 @@ export async function letterPdfRoute(req: NextRequest, ctx: { params: Promise<{ 
       ? await db.companyOffice.findUnique({ where: { id: officeId }, select: { name: true, city: true, npwp: true } })
       : null;
 
-    // Task 80b: stempel e-Sign + QR verifikasi bila surat sudah ditandatangani
+    // Task 80b/80c: stempel e-Sign + QR verifikasi — ttd surat sendiri; bila
+    // belum ada & surat berasal dari PA, fallback ke ttd PersonnelAction sumber.
     const { pdfStampFor } = await import("@/onevity/shared/services/esign-service");
-    const esign = await pdfStampFor(db, "LetterDocument", doc.id, req).catch((e) => {
+    const esign = await pdfStampFor(
+      db, "LetterDocument", doc.id, req,
+      doc.personnelActionId ? { docType: "PersonnelAction", docId: doc.personnelActionId } : undefined,
+    ).catch((e) => {
       console.error("[esign-stamp] gagal:", e instanceof Error ? e.message : e);
       return null;
     });

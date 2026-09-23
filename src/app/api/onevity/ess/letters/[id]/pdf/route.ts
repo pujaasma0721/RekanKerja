@@ -34,9 +34,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       ? await db.companyOffice.findUnique({ where: { id: officeId }, select: { name: true, city: true, npwp: true } })
       : null;
 
-    // Task 80b: stempel e-Sign + QR verifikasi bila surat sudah ditandatangani
+    // Task 80b/80c: stempel e-Sign + QR — fallback ttd PA sumber (surat PA)
     const { pdfStampFor } = await import("@/onevity/shared/services/esign-service");
-    const esign = await pdfStampFor(db, "LetterDocument", doc.id, req).catch((e) => {
+    const esign = await pdfStampFor(
+      db, "LetterDocument", doc.id, req,
+      doc.personnelActionId ? { docType: "PersonnelAction", docId: doc.personnelActionId } : undefined,
+    ).catch((e) => {
       console.error("[esign-stamp] gagal:", e instanceof Error ? e.message : e);
       return null;
     });
