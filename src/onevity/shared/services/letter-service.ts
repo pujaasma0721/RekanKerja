@@ -735,8 +735,12 @@ export async function letterPdfBuffer(
   // Ditandatangani secara elektronik (OneVity e-Sign) — QR ke /v/[id].
   if (esign) {
     ensure(118);
+
     y -= 6;
     const qr = await pdf.embedPng(esign.qrPng as unknown as Parameters<typeof pdf.embedPng>[0]);
+    // Gambar QR dulu — embedPng/drawImage BISA menambah halaman via ensure
+    // internal pdf-lib; refresh `page` = halaman TERAKHIR sebelum menggambar teks
+    page = pdf.getPage(pdf.getPageCount() - 1);
     page.drawImage(qr, { x: MARGIN, y: y - 84, width: 84, height: 84 });
 
     const LX = MARGIN + 100; // kolom teks di kanan QR
