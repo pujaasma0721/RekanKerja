@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint } from "lucide-react";
+import { FileText, Pencil, RotateCcw, Loader2, PenLine, Eye, Scale, Inbox, CheckCircle2, XCircle, FileDown, UserRound, HeartHandshake, Fingerprint, FileSignature } from "lucide-react";
 import { EsignSignDialog } from "@/onevity/shared/components/esign/sign-dialog";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +117,21 @@ function renderPreview(body: string, live: Record<string, string>): string {
 }
 
 // ================= VIEW UTAMA =================
+/** Baris surat terbit (GET /api/onevity/letters) — Task 80f tab Dokumen Terbit. */
+interface DocRow {
+  id: string;
+  refNo: string;
+  category: string;
+  templateKey: string;
+  subject: string | null;
+  issuedAt: string;
+  employeeName: string;
+  employeeNo: string;
+  templateName: string;
+  purpose: string | null;
+  esign: { signatureId: string; signerName: string; signedAt: string; viaPa: boolean } | null;
+}
+
 /** Baris permintaan surat ESS (GET /api/onevity/letter-requests). */
 interface RequestRow {
   id: string;
@@ -148,6 +163,9 @@ export function LetterTemplatesView() {
   const requests = useApi<{ requests: RequestRow[]; counts: { pending: number; issued: number; rejected: number } }>(
     "/api/onevity/letter-requests",
   );
+  // Task 80f — daftar SEMUA surat terbit + status eSign (tab Dokumen Terbit)
+  const issued = useApi<{ letters: DocRow[] }>("/api/onevity/letters");
+  const [docQ, setDocQ] = useState("");
   const [tab, setTab] = useState("catalog");
   const [edit, setEdit] = useState<TemplateRow | null>(null);
   const [resetTarget, setResetTarget] = useState<TemplateRow | null>(null);
@@ -166,6 +184,14 @@ export function LetterTemplatesView() {
   const service = templates.filter((x) => x.category === "EmployeeService");
   const reqRows = requests.data?.requests ?? [];
   const pendingCount = requests.data?.counts.pending ?? 0;
+  const docRows = (issued.data?.letters ?? []).filter((d) =>
+    !docQ || d.refNo.toLowerCase().includes(docQ.toLowerCase())
+    || d.employeeName.toLowerCase().includes(docQ.toLowerCase())
+    || d.employeeNo.toLowerCase().includes(docQ.toLowerCase())
+    || d.templateName.toLowerCase().includes(docQ.toLowerCase()),
+  );
+  const signedCount = (issued.data?.letters ?? []).filter((d) => d.esign).length;
+  const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan" };
 
   /** Toggle aktif/nonaktif (klik pil). */
   const toggleActive = async (tpl: TemplateRow) => {
@@ -288,6 +314,13 @@ export function LetterTemplatesView() {
         <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-stone-100/90 p-1 dark:bg-stone-800/70">
           <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
             <FileText className="h-4 w-4" aria-hidden /> {t("Katalog Template", "Template Catalog")}
+          </TabsTrigger>
+          {/* Task 80f — tab Dokumen Terbit: semua surat terbit + status eSign */}
+          <TabsTrigger value="documents" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
+            <FileSignature className="h-4 w-4" aria-hidden /> {t("Dokumen Terbit", "Issued Documents")}
+            <span className="ml-1 rounded-full bg-brand/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-brand-deep dark:bg-brand/15 dark:text-brand/85">
+              {signedCount}/{(issued.data?.letters ?? []).length}
+            </span>
           </TabsTrigger>
           <TabsTrigger value="requests" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
             <Inbox className="h-4 w-4" aria-hidden /> {t("Permintaan Masuk", "Incoming Requests")}
@@ -446,6 +479,100 @@ export function LetterTemplatesView() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* Task 80f — DOKUMEN TERBIT: semua surat terbit + badge eSign + ttd */}
+        <TabsContent value="documents">
+          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[12px] text-stone-500 dark:text-stone-400">
+                  {t("Semua surat terbit — tandai secara elektronik agar PDF membawa QR verifikasi.", "All issued letters — sign electronically so the PDF carries a verification QR.")}
+                </p>
+                <Input
+                  value={docQ}
+                  onChange={(e) => setDocQ(e.target.value)}
+                  placeholder={t("Cari no. surat / karyawan / jenis…", "Search ref no / employee / type…")}
+                  className="h-9 w-full max-w-xs"
+                />
+              </div>
+              {issued.loading && !issued.data ? (
+                <LoadingRows rows={5} />
+              ) : issued.error && !issued.data ? (
+                <EmptyState title={t("Gagal memuat daftar surat", "Failed to load letters")} description={issued.error} icon={<FileSignature className="h-6 w-6" />} />
+              ) : docRows.length === 0 ? (
+                <EmptyState
+                  title={docQ ? t("Tidak ada surat yang cocok", "No matching letters") : t("Belum ada surat terbit", "No issued letters yet")}
+                  description={docQ ? t("Coba kata kunci lain.", "Try another keyword.") : t("Terbitkan surat dari permintaan karyawan atau Personnel Action.", "Issue letters from employee requests or Personnel Actions.")}
+                  icon={<FileText className="h-6 w-6" />}
+                />
+              ) : (
+                <ul className="space-y-3">
+                  {docRows.map((d) => (
+                    <li key={d.id}>
+                      <div className={cn(
+                        "rounded-xl border p-4 transition-colors",
+                        d.esign
+                          ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-500/25 dark:bg-emerald-500/5"
+                          : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900/40",
+                      )}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <FileText className="h-3.5 w-3.5 text-stone-400" aria-hidden />
+                              <p className="font-mono text-[12px] font-bold text-stone-700 dark:text-stone-200">{d.refNo}</p>
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold text-stone-500 dark:text-stone-400">
+                                {CATEGORY_LABEL[d.category] ?? d.category}
+                              </Badge>
+                              {d.esign ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                                  <Fingerprint className="h-3 w-3" />
+                                  {t("Sudah ditandatangani", "Signed")}
+                                  {d.esign.viaPa ? ` · ${t("via PA", "via PA")}` : ""}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                                  {t("Belum ditandatangani", "Unsigned")}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[13px] font-bold text-stone-800 dark:text-stone-100">{d.templateName}</p>
+                            <p className="mt-0.5 text-[12px] font-semibold text-stone-600 dark:text-stone-300">
+                              {d.employeeName} <span className="ml-1 font-mono text-[11px] font-semibold text-stone-400">{d.employeeNo}</span>
+                              {d.subject ? ` · ${d.subject}` : ""}
+                            </p>
+                            <p className="mt-1 text-[10px] text-stone-400">
+                              {t("terbit", "issued")} {fmtDateTime(d.issuedAt)}
+                              {d.esign ? ` · ${t("ditandatangani", "signed")} ${fmtDateTime(d.esign.signedAt)} ${t("oleh", "by")} ${d.esign.signerName}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            {!d.esign && (
+                              <Button size="sm" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold" onClick={() => setEsignTarget({ id: d.id, label: d.refNo })}>
+                                <Fingerprint className="h-3.5 w-3.5" /> {t("Tandatangani", "e-Sign")}
+                              </Button>
+                            )}
+                            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold">
+                              <a href={`/api/onevity/letters/${d.id}/pdf?download=1`} download>
+                                <FileDown className="h-3.5 w-3.5" /> {t("Unduh PDF", "Download PDF")}
+                              </a>
+                            </Button>
+                            {d.esign && (
+                              <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg px-3 text-[11px] font-bold">
+                                <a href={`/v/${d.esign.signatureId}`} target="_blank" rel="noreferrer">
+                                  <Fingerprint className="h-3.5 w-3.5" /> {t("Verifikasi", "Verify")}
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* dialog edit template */}
@@ -465,6 +592,7 @@ export function LetterTemplatesView() {
         docType="LetterDocument"
         docId={esignTarget?.id ?? ""}
         docLabel={esignTarget?.label ?? ""}
+        onSigned={() => void issued.refresh()}
       />
 
       {/* dialog tolak permintaan surat (26-a) */}

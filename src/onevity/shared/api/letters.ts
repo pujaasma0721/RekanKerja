@@ -184,6 +184,37 @@ export async function listLetters(req: NextRequest) {
         select: { key: true, name: true, description: true, subject: true, body: true, signatoryName: true, signatoryTitle: true },
       }),
     ]);
+
+    // Task 80f — status eSign per surat (ttd surat sendiri; fallback ttd PA
+    // sumber — sama dengan aturan stamp PDF) agar UI bisa menampilkan badge
+    // Sudah/Belum ditandatangani tanpa N query per baris.
+    const letterIds = letters.map((l) => l.id);
+    const paIds = letters.map((l) => l.personnelActionId).filter((x): x is string => !!x);
+    const [ownSigs, paSigs] = await Promise.all([
+      letterIds.length
+        ? m.db.signatureRecord.findMany({
+            where: { docType: "LetterDocument", docId: { in: letterIds } },
+            orderBy: { signedAt: "desc" },
+            select: { id: true, docId: true, signerName: true, signedAt: true },
+          })
+        : Promise.resolve([]),
+      paIds.length
+        ? m.db.signatureRecord.findMany({
+            where: { docType: "PersonnelAction", docId: { in: paIds } },
+            orderBy: { signedAt: "desc" },
+            select: { id: true, docId: true, signerName: true, signedAt: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const paSigByPa = new Map(paSigs.map((s) => [s.docId, s]));
+    const esignMap: Record<string, { signatureId: string; signerName: string; signedAt: string; viaPa: boolean }> = {};
+    for (const s of ownSigs) if (!esignMap[s.docId]) esignMap[s.docId] = { signatureId: s.id, signerName: s.signerName, signedAt: s.signedAt.toISOString(), viaPa: false };
+    for (const l of letters) {
+      if (esignMap[l.id] || !l.personnelActionId) continue;
+      const pa = paSigByPa.get(l.personnelActionId);
+      if (pa) esignMap[l.id] = { signatureId: pa.id, signerName: pa.signerName, signedAt: pa.signedAt.toISOString(), viaPa: true };
+    }
+
     return NextResponse.json({
       letters: letters.map((l) => ({
         id: l.id,
@@ -196,6 +227,7 @@ export async function listLetters(req: NextRequest) {
         employeeNo: l.employee.employeeNo,
         templateName: parseMeta(l.metaJson).templateName ?? l.templateKey,
         purpose: parseMeta(l.metaJson).purpose ?? null,
+        esign: esignMap[l.id] ?? null,
       })),
       templates,
     });
