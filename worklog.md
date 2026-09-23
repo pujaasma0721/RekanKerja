@@ -2427,3 +2427,21 @@ Date: 2026-09-23
   semua layer → sign PersonnelAction 201 → verifikasi publik valid+chainIntact
   → terbitkan surat PA → PDF memuat QR + URL /v ttd PA → halaman /v VALID.
 - Data uji dibersihkan (PA-2026-0010, surat 002/HR-PA/IX/2026, SignatureRecord).
+
+---
+Task ID: 80d
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+
+## Pengaturan → eSign (kelola PIN & audit rantai)
+- Menu "eSign" (SETTINGS_NAV, settings:esign) + katalog op khusus:
+  op:reset-pin & op:revoke (menu-perms.ts → tampil di editor Keamanan & Akses).
+- API /api/onevity/esign-admin: GET keys (ringkasan + kunci per AppUser, join
+  manual — SignatureKey tanpa FK relasi), GET ?view=chain (audit + verifikasi
+  keutuhan hash-chain per tenant, broken flag per record), POST reset-pin /
+  revoke-key (guarded op, ActivityLog tercatat, ttd lama tetap sah).
+- UI esign-view.tsx: Tab Kunci & PIN (status kunci, PIN, fingerprint, aksi
+  admin dgn dialog konfirmasi) + Tab Audit Rantai (banner rantai putus,
+  pencarian, paginasi, badge sah/putus).
+- E2E prod: keys summary (1 kunci, 1 PIN, 14 ttd), chainIntact=true,
+  reset-pin bekerja (withPin 1→0, chain tetap utuh).
