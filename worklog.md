@@ -2411,3 +2411,19 @@ Date: 2026-09-23
 - E2E scripts/e2e-esign-pdf.ts: 9/9 PASS di prod — PDF ttd memuat QR + blok
   (teks hex-string <…> Tj didekode), URL /v valid render "TANDA TANGAN VALID",
   PDF tanpa ttd tetap bersih.
+
+---
+Task ID: 80c
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+
+## eSign pada PersonnelAction + QR di surat hasil PA
+- pdfStampFor(+fallback): surat PA = turunan PersonnelAction → bila suratnya
+  sendiri belum dittd, stempel memakai ttd PA sumber (QR tetap membuktikan PA).
+  Dipasang di route HR & ESS (doc.personnelActionId → fallback).
+- UI pa-detail: tombol "Tandatangani" (Approved/Processed) + EsignSignDialog
+  PIN/OTP; onSigned → refresh detail (badge/status ttd terlihat).
+- E2E scripts/e2e-esign-pa.ts: 12/12 PASS di prod — buat PA → submit → approve
+  semua layer → sign PersonnelAction 201 → verifikasi publik valid+chainIntact
+  → terbitkan surat PA → PDF memuat QR + URL /v ttd PA → halaman /v VALID.
+- Data uji dibersihkan (PA-2026-0010, surat 002/HR-PA/IX/2026, SignatureRecord).
