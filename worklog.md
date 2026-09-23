@@ -2390,3 +2390,24 @@ Date: 2026-09-23
   challenge, set-pin, sign 201, verifikasi publik valid (signer, ref, chain),
   halaman /v 200 "TANDA TANGAN VALID", re-sign, chain 5→6 utuh.
 - Deploy: fe7e12e (halaman /v via next/headers).
+
+---
+Task ID: 80b
+Agent: Buffy (Codebuff)
+Date: 2026-09-23
+
+## eSign — QR verifikasi tercetak pada PDF surat
+- esign-service.pdfStampFor(): ttd TERAKHIR dokumen + verifikasi kriptografis
+  sebelum mencap "valid" di PDF; QR (qrcode, ECC-M) mengarah ke /v/<id> via
+  host request (BUKAN APP_PUBLIC_URL — per-subdomain tenant).
+- letterPdfBuffer(+esign): blok "DITANDATANGANI SECARA ELEKTRONIK" — QR 84pt,
+  garis aksen, nama+role penandatangan, waktu WIB, hash 16-hex, URL verifikasi.
+  Dipasang di route HR (letters/[id]/pdf) dan ESS (ess/letters/[id]/pdf).
+- Fix kunci: slug verifikasi stamp WAJIB dari registry platform (slugOfSchema)
+  — tenantSlugOf() derivasi nama schema menghasilkan slug beda → verifikasi
+  selalu gagal → stamp null diam-diam.
+- Fix pdf-lib: refresh referensi page setelah embedPng (bisa menambah halaman);
+  struktur if(esign) tertelan komentar heredoc.
+- E2E scripts/e2e-esign-pdf.ts: 9/9 PASS di prod — PDF ttd memuat QR + blok
+  (teks hex-string <…> Tj didekode), URL /v valid render "TANDA TANGAN VALID",
+  PDF tanpa ttd tetap bersih.
