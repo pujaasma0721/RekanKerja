@@ -16,6 +16,7 @@
 import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
+import type { PdfEsignStamp } from "./esign-service";
 
 // ---------- tipe input (struktural — cocok utk hasil include Prisma) ----------
 
@@ -644,6 +645,7 @@ export async function letterPdfBuffer(
   doc: LetterPdfDoc,
   company: LetterPdfCompany | null,
   office?: LetterPdfOffice | null,
+  esign?: PdfEsignStamp | null,
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Surat ${doc.refNo}`);
@@ -729,5 +731,40 @@ export async function letterPdfBuffer(
     y -= BODY_LEADING; // jeda antarparagraf
   }
 
+  // ================= BLOK e-SIGN (Task 80b) =================
+  // Ditandatangani secara elektronik (OneVity e-Sign) — QR ke /v/[id].
+  if (esign) {
+    ensure(118);
+    y -= 6;
+    const qr = await pdf.embedPng(esign.qrPng as unknown as Parameters<typeof pdf.embedPng>[0]);
+    page.drawImage(qr, { x: MARGIN, y: y - 84, width: 84, height: 84 });
+
+    const LX = MARGIN + 100; // kolom teks di kanan QR
+    page.drawRectangle({ x: LX, y: y - 86, width: 2, height: 92, color: ACCENT });
+    let ly = y;
+    txt("DITANDATANGANI SECARA ELEKTRONIK", LX + 10, ly, { size: 8.5, font: bold, color: ACCENT });
+    ly -= 13;
+    txt(`melalui OneVity e-Sign — ${esign.docRef}`, LX + 10, ly, { size: 8.5, color: INK_SOFT });
+    ly -= 13;
+    txt(esign.signerName + (esign.signerRole ? ` · ${esign.signerRole}` : ""), LX + 10, ly, { size: 10, font: bold });
+    ly -= 12;
+    txt(formatWibLabel(esign.signedAtIso), LX + 10, ly, { size: 8.5, color: INK_SOFT });
+    ly -= 12;
+    txt(`Hash: ${esign.docHashShort}…`, LX + 10, ly, { size: 7.5, color: INK_SOFT });
+    ly -= 12;
+    // URL verifikasi dipotong agar muas satu baris
+    const url = esign.verifyUrl;
+    txt(url.length > 66 ? url.slice(0, 63) + "…" : url, LX + 10, ly, { size: 7.5, color: INK_SOFT });
+    y = ly - 10;
+  }
+
   return pdf.save();
+}
+
+const BULAN_ID_QR = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+function formatWibLabel(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const wib = new Date(d.getTime() + 7 * 60 * 60_000);
+  return `Waktu tanda tangan: ${p(wib.getUTCDate())} ${BULAN_ID_QR[wib.getUTCMonth()]} ${wib.getUTCFullYear()} ${p(wib.getUTCHours())}:${p(wib.getUTCMinutes())} WIB`;
 }

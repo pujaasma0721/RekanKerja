@@ -311,3 +311,64 @@ export async function verifySignature(db: TenantDb, tenantSlug: string, id: stri
     tenantSlug,
   };
 }
+
+// ---------- stempel PDF (Task 80b) ==========================================
+
+export interface PdfEsignStamp {
+  verifyUrl: string; // absolut — dienkode ke QR + dicetak teks
+  qrPng: Uint8Array; // buffer QR (png)
+  signerName: string;
+  signerRole: string | null;
+  signedAtIso: string; // dari SNAPSHOT (sumber tunggal hash)
+  docRef: string;
+  docHashShort: string; // 16 hex pertama
+}
+
+/** "12 Sep 2026 14:35 WIB" — deterministik, tanpa locale host. */
+export function formatWib(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const wib = new Date(d.getTime() + 7 * 60 * 60_000); // UTC+7 tanpa DST
+  return `${p(wib.getUTCDate())} ${BULAN[wib.getUTCMonth()]} ${wib.getUTCFullYear()} ${p(wib.getUTCHours())}:${p(wib.getUTCMinutes())} WIB`;
+}
+
+/**
+ * Stempel e-Sign utk PDF dokumen tertandatangani (ttd TERAKHIR dokumen tsb).
+ * Null bila belum ada ttd valid — PDF tetap dicetak tanpa blok e-sign.
+ * URL verifikasi dari header request (publicBaseUrlOf) agar QR mengarah ke
+ * host yang benar (subdomain tenant).
+ */
+export async function pdfStampFor(
+  db: TenantDb, tenantSlug: string, docType: string, docId: string,
+  req: { headers: { get(name: string): string | null } },
+): Promise<PdfEsignStamp | null> {
+  const rec = await db.signatureRecord.findFirst({
+    where: { docType, docId },
+    orderBy: { signedAt: "desc" },
+  });
+  if (!rec) return null;
+
+  const v = await verifySignature(db, tenantSlug, rec.id);
+  if (!v.valid) return null; // ttd rusak → jangan mencap "valid" di PDF
+
+  // host request langsung (BUKAN APP_PUBLIC_URL — QR harus ke alamat yang
+  // benar per tenant subdomain; /v sendiri tetap bisa verifikasi lintas host)
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
+  const proto = req.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("192.168.") ? "http" : "https");
+  const verifyUrl = `${proto}://${host}/v/${rec.id}`;
+  const QRCode = (await import("qrcode")).default;
+  const qrPng = await QRCode.toBuffer(verifyUrl, {
+    type: "png", margin: 0, width: 152, errorCorrectionLevel: "M",
+  });
+  const snap = JSON.parse(rec.snapshotJson || "{}") as { esign?: { signedAt?: string } };
+  return {
+    verifyUrl,
+    qrPng: new Uint8Array(qrPng),
+    signerName: rec.signerName,
+    signerRole: rec.signerRole,
+    signedAtIso: snap.esign?.signedAt ?? rec.signedAt.toISOString(),
+    docRef: rec.docRef,
+    docHashShort: rec.docHash.slice(0, 16),
+  };
+}

@@ -121,7 +121,11 @@ export async function letterPdfRoute(req: NextRequest, ctx: { params: Promise<{ 
       ? await db.companyOffice.findUnique({ where: { id: officeId }, select: { name: true, city: true, npwp: true } })
       : null;
 
-    const bytes = await letterPdfBuffer(doc, company, office);
+    // Task 80b: stempel e-Sign + QR verifikasi bila surat sudah ditandatangani
+    const { pdfStampFor } = await import("@/onevity/shared/services/esign-service");
+    const { tenantSlugOf } = await import("@/onevity/shared/services/checklist-service");
+    const esign = await pdfStampFor(db, tenantSlugOf(db), "LetterDocument", doc.id, req).catch(() => null);
+    const bytes = await letterPdfBuffer(doc, company, office, esign);
 
     // nama file: "/" pada refNo tidak sah untuk filename → ganti "-"
     const filename = `Surat-${doc.refNo.replace(/\//g, "-")}.pdf`;
