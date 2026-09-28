@@ -223,6 +223,8 @@ export async function POST(req: NextRequest) {
       })();
     }
 
+    // Task 82-b: `warnings` (validasi lembut klaim dependent, audit T10) ikut
+    // via spread — ADDITIVE, field lain tidak berubah.
     return NextResponse.json({ ...res, attachmentCount: boundAttachments }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });

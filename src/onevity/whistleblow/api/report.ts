@@ -1,5 +1,6 @@
 // OneVity — Whistleblowing (Task 52-f, TPKS UU 12/2022 Ps.22-24) ============
 // =====================================================================
+// GET  /api/onevity/whistleblowing/report — "Laporan Saya" (ESS, non-anonim).
 // POST /api/onevity/whistleblowing/report — kirim laporan pelanggaran.
 //
 // KEPUTUSAN DESAIN (anonimitas):
@@ -14,6 +15,7 @@
 // =====================================================================
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireEss } from "@/onevity/ess/api/ess-auth";
 import { readVerifiedSession } from "@/onevity/shared/lib/auth";
 import { db as platformDb } from "@/lib/db";
 import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
@@ -43,6 +45,26 @@ async function nextTicketNo(db: NonNullable<Awaited<ReturnType<typeof requireTen
     if (Number.isFinite(n) && n > max) max = n;
   }
   return `${start}${String(max + 1).padStart(3, "0")}`;
+}
+
+// Task 82-c: GET — "Laporan Saya" utk portal ESS (hanya laporan NON-ANONIM
+// milik aktor sendiri; laporan anonim memang tidak bisa dilacak siapa pun —
+// by design). Select field aman: tanpa uraian/detail pelapor.
+export async function GET(req: NextRequest) {
+  try {
+    const m = await requireEss(req);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const { db, employeeId } = m.actor;
+    const reports = await db.whistleblowReport.findMany({
+      where: { reporterEmployeeId: employeeId },
+      orderBy: { createdAt: "desc" },
+      select: { ticketNo: true, category: true, status: true, createdAt: true },
+      take: 50,
+    });
+    return NextResponse.json({ reports });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {

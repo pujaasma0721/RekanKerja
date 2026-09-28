@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
   EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, RELATION_LABEL, RELATION_LABEL_EN, WARNING_LEVEL_META, WARNING_LEVEL_LABEL_EN,
-  type EmployeeDetailResp,
+  type EmployeeDetailResp, type FamilyRow, type EducationRow, type ExperienceRow,
 } from "./types";
 import { EmployeeAvatar } from "./employee-avatar";
 import {
@@ -89,6 +89,10 @@ export function EmployeeDetail({ id }: { id: string }) {
   const [eduOpen, setEduOpen] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
   const [discOpen, setDiscOpen] = useState(false);
+  // Task 82-c: baris yang sedang di-ubah — mode edit dialog (null = mode tambah).
+  const [familyEdit, setFamilyEdit] = useState<FamilyRow | null>(null);
+  const [eduEdit, setEduEdit] = useState<EducationRow | null>(null);
+  const [expEdit, setExpEdit] = useState<ExperienceRow | null>(null);
 
   if (loading) {
     return (
@@ -377,7 +381,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                         <TableHead>{t("Tgl Lahir", "Birth Date")}</TableHead>
                         <TableHead>{t("Pekerjaan", "Occupation")}</TableHead>
                         <TableHead>{t("Dependen", "Dependent")}</TableHead>
-                        <TableHead className="w-12" aria-label={t("Aksi")} />
+                        <TableHead className="w-24" aria-label={t("Aksi")} />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -396,14 +400,27 @@ export function EmployeeDetail({ id }: { id: string }) {
                             )}
                           </TableCell>
                           <TableCell className="py-3">
-                            {perms.can("hr", "directory", "delete") && (
-                              <DeleteRecordButton
-                                url={`/api/onevity/family?id=${f.id}`}
-                                title={t("Hapus {name}?", "Delete {name}?", { name: f.name })}
-                                description={t("Anggota keluarga akan dihapus permanen dari profil.", "This family member will be permanently removed from the profile.")}
-                                onDone={refresh}
-                              />
-                            )}
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Task 82-c: aksi Ubah — dialog sama, ter-prefill baris (PATCH). */}
+                              {perms.can("hr", "directory", "update") && (
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className="h-11 w-11 text-stone-400 hover:ov-text-accent dark:hover:bg-stone-800"
+                                  aria-label={t("Ubah data {name}", "Edit {name}", { name: f.name })}
+                                  onClick={() => { setFamilyEdit(f); setFamilyOpen(true); }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {perms.can("hr", "directory", "delete") && (
+                                <DeleteRecordButton
+                                  url={`/api/onevity/family?id=${f.id}`}
+                                  title={t("Hapus {name}?", "Delete {name}?", { name: f.name })}
+                                  description={t("Anggota keluarga akan dihapus permanen dari profil.", "This family member will be permanently removed from the profile.")}
+                                  onDone={refresh}
+                                />
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -439,15 +456,28 @@ export function EmployeeDetail({ id }: { id: string }) {
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile text-[11px] font-extrabold">
                         {d.level}
                       </div>
-                      {perms.can("hr", "directory", "delete") && (
-                        <DeleteRecordButton
-                          url={`/api/onevity/education?id=${d.id}`}
-                          title={t("Hapus pendidikan {lvl}?", "Delete {lvl} education?", { lvl: d.level })}
-                          description={t("Riwayat pendidikan ini akan dihapus permanen.", "This education record will be permanently deleted.")}
-                          onDone={refresh}
-                          className="h-8 w-8"
-                        />
-                      )}
+                      <div className="flex items-start gap-1">
+                        {/* Task 82-c: aksi Ubah — dialog sama, ter-prefill baris (PATCH). */}
+                        {perms.can("hr", "directory", "update") && (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-stone-400 hover:ov-text-accent dark:hover:bg-stone-800"
+                            aria-label={t("Ubah pendidikan {lvl}", "Edit {lvl} education", { lvl: d.level })}
+                            onClick={() => { setEduEdit(d); setEduOpen(true); }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {perms.can("hr", "directory", "delete") && (
+                          <DeleteRecordButton
+                            url={`/api/onevity/education?id=${d.id}`}
+                            title={t("Hapus pendidikan {lvl}?", "Delete {lvl} education?", { lvl: d.level })}
+                            description={t("Riwayat pendidikan ini akan dihapus permanen.", "This education record will be permanently deleted.")}
+                            onDone={refresh}
+                            className="h-8 w-8"
+                          />
+                        )}
+                      </div>
                     </div>
                     <p className="mt-3 text-sm font-bold text-stone-800 dark:text-stone-100">{d.institution}</p>
                     <p className="text-xs text-stone-500 dark:text-stone-400">{d.major ?? "—"}</p>
@@ -495,14 +525,27 @@ export function EmployeeDetail({ id }: { id: string }) {
                           {x.notes && <p className="mt-2 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{x.notes}</p>}
                         </div>
                       </div>
-                      {perms.can("hr", "directory", "delete") && (
-                        <DeleteRecordButton
-                          url={`/api/onevity/experiences?id=${x.id}`}
-                          title={t("Hapus pengalaman di {c}?", "Delete experience at {c}?", { c: x.company })}
-                          description={t("Pengalaman kerja ini akan dihapus permanen.", "This work experience will be permanently deleted.")}
-                          onDone={refresh}
-                        />
-                      )}
+                      <div className="flex shrink-0 items-start gap-1">
+                        {/* Task 82-c: aksi Ubah — dialog sama, ter-prefill baris (PATCH). */}
+                        {perms.can("hr", "directory", "update") && (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-11 w-11 text-stone-400 hover:ov-text-accent dark:hover:bg-stone-800"
+                            aria-label={t("Ubah pengalaman di {c}", "Edit experience at {c}", { c: x.company })}
+                            onClick={() => { setExpEdit(x); setExpOpen(true); }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {perms.can("hr", "directory", "delete") && (
+                          <DeleteRecordButton
+                            url={`/api/onevity/experiences?id=${x.id}`}
+                            title={t("Hapus pengalaman di {c}?", "Delete experience at {c}?", { c: x.company })}
+                            description={t("Pengalaman kerja ini akan dihapus permanen.", "This work experience will be permanently deleted.")}
+                            onDone={refresh}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -575,9 +618,9 @@ export function EmployeeDetail({ id }: { id: string }) {
       {/* ============ dialogs ============ */}
       <EditPersonalDialog open={editPersonal} onOpenChange={setEditPersonal} employee={e} onDone={refresh} />
       <EditWorkDialog open={editWork} onOpenChange={setEditWork} employee={e} onDone={refresh} />
-      <FamilyDialog open={familyOpen} onOpenChange={setFamilyOpen} employeeId={e.id} employeeName={e.fullName} onDone={refresh} />
-      <EducationDialog open={eduOpen} onOpenChange={setEduOpen} employeeId={e.id} employeeName={e.fullName} onDone={refresh} />
-      <ExperienceDialog open={expOpen} onOpenChange={setExpOpen} employeeId={e.id} employeeName={e.fullName} onDone={refresh} />
+      <FamilyDialog open={familyOpen} onOpenChange={(v) => { setFamilyOpen(v); if (!v) setFamilyEdit(null); }} employeeId={e.id} employeeName={e.fullName} onDone={refresh} edit={familyEdit} />
+      <EducationDialog open={eduOpen} onOpenChange={(v) => { setEduOpen(v); if (!v) setEduEdit(null); }} employeeId={e.id} employeeName={e.fullName} onDone={refresh} edit={eduEdit} />
+      <ExperienceDialog open={expOpen} onOpenChange={(v) => { setExpOpen(v); if (!v) setExpEdit(null); }} employeeId={e.id} employeeName={e.fullName} onDone={refresh} edit={expEdit} />
       <DisciplinaryDialog open={discOpen} onOpenChange={setDiscOpen} employeeId={e.id} employeeName={e.fullName} onDone={refresh} />
     </div>
   );

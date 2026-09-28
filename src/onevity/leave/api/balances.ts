@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { listBalances, generateLeaveInfo, adjustBalance } from "@/onevity/leave/services/leave-service";
 
 // GET /api/onevity/leave/balances?employeeId=&leaveTypeId=&year=&leaveTypeCode=
@@ -53,10 +54,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — Generate Leave Information (padanan GenerateLeaveInfoProcess.jsp)
+// Task 82-T4: guard hak aksi menu (dulu hanya requireTenant).
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "leave:leave-info", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const year = parseInt(b.year, 10);
     if (!year || year < 2000 || year > 2100) return NextResponse.json({ error: "Tahun tidak valid" }, { status: 400 });
@@ -72,10 +75,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH — penyesuaian saldo (padanan Leave Adjustment / Generate Leave Adjustment)
+// Task 82-T4: guard hak aksi menu (dulu hanya requireTenant).
 export async function PATCH(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "leave:leave-info", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     const delta = Number(b.delta);
     if (!b.employeeId || !b.leaveTypeId || !b.year || !delta) {

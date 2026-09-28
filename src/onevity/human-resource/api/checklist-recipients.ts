@@ -11,7 +11,7 @@ import {
 
 export async function GET(req: NextRequest) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "view");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
 
     const rows = await Promise.all(
@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const m = await requireMenuAction(req, "settings:user-access", "update");
+    // Task 82-T11: guard sejalan menu Checklist Onboarding (dulu settings:user-access — lintas domain).
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
 
     const b = await req.json();

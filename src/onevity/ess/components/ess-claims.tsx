@@ -171,6 +171,12 @@ function MedicalClaimDialog({
         t("Klaim {doc} diajukan — menunggu persetujuan {who}", "Claim {doc} submitted — awaiting {who}", { doc: res.docNo, who: res.firstApprover ?? "approver" }),
         { description: res.receiptNote },
       );
+      // Task 82-b (audit T10): warning validasi lembut klaim dependent — toast
+      // AMBER non-blocking setelah submit sukses (nama tak cocok data keluarga /
+      // jumlah dependent melebihi batas jenis benefit).
+      for (const w of res.warnings ?? []) {
+        toast.warning(w, { duration: 7000 });
+      }
       onOpenChange(false);
       onDone();
     } catch (e) {

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   EmployeeOption, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./medical-types";
-import { BarChart3, Search, FileText } from "lucide-react";
+import { BarChart3, Search, FileText, Download } from "lucide-react";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +74,15 @@ export function MedicalReportsPage() {
             </SelectContent>
           </Select>
         </div>
+        {/* Task 82-c: unduh CSV — filter saat ini (rentang + karyawan); kolom uang
+            mengikuti money-vault (masked → dikosongkan oleh server). */}
+        <a
+          href={`/api/onevity/medical/reports?from=${from}&to=${to}&year=${currentYear}${employeeId !== "all" ? `&employeeId=${employeeId}` : ""}&export=csv`}
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-stone-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+          aria-label={t("Unduh daftar klaim medis sebagai CSV", "Download the medical claim list as CSV")}
+        >
+          <Download className="h-4 w-4" /> {t("Export CSV")}
+        </a>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-4">

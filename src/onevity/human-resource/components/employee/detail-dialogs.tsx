@@ -19,6 +19,7 @@ import { useI18n } from "@/onevity/shared/lib/i18n";
 import {
   RELIGIONS, RELIGIONS_EN, MARITAL_STATUSES, MARITAL_STATUSES_EN, BLOOD_TYPES, BANKS, WORK_SHIFTS, WORK_SHIFTS_EN, EDUCATION_LEVELS, RELATIONS, WARNING_LEVELS,
   type EmployeeDetail, type EmployeeOptions,
+  type FamilyRow, type EducationRow, type ExperienceRow,
 } from "./types";
 
 const isoDate = (d: string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 10) : "");
@@ -371,43 +372,74 @@ export function EditWorkDialog({
   );
 }
 
-// ============ 3. TAMBAH KELUARGA ============
+// ============ 3. TAMBAH / UBAH KELUARGA ============
+// Task 82-c: prop `edit` — mode ubah (dialog sama, ter-prefill data baris,
+// submit PATCH; tanpa edit = mode tambah + POST seperti sebelumnya).
 export function FamilyDialog({
-  open, onOpenChange, employeeId, employeeName, onDone,
+  open, onOpenChange, employeeId, employeeName, onDone, edit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   employeeId: string;
   employeeName: string;
   onDone: () => void;
+  edit?: FamilyRow | null;
 }) {
   const [form, setForm] = useState({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
   const [busy, setBusy] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
-    if (open) setForm({ relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
-  }, [open]);
+    if (!open) return;
+    setForm(edit
+      ? {
+          relation: edit.relation, name: edit.name, gender: edit.gender,
+          birthDate: isoDate(edit.birthDate), occupation: edit.occupation ?? "",
+          isDependent: edit.isDependent,
+        }
+      : { relation: "Spouse", name: "", gender: "M", birthDate: "", occupation: "", isDependent: true });
+  }, [open, edit]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t("Nama anggota keluarga wajib diisi", "Family member name is required")); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/family", "POST", {
-        employeeId,
+      const payload = {
         relation: form.relation,
         name: form.name.trim(),
         gender: form.gender,
         birthDate: form.birthDate || null,
         occupation: form.occupation.trim() || null,
         isDependent: form.isDependent,
-      });
-      toast.success(t("Anggota keluarga ditambahkan", "Family member added"), { description: t("{name} ditambahkan ke profil {emp}.", "{name} was added to {emp}'s profile.", { name: form.name.trim(), emp: employeeName }) });
+      };
+      // Task 50: respons PATCH/POST membawa ptkpPending — saran PTKP 1 Jan
+      // tahun depan (tanpa tulis) bila relasi/tanggungan berubah.
+      const r = edit
+        ? await apiSend<{ ptkpPending?: { current: string; next: string; nextYear: number } | null }>("/api/onevity/family", "PATCH", { id: edit.id, ...payload })
+        : await apiSend<{ ptkpPending?: { current: string; next: string; nextYear: number } | null }>("/api/onevity/family", "POST", { employeeId, ...payload });
+      if (r?.ptkpPending && r.ptkpPending.next !== r.ptkpPending.current) {
+        toast.info(t(
+          "PTKP akan menjadi {s} pada 1 Jan {y} (berlaku tahun depan)",
+          "PTKP will become {s} on Jan 1, {y} (effective next year)",
+          { s: r.ptkpPending.next, y: r.ptkpPending.nextYear },
+        ));
+      }
+      toast.success(
+        edit
+          ? t("Data keluarga diperbarui", "Family data updated")
+          : t("Anggota keluarga ditambahkan", "Family member added"),
+        { description: t("{name} pada profil {emp}.", "{name} on {emp}'s profile.", { name: form.name.trim(), emp: employeeName }) },
+      );
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error(t("Gagal menambah keluarga", "Failed to add family member"), { description: (err as Error).message });
+      toast.error(
+        edit
+          ? t("Gagal menyimpan perubahan keluarga", "Failed to save family changes")
+          : t("Gagal menambah keluarga", "Failed to add family member"),
+        { description: (err as Error).message },
+      );
     } finally {
       setBusy(false);
     }
@@ -417,7 +449,7 @@ export function FamilyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t("Tambah Anggota Keluarga", "Add Family Member")}</DialogTitle>
+          <DialogTitle>{edit ? t("Ubah Anggota Keluarga", "Edit Family Member") : t("Tambah Anggota Keluarga", "Add Family Member")}</DialogTitle>
           <DialogDescription>{t("Data keluarga {name} — untuk keperluan BPJS & tunjangan.", "Family data of {name} — for BPJS & allowance purposes.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
@@ -458,30 +490,40 @@ export function FamilyDialog({
             </div>
             <Switch id="f-dep" checked={form.isDependent} onCheckedChange={(v) => setForm((f) => ({ ...f, isDependent: v }))} />
           </div>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Keluarga", "Add Family")} />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={edit ? t("Simpan Perubahan", "Save Changes") : t("Tambah Keluarga", "Add Family")} />
         </form>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ============ 4. TAMBAH PENDIDIKAN ============
+// ============ 4. TAMBAH / UBAH PENDIDIKAN ============
+// Task 82-c: prop `edit` — mode ubah (prefill + PATCH; lihat FamilyDialog).
 export function EducationDialog({
-  open, onOpenChange, employeeId, employeeName, onDone,
+  open, onOpenChange, employeeId, employeeName, onDone, edit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   employeeId: string;
   employeeName: string;
   onDone: () => void;
+  edit?: EducationRow | null;
 }) {
   const [form, setForm] = useState({ level: "S1", institution: "", major: "", startYear: "", endYear: "", gpa: "" });
   const [busy, setBusy] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
-    if (open) setForm({ level: "S1", institution: "", major: "", startYear: "", endYear: "", gpa: "" });
-  }, [open]);
+    if (!open) return;
+    setForm(edit
+      ? {
+          level: edit.level, institution: edit.institution, major: edit.major ?? "",
+          startYear: edit.startYear != null ? String(edit.startYear) : "",
+          endYear: edit.endYear != null ? String(edit.endYear) : "",
+          gpa: edit.gpa != null ? String(edit.gpa) : "",
+        }
+      : { level: "S1", institution: "", major: "", startYear: "", endYear: "", gpa: "" });
+  }, [open, edit]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,20 +534,31 @@ export function EducationDialog({
     }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/education", "POST", {
-        employeeId,
+      const payload = {
         level: form.level,
         institution: form.institution.trim(),
         major: form.major.trim() || null,
         startYear: form.startYear ? Number(form.startYear) : null,
         endYear: form.endYear ? Number(form.endYear) : null,
         gpa: form.gpa === "" ? null : Number(form.gpa),
-      });
-      toast.success(t("Riwayat pendidikan ditambahkan", "Education record added"), { description: t("{lvl} — {inst} ({name}).", "{lvl} — {inst} ({name}).", { lvl: form.level, inst: form.institution.trim(), name: employeeName }) });
+      };
+      if (edit) await apiSend("/api/onevity/education", "PATCH", { id: edit.id, ...payload });
+      else await apiSend("/api/onevity/education", "POST", { employeeId, ...payload });
+      toast.success(
+        edit
+          ? t("Riwayat pendidikan diperbarui", "Education record updated")
+          : t("Riwayat pendidikan ditambahkan", "Education record added"),
+        { description: t("{lvl} — {inst} ({name}).", "{lvl} — {inst} ({name}).", { lvl: form.level, inst: form.institution.trim(), name: employeeName }) },
+      );
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error(t("Gagal menambah pendidikan", "Failed to add education"), { description: (err as Error).message });
+      toast.error(
+        edit
+          ? t("Gagal menyimpan perubahan pendidikan", "Failed to save education changes")
+          : t("Gagal menambah pendidikan", "Failed to add education"),
+        { description: (err as Error).message },
+      );
     } finally {
       setBusy(false);
     }
@@ -515,7 +568,7 @@ export function EducationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t("Tambah Riwayat Pendidikan", "Add Education Record")}</DialogTitle>
+          <DialogTitle>{edit ? t("Ubah Riwayat Pendidikan", "Edit Education Record") : t("Tambah Riwayat Pendidikan", "Add Education Record")}</DialogTitle>
           <DialogDescription>{t("Jenjang pendidikan formal {name}.", "Formal education of {name}.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
@@ -542,49 +595,69 @@ export function EducationDialog({
           <Field label={t("IPK / GPA (0–4)", "GPA (0–4)")} htmlFor="ed-gpa">
             <Input id="ed-gpa" type="number" min={0} max={4} step={0.01} value={form.gpa} onChange={(e) => setForm((f) => ({ ...f, gpa: e.target.value }))} placeholder="3.45" />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Pendidikan", "Add Education")} />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={edit ? t("Simpan Perubahan", "Save Changes") : t("Tambah Pendidikan", "Add Education")} />
         </form>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ============ 5. TAMBAH PENGALAMAN ============
+// ============ 5. TAMBAH / UBAH PENGALAMAN ============
+// Task 82-c: prop `edit` — mode ubah (prefill + PATCH; lihat FamilyDialog).
 export function ExperienceDialog({
-  open, onOpenChange, employeeId, employeeName, onDone,
+  open, onOpenChange, employeeId, employeeName, onDone, edit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   employeeId: string;
   employeeName: string;
   onDone: () => void;
+  edit?: ExperienceRow | null;
 }) {
   const [form, setForm] = useState({ company: "", position: "", startDate: "", endDate: "", notes: "" });
   const [busy, setBusy] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
-    if (open) setForm({ company: "", position: "", startDate: "", endDate: "", notes: "" });
-  }, [open]);
+    if (!open) return;
+    setForm(edit
+      ? {
+          company: edit.company, position: edit.position,
+          startDate: isoDate(edit.startDate), endDate: isoDate(edit.endDate),
+          notes: edit.notes ?? "",
+        }
+      : { company: "", position: "", startDate: "", endDate: "", notes: "" });
+  }, [open, edit]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.company.trim() || !form.position.trim()) { toast.error(t("Perusahaan dan posisi wajib diisi", "Company and position are required")); return; }
     setBusy(true);
     try {
-      await apiSend("/api/onevity/experiences", "POST", {
-        employeeId,
+      const payload = {
         company: form.company.trim(),
         position: form.position.trim(),
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         notes: form.notes.trim() || null,
-      });
-      toast.success(t("Pengalaman kerja ditambahkan", "Work experience added"), { description: t("{pos} @ {co} ({name}).", "{pos} @ {co} ({name}).", { pos: form.position.trim(), co: form.company.trim(), name: employeeName }) });
+      };
+      if (edit) await apiSend("/api/onevity/experiences", "PATCH", { id: edit.id, ...payload });
+      else await apiSend("/api/onevity/experiences", "POST", { employeeId, ...payload });
+      toast.success(
+        edit
+          ? t("Pengalaman kerja diperbarui", "Work experience updated")
+          : t("Pengalaman kerja ditambahkan", "Work experience added"),
+        { description: t("{pos} @ {co} ({name}).", "{pos} @ {co} ({name}).", { pos: form.position.trim(), co: form.company.trim(), name: employeeName }) },
+      );
       onOpenChange(false);
       onDone();
     } catch (err) {
-      toast.error(t("Gagal menambah pengalaman", "Failed to add experience"), { description: (err as Error).message });
+      toast.error(
+        edit
+          ? t("Gagal menyimpan perubahan pengalaman", "Failed to save experience changes")
+          : t("Gagal menambah pengalaman", "Failed to add experience"),
+        { description: (err as Error).message },
+      );
     } finally {
       setBusy(false);
     }
@@ -594,7 +667,7 @@ export function ExperienceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t("Tambah Pengalaman Kerja", "Add Work Experience")}</DialogTitle>
+          <DialogTitle>{edit ? t("Ubah Pengalaman Kerja", "Edit Work Experience") : t("Tambah Pengalaman Kerja", "Add Work Experience")}</DialogTitle>
           <DialogDescription>{t("Riwayat pekerjaan {name} sebelum bergabung.", "Work history of {name} before joining.", { name: employeeName })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4 py-1 sm:grid-cols-2">
@@ -613,7 +686,7 @@ export function ExperienceDialog({
           <Field label={t("Catatan")} htmlFor="x-notes" className="sm:col-span-2">
             <Textarea id="x-notes" rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("Riwayat pencapaian / alasan keluar…", "Achievements / reason for leaving…")} />
           </Field>
-          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={t("Tambah Pengalaman", "Add Experience")} />
+          <DialogFooterBar busy={busy} onCancel={() => onOpenChange(false)} label={edit ? t("Simpan Perubahan", "Save Changes") : t("Tambah Pengalaman", "Add Experience")} />
         </form>
       </DialogContent>
     </Dialog>

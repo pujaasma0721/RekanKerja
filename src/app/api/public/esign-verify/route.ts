@@ -2,20 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySignature } from "@/onevity/shared/services/esign-service";
 import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
 import { db as platformDb } from "@/lib/db";
+import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
 
 // ============ E-SIGN VERIFIKASI PUBLIK (Task 80) ============================
 // GET /api/public/esign-verify?id=…[&t=slug]
 // Halaman /v/[id] memanggil ini tanpa login. Hanya MEMBUKTIKAN keabsahan
 // tanda tangan + metadata penandatangan — TIDAK membuka isi dokumen.
 // Tenant di-resolve dari ?t=slug, fallback subdomain host (Task 78).
+// Task 82-T14: rate limit per IP — jalur fallback scan semua tenant membuat
+// endpoint ini relatif mahal (query per schema); tanpa limit ia bisa dipakai
+// utk hammering/enumeration. 30 req/menit/IP cukup utk verifikasi wajar.
 // ============================================================================
 
 export const runtime = "nodejs";
+
+const VERIFY_IP_LIMIT = 30;
+const VERIFY_IP_WINDOW_MS = 60 * 1000;
 
 export async function GET(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = hitRateLimit(`esign-verify:ip:${ip}`, VERIFY_IP_LIMIT, VERIFY_IP_WINDOW_MS);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak permintaan verifikasi. Coba lagi nanti." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      );
+    }
 
     // tenant: ?t=slug → subdomain → tidak ditemukan lewat SignatureRecord saja
     let tenant = null as { slug: string; schemaName: string } | null;

@@ -263,8 +263,14 @@ export async function POST(req: Request) {
     }
 
     // kode berurutan tenant: TSK-0001
-    const count = await db.shiftSwapRequest.count();
-    const code = `TSK-${String(count + 1).padStart(4, "0")}`;
+    // Task 82-b: max-suffix — aman race (count+1 bisa bentrok saat 2 submit paralel)
+    const tskRows = await db.shiftSwapRequest.findMany({ where: { code: { startsWith: "TSK-" } }, select: { code: true } });
+    let tskMax = 0;
+    for (const r of tskRows) {
+      const n = parseInt(r.code.slice("TSK-".length), 10);
+      if (Number.isFinite(n) && n > tskMax) tskMax = n;
+    }
+    const code = `TSK-${String(tskMax + 1).padStart(4, "0")}`;
 
     const created = await db.shiftSwapRequest.create({
       data: {

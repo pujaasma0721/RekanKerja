@@ -31,6 +31,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ESS_BASE, markNotifRead, useEssMe } from "./ess-api";
+import { StatusPill } from "@/onevity/shared/components/ui-kit";
 import type { EssMe, EssNotificationsData, EssView } from "./ess-types";
 import { EssDashboard } from "./ess-dashboard";
 import { EssProfile } from "./ess-profile";
@@ -40,13 +41,13 @@ import { EssPayslips } from "./ess-payslips";
 import { EssClaims } from "./ess-claims";
 import { EssRequests } from "./ess-requests";
 import { EssLetters } from "./ess-letters";
-// wave 27 stub — diisi Task 27-f (pengumuman), 27-g (tukar shift), 27-b (aset saya)
+// Task 27-f/g/b — pengumuman, tukar shift, aset saya (semuanya sudah terimplementasi)
 import { EssAnnouncements } from "./ess-announcements";
 import { EssSwap } from "./ess-swap";
 import { EssAssets } from "./ess-assets";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
-import { WhistleblowForm } from "@/onevity/whistleblow/components/whistleblow-form";
-import { Siren } from "lucide-react";
+import { WhistleblowForm, WB_CATEGORIES } from "@/onevity/whistleblow/components/whistleblow-form";
+import { Siren, Ticket } from "lucide-react";
 
 // ============ NAVIGASI ESS ============
 interface EssNavItem { id: EssView; label: string; en: string; short: string; shortEn: string; icon: React.ElementType }
@@ -60,7 +61,7 @@ const ESS_NAV: EssNavItem[] = [
   { id: "requests", label: "Pengajuan", en: "Requests", short: "Ajukan", shortEn: "Requests", icon: ClipboardList },
   // 26-a — permintaan surat layanan (dua arah dgn HR Template Surat → Permintaan Masuk)
   { id: "letters", label: "Surat", en: "Letters", short: "Surat", shortEn: "Letters", icon: FileText },
-  // wave 27 — pengumuman / tukar shift / aset saya (stub → Task 27-f/27-g/27-b)
+  // Task 27-f/g/b — pengumuman / tukar shift / aset saya
   { id: "announcements", label: "Pengumuman", en: "Announcements", short: "Pengumuman", shortEn: "News", icon: Megaphone },
   { id: "swap", label: "Tukar Shift", en: "Shift Swap", short: "Tukar Shift", shortEn: "Swap", icon: ArrowLeftRight },
   { id: "assets", label: "Aset Saya", en: "My Assets", short: "Aset", shortEn: "Assets", icon: Package },
@@ -215,6 +216,65 @@ function EssNotificationBell() {
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// ============ Task 82-c: LAPORAN SAYA (whistleblow non-anonim) ============
+// Daftar laporan yang dikirim dgn identitas (reporterEmployeeId = aktor ESS).
+// Laporan ANONIM sengaja tidak bisa dilacak siapa pun (by design) — nomor
+// tiket satu-satunya penjejak; catatan ini selalu ditampilkan di bawah.
+function WhistleblowMyReports() {
+  const { t } = useI18n();
+  const api = useApi<{ reports: { ticketNo: string; category: string; status: string; createdAt: string }[] }>(
+    "/api/onevity/whistleblowing/report",
+  );
+  const catLabel = (value: string) => {
+    const c = WB_CATEGORIES.find((x) => x.value === value);
+    return t(c?.id ?? value, c?.en ?? value);
+  };
+  return (
+    <section className="mt-4 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-stone-900 dark:text-stone-50">
+        <Ticket className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+        {t("Laporan Saya", "My Reports")}
+      </h2>
+      <p className="mt-1 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+        {t(
+          "Hanya laporan yang Anda kirim dengan identitas (non-anonim) yang tampil di sini beserta status penanganannya.",
+          "Only reports you submitted with your identity (non-anonymous) are listed here with their handling status.",
+        )}
+      </p>
+      {api.loading && !api.data ? (
+        <div className="mt-3 space-y-2">
+          <div className="h-9 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
+          <div className="h-9 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
+        </div>
+      ) : api.error ? (
+        <p className="mt-3 text-[11px] text-stone-400">{api.error}</p>
+      ) : (api.data?.reports ?? []).length === 0 ? (
+        <p className="mt-3 rounded-lg bg-stone-50 px-3 py-2.5 text-[11px] text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+          {t("Belum ada laporan teridentifikasi milik Anda.", "You have no identified reports yet.")}
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-stone-100 dark:divide-stone-800/70">
+          {(api.data?.reports ?? []).map((r) => (
+            <li key={r.ticketNo} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+              <span className="font-mono text-[11px] font-bold text-amber-700 dark:text-amber-400">{r.ticketNo}</span>
+              <span className="text-[12px] font-medium text-stone-700 dark:text-stone-200">{catLabel(r.category)}</span>
+              <span className="ml-auto text-[10px] text-stone-400">{fmtDateTime(r.createdAt)}</span>
+              <StatusPill status={r.status} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 flex items-start gap-1.5 text-[10px] leading-relaxed text-stone-400">
+        <Siren className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+        {t(
+          "Laporan anonim tidak bisa dilacak di sini (by design) — simpan nomor tiket Anda.",
+          "Anonymous reports cannot be tracked here (by design) — keep your ticket number.",
+        )}
+      </p>
+    </section>
   );
 }
 
@@ -468,7 +528,7 @@ export function EssShell() {
             {view === "claims" && <EssClaims />}
             {view === "requests" && <EssRequests intent={intent} />}
             {view === "letters" && <EssLetters />}
-            {/* wave 27 stub — pengumuman / tukar shift / aset saya */}
+            {/* Task 27-f/g/b — pengumuman / tukar shift / aset saya */}
             {view === "announcements" && <EssAnnouncements />}
             {view === "swap" && <EssSwap />}
             {view === "assets" && <EssAssets />}
@@ -491,6 +551,8 @@ export function EssShell() {
                 <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
                   <WhistleblowForm compact />
                 </div>
+                {/* Task 82-c: daftar "Laporan Saya" (non-anonim) + catatan tiket */}
+                <WhistleblowMyReports />
               </div>
             )}
           </motion.div>

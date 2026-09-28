@@ -171,6 +171,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
+        // Task 82-b: `warnings` (validasi lembut klaim dependent, audit T10)
+        // ikut via spread — ADDITIVE, field lain tidak berubah.
         ...res,
         receiptNote:
           "Kwitansi asli/tagihan tetap diserahkan ke HR untuk verifikasi sebelum klaim disetujui.",

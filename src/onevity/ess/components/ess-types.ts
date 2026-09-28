@@ -326,6 +326,9 @@ export interface EssMedicalClaimSubmitResult {
   approvalLevels: number;
   firstApprover: string | null;
   receiptNote: string;
+  /** Task 82-b (audit T10): warning validasi lembut klaim dependent — opsional
+   *  (server selalu mengirim array, bisa kosong). */
+  warnings?: string[];
 }
 
 // ============ 9c. GET/POST /ess/claims/travel (pengajuan klaim travel) ============

@@ -3,8 +3,9 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db"
 import { requireMenuAction } from "@/onevity/shared/services/menu-access";
 import { ptkpPendingForEmployee } from "@/onevity/payroll/services/ptkp-auto";
 
-// GET ?employeeId= | POST | DELETE ?id=
+// GET ?employeeId= | POST | PATCH | DELETE ?id=
 // Task 32-d: mutasi dijaga hak AKSI menu hr:directory (per pengguna).
+// Task 82-c: PATCH — ubah baris keluarga tanpa hapus+tambah (jejak utuh).
 // Task 49: PTKP karyawan bersumber "auto" mengikuti data keluarga.
 // Task 50: mutasi keluarga TIDAK lagi menulis PTKP efektif — PTKP payroll
 // = snapshot hasil refresh tahunan; perubahan keluarga (tambah/hapus
@@ -44,6 +45,45 @@ export async function POST(req: NextRequest) {
     // (berlaku 1 Januari tahun depan; PTKP efektif tahun ini tidak berubah).
     const ptkpPending = await ptkpPendingForEmployee(db, b.employeeId);
     return NextResponse.json({ family: fam, ptkpPending }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    // Task 82-c: guard aksi update (cermin POST/DELETE di file ini).
+    const m = await requireMenuAction(req, "hr:directory", "update");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
+
+    const b = await req.json();
+    if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    // validasi CERMIN POST: nama & hubungan wajib (bila dikirim, tak boleh kosong).
+    const relation = b.relation !== undefined ? String(b.relation) : undefined;
+    const name = b.name !== undefined ? String(b.name).trim() : undefined;
+    if (relation === "" || name === "") return NextResponse.json({ error: "Nama & hubungan wajib diisi" }, { status: 400 });
+    // record milik employee yang valid — 404 bila tidak ada.
+    const existing = await db.employeeFamily.findUnique({
+      where: { id: String(b.id) },
+      select: { id: true, employeeId: true },
+    });
+    if (!existing) return NextResponse.json({ error: "Data keluarga tidak ditemukan" }, { status: 404 });
+
+    const fam = await db.employeeFamily.update({
+      where: { id: existing.id },
+      data: {
+        ...(relation !== undefined ? { relation } : {}),
+        ...(name !== undefined ? { name } : {}),
+        ...(b.gender !== undefined ? { gender: b.gender ?? "M" } : {}),
+        ...(b.birthDate !== undefined ? { birthDate: b.birthDate ? new Date(b.birthDate) : null } : {}),
+        ...(b.occupation !== undefined ? { occupation: b.occupation ?? null } : {}),
+        ...(b.isDependent !== undefined ? { isDependent: b.isDependent ?? true } : {}),
+      },
+    });
+    // Task 50: saran PTKP tertunda mengikuti data keluarga TERBARU (tanpa tulis).
+    const ptkpPending = await ptkpPendingForEmployee(db, existing.employeeId);
+    return NextResponse.json({ family: fam, ptkpPending });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

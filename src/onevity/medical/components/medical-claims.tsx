@@ -172,7 +172,7 @@ export function MedicalClaimsPage() {
     try {
       // 1) unggah file dulu (draf) → 2) submit klaim dgn attachmentIds
       const attachmentIds = await uploadDraftFiles();
-      const res = await apiSend<{ docNo: string; totalApproved: number; remainingAfter: number; attachmentCount?: number }>("/api/onevity/medical/claims", "POST", {
+      const res = await apiSend<{ docNo: string; totalApproved: number; remainingAfter: number; attachmentCount?: number; warnings?: string[] }>("/api/onevity/medical/claims", "POST", {
         employeeId, typeId, claimDate, letterNo: letterNo || undefined,
         forDependent, note: note || undefined, submit: true,
         attachmentIds,
@@ -187,6 +187,12 @@ export function MedicalClaimsPage() {
         })),
       });
       toast.success(t("Klaim {d} diajukan — approved {a} · sisa saldo {r}{att}", "Claim {d} submitted — approved {a} · remaining balance {r}{att}", { d: res.docNo, a: fmtIDR(res.totalApproved), r: fmtIDR(res.remainingAfter), att: (res.attachmentCount ?? 0) > 0 ? t(" · {n} lampiran", " · {n} attachments", { n: res.attachmentCount ?? 0 }) : "" }));
+      // Task 82-b (audit T10): warning validasi lembut klaim dependent — toast
+      // AMBER non-blocking setelah submit sukses (nama tak cocok data keluarga /
+      // jumlah dependent melebihi batas jenis benefit).
+      for (const w of res.warnings ?? []) {
+        toast.warning(w, { duration: 7000 });
+      }
       setDialog(false);
       api.refresh();
       detailApi.refresh();

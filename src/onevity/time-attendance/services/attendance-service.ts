@@ -1171,8 +1171,14 @@ export async function recordClockLog(
 export async function nextOrderNo(db: TenantDb): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `OT-${year}-`;
-  const count = await db.overtimeOrder.count({ where: { orderNo: { startsWith: prefix } } });
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+  // Task 82-b: max-suffix — aman race (count+1 bisa bentrok saat 2 submit paralel)
+  const rows = await db.overtimeOrder.findMany({ where: { orderNo: { startsWith: prefix } }, select: { orderNo: true } });
+  let max = 0;
+  for (const r of rows) {
+    const n = parseInt(r.orderNo.slice(prefix.length), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 const OT_INCLUDE = {
@@ -1936,8 +1942,14 @@ async function refundWorkoffLeave(
 export async function nextWorkoffNo(db: TenantDb): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `WO-${year}-`;
-  const count = await db.workOffPermission.count({ where: { docNo: { startsWith: prefix } } });
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+  // Task 82-b: max-suffix — aman race (count+1 bisa bentrok saat 2 submit paralel)
+  const rows = await db.workOffPermission.findMany({ where: { docNo: { startsWith: prefix } }, select: { docNo: true } });
+  let max = 0;
+  for (const r of rows) {
+    const n = parseInt(r.docNo.slice(prefix.length), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 const WO_INCLUDE = {

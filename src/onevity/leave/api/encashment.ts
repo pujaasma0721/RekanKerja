@@ -30,10 +30,13 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — ajukan encashment (saldo → uang)
+// Task 82-T4: guard hak aksi menu (dulu hanya requireTenant — VIEWER/akun
+// tanpa hak bisa memicu pengajuan). Admin HR mengajukan atas nama karyawan.
 export async function POST(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuAction(req, "leave:leave-encashment", "create");
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const b = await req.json();
     if (!b.employeeId || !b.leaveTypeId || !b.year || !b.days) {
       return NextResponse.json({ error: "employeeId, leaveTypeId, year & days wajib" }, { status: 400 });

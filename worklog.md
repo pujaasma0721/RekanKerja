@@ -2518,3 +2518,91 @@ Work Log:
 Stage Summary:
 - Laporan audit lengkap diserahkan ke user di kanal IM (struktur: ringkasan eksekutif+skor, 10 SOP proses inti, matriks fitur per modul, compliance matrix ID, risk register T1-T15+rendah, rekomendasi P1-P3).
 - Kesimpulan umum: kematangan SANGAT TINGGI untuk SaaS HRIS mid-market (skor fungsi 4,5 / workflow 4,5 / SOP 4,0 / compliance 4,5 / keamanan 4,0 / kelengkapan enterprise 3,5). Tidak ada perubahan kode (permintaan audit murni). Kandidat tindak lanjut cepat = P1 (4 fix guard/rate-limit kecil).
+
+---
+Task ID: 82-b
+Agent: Z.ai (subagent general-purpose, batch B)
+Task: Eksekusi sebagian perbaikan audit Task 82 — penomoran max-suffix (anti race), label informatif nonNpwpSurcharge & cost-share medis, validasi lembut klaim dependent (warning non-blocking T10).
+
+Work Log:
+- attendance-service.ts: nextOrderNo (OT-YYYY-NNN) & nextWorkoffNo (WO-YYYY-NNN) count+1 → max-suffix (findMany startsWith prefix → parse suffix → max+1, pola nextDocNo leave-service) — aman race 2 submit paralel + baris terhapus.
+- ess/api/swap.ts: kode TSK-NNNN count() → max-suffix atas field code startsWith "TSK-" (padStart 4).
+- payroll/components/payroll-parameters.tsx: label "Penalti Non-NPWP (informatif)" + helper text kecil di bawah grid PPh21 ("Penalti aktual non-NPWP mengikuti bracket Pasal 17 (kolom rate non-NPWP)") — field dorman, engine tak berubah.
+- medical/components/medical-benefit-type.tsx: helper text amber di bawah field Company/Asuransi (%) — "Saat ini informatif — settlement & jurnal memakai 100% beban perusahaan" (audit T9); service/jurnal tak berubah.
+- medical/services/medical-service.ts submitClaim: + validasi LEMBUT klaim dependent (audit T10) non-blocking → warnings: string[] di SubmitClaimResult (default kosong, additive/backward-compatible):
+  (a) treatedName vs EmployeeFamily.name karyawan (case-insensitive, cocok bila equality/salah satu mengandung lain) → warning "Nama yang dirawat 'X' tidak ditemukan pada data keluarga karyawan — mohon verifikasi";
+  (b) jumlah treatedName BERBEDA (case-insensitive distinct) pada klaim dependent karyawan tahun sama (state aktif) + klaim ini > maxDependents jenis → warning "Jumlah anggota keluarga berbeda yang diklaim tahun ini (N) melebihi batas dependent (M)".
+- medical/api/claims.ts POST & ess/api/claims-medical.ts POST: warnings ikut respons JSON via spread (ADDITIVE; field lain utuh — app mobile Flutter aman).
+- ess-types.ts EssMedicalClaimSubmitResult: + warnings?: string[]; UI: medical-claims.tsx (admin) & ess-claims.tsx (ESS web) menampilkan warnings sebagai toast AMBER (sonner toast.warning, duration 7 dtk) setelah toast sukses submit.
+- Verifikasi: bunx tsc --noEmit → 0 error path aktif (semua error tersisa = dead-code src/lib/onevity/*, pre-existing); bun run lint → 0 error (2 warning pre-existing di scripts/e2e-browser-subdomain.mjs); dev.log bersih — smoke POST /api/onevity/medical/claims, /ess/swap, /ess/claims/medical ter-compile on-demand 401 (guard sesi) tanpa error runtime.
+
+Stage Summary:
+- 3 generator nomor dokumen (OT-, WO-, TSK-) kini max-suffix → tidak lagi bisa bentrok nomor sama saat submit paralel.
+- Field dorman nonNpwpSurcharge & pctCompany/pctInsurance kini berlabel informatif jelas di UI (engine/schema/jurnal TIDAK disentuh).
+- Klaim dependent medis kini memunculkan warning verifikasi (nama vs data keluarga + batas maxDependents) di admin & ESS web — non-blocking, klaim tetap diajukan.
+- File diubah: attendance-service.ts, ess/api/swap.ts, payroll/components/payroll-parameters.tsx, medical/components/medical-benefit-type.tsx, medical/services/medical-service.ts, medical/api/claims.ts, ess/api/claims-medical.ts, ess/components/ess-types.ts, ess/components/ess-claims.tsx, medical/components/medical-claims.tsx.
+
+---
+Task ID: 82-c
+Agent: Z.ai (subagent Batch C — fitur pelengkap)
+Task: Eksekusi 5 rekomendasi "fitur pelengkap" dari audit Task 82 (follow-up cepat, tanpa celah keamanan baru).
+
+Work Log:
+- Export CSV laporan Travel (travel/api/reports.ts): cabang ?export=csv cermin pola T12-REPORTS leave
+  (toCsv/csvResponse/exportFilename) — satu baris per rincian biaya (docNo/karyawan/tanggal/jenis/kode/
+  keterangan/nominal/status, (b)/(c) hanya baris pertama tiap klaim agar jumlah Excel tidak dobel) + baris
+  TOTAL + ringkasan per kelompok biaya. Guard requireMenuViewAny(["travel:travel-reports"]) TIDAK diubah.
+  Money-vault dihormati via getMoneyView(db, aktor) — masked → kolom nominal dikosongkan. Tombol
+  "Export CSV" di travel-reports.tsx (filter rentang+karyawan saat ini, pola anchor activity-log-view).
+- Export CSV laporan Medical (medical/api/reports.ts): cabang ?export=csv sama; kolom docNo/karyawan/
+  jenis/provider/tanggal/total bill/approved/status/pool (Karyawan|Dependent). Provider digabung dari
+  MedicalClaimLine.hospital (query baca murni di route — service tidak disentuh); uang sudah digate
+  claimReport via MoneyView (null → kosong); TOTAL hanya menjumlah nilai terlihat. Tombol di
+  medical-reports.tsx.
+- Tombol Unduh PDF payslip ESS (ess-payslips.tsx): per baris slip, anchor /api/onevity/payslip/[lineId]
+  ?download=1 (pola payroll-run-detail); list ESS hanya run Confirmed/Paid (verifikasi ess/api/payslips.ts)
+  sehingga otorisasi self route terpenuhi; baris direstrukturisasi flex agar <a> tidak nested dalam <button>.
+- PATCH keluarga/pendidikan/pengalaman (family.ts, education.ts, experiences.ts): guard
+  requireMenuAction(req, "hr:directory", "update"); validasi cermin POST; 404 bila record tidak ada;
+  family mengembalikan ptkpPending (pola Task 50). Thin routes app/api/onevity/{family,education,
+  experiences}/route.ts kini mengekspos PATCH (awalnya 405). UI: detail-dialogs.tsx — dialog Tambah/Ubah
+  sama via prop edit (prefill baris + submit PATCH, judul "Ubah …", footer "Simpan Perubahan"); tabel
+  keluarga + kartu pendidikan/pengalaman di employee-detail.tsx dapat tombol pensil "Ubah" (guard
+  perms hr:directory update; state edit kecil dibersihkan saat dialog tutup). Tidak ada komponen baru besar.
+- Whistleblowing "Laporan Saya" (whistleblow/api/report.ts): GET baru — guard requireEss, hanya laporan
+  reporterEmployeeId = aktor (non-anonim), orderBy createdAt desc, select aman (ticket/category/status/
+  createdAt — TANPA uraian/kontak pelapor), limit 50; POST tak berubah. UI ess-shell.tsx view whistleblow:
+  section "Laporan Saya" di bawah form (tiket mono, kategori, StatusPill, tanggal), state kosong + catatan
+  "Laporan anonim tidak bisa dilacak di sini (by design) — simpan nomor tiket Anda."
+- Verifikasi: tsc filter file tersentuh = 0 error (total 216 error pre-existing dead-code src/components/
+  onevity, src/lib/onevity, prisma/dump*, scripts/migrate-to-postgres.ts, letters.ts — tidak berubah);
+  lint 0 error (2 warning pre-existing e2e-browser-subdomain.mjs); dev.log bersih (hot reload OK).
+- E2E smoke (script temp di luar repo, lalu dihapus): login HR MII → travel CSV 200 (header/BOM/TOTAL/
+  filename onevity-travel-…), medical CSV 200 (provider & pool terisi), PATCH family/education/experiences
+  idempoten 200 + 404 id tak dikenal + 400 tanpa id; login ESS yusuf → whistleblow GET {reports[]} field
+  aman, POST non-anonim muncul di daftar / POST anonim TIDAK muncul; payslip PDF self 200 (%PDF valid,
+  attachment). Data uji whistleblow (WB-2026-001/002) + notifikasinya dibersihkan.
+
+Stage Summary:
+- 5 fitur pelengkap terpasang: export CSV Travel & Medical (vault-aware), unduh PDF payslip ESS,
+  edit (PATCH) keluarga/pendidikan/pengalaman tanpa hapus+tambah, dan pelacakan "Laporan Saya"
+  whistleblowing non-anonim di ESS. Semua guard sesuai pola (requireMenuViewAny dipertahankan,
+  requireMenuAction update, requireEss self-scope); verifikasi tsc/lint/dev.log + E2E smoke lulus.
+
+---
+Task ID: 82-final
+Agent: Z.ai (orkestrator utama) + subagent 82-b & 82-c
+Task: "perbaiki semua" — eksekusi perbaikan seluruh temuan audit Task 82 yang dapat ditindaklanjuti.
+
+Work Log:
+- BATCH A (keamanan, oleh orkestrator): T1 guard onboarding key mismatch hr:onboarding→hr:onboarding-checklist (onboarding.ts, onboarding-detail.ts, checklist-recipients.ts ×2 lokus); T11 checklist-recipients PUT guard settings:user-access→hr:onboarding-checklist update; T2 login IP rate-limit — helper baru peekRateLimit() di rate-limit.ts + /api/auth/login menghitung HANYA percobaan gagal (30/15mnt/IP, 429+Retry-After; sukses tidak dihitung — aman NAT kantor); T3 limiter PIN eSign — verifyChallenge jalur PIN 5 salah/15mnt per (schema,appUser), in-memory selaras pola M-3; T4 leave/balances POST+PATCH → guard leave:leave-info create/update, leave/encashment POST → leave:leave-encashment create; T5 guard GET 12 endpoint: personnel-actions (ViewAny hr:all|hr:inbox — inbox mine=1 tetap jalan), org-map (hr:chart), disciplinary (ViewAny hr:directory|hr:disciplinary), travel templates/overview/reports/budget, medical types/providers/overview/reports/adjustments (ViewAny per peta konsumen UI — form request/klaim yang memakai master tetap lolos); T14 rate limit /api/public/esign-verify 30 req/mnt/IP.
+- Komentar "stub" usang dibersihkan (ess-shell ×3, settings-module ×2, attendance-module ×2).
+- BATCH B (subagent 82-b): penomoran max-suffix anti-race: nextOrderNo OT-YYYY-NNN, nextWorkoffNo WO-YYYY-NNN (attendance-service), TSK-NNNN (ess/api/swap) — pola cermin nextDocNo leave; label informatif nonNpwpSurcharge (payroll-parameters) + cost-share medis (medical-benefit-type, audit T9); validasi LEMBUT klaim dependent (audit T10): submitClaim + warnings[] (nama dirawat vs EmployeeFamily, distinct dependent tahunan vs maxDependents) — respons additive di medical/api/claims + ess/api/claims-medical (kontrak mobile aman) + toast amber di medical-claims + ess-claims.
+- BATCH C (subagent 82-c): export CSV laporan travel (per rincian biaya + TOTAL, vault-masked→kosong) + medical (+kolom provider dari MedicalClaimLine.hospital) dengan tombol Export CSV; tombol Unduh PDF payslip ESS per baris (route payslip/[lineId] otorisasi self sudah ada); PATCH family/education/experiences (guard hr:directory update, validasi cermin POST, family balas ptkpPending) + mode Ubah di dialog detail karyawan + thin routes PATCH; whistleblowing GET "Laporan Saya" (requireEss, hanya non-anonim milik sendiri, field aman) + section di ESS dengan catatan anonim by-design.
+- FIX TAMBAHAN: letters.ts (bawaan commit paralel 95f8bca — tsc error aktif: Promise.resolve([]) tanpa tipe) → eksplisit type signature; terverifikasi PRE-EXISTING via git stash (bukan akibat batch ini) — kode aktif kini 100% type-clean.
+- VERIFIKASI E2E (agent-browser): Checklist Onboarding + dialog Email Penerima termuat (T1/T11); Export CSV travel & medical via fetch sesi → CSV benar (header `;`-separated, data nyata CL-2026-003/MC-2026-008); login yusuf ESS → Slip Gaji tombol "Unduh PDF slip AGUSTUS 2026" → 200 application/pdf; Whistleblow ESS kirim non-anonim → WB-2026-001 tampil di "Laporan Saya" (status Baru) → data uji dibersihkan; curl esign-verify 32× → 30×404 lalu 429 (rate limit hidup); login/leave/medical endpoint 401-422 sesuai guard tanpa sesi; dev.log 0 error; tsc kode aktif 0 error; lint 0 error (2 warning pre-existing e2e-browser-subdomain.mjs).
+
+Stage Summary:
+- 17 temuan audit ditindaklanjuti (T1-T5, T9, T10, T11, T14 + penomoran + komentar usang + letters.ts tsc + 4 fitur pelengkap: export travel/medical, PDF payslip ESS, PATCH keluarga/pendidikan/pengalaman, Laporan Saya whistleblowing).
+- Yang DITUNDA (butuh proyek/desain tersendiri, dicatat sebagai backlog): T6/T13 rate-limit&vault ke Redis multi-instance, T7 ActivityLog immutable/WORM, T8 backup/DR terjadwal, T12 idle timeout server-side, T15 pemisahan kunci TOTP, NIK EmployeeFamily+ANGKEL BPJS, zakat/natura e-SPT, rapel lintas tahun, SSO/FCM/billing, konektor mesin realtime, selfie/kiosk, queue slip, ESS travel-request submit, persetujuan target tukar shift, import manager/office/location.
+- 48 file berubah (+919/−141), semua terverifikasi compile+lint+runtime+E2E; siap commit+push.

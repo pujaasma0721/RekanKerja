@@ -8,7 +8,10 @@ import {
   ESIGN_ALG, GENESIS_HASH, chainHash, computeDocHash, generateChallengeCode,
   generateKeyPair, signHash, verifyHash,
 } from "@/onevity/shared/lib/esign-crypto";
-import { tenantCryptoForDb, TENANT_SCHEMA_BRAND } from "@/onevity/shared/lib/field-crypto";
+import {
+  tenantCryptoForDb, TENANT_SCHEMA_BRAND,
+} from "@/onevity/shared/lib/field-crypto";
+import { hitRateLimit, peekRateLimit } from "@/onevity/shared/lib/rate-limit";
 
 // ============ E-SIGN SERVICE (Task 80) ======================================
 // Alur: challenge (PIN personal / OTP email) → sign (RSA-PSS over docHash)
@@ -141,10 +144,27 @@ function maskEmail(e: string): string {
 }
 
 /** Verifikasi kode (PIN dulu, lalu OTP satu-pakai dengan batas percobaan). */
+// Task 82-T3: jalur PIN kini ber-limiter percobaan (dulu hanya tertahan biaya
+// scrypt — OTP dibatasi 3× tapi PIN tidak). 5 salah / 15 mnt per (tenant, user);
+// in-memory per instance (M-3) — selaras limiter MFA/registrasi.
+const PIN_FAIL_LIMIT = 5;
+const PIN_FAIL_WINDOW_MS = 15 * 60 * 1000;
+
+function pinFailKey(db: TenantDb, appUserId: string): string {
+  const schema = (db as unknown as Record<string, unknown>)[TENANT_SCHEMA_BRAND];
+  return `esign:pin-fail:${typeof schema === "string" ? schema : "?"}:${appUserId}`;
+}
+
 async function verifyChallenge(db: TenantDb, appUserId: string, docType: string, docId: string, code: string): Promise<boolean> {
   if (!/^\d{6}$/.test(code)) return false;
   const key = await db.signatureKey.findUnique({ where: { appUserId }, select: { pinHash: true } });
-  if (key?.pinHash && verifyPassword(code, key.pinHash)) return true;
+  if (key?.pinHash) {
+    const failKey = pinFailKey(db, appUserId);
+    if (peekRateLimit(failKey, PIN_FAIL_WINDOW_MS).count >= PIN_FAIL_LIMIT) return false; // diblok: terlalu banyak salah PIN
+    if (verifyPassword(code, key.pinHash)) return true;
+    hitRateLimit(failKey, PIN_FAIL_LIMIT, PIN_FAIL_WINDOW_MS); // catat kegagalan
+    return false;
+  }
 
   const row = await db.signatureChallenge.findFirst({
     where: { appUserId, docType, docId, usedAt: null, expiresAt: { gt: new Date() } },

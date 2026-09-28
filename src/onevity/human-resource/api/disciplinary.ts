@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 
 // GET (?employeeId= optional → all records) | POST | DELETE ?id=
 // Task 32-d: mutasi dijaga hak AKSI menu hr:directory (per pengguna).
+// Task 82-T5: GET dijaga view menu (dulu requireTenant — catatan disiplin
+// sensitif). Dipakai menu Catatan Disiplin + panel detail karyawan (hr:directory).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["hr:directory", "hr:disciplinary"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const employeeId = req.nextUrl.searchParams.get("employeeId");
     const records = await db.disciplinaryRecord.findMany({

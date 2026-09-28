@@ -74,7 +74,7 @@ export async function buildOnboardingDetail(db: TenantDb, id: string) {
 // GET /api/onevity/onboarding/[id] — detail penuh (+ meta bagian utk UI)
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "view");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { id } = await ctx.params;
     const detail = await buildOnboardingDetail(m.db, id);
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 // PATCH /api/onevity/onboarding/[id] — aksi: task | addTask | removeTask | complete | cancel | update | resendEmail
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "update");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "update");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
     const actorLabel = actor.appUsername ?? actor.name;
@@ -269,7 +269,7 @@ function isCoordinatorOf(actor: { role: string; appUserRole: string | null }): b
 // DELETE /api/onevity/onboarding/[id] — hanya status Cancelled
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "delete");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "delete");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
 

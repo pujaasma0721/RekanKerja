@@ -723,6 +723,10 @@ export interface SubmitClaimResult {
   remainingAfter: number;
   approvalLevels: number;
   firstApprover: string | null;
+  /** Task 82-b (audit T10): validasi LEMBUT klaim dependent — WARNING
+   *  non-blocking (nama tidak cocok data keluarga / jumlah dependent
+   *  melebihi batas). Default array kosong — kontrak lama tetap utuh. */
+  warnings: string[];
 }
 
 /** Identitas aktor sesi utk jejak audit (fix audit 40 M-05) — opsional supaya
@@ -862,6 +866,61 @@ export async function submitClaim(
     );
   }
 
+  // ---- Task 82-b (audit T10): validasi LEMBUT klaim dependent — WARNING
+  // non-blocking (tidak menolak pengajuan; hanya dikonsumsi UI/approver):
+  // (a) nama yang dirawat tidak ditemukan pada data keluarga karyawan
+  //     (EmployeeFamily — registry ANGKEL HR); (b) jumlah nama BERBEDA yang
+  //     diklaim tahun ini melebihi maxDependents jenis benefit. ----
+  const warnings: string[] = [];
+  if (input.forDependent) {
+    const family = await db.employeeFamily.findMany({
+      where: { employeeId: input.employeeId },
+      select: { name: true },
+    });
+    if (family.length > 0) {
+      // case-insensitive; cocok bila equality ATAU salah satu mengandung lain
+      const famNames = family
+        .map((f) => f.name.trim().toLowerCase())
+        .filter((n) => n.length > 0);
+      const nameKnown = (n: string) => {
+        const x = n.trim().toLowerCase();
+        return famNames.some((f) => f === x || f.includes(x) || x.includes(f));
+      };
+      for (const l of lines) {
+        if (!nameKnown(l.treatedName)) {
+          warnings.push(
+            `Nama yang dirawat '${l.treatedName}' tidak ditemukan pada data keluarga karyawan — mohon verifikasi`,
+          );
+        }
+      }
+    }
+    const bt = await db.medicalBenefitType.findUnique({
+      where: { id: input.typeId },
+      select: { maxDependents: true },
+    });
+    const maxDeps = bt?.maxDependents ?? 0;
+    if (maxDeps > 0) {
+      // klaim dependent karyawan ini tahun yang sama (state aktif) + klaim ini
+      const prevLines = await db.medicalClaimLine.findMany({
+        where: {
+          claim: {
+            employeeId: input.employeeId, year, forDependent: true,
+            state: { in: ACTIVE_CLAIM_STATES },
+          },
+        },
+        select: { treatedName: true },
+      });
+      const distinctNames = new Set<string>();
+      for (const p of prevLines) distinctNames.add(p.treatedName.trim().toLowerCase());
+      for (const l of lines) distinctNames.add(l.treatedName.trim().toLowerCase());
+      if (distinctNames.size > maxDeps) {
+        warnings.push(
+          `Jumlah anggota keluarga berbeda yang diklaim tahun ini (${distinctNames.size}) melebihi batas dependent (${maxDeps})`,
+        );
+      }
+    }
+  }
+
   const docNo = await nextDocNo(db, "MC");
   const state = input.submit === false ? "Draft" : "Submitted";
   const log = [logEntry("Draft", actorId, "Dibuat"), ...(state === "Submitted" ? [logEntry("Submitted", actorId, input.note || "Diajukan")] : [])];
@@ -932,6 +991,7 @@ export async function submitClaim(
     totalNonRe: round2(totalBill - totalApproved),
     remainingAfter: avail.available,
     approvalLevels, firstApprover,
+    warnings,
   };
 }
 

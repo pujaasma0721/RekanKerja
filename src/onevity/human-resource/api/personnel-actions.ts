@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { validateSalaryAgainstGrade } from "@/onevity/human-resource/services/pa-targets";
 
 // GET /api/onevity/personnel-actions?status=&type=&q=&mine=
+// Task 82-T5: guard view menu (dulu requireTenant saja — PA berisi data
+// sensitif pengajuan kepegawaian). mine=1 dipakai Kotak Persetujuan (hr:inbox),
+// list penuh dipakai Semua Pengajuan (hr:all).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["hr:all", "hr:inbox"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status");

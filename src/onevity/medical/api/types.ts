@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { listBenefitTypes, upsertBenefitType } from "@/onevity/medical/services/medical-service";
 
 // GET /api/onevity/medical/types — master jenis benefit (padanan MedicalBenefitTypeDetail.jsp).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
+    // modul terkait tidak lagi bisa membaca endpoint ini).
+    const m = await requireMenuViewAny(req, ["medical:medical-benefit-type", "medical:medical-claim", "medical:medical-adjustment"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const types = await listBenefitTypes(db);
     return NextResponse.json({ types });
   } catch (e) {

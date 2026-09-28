@@ -64,3 +64,15 @@ export function hitRateLimit(key: string, limit: number, windowMs: number): Rate
 export function resetRateLimits(): void {
   buckets.clear();
 }
+
+/**
+ * PEEK: berapa hit jendela saat ini TANPA mencatat hit baru.
+ * Dipakai pra-flight (mis. login: hanya percobaan GAGAL yang dicatat via
+ * hitRateLimit; peek memeriksa blok tanpa menghukum login sukses).
+ */
+export function peekRateLimit(key: string, windowMs: number): { count: number; retryAfterSec: number } {
+  const cutoff = Date.now() - windowMs;
+  const hits = (buckets.get(key)?.hits ?? []).filter((t) => t > cutoff);
+  if (hits.length === 0) return { count: 0, retryAfterSec: 0 };
+  return { count: hits.length, retryAfterSec: Math.max(1, Math.ceil((hits[0]! - cutoff) / 1000)) };
+}

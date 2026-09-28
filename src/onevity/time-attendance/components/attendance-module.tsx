@@ -9,7 +9,7 @@ import { AttendanceAbsencePage } from "@/onevity/time-attendance/components/atte
 import { AttendanceOvertimePage } from "@/onevity/time-attendance/components/attendance-overtime";
 import { AttendanceWorkoffPage } from "@/onevity/time-attendance/components/attendance-workoff";
 import { AttendanceHolidaysPage } from "@/onevity/time-attendance/components/attendance-holidays";
-// wave 27 stub — diisi Task 27-a / 27-e / 27-g
+// Task 27-a/e/g — import mesin, liveboard, tukar shift (terimplementasi)
 import { AttendanceLiveboardPage } from "@/onevity/time-attendance/components/attendance-liveboard";
 import { AttendanceShiftSwapPage } from "@/onevity/time-attendance/components/attendance-shift-swap";
 import { AttendanceMachineImportPage } from "@/onevity/time-attendance/components/attendance-machine-import";
@@ -26,7 +26,7 @@ export function AttendanceModule({ view }: { view: string }) {
     // T9-HOLIDAY: view kalender libur (overlay resolveDayType) — item menu
     // app-shell (attendance:holidays) di-wire koordinator.
     case "holidays": return <AttendanceHolidaysPage />;
-    // wave 27 stub — liveboard (27-e), tukar shift (27-g), import mesin (27-a)
+    // Task 27-a/e/g — liveboard, tukar shift, import mesin
     case "liveboard": return <AttendanceLiveboardPage />;
     case "shift-swap": return <AttendanceShiftSwapPage />;
     case "machine-import": return <AttendanceMachineImportPage />;

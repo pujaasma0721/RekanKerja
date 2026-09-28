@@ -5,6 +5,7 @@ import {
 } from "@/onevity/shared/lib/auth";
 import { finishLogin } from "@/onevity/shared/api/login-flow";
 import { resolveLoginLockout } from "@/onevity/shared/services/password-security";
+import { hitRateLimit, peekRateLimit } from "@/onevity/shared/lib/rate-limit";
 
 // POST /api/auth/login { email, password } → session cookie (tid otomatis bila 1 workspace)
 // Task 33: lockout percobaan gagal (policy tenant pertama), reset hitungan saat
@@ -12,6 +13,19 @@ import { resolveLoginLockout } from "@/onevity/shared/services/password-security
 // T17-MFA: 2-LANGKAH bila user.totpEnabled — password benar → JANGAN set cookie;
 // kembalikan { mfaRequired: true, mfaToken } (HMAC 5 menit). Cookie hanya di-set
 // /api/auth/mfa/verify setelah kode 6 digit TOTP benar (finishLogin dipakai bersama).
+//
+// Task 82-T2: rate limit IP-level anti password-spraying — HANYA percobaan GAGAL
+// (email/sandi salah atau akun terkunci) yang dihitung; login sukses tidak. Batas
+// longgar (30/15 mnt) agar kantor dengan NAT/IP bersama tidak terganggu, namun
+// spraying lintas akun (banyak akun × sedikit percobaan) terhenti di batas ini.
+const LOGIN_IP_FAIL_LIMIT = 30;
+const LOGIN_IP_WINDOW_MS = 15 * 60 * 1000;
+
+/** IP klien: nilai PERTAMA x-forwarded-for (proxy/load balancer menempatkannya), fallback "unknown". */
+function clientIp(req: NextRequest): string {
+  const first = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return first || "unknown";
+}
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json().catch(() => ({}));
@@ -19,10 +33,22 @@ export async function POST(req: NextRequest) {
     const password = String(b.password ?? "");
     if (!email || !password) return NextResponse.json({ error: "Email dan kata sandi wajib diisi" }, { status: 400 });
 
+    // ---- Task 82-T2: blok IP bila sudah kebanyakan percobaan GAGAL ----
+    const ipKey = `login:fail:ip:${clientIp(req)}`;
+    const peek = peekRateLimit(ipKey, LOGIN_IP_WINDOW_MS);
+    if (peek.count >= LOGIN_IP_FAIL_LIMIT) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan masuk gagal dari jaringan ini. Coba lagi nanti." },
+        { status: 429, headers: { "Retry-After": String(peek.retryAfterSec) } },
+      );
+    }
+    const ipFail = () => hitRateLimit(ipKey, LOGIN_IP_FAIL_LIMIT, LOGIN_IP_WINDOW_MS);
+
     const user = await db.user.findUnique({ where: { email } });
 
     // ---- lockout aktif? ----
     if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      ipFail(); // hitung sebagai percobaan gagal dari IP ini
       const minutes = Math.max(1, Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000));
       return NextResponse.json(
         { error: `Akun terkunci sementara karena terlalu banyak percobaan gagal. Coba lagi dalam ${minutes} menit atau minta admin mereset kata sandi Anda.` },
@@ -31,6 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
+      ipFail(); // hitung sebagai percobaan gagal dari IP ini
       // ---- hitung percobaan gagal (+ kunci bila melewati batas policy) ----
       if (user) {
         const { maxFailedAttempts, lockoutMinutes } = await resolveLoginLockout(user.id);

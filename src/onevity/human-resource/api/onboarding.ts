@@ -75,7 +75,7 @@ export async function emailOnboardingChecklist(db: TenantDb, onboardingId: strin
 // GET /api/onevity/onboarding?employeeId= — daftar terbaru dulu
 export async function GET(req: NextRequest) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "view");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "view");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
 
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
 // → checklist dibuat + email dikirim per bagian yang punya tugas.
 export async function POST(req: NextRequest) {
   try {
-    const m = await requireMenuAction(req, "hr:onboarding", "create");
+    const m = await requireMenuAction(req, "hr:onboarding-checklist", "create");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const { db, actor } = m;
 

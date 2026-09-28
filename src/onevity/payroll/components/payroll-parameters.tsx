@@ -114,8 +114,13 @@ export function PayrollParametersPage() {
                   <div className="mb-4 grid gap-3 sm:grid-cols-3">
                     <NumField label={t("Biaya Jabatan (%)", "Employment Expense (%)")} value={String(reg.biayaJabatanRate * 100)} onChange={(v) => setReg({ ...reg, biayaJabatanRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("Cap Biaya Jabatan / bulan", "Employment Expense Cap / month")} value={String(reg.biayaJabatanCapMonthly)} onChange={(v) => setReg({ ...reg, biayaJabatanCapMonthly: num(v) })} money />
-                    <NumField label={t("Penalti Non-NPWP", "Non-NPWP Surcharge")} value={String(reg.nonNpwpSurcharge * 100)} onChange={(v) => setReg({ ...reg, nonNpwpSurcharge: num(v) / 100 })} suffix="%" />
+                    <NumField label={t("Penalti Non-NPWP (informatif)", "Non-NPWP Surcharge (informative)")} value={String(reg.nonNpwpSurcharge * 100)} onChange={(v) => setReg({ ...reg, nonNpwpSurcharge: num(v) / 100 })} suffix="%" />
                   </div>
+                  {/* Task 82-b: nonNpwpSurcharge dorman di engine — penalti aktual via
+                      bracket rateNonPpwp (seed rate×1,2) → label informatif. */}
+                  <p className="mb-2 text-[10px] leading-relaxed text-stone-400">
+                    {t("Penalti Non-NPWP: field ini informatif — penalti aktual non-NPWP mengikuti bracket Pasal 17 (kolom rate non-NPWP)", "Non-NPWP surcharge: this field is informative — the actual non-NPWP penalty follows the Article 17 brackets (non-NPWP rate column)")}
+                  </p>
 
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("BPJS / JSTK")}</p>
                   <div className="grid gap-3 sm:grid-cols-3">

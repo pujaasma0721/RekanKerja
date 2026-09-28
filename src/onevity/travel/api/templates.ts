@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
-import { requireMenuAction } from "@/onevity/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { listTemplates, listExpenseTypes, listZones, upsertTemplate, upsertExpenseType } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/templates — master: template + jenis biaya + zona
@@ -8,8 +8,11 @@ import { listTemplates, listExpenseTypes, listZones, upsertTemplate, upsertExpen
 // DomesticZone; employees utk picker form).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
+    // modul terkait tidak lagi bisa membaca endpoint ini).
+    const m = await requireMenuViewAny(req, ["travel:travel-templates", "travel:travel-request", "travel:travel-claim", "travel:travel-reports"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const [templates, expenseTypes, zones, employees] = await Promise.all([
       listTemplates(db),
       listExpenseTypes(db),

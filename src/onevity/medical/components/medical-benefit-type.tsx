@@ -265,6 +265,14 @@ export function MedicalBenefitTypePage() {
                 <span className="text-stone-400">/</span>
                 <Input type="number" min={0} max={100} value={form.pctInsurance} onChange={(e) => setForm({ ...form, pctInsurance: e.target.value })} />
               </div>
+              {/* Task 82-b (audit T9): pctCompany/pctInsurance tersimpan tapi belum
+                  dieksekusi — settlement & jurnal memakai 100% beban perusahaan. */}
+              <p className="text-[10px] leading-snug text-amber-600 dark:text-amber-400">
+                {t(
+                  "Saat ini informatif — settlement & jurnal memakai 100% beban perusahaan",
+                  "Currently informative — settlement & journal use 100% company expense",
+                )}
+              </p>
             </div>
 
             <div className="space-y-1.5">

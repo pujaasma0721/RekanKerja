@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 import { travelStats, listBudgets } from "@/onevity/travel/services/travel-service";
 
 // GET /api/onevity/travel/overview — KPI ringkasan modul travel.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
+    // modul terkait tidak lagi bisa membaca endpoint ini).
+    const m = await requireMenuViewAny(req, ["travel:requests", "travel:travel-request", "travel:travel-approval", "travel:travel-claim", "travel:travel-claim-approval", "travel:travel-budget"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const [stats, budgets] = await Promise.all([
       travelStats(db),
       listBudgets(db),

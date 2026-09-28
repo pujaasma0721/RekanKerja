@@ -4,7 +4,7 @@
 // potongan, dan NET besar di bawah + status run. Intent "line:{id}" dari
 // dashboard membuka detail langsung.
 import { useState } from "react";
-import { ArrowLeft, ReceiptText, Loader2, AlertTriangle, TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
+import { ArrowLeft, ReceiptText, Loader2, AlertTriangle, TrendingUp, TrendingDown, Wallet, Info, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDate } from "@/onevity/shared/lib/api";
 import { useI18n, loc } from "@/onevity/shared/lib/i18n";
@@ -190,10 +190,10 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
           ) : (
             <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
               {slips.map((s) => (
-                <li key={s.lineId}>
+                <li key={s.lineId} className="flex items-center gap-1">
                   <button
                     onClick={() => setLineId(s.lineId)}
-                    className="flex w-full flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-4 text-left transition hover:bg-amber-50/50 sm:px-6 dark:hover:bg-amber-500/5"
+                    className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-4 text-left transition hover:bg-amber-50/50 sm:px-6 dark:hover:bg-amber-500/5"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
                       <ReceiptText className="h-5 w-5" aria-hidden />
@@ -211,6 +211,18 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     </div>
                     <StatusPill status={s.status} />
                   </button>
+                  {/* Task 82-c: unduh PDF slip — route /payslip/[lineId] sudah
+                      mengotorisasi self (daftar ESS hanya run Confirmed/Paid).
+                      Pola unduh sama dgn payroll-run-detail (a download). */}
+                  <a
+                    href={`/api/onevity/payslip/${s.lineId}?download=1`}
+                    download
+                    aria-label={t("Unduh PDF slip {p}", "Download payslip PDF {p}", { p: s.periodName })}
+                    title={t("Unduh PDF", "Download PDF")}
+                    className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 text-stone-500 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-800 dark:text-stone-400 sm:mr-4"
+                  >
+                    <FileDown className="h-4 w-4" aria-hidden />
+                  </a>
                 </li>
               ))}
             </ul>

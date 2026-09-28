@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/onevity/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/onevity/shared/lib/money-view-req";
+import { requireMenuViewAny } from "@/onevity/shared/services/menu-access";
 
 
 
@@ -16,8 +16,11 @@ const gradeRank = (code: string | null | undefined) => {
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 82-T5: guard view menu (dulu requireTenant — payload memuat struktur
+    // organisasi + monthlyCost ber-gate vault; cukup sensitif utk diguard).
+    const m = await requireMenuViewAny(req, ["hr:chart"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const [company, units, positions, employees, disciplinary, activeActions] = await Promise.all([
       db.company.findFirst({ select: { id: true, code: true, name: true, shortName: true } }),

@@ -197,14 +197,14 @@ export async function listLetters(req: NextRequest) {
             orderBy: { signedAt: "desc" },
             select: { id: true, docId: true, signerName: true, signedAt: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve([] as { id: string; docId: string; signerName: string; signedAt: Date }[]),
       paIds.length
         ? m.db.signatureRecord.findMany({
             where: { docType: "PersonnelAction", docId: { in: paIds } },
             orderBy: { signedAt: "desc" },
             select: { id: true, docId: true, signerName: true, signedAt: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve([] as { id: string; docId: string; signerName: string; signedAt: Date }[]),
     ]);
     const paSigByPa = new Map(paSigs.map((s) => [s.docId, s]));
     const esignMap: Record<string, { signatureId: string; signerName: string; signedAt: string; viaPa: boolean }> = {};

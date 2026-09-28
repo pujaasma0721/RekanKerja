@@ -14,7 +14,7 @@ import {
   TravelClaimRowUI, ClaimExpenseUI, EmployeeOption,
   TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./travel-types";
-import { BarChart3, Search, FileText, Landmark, TrendingUp, RotateCcw } from "lucide-react";
+import { BarChart3, Search, FileText, Landmark, TrendingUp, RotateCcw, Download } from "lucide-react";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 
 interface ReportData {
@@ -83,6 +83,15 @@ export function TravelReportsPage() {
             </select>
           </div>
           <div className="flex items-end gap-2">
+            {/* Task 82-c: unduh CSV — filter saat ini (rentang + karyawan), server
+                menghormati money-vault (nominal dikosongkan bila masked). */}
+            <a
+              href={`/api/onevity/travel/reports?from=${from}&to=${to}${employeeId ? `&employeeId=${employeeId}` : ""}&export=csv`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-stone-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+              aria-label={t("Unduh daftar klaim sebagai CSV", "Download the claim list as CSV")}
+            >
+              <Download className="h-4 w-4" /> {t("Export CSV")}
+            </a>
             <Button variant="outline" className="gap-2 font-bold" onClick={() => { setFrom(yearStartISO()); setTo(todayISO()); setEmployeeId(""); setQuery(""); }}>
               <RotateCcw className="h-4 w-4" /> {t("Reset")}
             </Button>
