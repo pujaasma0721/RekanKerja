@@ -2500,3 +2500,21 @@ Stage Summary:
 - Repo = origin/main 95f8bca: subdomain per tenant + guard menu + eSign penuh (ttd elektronik, QR PDF, verifikasi publik /v, audit hash-chain) kini ada di sandbox dan terverifikasi render/fungsi.
 - Lingkungan pulih total: PG 3 tenant demo (termasuk tabel eSign baru) + akun demo + ESS user; dev server dijaga watchdog.
 - Tidak ada komit baru (pull murni + pemulihan runtime; .env & artefak runtime tidak di-track).
+
+---
+Task ID: 82
+Agent: Z.ai (orkestrator utama) + 5 subagent Explore paralel (82-a..82-e)
+Task: Audit lengkap sistem — SOP, bisnis proses, fungsi, alur kerja, fitur, kelengkapan (user: "Audit lengkap : SOP, Bisnis Proses, Fungsi, Alur kerja, Fitur, Kelengkapan dan lainnya"). READ-ONLY, tanpa perubahan kode.
+
+Work Log:
+- Orkestrasi 5 subagent Explore paralel per area: (a) HR core, (b) Payroll, (c) TA+Leave, (d) Travel+Medical+Whistleblow+ESS, (e) Settings+Security+Platform+Mobile+Infra. Masing-masing membaca service/API/komponen/schema + grep TODO/stub + grep worklog selektif.
+- Statistik objektif: ±150 endpoint API (99 direktori route), 124 model schema-tenant, ±162.000 baris TS src, mobile Flutter 14 modul ±13.000 baris Dart, 28 skrip E2E + ±60 migrasi idempoten, 33 grup menu RBAC.
+- Kompilasi laporan induk: 10 SOP/bisnis proses inti terimplementasi (hire-to-retire, siklus payroll 9 tahap, presensi, cuti, travel, medical, surat+eSign, whistleblow TPKS, provisioning tenant, scheduler 7 job); matriks fungsi/fitur 10 domain; audit compliance Indonesia (PPh21+TER PMK168+true-up, BPJS 4+1 + JKP PP6/2025, PP35/2021 prorate+lembur+PKWT, UPMK+PPh final, UU KIA, TPKS, e-SPT 39 kolom + Coretax, e-Dabu) — semua dengan bukti file/fungsi.
+- Temuan terkonsolidasi: 4 TINGGI (T1 mismatch key menu onboarding hr:onboarding vs hr:onboarding-checklist; T2 login tanpa IP rate-limit; T3 PIN eSign tanpa limiter; T4 leave/balances+encashment POST tanpa menu guard), 11 SEDANG (GET tanpa menu guard di ~8 endpoint; rate-limit & vault in-memory per instance; ActivityLog mutable; tanpa backup/DR; pctCompany/pctInsurance medical tak dieksekusi; dependent tidak divalidasi ke registry keluarga; checklist-recipients guard lintas domain; idle timeout client-side; kunci bootstrap v1 deterministik; esign-verify scan semua tenant; TOTP dari SESSION_SECRET), 10-an RENDAH (penomoran OT-/WO-/TSK- count+1, tanpa PATCH family/education, import tanpa manager, shift-swap tanpa persetujuan target, mobile session plain storage, whistleblow tanpa pelacakan tiket/SLA, travel/medical tanpa export, nonNpwpSurcharge dorman, queue slip deferred, ESS tanpa payslip PDF sendiri).
+- Higienitas: hampir nol TODO/FIXME aktif — utang teknis terdokumentasi komentar task-ID yang semuanya sudah ditutup fix nyata.
+- Rekomendasi roadmap 4 prioritas: P1 guard fixes (T1-T5), P2 ops (backup/DR, Redis, idle server-side, log immutable), P2 produk (NIK keluarga→ANGKEL, zakat/natura, regularization, export, ESS travel-request), P3 enterprise (SSO, FCM, APM, billing, konektor mesin).
+- Koreksi silang antar-laporan: subagent HR menganggap "tanpa reminder dokumen kedaluwarsa" — dikoreksi via temuan subagent platform: scheduler job (c) dokumen kedaluwarsa ≤30 hari ADA dan aktif.
+
+Stage Summary:
+- Laporan audit lengkap diserahkan ke user di kanal IM (struktur: ringkasan eksekutif+skor, 10 SOP proses inti, matriks fitur per modul, compliance matrix ID, risk register T1-T15+rendah, rekomendasi P1-P3).
+- Kesimpulan umum: kematangan SANGAT TINGGI untuk SaaS HRIS mid-market (skor fungsi 4,5 / workflow 4,5 / SOP 4,0 / compliance 4,5 / keamanan 4,0 / kelengkapan enterprise 3,5). Tidak ada perubahan kode (permintaan audit murni). Kandidat tindak lanjut cepat = P1 (4 fix guard/rate-limit kecil).
