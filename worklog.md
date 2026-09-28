@@ -2479,3 +2479,24 @@ Detail:
   badge Sudah/Belum (via PA), Tandatangani/Unduh PDF/Verifikasi /v
 - Simulasi prod: surat 001/HR-PA/IX/2026 ditandatangani via alur tab baru —
   badge berubah, PDF membawa QR, /v VALID, chain 16 ttd intact
+
+---
+Task ID: 81
+Agent: Z.ai (orkestrator utama)
+Task: Sinkronisasi pull github (user: "pul github") — 79a7c30..95f8bca + PEMULIHAN LINGKUNGAN SETELAH RESET SANDBOX KEDUA.
+
+Work Log:
+- git pull --rebase: 79a7c30..95f8bca (55 file, +3.759/−95) — masuk dari sesi paralel (Buffy/Codebuff):
+  (a) Task 78/78b/c/d — SUBDOMAIN PER TENANT aktif: proxy.ts (Next.js 16 pengganti middleware, menandai x-onevity-tenant-host), tenant-host.ts/tenant-host-server.ts (parsing host + cache slug 60 dtk), auth terintegrasi (effectiveTenantIdOf: login di subdomain auto-select tenant; non-anggota 403; subdomain tak terdaftar 404), register via subdomain (slug = lowercase companyCode, bentrok 409, tab daftar hilang bila alamat terpakai), /api/auth/host-workspace. TANPA env ONEVITY_BASE_DOMAINS → proxy passthrough murni (perilaku lama utuh — aman utk sandbox).
+  (b) Task 79 — guard requireMenuAction di 6 menu bercelah (approval, payroll periods/rapel, leave mass, clocking, position levels) + e2e-menu-guard-403.ts.
+  (c) Task 80/80b–f — eSIGN INTERNAL: esign-service (RSA-PSS-SHA256, kunci per AppUser terenkripsi, PIN/OTP challenge, hash-chain per tenant), esign-crypto, /api/onevity/esign + esign-admin + /api/public/esign-verify, halaman publik /v/[id], QR verifikasi tercetak di PDF surat/payslip/PA (pdfStampFor + fallback PA), tombol Tandatangani di pa-detail & payroll-run-detail, Pengaturan → eSign (Kunci & PIN + Audit Rantai), tab "Dokumen Terbit" di Template Surat, scripts/migrate-task80-esign.ts.
+  (d) Fix pendukung: login-flow, session-store, letters (esign per surat), payslip-pdf (stamp QR), app-shell/auth-screen (subdomain UX), prisma/tenant-ddl.sql +69 baris (tabel esign utk tenant baru).
+- RESET SANDBOX TERDETEKSI LAGI: .env ter-revert ke SQLite legacy, mini-services/postgres/data hilang (semua data tenant lenyap), db/ kosong, dev.log & watchdog mati.
+- PEMULIHAN (urut): (1) .env ditulis ulang (PLATFORM_DB_URL + TENANT_DB_BASE_URL + legacy DATABASE_URL); (2) start mini-services/postgres via double-fork orphans (initdb fresh, port 5432); (3) bun run db:push + db:generate (platform client + tenant client); (4) bun run scripts/restore-demo.ts — 3 tenant demo pulih (MII 44 karyawan + payroll + attendance, Cahaya, Sentra) + konfigurasi email Task 34; (5) migrasi idempoten: password-security, checklist-tables, password-idle-timeout, tenant-schema-integrity, migrate-task80-esign (0 tabel dibuat — tabel SignatureKey/SignatureRecord SUDAH otomatis termuat lewat tenant-ddl.sql baru saat provisioning; diverifikasi via information_schema: 2 tabel × 3 schema lengkap); (6) seed-ess-demo-user (yusuf@mii.co.id); (7) watch-dev.sh dinyalakan via double-fork → dev server hidup, /api/health 200.
+- VERIFIKASI BROWSER (agent-browser): halaman login render ✓; login hrd@mii.co.id + pilih workspace MII ✓ (dashboard + seluruh nav HR termuat); Pengaturan → eSign: tab Kunci & PIN + Audit Rantai render, API esign-admin & esign-admin?view=chain 200 ✓; HR → Template Surat: tab "Dokumen Terbit 0/0" (Task 80f) render ✓; halaman publik /v/unknown-id-test → 200 "TANDA TANGAN TIDAK VALID" (graceful) ✓; console 0 error; scheduler siklus 3/3 tenant OK. curl /api/auth/host-workspace (localhost) → isTenantHost:false (perilaku main host benar).
+- Tree bersih (tidak ada perubahan kode diperlukan — kode GitHub jalan langsung di sandbox).
+
+Stage Summary:
+- Repo = origin/main 95f8bca: subdomain per tenant + guard menu + eSign penuh (ttd elektronik, QR PDF, verifikasi publik /v, audit hash-chain) kini ada di sandbox dan terverifikasi render/fungsi.
+- Lingkungan pulih total: PG 3 tenant demo (termasuk tabel eSign baru) + akun demo + ESS user; dev server dijaga watchdog.
+- Tidak ada komit baru (pull murni + pemulihan runtime; .env & artefak runtime tidak di-track).
