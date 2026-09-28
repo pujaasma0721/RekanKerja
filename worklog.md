@@ -2606,3 +2606,19 @@ Stage Summary:
 - 17 temuan audit ditindaklanjuti (T1-T5, T9, T10, T11, T14 + penomoran + komentar usang + letters.ts tsc + 4 fitur pelengkap: export travel/medical, PDF payslip ESS, PATCH keluarga/pendidikan/pengalaman, Laporan Saya whistleblowing).
 - Yang DITUNDA (butuh proyek/desain tersendiri, dicatat sebagai backlog): T6/T13 rate-limit&vault ke Redis multi-instance, T7 ActivityLog immutable/WORM, T8 backup/DR terjadwal, T12 idle timeout server-side, T15 pemisahan kunci TOTP, NIK EmployeeFamily+ANGKEL BPJS, zakat/natura e-SPT, rapel lintas tahun, SSO/FCM/billing, konektor mesin realtime, selfie/kiosk, queue slip, ESS travel-request submit, persetujuan target tukar shift, import manager/office/location.
 - 48 file berubah (+919/−141), semua terverifikasi compile+lint+runtime+E2E; siap commit+push.
+
+---
+Task ID: 83-restore
+Agent: Z.ai (orkestrator utama)
+Task: Konfirmasi push perbaikan + pemulihan sandbox reset ke-3 (pendukung Task 82-final "perbaiki semua")
+
+Work Log:
+- Verifikasi push: git fetch origin main → origin/main = 7cb2b19 (commit perbaikan audit lengkap), lokal = remote, 0 ahead/0 behind, working tree bersih → SEMUA perbaikan SUDAH ter-push ke GitHub.
+- Sandbox terdeteksi reset ke-3: .env terpotong (hanya DATABASE_URL legacy), db/ hilang, PG mati, watch-dev.sh hilang, dev server tidak merespons.
+- PEMULIHAN (urut): (1) .env ditulis ulang — PLATFORM_DB_URL + TENANT_DB_BASE_URL (TANPA ?schema=platform — penting: 7 query mentah public."Tenant" di src+scripts mengharuskan registry di schema public; salah kutip ?schema=platform membuat migrasi gagal "relation public.Tenant does not exist") + DATABASE_URL legacy + SESSION_SECRET dev; (2) mini-services/postgres start ulang via double-fork (initdb fresh, port 5432); (3) bun run db:push → public.Tenant/User/UserTenant + db:generate; (4) restore-demo.ts → 3 tenant demo (MII 44 karyawan + payroll + attendance, Cahaya, Sentra) + konfigurasi email; (5) migrasi idempoten semua sukses: password-security, checklist-tables, password-idle-timeout, tenant-schema-integrity, task80-esign — eSign SignatureKey/SignatureRecord terverifikasi 2/2 × 3 schema (via tenant-ddl.sql provisioning); (6) seed-ess-demo-user (yusuf@mii.co.id); (7) scripts/watch-dev.sh DIBUAT ULANG (hilang saat reset; kini dikomit agar tahan reset) + double-fork → dev server hidup, /api/health 200, parity pipeline exit 0.
+- E2E browser pasca-pulih: login HR MII (hrd@mii.co.id) → workspace MII → Checklist Onboarding termuat (fix T1/T11 live) → Travel → Laporan Travel → tombol "Export CSV" ada (fix Batch C) → logout → login ESS yusuf → Slip Gaji → tombol "Unduh PDF slip AGUSTUS 2026/JULI 2026" per baris (fix ESS payslip) → mobile 390px render OK → 0 page error, dev.log 0 error, semua API 200.
+
+Stage Summary:
+- Konfirmasi: commit 7cb2b19 (17 temuan audit ditindaklanjuti: T1-T5, T9, T10, T11, T14 + penomoran + 4 fitur pelengkap) SUDAH ADA di origin/main GitHub.
+- Lingkungan sandbox dipulihkan penuh (PG + 3 tenant demo + eSign + ESS + watchdog); koreksi penting: PLATFORM_DB_URL TANPA ?schema=platform (registry wajib schema public).
+- scripts/watch-dev.sh kini masuk repo (tahan sandbox reset berikutnya).
