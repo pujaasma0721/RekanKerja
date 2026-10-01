@@ -33,7 +33,13 @@ export function MedicalOverview() {
     },
     {
       label: t("Sisa Saldo Medis", "Remaining Medical Balance"), value: s ? fmtIDRShort(s.remaining) : "—",
-      sub: s ? t("{n} saldo karyawan × {m} jenis", "{n} employee balances × {m} types", { n: s.totalBalances, m: s.types }) : undefined,
+      // W2-3 (fix m-3): sisa pool dependent TERPISAH kini tampil (dulu 420jt tak
+      // terlihat); SHARED tidak dijumlahkan — pool bersama sudah di remaining.
+      sub: s
+        ? (s.dependentRemaining
+          ? t("{n} saldo × {m} jenis · dependent {d}", "{n} balances × {m} types · dependents {d}", { n: s.totalBalances, m: s.types, d: fmtIDRShort(s.dependentRemaining) })
+          : t("{n} saldo karyawan × {m} jenis", "{n} employee balances × {m} types", { n: s.totalBalances, m: s.types }))
+        : undefined,
       icon: Wallet,
       onClick: () => navigate("medical", "medical-info"),
     },

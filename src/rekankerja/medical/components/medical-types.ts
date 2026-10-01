@@ -105,7 +105,11 @@ export interface MedicalStatsUI {
   year: number; totalBalances: number; totalClaims: number; pendingClaims: number;
   settledClaims: number; adjustments: number; types: number;
   settledApproved: number; settledBill: number; remaining: number;
+  /** W2-3 — sisa plafon pool dependent TERPISAH (SHARED tak dijumlah: pool bersama). */
+  dependentRemaining?: number;
   byType: { typeCode: string; typeName: string; claimCount: number; approvedAmount: number }[];
+  /** W2-6 — rekap beban per karyawan (padanan SummaryEmployee). */
+  byEmployee?: { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }[];
 }
 
 export interface PeriodOptionUI {

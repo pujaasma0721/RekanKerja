@@ -87,7 +87,9 @@ export async function GET(req: NextRequest) {
         exportFilename("rekankerja-medical", "csv", `${from}_${to}`),
       );
     }
-    return NextResponse.json({ rows, byType: stats.byType, year, employees });
+    // W2-6 (fix G-9 BPA-medical): byEmployee = rekap beban per karyawan
+    // (padoran SummaryEmployee) ikut dikirim utk kartu baru UI laporan.
+    return NextResponse.json({ rows, byType: stats.byType, byEmployee: stats.byEmployee, year, employees });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

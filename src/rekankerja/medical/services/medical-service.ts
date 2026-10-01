@@ -638,7 +638,7 @@ export async function listBalances(
           assignments: { where: { validTo: null }, select: { baseSalary: true, orgUnit: { select: { name: true } } }, take: 1 },
         },
       },
-      type: { select: { code: true, name: true, limitRule: true } },
+      type: { select: { code: true, name: true, limitRule: true, dependentEnabled: true, depLimitRule: true } },
     },
     orderBy: [{ employee: { employeeNo: "asc" } }, { type: { sortOrder: "asc" } }],
     take: 1500,
@@ -674,7 +674,11 @@ export async function listBalances(
       remaining: g(remaining),
       depBenefitAmount: g(depBenefitAmount), depAdjustment: g(depAdjustment),
       depUsed: g(depUsed), depRemaining: g(depRemaining),
-      totalRemaining: g(round2(remaining + (b.type.limitRule !== "" ? depRemaining : 0))),
+      // W2-2 (fix m-2 BPA-medical): depRemaining ikut dijumlah HANYA utk pool
+      // dependent TERPISAH (EACH/TOTAL_SEPARATE); SHARED → klaim dependent
+      // memakai pool utama karyawan (K-3) sehingga menjumlah depRemaining =
+      // dobel hitung / minus palsu (dulu kondisi `!== ""` selalu true).
+      totalRemaining: g(round2(remaining + (depPoolSeparate(b.type) ? depRemaining : 0))),
       claimCount: 0,
     };
   });
@@ -2037,6 +2041,20 @@ export async function decideAdjustment(
     // TS → re-encrypt saat tulis balik (masking M-12 task 43 tetap utk tampilan).
     const tcAdj = tenantCryptoForDb(db);
     const adjAmount = decMoney(tcAdj, adj.amount);
+    // W2-5 (fix m-8 BPA-medical): floor — penyesuaian tidak boleh membuat sisa
+    // plafon pool tujuan NEGATIF (dulu diam-diam minus tanpa peringatan).
+    // Pool mengikuti K-3: SHARED/employee → pool utama; dependent terpisah →
+    // pool dependent.
+    const newRemaining = useDepPool
+      ? round2(decMoney(tcAdj, bal.depBenefitAmount) + decMoney(tcAdj, bal.depAdjustment) + adjAmount - decMoney(tcAdj, bal.depUsed))
+      : round2(decMoney(tcAdj, bal.benefitAmount) + decMoney(tcAdj, bal.adjustmentAmount) + decMoney(tcAdj, bal.carriedOver) + adjAmount
+        - decMoney(tcAdj, bal.usedAmount) - decMoney(tcAdj, bal.initialUsed));
+    if (newRemaining < 0) {
+      throw new Error(
+        `Approve ditolak: penyesuaian Rp ${fmtRp(Math.abs(adjAmount))}${adjAmount < 0 ? " (pengurangan)" : ""} membuat sisa plafon ` +
+        `${useDepPool ? "dependent" : "karyawan"} negatif (Rp ${fmtRp(newRemaining)}) — kurangi nominal penyesuaian atau tambah plafon dulu`,
+      );
+    }
     await db.medicalBalance.update({
       where: { id: bal.id },
       data: useDepPool
@@ -2125,6 +2143,21 @@ export async function transferUnusedToPayroll(
     throw new Error(
       `Period ${period.name} sudah memiliki run payroll yang dikonfirmasi/dibayar — sisa saldo yang ditransfer ke sini tidak akan pernah dibayar. ` +
       "Pilih period yang run-nya belum dikonfirmasi",
+    );
+  }
+
+  // W2-1 (fix M-1 BPA-medical): transfer UMC = "Paid to employee in cash at end
+  // of period" — hanya sah menjelang AKHIR tahun saldo. Period dengan endDate
+  // sebelum 31 Des tahun target ditolak (dulu bisa kapan saja → seluruh
+  // karyawan kehilangan plafon sisa tahun — bukti live audit: transfer saldo
+  // 2026 dieksekusi 2 Sep 2026). Local time: banding dengan tengah malam lokal.
+  const periodEnd = dayStart(period.endDate);
+  const yearEndLocal = new Date(input.year, 11, 31);
+  if (periodEnd.getTime() < yearEndLocal.getTime()) {
+    throw new Error(
+      `Transfer sisa saldo hanya boleh pada period AKHIR TAHUN ${input.year} (endDate ≥ 31 Des ${input.year}) — ` +
+      `period ${period.name} berakhir ${periodEnd.toISOString().slice(0, 10)}. ` +
+      'Kebijakan CASH: "dibayarkan tunai di akhir periode" (padanan oranHR Paid at end of period).',
     );
   }
 
@@ -2301,19 +2334,32 @@ export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
   const md = (v: string | null) => mv.dec0(v);
   const settledRows = await db.medicalClaim.findMany({
     where: { year, state: "Settled" },
-    select: { typeId: true, totalApproved: true, totalBill: true },
+    select: {
+      typeId: true, totalApproved: true, totalBill: true,
+      // W2-6 (G-9): konteks karyawan utk rekap per karyawan (SummaryEmployee).
+      employee: { select: { employeeNo: true, fullName: true } },
+    },
   });
   const settledApproved = round2(settledRows.reduce((s, r) => s + md(r.totalApproved), 0));
   const settledBill = round2(settledRows.reduce((s, r) => s + md(r.totalBill), 0));
   const balances = await db.medicalBalance.findMany({
     where: { year },
-    include: { type: { select: { limitRule: true } } },
+    include: { type: { select: { limitRule: true, dependentEnabled: true, depLimitRule: true } } },
   });
   // jenis UNLIMITED (mis. PJK) tidak dijumlahkan nominal sisa
   const remaining = round2(
     balances
       .filter((b) => b.type.limitRule !== "UNLIMITED")
       .reduce((s, b) => s + md(b.benefitAmount) + md(b.adjustmentAmount) + md(b.carriedOver) - md(b.usedAmount) - md(b.initialUsed), 0),
+  );
+  // W2-3 (fix m-3 BPA-medical): sisa plafon pool DEPENDENT TERPISAH kini
+  // dilaporkan terpisah (dulu tak tampil sama sekali — pool dependent 420jt
+  // tak terlihat di KPI). SHARED tidak dijumlahkan: pool bersama sudah
+  // tercakup di remaining karyawan (konsisten W2-2/K-3).
+  const dependentRemaining = round2(
+    balances
+      .filter((b) => b.type.limitRule !== "UNLIMITED" && depPoolSeparate(b.type))
+      .reduce((s, b) => s + md(b.depBenefitAmount) + md(b.depAdjustment) - md(b.depUsed), 0),
   );
   // groupBy per jenis (in-memory atas nilai terdekripsi):
   const byTypeMap = new Map<string, { claimCount: number; approvedAmount: number }>();
@@ -2331,11 +2377,24 @@ export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
       claimCount: v.claimCount, approvedAmount: v.approvedAmount,
     };
   }).sort((a, b) => b.approvedAmount - a.approvedAmount);
+  // W2-6 (fix G-9 BPA-medical): rekap beban per karyawan (padanan oranHR
+  // MedicalBenefitSummaryEmployee) — agregat klaim Settled tahun tsb.
+  const byEmployeeMap = new Map<string, { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }>();
+  for (const r of settledRows) {
+    const key = r.employee.employeeNo;
+    const cur = byEmployeeMap.get(key) ?? {
+      employeeNo: r.employee.employeeNo, fullName: r.employee.fullName, claimCount: 0, approvedAmount: 0,
+    };
+    cur.claimCount++;
+    cur.approvedAmount = round2(cur.approvedAmount + md(r.totalApproved));
+    byEmployeeMap.set(key, cur);
+  }
+  const byEmployee = [...byEmployeeMap.values()].sort((a, b) => b.approvedAmount - a.approvedAmount);
   return {
     year, totalBalances, totalClaims, pendingClaims, settledClaims, adjustments, types,
     settledApproved,
     settledBill,
-    remaining, byType,
+    remaining, dependentRemaining, byType, byEmployee,
   };
 }
 

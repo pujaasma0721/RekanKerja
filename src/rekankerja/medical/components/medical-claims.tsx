@@ -113,12 +113,16 @@ export function MedicalClaimsPage() {
   // pratinjau saldo (snapshot limit/used/remaining + frekuensi) saat employee+type
   // dipilih — forDependent ikut dihitung agar preview memakai POOL YANG BENAR
   // (fix K-3: SHARED → pool bersama karyawan; EACH/TOTAL → pool dependent).
+  // W2-4: refetch juga saat claimDate berubah — tahun preview mengikuti form.
   useEffect(() => {
     if (!dialog || !employeeId || !typeId) { setPreview(null); return; }
     const t = setTimeout(async () => {
       try {
         const res = await apiSend<{ preview: ClaimPreviewUI }>(
-          `/api/rekankerja/medical/claims?preview=1&employeeId=${employeeId}&typeId=${typeId}&forDependent=${forDependent ? 1 : 0}`, "GET",
+          // W2-4 (fix m-4): preview memakai tahun claimDate form (dulu selalu
+          // tahun berjalan — snapshot yang dipratinjau bisa beda dari yang
+          // divalidasi submitClaim bila claimDate tahun lain).
+          `/api/rekankerja/medical/claims?preview=1&employeeId=${employeeId}&typeId=${typeId}&forDependent=${forDependent ? 1 : 0}&year=${Number(claimDate.slice(0, 4))}`, "GET",
         );
         setPreview(res.preview);
       } catch {
@@ -126,7 +130,7 @@ export function MedicalClaimsPage() {
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [dialog, employeeId, typeId, forDependent]);
+  }, [dialog, employeeId, typeId, forDependent, claimDate]);
 
   const totals = lines.reduce((acc, l) => ({
     bill: acc.bill + (Number(l.billAmount) || 0),

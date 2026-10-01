@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   EmployeeOption, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./medical-types";
-import { BarChart3, Search, FileText, Download } from "lucide-react";
+import { BarChart3, Search, FileText, Download, Users } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -29,12 +29,14 @@ export function MedicalReportsPage() {
   const [to, setTo] = useState(`${currentYear}-12-31`);
   const [employeeId, setEmployeeId] = useState("all");
 
-  const api = useApi<{ rows: ReportRow[]; byType: { typeCode: string; typeName: string; claimCount: number; approvedAmount: number }[]; employees: EmployeeOption[] }>(
+  const api = useApi<{ rows: ReportRow[]; byType: { typeCode: string; typeName: string; claimCount: number; approvedAmount: number }[]; byEmployee?: { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }[]; employees: EmployeeOption[] }>(
     `/api/rekankerja/medical/reports?from=${from}&to=${to}&year=${currentYear}` + (employeeId !== "all" ? `&employeeId=${employeeId}` : ""),
   );
 
   const rows = api.data?.rows ?? [];
   const byType = api.data?.byType ?? [];
+  // W2-6 (fix G-9) — rekap per karyawan (padoran SummaryEmployee).
+  const byEmployee = api.data?.byEmployee ?? [];
 
   const totals = useMemo(() => ({
     count: rows.length,
@@ -188,6 +190,45 @@ export function MedicalReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* W2-6 (fix G-9 BPA-medical): laporan rekap per karyawan — padoran
+          MedicalBenefitSummaryEmployee yang dulu tidak diimplementasi. */}
+      <Card className="mt-4 min-w-0 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-bold">
+            <Users className="h-4 w-4 ov-text-accent" /> {t("Rekap per Karyawan (Settled)", "Recap by Employee (Settled)")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {byEmployee.length === 0 ? (
+            <div className="p-6"><EmptyState title={t("Belum ada klaim settled tahun ini.", "No settled claims this year.")} icon={Users} /></div>
+          ) : (
+            <div className="max-h-[22rem] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
+                  <TableRow>
+                    <TableHead>{t("Karyawan")}</TableHead>
+                    <TableHead className="text-right">{t("Jumlah Klaim", "Claim Count")}</TableHead>
+                    <TableHead className="text-right">{t("Total Approved", "Total Approved")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {byEmployee.map((e) => (
+                    <TableRow key={e.employeeNo}>
+                      <TableCell>
+                        <p className="font-medium">{e.fullName}</p>
+                        <p className="text-xs text-slate-500">{e.employeeNo}</p>
+                      </TableCell>
+                      <TableCell className="text-right">{e.claimCount}×</TableCell>
+                      <TableCell className="text-right font-semibold text-brand dark:text-brand/85">{fmtIDR(e.approvedAmount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
