@@ -194,7 +194,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
         <DialogContent className="max-h-[90vh] w-[min(920px,94vw)] overflow-y-auto sm:max-w-[920px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-stone-500" />
+              <FileSpreadsheet className="h-5 w-5 text-slate-500" />
               {t("Import Karyawan dari Excel", "Import Employees from Excel")}
             </DialogTitle>
             <DialogDescription>
@@ -211,7 +211,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
               <a
                 href={TEMPLATE_URL}
                 download
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-stone-200 px-3.5 text-[13px] font-medium text-stone-700 transition-colors hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 <Download className="h-4 w-4" /> {t("Unduh Template", "Download Template")}
               </a>
@@ -221,11 +221,11 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                   type="file"
                   accept=".xlsx"
                   onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-                  className="block w-full cursor-pointer rounded-lg border border-stone-200 bg-white p-2 text-[13px] text-stone-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-stone-900 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:file:bg-stone-100 dark:file:text-stone-900"
+                  className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white p-2 text-[13px] text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:file:bg-slate-100 dark:file:text-slate-900"
                   aria-label={t("Pilih file XLSX", "Pick an XLSX file")}
                 />
                 {file && (
-                  <p className="mt-1.5 text-[12px] text-stone-500">
+                  <p className="mt-1.5 text-[12px] text-slate-500">
                     {file.name} · {(file.size / 1024).toFixed(0)} KB
                   </p>
                 )}
@@ -246,7 +246,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                   {phase === "checking" ? t("Memeriksa…", "Checking…") : t("Periksa Data (Dry-Run)", "Validate Data (Dry-Run)")}
                 </Button>
                 {report && phase === "preview" && (
-                  <span className="text-[13px] text-stone-500">
+                  <span className="text-[13px] text-slate-500">
                     {t(
                       "{v} valid · {i} bermasalah · {n} baris",
                       "{v} valid · {i} issues · {n} rows",
@@ -260,10 +260,10 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
 
             {/* langkah 3 — preview tabel hasil dry-run */}
             {report && phase !== "done" && (
-              <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="max-h-64 overflow-y-auto">
                   <table className="w-full text-[12.5px]">
-                    <thead className="sticky top-0 bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                    <thead className="sticky top-0 bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                       <tr>
                         <th className="px-3 py-2 font-semibold">{t("Baris", "Row")}</th>
                         <th className="px-3 py-2 font-semibold">NIK</th>
@@ -276,8 +276,8 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                       {report.rows.slice(0, MAX_PREVIEW_ROWS).map((r) => {
                         const invalid = r.errors.length > 0;
                         return (
-                          <tr key={r.row} className={cn("border-t border-stone-100 dark:border-stone-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-brand/10/50 dark:bg-brand/5")}>
-                            <td className="px-3 py-1.5 tabular-nums text-stone-500">{r.row}</td>
+                          <tr key={r.row} className={cn("border-t border-slate-100 dark:border-slate-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-brand/10/50 dark:bg-brand/5")}>
+                            <td className="px-3 py-1.5 tabular-nums text-slate-500">{r.row}</td>
                             <td className="px-3 py-1.5 font-mono text-[11.5px]">{r.nik || "—"}</td>
                             <td className="max-w-40 truncate px-3 py-1.5 font-medium">{r.fullName || "—"}</td>
                             <td className="px-3 py-1.5">
@@ -286,13 +286,13 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                                 {invalid ? t("Invalid") : t("Valid")}
                               </span>
                             </td>
-                            <td className="px-3 py-1.5 text-stone-600 dark:text-stone-300">
+                            <td className="px-3 py-1.5 text-slate-600 dark:text-slate-300">
                               {r.errors.length > 0 ? (
                                 <span className="text-rose-700 dark:text-rose-300">{r.errors.join(" · ")}</span>
                               ) : r.warnings && r.warnings.length > 0 ? (
                                 <span className="flex items-start gap-1 text-amber-700 dark:text-amber-300"><TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{r.warnings.join(" · ")}</span>
                               ) : (
-                                <span className="text-stone-400">—</span>
+                                <span className="text-slate-400">—</span>
                               )}
                             </td>
                           </tr>
@@ -302,7 +302,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                   </table>
                 </div>
                 {report.rows.length > MAX_PREVIEW_ROWS && (
-                  <p className="border-t border-stone-100 bg-stone-50 px-3 py-2 text-[12px] text-stone-500 dark:border-stone-800 dark:bg-stone-800">
+                  <p className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-slate-800 dark:bg-slate-800">
                     {t("Menampilkan {n} dari {m} baris.", "Showing {n} of {m} rows.", { n: MAX_PREVIEW_ROWS, m: report.rows.length })}
                   </p>
                 )}
@@ -311,13 +311,13 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
 
             {/* preview resolved (10 baris valid pertama) */}
             {report && report.preview.length > 0 && phase !== "done" && (
-              <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-                <p className="border-b border-stone-100 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-800 dark:text-stone-400">
+              <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
                   {t("Pratinjau data valid (maks 10)", "Valid data preview (max 10)")} · {t("nomor karyawan akan berprefix {p}", "employee numbers will be prefixed {p}", { p: report.preview[0]?.employeeNoPrefix ?? "—" })}
                 </p>
                 <div className="max-h-52 overflow-y-auto">
                   <table className="w-full text-[12.5px]">
-                    <thead className="sticky top-0 bg-white text-left text-[11px] uppercase tracking-wide text-stone-500 dark:bg-stone-900 dark:text-stone-400">
+                    <thead className="sticky top-0 bg-white text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                       <tr>
                         <th className="px-3 py-2 font-semibold">{t("Baris", "Row")}</th>
                         <th className="px-3 py-2 font-semibold">{t("Nama", "Name")}</th>
@@ -330,8 +330,8 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                     </thead>
                     <tbody>
                       {report.preview.map((p) => (
-                        <tr key={p.row} className="border-t border-stone-100 dark:border-stone-800">
-                          <td className="px-3 py-1.5 tabular-nums text-stone-500">{p.row}</td>
+                        <tr key={p.row} className="border-t border-slate-100 dark:border-slate-800">
+                          <td className="px-3 py-1.5 tabular-nums text-slate-500">{p.row}</td>
                           <td className="max-w-40 truncate px-3 py-1.5 font-medium">{p.fullName}</td>
                           <td className="px-3 py-1.5 tabular-nums">{p.joinDate ?? "—"}</td>
                           <td className="max-w-40 truncate px-3 py-1.5">{p.orgUnit ?? "—"}</td>
@@ -377,15 +377,15 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
             {/* hasil komit */}
             {phase === "done" && result && (
               <div className="flex flex-col gap-3">
-                <div className={cn("flex items-center gap-2 rounded-xl p-3 text-[13px] font-medium", result.created > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
+                <div className={cn("flex items-center gap-2 rounded-xl p-3 text-[13px] font-medium", result.created > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>
                   <CheckCircle2 className="h-4 w-4" />
                   {t("{n} karyawan dibuat", "{n} employees created", { n: result.created })}
                   {result.failed.length > 0 ? t(` · ${result.failed.length} gagal`, ` · ${result.failed.length} failed`) : ""}
                 </div>
                 {result.employees.length > 0 && (
-                  <div className="overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
+                  <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                     <table className="w-full text-[12.5px]">
-                      <thead className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                      <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                         <tr>
                           <th className="px-3 py-2 font-semibold">{t("Baris", "Row")}</th>
                           <th className="px-3 py-2 font-semibold">{t("No Karyawan", "Employee No")}</th>
@@ -394,8 +394,8 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                       </thead>
                       <tbody>
                         {result.employees.map((e) => (
-                          <tr key={e.row} className="border-t border-stone-100 dark:border-stone-800">
-                            <td className="px-3 py-1.5 tabular-nums text-stone-500">{e.row}</td>
+                          <tr key={e.row} className="border-t border-slate-100 dark:border-slate-800">
+                            <td className="px-3 py-1.5 tabular-nums text-slate-500">{e.row}</td>
                             <td className="px-3 py-1.5 font-mono text-[11.5px] font-semibold">{e.employeeNo}</td>
                             <td className="px-3 py-1.5 font-medium">{e.fullName}</td>
                           </tr>
@@ -416,7 +416,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                       <tbody>
                         {result.failed.map((f) => (
                           <tr key={f.row} className="border-t border-rose-100 dark:border-rose-500/20">
-                            <td className="px-3 py-1.5 tabular-nums text-stone-500">{f.row}</td>
+                            <td className="px-3 py-1.5 tabular-nums text-slate-500">{f.row}</td>
                             <td className="px-3 py-1.5 text-rose-700 dark:text-rose-300">{f.error}</td>
                           </tr>
                         ))}

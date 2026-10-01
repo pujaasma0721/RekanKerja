@@ -85,7 +85,7 @@ export function EntityRulesButton({ target, ruleCount, onOpen }: { target: Entit
         "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors",
         ruleCount
           ? "ov-soft ov-border-accent ov-text-accent hover:shadow-sm"
-          : "border-stone-200 text-stone-400 hover:border-stone-300 hover:text-stone-600 dark:border-stone-700 dark:text-stone-500",
+          : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500",
       )}
       title={t("Aturan diferensiasi parameter", "Parameter differentiation rules")}
       aria-label={t("Aturan {name}", "Rules {name}", { name: target.name })}
@@ -134,7 +134,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
             {def ? t(def.label, def.labelEn) : t("Aturan Diferensiasi", "Differentiation Rules")}
             <Badge variant="outline" className="font-mono text-[10px]">{target.code}</Badge>
           </DialogTitle>
-          <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
             {t(
               `Rule menilai parameter karyawan (pekerjaan & personal) lalu mengubah ${valueField === "days" ? "entitlement" : "limit"} ${entityLabel.toLowerCase()} ini. Kombinasi antar kondisi bisa DAN (semua cocok) atau ATAU (salah satu); urutan prioritas menentukan rule yang menang (pertama yang cocok).`,
               `Rules evaluate employee parameters (job & personal) then adjust this ${entityLabel.toLowerCase()}'s ${valueField === "days" ? "entitlement" : "limit"}. Conditions combine with AND (all match) or OR (any one); priority order decides the winning rule (first match).`,
@@ -143,18 +143,18 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
         </DialogHeader>
 
         <Tabs defaultValue="rules" className="mt-1">
-          <TabsList className="h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+          <TabsList className="h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+            <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <SlidersHorizontal className="h-3.5 w-3.5" /> {t("Aturan ({n})", "Rules ({n})", { n: rules.length })}
             </TabsTrigger>
-            <TabsTrigger value="preview" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+            <TabsTrigger value="preview" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <FlaskConical className="h-3.5 w-3.5" /> {t("Simulasi Karyawan", "Employee Simulation")}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="rules" className="mt-3">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-stone-400">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
                 <Info className="h-3.5 w-3.5" />
                 {def ? t(def.baseLabel, def.baseLabelEn) : ""}:
                 <span className="ov-text-accent font-mono">{data?.baseLabel ?? "—"}</span>
@@ -165,22 +165,22 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
             </div>
 
             {loading && !data ? (
-              <Card><CardContent className="p-8 text-center text-xs text-stone-400">{t("Memuat aturan…", "Loading rules…")}</CardContent></Card>
+              <Card><CardContent className="p-8 text-center text-xs text-slate-400">{t("Memuat aturan…", "Loading rules…")}</CardContent></Card>
             ) : rules.length === 0 ? (
               <Card className="rounded-2xl border-dashed">
                 <CardContent className="p-8 text-center">
-                  <SlidersHorizontal className="mx-auto mb-2 h-6 w-6 text-stone-300" />
-                  <p className="text-xs font-bold text-stone-500">{t("Belum ada aturan — nilai sama untuk semua karyawan", "No rules yet — same value for all employees")}</p>
-                  <p className="mt-1 text-[11px] text-stone-400">{t("Tambahkan aturan untuk membedakan nilai berdasarkan parameter karyawan.", "Add a rule to differentiate by employee parameters.")}</p>
+                  <SlidersHorizontal className="mx-auto mb-2 h-6 w-6 text-slate-300" />
+                  <p className="text-xs font-bold text-slate-500">{t("Belum ada aturan — nilai sama untuk semua karyawan", "No rules yet — same value for all employees")}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">{t("Tambahkan aturan untuk membedakan nilai berdasarkan parameter karyawan.", "Add a rule to differentiate by employee parameters.")}</p>
                 </CardContent>
               </Card>
             ) : (
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                        <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                           <TableHead className="text-[11px] font-bold">#</TableHead>
                           <TableHead className="text-[11px] font-bold">{t("Nama Aturan", "Rule Name")}</TableHead>
                           <TableHead className="text-[11px] font-bold">{t("Kondisi", "Conditions")}</TableHead>
@@ -191,8 +191,8 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                       </TableHeader>
                       <TableBody>
                         {rules.map((r) => (
-                          <TableRow key={r.id} className={cn("align-top hover:bg-stone-50 dark:hover:bg-stone-900/60", !r.active && "opacity-50")}>
-                            <TableCell className="font-mono text-[11px] font-bold text-stone-400">{r.priority}</TableCell>
+                          <TableRow key={r.id} className={cn("align-top hover:bg-slate-50 dark:hover:bg-slate-900/60", !r.active && "opacity-50")}>
+                            <TableCell className="font-mono text-[11px] font-bold text-slate-400">{r.priority}</TableCell>
                             <TableCell className="max-w-64 text-[12px] font-bold">{r.name}</TableCell>
                             <TableCell className="max-w-80">
                               <div className="flex flex-col gap-1">
@@ -202,7 +202,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                                       "w-fit rounded-md px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide",
                                       (r.matchMode ?? "all") === "any"
                                         ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
-                                        : "bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-300",
+                                        : "bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300",
                                     )}
                                     title={(r.matchMode ?? "all") === "any" ? t("Salah satu kondisi cukup", "Any one condition suffices") : t("Semua kondisi harus cocok", "All conditions must match")}
                                   >
@@ -210,7 +210,7 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                                   </span>
                                 )}
                                 {r.conditions.map((c, i) => (
-                                  <span key={i} className="rounded-lg bg-stone-100 px-2 py-1 text-[10px] font-semibold leading-relaxed text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                                  <span key={i} className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-semibold leading-relaxed text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                     {describeCondition(c, t)}
                                   </span>
                                 ))}
@@ -218,17 +218,17 @@ export function EntityRulesDialog({ open, target, onClose }: { open: boolean; ta
                             </TableCell>
                             <TableCell>
                               <span className="text-[11px] font-bold ov-text-accent">{actionLabel(r.actionType, def, t)}</span>
-                              <span className="block font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">
+                              <span className="block font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">
                                 {r.actionType === "Multiply" ? `× ${r[valueField] ?? 0}` : fmtValue(r[valueField] ?? 0)}
                               </span>
                             </TableCell>
                             <TableCell><Switch checked={r.active} onCheckedChange={() => toggleActive(r)} aria-label={t("Toggle {name}", "Toggle {name}", { name: r.name })} /></TableCell>
                             <TableCell>
                               <div className="flex gap-1">
-                                <button onClick={() => setEditor({ open: true, rule: r })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Ubah")}>
+                                <button onClick={() => setEditor({ open: true, rule: r })} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Ubah")}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </button>
-                                <button onClick={() => remove(r)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
+                                <button onClick={() => remove(r)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
@@ -286,30 +286,30 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
   const fmt = (v: number | null) => (v == null ? "—" : isDays ? `${v}` : fmtIDR(v));
 
   if (loading && !data) {
-    return <Card><CardContent className="p-8 text-center text-xs text-stone-400">{t("Menghitung simulasi…", "Computing simulation…")}</CardContent></Card>;
+    return <Card><CardContent className="p-8 text-center text-xs text-slate-400">{t("Menghitung simulasi…", "Computing simulation…")}</CardContent></Card>;
   }
   if (rows.length === 0) {
-    return <Card><CardContent className="p-8 text-center text-xs text-stone-400">{t("Tidak ada karyawan aktif dengan penempatan.", "No active employees with assignments.")}</CardContent></Card>;
+    return <Card><CardContent className="p-8 text-center text-xs text-slate-400">{t("Tidak ada karyawan aktif dengan penempatan.", "No active employees with assignments.")}</CardContent></Card>;
   }
 
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-bold">
-        <Badge className="gap-1 bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+        <Badge className="gap-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
           {t("{n} karyawan", "{n} employees", { n: rows.length })}
         </Badge>
         <Badge className="gap-1 bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
           {t("{n} kena aturan", "{n} matched by rule", { n: matchedCount })}
         </Badge>
-        <Badge className="gap-1 bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+        <Badge className="gap-1 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
           {t("{n} nilai dasar", "{n} base value", { n: rows.length - matchedCount })}
         </Badge>
       </div>
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           <div className="max-h-[50vh] overflow-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
                 <TableRow>
                   <TableHead className="text-[11px] font-bold">{t("No.")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Karyawan", "Employee")}</TableHead>
@@ -322,14 +322,14 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
               </TableHeader>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.employeeNo} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                    <TableCell className="font-mono text-[11px] font-bold text-stone-500">{r.employeeNo}</TableCell>
+                  <TableRow key={r.employeeNo} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                    <TableCell className="font-mono text-[11px] font-bold text-slate-500">{r.employeeNo}</TableCell>
                     <TableCell className="text-[12px] font-bold">{r.fullName}</TableCell>
-                    <TableCell className="max-w-56 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <TableCell className="max-w-56 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
                       {r.positionName ?? "—"}<br />
                       {r.officeName ?? r.workLocationName ?? "—"} · {r.employmentStatus}
                     </TableCell>
-                    <TableCell className="max-w-48 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <TableCell className="max-w-48 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
                       {r.matchedRule && r.matchedRule.conditions && r.matchedRule.conditions.length > 0 ? (
                         <div
                           className="flex flex-col gap-0.5"
@@ -342,26 +342,26 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
                             const val = raw == null ? t("(kosong)", "(empty)") : describeConditionValue(c.param, raw, t);
                             return (
                               <span key={c.param} className="truncate">
-                                {label}: <span className="font-bold text-stone-600 dark:text-stone-300">{val}</span>
+                                {label}: <span className="font-bold text-slate-600 dark:text-slate-300">{val}</span>
                               </span>
                             );
                           })}
                         </div>
                       ) : (
-                        <span className="text-stone-300">—</span>
+                        <span className="text-slate-300">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-[11px] text-stone-500">{fmt(r.base)}</TableCell>
+                    <TableCell className="text-right font-mono text-[11px] text-slate-500">{fmt(r.base)}</TableCell>
                     <TableCell>
                       {r.matchedRule ? (
                         <Badge variant="outline" className="max-w-56 truncate text-[9px] font-bold text-brand dark:text-brand/85" title={r.matchedRule.name}>
                           {r.matchedRule.name}
                         </Badge>
                       ) : (
-                        <span className="text-[10px] text-stone-300">—</span>
+                        <span className="text-[10px] text-slate-300">—</span>
                       )}
                     </TableCell>
-                    <TableCell className={cn("text-right font-mono text-[11px] font-bold", r.matchedRule ? "ov-text-accent" : "text-stone-700 dark:text-stone-200")}>
+                    <TableCell className={cn("text-right font-mono text-[11px] font-bold", r.matchedRule ? "ov-text-accent" : "text-slate-700 dark:text-slate-200")}>
                       {fmt(r.final)}
                     </TableCell>
                   </TableRow>
@@ -371,7 +371,7 @@ function PreviewTab({ domain, entityId, def }: { domain: RuleDomain; entityId: s
           </div>
         </CardContent>
       </Card>
-      <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+      <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
         {t(
           "Simulasi memakai data penempatan & profil saat ini; untuk medical berbasis faktor gaji, plafon dihitung dari gaji pokok masing-masing karyawan.",
           "Simulation uses current placement & profile data; for salary-factor medical types, the limit is computed per employee's base salary.",
@@ -393,11 +393,11 @@ const blankRule = (): { name: string; priority: string; actionType: string; valu
 function MatchModeToggle({ value, onChange }: { value: RuleMatchMode; onChange: (m: RuleMatchMode) => void }) {
   const { t } = useI18n();
   const items: { v: RuleMatchMode; label: string; labelEn: string; activeCls: string }[] = [
-    { v: "all", label: "DAN — semua cocok", labelEn: "AND — all match", activeCls: "bg-white ov-text-accent shadow-sm dark:bg-stone-700" },
-    { v: "any", label: "ATAU — salah satu", labelEn: "OR — any one", activeCls: "bg-white text-amber-600 shadow-sm dark:bg-stone-700 dark:text-amber-400" },
+    { v: "all", label: "DAN — semua cocok", labelEn: "AND — all match", activeCls: "bg-white ov-text-accent shadow-sm dark:bg-slate-700" },
+    { v: "any", label: "ATAU — salah satu", labelEn: "OR — any one", activeCls: "bg-white text-amber-600 shadow-sm dark:bg-slate-700 dark:text-amber-400" },
   ];
   return (
-    <div className="flex gap-1 rounded-xl bg-stone-100 p-1 dark:bg-stone-800" role="group" aria-label={t("Kombinasi kondisi", "Condition combination")}>
+    <div className="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800" role="group" aria-label={t("Kombinasi kondisi", "Condition combination")}>
       {items.map((it) => (
         <button
           key={it.v}
@@ -406,7 +406,7 @@ function MatchModeToggle({ value, onChange }: { value: RuleMatchMode; onChange: 
           aria-pressed={value === it.v}
           className={cn(
             "rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors",
-            value === it.v ? it.activeCls : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300",
+            value === it.v ? it.activeCls : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
           )}
         >
           {t(it.label, it.labelEn)}
@@ -512,14 +512,14 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
             <div>
               <Label className="text-xs">{t("Prioritas", "Priority")}</Label>
               <Input type="number" value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className="mt-1.5 font-mono" />
-              <p className="mt-1 text-[10px] text-stone-400">{t("kecil dievaluasi lebih dulu", "lower evaluated first")}</p>
+              <p className="mt-1 text-[10px] text-slate-400">{t("kecil dievaluasi lebih dulu", "lower evaluated first")}</p>
             </div>
           </div>
 
           {/* ---- kondisi ---- */}
-          <div className="rounded-2xl border border-stone-200 p-3 dark:border-stone-800">
+          <div className="rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {form.matchMode === "any"
                   ? t("Kondisi Parameter (salah satu cocok — ATAU)", "Parameter Conditions (any one matches — OR)")
                   : t("Kondisi Parameter (semua harus cocok — DAN)", "Parameter Conditions (all must match — AND)")}
@@ -532,7 +532,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
               </div>
             </div>
             {form.conditions.length > 1 && (
-              <p className="mb-2 text-[10px] leading-relaxed text-stone-400">
+              <p className="mb-2 text-[10px] leading-relaxed text-slate-400">
                 {t(
                   "Beberapa nilai dalam satu kondisi sudah bermakna ATAU (\"salah satu dari\"). Pilihan di atas mengatur hubungan ANTAR kondisi: DAN = semua kondisi harus cocok; ATAU = cukup satu kondisi cocok.",
                   "Multiple values within one condition already mean OR (\"is one of\"). The toggle above controls the relation BETWEEN conditions: AND = all must match; OR = any one suffices.",
@@ -543,7 +543,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
               {form.conditions.map((c, i) => {
                 const pd = RULE_PARAMS.find((p) => p.key === c.param);
                 return (
-                  <div key={i} className="rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900/60">
+                  <div key={i} className="rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900/60">
                     <div className="flex flex-wrap items-center gap-2">
                       <Select
                         value={c.param}
@@ -583,7 +583,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                       </Select>
 
                       {form.conditions.length > 1 && (
-                        <button onClick={() => removeCond(i)} className="shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus kondisi", "Remove condition")}>
+                        <button onClick={() => removeCond(i)} className="shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus kondisi", "Remove condition")}>
                           <X className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -602,7 +602,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                         ) : (
                           <ValueChips cond={c} def={pd} options={options} onToggle={(v) => toggleCondValue(i, v)} onChange={(values) => updateCond(i, { values })} />
                         )}
-                        {pd.desc && <p className="mt-1 text-[10px] text-stone-400">{t(pd.desc, pd.descEn ?? pd.desc)}</p>}
+                        {pd.desc && <p className="mt-1 text-[10px] text-slate-400">{t(pd.desc, pd.descEn ?? pd.desc)}</p>}
                       </div>
                     )}
                   </div>
@@ -612,7 +612,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
           </div>
 
           {/* ---- aksi ---- */}
-          <div className="grid gap-3 rounded-2xl border border-stone-200 p-3 sm:grid-cols-2 dark:border-stone-800">
+          <div className="grid gap-3 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-slate-800">
             <div>
               <Label className="text-xs">{t("Aksi terhadap Nilai", "Value Action")}</Label>
               <Select value={form.actionType} onValueChange={(v) => setForm((f) => ({ ...f, actionType: v }))}>
@@ -620,7 +620,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                 <SelectContent>
                   {def.actions.map((a) => (
                     <SelectItem key={a.value} value={a.value} className="text-[11px]">
-                      {t(a.label, a.labelEn)} — <span className="text-stone-400">{t(a.hint, a.hintEn)}</span>
+                      {t(a.label, a.labelEn)} — <span className="text-slate-400">{t(a.hint, a.hintEn)}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -637,9 +637,9 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
                 className="mt-1.5 font-mono"
               />
               {!isDays && form.actionType !== "Multiply" && Number(form.value) !== 0 && (
-                <p className="mt-1 text-[11px] font-bold text-stone-500">{fmtIDR(Number(form.value) || 0)}</p>
+                <p className="mt-1 text-[11px] font-bold text-slate-500">{fmtIDR(Number(form.value) || 0)}</p>
               )}
-              <p className="mt-1 text-[10px] text-stone-400">
+              <p className="mt-1 text-[10px] text-slate-400">
                 {t(`dasar: ${baseLabel || "—"}`, `base: ${baseLabel || "—"}`)}
               </p>
             </div>
@@ -647,7 +647,7 @@ function RuleEditorDialog({ open, domain, entityId, entityCode, def, baseLabel, 
               <Label className="text-xs">{t("Catatan", "Notes")}</Label>
               <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("opsional — dasar kebijakan, referensi dokumen", "optional — policy basis, document reference")} className="mt-1.5" />
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 sm:col-span-2 dark:border-stone-700">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 sm:col-span-2 dark:border-slate-700">
               <p className="text-xs font-bold">{t("Aturan Aktif", "Rule Active")}</p>
               <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} />
             </div>
@@ -705,7 +705,7 @@ function ValueChips({ cond, def, options, onToggle, onChange }: {
   }
 
   return (
-    <div className="flex max-h-52 flex-wrap gap-1.5 overflow-y-auto rounded-xl bg-white p-2 dark:bg-stone-900">
+    <div className="flex max-h-52 flex-wrap gap-1.5 overflow-y-auto rounded-xl bg-white p-2 dark:bg-slate-900">
       {opts.map((o) => {
         const active = cond.values.includes(o.value);
         return (
@@ -717,7 +717,7 @@ function ValueChips({ cond, def, options, onToggle, onChange }: {
               "rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors",
               active
                 ? "ov-soft ov-border-accent ov-text-accent"
-                : "border-stone-200 text-stone-500 hover:border-stone-300 dark:border-stone-700 dark:text-stone-400",
+                : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400",
             )}
             aria-pressed={active}
           >

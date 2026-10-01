@@ -92,18 +92,18 @@ export function LeaveMassPage() {
         <div className="flex items-start gap-3">
           <div className="rounded-xl ov-tile p-2"><Megaphone className="h-5 w-5" /></div>
           <div>
-            <p className="text-sm font-bold text-stone-800 dark:text-stone-100">{t("Mekanisme SKB 3 Menteri", "SKB 3-Minister Joint Decree Mechanism")}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t("Mekanisme SKB 3 Menteri", "SKB 3-Minister Joint Decree Mechanism")}</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t("Cuti bersama resmi (mis. menjelang Idulfitri) dijalankan lewat cuti massal: pilih tanggal + jenis cuti penanggung saldo, sistem membuat baris permintaan ", "Official joint leave (e.g. ahead of Eid) is run as mass leave: pick the dates + the balance-bearing leave type, and the system creates request rows ")}<b>{t("status Cuti Massal", "with Mass Leave status")}</b>{t(" untuk setiap karyawan organisasi — hari non-kerja & yang sudah punya cuti otomatis dilewati. Contoh nyata MII: 3 tanggal SKB ditanggung saldo Cuti Besar.", " for every employee in the organization — non-working days and those already on leave are skipped automatically. Real MII example: 3 SKB dates charged to the Cuti Besar balance.")}
             </p>
           </div>
         </div>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">{t("Riwayat cuti massal — {n} entri", "Mass leave history — {n} entries", { n: rows.length })}</p>
+          <div className="border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Riwayat cuti massal — {n} entri", "Mass leave history — {n} entries", { n: rows.length })}</p>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={4} /></div> : rows.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Belum ada cuti massal", "No mass leave yet")} description={t("Buat cuti massal untuk cuti bersama SKB atau kebijakan perusahaan.", "Create mass leave for SKB joint leave or company policy.")} icon={<Users className="h-6 w-6" />} /></div>
@@ -111,7 +111,7 @@ export function LeaveMassPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Jenis")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Rentang", "Range")}</TableHead>
@@ -123,29 +123,29 @@ export function LeaveMassPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((m) => (
-                    <TableRow key={m.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{m.docNo}</p>
-                        <p className="text-[10px] text-stone-400">{m.letterNo ?? "—"}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">{m.docNo}</p>
+                        <p className="text-[10px] text-slate-400">{m.letterNo ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-700 dark:text-stone-200">{m.leaveTypeName}</TableCell>
-                      <TableCell className="text-[11px] font-semibold text-stone-700 dark:text-stone-200">
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-200">{m.leaveTypeName}</TableCell>
+                      <TableCell className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                         {new Date(m.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })}
                         {m.dateTo !== m.dateFrom && ` → ${new Date(m.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })}`}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{m.amount}</TableCell>
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{m.amount}</TableCell>
                       <TableCell className="text-right">
                         <p className="text-xs font-extrabold ov-text-accent">{m.generated}</p>
-                        <p className="text-[10px] text-stone-400">{t("ter-generate", "generated")}</p>
+                        <p className="text-[10px] text-slate-400">{t("ter-generate", "generated")}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-[11px] text-stone-600 dark:text-stone-300">{m.orgUnitName ?? t("Seluruh organisasi", "Entire organization")}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">{m.orgUnitName ?? t("Seluruh organisasi", "Entire organization")}</p>
                         <div className="mt-0.5 flex gap-1">
-                          {m.excludeNonWorking && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t("Lewati non-kerja", "Skip non-working")}</Badge>}
-                          {m.excludeConflicted && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{t("Lewati bentrok", "Skip conflicts")}</Badge>}
+                          {m.excludeNonWorking && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">{t("Lewati non-kerja", "Skip non-working")}</Badge>}
+                          {m.excludeConflicted && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">{t("Lewati bentrok", "Skip conflicts")}</Badge>}
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-64 text-[10px] text-stone-400">{m.note ?? "—"}</TableCell>
+                      <TableCell className="max-w-64 text-[10px] text-slate-400">{m.note ?? "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -202,12 +202,12 @@ export function LeaveMassPage() {
               <Label className="text-xs font-bold">{t("Catatan")}</Label>
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={t("mis. SKB cuti bersama 17 Sep", "e.g. SKB joint leave Sep 17")} className="h-8 text-xs" />
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-900/60">
-              <label className="flex items-center gap-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+              <label className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 <Checkbox checked={form.excludeNonWorking} onCheckedChange={(v) => setForm({ ...form, excludeNonWorking: Boolean(v) })} />
                 {t("Lewati hari non-kerja (jadwal)", "Skip non-working days (schedule)")}
               </label>
-              <label className="flex items-center gap-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+              <label className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 <Checkbox checked={form.excludeConflicted} onCheckedChange={(v) => setForm({ ...form, excludeConflicted: Boolean(v) })} />
                 {t("Lewati karyawan bentrok cuti", "Skip employees with conflicting leave")}
               </label>

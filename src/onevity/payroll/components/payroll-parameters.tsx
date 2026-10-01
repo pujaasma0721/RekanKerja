@@ -72,27 +72,27 @@ export function PayrollParametersPage() {
         <LoadingRows rows={6} />
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+          <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+            <TabsTrigger value="regulation" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <Landmark className="h-3.5 w-3.5" /> {t("Regulasi & BPJS", "Regulation & BPJS")}
             </TabsTrigger>
-            <TabsTrigger value="brackets" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+            <TabsTrigger value="brackets" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <Scale className="h-3.5 w-3.5" /> {t("Bracket Progresif", "Progressive Brackets")}
             </TabsTrigger>
-            <TabsTrigger value="ter" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+            <TabsTrigger value="ter" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <Percent className="h-3.5 w-3.5" /> {t("TER (PP 58/2023)")}
             </TabsTrigger>
-            <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+            <TabsTrigger value="ptkp" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               {t("PTKP")}
             </TabsTrigger>
-            <TabsTrigger value="umk" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+            <TabsTrigger value="umk" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
               <Coins className="h-3.5 w-3.5" /> {t("UMP/UMK", "Min. Wage")}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="regulation">
             {reg && (
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
                     <span className="flex items-center gap-2"><Landmark className="h-4 w-4 ov-text-accent" /> {reg.name} <Badge variant="outline" className="font-mono text-[10px]">{reg.code}</Badge></span>
@@ -105,12 +105,12 @@ export function PayrollParametersPage() {
                   <div className="mb-4 flex items-center justify-between rounded-xl border border-brand/25 bg-brand/10/60 p-3.5 dark:border-brand/30 dark:bg-brand/10">
                     <div>
                       <p className="text-xs font-bold">{t("Gunakan Metode TER", "Use TER Method")}</p>
-                      <p className="text-[10px] text-stone-500 dark:text-stone-400">{t("Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP", "Monthly effective rate (PP 58/2023) replacing annualized progressive — for Indonesian citizens with NPWP")}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{t("Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP", "Monthly effective rate (PP 58/2023) replacing annualized progressive — for Indonesian citizens with NPWP")}</p>
                     </div>
                     <Switch checked={reg.useTer} onCheckedChange={(v) => setReg({ ...reg, useTer: v })} />
                   </div>
 
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("PPh21")}</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("PPh21")}</p>
                   <div className="mb-4 grid gap-3 sm:grid-cols-3">
                     <NumField label={t("Biaya Jabatan (%)", "Employment Expense (%)")} value={String(reg.biayaJabatanRate * 100)} onChange={(v) => setReg({ ...reg, biayaJabatanRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("Cap Biaya Jabatan / bulan", "Employment Expense Cap / month")} value={String(reg.biayaJabatanCapMonthly)} onChange={(v) => setReg({ ...reg, biayaJabatanCapMonthly: num(v) })} money />
@@ -118,11 +118,11 @@ export function PayrollParametersPage() {
                   </div>
                   {/* Task 82-b: nonNpwpSurcharge dorman di engine — penalti aktual via
                       bracket rateNonPpwp (seed rate×1,2) → label informatif. */}
-                  <p className="mb-2 text-[10px] leading-relaxed text-stone-400">
+                  <p className="mb-2 text-[10px] leading-relaxed text-slate-400">
                     {t("Penalti Non-NPWP: field ini informatif — penalti aktual non-NPWP mengikuti bracket Pasal 17 (kolom rate non-NPWP)", "Non-NPWP surcharge: this field is informative — the actual non-NPWP penalty follows the Article 17 brackets (non-NPWP rate column)")}
                   </p>
 
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">{t("BPJS / JSTK")}</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("BPJS / JSTK")}</p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <NumField label={t("JHT Pegawai", "JHT Employee")} value={String(reg.jhtEmployeeRate * 100)} onChange={(v) => setReg({ ...reg, jhtEmployeeRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("JHT Perusahaan", "JHT Company")} value={String(reg.jhtCompanyRate * 100)} onChange={(v) => setReg({ ...reg, jhtCompanyRate: num(v) / 100 })} suffix="%" />
@@ -140,7 +140,7 @@ export function PayrollParametersPage() {
                     <NumField label={t("JKP Rekomposisi JKK (informatif)", "JKP JKK Reallocation (informative)")} value={String((reg.jkpCompanyRate ?? 0) * 100)} onChange={(v) => setReg({ ...reg, jkpCompanyRate: num(v) / 100 })} suffix="%" />
                     <NumField label={t("Cap Upah JKP", "JKP Salary Cap")} value={String(reg.jkpSalaryCap ?? 0)} onChange={(v) => setReg({ ...reg, jkpSalaryCap: num(v) })} money />
                   </div>
-                  <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+                  <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
                     {t(
                       "Jaminan Kehilangan Pekerjaan (PP 6/2025 Ps.11): iuran 0,36% dari upah s.d. plafon = 0,22% ditanggung APBN + 0,14% REKOMPOSISI iuran JKK yang sudah dibayar perusahaan. TIDAK ADA potongan pekerja (0%) dan TIDAK ADA beban iuran baru perusahaan — nilai 0,14% di sini informatif utk rekap BPJS. Manfaat diklaim pekerja saat PHK.",
                       "Unemployment insurance (GR 6/2025 Art.11): 0.36% of capped wage = 0.22% government (APBN) + 0.14% reallocated from the already-paid JKK premium. NO employee deduction (0%) and NO new employer cost — the 0.14% here is informative for the BPJS recap. Claimed by the worker on termination.",
@@ -152,15 +152,15 @@ export function PayrollParametersPage() {
           </TabsContent>
 
           <TabsContent value="brackets">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold">{t("Bracket PPh21 Progresif — UU HPP (Pasal 17)", "Progressive PPh21 Brackets — HPP Law (Article 17)")}</CardTitle>
-                <p className="text-[11px] text-stone-400">{t("PKP tahunan; non-NPWP dikenai tarif +{n}%", "Annual PKP; non-NPWP charged rate +{n}%", { n: ((data?.regulation?.nonNpwpSurcharge ?? 0.2) * 100).toFixed(0) })}</p>
+                <p className="text-[11px] text-slate-400">{t("PKP tahunan; non-NPWP dikenai tarif +{n}%", "Annual PKP; non-NPWP charged rate +{n}%", { n: ((data?.regulation?.nonNpwpSurcharge ?? 0.2) * 100).toFixed(0) })}</p>
               </CardHeader>
               <CardContent className="pt-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       <TableHead className="text-[11px] font-bold">{t("PKP Dari", "PKP From")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("PKP Sampai", "PKP Up To")}</TableHead>
                       <TableHead className="text-right text-[11px] font-bold">{t("Tarif NPWP", "NPWP Rate")}</TableHead>
@@ -169,7 +169,7 @@ export function PayrollParametersPage() {
                   </TableHeader>
                   <TableBody>
                     {(data?.brackets ?? []).map((b) => (
-                      <TableRow key={b.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell className="text-xs font-semibold">{fmtIDR(b.lowerLimit)}</TableCell>
                         <TableCell className="text-xs">{b.upperLimit ? fmtIDR(b.upperLimit) : <Badge variant="outline" className="text-[10px]">{t("∞ tanpa batas", "∞ unlimited")}</Badge>}</TableCell>
                         <TableCell className="text-right text-xs font-extrabold ov-text-accent">{(b.rateNpwp * 100).toFixed(0)}%</TableCell>
@@ -183,12 +183,12 @@ export function PayrollParametersPage() {
           </TabsContent>
 
           <TabsContent value="ter">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold"><Percent className="h-4 w-4 ov-text-accent" /> {t("Tarif Efektif Rata-rata (TER) — PP 58/2023", "Average Effective Rate (TER) — PP 58/2023")}</CardTitle>
-                <p className="text-[11px] text-stone-400">
+                <p className="text-[11px] text-slate-400">
                   {t("Tarif bulanan atas bruto. Kategori A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Aktif jika switch TER dihidupkan (", "Monthly rate on gross. Category A: TK/0–1 & K/0–1 · B: TK/2–3, K/2–3, K/I/0–1 · C: K/I/2–3. Active when the TER switch is on (")}
-                  {data?.regulation?.useTer ? <span className="font-bold text-brand">{t("aktif", "active")}</span> : <span className="font-bold text-stone-500">{t("non-aktif — progresif", "inactive — progressive")}</span>}{t(").", ").")}
+                  {data?.regulation?.useTer ? <span className="font-bold text-brand">{t("aktif", "active")}</span> : <span className="font-bold text-slate-500">{t("non-aktif — progresif", "inactive — progressive")}</span>}{t(").", ").")}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
@@ -198,17 +198,17 @@ export function PayrollParametersPage() {
                       <p className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-wider", cat === "A" ? "text-brand dark:text-brand/85" : cat === "B" ? "text-brand dark:text-brand/85" : "text-rose-600 dark:text-rose-400")}>
                         {t("Kategori {c} ({n} rentang)", "Category {c} ({n} ranges)", { c: cat, n: (data?.ter ?? []).filter((ter) => ter.category === cat).length })}
                       </p>
-                      <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 dark:border-stone-800">
+                      <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
                         <Table>
                           <TableHeader>
-                            <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                            <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                               <TableHead className="text-[10px] font-bold">{t("Bruto/Bulan", "Gross/Month")}</TableHead>
                               <TableHead className="text-right text-[10px] font-bold">{t("Tarif", "Rate")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {(data?.ter ?? []).filter((ter) => ter.category === cat).map((ter) => (
-                              <TableRow key={ter.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                              <TableRow key={ter.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                                 <TableCell className="text-[10px]">
                                   {fmtIDR(ter.lowerLimit)}{ter.upperLimit ? ` – ${fmtIDR(ter.upperLimit)}` : "+"}
                                 </TableCell>
@@ -226,15 +226,15 @@ export function PayrollParametersPage() {
           </TabsContent>
 
           <TabsContent value="ptkp">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold">{t("Penghasilan Tidak Kena Pajak (PTKP) — Tahunan", "Non-Taxable Income (PTKP) — Annual")}</CardTitle>
-                <p className="text-[11px] text-stone-400">{t("TK = tidak menikah · K = menikah (pasangan tidak bekerja) · K/I = menikah, pasangan bekerja · angka = tanggungan", "TK = single · K = married (non-working spouse) · K/I = married, working spouse · number = dependents")}</p>
+                <p className="text-[11px] text-slate-400">{t("TK = tidak menikah · K = menikah (pasangan tidak bekerja) · K/I = menikah, pasangan bekerja · angka = tanggungan", "TK = single · K = married (non-working spouse) · K/I = married, working spouse · number = dependents")}</p>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
                   {Object.entries(data?.ptkp ?? {}).map(([status, value]) => (
-                    <div key={status} className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3 text-center dark:border-stone-800 dark:bg-stone-900/40">
+                    <div key={status} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
                       <p className="text-xs font-extrabold ov-text-accent">{status.replace(/(\d+)$/, "/$1").replace(/^KI/, "K/I/")}</p>
                       <p className="mt-0.5 text-[11px] font-bold">{fmtIDR(value)}</p>
                     </div>
@@ -260,7 +260,7 @@ function NumField({ label, value, onChange, suffix, money }: { label: string; va
       <Label className="text-xs">{label}</Label>
       <div className="relative mt-1.5">
         <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className={cn("font-mono", (suffix || money) && "pr-10")} />
-        {(suffix || money) && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-stone-400">{suffix ?? "Rp"}</span>}
+        {(suffix || money) && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{suffix ?? "Rp"}</span>}
       </div>
     </div>
   );

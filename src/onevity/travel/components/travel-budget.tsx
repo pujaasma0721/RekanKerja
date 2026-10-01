@@ -85,7 +85,7 @@ export function TravelBudgetPage() {
       {api.loading && !api.data ? (
         <LoadingRows rows={4} />
       ) : budgets.length === 0 ? (
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-0">
             <EmptyState icon={Wallet} title={t("Belum ada budget travel", "No travel budget yet")} description={t("Buat budget tahunan untuk memantau pemakaian per cost center.", "Create an annual budget to monitor usage per cost center.")} />
           </CardContent>
@@ -97,7 +97,7 @@ export function TravelBudgetPage() {
             const over = b.totalBudget > 0 && b.used > b.totalBudget;
             const itemTotal = b.items.reduce((s, i) => s + i.amount, 0);
             return (
-              <Card key={b.id} className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+              <Card key={b.id} className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-base font-bold">
@@ -110,23 +110,23 @@ export function TravelBudgetPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-stone-50 py-2 dark:bg-stone-800/60">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Total Budget</p>
-                      <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(b.totalBudget)}</p>
+                    <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-800/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Total Budget</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(b.totalBudget)}</p>
                     </div>
                     <div className={cn("rounded-lg py-2", over ? "bg-rose-50 dark:bg-rose-950/30" : "bg-brand/10 dark:bg-brand/90/30")}>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{t("Terpakai", "Used")}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("Terpakai", "Used")}</p>
                       <p className={cn("text-sm font-black", over ? "text-rose-700 dark:text-rose-400" : "text-brand-deep dark:text-brand/85")}>{fmtIDRShort(b.used)}</p>
                     </div>
-                    <div className="rounded-lg bg-stone-50 py-2 dark:bg-stone-800/60">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">{t("Sisa", "Remaining")}</p>
-                      <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(Math.max(0, b.remaining))}</p>
+                    <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-800/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("Sisa", "Remaining")}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(Math.max(0, b.remaining))}</p>
                     </div>
                   </div>
 
                   <div>
                     <Progress value={pct} className="h-2 [&>div]:ov-bar" />
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-stone-500">
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
                       <span>{t("{n} klaim dalam periode", "{n} claims in the period", { n: b.claimCount })}</span>
                       <span className="font-bold">{Math.round(pct)}%</span>
                     </div>
@@ -146,22 +146,22 @@ export function TravelBudgetPage() {
 
                   {b.items.length > 0 && (
                     <div>
-                      <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-stone-500">
+                      <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
                         <TrendingUp className="h-3 w-3" /> {t("Rincian per Cost Center", "Breakdown per Cost Center")} {itemTotal !== b.totalBudget && b.totalBudget > 0 ? t("(jumlah ≠ total)", "(sum ≠ total)") : ""}
                       </p>
                       <div className="space-y-1.5">
                         {b.items.map((i, x) => {
                           const iPct = b.totalBudget > 0 ? (i.amount / b.totalBudget) * 100 : 0;
                           return (
-                            <div key={x} className="rounded-lg bg-stone-50 px-3 py-1.5 dark:bg-stone-800/60">
+                            <div key={x} className="rounded-lg bg-slate-50 px-3 py-1.5 dark:bg-slate-800/60">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-stone-700 dark:text-stone-300">
+                                <span className="font-bold text-slate-700 dark:text-slate-300">
                                   CC {i.costCenter}
-                                  {i.note && <span className="ml-1.5 font-normal text-stone-500">{i.note}</span>}
+                                  {i.note && <span className="ml-1.5 font-normal text-slate-500">{i.note}</span>}
                                 </span>
-                                <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDR(i.amount)}</span>
+                                <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDR(i.amount)}</span>
                               </div>
-                              <div className="mt-1 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700">
+                              <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                 <div className="h-full ov-bar" style={{ width: `${Math.min(100, iPct)}%` }} />
                               </div>
                             </div>
@@ -171,7 +171,7 @@ export function TravelBudgetPage() {
                     </div>
                   )}
 
-                  {b.note && <p className="text-[11px] text-stone-500">{b.note}</p>}
+                  {b.note && <p className="text-[11px] text-slate-500">{b.note}</p>}
                 </CardContent>
               </Card>
             );
@@ -222,8 +222,8 @@ export function TravelBudgetPage() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold dark:bg-stone-800">
-                <span className="text-stone-600 dark:text-stone-300">{t("Jumlah item: {amt}", "Item total: {amt}", { amt: fmtIDR(items.reduce((s, i) => s + (Number(i.amount) || 0), 0)) })}</span>
+              <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold dark:bg-slate-800">
+                <span className="text-slate-600 dark:text-slate-300">{t("Jumlah item: {amt}", "Item total: {amt}", { amt: fmtIDR(items.reduce((s, i) => s + (Number(i.amount) || 0), 0)) })}</span>
                 <Badge variant="secondary" className="text-[10px]">{t("Optional — bisa kosong", "Optional — can be empty")}</Badge>
               </div>
             </div>

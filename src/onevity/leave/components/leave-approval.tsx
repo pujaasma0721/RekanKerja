@@ -97,29 +97,29 @@ export function LeaveApprovalPage() {
         ].map((k) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+            <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-2">
                 <div className={cn("rounded-lg p-1.5", k.hero ? "ov-fill" : "ov-tile")}><Icon className="h-3.5 w-3.5" /></div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
               </div>
-              <p className="mt-1.5 text-lg font-extrabold text-stone-800 dark:text-stone-100">{k.value}</p>
-              <p className="text-[11px] text-stone-400">{k.sub}</p>
+              <p className="mt-1.5 text-lg font-extrabold text-slate-800 dark:text-slate-100">{k.value}</p>
+              <p className="text-[11px] text-slate-400">{k.sub}</p>
             </div>
           );
         })}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">{t("Permintaan berstatus Menunggu — urut terbaru", "Requests in Pending status — newest first")}</p>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Permintaan berstatus Menunggu — urut terbaru", "Requests in Pending status — newest first")}</p>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("Cari karyawan / no. dokumen…", "Search employee / doc no. …")}
-                className="h-8 w-56 rounded-md border border-stone-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-stone-700 dark:bg-stone-900"
+                className="h-8 w-56 rounded-md border border-slate-200 bg-white pl-8 pr-3 text-xs outline-none focus:ov-border-accent dark:border-slate-700 dark:bg-slate-900"
               />
             </div>
           </div>
@@ -129,7 +129,7 @@ export function LeaveApprovalPage() {
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableRow className="bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                     <TableHead className="text-[11px] font-bold">{t("Dokumen", "Document")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Jenis & Alasan", "Type & Reason")}</TableHead>
@@ -142,27 +142,27 @@ export function LeaveApprovalPage() {
                 </TableHeader>
                 <TableBody>
                   {requests.map((r) => (
-                    <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>
-                        <p className="text-[10px] text-stone-400">{t("diajukan", "submitted")} {new Date(r.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">{r.docNo}</p>
+                        <p className="text-[10px] text-slate-400">{t("diajukan", "submitted")} {new Date(r.requestDate).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" })}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo}</p>
-                        <p className="text-[10px] text-stone-400">{r.fullName}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{r.employeeNo}</p>
+                        <p className="text-[10px] text-slate-400">{r.fullName}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs text-stone-700 dark:text-stone-200">{r.leaveTypeName}</p>
-                        <p className="max-w-52 truncate text-[10px] text-stone-400" title={r.reason ?? ""}>{r.reason}</p>
+                        <p className="text-xs text-slate-700 dark:text-slate-200">{r.leaveTypeName}</p>
+                        <p className="max-w-52 truncate text-[10px] text-slate-400" title={r.reason ?? ""}>{r.reason}</p>
                       </TableCell>
-                      <TableCell className="text-[11px] font-semibold text-stone-700 dark:text-stone-200">
+                      <TableCell className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                         {new Date(r.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionFrom], SESSION_LABEL_EN[r.sessionFrom])} → {new Date(r.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionTo], SESSION_LABEL_EN[r.sessionTo])}
-                        <span className="block text-[10px] font-normal text-stone-400">
+                        <span className="block text-[10px] font-normal text-slate-400">
                           {t("kembali", "back")} {r.backToWorkDate ? new Date(r.backToWorkDate).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-stone-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{fmtDay(r.workingDays)}</TableCell>
+                      <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-slate-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
                       {hasChain && (
                         <TableCell>
                           {r.approval && (r.approval.status === "InProgress" || r.approval.status === "Rejected") ? (
@@ -174,7 +174,7 @@ export function LeaveApprovalPage() {
                                 {r.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {r.approval.currentLevel}/{r.approval.totalLevels}
                               </span>
                               {r.approval.status === "InProgress" && r.approval.currentApprover && (
-                                <p className="max-w-40 truncate text-[10px] text-stone-400" title={r.approval.currentApprover}>{t("menunggu", "awaiting")} {r.approval.currentApprover}</p>
+                                <p className="max-w-40 truncate text-[10px] text-slate-400" title={r.approval.currentApprover}>{t("menunggu", "awaiting")} {r.approval.currentApprover}</p>
                               )}
                             </div>
                           ) : null}
@@ -193,7 +193,7 @@ export function LeaveApprovalPage() {
                             </>
                           )}
                           {perms.canOp("leave", "leave-request", "cancel") && (
-                            <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-stone-400" title={t("Batalkan", "Cancel")}>
+                            <Button size="sm" variant="ghost" onClick={() => openDialog(r, "cancel")} className="h-7 text-[11px] font-bold text-slate-400" title={t("Batalkan", "Cancel")}>
                               <Ban className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -212,19 +212,19 @@ export function LeaveApprovalPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className={cn("flex items-center gap-2 text-sm",
-              action === "approve" ? "text-brand-deep dark:text-brand/85" : action === "reject" ? "text-rose-600" : "text-stone-500")}>
+              action === "approve" ? "text-brand-deep dark:text-brand/85" : action === "reject" ? "text-rose-600" : "text-slate-500")}>
               {action === "approve" ? <CheckCircle2 className="h-4 w-4" /> : action === "reject" ? <XCircle className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
               {action === "approve" ? t("Setujui Permintaan Cuti", "Approve Leave Request") : action === "reject" ? t("Tolak Permintaan Cuti", "Reject Leave Request") : t("Batalkan Permintaan Cuti", "Cancel Leave Request")}
             </DialogTitle>
           </DialogHeader>
           {target && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-stone-50 p-3 text-xs dark:bg-stone-900/60">
-                <p className="font-bold text-stone-800 dark:text-stone-100">{target.docNo} — {target.fullName}</p>
-                <p className="mt-0.5 text-stone-500">
+              <div className="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/60">
+                <p className="font-bold text-slate-800 dark:text-slate-100">{target.docNo} — {target.fullName}</p>
+                <p className="mt-0.5 text-slate-500">
                   {target.leaveTypeName} · {new Date(target.dateFrom).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionFrom], SESSION_LABEL_EN[target.sessionFrom])} → {new Date(target.dateTo).toLocaleDateString(locale)} {t(SESSION_LABEL[target.sessionTo], SESSION_LABEL_EN[target.sessionTo])} · {fmtDay(target.workingDays)} {t("hari kerja", "working days")}
                 </p>
-                <p className="mt-0.5 text-stone-400">{t("Alasan:", "Reason:")} {target.reason}</p>
+                <p className="mt-0.5 text-slate-400">{t("Alasan:", "Reason:")} {target.reason}</p>
               </div>
               {action === "approve" && (
                 <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">

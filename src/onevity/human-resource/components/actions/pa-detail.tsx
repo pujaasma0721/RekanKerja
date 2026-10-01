@@ -101,17 +101,17 @@ export function PADetail({ id }: { id: string }) {
       />
 
       {/* ===== document header card ===== */}
-      <div className="mb-5 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6">
+      <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="font-mono text-xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{pa.docNo}</h2>
+              <h2 className="font-mono text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{pa.docNo}</h2>
               <StatusPill status={pa.status} className="px-3 py-1 text-xs" />
               <Badge variant="outline" className="rounded-full ov-border-accent ov-soft px-3 py-1 text-[11px] font-bold">
                 {paTypeLabelSafe(pa.type)}
               </Badge>
             </div>
-            <p className="mt-1.5 text-sm text-stone-500 dark:text-stone-400">
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
               {pa.reason || t("Tanpa keterangan alasan.", "No reason provided.")}
             </p>
           </div>
@@ -124,7 +124,7 @@ export function PADetail({ id }: { id: string }) {
         </div>
 
         {/* employee strip */}
-        <div className="mt-5 flex flex-wrap items-center gap-4 rounded-xl border border-stone-200/70 bg-stone-50/70 p-4 dark:border-stone-700/70 dark:bg-stone-800/40">
+        <div className="mt-5 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200/70 bg-slate-50/70 p-4 dark:border-slate-700/70 dark:bg-slate-800/40">
           <button
             onClick={() => navigate("employee", "detail", { id: emp.id })}
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-3.5 text-left"
@@ -135,11 +135,11 @@ export function PADetail({ id }: { id: string }) {
             </span>
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-base font-bold text-stone-900 hover:ov-text-accent dark:text-stone-50">{emp.fullName}</span>
-                <span className="font-mono text-[11px] text-stone-400">{emp.employeeNo}</span>
+                <span className="truncate text-base font-bold text-slate-900 hover:ov-text-accent dark:text-slate-50">{emp.fullName}</span>
+                <span className="font-mono text-[11px] text-slate-400">{emp.employeeNo}</span>
                 <StatusPill status={emp.status} />
               </span>
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1"><BriefcaseBusiness className="h-3.5 w-3.5" /> {emp.position?.title ?? "—"}</span>
                 <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {emp.orgUnit?.name ?? "—"}</span>
                 <span className="inline-flex items-center gap-1"><GraduationCap className="h-3.5 w-3.5" /> {emp.grade?.code ?? "—"}</span>
@@ -147,7 +147,7 @@ export function PADetail({ id }: { id: string }) {
               </span>
             </span>
           </button>
-          <div className="flex flex-col gap-1 text-xs text-stone-500 dark:text-stone-400">
+          <div className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Join {fmtDate(emp.joinDate)} · {tenure(emp.joinDate)}</span>
             <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {emp.employmentStatus} · {emp.company?.shortName ?? "—"}</span>
           </div>
@@ -171,18 +171,18 @@ export function PADetail({ id }: { id: string }) {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {/* detail payload */}
-          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Detail perubahan", "Change details")}>
-            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:p-6" aria-label={t("Detail perubahan", "Change details")}>
+            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-400">
               <FileText className="h-4 w-4" /> {t("Detail Perubahan", "Change Details")}
             </h3>
             {Object.keys(detail).length === 0 ? (
-              <p className="mt-4 text-sm text-stone-400">{t("Tidak ada payload detail untuk dokumen ini.", "No detail payload for this document.")}</p>
+              <p className="mt-4 text-sm text-slate-400">{t("Tidak ada payload detail untuk dokumen ini.", "No detail payload for this document.")}</p>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {Object.entries(detail).map(([k, v]) => (
-                  <div key={k} className="rounded-xl border border-stone-200/70 bg-stone-50/60 px-4 py-3 dark:border-stone-700/70 dark:bg-stone-800/40">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t(DETAIL_LABELS[k] ?? k, DETAIL_LABELS_EN[k])}</p>
-                    <p className="mt-1 text-sm font-bold text-stone-800 dark:text-stone-100">{detailValue(k, v)}</p>
+                  <div key={k} className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/40">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t(DETAIL_LABELS[k] ?? k, DETAIL_LABELS_EN[k])}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{detailValue(k, v)}</p>
                   </div>
                 ))}
               </div>
@@ -190,12 +190,12 @@ export function PADetail({ id }: { id: string }) {
           </section>
 
           {/* activity trail */}
-          <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Jejak aktivitas", "Activity trail")}>
-            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:p-6" aria-label={t("Jejak aktivitas", "Activity trail")}>
+            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-400">
               <History className="h-4 w-4" /> {t("Jejak Aktivitas", "Activity Trail")}
             </h3>
             <ol className="mt-4 max-h-96 space-y-0 overflow-y-auto pr-1">
-              {pa.activities.length === 0 && <p className="text-sm text-stone-400">{t("Belum ada aktivitas tercatat.", "No activity recorded yet.")}</p>}
+              {pa.activities.length === 0 && <p className="text-sm text-slate-400">{t("Belum ada aktivitas tercatat.", "No activity recorded yet.")}</p>}
               {pa.activities.map((a, i) => (
                 <ActivityRow key={a.id} a={a} last={i === pa.activities.length - 1} />
               ))}
@@ -204,8 +204,8 @@ export function PADetail({ id }: { id: string }) {
         </div>
 
         {/* approval timeline */}
-        <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60 sm:p-6" aria-label={t("Timeline approval", "Approval timeline")}>
-          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-stone-400">
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 sm:p-6" aria-label={t("Timeline approval", "Approval timeline")}>
+          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-400">
             <ChevronDown className="h-4 w-4 -rotate-90" /> {t("Timeline Approval", "Approval Timeline")}
           </h3>
           <ol className="relative mt-5 space-y-0">
@@ -218,7 +218,7 @@ export function PADetail({ id }: { id: string }) {
                     <span
                       className={cn(
                         "absolute left-[19px] top-10 h-[calc(100%-40px)] w-0.5 rounded",
-                        l.status === "Approved" ? "bg-brand/35 dark:bg-brand/40" : "bg-stone-200 dark:bg-stone-700"
+                        l.status === "Approved" ? "bg-brand/35 dark:bg-brand/40" : "bg-slate-200 dark:bg-slate-700"
                       )}
                       aria-hidden
                     />
@@ -231,7 +231,7 @@ export function PADetail({ id }: { id: string }) {
                       l.status === "Rejected" && "border-rose-200 bg-rose-100 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-400",
                       l.status === "Pending" && (isCurrent
                         ? "animate-pulse border-amber-300 bg-amber-100 text-amber-600 shadow-md shadow-amber-200 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-400 dark:shadow-none"
-                        : "border-stone-200 bg-stone-50 text-stone-400 dark:border-stone-700 dark:bg-stone-800")
+                        : "border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800")
                     )}
                     aria-label={`Layer ${l.layerNo}: ${l.status}`}
                   >
@@ -242,21 +242,21 @@ export function PADetail({ id }: { id: string }) {
                   {/* content */}
                   <div className={cn("min-w-0 flex-1 rounded-xl border px-4 py-3", isCurrent
                     ? "border-amber-300 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/[0.07]"
-                    : "border-stone-200/70 bg-stone-50/50 dark:border-stone-700/60 dark:bg-stone-800/30")}>
+                    : "border-slate-200/70 bg-slate-50/50 dark:border-slate-700/60 dark:bg-slate-800/30")}>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <Badge variant="outline" className="h-5 rounded-md px-1.5 font-mono text-[10px] font-bold text-stone-500 dark:text-stone-400">L{l.layerNo}</Badge>
-                      <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{l.approverRole}</p>
-                      {isCurrent && <Badge className="rounded-full bg-amber-400/90 px-2 text-[10px] font-extrabold text-stone-900 hover:bg-amber-400">{t("SEKARANG", "NOW")}</Badge>}
+                      <Badge variant="outline" className="h-5 rounded-md px-1.5 font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400">L{l.layerNo}</Badge>
+                      <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{l.approverRole}</p>
+                      {isCurrent && <Badge className="rounded-full bg-amber-400/90 px-2 text-[10px] font-extrabold text-slate-900 hover:bg-amber-400">{t("SEKARANG", "NOW")}</Badge>}
                     </div>
-                    <p className="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">
+                    <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                       {l.approver ? `${l.approver.fullName} · ${l.approver.username}` : t("Approver belum ditentukan", "Approver not assigned yet")}
                     </p>
                     {l.note && (
-                      <p className={cn("mt-2 rounded-lg px-3 py-2 text-xs italic", l.status === "Rejected" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" : "bg-stone-100/80 text-stone-500 dark:bg-stone-800/80 dark:text-stone-400")}>
+                      <p className={cn("mt-2 rounded-lg px-3 py-2 text-xs italic", l.status === "Rejected" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" : "bg-slate-100/80 text-slate-500 dark:bg-slate-800/80 dark:text-slate-400")}>
                         “{l.note}”
                       </p>
                     )}
-                    {l.decidedAt && <p className="mt-2 text-[11px] text-stone-400">{fmtDateTime(l.decidedAt)}</p>}
+                    {l.decidedAt && <p className="mt-2 text-[11px] text-slate-400">{fmtDateTime(l.decidedAt)}</p>}
                   </div>
                 </li>
               );
@@ -264,7 +264,7 @@ export function PADetail({ id }: { id: string }) {
           </ol>
 
           {pa.status === "Prepared" && (
-            <p className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-3 py-2 text-[11px] text-stone-400 dark:border-stone-700 dark:bg-stone-900/40">
+            <p className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/60 px-3 py-2 text-[11px] text-slate-400 dark:border-slate-700 dark:bg-slate-900/40">
               <CircleDot className="h-3.5 w-3.5" /> {t("Dokumen belum disubmit — timeline aktif setelah submit.", "Document not submitted yet — the timeline activates after submission.")}
             </p>
           )}
@@ -320,8 +320,8 @@ export function PADetail({ id }: { id: string }) {
 function MetaItem({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{label}</dt>
-      <dd className={cn("mt-0.5 font-semibold text-stone-700 dark:text-stone-200", mono && "font-mono text-[11px]")}>{value}</dd>
+      <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</dt>
+      <dd className={cn("mt-0.5 font-semibold text-slate-700 dark:text-slate-200", mono && "font-mono text-[11px]")}>{value}</dd>
     </div>
   );
 }
@@ -333,21 +333,21 @@ function ActivityRow({ a, last }: { a: PAActivity; last: boolean }) {
     : a.action === "Rejected" ? <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
     : a.action === "Processed" ? <Zap className="h-4 w-4 text-brand dark:text-brand/85" />
     : a.action === "Submitted" ? <Send className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-    : a.action === "Cancelled" ? <Ban className="h-4 w-4 text-stone-400" />
-    : <History className="h-4 w-4 text-stone-400" />;
+    : a.action === "Cancelled" ? <Ban className="h-4 w-4 text-slate-400" />
+    : <History className="h-4 w-4 text-slate-400" />;
   return (
     <li className="relative flex gap-3.5 pb-5 last:pb-1">
-      {!last && <span className="absolute left-[15px] top-8 h-[calc(100%-32px)] w-0.5 rounded bg-stone-100 dark:bg-stone-800" aria-hidden />}
-      <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200/80 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60">
+      {!last && <span className="absolute left-[15px] top-8 h-[calc(100%-32px)] w-0.5 rounded bg-slate-100 dark:bg-slate-800" aria-hidden />}
+      <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{a.action}</p>
-          <p className="text-[11px] text-stone-400">{fmtDateTime(a.createdAt)}</p>
+          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{a.action}</p>
+          <p className="text-[11px] text-slate-400">{fmtDateTime(a.createdAt)}</p>
         </div>
-        {a.detail && <p className="mt-0.5 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{a.detail}</p>}
-        <p className="mt-0.5 text-[11px] text-stone-400">{t("oleh", "by")} {a.appUser?.fullName ?? t("Sistem", "System")}</p>
+        {a.detail && <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{a.detail}</p>}
+        <p className="mt-0.5 text-[11px] text-slate-400">{t("oleh", "by")} {a.appUser?.fullName ?? t("Sistem", "System")}</p>
       </div>
     </li>
   );
@@ -388,14 +388,14 @@ function WorkflowBar({
     <section
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-2xl border p-4 shadow-sm sm:p-5",
-        pa.status === "Submitted" ? "border-amber-300/70 bg-gradient-to-r from-amber-50/80 to-stone-50/50 dark:border-amber-500/30 dark:from-amber-500/[0.07] dark:to-stone-900/40"
-        : pa.status === "Approved" ? "border-brand/40/70 bg-gradient-to-r from-brand/20/80 to-stone-50/50 dark:border-brand/30 dark:from-brand/[0.07] dark:to-stone-900/40"
-        : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
+        pa.status === "Submitted" ? "border-amber-300/70 bg-gradient-to-r from-amber-50/80 to-slate-50/50 dark:border-amber-500/30 dark:from-amber-500/[0.07] dark:to-slate-900/40"
+        : pa.status === "Approved" ? "border-brand/40/70 bg-gradient-to-r from-brand/20/80 to-slate-50/50 dark:border-brand/30 dark:from-brand/[0.07] dark:to-slate-900/40"
+        : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/60"
       )}
       aria-label={t("Aksi dokumen", "Document actions")}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-stone-800 dark:text-stone-100">
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
           {pa.status === "Prepared" && t("Dokumen Draft — submit untuk memulai proses approval 3 layer.", "Draft document — submit to start the 3-layer approval process.")}
           {pa.status === "Submitted" && (canAct
             ? t("Menunggu keputusan Anda (Layer {n} — {role}).", "Waiting for your decision (Layer {n} — {role}).", { n: Math.max(pa.currentLayer, 1), role: curRole ?? "—" })
@@ -430,7 +430,7 @@ function WorkflowBar({
           </>
         )}
         {pa.status === "Submitted" && !canAct && (
-          <span className="inline-flex items-center gap-2 rounded-xl bg-stone-100 px-3 py-2.5 text-xs font-semibold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+          <span className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             <Clock3 className="h-4 w-4" /> {t("Menunggu approver lain", "Waiting for another approver")}
           </span>
         )}
@@ -462,7 +462,7 @@ function WorkflowBar({
         )}
 
         {(pa.status === "Processed" || pa.status === "Cancelled") && (
-          <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-stone-500 dark:text-stone-400">
+          <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
             <Ban className="h-3.5 w-3.5" /> {t("Dokumen terkunci", "Document locked")}
           </Badge>
         )}
@@ -496,8 +496,8 @@ function ConfirmDialog({
                 <Zap className="h-5 w-5 text-brand dark:text-brand/85" />
               </span>
             ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
-                <Ban className="h-5 w-5 text-stone-500" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                <Ban className="h-5 w-5 text-slate-500" />
               </span>
             )}
             {isProcess ? t("Proses Dokumen?", "Process Document?") : t("Batalkan Dokumen?", "Cancel Document?")}
@@ -507,15 +507,15 @@ function ConfirmDialog({
               {isProcess ? (
                 <>
                   <p>{t("Dokumen", "Document")} <b>{pa.docNo}</b> {t("akan diproses dan perubahan berikut diterapkan ke data", "will be processed and the following changes applied to the data of")} <b>{pa.employee.fullName}</b>:</p>
-                  <ul className="list-disc space-y-1 pl-5 text-stone-600 dark:text-stone-300">
+                  <ul className="list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
                     {effects.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
-                  <p className="text-xs text-stone-400">{t("Aksi ini tidak dapat dibatalkan. Setiap efek dicatat di jejak aktivitas.", "This action cannot be undone. Every effect is recorded in the activity trail.")}</p>
+                  <p className="text-xs text-slate-400">{t("Aksi ini tidak dapat dibatalkan. Setiap efek dicatat di jejak aktivitas.", "This action cannot be undone. Every effect is recorded in the activity trail.")}</p>
                 </>
               ) : (
                 <p>{t("Dokumen", "Document")} <b>{pa.docNo}</b> {t("akan dibatalkan dan tidak dapat diproses lagi.", "will be cancelled and can no longer be processed.")}</p>
               )}
-              <div className="space-y-2 rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+              <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                 <Label htmlFor="confirm-note" className="text-xs">{t("Catatan (opsional)", "Note (optional)")}</Label>
                 <Textarea id="confirm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="resize-none" placeholder={isProcess ? t("Contoh: Diproses sesuai jadwal efektif.", "Example: Processed per the effective schedule.") : t("Contoh: Dibatalkan karena data belum final.", "Example: Cancelled because the data is not final.")} />
               </div>

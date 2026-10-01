@@ -63,15 +63,15 @@ export function DisciplinaryView() {
             "flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-all hover:shadow-md",
             level === "all"
               ? "ov-border-accent ov-soft"
-              : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
+              : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/60"
           )}
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ov-tile">
             <Scale className="h-5 w-5" />
           </span>
           <span>
-            <span className="block text-xl font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{loading ? "…" : records.length}</span>
-            <span className="block text-[11px] font-semibold uppercase tracking-wider text-stone-400">{t("Total Catatan", "Total Records")}</span>
+            <span className="block text-xl font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{loading ? "…" : records.length}</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Total Catatan", "Total Records")}</span>
           </span>
         </button>
         {levelCards.map((c) => {
@@ -86,15 +86,15 @@ export function DisciplinaryView() {
                 "flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-all hover:shadow-md",
                 c.active
                   ? c.activeCls
-                  : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900/60"
+                  : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/60"
               )}
             >
               <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", c.cls)}>
                 <Icon className="h-5 w-5" />
               </span>
               <span>
-                <span className="block text-xl font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{loading ? "…" : n}</span>
-                <span className="block text-[11px] font-semibold uppercase tracking-wider text-stone-400">{c.label}</span>
+                <span className="block text-xl font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{loading ? "…" : n}</span>
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">{c.label}</span>
               </span>
             </button>
           );
@@ -103,7 +103,7 @@ export function DisciplinaryView() {
 
       {/* table */}
       {loading && records.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
           <LoadingRows rows={6} />
         </div>
       ) : error ? (
@@ -115,10 +115,10 @@ export function DisciplinaryView() {
           icon={<Scale className="h-6 w-6" />}
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200/80 shadow-sm dark:border-stone-800">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm dark:border-slate-800">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-stone-50/80 dark:bg-stone-900/50">
+              <TableHeader className="bg-slate-50/80 dark:bg-slate-900/50">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="min-w-[220px]">{t("Karyawan")}</TableHead>
                   <TableHead className="min-w-[130px]">{t("Tingkat", "Level")}</TableHead>
@@ -133,7 +133,7 @@ export function DisciplinaryView() {
                 {filtered.map((r) => {
                   const meta = WARNING_LEVEL_META[r.warningLevel] ?? WARNING_LEVEL_META.Verbal!;
                   return (
-                    <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell className="py-3">
                         <button
                           className="flex items-center gap-3 text-left"
@@ -145,10 +145,10 @@ export function DisciplinaryView() {
                           </span>
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5">
-                              <span className="truncate text-[13.5px] font-bold text-stone-800 dark:text-stone-100">{r.employee?.fullName ?? "—"}</span>
-                              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-stone-300" aria-hidden />
+                              <span className="truncate text-[13.5px] font-bold text-slate-800 dark:text-slate-100">{r.employee?.fullName ?? "—"}</span>
+                              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
                             </span>
-                            <span className="block truncate text-[11px] text-stone-400">
+                            <span className="block truncate text-[11px] text-slate-400">
                               <span className="font-mono">{r.employee?.employeeNo ?? "—"}</span> · {r.employee?.position?.title ?? "—"}
                             </span>
                           </span>
@@ -160,15 +160,15 @@ export function DisciplinaryView() {
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[300px] py-3">
-                        <p className="truncate text-[13px] font-semibold text-stone-800 dark:text-stone-100">{r.violation}</p>
-                        {r.notes && <p className="truncate text-[11px] text-stone-400">{r.notes}</p>}
+                        <p className="truncate text-[13px] font-semibold text-slate-800 dark:text-slate-100">{r.violation}</p>
+                        {r.notes && <p className="truncate text-[11px] text-slate-400">{r.notes}</p>}
                       </TableCell>
-                      <TableCell className="py-3 text-[13px] text-stone-600 dark:text-stone-300">{r.sanction ?? "—"}</TableCell>
-                      <TableCell className="py-3 text-[13px] text-stone-600 dark:text-stone-300">{fmtDate(r.issuedAt)}</TableCell>
-                      <TableCell className="py-3 text-[13px] text-stone-600 dark:text-stone-300">
+                      <TableCell className="py-3 text-[13px] text-slate-600 dark:text-slate-300">{r.sanction ?? "—"}</TableCell>
+                      <TableCell className="py-3 text-[13px] text-slate-600 dark:text-slate-300">{fmtDate(r.issuedAt)}</TableCell>
+                      <TableCell className="py-3 text-[13px] text-slate-600 dark:text-slate-300">
                         {r.expiresAt ? (
                           <span className="flex items-center gap-1.5">
-                            {new Date(r.expiresAt) < new Date() && <TriangleAlert className="h-3.5 w-3.5 text-stone-300" aria-label={t("Sudah kedaluwarsa", "Expired")} />}
+                            {new Date(r.expiresAt) < new Date() && <TriangleAlert className="h-3.5 w-3.5 text-slate-300" aria-label={t("Sudah kedaluwarsa", "Expired")} />}
                             {fmtDate(r.expiresAt)}
                           </span>
                         ) : (

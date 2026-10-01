@@ -82,7 +82,7 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
               {t("Laporan tercatat", "Report recorded")} — <span className="font-mono">{done.ticketNo}</span>
             </p>
             <p className="text-xs leading-relaxed text-brand-deep dark:text-brand/85">{done.message}</p>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {t(
                 "Simpan nomor tiket ini. Laporan ditangani tim yang berwenang; pelapor anonim dilindungi UU 12/2022 Ps.23.",
                 "Keep this ticket number. The report is handled by the authorized team; anonymous reporters are protected under Law 12/2022 Art.23.",
@@ -145,7 +145,7 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
           )}
           maxLength={4000}
         />
-        <p className="text-right text-[10px] text-stone-400">{description.length}/4000</p>
+        <p className="text-right text-[10px] text-slate-400">{description.length}/4000</p>
       </div>
 
       {!compact && (
@@ -162,14 +162,14 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
       )}
 
       {/* mode anonim */}
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
         <Checkbox checked={anonymous} onCheckedChange={(v) => setAnonymous(v === true)} className="mt-0.5 h-4 w-4" />
         <span className="space-y-0.5">
           <span className="flex items-center gap-1.5 text-xs font-bold">
             <EyeOff className="h-3.5 w-3.5" aria-hidden />
             {t("Kirim secara ANONIM (disarankan)", "Submit ANONYMOUSLY (recommended)")}
           </span>
-          <span className="block text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+          <span className="block text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
             {t(
               "Identitas Anda TIDAK disimpan — hanya konteks laporan yang terekam.",
               "Your identity is NOT stored — only the report context is recorded.",
@@ -200,7 +200,7 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         {t("Kirim Laporan", "Submit Report")}
       </Button>
-      <p className="flex items-center justify-center gap-1.5 text-[10px] text-stone-400">
+      <p className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
         <Siren className="h-3 w-3" aria-hidden />
         {t("Batas 3 laporan per 15 menit per sesi — mencegah spam kanal.", "Limit 3 reports per 15 minutes per session — prevents channel spam.")}
       </p>

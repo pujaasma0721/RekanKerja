@@ -111,7 +111,7 @@ export function MedicalBenefitTypePage() {
         )}
       />
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -120,7 +120,7 @@ export function MedicalBenefitTypePage() {
           ) : (
             <div className="max-h-[34rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>Jenis</TableHead>
                     <TableHead>Limit</TableHead>
@@ -136,7 +136,7 @@ export function MedicalBenefitTypePage() {
                     <TableRow key={t.id} className={cn(!t.active && "opacity-50")}>
                       <TableCell>
                         <p className="font-semibold">{t.name}</p>
-                        <p className="text-xs text-stone-500">{t.code}</p>
+                        <p className="text-xs text-slate-500">{t.code}</p>
                       </TableCell>
                       <TableCell>
                         {t.limitRule === "UNLIMITED" ? (
@@ -146,24 +146,24 @@ export function MedicalBenefitTypePage() {
                         ) : (
                           <span className="font-semibold">{fmtIDR(t.limitValue)}</span>
                         )}
-                        <p className="text-xs text-stone-500">
+                        <p className="text-xs text-slate-500">
                           {t.pctCompany}% company{t.pctInsurance > 0 ? ` · ${t.pctInsurance}% asuransi` : ""}
                         </p>
                       </TableCell>
                       <TableCell className="text-sm">
                         {t.freqUnlimited ? "Unlimited" : `${t.freqValue}× / ${FREQ_PERIOD_LABEL[t.freqPeriod] ?? t.freqPeriod}`}
-                        {t.needReceipt && <span className="block text-xs text-stone-500">perlu kwitansi</span>}
+                        {t.needReceipt && <span className="block text-xs text-slate-500">perlu kwitansi</span>}
                       </TableCell>
                       <TableCell className="text-sm">
                         {UNUSED_RULE_LABEL[t.unusedRule] ?? t.unusedRule}
-                        {t.unusedRule === "CASH" && t.cashWageCode && <span className="block text-xs text-stone-500">via {t.cashWageCode}</span>}
-                        {t.unusedRule === "CARRY" && t.maxCarryOver > 0 && <span className="block text-xs text-stone-500">max {fmtIDR(t.maxCarryOver)}</span>}
+                        {t.unusedRule === "CASH" && t.cashWageCode && <span className="block text-xs text-slate-500">via {t.cashWageCode}</span>}
+                        {t.unusedRule === "CARRY" && t.maxCarryOver > 0 && <span className="block text-xs text-slate-500">max {fmtIDR(t.maxCarryOver)}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
                         {t.dependentEnabled ? `${t.maxDependents} dep. · max ${t.maxChildAge} th` : "—"}
-                        {t.dependentEnabled && <span className="block text-xs text-stone-500">{DEP_LIMIT_LABEL[t.depLimitRule] ?? t.depLimitRule}</span>}
+                        {t.dependentEnabled && <span className="block text-xs text-slate-500">{DEP_LIMIT_LABEL[t.depLimitRule] ?? t.depLimitRule}</span>}
                       </TableCell>
-                      <TableCell className="text-right text-sm text-stone-500">
+                      <TableCell className="text-right text-sm text-slate-500">
                         {t.balanceCount} saldo · {t.claimCount} klaim
                       </TableCell>
                       <TableCell>
@@ -244,7 +244,7 @@ export function MedicalBenefitTypePage() {
               <Label>Company / Asuransi (%)</Label>
               <div className="flex items-center gap-2">
                 <Input type="number" min={0} max={100} value={form.pctCompany} onChange={(e) => setForm({ ...form, pctCompany: e.target.value })} />
-                <span className="text-stone-400">/</span>
+                <span className="text-slate-400">/</span>
                 <Input type="number" min={0} max={100} value={form.pctInsurance} onChange={(e) => setForm({ ...form, pctInsurance: e.target.value })} />
               </div>
             </div>
@@ -276,9 +276,9 @@ export function MedicalBenefitTypePage() {
               <div className="flex items-center gap-2">
                 <Checkbox checked={form.dependentEnabled} onCheckedChange={(v) => setForm({ ...form, dependentEnabled: Boolean(v) })} />
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxDependents} onChange={(e) => setForm({ ...form, maxDependents: e.target.value })} />
-                <span className="text-xs text-stone-500">anak max</span>
+                <span className="text-xs text-slate-500">anak max</span>
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxChildAge} onChange={(e) => setForm({ ...form, maxChildAge: e.target.value })} />
-                <span className="text-xs text-stone-500">th</span>
+                <span className="text-xs text-slate-500">th</span>
               </div>
             </div>
             <div className="space-y-1.5">

@@ -118,7 +118,7 @@ export function OrgChartView() {
       ) : (
         <>
           {/* summary + legend */}
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-stone-200/80 bg-stone-50/60 px-4 py-3 text-[11px] font-medium text-stone-500 shadow-sm dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 px-4 py-3 text-[11px] font-medium text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
             <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {model.divisions.length} divisi · {model.flat.length} unit</span>
             <span className="flex items-center gap-1.5"><Crown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> {model.mgmtTier.length} pimpinan manajemen</span>
             <span className="flex items-center gap-1.5">
@@ -133,7 +133,7 @@ export function OrgChartView() {
           </div>
 
           {/* ======== DESKTOP: horizontal-scroll org chart ======== */}
-          <Card className="hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 md:block">
+          <Card className="hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800 md:block">
             <CardContent className="overflow-x-auto p-6">
               <div className="mx-auto inline-flex min-w-max flex-col items-center">
                 {/* L1: CEO */}
@@ -144,7 +144,7 @@ export function OrgChartView() {
                     onClick={() => clickUnit(model.ceoUnit!.id)}
                   />
                 )}
-                <div className="h-8 w-px bg-stone-300 dark:bg-stone-700" />
+                <div className="h-8 w-px bg-slate-300 dark:bg-slate-700" />
 
                 {/* L2: management band */}
                 <div
@@ -152,10 +152,10 @@ export function OrgChartView() {
                     "rounded-2xl border-2 px-5 pb-5 pt-3 transition-colors",
                     bandActive
                       ? "border-emerald-400/80 bg-emerald-50/50 dark:border-emerald-500/50 dark:bg-emerald-500/10"
-                      : "border-stone-200 bg-stone-50/60 dark:border-stone-800 dark:bg-stone-900/40"
+                      : "border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40"
                   )}
                 >
-                  <p className={cn("mb-3 flex items-center justify-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em]", bandActive ? "text-emerald-600 dark:text-emerald-400" : "text-stone-400")}>
+                  <p className={cn("mb-3 flex items-center justify-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em]", bandActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400")}>
                     <Landmark className="h-3.5 w-3.5" /> Management
                   </p>
                   <div className="flex max-w-max flex-wrap justify-center gap-3">
@@ -164,7 +164,7 @@ export function OrgChartView() {
                     ))}
                   </div>
                 </div>
-                <div className="h-8 w-px bg-stone-300 dark:bg-stone-700" />
+                <div className="h-8 w-px bg-slate-300 dark:bg-slate-700" />
 
                 {/* L3+L4: divisions with sub-units */}
                 <div className="flex items-start">
@@ -177,17 +177,17 @@ export function OrgChartView() {
                       <div key={d.id} className="relative flex flex-col items-center px-3.5 pt-8">
                         {/* horizontal connector segment */}
                         <div
-                          className={cn("absolute left-0 right-0 top-0 h-px bg-stone-300 dark:bg-stone-700", single ? "left-1/2 right-1/2" : first ? "left-1/2 right-0" : last ? "left-0 right-1/2" : "")}
+                          className={cn("absolute left-0 right-0 top-0 h-px bg-slate-300 dark:bg-slate-700", single ? "left-1/2 right-1/2" : first ? "left-1/2 right-0" : last ? "left-0 right-1/2" : "")}
                         />
                         {/* vertical stub down to card */}
-                        <div className="absolute left-1/2 top-0 h-8 w-px -translate-x-1/2 bg-stone-300 dark:bg-stone-700" />
+                        <div className="absolute left-1/2 top-0 h-8 w-px -translate-x-1/2 bg-slate-300 dark:bg-slate-700" />
                         <DivisionCard unit={d} head={head ? toChartPos(head) : null} highlighted={highlight.has(d.id)} onClick={() => clickUnit(d.id)} />
 
                         {/* L4: sub-units */}
                         {(d.children?.length ?? 0) > 0 && (
                           <div className="mt-0 flex flex-col items-center">
-                            <div className="h-4 w-px bg-stone-300 dark:bg-stone-700" />
-                            <div className="w-full space-y-1.5 rounded-xl border border-stone-200/80 bg-stone-50/70 p-2 dark:border-stone-800 dark:bg-stone-900/40">
+                            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
+                            <div className="w-full space-y-1.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-900/40">
                               {d.children!.map((s) => (
                                 <button
                                   key={s.id}
@@ -195,15 +195,15 @@ export function OrgChartView() {
                                   className={cn(
                                     "flex w-full min-h-9 items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition",
                                     highlight.has(s.id)
-                                      ? "border-emerald-400 bg-white ring-1 ring-emerald-500/30 dark:bg-stone-900"
-                                      : "border-stone-200/70 bg-white hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900/70 dark:hover:border-stone-700"
+                                      ? "border-emerald-400 bg-white ring-1 ring-emerald-500/30 dark:bg-slate-900"
+                                      : "border-slate-200/70 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-slate-700"
                                   )}
                                 >
                                   <span className="flex min-w-0 items-center gap-1.5">
-                                    <Network className="h-3 w-3 shrink-0 text-stone-400" />
-                                    <span className="truncate text-[11px] font-semibold text-stone-700 dark:text-stone-300">{s.name}</span>
+                                    <Network className="h-3 w-3 shrink-0 text-slate-400" />
+                                    <span className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{s.name}</span>
                                   </span>
-                                  <span className="shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                                  <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                                     {s._count?.employees ?? 0}
                                   </span>
                                 </button>
@@ -220,21 +220,21 @@ export function OrgChartView() {
           </Card>
 
           {/* ======== MOBILE: stacked tree ======== */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 md:hidden">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800 md:hidden">
             <CardContent className="space-y-5 p-4 sm:p-5">
               {model.ceoUnit && (
                 <div className="space-y-4">
                   <CEOCard pos={model.ceoPos ? toChartPos(model.ceoPos) : null} unitName={model.ceoUnit.name} onClick={() => clickUnit(model.ceoUnit!.id)} full />
                   <div className="flex justify-center">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-400 dark:border-stone-800 dark:bg-stone-900">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-900">
                       <ChevronDown className="h-4 w-4" />
                     </span>
                   </div>
                 </div>
               )}
 
-              <div className={cn("rounded-2xl border-2 p-3.5", bandActive ? "border-emerald-400/80 bg-emerald-50/50 dark:border-emerald-500/50 dark:bg-emerald-500/10" : "border-stone-200 bg-stone-50/60 dark:border-stone-800 dark:bg-stone-900/40")}>
-                <p className={cn("mb-2.5 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em]", bandActive ? "text-emerald-600 dark:text-emerald-400" : "text-stone-400")}>
+              <div className={cn("rounded-2xl border-2 p-3.5", bandActive ? "border-emerald-400/80 bg-emerald-50/50 dark:border-emerald-500/50 dark:bg-emerald-500/10" : "border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40")}>
+                <p className={cn("mb-2.5 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em]", bandActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400")}>
                   <Landmark className="h-3.5 w-3.5" /> Management
                 </p>
                 <div className="space-y-2">
@@ -251,7 +251,7 @@ export function OrgChartView() {
                     <div key={d.id} className="space-y-2">
                       <DivisionCard unit={d} head={head ? toChartPos(head) : null} highlighted={highlight.has(d.id)} onClick={() => clickUnit(d.id)} full />
                       {(d.children?.length ?? 0) > 0 && (
-                        <div className="ml-3 space-y-1.5 border-l-2 border-stone-200 pl-3 dark:border-stone-800">
+                        <div className="ml-3 space-y-1.5 border-l-2 border-slate-200 pl-3 dark:border-slate-800">
                           {d.children!.map((s) => (
                             <button
                               key={s.id}
@@ -259,15 +259,15 @@ export function OrgChartView() {
                               className={cn(
                                 "flex w-full min-h-9 items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition",
                                 highlight.has(s.id)
-                                  ? "border-emerald-400 bg-white ring-1 ring-emerald-500/30 dark:bg-stone-900"
-                                  : "border-stone-200/70 bg-stone-50/70 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900/50"
+                                  ? "border-emerald-400 bg-white ring-1 ring-emerald-500/30 dark:bg-slate-900"
+                                  : "border-slate-200/70 bg-slate-50/70 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50"
                               )}
                             >
                               <span className="flex min-w-0 items-center gap-1.5">
-                                <Network className="h-3 w-3 shrink-0 text-stone-400" />
-                                <span className="truncate text-[11px] font-semibold text-stone-700 dark:text-stone-300">{s.name}</span>
+                                <Network className="h-3 w-3 shrink-0 text-slate-400" />
+                                <span className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{s.name}</span>
                               </span>
-                              <span className="shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                              <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                                 {s._count?.employees ?? 0}
                               </span>
                             </button>
@@ -309,7 +309,7 @@ function CEOCard({ pos, unitName, onClick, full }: { pos: ChartPos | null; unitN
     <button
       onClick={onClick}
       className={cn(
-        "group rounded-2xl border-2 border-emerald-600 bg-white p-4 text-left shadow-md shadow-emerald-900/10 transition hover:shadow-lg dark:bg-stone-900 dark:shadow-emerald-500/10",
+        "group rounded-2xl border-2 border-emerald-600 bg-white p-4 text-left shadow-md shadow-emerald-900/10 transition hover:shadow-lg dark:bg-slate-900 dark:shadow-emerald-500/10",
         full ? "w-full" : "w-64"
       )}
     >
@@ -319,9 +319,9 @@ function CEOCard({ pos, unitName, onClick, full }: { pos: ChartPos | null; unitN
         </span>
         {pos?.gradeCode && <Badge variant="outline" className="font-mono text-[9px] text-emerald-700 dark:text-emerald-400">{pos.gradeCode}</Badge>}
       </div>
-      <p className="mt-2.5 text-sm font-extrabold leading-tight text-stone-900 dark:text-stone-50">{pos?.title ?? "Chief Executive Officer"}</p>
+      <p className="mt-2.5 text-sm font-extrabold leading-tight text-slate-900 dark:text-slate-50">{pos?.title ?? "Chief Executive Officer"}</p>
       <div className="mt-1.5"><HolderLine name={pos?.holderName ?? null} /></div>
-      <p className="mt-1.5 truncate text-[10px] font-medium uppercase tracking-wider text-stone-400">{unitName}</p>
+      <p className="mt-1.5 truncate text-[10px] font-medium uppercase tracking-wider text-slate-400">{unitName}</p>
     </button>
   );
 }
@@ -331,10 +331,10 @@ function MgmtCard({ pos, highlighted, onClick, full }: { pos: ChartPos; highligh
     <button
       onClick={onClick}
       className={cn(
-        "rounded-xl border bg-white p-3.5 text-left shadow-sm transition hover:shadow-md dark:bg-stone-900",
+        "rounded-xl border bg-white p-3.5 text-left shadow-sm transition hover:shadow-md dark:bg-slate-900",
         highlighted
           ? "border-emerald-500 ring-2 ring-emerald-500/20"
-          : "border-stone-200/80 hover:border-stone-300 dark:border-stone-800",
+          : "border-slate-200/80 hover:border-slate-300 dark:border-slate-800",
         full ? "w-full" : "w-52"
       )}
     >
@@ -342,9 +342,9 @@ function MgmtCard({ pos, highlighted, onClick, full }: { pos: ChartPos; highligh
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
           <Landmark className="h-3.5 w-3.5" />
         </span>
-        {pos.gradeCode && <span className="rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">{pos.gradeCode}</span>}
+        {pos.gradeCode && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{pos.gradeCode}</span>}
       </div>
-      <p className="mt-2 text-[12.5px] font-bold leading-tight text-stone-900 dark:text-stone-100">{pos.title}</p>
+      <p className="mt-2 text-[12.5px] font-bold leading-tight text-slate-900 dark:text-slate-100">{pos.title}</p>
       <div className="mt-1.5"><HolderLine name={pos.holderName} /></div>
     </button>
   );
@@ -363,10 +363,10 @@ function DivisionCard({ unit, head, highlighted, onClick, full }: {
     <button
       onClick={onClick}
       className={cn(
-        "rounded-xl border bg-white p-3.5 text-left shadow-sm transition hover:shadow-md dark:bg-stone-900",
+        "rounded-xl border bg-white p-3.5 text-left shadow-sm transition hover:shadow-md dark:bg-slate-900",
         highlighted
           ? "border-emerald-500 ring-2 ring-emerald-500/20"
-          : "border-stone-200/80 hover:border-stone-300 dark:border-stone-800",
+          : "border-slate-200/80 hover:border-slate-300 dark:border-slate-800",
         full ? "w-full" : "w-56"
       )}
     >
@@ -376,19 +376,19 @@ function DivisionCard({ unit, head, highlighted, onClick, full }: {
         </span>
         <span className={cn(
           "rounded-full px-2 py-0.5 text-[9px] font-bold",
-          over ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+          over ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
         )}>
           {actual}/{unit.headcountBudget || "—"}
         </span>
       </div>
-      <p className="mt-2 text-[12.5px] font-bold leading-tight text-stone-900 dark:text-stone-100">{unit.name}</p>
+      <p className="mt-2 text-[12.5px] font-bold leading-tight text-slate-900 dark:text-slate-100">{unit.name}</p>
       {head ? (
         <div className="mt-1.5">
-          <p className="truncate text-[10px] font-medium text-stone-400">{head.title}</p>
+          <p className="truncate text-[10px] font-medium text-slate-400">{head.title}</p>
           <HolderLine name={head.holderName} />
         </div>
       ) : (
-        <p className="mt-1.5 text-[10px] text-stone-400 italic">Belum ada kepala unit</p>
+        <p className="mt-1.5 text-[10px] text-slate-400 italic">Belum ada kepala unit</p>
       )}
     </button>
   );

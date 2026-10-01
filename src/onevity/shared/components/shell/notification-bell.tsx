@@ -119,7 +119,7 @@ export function NotificationBell() {
     >
       <DropdownMenuTrigger asChild>
         <button
-          className="relative rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+          className="relative rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           aria-label={t("Notifikasi", "Notifications")}
         >
           <Bell className="h-[18px] w-[18px]" />
@@ -131,10 +131,10 @@ export function NotificationBell() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-96 p-0">
-        <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3 dark:border-stone-800">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           <div>
             <p className="text-sm font-bold">{t("Notifikasi", "Notifications")}</p>
-            <p className="text-[11px] text-stone-400">
+            <p className="text-[11px] text-slate-400">
               {unread > 0
                 ? t("{n} belum dibaca", "{n} unread", { n: unread })
                 : t("Semua sudah dibaca", "All read")}
@@ -149,10 +149,10 @@ export function NotificationBell() {
         <div className="max-h-96 overflow-y-auto p-2">
           {items.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-3 py-10 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-100 dark:bg-stone-800">
-                <Bell className="h-5 w-5 text-stone-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+                <Bell className="h-5 w-5 text-slate-400" />
               </div>
-              <p className="text-xs text-stone-400">
+              <p className="text-xs text-slate-400">
                 {t("Belum ada notifikasi — keputusan approval & proses payroll akan muncul di sini.", "No notifications yet — approval decisions & payroll events will appear here.")}
               </p>
             </div>
@@ -160,14 +160,14 @@ export function NotificationBell() {
             items.map((n) => {
               const isUnread = !n.readAt;
               const Icon = (n.kind && KIND_ICON[n.kind]) || Inbox;
-              const iconCls = (n.kind && KIND_ICON_CLS[n.kind]) || "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400";
+              const iconCls = (n.kind && KIND_ICON_CLS[n.kind]) || "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
               return (
                 <button
                   key={n.id}
                   onClick={() => onItemClick(n)}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-xl p-3 text-left transition",
-                    isUnread ? "bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-500/10 dark:hover:bg-amber-500/15" : "hover:bg-stone-100 dark:hover:bg-stone-800/60",
+                    isUnread ? "bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-500/10 dark:hover:bg-amber-500/15" : "hover:bg-slate-100 dark:hover:bg-slate-800/60",
                   )}
                 >
                   <span className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full", iconCls)}>
@@ -176,10 +176,10 @@ export function NotificationBell() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       {!isUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent" aria-hidden />}
-                      <span className="truncate text-xs font-bold text-stone-800 dark:text-stone-100">{locActivity(n.title)}</span>
+                      <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{locActivity(n.title)}</span>
                     </span>
-                    {n.body && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">{locActivity(n.body)}</span>}
-                    <span className="mt-1 block text-[10px] font-medium text-stone-400">{fmtDateTime(n.createdAt)}</span>
+                    {n.body && <span className="mt-0.5 block line-clamp-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{locActivity(n.body)}</span>}
+                    <span className="mt-1 block text-[10px] font-medium text-slate-400">{fmtDateTime(n.createdAt)}</span>
                   </span>
                   {isUnread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden />}
                 </button>

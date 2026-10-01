@@ -78,13 +78,13 @@ export function EmployeeDirectory() {
         description={stats ? `${stats.total} karyawan terdaftar · posisi, grade, dan rekap upah` : "Pusat data seluruh karyawan."}
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex h-9 items-center rounded-lg border border-stone-200 bg-white p-0.5 dark:border-stone-700 dark:bg-stone-900" role="group" aria-label="Mode tampilan">
+            <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900" role="group" aria-label="Mode tampilan">
               <button onClick={() => setView("table")} aria-pressed={view === "table"} title="Tampilan tabel"
-                className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-colors", view === "table" ? "bg-stone-100 text-stone-900 dark:bg-stone-700 dark:text-stone-100" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300")}>
+                className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-colors", view === "table" ? "bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-100" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
                 <TableIcon className="h-4 w-4" />
               </button>
               <button onClick={() => setView("grid")} aria-pressed={view === "grid"} title="Tampilan kartu"
-                className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-colors", view === "grid" ? "bg-stone-100 text-stone-900 dark:bg-stone-700 dark:text-stone-100" : "text-stone-400 hover:text-stone-600 dark:hover:text-stone-300")}>
+                className={cn("flex h-8 w-9 items-center justify-center rounded-md transition-colors", view === "grid" ? "bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-100" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
                 <LayoutGrid className="h-4 w-4" />
               </button>
             </div>
@@ -105,19 +105,19 @@ export function EmployeeDirectory() {
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
               c.active
-                ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+                ? "border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             )}
           >
             {c.label}
-            <span className={cn("rounded-full px-1.5 text-[11px] font-bold tabular-nums", c.active ? "bg-white/20 text-white dark:bg-black/10 dark:text-stone-900" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400")}>
+            <span className={cn("rounded-full px-1.5 text-[11px] font-bold tabular-nums", c.active ? "bg-white/20 text-white dark:bg-black/10 dark:text-slate-900" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>
               {loading && !stats ? "…" : (c.value ?? 0)}
             </span>
           </button>
         ))}
         {hasFilter && (
           <button onClick={() => { setQ(""); setStatus("all"); setUnit("all"); setEmpStatus("all"); resetPage(); }}
-            className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-stone-400 transition-colors hover:text-rose-500">
+            className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-slate-400 transition-colors hover:text-rose-500">
             <X className="h-3.5 w-3.5" /> Reset filter
           </button>
         )}
@@ -126,7 +126,7 @@ export function EmployeeDirectory() {
       {/* toolbar — flat bar, bukan kartu */}
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={q}
             onChange={(e) => { setQ(e.target.value); resetPage(); }}
@@ -164,7 +164,7 @@ export function EmployeeDirectory() {
 
       {/* content */}
       {loading && rows.length === 0 ? (
-        <div className="rounded-xl border border-stone-200/80 dark:border-stone-800"><div className="p-4"><LoadingRows rows={8} /></div></div>
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800"><div className="p-4"><LoadingRows rows={8} /></div></div>
       ) : error ? (
         <EmptyState title="Gagal memuat direktori" description={error} />
       ) : rows.length === 0 ? (
@@ -174,10 +174,10 @@ export function EmployeeDirectory() {
           icon={<Users className="h-6 w-6" />}
         />
       ) : view === "table" ? (
-        <div className="overflow-hidden rounded-xl border border-stone-200/80 dark:border-stone-800">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800">
           <div className="max-h-[640px] overflow-y-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="min-w-[220px]">Karyawan</TableHead>
                   <TableHead className="min-w-[160px]">Posisi</TableHead>
@@ -202,22 +202,22 @@ export function EmployeeDirectory() {
                           {initials(e.fullName)}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-semibold text-stone-800 dark:text-stone-100">{e.fullName}</span>
-                          <span className="block truncate font-mono text-[11px] text-stone-400">{e.employeeNo}</span>
+                          <span className="block truncate text-[13px] font-semibold text-slate-800 dark:text-slate-100">{e.fullName}</span>
+                          <span className="block truncate font-mono text-[11px] text-slate-400">{e.employeeNo}</span>
                         </span>
                       </span>
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <span className="block max-w-52 truncate text-[13px] text-stone-600 dark:text-stone-300">{e.position?.title ?? "—"}</span>
+                      <span className="block max-w-52 truncate text-[13px] text-slate-600 dark:text-slate-300">{e.position?.title ?? "—"}</span>
                     </TableCell>
                     <TableCell className="py-2.5 hidden md:table-cell">
-                      <span className="block max-w-44 truncate text-[13px] text-stone-500 dark:text-stone-400">{e.orgUnit?.name ?? "—"}</span>
+                      <span className="block max-w-44 truncate text-[13px] text-slate-500 dark:text-slate-400">{e.orgUnit?.name ?? "—"}</span>
                     </TableCell>
                     <TableCell className="py-2.5">
                       {e.grade ? (
-                        <span className="inline-flex items-center rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{e.grade.code}</span>
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{e.grade.code}</span>
                       ) : (
-                        <span className="text-[13px] text-stone-300">—</span>
+                        <span className="text-[13px] text-slate-300">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2.5">
@@ -225,10 +225,10 @@ export function EmployeeDirectory() {
                         {EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2.5 text-right text-[13px] font-medium tabular-nums text-stone-600 dark:text-stone-300 hidden lg:table-cell">
+                    <TableCell className="py-2.5 text-right text-[13px] font-medium tabular-nums text-slate-600 dark:text-slate-300 hidden lg:table-cell">
                       {fmtIDR(e.baseSalary)}
                     </TableCell>
-                    <TableCell className="py-2.5 text-[13px] text-stone-500 dark:text-stone-400 hidden sm:table-cell">{tenure(e.joinDate)}</TableCell>
+                    <TableCell className="py-2.5 text-[13px] text-slate-500 dark:text-slate-400 hidden sm:table-cell">{tenure(e.joinDate)}</TableCell>
                     <TableCell className="py-2.5"><StatusPill status={e.status} /></TableCell>
                   </TableRow>
                 ))}
@@ -237,8 +237,8 @@ export function EmployeeDirectory() {
           </div>
 
           {/* pagination — flat */}
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-stone-200/80 px-4 py-2.5 dark:border-stone-800 sm:flex-row">
-            <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
+          <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200/80 px-4 py-2.5 dark:border-slate-800 sm:flex-row">
+            <p className="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
               {from}–{to} dari {total} karyawan
             </p>
             <div className="flex items-center gap-2">
@@ -259,20 +259,20 @@ export function EmployeeDirectory() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((e) => (
               <button key={e.id} onClick={() => setQuick(e)}
-                className="group rounded-xl border border-stone-200/80 bg-white p-4 text-left transition-all hover:border-stone-300 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-stone-700">
+                className="group rounded-xl border border-slate-200/80 bg-white p-4 text-left transition-all hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700">
                 <div className="flex items-start gap-3">
                   <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold", avatarColor(e.fullName))}>
                     {initials(e.fullName)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-stone-800 dark:text-stone-100">{e.fullName}</p>
-                    <p className="truncate text-xs text-stone-500 dark:text-stone-400">{e.position?.title ?? "—"}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-stone-400 dark:text-stone-500">{e.orgUnit?.name ?? "—"}</p>
+                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{e.fullName}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{e.position?.title ?? "—"}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-400 dark:text-slate-500">{e.orgUnit?.name ?? "—"}</p>
                   </div>
                   <StatusPill status={e.status} className="scale-90" />
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5 dark:border-stone-800">
-                  <span className="font-mono text-[11px] text-stone-400">{e.employeeNo}</span>
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                  <span className="font-mono text-[11px] text-slate-400">{e.employeeNo}</span>
                   <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold", employmentStatusBadge(e.employmentStatus))}>
                     {EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus}
                   </span>
@@ -282,7 +282,7 @@ export function EmployeeDirectory() {
           </div>
           {/* grid pagination */}
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-xs text-stone-500 dark:text-stone-400">{from}–{to} dari {total}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{from}–{to} dari {total}</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="h-8" disabled={offset === 0 || loading}
                 onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} aria-label="Halaman sebelumnya">
@@ -310,14 +310,14 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
         {emp && (
           <>
             {/* header */}
-            <div className="border-b border-stone-200/80 px-5 py-4 dark:border-stone-800">
+            <div className="border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
               <div className="flex items-start gap-3.5">
                 <span className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-base font-bold", avatarColor(emp.fullName))}>
                   {initials(emp.fullName)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <SheetTitle className="text-base font-semibold text-stone-900 dark:text-stone-50">{emp.fullName}</SheetTitle>
-                  <p className="text-[13px] text-stone-500 dark:text-stone-400">{emp.position?.title ?? "—"}</p>
+                  <SheetTitle className="text-base font-semibold text-slate-900 dark:text-slate-50">{emp.fullName}</SheetTitle>
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400">{emp.position?.title ?? "—"}</p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <StatusPill status={emp.status} />
                     <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold", employmentStatusBadge(emp.employmentStatus))}>
@@ -339,7 +339,7 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
             </div>
 
             {/* actions */}
-            <div className="border-t border-stone-200/80 p-4 dark:border-stone-800">
+            <div className="border-t border-slate-200/80 p-4 dark:border-slate-800">
               <Button onClick={() => onOpenFull(emp.id)} className="h-10 w-full gap-1.5 font-semibold">
                 Buka Profil Lengkap <ArrowUpRight className="h-4 w-4" />
               </Button>
@@ -354,11 +354,11 @@ function EmployeeQuickView({ emp, onClose, onOpenFull }: { emp: EmployeeRow | nu
 
 function InfoRow({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value?: string; mono?: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-800/50">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">{icon}</span>
+    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-stone-400 dark:text-stone-500">{label}</p>
-        <p className={cn("truncate text-[13px] font-medium text-stone-700 dark:text-stone-200", mono && "font-mono")}>{value ?? "—"}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{label}</p>
+        <p className={cn("truncate text-[13px] font-medium text-slate-700 dark:text-slate-200", mono && "font-mono")}>{value ?? "—"}</p>
       </div>
     </div>
   );

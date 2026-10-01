@@ -90,7 +90,7 @@ function LookupPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           {/* categories */}
-          <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="h-fit rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 ov-text-accent" /> {t("Kategori", "Categories")}</CardTitle>
             </CardHeader>
@@ -101,10 +101,10 @@ function LookupPage() {
                 return (
                   <button key={c} onClick={() => setCategory(c)} className={cn(
                     "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition",
-                    c === current ? "ov-fill shadow-md" : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+                    c === current ? "ov-fill shadow-md" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                   )}>
                     <span className="flex-1 truncate">{c}</span>
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-500")}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500")}>
                       {catItems.length}
                     </span>
                     {inactive > 0 && c === current && <span className="ml-1 text-[9px] opacity-75">{inactive} off</span>}
@@ -115,7 +115,7 @@ function LookupPage() {
           </Card>
 
           {/* entries */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-bold">{t("Entri: {cat}", "Entries: {cat}", { cat: current })}</CardTitle>
               <Badge variant="secondary" className="font-mono text-[10px]">{t("{n} item", "{n} items", { n: items.length })}</Badge>
@@ -124,7 +124,7 @@ function LookupPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       <TableHead className="text-[11px] font-bold">{t("Label")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Kode")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Urutan", "Order")}</TableHead>
@@ -134,17 +134,17 @@ function LookupPage() {
                   </TableHeader>
                   <TableBody>
                     {items.map((l) => (
-                      <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                        <TableCell className={cn("text-[13px] font-semibold", !l.active && "text-stone-400 line-through")}>{l.label}</TableCell>
-                        <TableCell className="font-mono text-[10px] text-stone-400">{l.code}</TableCell>
-                        <TableCell className="text-xs text-stone-500">{l.sortOrder}</TableCell>
+                      <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                        <TableCell className={cn("text-[13px] font-semibold", !l.active && "text-slate-400 line-through")}>{l.label}</TableCell>
+                        <TableCell className="font-mono text-[10px] text-slate-400">{l.code}</TableCell>
+                        <TableCell className="text-xs text-slate-500">{l.sortOrder}</TableCell>
                         <TableCell><Switch checked={l.active} onCheckedChange={() => toggle(l)} aria-label={`Toggle ${l.label}`} /></TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <button onClick={() => setEditing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                            <button onClick={() => setEditing(l)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
+                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -210,7 +210,7 @@ function SecurityPage() {
   const [tab, setTab] = useState("users");
   const [focusUser, setFocusUser] = useState<string | null>(null);
 
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800";
 
   return (
     <div>
@@ -220,7 +220,7 @@ function SecurityPage() {
         description={t("Pengguna aplikasi & kebijakan kata sandi (tambah pengguna, validasi sandi, umur, riwayat, lockout) + hak akses menu & data per pengguna — super admin dan atasan langsung otomatis tanpa setting.", "Application users & password policy (add user, password validation, age, history, lockout) + menu & data access rights per user — super admins and direct superiors are automatic without any setting.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
           <TabsTrigger value="users" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <UserCog className="h-3.5 w-3.5" /> {t("Pengguna", "Users")}
           </TabsTrigger>

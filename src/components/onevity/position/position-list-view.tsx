@@ -230,12 +230,12 @@ function PositionDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-lg">
-        <SheetHeader className="space-y-0 border-b border-stone-200/80 bg-gradient-to-br from-emerald-50 to-teal-50/60 px-5 py-5 dark:border-stone-800 dark:from-emerald-500/10 dark:to-teal-500/5">
+        <SheetHeader className="space-y-0 border-b border-slate-200/80 bg-gradient-to-br from-emerald-50 to-teal-50/60 px-5 py-5 dark:border-slate-800 dark:from-emerald-500/10 dark:to-teal-500/5">
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="font-mono text-[10px]">{position.code}</Badge>
-                {position.grade && <Badge className="bg-stone-100 text-[10px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{position.grade.code}</Badge>}
+                {position.grade && <Badge className="bg-slate-100 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">{position.grade.code}</Badge>}
                 <StatusPill status={position.active ? "Active" : "Cancelled"} />
               </div>
               <SheetTitle className="text-lg font-bold leading-tight">{position.title}</SheetTitle>
@@ -251,15 +251,15 @@ function PositionDetailSheet({
 
         <div className="flex-1 space-y-5 px-5 py-5">
           {/* headcount */}
-          <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
+          <div className="rounded-xl border border-slate-200/80 p-4 dark:border-slate-800">
             <div className="mb-3 flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
+              <p className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                 <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Okupansi Posisi
               </p>
               <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{act} / {position.headcount}</p>
             </div>
             <Progress value={pct} className="h-2.5 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
-            <p className="mt-2 text-[11px] text-stone-500">{position.headcount > 0 ? `Terisi ${pct}% dari kuota headcount.` : "Headcount belum ditetapkan."}</p>
+            <p className="mt-2 text-[11px] text-slate-500">{position.headcount > 0 ? `Terisi ${pct}% dari kuota headcount.` : "Headcount belum ditetapkan."}</p>
           </div>
 
           {/* info grid */}
@@ -276,21 +276,21 @@ function PositionDetailSheet({
 
           {/* direct reports */}
           <div>
-            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
+            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
               <GitBranch className="h-3.5 w-3.5" /> Bawahan Langsung ({directReports.length})
             </p>
             {directReports.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-stone-200 px-4 py-3 text-xs text-stone-400 dark:border-stone-800">Tidak ada posisi yang melapor ke sini.</p>
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-xs text-slate-400 dark:border-slate-800">Tidak ada posisi yang melapor ke sini.</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {directReports.map((r) => (
                   <button
                     key={r.id}
                     onClick={() => onSelectPosition(r.id)}
-                    className="flex min-h-9 items-center gap-1.5 rounded-full border border-stone-200/80 bg-white px-3 text-[11px] font-semibold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-emerald-600/50"
+                    className="flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-3 text-[11px] font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-600/50"
                     title={`${r.code} — ${r.title}`}
                   >
-                    <span className="font-mono text-[9px] text-stone-400">{r.code}</span> {r.title}
+                    <span className="font-mono text-[9px] text-slate-400">{r.code}</span> {r.title}
                   </button>
                 ))}
               </div>
@@ -299,7 +299,7 @@ function PositionDetailSheet({
 
           {/* employees holding */}
           <div>
-            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400">
+            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
               <UserRound className="h-3.5 w-3.5" /> Karyawan Pemegang Posisi ({holders.length})
             </p>
             {holders.length === 0 ? (
@@ -310,17 +310,17 @@ function PositionDetailSheet({
                   <button
                     key={e.id}
                     onClick={() => navigate("employee", "detail", { id: e.id })}
-                    className="flex w-full min-h-11 items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900/60"
+                    className="flex w-full min-h-11 items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60"
                   >
                     <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold", avatarColor(e.fullName))}>
                       {initials(e.fullName)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold text-stone-800 dark:text-stone-200">{e.fullName}</span>
-                      <span className="block font-mono text-[10px] text-stone-500">{e.employeeNo}</span>
+                      <span className="block truncate text-[13px] font-semibold text-slate-800 dark:text-slate-200">{e.fullName}</span>
+                      <span className="block font-mono text-[10px] text-slate-500">{e.employeeNo}</span>
                     </span>
                     <StatusPill status={e.status} />
-                    <ChevronRight className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
                   </button>
                 ))}
               </div>
@@ -329,11 +329,11 @@ function PositionDetailSheet({
         </div>
 
         {/* footer actions */}
-        <div className="mt-auto space-y-3 border-t border-stone-200/80 bg-stone-50/70 px-5 py-4 dark:border-stone-800 dark:bg-stone-900/40">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200/80 bg-white px-4 py-3 dark:border-stone-800 dark:bg-stone-900">
+        <div className="mt-auto space-y-3 border-t border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/40">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
             <div>
-              <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">Status Posisi</p>
-              <p className="text-[11px] text-stone-500">{position.active ? "Aktif — dapat dipegang karyawan" : "Nonaktif — tidak tersedia untuk karyawan"}</p>
+              <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">Status Posisi</p>
+              <p className="text-[11px] text-slate-500">{position.active ? "Aktif — dapat dipegang karyawan" : "Nonaktif — tidak tersedia untuk karyawan"}</p>
             </div>
             <Switch checked={position.active} onCheckedChange={toggleActive} disabled={toggling} aria-label="Aktifkan posisi" />
           </div>
@@ -371,13 +371,13 @@ function PositionDetailSheet({
 
 function SheetTile({ icon: Icon, label, value, className }: { icon: React.ElementType; label: string; value: string; className?: string }) {
   return (
-    <div className={cn("flex items-start gap-2.5 rounded-xl bg-stone-50/80 p-3 dark:bg-stone-900/40", className)}>
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-stone-400 shadow-sm dark:bg-stone-800 dark:text-stone-500">
+    <div className={cn("flex items-start gap-2.5 rounded-xl bg-slate-50/80 p-3 dark:bg-slate-900/40", className)}>
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-sm dark:bg-slate-800 dark:text-slate-500">
         <Icon className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0">
-        <p className="text-[9.5px] font-bold uppercase tracking-wider text-stone-400">{label}</p>
-        <p className="truncate text-xs font-semibold text-stone-800 dark:text-stone-200" title={value}>{value}</p>
+        <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={value}>{value}</p>
       </div>
     </div>
   );
@@ -441,10 +441,10 @@ export function PositionListView() {
       />
 
       {/* filters */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative flex-1 sm:min-w-56 sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -481,14 +481,14 @@ export function PositionListView() {
               <SelectItem value="false">Nonaktif</SelectItem>
             </SelectContent>
           </Select>
-          <span className="ml-auto shrink-0 text-xs font-semibold text-stone-500 dark:text-stone-400">
+          <span className="ml-auto shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {positionsApi.loading ? "Memuat…" : `${positionsApi.data?.total ?? 0} posisi`}
           </span>
         </CardContent>
       </Card>
 
       {/* table */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {positionsApi.loading ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
@@ -505,16 +505,16 @@ export function PositionListView() {
           ) : (
             <div className="max-h-[68vh] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/80 backdrop-blur dark:bg-stone-900/60">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur dark:bg-slate-900/60">
                   <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
-                    <TableHead className="pl-5 text-[11px] font-bold uppercase tracking-wider text-stone-500">Kode</TableHead>
-                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Posisi</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 md:table-cell">Job</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 lg:table-cell">Unit Organisasi</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 sm:table-cell">Grade</TableHead>
-                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-stone-500 xl:table-cell">Level</TableHead>
-                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Headcount</TableHead>
-                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Status</TableHead>
+                    <TableHead className="pl-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Kode</TableHead>
+                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Posisi</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-slate-500 md:table-cell">Job</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-slate-500 lg:table-cell">Unit Organisasi</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:table-cell">Grade</TableHead>
+                    <TableHead className="hidden text-[11px] font-bold uppercase tracking-wider text-slate-500 xl:table-cell">Level</TableHead>
+                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Headcount</TableHead>
+                    <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -526,37 +526,37 @@ export function PositionListView() {
                       <TableRow
                         key={p.id}
                         onClick={() => setSheetId(p.id)}
-                        className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60"
+                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60"
                       >
                         <TableCell className="pl-5 py-3">
                           <Badge variant="outline" className="font-mono text-[10px]">{p.code}</Badge>
                         </TableCell>
                         <TableCell className="py-3">
-                          <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">{p.title}</p>
-                          <p className="text-[11px] text-stone-500">{p.job?.title ?? "—"}</p>
+                          <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{p.title}</p>
+                          <p className="text-[11px] text-slate-500">{p.job?.title ?? "—"}</p>
                         </TableCell>
                         <TableCell className="hidden py-3 md:table-cell">
-                          <p className="text-xs text-stone-600 dark:text-stone-400">{p.job ? p.job.code : "—"}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">{p.job ? p.job.code : "—"}</p>
                         </TableCell>
                         <TableCell className="hidden max-w-44 py-3 lg:table-cell">
-                          <p className="truncate text-xs text-stone-600 dark:text-stone-400">{p.orgUnit?.name ?? "—"}</p>
+                          <p className="truncate text-xs text-slate-600 dark:text-slate-400">{p.orgUnit?.name ?? "—"}</p>
                         </TableCell>
                         <TableCell className="hidden py-3 sm:table-cell">
                           {p.grade ? (
-                            <span className="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{p.grade.code}</span>
+                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{p.grade.code}</span>
                           ) : (
-                            <span className="text-xs text-stone-400">—</span>
+                            <span className="text-xs text-slate-400">—</span>
                           )}
                         </TableCell>
                         <TableCell className="hidden py-3 xl:table-cell">
-                          <span className="text-xs font-medium text-stone-500">{p.level ?? "—"}</span>
+                          <span className="text-xs font-medium text-slate-500">{p.level ?? "—"}</span>
                         </TableCell>
                         <TableCell className="py-3">
                           <div className="flex min-w-28 items-center gap-2">
                             <Progress value={pct} className="h-1.5 w-14 shrink-0 [&>div]:bg-emerald-600" />
                             <span className={cn(
                               "text-xs font-semibold tabular-nums",
-                              act > p.headcount ? "text-amber-600 dark:text-amber-400" : "text-stone-600 dark:text-stone-300"
+                              act > p.headcount ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-300"
                             )}>
                               {act}/{p.headcount}
                             </span>
@@ -568,13 +568,13 @@ export function PositionListView() {
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Aktif
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-[11px] font-semibold text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-stone-400" /> Nonaktif
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Nonaktif
                             </span>
                           )}
                         </TableCell>
                         <TableCell className="py-3 pr-4">
-                          <ChevronRight className="h-4 w-4 text-stone-300 dark:text-stone-600" />
+                          <ChevronRight className="h-4 w-4 text-slate-300 dark:text-slate-600" />
                         </TableCell>
                       </TableRow>
                     );

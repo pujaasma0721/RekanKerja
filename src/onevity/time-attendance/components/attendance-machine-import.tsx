@@ -232,7 +232,7 @@ export function AttendanceMachineImportPage() {
       />
 
       {/* ===== upload card ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -240,7 +240,7 @@ export function AttendanceMachineImportPage() {
                 <Fingerprint className="h-4 w-4 ov-text-accent" aria-hidden />
                 {t("Unggah Log Mesin", "Upload Machine Log")}
               </p>
-              <p className="text-[11px] text-stone-400">
+              <p className="text-[11px] text-slate-400">
                 {t("Format fleksibel: kolom employeeNo/NIK + tanggal + jam (atau datetime gabungan) + arah (IN/OUT, masuk/keluar, check-in/check-out).", "Flexible format: employeeNo/NIK + date + time columns (or a combined datetime) + direction (IN/OUT, masuk/keluar, check-in/check-out).")}
               </p>
             </div>
@@ -259,16 +259,16 @@ export function AttendanceMachineImportPage() {
               "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors",
               dragOver
                 ? "border-amber-400 bg-amber-50/70 dark:border-amber-500/50 dark:bg-amber-500/10"
-                : "border-stone-300 bg-stone-50/50 hover:border-amber-300 hover:bg-amber-50/40 dark:border-stone-700 dark:bg-stone-900/40 dark:hover:border-amber-500/40",
+                : "border-slate-300 bg-slate-50/50 hover:border-amber-300 hover:bg-amber-50/40 dark:border-slate-700 dark:bg-slate-900/40 dark:hover:border-amber-500/40",
             )}
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-stone-900">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
               <FileUp className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
             </span>
-            <p className="text-[13px] font-bold text-stone-700 dark:text-stone-200">
+            <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200">
               {file ? file.name : t("Tarik file ke sini atau klik untuk memilih", "Drag a file here or click to browse")}
             </p>
-            <p className="text-[11px] text-stone-400">
+            <p className="text-[11px] text-slate-400">
               {file
                 ? `${file.size < 1024 ? `${file.size} B` : `${(file.size / 1024).toFixed(0)} KB`} · ${t("klik area untuk mengganti file", "click the area to replace the file")}`
                 : t(".csv / .xlsx · maks 5 MB · maks 20.000 baris", ".csv / .xlsx · max 5 MB · max 20,000 rows")}
@@ -296,12 +296,12 @@ export function AttendanceMachineImportPage() {
                 {phase === "checking" ? t("Memeriksa…", "Checking…") : t("Periksa Data (Dry-Run)", "Validate Data (Dry-Run)")}
               </Button>
               {file && (
-                <Button variant="ghost" size="sm" onClick={reset} disabled={busy} className="gap-1.5 text-[12px] text-stone-500">
+                <Button variant="ghost" size="sm" onClick={reset} disabled={busy} className="gap-1.5 text-[12px] text-slate-500">
                   <RotateCcw className="h-3.5 w-3.5" /> {t("Ganti File", "Replace File")}
                 </Button>
               )}
               {report && (
-                <span className="text-[12px] text-stone-500">
+                <span className="text-[12px] text-slate-500">
                   {t("{n} baris terbaca", "{n} rows parsed", { n: report.summary.total })}
                   {report.dateFrom ? ` · ${fmtTs(report.dateFrom)} → ${fmtTs(report.dateTo)}` : ""}
                 </span>
@@ -314,14 +314,14 @@ export function AttendanceMachineImportPage() {
       {/* ===== pratinjau dry-run ===== */}
       {report && phase !== "done" && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3 dark:border-stone-800">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
                 <p className="flex items-center gap-2 text-[13px] font-bold">
                   <FileSpreadsheet className="h-4 w-4 ov-text-accent" aria-hidden />
                   {t("Pratinjau Klasifikasi — {f}", "Classification Preview — {f}", { f: report.file })}
                 </p>
-                <p className="text-[11px] text-stone-400">
+                <p className="text-[11px] text-slate-400">
                   {t("maks 50 baris pertama", "first 50 rows max")}
                 </p>
               </div>
@@ -329,14 +329,14 @@ export function AttendanceMachineImportPage() {
               {/* chips ringkasan */}
               <div className="grid grid-cols-2 gap-3 px-5 py-3 sm:grid-cols-5">
                 {[
-                  { label: t("Baris Terbaca", "Rows Parsed"), value: report.summary.total, tone: "text-stone-700 dark:text-stone-200" },
+                  { label: t("Baris Terbaca", "Rows Parsed"), value: report.summary.total, tone: "text-slate-700 dark:text-slate-200" },
                   { label: t("Baru (OK)", "New (OK)"), value: report.summary.ok, tone: "text-brand dark:text-brand/85" },
                   { label: t("Duplikat", "Duplicates"), value: report.summary.duplicate, tone: "text-amber-600 dark:text-amber-400" },
                   { label: t("Tak Dikenal", "Unknown"), value: report.summary.unknown, tone: "text-orange-600 dark:text-orange-400" },
                   { label: t("Tak Valid", "Invalid"), value: report.summary.invalid, tone: "text-rose-600 dark:text-rose-400" },
                 ].map((c) => (
-                  <div key={c.label} className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-2.5 dark:border-stone-800 dark:bg-stone-900/40">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{c.label}</p>
+                  <div key={c.label} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{c.label}</p>
                     <p className={cn("text-base font-extrabold tabular-nums", c.tone)}>{c.value}</p>
                   </div>
                 ))}
@@ -356,10 +356,10 @@ export function AttendanceMachineImportPage() {
               )}
 
               {/* tabel preview */}
-              <div className="max-h-96 overflow-y-auto [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700 [&::-webkit-scrollbar]:w-1.5">
+              <div className="max-h-96 overflow-y-auto [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar]:w-1.5">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       <TableHead className="text-[11px] font-bold">{t("Baris", "Row")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Karyawan", "Employee")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Waktu", "Timestamp")}</TableHead>
@@ -372,15 +372,15 @@ export function AttendanceMachineImportPage() {
                       const meta = STATUS_META[r.status];
                       const Icon = meta.icon;
                       return (
-                        <TableRow key={r.row} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", meta.rowCls)}>
-                          <TableCell className="tabular-nums text-[11px] text-stone-400">{r.row}</TableCell>
+                        <TableRow key={r.row} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", meta.rowCls)}>
+                          <TableCell className="tabular-nums text-[11px] text-slate-400">{r.row}</TableCell>
                           <TableCell>
-                            <p className="font-mono text-[12px] font-bold text-stone-700 dark:text-stone-200">{r.employeeNo || "—"}</p>
-                            <p className="max-w-[200px] truncate text-[10px] text-stone-400">
+                            <p className="font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200">{r.employeeNo || "—"}</p>
+                            <p className="max-w-[200px] truncate text-[10px] text-slate-400">
                               {r.fullName ?? (r.status === "unknown" ? t("tidak dikenal", "not found") : "—")}
                             </p>
                           </TableCell>
-                          <TableCell className="font-mono text-[11.5px] tabular-nums text-stone-600 dark:text-stone-300">
+                          <TableCell className="font-mono text-[11.5px] tabular-nums text-slate-600 dark:text-slate-300">
                             {r.timestamp ? fmtTs(r.timestamp) : "—"}
                           </TableCell>
                           <TableCell>
@@ -389,7 +389,7 @@ export function AttendanceMachineImportPage() {
                                 {r.direction}
                               </Badge>
                             ) : (
-                              <span className="text-[11px] text-stone-400">—</span>
+                              <span className="text-[11px] text-slate-400">—</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -397,7 +397,7 @@ export function AttendanceMachineImportPage() {
                               <Icon className="h-3 w-3" aria-hidden />
                               {t(meta.id, meta.en)}
                             </span>
-                            {r.message && <p className="mt-0.5 max-w-[260px] text-[10px] text-stone-400">{r.message}</p>}
+                            {r.message && <p className="mt-0.5 max-w-[260px] text-[10px] text-slate-400">{r.message}</p>}
                           </TableCell>
                         </TableRow>
                       );
@@ -406,14 +406,14 @@ export function AttendanceMachineImportPage() {
                 </Table>
               </div>
               {report.summary.total > PREVIEW_ROWS && (
-                <p className="border-t border-stone-100 bg-stone-50/60 px-5 py-2 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40">
+                <p className="border-t border-slate-100 bg-slate-50/60 px-5 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">
                   {t("Menampilkan {n} dari {m} baris.", "Showing {n} of {m} rows.", { n: Math.min(PREVIEW_ROWS, report.preview.length), m: report.summary.total })}
                 </p>
               )}
 
               {/* tombol konfirmasi — guard op:import */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 px-5 py-3 dark:border-stone-800">
-                <p className="text-[11px] text-stone-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
+                <p className="text-[11px] text-slate-400">
                   {t("Komit menyisipkan log source \"Machine\" lalu menghitung ulang rekap harian per karyawan/tanggal.", "Committing inserts logs with source \"Machine\" then recalculates daily recaps per employee/date.")}
                 </p>
                 {canImport ? (
@@ -422,7 +422,7 @@ export function AttendanceMachineImportPage() {
                     {t("Import {n} Baris", "Import {n} Rows", { n: report?.summary.ok ?? 0 })}
                   </Button>
                 ) : (
-                  <span className="rounded-full bg-stone-100 px-3 py-1 text-[11px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     {t("Tanpa hak op import", "No import operation right")}
                   </span>
                 )}
@@ -437,7 +437,7 @@ export function AttendanceMachineImportPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="rounded-2xl border-brand/25/80 shadow-sm dark:border-brand/25">
             <CardContent className="p-5">
-              <div className={cn("flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-semibold", result.summary.ok > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-stone-50 text-stone-600 dark:bg-stone-800 dark:text-stone-300")}>
+              <div className={cn("flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-semibold", result.summary.ok > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>
                 {result.summary.ok > 0 ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Copy className="mt-0.5 h-4 w-4 shrink-0" />}
                 {result.summary.ok > 0
                   ? t("Import selesai — {n} log disisipkan, {s} dilewati.", "Import finished — {n} logs inserted, {s} skipped.", { n: result.summary.ok, s: result.summary.duplicate + result.summary.unknown + result.summary.invalid })
@@ -450,9 +450,9 @@ export function AttendanceMachineImportPage() {
                   { label: t("Tak Dikenal", "Unknown"), value: result.summary.unknown },
                   { label: t("Tak Valid", "Invalid"), value: result.summary.invalid },
                 ].map((c) => (
-                  <div key={c.label} className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{c.label}</p>
-                    <p className="text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{c.value}</p>
+                  <div key={c.label} className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{c.label}</p>
+                    <p className="text-lg font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{c.value}</p>
                   </div>
                 ))}
               </div>
@@ -494,15 +494,15 @@ export function AttendanceMachineImportPage() {
       </AlertDialog>
 
       {/* ===== riwayat batch ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div>
               <p className="flex items-center gap-2 text-[13px] font-bold">
                 <History className="h-4 w-4 ov-text-accent" aria-hidden />
                 {t("Riwayat Import Batch", "Import Batch History")}
               </p>
-              <p className="text-[11px] text-stone-400">{t("20 batch terakhir — jejak audit file yang pernah diimport", "Last 20 batches — audit trail of imported files")}</p>
+              <p className="text-[11px] text-slate-400">{t("20 batch terakhir — jejak audit file yang pernah diimport", "Last 20 batches — audit trail of imported files")}</p>
             </div>
           </div>
           {batchesApi.loading && !batchesApi.data ? (
@@ -519,7 +519,7 @@ export function AttendanceMachineImportPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">{t("File", "File")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Rentang Tanggal", "Date Range")}</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">{t("Baris", "Rows")}</TableHead>
@@ -530,22 +530,22 @@ export function AttendanceMachineImportPage() {
                 </TableHeader>
                 <TableBody>
                   {batches.map((b) => (
-                    <TableRow key={b.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="max-w-[220px] truncate text-[12.5px] font-bold text-stone-700 dark:text-stone-200" title={b.fileName}>{b.fileName}</p>
+                        <p className="max-w-[220px] truncate text-[12.5px] font-bold text-slate-700 dark:text-slate-200" title={b.fileName}>{b.fileName}</p>
                         {b.unknownEmployees && (
                           <p className="max-w-[220px] truncate text-[10px] text-orange-500" title={b.unknownEmployees}>
                             {t("tak dikenal:", "unknown:")} <span className="font-mono">{b.unknownEmployees}</span>
                           </p>
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-[11px] tabular-nums text-stone-500 dark:text-stone-400">
+                      <TableCell className="font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
                         {b.dateFrom ? `${fmtDateShort(b.dateFrom, locale)} → ${fmtDateShort(b.dateTo ?? b.dateFrom, locale)}` : "—"}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-semibold tabular-nums text-stone-600 dark:text-stone-300">{b.rowCount}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">{b.rowCount}</TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-brand dark:text-brand/85">{b.inserted}</TableCell>
                       <TableCell className="text-right text-xs font-bold tabular-nums text-amber-600 dark:text-amber-400">{b.skipped}</TableCell>
-                      <TableCell className="text-[11px] text-stone-500 dark:text-stone-400">{fmtDateTime(b.importedAt)}</TableCell>
+                      <TableCell className="text-[11px] text-slate-500 dark:text-slate-400">{fmtDateTime(b.importedAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

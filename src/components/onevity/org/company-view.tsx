@@ -147,7 +147,7 @@ export function CompanyView() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {/* ==== profile card ==== */}
-          <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
+          <Card className="overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800 lg:col-span-2">
             {/* gradient banner */}
             <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-6 pb-6 pt-7">
               <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ backgroundImage: "radial-gradient(circle at 85% 20%, white 1.5px, transparent 1.5px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)", backgroundSize: "42px 42px, 28px 28px" }} />
@@ -225,12 +225,12 @@ export function CompanyView() {
 function InfoRow({ icon: Icon, label, value, className }: { icon: React.ElementType; label: string; value: string | null; className?: string }) {
   return (
     <div className={cn("flex items-start gap-3", className)}>
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-stone-800/70 dark:text-stone-400">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{label}</p>
-        <p className="break-words text-sm font-semibold text-stone-800 dark:text-stone-200">{value || "—"}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="break-words text-sm font-semibold text-slate-800 dark:text-slate-200">{value || "—"}</p>
       </div>
     </div>
   );
@@ -238,13 +238,13 @@ function InfoRow({ icon: Icon, label, value, className }: { icon: React.ElementT
 
 function StatCard({ icon: Icon, label, value, sub, cls }: { icon: React.ElementType; label: string; value: number; sub: string; cls: string }) {
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm transition hover:shadow-md dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm transition hover:shadow-md dark:border-slate-800">
       <CardContent className="flex items-center gap-4 p-5">
         <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md", cls)}>
           <Icon className="h-6 w-6" />
         </div>
         <div className="min-w-0">
-          <p className="text-2xl font-extrabold tabular-nums leading-none text-stone-900 dark:text-stone-50">{value}</p>
+          <p className="text-2xl font-extrabold tabular-nums leading-none text-slate-900 dark:text-slate-50">{value}</p>
           <CardTitle className="mt-1 text-sm font-semibold">{label}</CardTitle>
           <CardDescription className="mt-0.5 text-[11px]">{sub}</CardDescription>
         </div>

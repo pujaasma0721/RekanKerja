@@ -95,14 +95,14 @@ function PositionList() {
       </div>
 
       {/* toolbar */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center gap-2.5 p-3.5">
           <div className="relative min-w-52 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari kode / judul posisi…" className="pl-9" />
           </div>
           <Select value={unit} onValueChange={setUnit}>
-            <SelectTrigger className="w-full sm:w-52"><ChevronDown className="mr-1 h-3.5 w-3.5 text-stone-400" /><SelectValue placeholder="Semua unit" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-52"><ChevronDown className="mr-1 h-3.5 w-3.5 text-slate-400" /><SelectValue placeholder="Semua unit" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua unit</SelectItem>
               {(units.data?.units ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
@@ -119,7 +119,7 @@ function PositionList() {
       </Card>
 
       {/* table */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
@@ -127,7 +127,7 @@ function PositionList() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="min-w-40 text-[11px] font-bold">Posisi</TableHead>
                     <TableHead className="text-[11px] font-bold">Job</TableHead>
                     <TableHead className="text-[11px] font-bold">Unit Organisasi</TableHead>
@@ -139,18 +139,18 @@ function PositionList() {
                 </TableHeader>
                 <TableBody>
                   {data.positions.map((p) => (
-                    <TableRow key={p.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => setSelected(p)}>
+                    <TableRow key={p.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => setSelected(p)}>
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{p.title}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{p.code}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{p.title}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{p.code}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-400">{p.job?.title ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-400">{p.orgUnit?.name ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-400">{p.job?.title ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-400">{p.orgUnit?.name ?? "—"}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px] font-bold">{p.grade?.code ?? "—"}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Progress value={p.headcount ? (p.filled / p.headcount) * 100 : 0} className="h-1.5 w-16 [&>div]:bg-emerald-500" />
-                          <span className="text-[10px] font-bold text-stone-500">{p.filled}/{p.headcount}</span>
+                          <span className="text-[10px] font-bold text-slate-500">{p.filled}/{p.headcount}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -162,7 +162,7 @@ function PositionList() {
                         ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Lowong</span>}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px] font-bold", p.active ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500")}>
+                        <Badge variant="outline" className={cn("text-[10px] font-bold", p.active ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500")}>
                           {p.active ? "Aktif" : "Non-aktif"}
                         </Badge>
                       </TableCell>
@@ -182,27 +182,27 @@ function PositionList() {
         <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-lg">
           {selected && (
             <>
-              <SheetHeader className="border-b border-stone-100 bg-gradient-to-br from-emerald-50/60 to-transparent p-6 dark:border-stone-800 dark:from-emerald-500/5">
+              <SheetHeader className="border-b border-slate-100 bg-gradient-to-br from-emerald-50/60 to-transparent p-6 dark:border-slate-800 dark:from-emerald-500/5">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono text-[10px]">{selected.code}</Badge>
                   {selected.grade && <Badge className="text-[10px]">G {selected.grade.code}</Badge>}
                 </div>
                 <SheetTitle className="text-lg">{selected.title}</SheetTitle>
-                <p className="text-xs text-stone-500">{selected.job?.title} · {selected.orgUnit?.name}</p>
+                <p className="text-xs text-slate-500">{selected.job?.title} · {selected.orgUnit?.name}</p>
               </SheetHeader>
               <div className="space-y-5 p-6">
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
+                  <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
                     <p className="text-lg font-extrabold text-emerald-600">{selected.filled}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Terisi</p>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">Terisi</p>
                   </div>
-                  <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
+                  <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
                     <p className="text-lg font-extrabold text-amber-600">{Math.max(selected.headcount - selected.filled, 0)}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Lowongan</p>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">Lowongan</p>
                   </div>
-                  <div className="rounded-xl bg-stone-50 p-3 text-center dark:bg-stone-900">
-                    <p className="text-lg font-extrabold text-stone-700 dark:text-stone-300">{selected.directReportCount}</p>
-                    <p className="text-[9px] font-bold uppercase text-stone-400">Bawahan</p>
+                  <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
+                    <p className="text-lg font-extrabold text-slate-700 dark:text-slate-300">{selected.directReportCount}</p>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">Bawahan</p>
                   </div>
                 </div>
                 <InfoGrid items={[
@@ -215,16 +215,16 @@ function PositionList() {
                 ]} />
                 {selected.employees.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">Pemegang Posisi</p>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Pemegang Posisi</p>
                     <div className="space-y-2">
                       {selected.employees.map((e) => (
-                        <button key={e.id} onClick={() => { setSelected(null); navigate("employee", "detail", { id: e.id }); }} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-stone-800 dark:hover:bg-emerald-500/5">
+                        <button key={e.id} onClick={() => { setSelected(null); navigate("employee", "detail", { id: e.id }); }} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-slate-800 dark:hover:bg-emerald-500/5">
                           <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(e.fullName))}>{initials(e.fullName)}</span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold">{e.fullName}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{e.employeeNo}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{e.employeeNo}</p>
                           </div>
-                          <ChevronDown className="h-4 w-4 -rotate-90 text-stone-300" />
+                          <ChevronDown className="h-4 w-4 -rotate-90 text-slate-300" />
                         </button>
                       ))}
                     </div>
@@ -246,8 +246,8 @@ function InfoGrid({ items }: { items: [string, string][] }) {
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       {items.map(([k, v]) => (
         <div key={k}>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k}</p>
-          <p className="mt-0.5 text-[13px] font-semibold text-stone-800 dark:text-stone-200">{v}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k}</p>
+          <p className="mt-0.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200">{v}</p>
         </div>
       ))}
     </div>
@@ -259,17 +259,17 @@ function MiniStat({ label, value, icon: Icon, tone }: { label: string; value: nu
     emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
     teal: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
-    stone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400",
+    stone: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
   };
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-3 p-4">
         <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tones[tone])}>
           <Icon className="h-4.5 w-4.5 h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className="text-lg font-extrabold text-stone-900 dark:text-stone-50">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="text-lg font-extrabold text-slate-900 dark:text-slate-50">{value}</p>
         </div>
       </CardContent>
     </Card>
@@ -384,7 +384,7 @@ function JobLibrary() {
   };
   const catTone: Record<string, string> = {
     Executive: "from-emerald-500 to-teal-600", Managerial: "from-teal-500 to-emerald-600",
-    Supervisory: "from-amber-400 to-orange-500", Staff: "from-stone-400 to-stone-600",
+    Supervisory: "from-amber-400 to-orange-500", Staff: "from-slate-400 to-slate-600",
   };
 
   return (
@@ -406,25 +406,25 @@ function JobLibrary() {
           {(data?.jobs ?? []).map((j) => {
             const Icon = categoryIcon[j.category ?? "Staff"] ?? FileText;
             return (
-              <Card key={j.id} className="group rounded-2xl border-stone-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800">
+              <Card key={j.id} className="group rounded-2xl border-slate-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", catTone[j.category ?? "Staff"] ?? catTone.Staff)}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => setEditing(j)} className="rounded-lg p-1.5 text-stone-400 opacity-0 transition group-hover:opacity-100 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit job">
+                      <button onClick={() => setEditing(j)} className="rounded-lg p-1.5 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit job">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
-                  <p className="mt-3 text-[15px] font-bold text-stone-900 dark:text-stone-100">{j.title}</p>
+                  <p className="mt-3 text-[15px] font-bold text-slate-900 dark:text-slate-100">{j.title}</p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <Badge variant="outline" className="font-mono text-[10px]">{j.code}</Badge>
                     <Badge variant="secondary" className="text-[10px]">{j.category ?? "Staff"}</Badge>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
-                    <span className="text-[11px] text-stone-400">Dipakai oleh</span>
+                  <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-100 pt-3 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-400">Dipakai oleh</span>
                     <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">{j.positionCount} posisi</span>
                   </div>
                 </CardContent>
@@ -527,7 +527,7 @@ function GradeList() {
             const pctMin = (g.minSalary / maxSalary) * 100;
             const pctMax = (g.maxSalary / maxSalary) * 100;
             return (
-              <Card key={g.id} className="rounded-2xl border-stone-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800">
+              <Card key={g.id} className="rounded-2xl border-slate-200/80 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-extrabold text-white shadow-md">
@@ -537,28 +537,28 @@ function GradeList() {
                   </div>
                   <div className="mt-4 space-y-1.5">
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-stone-400">Min</span>
-                      <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDR(g.minSalary)}</span>
+                      <span className="text-slate-400">Min</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDR(g.minSalary)}</span>
                     </div>
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-stone-400">Max</span>
-                      <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDR(g.maxSalary)}</span>
+                      <span className="text-slate-400">Max</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDR(g.maxSalary)}</span>
                     </div>
-                    <div className="relative h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                    <div className="relative h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                       <div
                         className="absolute h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"
                         style={{ left: `${pctMin}%`, width: `${Math.max(pctMax - pctMin, 2)}%` }}
                       />
                     </div>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-dashed border-slate-100 pt-3 dark:border-slate-800">
                     <div className="text-center">
-                      <p className="text-base font-extrabold text-stone-900 dark:text-stone-50">{g.employeeCount}</p>
-                      <p className="text-[9px] font-bold uppercase text-stone-400">Karyawan</p>
+                      <p className="text-base font-extrabold text-slate-900 dark:text-slate-50">{g.employeeCount}</p>
+                      <p className="text-[9px] font-bold uppercase text-slate-400">Karyawan</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-base font-extrabold text-stone-900 dark:text-stone-50">{g.positionCount}</p>
-                      <p className="text-[9px] font-bold uppercase text-stone-400">Posisi</p>
+                      <p className="text-base font-extrabold text-slate-900 dark:text-slate-50">{g.positionCount}</p>
+                      <p className="text-[9px] font-bold uppercase text-slate-400">Posisi</p>
                     </div>
                   </div>
                 </CardContent>
@@ -577,15 +577,15 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
   const totalEmp = grades.reduce((a, g) => a + g.employeeCount, 0);
   const top = grades.filter((g) => g.employeeCount > 0).sort((a, b) => b.employeeCount - a.employeeCount)[0];
   return (
-    <Card className="mt-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="mt-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
             <GraduationCap className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Grade Terpadat</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? `${top.code} — ${top.employeeCount} karyawan` : "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Grade Terpadat</p>
+            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{top ? `${top.code} — ${top.employeeCount} karyawan` : "—"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -593,8 +593,8 @@ function GradeStats({ grades }: { grades: GradeOpt[] }) {
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Total Karyawan Ter-graded</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{totalEmp} dari grade G1–G{grades.length}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total Karyawan Ter-graded</p>
+            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{totalEmp} dari grade G1–G{grades.length}</p>
           </div>
         </div>
       </CardContent>

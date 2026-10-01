@@ -136,7 +136,7 @@ function UnitFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-stone-500">Unit akan berada pada level {nextLevel} — {levelLabel(nextLevel)}</p>
+            <p className="text-[11px] text-slate-500">Unit akan berada pada level {nextLevel} — {levelLabel(nextLevel)}</p>
           </div>
         </div>
         <DialogFooter className="gap-2">
@@ -174,7 +174,7 @@ function TreeNode({
             onClick={() => onToggle(node.id)}
             aria-label={isOpen ? `Tutup ${node.name}` : `Buka ${node.name}`}
             aria-expanded={isOpen}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-200/70 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-90")} />
           </button>
@@ -187,7 +187,7 @@ function TreeNode({
             "flex min-h-11 flex-1 items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition",
             isSelected
               ? "bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/40"
-              : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-900/70"
+              : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900/70"
           )}
         >
           <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", meta.cls)}>
@@ -195,7 +195,7 @@ function TreeNode({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-semibold leading-tight">{node.name}</span>
-            <span className="block truncate font-mono text-[10px] text-stone-400">{node.code}</span>
+            <span className="block truncate font-mono text-[10px] text-slate-400">{node.code}</span>
           </span>
           <span
             className={cn(
@@ -204,7 +204,7 @@ function TreeNode({
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                 : isSelected
                   ? "bg-emerald-600 text-white"
-                  : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+                  : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
             )}
             title={`${node._count.employees} karyawan aktif · budget ${node.headcountBudget}`}
           >
@@ -213,7 +213,7 @@ function TreeNode({
         </button>
       </div>
       {hasChildren && isOpen && (
-        <div role="group" className="border-l border-stone-200/80 dark:border-stone-800/80" style={{ marginLeft: depth * 14 + 20 }}>
+        <div role="group" className="border-l border-slate-200/80 dark:border-slate-800/80" style={{ marginLeft: depth * 14 + 20 }}>
           {node.children!.map((c) => (
             <TreeNode key={c.id} node={c} depth={0} selectedId={selectedId} expanded={expanded} onSelect={onSelect} onToggle={onToggle} />
           ))}
@@ -329,7 +329,7 @@ export function UnitTreeView() {
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* ==== tree panel ==== */}
-        <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="h-fit rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -338,10 +338,10 @@ export function UnitTreeView() {
               <CardDescription className="mt-1 text-xs">{units.length} unit terdaftar</CardDescription>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={expandAll} aria-label="Buka semua" title="Buka semua" className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
+              <button onClick={expandAll} aria-label="Buka semua" title="Buka semua" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                 <ChevronsUpDown className="h-4 w-4" />
               </button>
-              <button onClick={collapseAll} aria-label="Tutup semua" title="Tutup semua" className="rounded-lg p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200">
+              <button onClick={collapseAll} aria-label="Tutup semua" title="Tutup semua" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                 <ChevronsDownUp className="h-4 w-4" />
               </button>
             </div>
@@ -366,7 +366,7 @@ export function UnitTreeView() {
         {/* ==== detail panel ==== */}
         <div className="space-y-4">
           {!selected ? (
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardContent className="pt-6">
                 <EmptyState
                   title="Pilih unit organisasi"
@@ -377,7 +377,7 @@ export function UnitTreeView() {
             </Card>
           ) : (
             <>
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="space-y-0 pb-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3.5">
@@ -390,7 +390,7 @@ export function UnitTreeView() {
                         <CardTitle className="truncate text-lg leading-tight">{selected.name}</CardTitle>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <Badge variant="outline" className="font-mono text-[10px]">{selected.code}</Badge>
-                          <Badge className="bg-stone-100 text-[10px] text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">{levelLabel(selected.level)}</Badge>
+                          <Badge className="bg-slate-100 text-[10px] text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">{levelLabel(selected.level)}</Badge>
                           <StatusPill status={selected.active ? "Active" : "Cancelled"} />
                         </div>
                       </div>
@@ -424,21 +424,21 @@ export function UnitTreeView() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-0">
-                  <div className="grid gap-4 rounded-xl bg-stone-50/70 p-4 dark:bg-stone-900/40 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-4 rounded-xl bg-slate-50/70 p-4 dark:bg-slate-900/40 sm:grid-cols-2 xl:grid-cols-4">
                     <InfoTile icon={Hash} label="Kode Unit" value={selected.code} mono />
                     <InfoTile icon={GitBranch} label="Unit Induk" value={selected.parent ? `${selected.parent.code} — ${selected.parent.name}` : "—"} />
                     <InfoTile icon={Layers} label="Posisi" value={`${selected._count.positions} posisi`} />
                     <InfoTile icon={CalendarDays} label="Dibuat" value={fmtDate(selected.createdAt)} />
                   </div>
 
-                  <div className="rounded-xl border border-stone-200/80 p-4 dark:border-stone-800">
+                  <div className="rounded-xl border border-slate-200/80 p-4 dark:border-slate-800">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <p className="flex items-center gap-2 text-sm font-semibold text-stone-800 dark:text-stone-200">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                         <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Headcount: Budget vs Aktual
                       </p>
                       <p className={cn(
                         "text-sm font-bold tabular-nums",
-                        selected.headcountBudget === 0 ? "text-stone-500"
+                        selected.headcountBudget === 0 ? "text-slate-500"
                           : selected._count.employees > selected.headcountBudget ? "text-amber-600 dark:text-amber-400"
                           : "text-emerald-700 dark:text-emerald-400"
                       )}>
@@ -446,7 +446,7 @@ export function UnitTreeView() {
                       </p>
                     </div>
                     <Progress value={budgetPct} className="h-2.5 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-teal-500" />
-                    <p className="mt-2 text-[11px] text-stone-500">
+                    <p className="mt-2 text-[11px] text-slate-500">
                       {selected.headcountBudget === 0
                         ? "Budget headcount belum ditetapkan."
                         : budgetPct >= 100
@@ -457,7 +457,7 @@ export function UnitTreeView() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -477,14 +477,14 @@ export function UnitTreeView() {
                         <button
                           key={e.id}
                           onClick={() => navigate("employee", "detail", { id: e.id })}
-                          className="flex w-full min-h-11 items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900/60"
+                          className="flex w-full min-h-11 items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60"
                         >
                           <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold", avatarColor(e.fullName))}>
                             {initials(e.fullName)}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-semibold text-stone-800 dark:text-stone-200">{e.fullName}</span>
-                            <span className="block truncate text-[11px] text-stone-500">
+                            <span className="block truncate text-[13px] font-semibold text-slate-800 dark:text-slate-200">{e.fullName}</span>
+                            <span className="block truncate text-[11px] text-slate-500">
                               <span className="font-mono">{e.employeeNo}</span> · {e.position?.title ?? "Tanpa posisi"}
                             </span>
                           </span>
@@ -515,12 +515,12 @@ export function UnitTreeView() {
 function InfoTile({ icon: Icon, label, value, mono }: { icon: React.ElementType; label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-stone-400 shadow-sm dark:bg-stone-800 dark:text-stone-500">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-sm dark:bg-slate-800 dark:text-slate-500">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{label}</p>
-        <p className={cn("truncate text-sm font-semibold text-stone-800 dark:text-stone-200", mono && "font-mono text-xs")}>{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className={cn("truncate text-sm font-semibold text-slate-800 dark:text-slate-200", mono && "font-mono text-xs")}>{value}</p>
       </div>
     </div>
   );

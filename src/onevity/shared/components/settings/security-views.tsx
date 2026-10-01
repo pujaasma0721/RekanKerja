@@ -50,7 +50,7 @@ const ROLE_PILL: Record<string, string> = {
   "HR Manager": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
   "HR Staff": "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25",
   Approver: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
-  Viewer: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
+  Viewer: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
 };
 
 function RolePill({ role }: { role: string }) {
@@ -72,14 +72,14 @@ export function SecurityView() {
         description="Kelola pengguna aplikasi, access group per modul, dan skema akses data berbasis posisi."
       />
       <Tabs defaultValue="users" className="space-y-5">
-        <TabsList className="h-12 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/70">
-          <TabsTrigger value="users" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+        <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
+          <TabsTrigger value="users" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <UserCog className="h-4 w-4" /> Pengguna
           </TabsTrigger>
-          <TabsTrigger value="groups" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+          <TabsTrigger value="groups" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <ShieldCheck className="h-4 w-4" /> Access Group
           </TabsTrigger>
-          <TabsTrigger value="scheme" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+          <TabsTrigger value="scheme" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <Network className="h-4 w-4" /> Data Scheme
           </TabsTrigger>
         </TabsList>
@@ -118,7 +118,7 @@ function UsersTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-500 dark:text-stone-400">{users.length} pengguna terdaftar.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{users.length} pengguna terdaftar.</p>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
           <Plus className="h-4 w-4" /> User Baru
         </Button>
@@ -129,10 +129,10 @@ function UsersTab() {
       ) : error ? (
         <EmptyState title="Gagal memuat pengguna" description={error} />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200/80 shadow-sm dark:border-stone-800">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm dark:border-slate-800">
           <div className="max-h-[540px] overflow-y-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="min-w-[110px]">Username</TableHead>
                   <TableHead className="min-w-[170px]">Nama Lengkap</TableHead>
@@ -149,34 +149,34 @@ function UsersTab() {
                     <TableCell className="py-3">
                       <span className="flex items-center gap-2">
                         <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold", avatarColor(u.fullName))}>{initials(u.fullName)}</span>
-                        <span className="font-mono text-xs font-bold text-stone-600 dark:text-stone-300">{u.username}</span>
+                        <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{u.username}</span>
                       </span>
                     </TableCell>
                     <TableCell className="py-3">
                       <p className="text-[13px] font-semibold">{u.fullName}</p>
-                      {u.email && <p className="text-[11px] text-stone-400">{u.email}</p>}
+                      {u.email && <p className="text-[11px] text-slate-400">{u.email}</p>}
                     </TableCell>
                     <TableCell className="py-3"><RolePill role={u.role} /></TableCell>
                     <TableCell className="py-3">
                       <span className="flex flex-wrap gap-1">
-                        {u.accessGroups.length === 0 && <span className="text-xs text-stone-400">—</span>}
+                        {u.accessGroups.length === 0 && <span className="text-xs text-slate-400">—</span>}
                         {u.accessGroups.map((g) => (
-                          <Badge key={g.id} variant="outline" className="rounded-full border-stone-200 bg-stone-50 px-2 text-[10px] font-bold text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+                          <Badge key={g.id} variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                             {g.accessGroup.code}{g.isApprover ? " ★" : ""}
                           </Badge>
                         ))}
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 text-xs text-stone-500">{fmtDateTime(u.lastLogin)}</TableCell>
+                    <TableCell className="py-3 text-xs text-slate-500">{fmtDateTime(u.lastLogin)}</TableCell>
                     <TableCell className="py-3 text-center">
-                      {u.active ? <Check className="mx-auto h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <X className="mx-auto h-4 w-4 text-stone-300 dark:text-stone-600" />}
+                      {u.active ? <Check className="mx-auto h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <X className="mx-auto h-4 w-4 text-slate-300 dark:text-slate-600" />}
                     </TableCell>
                     <TableCell className="py-3">
                       <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                        <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-emerald-600" onClick={() => setEditing(u)} aria-label={`Edit ${u.username}`}>
+                        <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-emerald-600" onClick={() => setEditing(u)} aria-label={`Edit ${u.username}`}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(u)} disabled={u.username === "MII000001"} aria-label={`Hapus ${u.username}`}>
+                        <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-rose-600" onClick={() => setDeleting(u)} disabled={u.username === "MII000001"} aria-label={`Hapus ${u.username}`}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -302,7 +302,7 @@ function UserDialog({ initial, employees, roles, onClose, onDone }: { initial: A
                   <SelectItem value="none" className="py-2.5">Tanpa kaitan karyawan</SelectItem>
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
-                      <span className="font-mono text-xs text-stone-400">{e.employeeNo}</span> · {e.fullName}
+                      <span className="font-mono text-xs text-slate-400">{e.employeeNo}</span> · {e.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -311,7 +311,7 @@ function UserDialog({ initial, employees, roles, onClose, onDone }: { initial: A
           </div>
           <div className="flex items-center gap-3">
             <Switch id="au-active" checked={active} onCheckedChange={setActive} />
-            <Label htmlFor="au-active" className="text-xs font-normal text-stone-500">Akun aktif</Label>
+            <Label htmlFor="au-active" className="text-xs font-normal text-slate-500">Akun aktif</Label>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
@@ -360,7 +360,7 @@ function GroupsTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-500 dark:text-stone-400">{groups.length} access group — matriks izin per modul.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{groups.length} access group — matriks izin per modul.</p>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 bg-emerald-600 px-5 font-bold hover:bg-emerald-700">
           <Plus className="h-4 w-4" /> Group Baru
         </Button>
@@ -373,7 +373,7 @@ function GroupsTab() {
       ) : (
         <div className="grid gap-5 xl:grid-cols-2">
           {groups.map((g) => (
-            <article key={g.id} className="group rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/60">
+            <article key={g.id} className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -381,24 +381,24 @@ function GroupsTab() {
                       <ShieldCheck className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-[15px] font-bold text-stone-900 dark:text-stone-50">{g.name}</h3>
-                      <p className="font-mono text-[11px] text-stone-400">{g.code} · {g.members.length} anggota</p>
+                      <h3 className="text-[15px] font-bold text-slate-900 dark:text-slate-50">{g.name}</h3>
+                      <p className="font-mono text-[11px] text-slate-400">{g.code} · {g.members.length} anggota</p>
                     </div>
                   </div>
-                  {g.description && <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">{g.description}</p>}
+                  {g.description && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{g.description}</p>}
                 </div>
                 <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                  <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-emerald-600" onClick={() => setEditing(g)} aria-label={`Edit ${g.code}`}>
+                  <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-emerald-600" onClick={() => setEditing(g)} aria-label={`Edit ${g.code}`}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(g)} aria-label={`Hapus ${g.code}`}>
+                  <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-rose-600" onClick={() => setDeleting(g)} aria-label={`Hapus ${g.code}`}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
               {/* permission matrix */}
-              <div className="mt-4 overflow-hidden rounded-xl border border-stone-200/70 dark:border-stone-700/60">
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-700/60">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
@@ -414,7 +414,7 @@ function GroupsTab() {
                           <TableCell key={c.key} className="py-2 text-center">
                             {m[c.key]
                               ? <Check className="mx-auto h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-label={`${m.module} ${c.label}: ya`} />
-                              : <span className="text-stone-300 dark:text-stone-700" aria-label={`${m.module} ${c.label}: tidak`}>·</span>}
+                              : <span className="text-slate-300 dark:text-slate-700" aria-label={`${m.module} ${c.label}: tidak`}>·</span>}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -425,12 +425,12 @@ function GroupsTab() {
 
               {/* members */}
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Anggota:</span>
-                {g.members.length === 0 && <span className="text-xs text-stone-400">belum ada</span>}
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Anggota:</span>
+                {g.members.length === 0 && <span className="text-xs text-slate-400">belum ada</span>}
                 {g.members.map((m) => (
-                  <span key={m.id} className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 py-0.5 pl-0.5 pr-2.5 dark:border-stone-700 dark:bg-stone-800/60" title={`${m.user.fullName} · ${m.user.role}`}>
+                  <span key={m.id} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-0.5 pr-2.5 dark:border-slate-700 dark:bg-slate-800/60" title={`${m.user.fullName} · ${m.user.role}`}>
                     <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold", avatarColor(m.user.fullName))}>{initials(m.user.fullName)}</span>
-                    <span className="text-[11px] font-semibold text-stone-600 dark:text-stone-300">{m.user.fullName.split(" ")[0]}</span>
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{m.user.fullName.split(" ")[0]}</span>
                     {m.isApprover && <span className="text-[9px] text-amber-500">★</span>}
                   </span>
                 ))}
@@ -534,8 +534,8 @@ function GroupDialog({ initial, users, onClose, onDone }: { initial: AccessGroup
 
         {/* matrix editor */}
         <div className="space-y-2">
-          <Label className="text-xs font-bold uppercase tracking-wider text-stone-400">Matriks Izin Modul</Label>
-          <div className="overflow-hidden rounded-xl border border-stone-200/70 dark:border-stone-700/60">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Matriks Izin Modul</Label>
+          <div className="overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-700/60">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -558,7 +558,7 @@ function GroupDialog({ initial, users, onClose, onDone }: { initial: AccessGroup
                             "flex h-7 w-7 items-center justify-center rounded-md border transition-colors mx-auto",
                             m[c.key]
                               ? "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600"
-                              : "border-stone-300 text-transparent hover:border-emerald-400 dark:border-stone-600"
+                              : "border-slate-300 text-transparent hover:border-emerald-400 dark:border-slate-600"
                           )}
                         >
                           <Check className="h-4 w-4" />
@@ -574,8 +574,8 @@ function GroupDialog({ initial, users, onClose, onDone }: { initial: AccessGroup
 
         {/* members */}
         <div className="space-y-2">
-          <Label className="text-xs font-bold uppercase tracking-wider text-stone-400">Anggota ({memberIds.length})</Label>
-          <div className="grid max-h-40 gap-1.5 overflow-y-auto rounded-xl border border-stone-200/70 p-2 dark:border-stone-700/60 sm:grid-cols-2">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Anggota ({memberIds.length})</Label>
+          <div className="grid max-h-40 gap-1.5 overflow-y-auto rounded-xl border border-slate-200/70 p-2 dark:border-slate-700/60 sm:grid-cols-2">
             {users.map((u) => (
               <button
                 key={u.id}
@@ -584,12 +584,12 @@ function GroupDialog({ initial, users, onClose, onDone }: { initial: AccessGroup
                 aria-checked={memberIds.includes(u.id)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors",
-                  memberIds.includes(u.id) ? "bg-emerald-50 font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" : "hover:bg-stone-100 dark:hover:bg-stone-800"
+                  memberIds.includes(u.id) ? "bg-emerald-50 font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" : "hover:bg-slate-100 dark:hover:bg-slate-800"
                 )}
               >
                 <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold", avatarColor(u.fullName))}>{initials(u.fullName)}</span>
                 <span className="min-w-0 flex-1 truncate">{u.fullName}</span>
-                <span className="font-mono text-[10px] text-stone-400">{u.username}</span>
+                <span className="font-mono text-[10px] text-slate-400">{u.username}</span>
                 {memberIds.includes(u.id) && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
               </button>
             ))}
@@ -622,23 +622,23 @@ function DataSchemeTab() {
       {SCHEME_RULES.map((r) => {
         const Icon = r.icon;
         return (
-          <article key={r.title} className="rounded-2xl border border-stone-200/80 bg-gradient-to-br from-white to-stone-50/60 p-5 shadow-sm dark:border-stone-800 dark:from-stone-900/60 dark:to-stone-900/20">
+          <article key={r.title} className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/60 p-5 shadow-sm dark:border-slate-800 dark:from-slate-900/60 dark:to-slate-900/20">
             <div className="flex items-center justify-between gap-2">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-stone-600 to-stone-800 text-white shadow-md dark:from-stone-500 dark:to-stone-700">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-md dark:from-slate-500 dark:to-slate-700">
                 <Icon className="h-5 w-5" />
               </span>
               <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">ILUSTRASI</Badge>
             </div>
-            <h3 className="mt-3 text-[15px] font-bold text-stone-900 dark:text-stone-50">{r.title}</h3>
-            <p className="mt-0.5 font-mono text-[11px] text-stone-400">{r.scope}</p>
-            <p className="mt-2 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">{r.desc}</p>
+            <h3 className="mt-3 text-[15px] font-bold text-slate-900 dark:text-slate-50">{r.title}</h3>
+            <p className="mt-0.5 font-mono text-[11px] text-slate-400">{r.scope}</p>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">{r.desc}</p>
           </article>
         );
       })}
-      <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 p-5 lg:col-span-3 dark:border-stone-700 dark:bg-stone-900/30">
-        <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-5 lg:col-span-3 dark:border-slate-700 dark:bg-slate-900/30">
+        <p className="flex items-start gap-2.5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          Halaman ini menampilkan skema akses data secara statis sebagai ilustrasi perilaku OranHR Scheme Setup (Company Office / Position / Grade Structure). Konfigurasi aktif ditentukan oleh kombinasi <b className="text-stone-700 dark:text-stone-300">access group</b> + <b className="text-stone-700 dark:text-stone-300">posisi jabatan</b> masing-masing pengguna.
+          Halaman ini menampilkan skema akses data secara statis sebagai ilustrasi perilaku OranHR Scheme Setup (Company Office / Position / Grade Structure). Konfigurasi aktif ditentukan oleh kombinasi <b className="text-slate-700 dark:text-slate-300">access group</b> + <b className="text-slate-700 dark:text-slate-300">posisi jabatan</b> masing-masing pengguna.
         </p>
       </div>
     </div>

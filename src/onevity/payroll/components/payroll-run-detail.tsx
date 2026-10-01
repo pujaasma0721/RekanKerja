@@ -164,8 +164,8 @@ export function PayrollRunDetailPage() {
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => navigate("payroll", "runs")}><ArrowLeft className="h-4 w-4" /> {t("Semua Run", "All Runs")}</Button>
-        <span className="text-[11px] text-stone-400">/</span>
-        <span className="font-mono text-xs font-bold text-stone-500">{run.runNo}</span>
+        <span className="text-[11px] text-slate-400">/</span>
+        <span className="font-mono text-xs font-bold text-slate-500">{run.runNo}</span>
       </div>
 
       <PageHeader
@@ -211,20 +211,20 @@ export function PayrollRunDetailPage() {
                   <button
                     onClick={openSendDialog}
                     disabled={sending || busy}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-700 dark:text-stone-300"
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-[13px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300"
                   >
                     <Mail className={cn("h-4 w-4", sending && "animate-pulse")} /> {sending ? t("Mengirim slip…", "Sending slips…") : t("Kirim Semua Slip", "Email All Slips")}
                   </button>
                 )}
                 <button
                   onClick={() => setEsignOpen(true)}
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-brand-deep transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-brand/85"
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-[13px] font-bold text-brand-deep transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-brand/85"
                 >
                   <FileSignature className="h-4 w-4" /> {t("Tandatangani", "Sign Electronically")}
                 </button>
                 <button
                   onClick={() => navigate("payroll", "journals")}
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300"
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-[13px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300"
                 >
                   <BookOpen className="h-4 w-4" /> {t("Jurnal", "Journal")}
                 </button>
@@ -260,7 +260,7 @@ export function PayrollRunDetailPage() {
       {/* ringkasan */}
       {run.status !== "Draft" && (
         <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
-          <SummaryCard icon={Users} label={t("Karyawan")} value={String(run.employeeCount)} tone="text-stone-700 dark:text-stone-200" />
+          <SummaryCard icon={Users} label={t("Karyawan")} value={String(run.employeeCount)} tone="text-slate-700 dark:text-slate-200" />
           <SummaryCard icon={Receipt} label={t("Bruto", "Gross")} value={fmtIDR(run.totalBruto)} tone="text-brand-deep dark:text-brand/85" />
           <SummaryCard icon={BanknoteArrowDown} label={t("Potongan", "Deductions")} value={fmtIDR(run.totalDeduction)} tone="text-rose-600 dark:text-rose-400" />
           <SummaryCard icon={Receipt} label={t("PPh21")} value={fmtIDR(run.totalTax)} tone="text-brand dark:text-brand/85" />
@@ -299,9 +299,9 @@ export function PayrollRunDetailPage() {
               </Button>
             </div>
             {umkOpen && (
-              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-brand/25/70 bg-white/80 [scrollbar-width:thin] dark:border-brand/20 dark:bg-stone-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand/35 dark:[&::-webkit-scrollbar-thumb]:bg-brand/40">
+              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-brand/25/70 bg-white/80 [scrollbar-width:thin] dark:border-brand/20 dark:bg-slate-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand/35 dark:[&::-webkit-scrollbar-thumb]:bg-brand/40">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-brand/10/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableHeader className="sticky top-0 z-10 bg-brand/10/95 backdrop-blur dark:bg-slate-900/95">
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Karyawan")}</TableHead>
                       <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Kantor", "Office")}</TableHead>
@@ -314,14 +314,14 @@ export function PayrollRunDetailPage() {
                     {umkWarnings.map((w) => (
                       <TableRow key={w.employeeNo} className="hover:bg-brand/10/60 dark:hover:bg-brand/5">
                         <TableCell>
-                          <p className="text-[12.5px] font-bold text-stone-800 dark:text-stone-100">{w.employeeName}</p>
-                          <p className="font-mono text-[10.5px] text-stone-400">{w.employeeNo}</p>
+                          <p className="text-[12.5px] font-bold text-slate-800 dark:text-slate-100">{w.employeeName}</p>
+                          <p className="font-mono text-[10.5px] text-slate-400">{w.employeeNo}</p>
                         </TableCell>
-                        <TableCell className="text-[12.5px] text-stone-600 dark:text-stone-300">{w.office ?? t("— tanpa kantor —", "— no office —")}</TableCell>
+                        <TableCell className="text-[12.5px] text-slate-600 dark:text-slate-300">{w.office ?? t("— tanpa kantor —", "— no office —")}</TableCell>
                         <TableCell className="text-right font-mono text-[12.5px] font-semibold text-brand-deep dark:text-brand/85">{fmtIDR(w.baseSalary)}</TableCell>
                         <TableCell>
-                          <p className="font-mono text-[12.5px] font-bold text-stone-700 dark:text-stone-200">{fmtIDR(w.umk.amount)}</p>
-                          <p className="text-[10px] text-stone-400">{w.umk.label}</p>
+                          <p className="font-mono text-[12.5px] font-bold text-slate-700 dark:text-slate-200">{fmtIDR(w.umk.amount)}</p>
+                          <p className="text-[10px] text-slate-400">{w.umk.label}</p>
                         </TableCell>
                         <TableCell className="text-right font-mono text-[12.5px] font-extrabold text-rose-600 dark:text-rose-400">-{fmtIDR(w.gap)}</TableCell>
                       </TableRow>
@@ -346,9 +346,9 @@ export function PayrollRunDetailPage() {
       )}
 
       {/* tabel hasil per karyawan */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-4 py-3 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
             <p className="text-[13px] font-bold">{t("Hasil per Karyawan", "Results per Employee")} {run.status !== "Draft" && `(${run.lines.length})`}</p>
             <div className="flex flex-wrap items-center gap-2">
               {/* Task 64j — aksi recalc karyawan terpilih (hanya run Confirmed) */}
@@ -362,7 +362,7 @@ export function PayrollRunDetailPage() {
                 </>
               )}
               <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari karyawan…", "Search employees…")} className="h-9 pl-9 text-xs" />
               </div>
             </div>
@@ -375,7 +375,7 @@ export function PayrollRunDetailPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {canRecalc && (
                       <TableHead className="w-9">
                         <Checkbox
@@ -404,7 +404,7 @@ export function PayrollRunDetailPage() {
                 </TableHeader>
                 <TableBody>
                   {lines.map((l) => (
-                    <TableRow key={l.id} className={cn("cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60", canRecalc && selectedIds.has(l.employeeId) && "bg-brand/5 dark:bg-brand/10")} onClick={() => setSlipLine(l)}>
+                    <TableRow key={l.id} className={cn("cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60", canRecalc && selectedIds.has(l.employeeId) && "bg-brand/5 dark:bg-brand/10")} onClick={() => setSlipLine(l)}>
                       {canRecalc && (
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
@@ -416,9 +416,9 @@ export function PayrollRunDetailPage() {
                       )}
                       <TableCell>
                         <p className="text-[13px] font-bold">{l.employeeName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{l.employeeNo}{l.notes ? ` · ${l.notes}` : ""}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{l.employeeNo}{l.notes ? ` · ${l.notes}` : ""}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-500">{l.positionName ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{l.positionName ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] font-bold">{TAX_STATUS_LABEL[l.ptkpStatus] ?? l.ptkpStatus}</Badge>
                       </TableCell>
@@ -435,8 +435,8 @@ export function PayrollRunDetailPage() {
                   ))}
                 </TableBody>
                 <TableBody>
-                  <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                    <TableCell colSpan={canRecalc ? 4 : 3} className="text-xs font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
+                  <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
+                    <TableCell colSpan={canRecalc ? 4 : 3} className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("Total ({n} karyawan)", "Total ({n} employees)", { n: run.lines.length })}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(run.totalTax)}</TableCell>
@@ -452,10 +452,10 @@ export function PayrollRunDetailPage() {
 
       {/* agregat komponen */}
       {run.status !== "Draft" && (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Agregat Komponen Run", "Run Component Totals")}</CardTitle>
-            <p className="text-[11px] text-stone-400">{t("Total seluruh karyawan per komponen — termasuk iuran perusahaan (di luar THP)", "Totals across all employees per component — including company contributions (outside THP)")}</p>
+            <p className="text-[11px] text-slate-400">{t("Total seluruh karyawan per komponen — termasuk iuran perusahaan (di luar THP)", "Totals across all employees per component — including company contributions (outside THP)")}</p>
           </CardHeader>
           <CardContent className="grid gap-4 pt-0 lg:grid-cols-2">
             <div>
@@ -499,14 +499,14 @@ export function PayrollRunDetailPage() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 dark:border-stone-800 dark:bg-stone-900/60">
+          <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/60">
             <Switch checked={sendPwd} onCheckedChange={setSendPwd} className="mt-0.5" aria-label={t("Proteksi PDF dengan kata sandi", "Protect PDF with password")} />
             <span className="min-w-0">
               <span className="flex items-center gap-1.5 text-[13px] font-bold">
                 {t("Proteksi slip dengan kata sandi", "Protect slips with password")}
                 <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] font-bold text-brand dark:text-brand/85">AES-256</Badge>
               </span>
-              <span className="mt-0.5 block text-[11.5px] leading-snug text-stone-500 dark:text-stone-400">
+              <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">
                 {t(
                   "Sandi = NIK karyawan (fallback: nomor karyawan). Karyawan membuka PDF dengan NIK-nya sendiri — slip tidak terbaca pihak lain di mailbox.",
                   "Password = employee NIK (fallback: employee number). Each employee opens their PDF with their own NIK — slips stay private in transit."
@@ -536,30 +536,30 @@ export function PayrollRunDetailPage() {
 
       {/* Task 63 — log kejadian run (parameter kurang / anomali / info proses) */}
       {runLogs.length > 0 && (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <ScrollText className="h-4 w-4 text-brand dark:text-brand/85" />
               {t("Log Run", "Run Log")}
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-400">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
                 {logErrors > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400">{logErrors} {t("gagal", "errors")}</span>}
                 {logWarnings > 0 && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-brand-deep dark:bg-brand/15 dark:text-brand/85">{logWarnings} {t("peringatan", "warnings")}</span>}
                 {logInfos > 0 && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-brand-deep dark:bg-brand/15 dark:text-brand/85">{logInfos} {t("info", "info")}</span>}
               </span>
             </CardTitle>
-            <p className="text-[11px] text-stone-400">{t("Kejadian selama kalkulasi: karyawan tanpa template upah/profil/gaji dilewati & dicatat di sini.", "Events during calculation: employees without wage template/profile/salary are skipped & recorded here.")}</p>
+            <p className="text-[11px] text-slate-400">{t("Kejadian selama kalkulasi: karyawan tanpa template upah/profil/gaji dilewati & dicatat di sini.", "Events during calculation: employees without wage template/profile/salary are skipped & recorded here.")}</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {runLogs.map((l) => (
-                <div key={l.id} className="flex items-start gap-2 rounded-xl px-3 py-1.5 odd:bg-stone-50/60 dark:odd:bg-stone-800/30">
+                <div key={l.id} className="flex items-start gap-2 rounded-xl px-3 py-1.5 odd:bg-slate-50/60 dark:odd:bg-slate-800/30">
                   {l.level === "error" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" /> : l.level === "warning" ? <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold text-stone-700 dark:text-stone-200">
+                    <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">
                       {l.employeeNo ? `${l.employeeNo} — ${l.employeeName ?? ""}` : t("Umum", "General")}
-                      <span className="ml-2 font-mono text-[10px] font-normal text-stone-400">{l.code}</span>
+                      <span className="ml-2 font-mono text-[10px] font-normal text-slate-400">{l.code}</span>
                     </p>
-                    <p className="text-[11.5px] text-stone-500 dark:text-stone-400">{l.message}</p>
+                    <p className="text-[11.5px] text-slate-500 dark:text-slate-400">{l.message}</p>
                   </div>
                 </div>
               ))}
@@ -576,10 +576,10 @@ export function PayrollRunDetailPage() {
 
 function SummaryCard({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-1.5">
         <Icon className={cn("h-3.5 w-3.5", tone)} />
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
       </div>
       <p className={cn("mt-1 truncate text-base font-extrabold", tone)}>{value}</p>
     </div>
@@ -609,20 +609,20 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
           </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-xl bg-stone-50 p-4 dark:bg-stone-900/60">
+        <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-900/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Karyawan")}</p>
-              <p className="text-sm font-bold">{line.employeeName} <span className="font-mono text-[11px] font-medium text-stone-400">{line.employeeNo}</span></p>
-              <p className="text-[11px] text-stone-500">{line.positionName ?? "—"} · {line.orgUnitName ?? "—"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Karyawan")}</p>
+              <p className="text-sm font-bold">{line.employeeName} <span className="font-mono text-[11px] font-medium text-slate-400">{line.employeeNo}</span></p>
+              <p className="text-[11px] text-slate-500">{line.positionName ?? "—"} · {line.orgUnitName ?? "—"}</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Period · Run")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Period · Run")}</p>
               <p className="text-sm font-bold">{loc(context.periodName)}</p>
-              <p className="font-mono text-[10px] text-stone-400">{context.runNo} · {context.processName}</p>
+              <p className="font-mono text-[10px] text-slate-400">{context.runNo} · {context.processName}</p>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-dashed border-stone-200 pt-2 dark:border-stone-700">
+          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-dashed border-slate-200 pt-2 dark:border-slate-700">
             <Badge variant="outline" className="text-[10px] font-bold">{t("PTKP {s} · {v}/thn", "PTKP {s} · {v}/yr", { s: TAX_STATUS_LABEL[line.ptkpStatus] ?? line.ptkpStatus, v: fmtIDR(line.ptkpValue) })}</Badge>
             {line.actualNetTax != null && <Badge variant="outline" className="text-[10px] font-bold text-brand">{t("NetToGross — pajak ditanggung perusahaan", "NetToGross — tax borne by the company")}</Badge>}
             {line.notes && <Badge variant="outline" className="text-[10px] font-bold">{line.notes}</Badge>}
@@ -635,10 +635,10 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             <div className="space-y-1">
               {inThp.map((i) => (
                 <div key={i.id} className="flex items-center justify-between text-[13px]">
-                  <span className={cn("text-stone-600 dark:text-stone-300", i.code.endsWith("_C") && "text-stone-400")}>
+                  <span className={cn("text-slate-600 dark:text-slate-300", i.code.endsWith("_C") && "text-slate-400")}>
                     {i.name}
-                    {i.code.endsWith("_C") && <span className="ml-1 text-[9px] font-bold uppercase text-stone-400">{t("(iuran perush.)", "(co. contribution)")}</span>}
-                    {i.note && <span className="ml-1 text-[10px] text-stone-400">· {i.note}</span>}
+                    {i.code.endsWith("_C") && <span className="ml-1 text-[9px] font-bold uppercase text-slate-400">{t("(iuran perush.)", "(co. contribution)")}</span>}
+                    {i.note && <span className="ml-1 text-[10px] text-slate-400">· {i.note}</span>}
                   </span>
                   <span className="font-mono text-xs font-semibold text-brand-deep dark:text-brand/85">{fmtIDR(i.amount)}</span>
                 </div>
@@ -650,7 +650,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             <div className="space-y-1">
               {deductions.map((i) => (
                 <div key={i.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-stone-600 dark:text-stone-300">{i.name}{i.note && <span className="ml-1 text-[10px] text-stone-400">· {i.note}</span>}</span>
+                  <span className="text-slate-600 dark:text-slate-300">{i.name}{i.note && <span className="ml-1 text-[10px] text-slate-400">· {i.note}</span>}</span>
                   <span className="font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">{fmtIDR(i.amount)}</span>
                 </div>
               ))}
@@ -686,8 +686,8 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
 function SlipRow({ label, value, tone, strong }: { label: string; value: string; tone?: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-stone-500 dark:text-stone-400">{label}</span>
-      <span className={cn("font-mono text-xs font-bold", strong ? "text-stone-800 dark:text-stone-200" : "", tone ?? "")}>{value}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+      <span className={cn("font-mono text-xs font-bold", strong ? "text-slate-800 dark:text-slate-200" : "", tone ?? "")}>{value}</span>
     </div>
   );
 }

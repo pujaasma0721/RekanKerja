@@ -96,18 +96,18 @@ export function LeaveBalancesPage() {
         ].map((k) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-              <div className="flex items-center gap-2"><Icon className={cn("h-4 w-4", k.tone)} /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p></div>
-              <p className="text-lg font-extrabold text-stone-800 dark:text-stone-100">{k.value}</p>
-              {k.sub && <p className="text-[11px] text-stone-400">{k.sub}</p>}
+            <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-2"><Icon className={cn("h-4 w-4", k.tone)} /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p></div>
+              <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100">{k.value}</p>
+              {k.sub && <p className="text-[11px] text-slate-400">{k.sub}</p>}
             </div>
           );
         })}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
                 <SelectTrigger className="h-8 w-24 text-xs font-bold"><SelectValue /></SelectTrigger>
@@ -122,7 +122,7 @@ export function LeaveBalancesPage() {
               </Select>
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
@@ -132,7 +132,7 @@ export function LeaveBalancesPage() {
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableRow className="bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Jenis Cuti</TableHead>
                     <TableHead className="text-[11px] font-bold">Periode</TableHead>
@@ -149,29 +149,29 @@ export function LeaveBalancesPage() {
                 </TableHeader>
                 <TableBody>
                   {balances.map((b) => (
-                    <TableRow key={b.balanceId ?? b.employeeId + b.leaveTypeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={b.balanceId ?? b.employeeId + b.leaveTypeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{b.employeeNo}</p>
-                        <p className="text-[10px] text-stone-400">{b.fullName} · {b.orgUnitName ?? "—"}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{b.employeeNo}</p>
+                        <p className="text-[10px] text-slate-400">{b.fullName} · {b.orgUnitName ?? "—"}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs font-semibold text-stone-700 dark:text-stone-200">{b.leaveTypeName}</p>
-                        <p className="font-mono text-[9px] text-stone-400">{b.leaveTypeCode}{!b.paid && " · tidak dibayar"}</p>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{b.leaveTypeName}</p>
+                        <p className="font-mono text-[9px] text-slate-400">{b.leaveTypeCode}{!b.paid && " · tidak dibayar"}</p>
                       </TableCell>
-                      <TableCell className="font-mono text-[10px] text-stone-400">{b.periodLabel}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.carriedOver)}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.earned)}</TableCell>
-                      <TableCell className={cn("text-right text-xs tabular-nums", b.adjustment !== 0 ? "font-bold text-amber-600" : "text-stone-500")}>{fmtDay(b.adjustment)}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-stone-400">{fmtDay(b.forfeited)}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-slate-400">{b.periodLabel}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-slate-500">{fmtDay(b.carriedOver)}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-slate-500">{fmtDay(b.earned)}</TableCell>
+                      <TableCell className={cn("text-right text-xs tabular-nums", b.adjustment !== 0 ? "font-bold text-amber-600" : "text-slate-500")}>{fmtDay(b.adjustment)}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-slate-400">{fmtDay(b.forfeited)}</TableCell>
                       <TableCell className="text-right text-xs tabular-nums text-teal-600">{fmtDay(b.cashed)}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.taken)}</TableCell>
-                      <TableCell className="text-right text-xs tabular-nums text-stone-500">{fmtDay(b.applied)}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-slate-500">{fmtDay(b.taken)}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums text-slate-500">{fmtDay(b.applied)}</TableCell>
                       <TableCell className={cn("text-right text-xs font-extrabold tabular-nums", b.remaining < 0 ? "text-rose-600" : "text-emerald-700 dark:text-emerald-400")}>
                         {fmtDay(b.remaining)} {b.unit === "MONTH" ? "bln" : "hr"}
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdjTarget(b); setAdjForm({ delta: "1", reason: "" }); }} title="Penyesuaian saldo">
-                          <Plus className="h-3.5 w-3.5 text-stone-500" />
+                          <Plus className="h-3.5 w-3.5 text-slate-500" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -191,7 +191,7 @@ export function LeaveBalancesPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               Membuat baris saldo per karyawan × jenis untuk tahun tertentu. Carry-over dihitung dari
               saldo sisa tahun sebelumnya (maksimum sesuai jenis, hangus 31 Des). Padanan
               <i> GenerateLeaveInfoProcess.jsp</i> oranHR.
@@ -232,9 +232,9 @@ export function LeaveBalancesPage() {
           </DialogHeader>
           {adjTarget && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-stone-50 p-3 text-xs dark:bg-stone-900/60">
-                <p className="font-bold text-stone-800 dark:text-stone-100">{adjTarget.employeeNo} — {adjTarget.fullName}</p>
-                <p className="text-stone-500">{adjTarget.leaveTypeName} · {adjTarget.year} · saldo sekarang {fmtDay(adjTarget.remaining)} hari</p>
+              <div className="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-900/60">
+                <p className="font-bold text-slate-800 dark:text-slate-100">{adjTarget.employeeNo} — {adjTarget.fullName}</p>
+                <p className="text-slate-500">{adjTarget.leaveTypeName} · {adjTarget.year} · saldo sekarang {fmtDay(adjTarget.remaining)} hari</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -246,7 +246,7 @@ export function LeaveBalancesPage() {
                   <Input value={adjForm.reason} onChange={(e) => setAdjForm({ ...adjForm, reason: e.target.value })} placeholder="mis. kompensasi lembur libur" className="h-8 text-xs" />
                 </div>
               </div>
-              <p className="text-[10px] leading-relaxed text-stone-400">
+              <p className="text-[10px] leading-relaxed text-slate-400">
                 Padanan <i>Leave Adjustment</i> oranHR — kolom (c) pada formula saldo.
               </p>
             </div>

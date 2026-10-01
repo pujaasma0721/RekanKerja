@@ -63,14 +63,14 @@ const PROVIDER_ENDPOINT_HINT: Record<string, string> = {
 };
 
 // scrollbar tipis (pola activity-log-view)
-const SCROLL_CLS = "overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700";
+const SCROLL_CLS = "overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
 
 // ---------- halaman utama ----------
 
 export function WhatsAppConfigView() {
   const { t } = useI18n();
   const [tab, setTab] = useState("config");
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800";
 
   return (
     <div>
@@ -80,7 +80,7 @@ export function WhatsAppConfigView() {
         description={t("Kanal notifikasi WhatsApp (Fonnte / Wablas / Custom) — sistem mengirim pesan saat ada pengajuan cuti, slip gaji terkirim, permintaan & terbit surat, pengumuman, dan tukar shift.", "WhatsApp notification channel (Fonnte / Wablas / Custom) — the system sends messages for leave requests, payslip delivery, letter requests & issuance, announcements, and shift swaps.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
           <TabsTrigger value="config" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <Smartphone className="h-3.5 w-3.5" /> {t("Konfigurasi", "Configuration")}
           </TabsTrigger>
@@ -164,11 +164,11 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
   const tokenEmpty = !cfg?.hasToken && !form.token;
   const statusBadge = cfg?.active
     ? <Badge className="gap-1 rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75"><CheckCircle2 className="h-3 w-3" /> {t("AKTIF", "ACTIVE")}</Badge>
-    : <Badge className="gap-1 rounded-full bg-stone-100 px-2 text-[10px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400"><MinusCircle className="h-3 w-3" /> {t("NONAKTIF", "INACTIVE")}</Badge>;
+    : <Badge className="gap-1 rounded-full bg-slate-100 px-2 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400"><MinusCircle className="h-3 w-3" /> {t("NONAKTIF", "INACTIVE")}</Badge>;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <MessageCircle className="h-4 w-4 ov-text-accent" /> {t("Provider & Pengirim", "Provider & Sender")}
@@ -176,12 +176,12 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
           {statusBadge}
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/60 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
             <div className="flex items-start gap-3">
               <Zap className="mt-0.5 h-4 w-4 text-amber-500" />
               <div>
                 <p className="text-[13px] font-bold">{t("Kirim WhatsApp Otomatis", "Automatic WhatsApp Sending")}</p>
-                <p className="text-xs text-stone-500">{t("Sistem mengirim WA tiap ada pengajuan / keputusan (cuti, slip gaji, surat, pengumuman, tukar shift)", "The system sends a WhatsApp message for every request / decision (leave, payslips, letters, announcements, shift swaps)")}</p>
+                <p className="text-xs text-slate-500">{t("Sistem mengirim WA tiap ada pengajuan / keputusan (cuti, slip gaji, surat, pengumuman, tukar shift)", "The system sends a WhatsApp message for every request / decision (leave, payslips, letters, announcements, shift swaps)")}</p>
               </div>
             </div>
             <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} aria-label={t("Aktifkan kanal WhatsApp", "Enable WhatsApp channel")} />
@@ -210,7 +210,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
                   <SelectItem value="Custom" className="text-[13px]">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] leading-relaxed text-stone-400">
+              <p className="text-[10px] leading-relaxed text-slate-400">
                 {form.provider === "Fonnte" && t("API resmi Fonnte — token dari dashboard fonnte.com (menu Device).", "Official Fonnte API — token from the fonnte.com dashboard (Device menu).")}
                 {form.provider === "Wablas" && t("Gateway Wablas — token dari menu Device → Settings; endpoint per-region.", "Wablas gateway — token from Device → Settings; region-specific endpoint.")}
                 {form.provider === "Custom" && t("Gateway WhatsApp sendiri / internal (endpoint bebas).", "Your own / internal WhatsApp gateway (any endpoint).")}
@@ -219,7 +219,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">
                 {t("Endpoint Kirim *", "Send Endpoint *")}
-                {form.provider !== "Custom" && <span className="ml-1 font-normal text-stone-400">{t("(boleh dikosongkan → default provider)", "(can be empty → provider default)")}</span>}
+                {form.provider !== "Custom" && <span className="ml-1 font-normal text-slate-400">{t("(boleh dikosongkan → default provider)", "(can be empty → provider default)")}</span>}
               </Label>
               <Input
                 value={form.endpoint}
@@ -258,7 +258,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
       </Card>
 
       <div className="space-y-4">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 ov-text-accent" /> {t("Tes Kirim WhatsApp", "Send a Test WhatsApp")}</CardTitle>
           </CardHeader>
@@ -266,7 +266,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
             <Button onClick={() => setTestOpen(true)} disabled={testing} className="w-full gap-2 font-bold">
               <Send className="h-4 w-4" /> {testing ? t("Mengirim…", "Sending…") : t("Kirim Pesan Uji", "Send Test Message")}
             </Button>
-            <p className="text-[11px] leading-relaxed text-stone-500">
+            <p className="text-[11px] leading-relaxed text-slate-500">
               {t("Butuh hak aksi khusus (op:test pada menu Notifikasi WhatsApp) — kirim pesan pendek ke nomor HP mana pun untuk memverifikasi token & endpoint.", "Requires a special action right (op:test on the WhatsApp Notification menu) — sends a short message to any phone number to verify the token & endpoint.")}
             </p>
             {cfg?.lastTestAt && (
@@ -286,14 +286,14 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 bg-stone-50/60 shadow-sm dark:border-stone-800 dark:bg-stone-900/40">
+        <Card className="rounded-2xl border-slate-200/80 bg-slate-50/60 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold"><MessageCircle className="h-4 w-4 ov-text-accent" /> {t("Petunjuk Cepat", "Quick Guide")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 pt-0 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
-            <p><b className="text-stone-700 dark:text-stone-300">Fonnte:</b> {t("daftar di fonnte.com, hubungkan perangkat WhatsApp, salin token (Device). Endpoint sudah terisi default.", "register at fonnte.com, connect your WhatsApp device, copy the token (Device). The endpoint is pre-filled by default.")}</p>
-            <p><b className="text-stone-700 dark:text-stone-300">Wablas:</b> {t("token di menu Device → Settings; endpoint ikut region akun Anda, mis.", "token in Device → Settings; the endpoint follows your account region, e.g.")} <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">https://jkt.wablas.com/api/send-message</code>.</p>
-            <p><b className="text-stone-700 dark:text-stone-300">Custom:</b> {t("isi endpoint gateway internal Anda — sistem POST JSON {target, phone, message, event} + header Authorization.", "enter your internal gateway endpoint — the system POSTs JSON {target, phone, message, event} + Authorization header.")}</p>
+          <CardContent className="space-y-2 pt-0 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+            <p><b className="text-slate-700 dark:text-slate-300">Fonnte:</b> {t("daftar di fonnte.com, hubungkan perangkat WhatsApp, salin token (Device). Endpoint sudah terisi default.", "register at fonnte.com, connect your WhatsApp device, copy the token (Device). The endpoint is pre-filled by default.")}</p>
+            <p><b className="text-slate-700 dark:text-slate-300">Wablas:</b> {t("token di menu Device → Settings; endpoint ikut region akun Anda, mis.", "token in Device → Settings; the endpoint follows your account region, e.g.")} <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">https://jkt.wablas.com/api/send-message</code>.</p>
+            <p><b className="text-slate-700 dark:text-slate-300">Custom:</b> {t("isi endpoint gateway internal Anda — sistem POST JSON {target, phone, message, event} + header Authorization.", "enter your internal gateway endpoint — the system POSTs JSON {target, phone, message, event} + Authorization header.")}</p>
             <p>{t("Selama kanal nonaktif / token kosong, setiap pemicu tercatat ", "While the channel is disabled / token empty, every trigger is recorded as ")}<i>Skipped</i>{t(" di Riwayat Kirim — proses bisnis tetap normal.", " in the Send History — business processes continue normally.")}</p>
           </CardContent>
         </Card>
@@ -317,7 +317,7 @@ function ConfigPanel({ onSaved }: { onSaved?: () => void }) {
               inputMode="tel"
               autoFocus
             />
-            <p className="text-[11px] text-stone-500">
+            <p className="text-[11px] text-slate-500">
               {t("Pesan pendek dikirim langsung (tanpa template) ke provider aktif.", "A short message is sent directly (no template) to the active provider.")}
             </p>
           </div>
@@ -359,17 +359,17 @@ function TemplatesPanel() {
         <Badge className="rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75">
           {t("{n} aktif", "{n} active", { n: templates.filter((tpl) => tpl.active).length })}
         </Badge>
-        <p className="ml-auto hidden text-[11px] text-stone-400 sm:block">
+        <p className="ml-auto hidden text-[11px] text-slate-400 sm:block">
           {t("Placeholder {{key}} diisi otomatis dari data pengajuan saat pesan dikirim.", "{{key}} placeholders are filled automatically from request data when the message is sent.")}
         </p>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="pt-4">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   <TableHead className="text-[11px] font-bold">{t("Event", "Event")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Label")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Pratinjau Pesan", "Message Preview")}</TableHead>
@@ -379,11 +379,11 @@ function TemplatesPanel() {
               </TableHeader>
               <TableBody>
                 {templates.map((tpl) => (
-                  <TableRow key={tpl.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", !tpl.active && "opacity-60")}>
-                    <TableCell className="whitespace-nowrap font-mono text-[10px] text-stone-400">{tpl.event}</TableCell>
+                  <TableRow key={tpl.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", !tpl.active && "opacity-60")}>
+                    <TableCell className="whitespace-nowrap font-mono text-[10px] text-slate-400">{tpl.event}</TableCell>
                     <TableCell className="max-w-[220px] truncate text-[13px] font-semibold">{tpl.label}</TableCell>
                     <TableCell className="max-w-[420px]">
-                      <p className="line-clamp-2 whitespace-pre-wrap text-[12px] text-stone-600 dark:text-stone-400" title={tpl.body}>{tpl.body}</p>
+                      <p className="line-clamp-2 whitespace-pre-wrap text-[12px] text-slate-600 dark:text-slate-400" title={tpl.body}>{tpl.body}</p>
                     </TableCell>
                     <TableCell>
                       <Switch checked={tpl.active} onCheckedChange={() => toggleActive(tpl)} aria-label={t(`Aktifkan template ${tpl.label}`, `Enable template ${tpl.label}`)} />
@@ -391,7 +391,7 @@ function TemplatesPanel() {
                     <TableCell>
                       <button
                         onClick={() => setEditing(tpl)}
-                        className="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800"
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                         aria-label={t(`Edit template ${tpl.label}`, `Edit template ${tpl.label}`)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -498,15 +498,15 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: WaTemplateRow | null; 
             </div>
             {preview ? (
               <div className={cn("max-h-72 whitespace-pre-wrap rounded-lg border ov-border-accent ov-soft px-3 py-2.5 text-[13px] leading-relaxed", SCROLL_CLS)}>
-                {render(body) || <span className="italic text-stone-400">{t("(isi kosong)", "(empty)")}</span>}
+                {render(body) || <span className="italic text-slate-400">{t("(isi kosong)", "(empty)")}</span>}
               </div>
             ) : (
               <Textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={8} maxLength={1000} className="text-[13px] leading-relaxed" />
             )}
-            <p className="text-right font-mono text-[10px] text-stone-400">{body.length}/1000</p>
+            <p className="text-right font-mono text-[10px] text-slate-400">{body.length}/1000</p>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
-            <p className="font-bold text-stone-600 dark:text-stone-300">{t("Variabel untuk event ini — klik untuk menyisipkan ke kursor:", "Variables for this event — click to insert at the cursor:")}</p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+            <p className="font-bold text-slate-600 dark:text-slate-300">{t("Variabel untuk event ini — klik untuk menyisipkan ke kursor:", "Variables for this event — click to insert at the cursor:")}</p>
             {phDefs.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {phDefs.map((p) => (
@@ -516,16 +516,16 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: WaTemplateRow | null; 
                     title={`${p.label} · ${t("contoh", "e.g.")}: ${p.contoh}`}
                     onClick={() => insertAtCursor(`{{${p.key}}}`)}
                     disabled={preview}
-                    className="rounded-full border border-stone-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-stone-700 transition-colors hover:ov-soft hover:ov-border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+                    className="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-slate-700 transition-colors hover:ov-soft hover:ov-border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                   >
                     {`{{${p.key}}}`}
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="mt-1 text-[11px] text-stone-500">{t("Event ini tidak memiliki variabel dinamis.", "This event has no dynamic variables.")}</p>
+              <p className="mt-1 text-[11px] text-slate-500">{t("Event ini tidak memiliki variabel dinamis.", "This event has no dynamic variables.")}</p>
             )}
-            <p className="mt-2 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t("Nilai variabel diisi otomatis dari data pengajuan saat pesan dikirim. Variabel tak dikenal tampil apa adanya.", "Variable values are filled automatically from request data when the message is sent. Unknown variables appear as-is.")}
             </p>
           </div>
@@ -571,23 +571,23 @@ function LogsPanel() {
         {([
           ["Sent", "Terkirim", "Sent", CheckCircle2, "text-brand"],
           ["Failed", "Gagal", "Failed", XCircle, "text-rose-500"],
-          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-stone-400"],
+          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-slate-400"],
         ] as const).map(([key, label, labelEn, Icon, cls]) => (
-          <Card key={key} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card key={key} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-center gap-3 p-4">
-              <div className={cn("rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900", cls)}>
+              <div className={cn("rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900", cls)}>
                 <Icon className="h-5 w-5" />
               </div>
               <div aria-live="polite">
                 <p className="text-xl font-extrabold tabular-nums">{stats[key] ?? 0}</p>
-                <p className="text-[11px] font-semibold text-stone-500">{t(label, labelEn)}</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t(label, labelEn)}</p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 ov-text-accent" /> {t("Riwayat Pengiriman WhatsApp", "WhatsApp Delivery History")}
@@ -626,16 +626,16 @@ function LogsPanel() {
             <LoadingRows rows={6} />
           ) : logs.length === 0 ? (
             <div className="py-10 text-center">
-              <MessageCircle className="mx-auto h-10 w-10 text-stone-300 dark:text-stone-600" />
-              <p className="mt-3 text-sm font-bold text-stone-500">{t("Belum ada pesan WhatsApp terkirim", "No WhatsApp messages sent yet")}</p>
-              <p className="mt-1 text-xs text-stone-400">{t("Pengiriman tercatat di sini setelah kanal diaktifkan dan pengajuan / keputusan terjadi.", "Deliveries appear here once the channel is enabled and requests / decisions happen.")}</p>
+              <MessageCircle className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+              <p className="mt-3 text-sm font-bold text-slate-500">{t("Belum ada pesan WhatsApp terkirim", "No WhatsApp messages sent yet")}</p>
+              <p className="mt-1 text-xs text-slate-400">{t("Pengiriman tercatat di sini setelah kanal diaktifkan dan pengajuan / keputusan terjadi.", "Deliveries appear here once the channel is enabled and requests / decisions happen.")}</p>
             </div>
           ) : (
             <>
               <div className={cn("max-h-96", SCROLL_CLS)}>
                 <Table>
                   <TableHeader className="sticky top-0 z-10">
-                    <TableRow className="bg-stone-50 dark:bg-stone-900">
+                    <TableRow className="bg-slate-50 dark:bg-slate-900">
                       <ServerSortHead label={t("Waktu", "Time")} active={sortKey === "createdAt"} dir={sortDir} onClick={() => clickSort("createdAt")} className="text-[11px] font-bold" />
                       <ServerSortHead label="Event" active={sortKey === "event"} dir={sortDir} onClick={() => clickSort("event")} className="text-[11px] font-bold" />
                       <ServerSortHead label={t("Nomor", "Number")} active={sortKey === "toPhone"} dir={sortDir} onClick={() => clickSort("toPhone")} className="text-[11px] font-bold" />
@@ -645,9 +645,9 @@ function LogsPanel() {
                   </TableHeader>
                   <TableBody>
                     {logs.map((l) => (
-                      <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                        <TableCell className="whitespace-nowrap text-[11px] text-stone-500">{fmtDate(l.createdAt)}</TableCell>
-                        <TableCell className="whitespace-nowrap font-mono text-[10px] text-stone-500">{l.event}</TableCell>
+                      <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                        <TableCell className="whitespace-nowrap text-[11px] text-slate-500">{fmtDate(l.createdAt)}</TableCell>
+                        <TableCell className="whitespace-nowrap font-mono text-[10px] text-slate-500">{l.event}</TableCell>
                         <TableCell className="whitespace-nowrap text-[12px] font-semibold tabular-nums">{l.toPhone}</TableCell>
                         <TableCell>
                           {l.status === "Sent" ? (
@@ -659,13 +659,13 @@ function LogsPanel() {
                               <XCircle className="h-3 w-3" /> {t("Gagal")}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                               <MinusCircle className="h-3 w-3" /> Skipped
                             </span>
                           )}
                         </TableCell>
                         <TableCell className="max-w-[360px]">
-                          <p className="line-clamp-2 text-[12px] text-stone-600 dark:text-stone-400" title={l.error ?? l.body ?? ""}>
+                          <p className="line-clamp-2 text-[12px] text-slate-600 dark:text-slate-400" title={l.error ?? l.body ?? ""}>
                             {l.error ?? l.body ?? "—"}
                           </p>
                         </TableCell>
@@ -676,7 +676,7 @@ function LogsPanel() {
               </div>
               {totalPages > 1 && (
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-[11px] text-stone-400">
+                  <p className="text-[11px] text-slate-400">
                     {t("Halaman {p} dari {n}", "Page {p} of {n}", { p: page + 1, n: totalPages })}
                   </p>
                   <div className="flex gap-2">

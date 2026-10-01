@@ -88,8 +88,8 @@ export function LeaveMassPage() {
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-rose-100 p-2 dark:bg-rose-500/15"><Megaphone className="h-5 w-5 text-rose-600 dark:text-rose-400" /></div>
           <div>
-            <p className="text-sm font-bold text-stone-800 dark:text-stone-100">Mekanisme SKB 3 Menteri</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Mekanisme SKB 3 Menteri</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               Cuti bersama resmi (mis. menjelang Idulfitri) dijalankan lewat cuti massal: pilih tanggal + jenis cuti penanggung saldo,
               sistem membuat baris permintaan <b>status Cuti Massal</b> untuk setiap karyawan organisasi — hari non-kerja & yang
               sudah punya cuti otomatis dilewati. Contoh nyata MII oranHR: 3 tanggal SKB ditanggung saldo Cuti Besar.
@@ -98,10 +98,10 @@ export function LeaveMassPage() {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">Riwayat cuti massal — {rows.length} entri</p>
+          <div className="border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Riwayat cuti massal — {rows.length} entri</p>
           </div>
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={4} /></div> : rows.length === 0 ? (
             <div className="p-5"><EmptyState title="Belum ada cuti massal" description="Buat cuti massal untuk cuti bersama SKB atau kebijakan perusahaan." icon={<Users className="h-6 w-6" />} /></div>
@@ -109,7 +109,7 @@ export function LeaveMassPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Dokumen</TableHead>
                     <TableHead className="text-[11px] font-bold">Jenis</TableHead>
                     <TableHead className="text-[11px] font-bold">Rentang</TableHead>
@@ -121,29 +121,29 @@ export function LeaveMassPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((m) => (
-                    <TableRow key={m.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{m.docNo}</p>
-                        <p className="text-[10px] text-stone-400">{m.letterNo ?? "—"}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">{m.docNo}</p>
+                        <p className="text-[10px] text-slate-400">{m.letterNo ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-700 dark:text-stone-200">{m.leaveTypeName}</TableCell>
-                      <TableCell className="text-[11px] font-semibold text-stone-700 dark:text-stone-200">
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-200">{m.leaveTypeName}</TableCell>
+                      <TableCell className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                         {new Date(m.dateFrom).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
                         {m.dateTo !== m.dateFrom && ` → ${new Date(m.dateTo).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}`}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{m.amount}</TableCell>
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{m.amount}</TableCell>
                       <TableCell className="text-right">
                         <p className="text-xs font-extrabold text-orange-600 dark:text-orange-400">{m.generated}</p>
-                        <p className="text-[10px] text-stone-400">ter-generate</p>
+                        <p className="text-[10px] text-slate-400">ter-generate</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-[11px] text-stone-600 dark:text-stone-300">{m.orgUnitName ?? "Seluruh organisasi"}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">{m.orgUnitName ?? "Seluruh organisasi"}</p>
                         <div className="mt-0.5 flex gap-1">
-                          {m.excludeNonWorking && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Lewati non-kerja</Badge>}
-                          {m.excludeConflicted && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Lewati bentrok</Badge>}
+                          {m.excludeNonWorking && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">Lewati non-kerja</Badge>}
+                          {m.excludeConflicted && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">Lewati bentrok</Badge>}
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-64 text-[10px] text-stone-400">{m.note ?? "—"}</TableCell>
+                      <TableCell className="max-w-64 text-[10px] text-slate-400">{m.note ?? "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -200,12 +200,12 @@ export function LeaveMassPage() {
               <Label className="text-xs font-bold">Catatan</Label>
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="mis. SKB cuti bersama 17 Sep" className="h-8 text-xs" />
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-900/60">
-              <label className="flex items-center gap-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+              <label className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 <Checkbox checked={form.excludeNonWorking} onCheckedChange={(v) => setForm({ ...form, excludeNonWorking: Boolean(v) })} />
                 Lewati hari non-kerja (jadwal)
               </label>
-              <label className="flex items-center gap-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+              <label className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                 <Checkbox checked={form.excludeConflicted} onCheckedChange={(v) => setForm({ ...form, excludeConflicted: Boolean(v) })} />
                 Lewati karyawan bentrok cuti
               </label>

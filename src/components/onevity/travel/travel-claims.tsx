@@ -181,7 +181,7 @@ export function TravelClaimsPage() {
               "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
               statusFilter === f.key
                 ? "bg-orange-600 text-white shadow-sm"
-                : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
+                : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
             )}
           >
             {f.label}
@@ -191,12 +191,12 @@ export function TravelClaimsPage() {
           </button>
         ))}
         <div className="relative ml-auto">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / nomor klaim…" className="w-56 pl-9 text-sm" />
         </div>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <LoadingRows rows={6} />
@@ -206,7 +206,7 @@ export function TravelClaimsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <TableHead className="w-8" />
                     <TableHead>Nomor</TableHead>
                     <TableHead>Karyawan</TableHead>
@@ -219,17 +219,17 @@ export function TravelClaimsPage() {
                 <TableBody>
                   {claims.map((c) => (
                     <Fragment key={c.id}>
-                      <TableRow key={c.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === c.docNo ? null : c.docNo)}>
+                      <TableRow key={c.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" onClick={() => setExpanded(expanded === c.docNo ? null : c.docNo)}>
                         <TableCell className="p-2">
-                          {expanded === c.docNo ? <ChevronDown className="h-4 w-4 text-stone-400" /> : <ChevronRight className="h-4 w-4 text-stone-400" />}
+                          {expanded === c.docNo ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                         </TableCell>
                         <TableCell>
                           <p className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400">{c.docNo}</p>
-                          <p className="text-[11px] text-stone-500">{fmtDateID(c.claimDate)}{c.voucherNo ? ` · ${c.voucherNo}` : ""}</p>
+                          <p className="text-[11px] text-slate-500">{fmtDateID(c.claimDate)}{c.voucherNo ? ` · ${c.voucherNo}` : ""}</p>
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{c.fullName}</p>
-                          <p className="text-[11px] text-stone-500">{c.employeeNo}{c.costCenter ? ` · CC ${c.costCenter}` : ""}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{c.fullName}</p>
+                          <p className="text-[11px] text-slate-500">{c.employeeNo}{c.costCenter ? ` · CC ${c.costCenter}` : ""}</p>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           {c.requestDocNo ? (
@@ -239,10 +239,10 @@ export function TravelClaimsPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <p className={cn("text-sm font-black", c.totalSettlement < 0 ? "text-rose-600" : "text-stone-900 dark:text-stone-100")}>
+                          <p className={cn("text-sm font-black", c.totalSettlement < 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-100")}>
                             {fmtIDRShort(c.totalSettlement)}
                           </p>
-                          <p className="text-[11px] text-stone-500">
+                          <p className="text-[11px] text-slate-500">
                             {c.expenseLines} baris · {c.advanceAmount > 0 ? `muka ${fmtIDRShort(c.advanceAmount)}` : "tanpa muka"}
                           </p>
                         </TableCell>
@@ -252,7 +252,7 @@ export function TravelClaimsPage() {
                               <Landmark className="h-3 w-3" /> {c.journalNo}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-stone-400">—</span>
+                            <span className="text-[11px] text-slate-400">—</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -263,26 +263,26 @@ export function TravelClaimsPage() {
                         </TableCell>
                       </TableRow>
                       {expanded === c.docNo && (
-                        <TableRow key={`${c.id}-d`} className="bg-stone-50/60 dark:bg-stone-800/30">
+                        <TableRow key={`${c.id}-d`} className="bg-slate-50/60 dark:bg-slate-800/30">
                           <TableCell colSpan={7} className="px-6 py-3">
                             <div className="grid gap-3 lg:grid-cols-3">
                               <div className="lg:col-span-2">
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Formula Settlement (oranHR)</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-slate-500">Formula Settlement (oranHR)</p>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(a) Pihak lain</p>
-                                    <p className="text-sm font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.otherCompanyExp)}</p>
+                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
+                                    <p className="text-[10px] font-bold text-slate-500">(a) Pihak lain</p>
+                                    <p className="text-sm font-black text-slate-800 dark:text-slate-200">{fmtIDR(c.otherCompanyExp)}</p>
                                   </div>
-                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(a) Rugi kurs</p>
-                                    <p className="text-sm font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.exchangeLoss)}</p>
+                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
+                                    <p className="text-[10px] font-bold text-slate-500">(a) Rugi kurs</p>
+                                    <p className="text-sm font-black text-slate-800 dark:text-slate-200">{fmtIDR(c.exchangeLoss)}</p>
                                   </div>
-                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(b) Ke karyawan</p>
+                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
+                                    <p className="text-[10px] font-bold text-slate-500">(b) Ke karyawan</p>
                                     <p className="text-sm font-black text-teal-700 dark:text-teal-400">{fmtIDR(c.payableEmployee)}</p>
                                   </div>
-                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-stone-900">
-                                    <p className="text-[10px] font-bold text-stone-500">(c) Ke perusahaan</p>
+                                  <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-900">
+                                    <p className="text-[10px] font-bold text-slate-500">(c) Ke perusahaan</p>
                                     <p className="text-sm font-black text-rose-700 dark:text-rose-400">{fmtIDR(c.payableCompany)}</p>
                                   </div>
                                   <div className="rounded-lg border-2 border-orange-200 bg-orange-50 px-3 py-2 dark:border-orange-800 dark:bg-orange-950/40">
@@ -290,28 +290,28 @@ export function TravelClaimsPage() {
                                     <p className="text-sm font-black text-orange-700 dark:text-orange-400">{fmtIDR(c.totalSettlement)}</p>
                                   </div>
                                 </div>
-                                {c.remark && <p className="mt-2 text-[11px] text-stone-500">{c.remark}</p>}
+                                {c.remark && <p className="mt-2 text-[11px] text-slate-500">{c.remark}</p>}
                                 {c.status === "Paid" && c.paidRunNo && (
                                   <p className="mt-2 flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-[11px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-400">
                                     <Landmark className="h-3 w-3" /> Dibayar via payroll run {c.paidRunNo} (period {c.periodCode})
                                   </p>
                                 )}
                                 {c.status === "Transferred" && (
-                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-stone-100 px-3 py-1.5 text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                                     <Landmark className="h-3 w-3" /> Menunggu run payroll period {c.periodCode} dikonfirmasi → Dibayar
                                   </p>
                                 )}
                               </div>
                               <div>
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">Jenis Biaya</p>
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-slate-500">Jenis Biaya</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {c.expenseKinds.map((k) => (
                                     <Badge key={k} variant="outline" className="text-[10px] font-bold">{EXPENSE_KIND_LABEL[k] ?? k}</Badge>
                                   ))}
-                                  <span className="text-[11px] text-stone-500">total biaya {fmtIDR(c.totalExpenses)}</span>
+                                  <span className="text-[11px] text-slate-500">total biaya {fmtIDR(c.totalExpenses)}</span>
                                 </div>
                                 {c.decisionNote && (
-                                  <p className="mt-2 rounded-lg bg-white px-3 py-2 text-[11px] text-stone-600 dark:bg-stone-900 dark:text-stone-300">
+                                  <p className="mt-2 rounded-lg bg-white px-3 py-2 text-[11px] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                                     {c.decisionNote}
                                   </p>
                                 )}
@@ -359,14 +359,14 @@ export function TravelClaimsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="font-mono text-[11px] font-bold text-orange-700 dark:text-orange-400">{previewData.docNo} — {previewData.employee.fullName}</p>
-                    <p className="mt-0.5 text-stone-600 dark:text-stone-300">{previewData.destinations.map((d) => d.city).join(" → ")} · {previewData.templateName}</p>
+                    <p className="mt-0.5 text-slate-600 dark:text-slate-300">{previewData.destinations.map((d) => d.city).join(" → ")} · {previewData.templateName}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-amber-700 dark:text-amber-400">Uang muka: {fmtIDR(previewData.advanceAmount)}</p>
-                    {previewData.costCenter && <p className="text-[11px] text-stone-500">CC {previewData.costCenter}</p>}
+                    {previewData.costCenter && <p className="text-[11px] text-slate-500">CC {previewData.costCenter}</p>}
                   </div>
                 </div>
-                <p className="mt-1.5 text-[11px] text-stone-500">{previewData.purpose}</p>
+                <p className="mt-1.5 text-[11px] text-slate-500">{previewData.purpose}</p>
               </div>
             )}
 
@@ -382,9 +382,9 @@ export function TravelClaimsPage() {
                   const t = l.expenseCode ? typeByCode.get(l.expenseCode) : undefined;
                   const overLimit = t && !t.unlimited && t.limitAmount > 0 && (Number(l.amount) || 0) > t.limitAmount;
                   return (
-                    <div key={i} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+                    <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-stone-500">Baris {i + 1}</span>
+                        <span className="text-[11px] font-bold text-slate-500">Baris {i + 1}</span>
                         {lines.length > 1 && (
                           <button className="flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700" onClick={() => setLines(lines.filter((_, x) => x !== i))}>
                             <Trash2 className="h-3 w-3" /> Hapus
@@ -393,7 +393,7 @@ export function TravelClaimsPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Jenis biaya *</Label>
+                          <Label className="text-[10px] font-bold text-slate-500">Jenis biaya *</Label>
                           <Select value={l.expenseCode} onValueChange={(v) => setLines(lines.map((x, xi) => xi === i ? { ...x, expenseCode: v } : x))}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
                             <SelectContent className="max-h-56">
@@ -406,26 +406,26 @@ export function TravelClaimsPage() {
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Tanggal</Label>
+                          <Label className="text-[10px] font-bold text-slate-500">Tanggal</Label>
                           <Input type="date" value={l.expenseDate} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, expenseDate: e.target.value } : x))} className="h-8 text-sm" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Nominal (Rp) *</Label>
+                          <Label className="text-[10px] font-bold text-slate-500">Nominal (Rp) *</Label>
                           <Input type="number" min="0" value={l.amount} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, amount: e.target.value } : x))} placeholder="0" className="h-8 text-sm" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">
+                          <Label className="text-[10px] font-bold text-slate-500">
                             {t?.kind === "MILEAGE" ? "Km / unit" : t?.kind === "ALLOWANCE" ? "Jumlah hari" : "Qty"}
                           </Label>
                           <Input type="number" min="0" value={l.qty} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, qty: e.target.value } : x))} className="h-8 text-sm" />
                         </div>
                         <div className="col-span-2 space-y-1">
-                          <Label className="text-[10px] font-bold text-stone-500">Keterangan</Label>
+                          <Label className="text-[10px] font-bold text-slate-500">Keterangan</Label>
                           <Input value={l.description} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, description: e.target.value } : x))} placeholder="Mis. Hotel 2 malam" className="h-8 text-sm" />
                         </div>
                         {t?.kind === "ENTERTAINMENT" && (
                           <div className="col-span-2 space-y-1">
-                            <Label className="flex items-center gap-1 text-[10px] font-bold text-stone-500">
+                            <Label className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
                               <Users className="h-3 w-3" /> Tamu / Relasi (Entertainment Guest)
                             </Label>
                             <Input value={l.guestName} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, guestName: e.target.value } : x))} placeholder="Mis. Direktur PT Sinar Abadi + 3" className="h-8 text-sm" />
@@ -437,7 +437,7 @@ export function TravelClaimsPage() {
                           <Badge variant="outline" className="text-[9px] font-bold">{EXPENSE_KIND_LABEL[t.kind] ?? t.kind}</Badge>
                           {t.needDocs && <Badge variant="secondary" className="text-[9px] font-bold">Perlu dokumen</Badge>}
                           {t.limitAmount > 0 && !t.unlimited && (
-                            <span className={cn("font-semibold", overLimit ? "text-rose-600" : "text-stone-500")}>
+                            <span className={cn("font-semibold", overLimit ? "text-rose-600" : "text-slate-500")}>
                               {overLimit ? <><AlertTriangle className="mr-1 inline h-3 w-3" />Melebihi limit {fmtIDR(t.limitAmount)} — tetap bisa diajukan (warning)</> : `Limit ${fmtIDR(t.limitAmount)}`}
                             </span>
                           )}
@@ -447,9 +447,9 @@ export function TravelClaimsPage() {
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-stone-100 px-3 py-2 text-xs font-bold dark:bg-stone-800">
-                <span className="text-stone-600 dark:text-stone-300">Total rincian biaya</span>
-                <span className="text-stone-900 dark:text-stone-100">{fmtIDR(totalExpenses)}</span>
+              <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold dark:bg-slate-800">
+                <span className="text-slate-600 dark:text-slate-300">Total rincian biaya</span>
+                <span className="text-slate-900 dark:text-slate-100">{fmtIDR(totalExpenses)}</span>
               </div>
             </div>
 
@@ -459,11 +459,11 @@ export function TravelClaimsPage() {
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-stone-500">(a) Biaya pihak lain</Label>
+                  <Label className="text-[10px] font-bold text-slate-500">(a) Biaya pihak lain</Label>
                   <Input type="number" min="0" value={amounts.otherCompanyExp} onChange={(e) => setAmounts({ ...amounts, otherCompanyExp: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-stone-500">(a) Rugi kurs</Label>
+                  <Label className="text-[10px] font-bold text-slate-500">(a) Rugi kurs</Label>
                   <Input type="number" min="0" value={amounts.exchangeLoss} onChange={(e) => setAmounts({ ...amounts, exchangeLoss: e.target.value })} placeholder="0" className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
@@ -484,11 +484,11 @@ export function TravelClaimsPage() {
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                   {advance > 0 && <span className="font-bold text-amber-700 dark:text-amber-400"><Wallet className="mr-1 inline h-3 w-3" />Uang muka {fmtIDR(advance)} — saran (b) {fmtIDR(suggestedB)} / (c) {fmtIDR(suggestedC)}</span>}
                   <span>Total rincian + (a) = {fmtIDR(grossRealisasi)}</span>
                 </div>
-                <span className="rounded-lg border-2 border-orange-300 bg-white px-3 py-1 font-black text-orange-700 dark:border-orange-700 dark:bg-stone-900 dark:text-orange-400">
+                <span className="rounded-lg border-2 border-orange-300 bg-white px-3 py-1 font-black text-orange-700 dark:border-orange-700 dark:bg-slate-900 dark:text-orange-400">
                   Total = {fmtIDR(totalFormula)}
                 </span>
               </div>

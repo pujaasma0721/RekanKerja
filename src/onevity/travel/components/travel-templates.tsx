@@ -106,10 +106,10 @@ export function TravelTemplatesPage() {
             onClick={() => setTab(tb.key)}
             className={cn(
               "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors",
-              tab === tb.key ? "ov-fill shadow-sm" : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
+              tab === tb.key ? "ov-fill shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
             )}
           >
-            <tb.icon className="h-3.5 w-3.5" /> {tb.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", tab === tb.key ? "bg-white/20" : "bg-stone-100 dark:bg-stone-800")}>{tb.count}</span>
+            <tb.icon className="h-3.5 w-3.5" /> {tb.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", tab === tb.key ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800")}>{tb.count}</span>
           </button>
         ))}
         <div className="ml-auto flex gap-2">
@@ -129,7 +129,7 @@ export function TravelTemplatesPage() {
       {api.loading && !api.data ? (
         <LoadingRows rows={6} />
       ) : tab === "template" ? (
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-0">
             {templates.length === 0 ? (
               <EmptyState icon={LayoutTemplate} title={t("Belum ada template", "No templates yet")} />
@@ -137,7 +137,7 @@ export function TravelTemplatesPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                    <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                       <TableHead>{t("Kode")}</TableHead>
                       <TableHead>Template</TableHead>
                       <TableHead className="hidden md:table-cell">{t("Deskripsi", "Description")}</TableHead>
@@ -149,20 +149,20 @@ export function TravelTemplatesPage() {
                   </TableHeader>
                   <TableBody>
                     {templates.map((tpl) => (
-                      <TableRow key={tpl.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                      <TableRow key={tpl.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <TableCell className="font-mono text-xs font-bold ov-text-accent">{tpl.code}</TableCell>
-                        <TableCell className="text-sm font-semibold text-stone-900 dark:text-stone-100">{tpl.name}</TableCell>
-                        <TableCell className="hidden max-w-xs truncate text-xs text-stone-500 md:table-cell">{tpl.description ?? "—"}</TableCell>
+                        <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tpl.name}</TableCell>
+                        <TableCell className="hidden max-w-xs truncate text-xs text-slate-500 md:table-cell">{tpl.description ?? "—"}</TableCell>
                         <TableCell>
-                          <p className="flex items-center gap-1 text-xs font-bold text-stone-700 dark:text-stone-300">
+                          <p className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                             <Clock className="h-3 w-3" /> {t("{n} hari", "{n} days", { n: tpl.settlementDay })}
                           </p>
-                          <p className="text-[11px] text-stone-500">{tpl.settlementMethod}</p>
+                          <p className="text-[11px] text-slate-500">{tpl.settlementMethod}</p>
                         </TableCell>
                         <TableCell className="text-center">
-                          {tpl.isDefault ? <Badge className="bg-primary/10 text-[10px] font-bold text-primary">DEFAULT</Badge> : <span className="text-stone-300">—</span>}
+                          {tpl.isDefault ? <Badge className="bg-primary/10 text-[10px] font-bold text-primary">DEFAULT</Badge> : <span className="text-slate-300">—</span>}
                         </TableCell>
-                        <TableCell className="text-right text-[11px] text-stone-500">{t("{n} req · {m} klaim", "{n} req · {m} claims", { n: tpl.requestCount, m: tpl.claimCount })}</TableCell>
+                        <TableCell className="text-right text-[11px] text-slate-500">{t("{n} req · {m} klaim", "{n} req · {m} claims", { n: tpl.requestCount, m: tpl.claimCount })}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => {
                             setTplForm({
@@ -185,7 +185,7 @@ export function TravelTemplatesPage() {
       ) : tab === "expense" ? (
         <div className="space-y-4">
           {kindGroups.map(([kind, list]) => (
-            <Card key={kind} className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+            <Card key={kind} className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <CircleDollarSign className="h-4 w-4 ov-text-accent" />
@@ -197,7 +197,7 @@ export function TravelTemplatesPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                      <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <TableHead>{t("Kode")}</TableHead>
                         <TableHead>{t("Nama")}</TableHead>
                         <TableHead className="hidden md:table-cell">{t("Deskripsi", "Description")}</TableHead>
@@ -210,24 +210,24 @@ export function TravelTemplatesPage() {
                     </TableHeader>
                     <TableBody>
                       {list.map((et) => (
-                        <TableRow key={et.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                        <TableRow key={et.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                           <TableCell className="font-mono text-xs font-bold ov-text-accent">{et.code}</TableCell>
-                          <TableCell className="text-sm font-semibold text-stone-900 dark:text-stone-100">{et.name}</TableCell>
-                          <TableCell className="hidden max-w-[200px] truncate text-xs text-stone-500 md:table-cell">{et.description ?? "—"}</TableCell>
+                          <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">{et.name}</TableCell>
+                          <TableCell className="hidden max-w-[200px] truncate text-xs text-slate-500 md:table-cell">{et.description ?? "—"}</TableCell>
                           <TableCell className="text-right">
                             {et.unlimited ? (
                               <Badge variant="secondary" className="text-[10px] font-bold">{t("Tanpa limit", "Unlimited")}</Badge>
                             ) : et.limitAmount > 0 ? (
-                              <span className="text-xs font-bold text-stone-700 dark:text-stone-300">{fmtIDR(et.limitAmount)}</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{fmtIDR(et.limitAmount)}</span>
                             ) : (
-                              <span className="text-xs text-stone-400">—</span>
+                              <span className="text-xs text-slate-400">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="hidden font-mono text-[11px] text-stone-500 lg:table-cell">
+                          <TableCell className="hidden font-mono text-[11px] text-slate-500 lg:table-cell">
                             {et.debitAccount ?? "—"}/{et.creditAccount ?? "—"}
                           </TableCell>
                           <TableCell className="text-center">
-                            {et.needDocs ? <Badge variant="outline" className="text-[9px] font-bold">{t("Perlu", "Required")}</Badge> : <span className="text-stone-300">—</span>}
+                            {et.needDocs ? <Badge variant="outline" className="text-[9px] font-bold">{t("Perlu", "Required")}</Badge> : <span className="text-slate-300">—</span>}
                           </TableCell>
                           <TableCell>
                             <EntityRulesButton target={{ domain: "travel", id: et.id, code: et.code, name: et.name }} ruleCount={et.ruleCount ?? 0} onOpen={setRulesTarget} />
@@ -256,11 +256,11 @@ export function TravelTemplatesPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {zones.map((z) => (
-            <Card key={z.id} className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+            <Card key={z.id} className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardContent className="flex items-start justify-between p-4">
                 <div>
                   <p className="font-mono text-xs font-bold ov-text-accent">{z.code}</p>
-                  <p className="mt-1 text-sm font-bold text-stone-900 dark:text-stone-100">{z.name}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">{z.name}</p>
                   <Badge variant="secondary" className="mt-1.5 text-[9px] font-bold">{t("Zona dasar", "Base zone")}</Badge>
                 </div>
                 <div className={cn("rounded-xl p-2.5", z.overseas ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85" : "ov-tile")}>

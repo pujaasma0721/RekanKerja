@@ -84,8 +84,8 @@ const ASSET_STATUS: Record<string, { label: string; en: string; cls: string; dot
   },
   Retired: {
     label: "Dipensiunkan", en: "Retired",
-    cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
-    dot: "bg-stone-400",
+    cls: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
+    dot: "bg-slate-400",
   },
   Lost: {
     label: "Hilang", en: "Lost",
@@ -97,8 +97,8 @@ function AssetStatusPill({ status }: { status: string }) {
   const { t } = useI18n();
   const s = ASSET_STATUS[status] ?? {
     label: status, en: status,
-    cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
-    dot: "bg-stone-400",
+    cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
+    dot: "bg-slate-400",
   };
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap", s.cls)}>
@@ -118,7 +118,7 @@ function CategoryBadge({ category }: { category: string }) {
     category === "Furniture" ? Archive :
     CircleHelp;
   return (
-    <Badge variant="outline" className="gap-1 border-stone-200 bg-stone-50 text-[10px] font-bold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+    <Badge variant="outline" className="gap-1 border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
       <Icon className="h-3 w-3" aria-hidden /> {category}
     </Badge>
   );
@@ -130,7 +130,7 @@ export function conditionLabel(cond: string | null): { label: string; en: string
     case "Good": return { label: "Baik", en: "Good", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
     case "Damaged": return { label: "Rusak", en: "Damaged", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" };
     case "Lost": return { label: "Hilang", en: "Lost", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" };
-    default: return { label: "—", en: "—", cls: "bg-stone-50 text-stone-400 border-stone-200 dark:bg-stone-900 dark:text-stone-500 dark:border-stone-700" };
+    default: return { label: "—", en: "—", cls: "bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-900 dark:text-slate-500 dark:border-slate-700" };
   }
 }
 
@@ -150,11 +150,11 @@ export function AssetsModule() {
         )}
       />
       <Tabs defaultValue="inventory">
-        <TabsList className="mb-4 h-11 rounded-xl bg-stone-100 p-1 dark:bg-stone-900">
-          <TabsTrigger value="inventory" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-stone-900 dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-stone-50">
+        <TabsList className="mb-4 h-11 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+          <TabsTrigger value="inventory" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
             <Package className="h-4 w-4" aria-hidden /> {t("Inventaris", "Inventory")}
           </TabsTrigger>
-          <TabsTrigger value="assignments" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-stone-900 dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-stone-50">
+          <TabsTrigger value="assignments" className="gap-1.5 rounded-lg px-4 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
             <ClipboardList className="h-4 w-4" aria-hidden /> {t("Penugasan", "Assignments")}
           </TabsTrigger>
         </TabsList>
@@ -226,10 +226,10 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
       </div>
 
       {/* ===== toolbar ===== */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center gap-2.5 p-3.5">
           <div className="relative min-w-44 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -267,14 +267,14 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
       </Card>
 
       {/* ===== tabel inventaris ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
           ) : assets.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto overflow-x-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700">
+            <div className="max-h-96 overflow-y-auto overflow-x-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead className="min-w-36 text-[11px] font-bold">{t("Aset", "Asset")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Kategori", "Category")}</TableHead>
@@ -287,16 +287,16 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
                 </TableHeader>
                 <TableBody>
                   {assets.map((a) => (
-                    <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.name}</p>
-                        <p className="font-mono text-[10px] text-stone-400">
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{a.name}</p>
+                        <p className="font-mono text-[10px] text-slate-400">
                           {a.code}{a.serialNumber ? ` · SN ${a.serialNumber}` : ""}
                         </p>
                       </TableCell>
                       <TableCell><CategoryBadge category={a.category} /></TableCell>
-                      <TableCell className="hidden text-xs font-semibold tabular-nums text-stone-600 dark:text-stone-300 md:table-cell">{fmtIDR(a.value)}</TableCell>
-                      <TableCell className="hidden max-w-40 truncate text-xs text-stone-500 lg:table-cell">{a.location ?? "—"}</TableCell>
+                      <TableCell className="hidden text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300 md:table-cell">{fmtIDR(a.value)}</TableCell>
+                      <TableCell className="hidden max-w-40 truncate text-xs text-slate-500 lg:table-cell">{a.location ?? "—"}</TableCell>
                       <TableCell><AssetStatusPill status={a.status} /></TableCell>
                       <TableCell>
                         {a.holder ? (
@@ -309,12 +309,12 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
                               {initials(a.holder.employee.fullName)}
                             </span>
                             <span className="min-w-0">
-                              <span className="block max-w-28 truncate text-[11px] font-bold text-stone-700 group-hover/holder:underline dark:text-stone-200">{a.holder.employee.fullName}</span>
-                              <span className="block font-mono text-[9px] text-stone-400">{a.holder.employee.employeeNo}</span>
+                              <span className="block max-w-28 truncate text-[11px] font-bold text-slate-700 group-hover/holder:underline dark:text-slate-200">{a.holder.employee.fullName}</span>
+                              <span className="block font-mono text-[9px] text-slate-400">{a.holder.employee.employeeNo}</span>
                             </span>
                           </button>
                         ) : (
-                          <span className="text-[10px] text-stone-400">{t("Belum ditugaskan", "Not assigned")}</span>
+                          <span className="text-[10px] text-slate-400">{t("Belum ditugaskan", "Not assigned")}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
@@ -326,7 +326,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
                               aria-label={t("Ubah aset {code}", "Edit asset {code}", { code: a.code })}
                               title={t("Ubah aset", "Edit asset")}
                             >
-                              <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                              <Pencil className="h-3.5 w-3.5 text-slate-400" />
                             </Button>
                           )}
                           {canAssign && a.status === "Available" && (
@@ -336,7 +336,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
                               aria-label={t("Tugaskan aset {code}", "Assign asset {code}", { code: a.code })}
                               title={t("Tugaskan ke karyawan", "Assign to an employee")}
                             >
-                              <UserRoundCheck className="h-3.5 w-3.5 text-stone-400" />
+                              <UserRoundCheck className="h-3.5 w-3.5 text-slate-400" />
                             </Button>
                           )}
                           {canDelete && !a.holder && (
@@ -346,7 +346,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
                               aria-label={t("Hapus aset {code}", "Delete asset {code}", { code: a.code })}
                               title={t("Hapus aset", "Delete asset")}
                             >
-                              <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                              <Trash2 className="h-3.5 w-3.5 text-slate-400" />
                             </Button>
                           )}
                         </div>
@@ -438,9 +438,9 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
   return (
     <div>
       {/* toolbar */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center justify-between gap-2.5 p-3.5">
-          <div className="flex items-center gap-1.5 rounded-xl bg-stone-100 p-1 dark:bg-stone-900" role="group" aria-label={t("Filter penugasan", "Filter assignments")}>
+          <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-900" role="group" aria-label={t("Filter penugasan", "Filter assignments")}>
             {([
               ["active", t("Aktif", "Active")],
               ["returned", t("Dikembalikan", "Returned")],
@@ -452,28 +452,28 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
                 aria-pressed={scope === key}
                 className={cn(
                   "rounded-lg px-3.5 py-1.5 text-[12px] font-bold transition-colors",
-                  scope === key ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-50" : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200",
+                  scope === key ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-50" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
                 )}
               >
                 {label}
               </button>
             ))}
           </div>
-          <p className="text-[11px] font-bold text-stone-400" aria-live="polite">
+          <p className="text-[11px] font-bold text-slate-400" aria-live="polite">
             {t("{n} baris", "{n} rows", { n: counts.shown })}
           </p>
         </CardContent>
       </Card>
 
       {/* tabel penugasan */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
           ) : assignments.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto overflow-x-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700">
+            <div className="max-h-96 overflow-y-auto overflow-x-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead className="min-w-36 text-[11px] font-bold">{t("Aset", "Asset")}</TableHead>
                     <TableHead className="min-w-36 text-[11px] font-bold">{t("Karyawan", "Employee")}</TableHead>
@@ -490,10 +490,10 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
                     const overdue = active && r.dueAt != null && new Date(r.dueAt).getTime() < Date.now();
                     const cond = conditionLabel(r.returnCondition);
                     return (
-                      <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell>
-                          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.asset.name}</p>
-                          <p className="font-mono text-[10px] text-stone-400">
+                          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{r.asset.name}</p>
+                          <p className="font-mono text-[10px] text-slate-400">
                             {r.asset.code}{r.asset.serialNumber ? ` · SN ${r.asset.serialNumber}` : ""}
                           </p>
                         </TableCell>
@@ -507,19 +507,19 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
                               {initials(r.employee.fullName)}
                             </span>
                             <span className="min-w-0">
-                              <span className="block max-w-32 truncate text-[12px] font-bold text-stone-700 group-hover/emp:underline dark:text-stone-200">{r.employee.fullName}</span>
-                              <span className="block font-mono text-[9px] text-stone-400">{r.employee.employeeNo}</span>
+                              <span className="block max-w-32 truncate text-[12px] font-bold text-slate-700 group-hover/emp:underline dark:text-slate-200">{r.employee.fullName}</span>
+                              <span className="block font-mono text-[9px] text-slate-400">{r.employee.employeeNo}</span>
                             </span>
                           </button>
                         </TableCell>
-                        <TableCell className="text-xs text-stone-600 dark:text-stone-400">{fmtDate(r.assignedAt)}</TableCell>
+                        <TableCell className="text-xs text-slate-600 dark:text-slate-400">{fmtDate(r.assignedAt)}</TableCell>
                         <TableCell className="hidden sm:table-cell">
                           {r.dueAt ? (
-                            <span className={cn("flex items-center gap-1 text-xs font-semibold", overdue ? "text-rose-600 dark:text-rose-400" : "text-stone-600 dark:text-stone-400")}>
+                            <span className={cn("flex items-center gap-1 text-xs font-semibold", overdue ? "text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-400")}>
                               <CalendarClock className="h-3.5 w-3.5" aria-hidden /> {fmtDate(r.dueAt)}
                             </span>
                           ) : (
-                            <span className="text-xs text-stone-400">—</span>
+                            <span className="text-xs text-slate-400">—</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -532,8 +532,8 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
                               {overdue ? t("Terlambat", "Overdue") : t("Aktif", "Active")}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-slate-500 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                               {t("Dikembalikan", "Returned")}
                             </span>
                           )}
@@ -554,7 +554,7 @@ function AssignmentsTab({ perms }: { perms: PermsApi }) {
                               <PackageCheck className="h-3.5 w-3.5" /> {t("Kembalikan", "Return")}
                             </Button>
                           ) : (
-                            <span className="text-[10px] text-stone-300 dark:text-stone-600">—</span>
+                            <span className="text-[10px] text-slate-300 dark:text-slate-600">—</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -741,7 +741,7 @@ function AssetDialog({ open, editing, setOpen, onSaved }: {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[10px] leading-relaxed text-stone-400">
+              <p className="text-[10px] leading-relaxed text-slate-400">
                 {editing.status === "Assigned"
                   ? t("Aset sedang ditugaskan — status kembali ke Tersedia hanya lewat aksi Kembalikan (tab Penugasan) agar kondisi tercatat.", "The asset is currently assigned — it can only become Available through the Return action (Assignments tab) so the condition is recorded.")
                   : t("Gunakan Dipensiunkan utk aset yang keluar dari peredaran.", "Use Retired for assets taken out of circulation.")}
@@ -759,7 +759,7 @@ function AssetDialog({ open, editing, setOpen, onSaved }: {
             />
           </div>
           {!editing && (
-            <p className="rounded-xl bg-stone-50 p-3 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+            <p className="rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
               {t("Kode aset dibuat otomatis (AST-0001, dst.) dan status awal Tersedia.", "The asset code is generated automatically (AST-0001, etc.) with the initial status Available.")}
             </p>
           )}
@@ -826,18 +826,18 @@ function AssignDialog({ asset, onClose, onSaved }: {
         </DialogHeader>
         <div className="space-y-3">
           {/* aset terpilih (dari baris tabel) */}
-          <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{asset.name}</p>
-                <p className="font-mono text-[10px] text-stone-400">
+                <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{asset.name}</p>
+                <p className="font-mono text-[10px] text-slate-400">
                   {asset.code}{asset.serialNumber ? ` · SN ${asset.serialNumber}` : ""}
                 </p>
               </div>
               <AssetStatusPill status={asset.status} />
             </div>
             {asset.value != null && (
-              <p className="mt-1 text-[11px] font-semibold tabular-nums text-stone-500">{fmtIDR(asset.value)}</p>
+              <p className="mt-1 text-[11px] font-semibold tabular-nums text-slate-500">{fmtIDR(asset.value)}</p>
             )}
           </div>
 
@@ -864,7 +864,7 @@ function AssignDialog({ asset, onClose, onSaved }: {
           <div>
             <Label htmlFor="ast-due" className="text-xs">{t("Jatuh tempo pengembalian (opsional)", "Return due date (optional)")}</Label>
             <Input id="ast-due" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="mt-1.5" />
-            <p className="mt-1 text-[10px] text-stone-400">
+            <p className="mt-1 text-[10px] text-slate-400">
               {t("Cocok untuk seragam kontrak / peminjaman sementara.", "Useful for contract uniforms / temporary loans.")}
             </p>
           </div>
@@ -945,12 +945,12 @@ export function ReturnDialog({ assignment, onClose, onSaved, compact }: {
         </DialogHeader>
         <div className="space-y-3">
           {!compact && (
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-900">
-              <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{assignment.asset.name}</p>
-              <p className="font-mono text-[10px] text-stone-400">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{assignment.asset.name}</p>
+              <p className="font-mono text-[10px] text-slate-400">
                 {assignment.asset.code}{assignment.asset.serialNumber ? ` · SN ${assignment.asset.serialNumber}` : ""}
               </p>
-              <p className="mt-1 text-[11px] text-stone-500">
+              <p className="mt-1 text-[11px] text-slate-500">
                 {t("Dipegang", "Held by")} <b>{assignment.employee.fullName}</b> ({assignment.employee.employeeNo})
                 {assignment.dueAt ? ` · ${t("jatuh tempo", "due")} ${fmtDate(assignment.dueAt)}` : ""}
               </p>
@@ -975,7 +975,7 @@ export function ReturnDialog({ assignment, onClose, onSaved, compact }: {
                         : c.key === "Damaged"
                           ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-400"
                           : "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-400"
-                      : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
                   )}
                 >
                   {c.key === "Good" ? <PackageCheck className="mx-auto h-4 w-4" aria-hidden /> : c.key === "Damaged" ? <Wrench className="mx-auto h-4 w-4" aria-hidden /> : <AlertTriangle className="mx-auto h-4 w-4" aria-hidden />}
@@ -983,7 +983,7 @@ export function ReturnDialog({ assignment, onClose, onSaved, compact }: {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] leading-relaxed text-stone-400">{CONDITION_HINT[condition]}</p>
+            <p className="text-[10px] leading-relaxed text-slate-400">{CONDITION_HINT[condition]}</p>
           </div>
 
           <div className="space-y-1.5">
@@ -1018,7 +1018,7 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
   mono?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-3 p-4">
         <span className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
@@ -1029,8 +1029,8 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
           <Icon className="h-4.5 w-4.5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className={cn("mt-0.5 truncate font-extrabold text-stone-900 dark:text-stone-50", mono ? "text-[15px] tabular-nums" : "text-xl")}>{value}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className={cn("mt-0.5 truncate font-extrabold text-slate-900 dark:text-slate-50", mono ? "text-[15px] tabular-nums" : "text-xl")}>{value}</p>
         </div>
       </CardContent>
     </Card>

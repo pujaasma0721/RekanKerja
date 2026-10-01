@@ -34,7 +34,7 @@ export function TenantSelect() {
         size="sm"
         onClick={handleLogout}
         disabled={busy}
-        className="absolute right-4 top-4 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 sm:right-6 sm:top-6"
+        className="absolute right-4 top-4 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 sm:right-6 sm:top-6"
       >
         <LogOut className="h-4 w-4" />
         Keluar
@@ -53,17 +53,17 @@ export function TenantSelect() {
               <Waypoints className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-stone-500 dark:text-stone-400">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 Pilih Workspace
               </p>
-              <p className="truncate text-sm text-stone-500 dark:text-stone-400">{info.user.email}</p>
+              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{info.user.email}</p>
             </div>
           </div>
 
-          <h1 className="mt-6 text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+          <h1 className="mt-6 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
             Halo, {info.user.name}
           </h1>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Pilih workspace untuk melanjutkan ke OneVity.
           </p>
 
@@ -78,16 +78,16 @@ export function TenantSelect() {
           )}
 
           {info.workspaces.length === 0 ? (
-            <Card className="mt-6 border-dashed border-stone-300 dark:border-stone-700">
+            <Card className="mt-6 border-dashed border-slate-300 dark:border-slate-700">
               <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
                   <Building2 className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                     Anda belum menjadi anggota workspace
                   </p>
-                  <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Silakan keluar, lalu buat workspace baru untuk perusahaan Anda.
                   </p>
                 </div>
@@ -110,16 +110,16 @@ export function TenantSelect() {
                       aria-label={`Pilih workspace ${ws.name}`}
                       className="group w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <Card className="gap-0 border-stone-200 py-4 transition-all group-hover:border-emerald-400 group-hover:shadow-md group-hover:shadow-emerald-600/10 dark:border-stone-800 dark:group-hover:border-emerald-500/70">
+                      <Card className="gap-0 border-slate-200 py-4 transition-all group-hover:border-emerald-400 group-hover:shadow-md group-hover:shadow-emerald-600/10 dark:border-slate-800 dark:group-hover:border-emerald-500/70">
                         <CardContent className="flex items-center gap-3.5">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:group-hover:bg-emerald-500/20">
                             <Building2 className="h-5 w-5" />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-stone-800 dark:text-stone-100">
+                            <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                               {ws.name}
                             </span>
-                            <span className="mt-0.5 block truncate font-mono text-xs text-stone-500 dark:text-stone-400">
+                            <span className="mt-0.5 block truncate font-mono text-xs text-slate-500 dark:text-slate-400">
                               {ws.slug}
                             </span>
                           </span>
@@ -130,14 +130,14 @@ export function TenantSelect() {
                             >
                               {ws.role}
                             </Badge>
-                            <Badge variant="outline" className="capitalize text-stone-500 dark:text-stone-400">
+                            <Badge variant="outline" className="capitalize text-slate-500 dark:text-slate-400">
                               {ws.plan}
                             </Badge>
                           </span>
                           {pending ? (
                             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
                           ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0 text-stone-400 transition-all group-hover:translate-x-0.5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-all group-hover:translate-x-0.5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
                           )}
                         </CardContent>
                       </Card>
@@ -148,7 +148,7 @@ export function TenantSelect() {
             </ul>
           )}
 
-          <p className="mt-6 text-center text-[11px] text-stone-400 dark:text-stone-500">
+          <p className="mt-6 text-center text-[11px] text-slate-400 dark:text-slate-500">
             Satu akun dapat menjadi anggota beberapa workspace — data tiap workspace terisolasi.
           </p>
         </motion.div>

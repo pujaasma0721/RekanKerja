@@ -296,7 +296,7 @@ function EmployeeDetail() {
 
       {/* tabs — satu baris scrollable (tanpa wrap berantakan) */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-stone-100/90 p-1 [scrollbar-width:none] dark:bg-stone-800/70 [&::-webkit-scrollbar]:hidden">
+        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 [scrollbar-width:none] dark:bg-slate-800/70 [&::-webkit-scrollbar]:hidden">
           {([
             ["personal", "Personal", User],
             ["work", "Pekerjaan", Briefcase],
@@ -306,19 +306,19 @@ function EmployeeDetail() {
             ["discipline", "Disiplin", Scale],
             ["letters", "Surat", FileText],
           ] as const).map(([id, label, Icon]) => (
-            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10 [&[data-state=active]_[data-count]]:ov-tile">
+            <TabsTrigger key={id} value={id} className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10 [&[data-state=active]_[data-count]]:ov-tile">
               <Icon className="h-4 w-4" aria-hidden /> {t(label, TAB_LABEL_EN[id])}
-              {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.assignments.length}</span>}
-              {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.family.length}</span>}
-              {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.education.length}</span>}
-              {id === "discipline" && e.disciplinary.length > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{e.disciplinary.length}</span>}
-              {id === "letters" && (letters.data?.letters.length ?? 0) > 0 && <span data-count className="ml-1 rounded-full bg-stone-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">{letters.data!.letters.length}</span>}
+              {id === "work" && e.assignments.length > 1 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.assignments.length}</span>}
+              {id === "family" && e.family.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.family.length}</span>}
+              {id === "education" && e.education.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.education.length}</span>}
+              {id === "discipline" && e.disciplinary.length > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{e.disciplinary.length}</span>}
+              {id === "letters" && (letters.data?.letters.length ?? 0) > 0 && <span data-count className="ml-1 rounded-full bg-slate-200/80 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">{letters.data!.letters.length}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
 
         <TabsContent value="personal">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-6">
               <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
                 <InfoItem icon={IdCard} label={t("NIK (KTP)", "NIK (ID Card)")} value={e.nationalId ?? "—"} mono />
@@ -341,9 +341,9 @@ function EmployeeDetail() {
         <TabsContent value="work">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-4 lg:col-span-2">
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardContent className="p-6">
-                  <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{t("Penempatan Saat Ini", "Current Placement")}</p>
+                  <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("Penempatan Saat Ini", "Current Placement")}</p>
                   <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                     <InfoItem icon={Briefcase} label={t("Posisi")} value={e.position?.title ?? "—"} />
                     <InfoItem icon={Users} label={t("Unit Organisasi")} value={e.orgUnit?.name ?? "—"} />
@@ -389,7 +389,7 @@ function EmployeeDetail() {
                     {e.grade && (
                       <div className="sm:col-span-2">
                         <InfoItem icon={GraduationCap} label={t("Rentang Grade", "Grade Range")} value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
-                        <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                        <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                           <div className="absolute inset-y-0 rounded-full ov-chart" style={{
                             left: `${Math.max((e.baseSalary - e.grade.minSalary) / (e.grade.maxSalary - e.grade.minSalary || 1) * 100, 2)}%`,
                             width: "14%",
@@ -403,36 +403,36 @@ function EmployeeDetail() {
               <AssignmentTimeline assignments={e.assignments} canUpdate={canUpdate} onCorrect={setCorrRow} />
             </div>
             <div className="space-y-4">
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-bold">{t("Atasan Langsung", "Direct Manager")}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {e.manager ? (
-                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:ov-border-accent dark:border-stone-800">
+                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:ov-border-accent dark:border-slate-800">
                       <EmployeeAvatar name={e.manager.fullName} photoUrl={e.manager.photoUrl} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">{e.manager.fullName}</p>
-                        <p className="truncate text-[11px] text-stone-400">{e.manager.position?.title ?? "—"}</p>
+                        <p className="truncate text-[11px] text-slate-400">{e.manager.position?.title ?? "—"}</p>
                       </div>
                     </button>
-                  ) : <p className="text-xs text-stone-400">{t("Tidak ada atasan (top level)", "No manager (top level)")}</p>}
+                  ) : <p className="text-xs text-slate-400">{t("Tidak ada atasan (top level)", "No manager (top level)")}</p>}
                 </CardContent>
               </Card>
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-bold">{t("Bawahan Langsung ({n})", "Direct Reports ({n})", { n: e.directReports.length })}</CardTitle>
                 </CardHeader>
                 <CardContent className="max-h-64 space-y-2 overflow-y-auto pt-0">
                   {e.directReports.length > 0 ? e.directReports.map((r) => (
-                    <button key={r.id} onClick={() => navigate("employee", "detail", { id: r.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <button key={r.id} onClick={() => navigate("employee", "detail", { id: r.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <EmployeeAvatar name={r.fullName} photoUrl={r.photoUrl} size="xs" status={r.status} showStatus />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold">{r.fullName}</p>
-                        <p className="truncate text-[10px] text-stone-400">{r.position?.title ?? "—"}</p>
+                        <p className="truncate text-[10px] text-slate-400">{r.position?.title ?? "—"}</p>
                       </div>
                     </button>
-                  )) : <p className="text-xs text-stone-400">{t("Tidak memiliki bawahan", "No direct reports")}</p>}
+                  )) : <p className="text-xs text-slate-400">{t("Tidak memiliki bawahan", "No direct reports")}</p>}
                 </CardContent>
               </Card>
             </div>
@@ -499,20 +499,20 @@ function EmployeeDetail() {
         </TabsContent>
 
         <TabsContent value="discipline">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><Scale className="h-4 w-4 ov-text-accent" /> {t("Catatan Disiplin")}</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {e.disciplinary.length > 0 ? (
-                <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
+                <ol className="relative ml-2 space-y-4 border-l border-slate-200 pl-6 dark:border-slate-800">
                   {e.disciplinary.map((d) => (
                     <li key={d.id} className="relative">
-                      <span className={cn("absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white dark:ring-stone-950",
+                      <span className={cn("absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-950",
                         d.warningLevel === "Final" ? "bg-rose-100 dark:bg-rose-500/20" : d.warningLevel === "Written" ? "bg-orange-100 dark:bg-orange-500/20" : "bg-amber-100 dark:bg-amber-500/20")}>
-                        <Scale className="h-2.5 w-2.5 text-stone-600 dark:text-stone-300" />
+                        <Scale className="h-2.5 w-2.5 text-slate-600 dark:text-slate-300" />
                       </span>
-                      <div className="rounded-xl border border-stone-100 p-3 dark:border-stone-800">
+                      <div className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className={cn("text-[10px] font-bold",
                             d.warningLevel === "Final" ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400" :
@@ -521,10 +521,10 @@ function EmployeeDetail() {
                             {d.warningLevel}
                           </Badge>
                           <span className="text-xs font-bold">{d.violation}</span>
-                          <span className="ml-auto text-[10px] text-stone-400">{fmtDate(d.issuedAt)}</span>
+                          <span className="ml-auto text-[10px] text-slate-400">{fmtDate(d.issuedAt)}</span>
                         </div>
-                        {d.sanction && <p className="mt-1 text-[11px] text-stone-500">{t("Sanksi: {s}", "Sanction: {s}", { s: d.sanction })}</p>}
-                        {d.expiresAt && <p className="text-[10px] text-stone-400">{t("Berlaku s.d. {d}", "Valid until {d}", { d: fmtDate(d.expiresAt) })}</p>}
+                        {d.sanction && <p className="mt-1 text-[11px] text-slate-500">{t("Sanksi: {s}", "Sanction: {s}", { s: d.sanction })}</p>}
+                        {d.expiresAt && <p className="text-[10px] text-slate-400">{t("Berlaku s.d. {d}", "Valid until {d}", { d: fmtDate(d.expiresAt) })}</p>}
                       </div>
                     </li>
                   ))}
@@ -532,7 +532,7 @@ function EmployeeDetail() {
               ) : (
                 <div className="rounded-xl border border-dashed ov-border-accent ov-soft p-6 text-center">
                   <p className="text-sm font-bold ov-text-accent">{t("Rekam jejak bersih ✨", "Clean record ✨")}</p>
-                  <p className="mt-0.5 text-xs text-stone-400">{t("Tidak ada catatan pelanggaran untuk karyawan ini.", "No violation records for this employee.")}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{t("Tidak ada catatan pelanggaran untuk karyawan ini.", "No violation records for this employee.")}</p>
                 </div>
               )}
             </CardContent>
@@ -541,7 +541,7 @@ function EmployeeDetail() {
 
         {/* ===== 26-a: riwayat surat karyawan (LetterDocument by employee) ===== */}
         <TabsContent value="letters">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <FileText className="h-4 w-4 ov-text-accent" /> {t("Riwayat Surat", "Letter History")}
@@ -565,20 +565,20 @@ function EmployeeDetail() {
                   icon={FileText}
                 />
               ) : (
-                <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {letters.data!.letters.map((l) => (
                     <li key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                        <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
                           {l.templateName}
-                          <span className="font-mono text-[11px] font-semibold text-stone-400">{l.refNo}</span>
+                          <span className="font-mono text-[11px] font-semibold text-slate-400">{l.refNo}</span>
                           {l.category === "EmployeeService" && (
-                            <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-stone-400">
+                            <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">
                               {t("Layanan", "Service")}
                             </Badge>
                           )}
                         </p>
-                        <p className="text-[11px] text-stone-400">
+                        <p className="text-[11px] text-slate-400">
                           {fmtDate(l.issuedAt)}
                           {l.purpose ? ` · ${t("keperluan", "for")} ${l.purpose}` : ""}
                         </p>
@@ -639,16 +639,16 @@ function EmployeeDetail() {
 
 // ================= TIMELINE RIWAYAT PEKERJAAN =================
 const REASON_TONE: Record<string, string> = {
-  Initial: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  Initial: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   Promotion: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
   Demotion: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25",
   Transfer: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
   Mutation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
   SalaryAdjustment: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25",
-  ChangeStatus: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  ChangeStatus: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   ContractRenewal: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
   ExtendProbation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
-  ManualEdit: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  ManualEdit: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
 };
 
 // Task 69 — timeline riwayat pekerjaan: tiap langkah menandai field apa yang
@@ -677,7 +677,7 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
   };
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <History className="h-4 w-4 ov-text-accent" /> {t("Riwayat Pekerjaan", "Work History")}
@@ -685,7 +685,7 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-5 dark:border-stone-800">
+        <ol className="relative ml-2 space-y-0 border-l border-slate-200 pl-5 dark:border-slate-800">
           {assignments.map((a, i) => {
             const active = a.validTo === null;
             const chips = diffChips(i);
@@ -696,31 +696,31 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                   "absolute -left-[27px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full",
                   active
                     ? "ov-fill ov-glow"
-                    : "border-2 border-stone-300 bg-white ring-4 ring-white dark:border-stone-600 dark:bg-stone-900 dark:ring-stone-900",
+                    : "border-2 border-slate-300 bg-white ring-4 ring-white dark:border-slate-600 dark:bg-slate-900 dark:ring-slate-900",
                 )} />
                 <div className={cn(
                   "rounded-xl border p-3.5 transition",
                   active
                     ? "ov-border-accent ov-soft"
-                    : "border-stone-200/80 bg-white hover:border-stone-300 dark:border-stone-800 dark:bg-transparent dark:hover:border-stone-700",
+                    : "border-slate-200/80 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-transparent dark:hover:border-slate-700",
                 )}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold", REASON_TONE[a.changeReason] ?? REASON_TONE.Initial)}>
                       {a.changeReasonLabel ?? a.changeReason}
                     </span>
-                    <span className={cn("text-[11px] font-bold", active ? "ov-text-accent" : "text-stone-500 dark:text-stone-400")}>{period(a)}</span>
+                    <span className={cn("text-[11px] font-bold", active ? "ov-text-accent" : "text-slate-500 dark:text-slate-400")}>{period(a)}</span>
                     {active && <span className="rounded-full ov-fill px-2 py-0.5 text-[9px] font-extrabold tracking-wide">{t("SAAT INI", "CURRENT")}</span>}
                     {a.sourceDocNo && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-stone-400" title={t("Dokumen sumber", "Source document")}>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-slate-400" title={t("Dokumen sumber", "Source document")}>
                         <FileText className="h-3 w-3" /> {a.sourceDocNo}
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm font-bold text-stone-800 dark:text-stone-200">
+                  <p className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-200">
                     {a.position?.title ?? "—"}
-                    <span className="font-normal text-stone-400"> · {a.orgUnit?.name ?? "—"}</span>
+                    <span className="font-normal text-slate-400"> · {a.orgUnit?.name ?? "—"}</span>
                   </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500 dark:text-stone-400">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" /> {a.grade ? t("Grade {code}", "Grade {code}", { code: a.grade.code }) : "—"}</span>
                     <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {a.employmentStatus}</span>
                     <span className="inline-flex items-center gap-1"><Banknote className="h-3 w-3" /> {fmtIDR(a.baseSalary)}</span>
@@ -729,21 +729,21 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                   </div>
                   {chips.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-semibold text-stone-400">{t("Berubah:", "Changed:")}</span>
+                      <span className="text-[10px] font-semibold text-slate-400">{t("Berubah:", "Changed:")}</span>
                       {chips.map((c) => (
-                        <span key={c} className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                        <span key={c} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                           <ArrowRight className="h-2.5 w-2.5" /> {c}
                         </span>
                       ))}
                     </div>
                   )}
-                  {a.notes && <p className="mt-2 text-[11px] italic text-stone-400">{a.notes}</p>}
+                  {a.notes && <p className="mt-2 text-[11px] italic text-slate-400">{a.notes}</p>}
                   {canUpdate && onCorrect && (
-                    <div className="mt-2.5 flex justify-end border-t border-dashed border-stone-200 pt-2 dark:border-stone-800">
+                    <div className="mt-2.5 flex justify-end border-t border-dashed border-slate-200 pt-2 dark:border-slate-800">
                       <button
                         type="button"
                         onClick={() => onCorrect(a)}
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-stone-400 transition hover:bg-stone-100 hover:ov-text-accent dark:hover:bg-stone-800"
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-slate-400 transition hover:bg-slate-100 hover:ov-text-accent dark:hover:bg-slate-800"
                         title={t("Perbaiki data langkah ini bila salah ketik", "Fix a typo in this step's data")}
                       >
                         <Pencil className="h-3 w-3" /> {t("Koreksi", "Correct")}
@@ -771,7 +771,7 @@ function ContactChip({ icon: Icon, text, tone = "outline" }: { icon: React.Eleme
     );
   }
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
       <Icon className="h-3.5 w-3.5 shrink-0 ov-text-accent" />
       <span className="truncate">{text}</span>
     </span>
@@ -785,10 +785,10 @@ function InfoItem({ icon: Icon, label, value, mono, span, hint, hintTone }: { ic
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-        <p className={cn("break-words text-[13px] font-semibold text-stone-800 dark:text-stone-200", mono && "font-mono")}>{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+        <p className={cn("break-words text-[13px] font-semibold text-slate-800 dark:text-slate-200", mono && "font-mono")}>{value}</p>
         {hint && (
-          <p className={cn("mt-0.5 text-[10px] font-bold", hintTone ?? "text-stone-400")}>{hint}</p>
+          <p className={cn("mt-0.5 text-[10px] font-bold", hintTone ?? "text-slate-400")}>{hint}</p>
         )}
       </div>
     </div>
@@ -805,7 +805,7 @@ function ListSection({ title, addLabel, items, renderAdd }: {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-bold">{title}</CardTitle>
         {perms.can("hr", "directory", "create") && (
@@ -816,17 +816,17 @@ function ListSection({ title, addLabel, items, renderAdd }: {
       </CardHeader>
       <CardContent className="space-y-2.5 pt-0">
         {items.length > 0 ? items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-stone-100 p-3.5 transition hover:ov-border-accent dark:border-stone-800">
+          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3.5 transition hover:ov-border-accent dark:border-slate-800">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-stone-800 dark:text-stone-200">{it.title}</p>
-              <p className="truncate text-[11px] text-stone-400">{it.subtitle}</p>
+              <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{it.title}</p>
+              <p className="truncate text-[11px] text-slate-400">{it.subtitle}</p>
               {it.right && <p className="truncate text-[11px] font-semibold ov-text-accent">{it.right}</p>}
             </div>
             {perms.can("hr", "directory", "delete") && (
               <button
                 onClick={async () => { setBusyId(it.id); try { await it.onDelete(); } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); } }}
                 disabled={busyId === it.id}
-                className="rounded-lg p-2 text-stone-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
+                className="rounded-lg p-2 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
                 aria-label={t("Hapus")}
               >
                 <Trash2 className="h-4 w-4" />
@@ -1099,7 +1099,7 @@ function EditEmployeeDialog({ open, setOpen, employee }: { open: boolean; setOpe
                 <Label className="text-xs">{t("Jumlah Perpanjangan", "Renewal Count")}</Label>
                 <Input type="number" min={0} value={form.renewalCount} onChange={(e) => set("renewalCount", e.target.value.replace(/\D/g, ""))} className="mt-1.5 font-mono" />
               </div>
-              <div className="self-end text-[10.5px] leading-relaxed text-stone-400">
+              <div className="self-end text-[10.5px] leading-relaxed text-slate-400">
                 {t("Konversi ke Permanent dilakukan lewat PA Perubahan Status — jejak PKWT otomatis dikosongkan.", "Conversion to Permanent is done via a Change Status personnel action — the PKWT record is cleared automatically.")}
               </div>
             </>
@@ -1173,10 +1173,10 @@ function PlacementChangeDialog({ open, setOpen, employee, opts, onSaved }: {
           </DialogTitle>
         </DialogHeader>
         {!cur ? (
-          <p className="text-sm text-stone-500">{t("Tidak ada penempatan aktif.", "No active placement.")}</p>
+          <p className="text-sm text-slate-500">{t("Tidak ada penempatan aktif.", "No active placement.")}</p>
         ) : (
           <>
-            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t(
                 "Perbaikan penempatan tanpa Personnel Action — hanya isi field yang salah. Perubahan tercatat sebagai versi riwayat baru (Perubahan Manual), bisa diaudit.",
                 "Placement fix without a personnel action — fill only the wrong fields. Recorded as a new history version (Manual Change), fully auditable.",
@@ -1301,7 +1301,7 @@ function CorrectJobRowDialog({ row, onClose, opts, onSaved }: {
         </DialogHeader>
         {row && (
           <>
-            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="rounded-lg ov-soft px-3 py-2 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t(
                 "Perbaiki nilai salah ketik pada langkah riwayat ini. Field dikosongkan / “tidak diubah” = tetap. Baris aktif tidak bisa dikoreksi di sini — gunakan “Ubah Penempatan”.",
                 "Fix a typo in this history step. Empty / “unchanged” fields stay as-is. The active row can't be corrected here — use “Change Placement”.",

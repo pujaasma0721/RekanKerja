@@ -128,34 +128,34 @@ export function LeaveRequestsPage() {
           { label: "Menunggu Approval", value: stats?.submitted ?? 0, sub: `${stats?.pendingDays ?? 0} hari diminta`, icon: Inbox, tone: "text-amber-600" },
           { label: "Disetujui", value: (stats?.approved ?? 0) + (stats?.massLeave ?? 0), sub: `${stats?.approvedDays ?? 0} hari total`, icon: CheckCircle2, tone: "text-emerald-600" },
           { label: "Cuti Massal", value: stats?.massLeave ?? 0, sub: "baris dari SKB", icon: Inbox, tone: "text-rose-600" },
-          { label: "Total Permintaan", value: stats?.total ?? 0, sub: `${stats?.rejected ?? 0} ditolak · ${stats?.cancelled ?? 0} batal`, icon: Inbox, tone: "text-stone-500" },
+          { label: "Total Permintaan", value: stats?.total ?? 0, sub: `${stats?.rejected ?? 0} ditolak · ${stats?.cancelled ?? 0} batal`, icon: Inbox, tone: "text-slate-500" },
         ].map((k) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-              <div className="flex items-center gap-2"><Icon className={cn("h-4 w-4", k.tone)} /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p></div>
-              <p className="text-lg font-extrabold text-stone-800 dark:text-stone-100">{k.value}</p>
-              <p className="text-[11px] text-stone-400">{k.sub}</p>
+            <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-2"><Icon className={cn("h-4 w-4", k.tone)} /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p></div>
+              <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100">{k.value}</p>
+              <p className="text-[11px] text-slate-400">{k.sub}</p>
             </div>
           );
         })}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-orange-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "bg-orange-600 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                 )}>
                   {f.label}
                 </button>
               ))}
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan / no. dokumen…" className="h-8 w-56 pl-8 text-xs" />
             </div>
           </div>
@@ -165,7 +165,7 @@ export function LeaveRequestsPage() {
             <div className="max-h-[560px] overflow-auto">
               <Table>
                 <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableRow className="bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                     <TableHead className="text-[11px] font-bold">Dokumen</TableHead>
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Jenis</TableHead>
@@ -179,35 +179,35 @@ export function LeaveRequestsPage() {
                 </TableHeader>
                 <TableBody>
                   {requests.map((r) => (
-                    <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-700 dark:text-stone-200">{r.docNo}</p>
-                        <p className="text-[10px] text-stone-400">{new Date(r.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })} · {r.source}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-200">{r.docNo}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(r.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })} · {r.source}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{r.employeeNo}</p>
-                        <p className="text-[10px] text-stone-400">{r.fullName}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{r.employeeNo}</p>
+                        <p className="text-[10px] text-slate-400">{r.fullName}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs text-stone-700 dark:text-stone-200">{r.leaveTypeName}</p>
-                        {!r.paid && <Badge className="mt-0.5 bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Tidak dibayar</Badge>}
+                        <p className="text-xs text-slate-700 dark:text-slate-200">{r.leaveTypeName}</p>
+                        {!r.paid && <Badge className="mt-0.5 bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">Tidak dibayar</Badge>}
                       </TableCell>
                       <TableCell className="text-[11px]">
-                        <p className="font-semibold text-stone-700 dark:text-stone-200">
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">
                           {new Date(r.dateFrom).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionFrom]} → {new Date(r.dateTo).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} {SESSION_LABEL[r.sessionTo]}
                         </p>
-                        <p className="max-w-56 truncate text-[10px] text-stone-400" title={r.reason ?? ""}>{r.reason}</p>
+                        <p className="max-w-56 truncate text-[10px] text-slate-400" title={r.reason ?? ""}>{r.reason}</p>
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">{fmtDay(r.workingDays)}</TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-stone-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
-                      <TableCell className="text-[11px] text-stone-500">
-                        {r.backToWorkDate ? <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-stone-400" />{new Date(r.backToWorkDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}</span> : "—"}
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{fmtDay(r.workingDays)}</TableCell>
+                      <TableCell className={cn("text-right text-xs font-bold tabular-nums", r.remainingAtRequest < 0 ? "text-rose-600" : "text-slate-500")}>{fmtDay(r.remainingAtRequest)}</TableCell>
+                      <TableCell className="text-[11px] text-slate-500">
+                        {r.backToWorkDate ? <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-slate-400" />{new Date(r.backToWorkDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}</span> : "—"}
                       </TableCell>
                       <TableCell><StatusPill status={r.status === "Submitted" ? "Submitted" : r.status === "Approved" || r.status === "MassLeave" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Cancelled"} /></TableCell>
                       <TableCell>
                         {r.status === "Submitted" && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => cancelRequest(r)} title="Batalkan">
-                            <Ban className="h-3.5 w-3.5 text-stone-400" />
+                            <Ban className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                         )}
                       </TableCell>
@@ -292,26 +292,26 @@ export function LeaveRequestsPage() {
               </div>
               <div className="mt-2 grid grid-cols-4 gap-2 text-center">
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Hari Kerja</p>
+                  <p className="text-[9px] font-bold uppercase text-slate-400">Hari Kerja</p>
                   <p className="text-sm font-extrabold text-orange-700 dark:text-orange-400">{preview ? fmtDay(preview.workingDays) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Saldo Saat Ini</p>
-                  <p className="text-sm font-extrabold text-stone-700 dark:text-stone-200">{preview ? fmtDay(preview.balance) : "—"}</p>
+                  <p className="text-[9px] font-bold uppercase text-slate-400">Saldo Saat Ini</p>
+                  <p className="text-sm font-extrabold text-slate-700 dark:text-slate-200">{preview ? fmtDay(preview.balance) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Sisa Saldo</p>
+                  <p className="text-[9px] font-bold uppercase text-slate-400">Sisa Saldo</p>
                   <p className={cn("text-sm font-extrabold", preview && preview.remaining < 0 ? "text-rose-600" : "text-emerald-700 dark:text-emerald-400")}>{preview ? fmtDay(preview.remaining) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold uppercase text-stone-400">Kembali Kerja</p>
-                  <p className="text-xs font-bold text-stone-700 dark:text-stone-200">
+                  <p className="text-[9px] font-bold uppercase text-slate-400">Kembali Kerja</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                     {preview?.backToWork ? new Date(preview.backToWork).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) : "—"}
                   </p>
                 </div>
               </div>
               {preview && (
-                <p className="mt-1.5 text-[10px] text-stone-500 dark:text-stone-400">
+                <p className="mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
                   Periode saldo: {preview.periodLabel} · max {preview.maxPerRequest} per permintaan{preview.remaining < 0 && " · saldo minus (advance leave)"}
                 </p>
               )}

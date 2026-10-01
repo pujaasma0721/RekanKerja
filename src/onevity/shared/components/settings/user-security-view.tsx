@@ -64,7 +64,7 @@ const ROLE_TONE: Record<string, string> = {
   Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
   "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
-  Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+  Viewer: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
 };
 
 // ---------- hak aksi menu (per pengguna, Task 32) ----------
@@ -145,8 +145,8 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
   if (loading && !data) return <LoadingRows rows={5} />;
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-      <div className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5 border-b border-stone-200/80 px-6 pb-3 pt-6 dark:border-stone-800/80">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5 border-b border-slate-200/80 px-6 pb-3 pt-6 dark:border-slate-800/80">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <UserCog className="h-4 w-4 ov-text-accent" /> {t("Pengguna Aplikasi ({n})", "Application Users ({n})", { n: users.length })}
         </CardTitle>
@@ -171,7 +171,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   {sort.head("user", t("Pengguna", "User"), "text-[11px] font-bold")}
                   {sort.head("role", "Role", "text-[11px] font-bold")}
                   {sort.head("lastLogin", t("Login Terakhir", "Last Login"), "text-[11px] font-bold")}
@@ -185,21 +185,21 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                   const age = passwordAge(u.passwordChangedAt, policy);
                   const linked = employees.find((e) => e.id === u.employeeId);
                   return (
-                    <TableRow key={u.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
                           <span className={cn(
                             "flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold",
                             u.active
                               ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
-                              : "bg-stone-100 text-stone-400 dark:bg-stone-800",
+                              : "bg-slate-100 text-slate-400 dark:bg-slate-800",
                           )}>{initials(u.fullName)}</span>
                           <div className="min-w-0">
                             <p className="flex items-center gap-1.5 text-[13px] font-bold">
                               {u.fullName}
-                              <span className="font-mono text-[10px] font-normal text-stone-400">{u.username}</span>
+                              <span className="font-mono text-[10px] font-normal text-slate-400">{u.username}</span>
                             </p>
-                            <p className="truncate text-[10px] text-stone-400">
+                            <p className="truncate text-[10px] text-slate-400">
                               {u.email ?? t("— tanpa email", "— no email")}
                               {linked ? ` · ${linked.employeeNo}` : ""}
                             </p>
@@ -209,7 +209,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                       <TableCell>
                         <Badge variant="outline" className={cn("text-[10px] font-bold", ROLE_TONE[u.role] ?? "")}>{u.role}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-500">
+                      <TableCell className="text-xs text-slate-500">
                         {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : t("Belum pernah", "Never")}
                       </TableCell>
                       <TableCell>
@@ -222,13 +222,13 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                                 ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400"
                                 : age.warn
                                   ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
-                                  : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+                                  : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
                             )}
                           >
                             <CalendarClock className="h-3 w-3" /> {t(age.label, ageLabelEn(age.label))}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-stone-400">{t("— belum disetel", "— never set")}</span>
+                          <span className="text-[10px] text-slate-400">{t("— belum disetel", "— never set")}</span>
                         )}
                       </TableCell>
                       <TableCell><StatusPill status={u.active ? "Active" : "Cancelled"} /></TableCell>
@@ -236,7 +236,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                         <div className="flex gap-0.5">
                           <button
                             onClick={() => onConfigureAccess(u.id)}
-                            className="rounded-lg p-1.5 text-stone-400 transition hover:ov-soft"
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:ov-soft"
                             aria-label={t("Atur hak akses {name}", "Configure access rights for {name}", { name: u.fullName })}
                             title={t("Atur hak akses (menu & data)", "Configure access rights (menus & data)")}
                           >
@@ -246,7 +246,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                             onClick={() => setEditing(u)}
                             disabled={!can("update")}
                             title={can("update") ? t("Edit pengguna", "Edit user") : t("Tanpa aksi Ubah pada menu ini", "No Update action on this menu")}
-                            className="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30 dark:hover:bg-stone-800"
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 dark:hover:bg-slate-800"
                             aria-label={`Edit ${u.fullName}`}
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -255,7 +255,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                             onClick={() => setResetTarget(u)}
                             disabled={!can("update") || !u.email}
                             title={!u.email ? t("Pengguna tanpa email tidak punya akun login", "A user without email has no login account") : can("update") ? t("Reset kata sandi (kebijakan + riwayat)", "Reset password (policy + history)") : t("Tanpa aksi Ubah pada menu ini", "No Update action on this menu")}
-                            className="rounded-lg p-1.5 text-stone-400 transition hover:bg-amber-50 hover:text-amber-600 disabled:opacity-30 dark:hover:bg-amber-500/10"
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 disabled:opacity-30 dark:hover:bg-amber-500/10"
                             aria-label={t("Reset kata sandi {name}", "Reset password for {name}", { name: u.fullName })}
                           >
                             <KeyRound className="h-3.5 w-3.5" />
@@ -264,7 +264,7 @@ export function UsersPanel({ onConfigureAccess }: { onConfigureAccess: (userId: 
                             onClick={() => setDeleting(u)}
                             disabled={!can("delete")}
                             title={can("delete") ? t("Hapus pengguna", "Delete user") : t("Tanpa aksi Hapus pada menu ini", "No Delete action on this menu")}
-                            className="rounded-lg p-1.5 text-stone-300 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30 dark:hover:bg-rose-500/10"
+                            className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30 dark:hover:bg-rose-500/10"
                             aria-label={`Hapus ${u.fullName}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -419,7 +419,7 @@ function UserCreateDialog({
                   type="button"
                   onClick={() => setUsernameTouched(false)}
                   title={t("Kembali ke usulan otomatis dari nama", "Back to the automatic suggestion from the name")}
-                  className="shrink-0 rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+                  className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                   aria-label={t("Usulkan username otomatis", "Suggest username automatically")}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -430,7 +430,7 @@ function UserCreateDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">{t("Email Login *", "Login Email *")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dewi@mii.co.id" />
-            <p className="text-[10px] text-stone-400">{t("Dipakai untuk masuk (account SaaS) — harus belum terdaftar.", "Used to sign in (SaaS account) — must not be registered yet.")}</p>
+            <p className="text-[10px] text-slate-400">{t("Dipakai untuk masuk (account SaaS) — harus belum terdaftar.", "Used to sign in (SaaS account) — must not be registered yet.")}</p>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">{t("Role Aplikasi", "Application Role")}</Label>
@@ -454,12 +454,12 @@ function UserCreateDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-stone-400">{t("Pengguna terkait otomatis mengakses data dirinya (tanpa perlu rule).", "A linked user automatically accesses their own data (no rule needed).")}</p>
+            <p className="text-[10px] text-slate-400">{t("Pengguna terkait otomatis mengakses data dirinya (tanpa perlu rule).", "A linked user automatically accesses their own data (no rule needed).")}</p>
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800 sm:col-span-2">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800 sm:col-span-2">
             <div>
               <p className="text-xs font-bold">{t("Status Aktif", "Active Status")}</p>
-              <p className="text-[10px] text-stone-400">{t("Pengguna non-aktif tidak tampil sebagai konfigurasi aktif.", "Inactive users are not shown as an active configuration.")}</p>
+              <p className="text-[10px] text-slate-400">{t("Pengguna non-aktif tidak tampil sebagai konfigurasi aktif.", "Inactive users are not shown as an active configuration.")}</p>
             </div>
             <Switch checked={active} onCheckedChange={setActive} aria-label={t("Status aktif", "Active status")} />
           </div>
@@ -474,8 +474,8 @@ function UserCreateDialog({
           </div>
         </div>
 
-        <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-          <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
             <ShieldCheck className="h-3.5 w-3.5 ov-text-accent" /> {t("Validasi Kebijakan Kata Sandi", "Password Policy Validation")}
           </p>
           <PasswordStrengthBar password={password} />
@@ -605,10 +605,10 @@ function UserEditDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
             <div>
               <p className="text-xs font-bold">{t("Status Aktif", "Active Status")}</p>
-              <p className="text-[10px] text-stone-400">{user?.active ? t("Pengguna aktif", "Active user") : t("Saat ini non-aktif", "Currently inactive")}</p>
+              <p className="text-[10px] text-slate-400">{user?.active ? t("Pengguna aktif", "Active user") : t("Saat ini non-aktif", "Currently inactive")}</p>
             </div>
             <Switch checked={active} onCheckedChange={setActive} aria-label={t("Status aktif", "Active status")} />
           </div>
@@ -685,8 +685,8 @@ function ResetPasswordDialog({
             <PasswordInput value={confirm} onChange={setConfirm} />
           </div>
 
-          <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 dark:text-stone-300">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
               <History className="h-3.5 w-3.5 ov-text-accent" />
               {t("Tidak boleh sama dengan {n} kata sandi terakhir pengguna ini", "Must not match the user's last {n} passwords", { n: policy.historyCount })}
             </p>
@@ -781,7 +781,7 @@ export function PasswordPolicyPanel() {
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
       <div className="space-y-4">
         {/* ---- seksi 1: kompleksitas ---- */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <Gauge className="h-4 w-4 ov-text-accent" /> {t("Kompleksitas & Kombinasi", "Complexity & Combination")}
@@ -808,7 +808,7 @@ export function PasswordPolicyPanel() {
         </Card>
 
         {/* ---- seksi 2: umur & riwayat ---- */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <CalendarClock className="h-4 w-4 ov-text-accent" /> {t("Umur & Riwayat", "Age & History")}
@@ -820,14 +820,14 @@ export function PasswordPolicyPanel() {
               <PolicyNumber label={t("Peringatan Sebelum Kedaluwarsa", "Expiry Warning")} value={draft.warnDays} onChange={(v) => set("warnDays", v)} min={0} max={draft.lifetimeDays || 90} suffix={t("hari sebelumnya", "days in advance")} />
               <PolicyNumber label={t("Larangan Riwayat", "History Restriction")} value={draft.historyCount} onChange={(v) => set("historyCount", v)} min={0} max={24} suffix={t("sandi terakhir", "recent passwords")} />
             </div>
-            <p className="rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
+            <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
               {t("Kata sandi baru tidak boleh sama dengan", "A new password must not match")} <b>{draft.historyCount}</b> {t("sandi terakhir pengguna tersebut; umur sandi dihitung sejak terakhir disetel/direset — tabel Pengguna menampilkan sisa masa berlaku.", "of the user's recent passwords; the password age is counted from the last set/reset — the Users table shows the remaining lifetime.")}
             </p>
           </CardContent>
         </Card>
 
         {/* ---- seksi 3: lockout ---- */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <Lock className="h-4 w-4 ov-text-accent" /> {t("Percobaan Login Gagal", "Failed Login Attempts")}
@@ -840,7 +840,7 @@ export function PasswordPolicyPanel() {
               {/* Task 64k — idle timeout sesi (0 = nonaktif) */}
               <PolicyNumber label={t("Batas Idle Sesi", "Session Idle Timeout")} value={draft.idleTimeoutMinutes} onChange={(v) => set("idleTimeoutMinutes", v)} min={0} max={480} suffix={t("menit (0 = nonaktif)", "minutes (0 = off)")} />
             </div>
-            <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
+            <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
               {t("Melewati batas → akun terkunci sementara (login ditolak sampai waktu habis atau admin mereset sandi).", "Exceeding the limit → the account is temporarily locked (sign-in denied until the time expires or an admin resets the password).")}
             </p>
           </CardContent>
@@ -870,14 +870,14 @@ export function PasswordPolicyPanel() {
 
       {/* ---- kolom kanan: uji coba + penerapan ---- */}
       <div className="space-y-4">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <FlaskConical className="h-4 w-4 ov-text-accent" /> {t("Uji Coba Sandi", "Password Test")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
-            <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t("Coba sebuah kata sandi terhadap", "Try a password against")} <b>{t("draft kebijakan", "the policy draft")}</b> {t("saat ini (belum tersimpan bila ada perubahan).", "(unsaved if there are changes).")}
             </p>
             <div className="space-y-1.5">
@@ -902,14 +902,14 @@ export function PasswordPolicyPanel() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <Eye className="h-4 w-4 ov-text-accent" /> {t("Penerapan", "How It Is Applied")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <ul className="space-y-1.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <ul className="space-y-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
               <li>• <b>{t("Tambah pengguna", "Add user")}</b> {t("— kata sandi awal divalidasi seluruh aturan di atas.", "— the initial password is validated against all the rules above.")}</li>
               <li>• <b>{t("Reset kata sandi", "Reset password")}</b> {t("(admin) &", "(admin) &")} <b>{t("ganti kata sandi", "change password")}</b> {t("(pengguna sendiri) — aturan + riwayat N terakhir.", "(the user themself) — rules + the last N passwords.")}</li>
               <li>• <b>{t("Umur", "Age")}</b> {t("— sisa masa berlaku tampil di tabel Pengguna & peringatan saat masuk.", "— the remaining lifetime shows in the Users table & a warning at sign-in.")}</li>
@@ -949,14 +949,14 @@ function PolicyNumber({
         }}
         className="h-9 text-xs font-semibold"
       />
-      {suffix && <p className="text-[10px] text-stone-400">{suffix}</p>}
+      {suffix && <p className="text-[10px] text-slate-400">{suffix}</p>}
     </div>
   );
 }
 
 function PolicySwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-stone-200 px-3 py-2.5 transition hover:ov-border-accent dark:border-stone-800">
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5 transition hover:ov-border-accent dark:border-slate-800">
       <span className="text-xs font-semibold leading-tight">{label}</span>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </label>
@@ -1003,7 +1003,7 @@ export function MfaCard() {
   };
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <Smartphone className="h-4 w-4 ov-text-accent" aria-hidden />
@@ -1018,7 +1018,7 @@ export function MfaCard() {
               "text-[10px] font-bold",
               enabled
                 ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
-                : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             {enabled ? t("Aktif", "Active") : t("Nonaktif", "Inactive")}
@@ -1026,7 +1026,7 @@ export function MfaCard() {
         )}
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
-        <p className="text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+        <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
           {t(
             "Lapisan kedua saat masuk: setelah kata sandi benar, masukkan kode 6 digit dari aplikasi autentikator (Google Authenticator, Authy, Microsoft Authenticator) yang berganti setiap 30 detik.",
             "A second layer at sign-in: after your password, enter a 6-digit code from an authenticator app (Google Authenticator, Authy, Microsoft Authenticator) that rotates every 30 seconds.",
@@ -1045,7 +1045,7 @@ export function MfaCard() {
             </Button>
           )}
           {email && (
-            <span className="text-[11px] text-stone-400 dark:text-stone-500">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">
               {t("Berlaku untuk akun login Anda: {email}", "Applies to your login account: {email}", { email })}
             </span>
           )}
@@ -1147,7 +1147,7 @@ function MfaSetupDialog({
 
         {setup ? (
           <div className="space-y-4">
-            <div className="flex justify-center rounded-2xl border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-900">
+            <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               {/* QR data URL dari server (package qrcode) — aman, tanpa layanan luar */}
               <img src={setup.qrDataUrl} alt={t("QR kode secret TOTP", "TOTP secret QR code")} width={200} height={200} className="h-[200px] w-[200px]" />
             </div>
@@ -1155,7 +1155,7 @@ function MfaSetupDialog({
             <div className="space-y-1.5">
               <Label className="text-[11px]">{t("Secret manual (base32)", "Manual secret (base32)")}</Label>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 font-mono text-[11px] tracking-wide text-stone-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
+                <code className="flex-1 truncate rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-[11px] tracking-wide text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                   {setup.secret}
                 </code>
                 <Button type="button" variant="outline" size="sm" onClick={() => void copySecret()} className="gap-1.5 px-2.5">
@@ -1191,7 +1191,7 @@ function MfaSetupDialog({
             {err && <p className="text-[12px] font-medium text-rose-600 dark:text-rose-400">{err}</p>}
           </div>
         ) : (
-          <p className="text-[13px] text-stone-500">{t("Menyiapkan secret…", "Preparing secret…")}</p>
+          <p className="text-[13px] text-slate-500">{t("Menyiapkan secret…", "Preparing secret…")}</p>
         )}
 
         <DialogFooter className="gap-2">

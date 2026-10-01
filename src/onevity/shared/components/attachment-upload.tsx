@@ -94,7 +94,7 @@ export function AttachmentUploadArea({
         type="button"
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/60 px-3 py-3 text-xs font-bold text-stone-600 transition-colors hover:border-stone-400 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-300 dark:hover:border-stone-500",
+          "flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 px-3 py-3 text-xs font-bold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:border-slate-500",
           compact && "py-2",
         )}
       >
@@ -109,15 +109,15 @@ export function AttachmentUploadArea({
             return (
               <div
                 key={`${f.name}-${f.size}-${i}`}
-                className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 dark:border-stone-700 dark:bg-stone-900"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-700 dark:bg-slate-900"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 dark:bg-stone-800">
-                  <Icon className="h-3.5 w-3.5 text-stone-500" />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800">
+                  <Icon className="h-3.5 w-3.5 text-slate-500" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-700 dark:text-stone-200" title={f.name}>
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200" title={f.name}>
                   {f.name}
                 </span>
-                <span className="shrink-0 text-[10px] font-bold text-stone-400">{fmtSize(f.size)}</span>
+                <span className="shrink-0 text-[10px] font-bold text-slate-400">{fmtSize(f.size)}</span>
                 <button
                   type="button"
                   className="shrink-0 text-rose-500 hover:text-rose-600"
@@ -149,7 +149,7 @@ export function AttachmentChips({
   const { t } = useI18n();
 
   if (attachments.length === 0) {
-    return <span className="text-[11px] text-stone-400">{t("tanpa lampiran", "no attachments")}</span>;
+    return <span className="text-[11px] text-slate-400">{t("tanpa lampiran", "no attachments")}</span>;
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -158,9 +158,9 @@ export function AttachmentChips({
         return (
           <span
             key={a.id}
-            className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-lg border border-stone-200 bg-white py-1 pl-1.5 pr-1 text-[11px] font-semibold text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+            className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-lg border border-slate-200 bg-white py-1 pl-1.5 pr-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
           >
-            <Icon className="h-3 w-3 shrink-0 text-stone-400" />
+            <Icon className="h-3 w-3 shrink-0 text-slate-400" />
             <a
               href={attachmentUrl(a.id)}
               target="_blank"
@@ -170,12 +170,12 @@ export function AttachmentChips({
             >
               {a.fileName}
             </a>
-            <span className="shrink-0 text-[9px] font-bold text-stone-400">{fmtSize(a.sizeBytes)}</span>
+            <span className="shrink-0 text-[9px] font-bold text-slate-400">{fmtSize(a.sizeBytes)}</span>
             <a
               href={attachmentUrl(a.id)}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+              className="shrink-0 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               aria-label={t("Lihat lampiran", "View attachment")}
             >
               <Eye className="h-3 w-3" />

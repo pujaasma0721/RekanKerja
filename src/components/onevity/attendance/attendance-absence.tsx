@@ -91,37 +91,37 @@ export function AttendanceAbsencePage() {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><Timer className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Total Telat</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><Timer className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total Telat</p></div>
           <p className="text-lg font-extrabold text-amber-600 dark:text-amber-400">{totals?.lateCount ?? 0} hari · {Math.round((totals?.lateMinutes ?? 0) / 60)} jam</p>
-          <p className="text-[11px] text-stone-400">estimasi potongan {fmtIDRShort(totals?.lateDeduction ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">estimasi potongan {fmtIDRShort(totals?.lateDeduction ?? 0)}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-rose-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Absen + Izin Unpaid</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-rose-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Absen + Izin Unpaid</p></div>
           <p className="text-lg font-extrabold text-rose-600 dark:text-rose-400">{(totals?.absentDays ?? 0) + (totals?.workoffUnpaidDays ?? 0)} hari</p>
-          <p className="text-[11px] text-stone-400">estimasi potongan {fmtIDRShort(totals?.absenceDeduction ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">estimasi potongan {fmtIDRShort(totals?.absenceDeduction ?? 0)}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Lembur Bulan Ini</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><Wallet className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Lembur Bulan Ini</p></div>
           <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">{Math.round((totals?.overtimeMinutes ?? 0) / 60)} jam</p>
-          <p className="text-[11px] text-stone-400">estimasi dibayar {fmtIDRShort(totals?.overtimePay ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">estimasi dibayar {fmtIDRShort(totals?.overtimePay ?? 0)}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Kehadiran Sempurna</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Kehadiran Sempurna</p></div>
           <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{(api.data?.recap ?? []).filter((r) => r.attendanceAllowance > 0).length} karyawan</p>
-          <p className="text-[11px] text-stone-400">tunjangan {fmtIDRShort(totals?.attendanceAllowance ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">tunjangan {fmtIDRShort(totals?.attendanceAllowance ?? 0)}</p>
         </div>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div>
               <p className="text-[13px] font-bold">Rekap {month} — {api.data ? `${api.data.total?.employees ?? rows.length} karyawan` : "…"}</p>
-              <p className="text-[11px] text-stone-400">Jendela {api.data ? `${fmtDate(api.data.from)} – ${fmtDate(api.data.to)}` : from}</p>
+              <p className="text-[11px] text-slate-400">Jendela {api.data ? `${fmtDate(api.data.from)} – ${fmtDate(api.data.to)}` : from}</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="h-8 w-48 pl-8 text-xs" />
             </div>
           </div>
@@ -131,7 +131,7 @@ export function AttendanceAbsencePage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">Hadir</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">Telat</TableHead>
@@ -145,22 +145,22 @@ export function AttendanceAbsencePage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => (
-                    <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={r.employeeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{r.fullName}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
                       </TableCell>
                       <TableCell className="text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400">{r.presentDays}/{r.scheduledDays}</TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold", r.lateCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-400")}>
+                      <TableCell className={cn("text-right text-xs font-bold", r.lateCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400")}>
                         {r.lateCount > 0 ? `${r.lateCount}×` : "—"}
                       </TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold", r.absentDays > 0 ? "text-rose-600 dark:text-rose-400" : "text-stone-400")}>
+                      <TableCell className={cn("text-right text-xs font-bold", r.absentDays > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>
                         {r.absentDays > 0 ? `${r.absentDays} h` : "—"}
                       </TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold", r.workoffUnpaidDays > 0 ? "text-orange-600 dark:text-orange-400" : "text-stone-400")}>
+                      <TableCell className={cn("text-right text-xs font-bold", r.workoffUnpaidDays > 0 ? "text-orange-600 dark:text-orange-400" : "text-slate-400")}>
                         {r.workoffUnpaidDays > 0 ? `${r.workoffUnpaidDays} h` : "—"}
                       </TableCell>
-                      <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-stone-400")}>
+                      <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-slate-400")}>
                         {r.overtimeMinutes > 0 ? `${(r.overtimeMinutes / 60).toFixed(1)} j` : "—"}
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold text-teal-700 dark:text-teal-400">{r.overtimePay > 0 ? fmtIDR(r.overtimePay) : "—"}</TableCell>
@@ -170,7 +170,7 @@ export function AttendanceAbsencePage() {
                       <TableCell>
                         {r.attendanceAllowance > 0
                           ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400">SEMPURNA</Badge>
-                          : <span className="text-[10px] text-stone-300">—</span>}
+                          : <span className="text-[10px] text-slate-300">—</span>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -202,7 +202,7 @@ export function AttendanceAbsencePage() {
             <DialogTitle>Transfer Absensi ke Payroll</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3.5 py-1">
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
               Padanan oranHR <span className="font-bold">Transfer to Payroll</span>: rekap jendela absensi ditulis sebagai komponen gaji <span className="font-bold">Specific</span> pada period & process type terpilih (idempoten — re-transfer menimpa nilai lama).
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -239,8 +239,8 @@ export function AttendanceAbsencePage() {
                 <Input type="date" value={transfer.to} onChange={(e) => setTransfer({ ...transfer, to: e.target.value })} className="text-sm" />
               </div>
             </div>
-            <div className="space-y-2 rounded-xl border border-stone-200 p-3 dark:border-stone-800">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Komponen yang ikut ditransfer</p>
+            <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Komponen yang ikut ditransfer</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 <ToggleRow id="incOT" checked={transfer.includeOvertime} onChange={(v) => setTransfer({ ...transfer, includeOvertime: v })} label="Lembur (LEMBUR)" />
                 <ToggleRow id="incLate" checked={transfer.includeLate} onChange={(v) => setTransfer({ ...transfer, includeLate: v })} label="Potongan telat (TLATE)" />
@@ -249,11 +249,11 @@ export function AttendanceAbsencePage() {
               </div>
             </div>
             {totals && (
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-[11px] dark:bg-stone-900/60">
-                <p className="text-stone-500">Estimasi lembur: <span className="font-bold text-teal-600">{fmtIDR(totals.overtimePay ?? 0)}</span></p>
-                <p className="text-stone-500">Estimasi potongan telat: <span className="font-bold text-rose-600">−{fmtIDR(totals.lateDeduction ?? 0)}</span></p>
-                <p className="text-stone-500">Estimasi potongan absen: <span className="font-bold text-rose-600">−{fmtIDR(totals.absenceDeduction ?? 0)}</span></p>
-                <p className="text-stone-500">Tunjangan kehadiran: <span className="font-bold text-emerald-600">{fmtIDR(totals.attendanceAllowance ?? 0)}</span></p>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-[11px] dark:bg-slate-900/60">
+                <p className="text-slate-500">Estimasi lembur: <span className="font-bold text-teal-600">{fmtIDR(totals.overtimePay ?? 0)}</span></p>
+                <p className="text-slate-500">Estimasi potongan telat: <span className="font-bold text-rose-600">−{fmtIDR(totals.lateDeduction ?? 0)}</span></p>
+                <p className="text-slate-500">Estimasi potongan absen: <span className="font-bold text-rose-600">−{fmtIDR(totals.absenceDeduction ?? 0)}</span></p>
+                <p className="text-slate-500">Tunjangan kehadiran: <span className="font-bold text-emerald-600">{fmtIDR(totals.attendanceAllowance ?? 0)}</span></p>
               </div>
             )}
           </div>

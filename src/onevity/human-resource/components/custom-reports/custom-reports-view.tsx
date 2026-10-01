@@ -74,7 +74,7 @@ const TYPE_LABEL: Record<FieldType, { id: string; en: string }> = {
 function CellValue({ v, type }: { v: unknown; type: FieldType }) {
   const { t, locale } = useI18n();
   if (v === null || v === undefined || v === "") {
-    return <span className="text-stone-300 dark:text-stone-600">—</span>;
+    return <span className="text-slate-300 dark:text-slate-600">—</span>;
   }
   if (type === "boolean") {
     return (
@@ -82,7 +82,7 @@ function CellValue({ v, type }: { v: unknown; type: FieldType }) {
         "text-[10px] font-bold",
         v
           ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
-          : "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
+          : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
       )}>
         {v ? t("Ya", "Yes") : t("Tidak", "No")}
       </Badge>
@@ -469,20 +469,20 @@ export function CustomReportsView() {
               ) : (
                 <ul className="max-h-[540px] space-y-2.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
                   {reports.map((r) => (
-                    <li key={r.id} className="rounded-xl border border-stone-200 p-3 transition-colors hover:border-brand/40 dark:border-stone-800 dark:hover:border-brand/40">
+                    <li key={r.id} className="rounded-xl border border-slate-200 p-3 transition-colors hover:border-brand/40 dark:border-slate-800 dark:hover:border-brand/40">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-semibold text-stone-800 dark:text-stone-100">{r.name}</p>
-                          <p className="text-[10px] font-mono text-stone-400">{r.code}</p>
+                          <p className="truncate text-[13px] font-semibold text-slate-800 dark:text-slate-100">{r.name}</p>
+                          <p className="text-[10px] font-mono text-slate-400">{r.code}</p>
                         </div>
                         <Badge variant="outline" className="shrink-0 bg-brand/10 text-[10px] font-bold text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25">
                           {entityLabelOf(r.entity)}
                         </Badge>
                       </div>
                       {r.description && (
-                        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-stone-500 dark:text-stone-400">{r.description}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{r.description}</p>
                       )}
-                      <p className="mt-1 text-[10px] text-stone-400">
+                      <p className="mt-1 text-[10px] text-slate-400">
                         {t("{n} field · {m} filter · diubah {d}", "{n} fields · {m} filters · updated {d}", {
                           n: r.fields.length, m: r.filters.length, d: fmtDate(r.updatedAt),
                         })}
@@ -545,13 +545,13 @@ export function CustomReportsView() {
                     {entities.map((e) => (
                       <SelectItem key={e.key} value={e.key}>
                         <span className="font-medium">{t(e.label, e.labelEn)}</span>
-                        <span className="ml-1.5 text-[10px] text-stone-400">{e.fields.length} {t("field", "fields")}</span>
+                        <span className="ml-1.5 text-[10px] text-slate-400">{e.fields.length} {t("field", "fields")}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {entity && (
-                  <p className="text-[11px] leading-snug text-stone-500 dark:text-stone-400">
+                  <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
                     {t(entity.description, entity.descriptionEn)}
                   </p>
                 )}
@@ -559,23 +559,23 @@ export function CustomReportsView() {
 
               {/* ---- 2. field picker + urutan kolom ---- */}
               <Collapsible defaultOpen>
-                <div className="rounded-xl border border-stone-200 dark:border-stone-800">
-                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-900/60">
-                    <ChevronDown className="h-4 w-4 text-stone-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900/60">
+                    <ChevronDown className="h-4 w-4 text-slate-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
                     <Filter className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                     {t("Pilih Field", "Pick Fields")}
                     <Badge variant="outline" className={cn(
                       "ml-auto text-[10px] font-bold tabular-nums",
                       selected.length > 0
                         ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
-                        : "bg-stone-100 text-stone-500 border-stone-200",
+                        : "bg-slate-100 text-slate-500 border-slate-200",
                     )}>
                       {selected.length}/{limits?.maxFields ?? 25}
                     </Badge>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-3 border-t border-stone-200 px-3 py-3 dark:border-stone-800">
+                  <CollapsibleContent className="space-y-3 border-t border-slate-200 px-3 py-3 dark:border-slate-800">
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                       <Input
                         value={fieldQuery}
                         onChange={(e) => setFieldQuery(e.target.value)}
@@ -585,12 +585,12 @@ export function CustomReportsView() {
                       />
                     </div>
                     {fieldGroups.length === 0 ? (
-                      <p className="py-2 text-center text-xs text-stone-400">{t("Tidak ada field cocok.", "No matching fields.")}</p>
+                      <p className="py-2 text-center text-xs text-slate-400">{t("Tidak ada field cocok.", "No matching fields.")}</p>
                     ) : (
                       <div className="max-h-56 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin]">
                         {fieldGroups.map((g) => (
                           <div key={g.group}>
-                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">{g.group}</p>
+                            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">{g.group}</p>
                             <div className="flex flex-wrap gap-1.5">
                               {g.fields.map((f) => {
                                 const on = selected.includes(f.key);
@@ -605,7 +605,7 @@ export function CustomReportsView() {
                                       "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
                                       on
                                         ? "border-brand/40 bg-brand/10 text-brand-deep hover:border-brand/40 dark:border-brand/40 dark:bg-brand/10 dark:text-brand/75"
-                                        : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
                                     )}
                                   >
                                     {on && <Check className="h-3 w-3" aria-hidden />}
@@ -621,15 +621,15 @@ export function CustomReportsView() {
 
                     {/* urutan kolom */}
                     {selectedDefs.length > 0 && (
-                      <div className="rounded-lg border border-stone-200 bg-stone-50/60 p-2 dark:border-stone-800 dark:bg-stone-900/40">
-                        <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                        <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                           <ChevronUp className="h-3 w-3" aria-hidden /> {t("Urutan Kolom", "Column Order")}
                         </p>
                         <ol className="space-y-1">
                           {selectedDefs.map((f, i) => (
-                            <li key={f.key} className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5 dark:bg-stone-900">
-                              <span className="w-5 shrink-0 text-center text-[10px] font-bold tabular-nums text-stone-400">{i + 1}</span>
-                              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-stone-700 dark:text-stone-200">
+                            <li key={f.key} className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1.5 dark:bg-slate-900">
+                              <span className="w-5 shrink-0 text-center text-[10px] font-bold tabular-nums text-slate-400">{i + 1}</span>
+                              <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                                 {t(f.label, f.labelEn)}
                               </span>
                               <Button
@@ -667,23 +667,23 @@ export function CustomReportsView() {
 
               {/* ---- 3. filter builder ---- */}
               <Collapsible defaultOpen>
-                <div className="rounded-xl border border-stone-200 dark:border-stone-800">
-                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-900/60">
-                    <ChevronDown className="h-4 w-4 text-stone-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900/60">
+                    <ChevronDown className="h-4 w-4 text-slate-400 transition-transform [[data-state=open]>&]:rotate-180" aria-hidden />
                     <Filter className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                     {t("Filter Data", "Data Filters")}
                     <Badge variant="outline" className={cn(
                       "ml-auto text-[10px] font-bold tabular-nums",
                       filterRows.length > 0
                         ? "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25"
-                        : "bg-stone-100 text-stone-500 border-stone-200",
+                        : "bg-slate-100 text-slate-500 border-slate-200",
                     )}>
                       {filterRows.length}/{limits?.maxFilters ?? 10}
                     </Badge>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2.5 border-t border-stone-200 px-3 py-3 dark:border-stone-800">
+                  <CollapsibleContent className="space-y-2.5 border-t border-slate-200 px-3 py-3 dark:border-slate-800">
                     {filterRows.length === 0 && (
-                      <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         {t("Tanpa filter — seluruh baris entity diambil (maks 500 baris per halaman).", "No filters — the whole entity is fetched (max 500 rows per page).")}
                       </p>
                     )}
@@ -693,8 +693,8 @@ export function CustomReportsView() {
                       const ops = opsByType?.[type] ?? ["eq"];
                       const noValue = r.op === "empty" || r.op === "notEmpty";
                       return (
-                        <div key={r.uid} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50/60 p-2 dark:border-stone-800 dark:bg-stone-900/40">
-                          <span className="w-4 shrink-0 text-center text-[10px] font-bold tabular-nums text-stone-400">{idx + 1}</span>
+                        <div key={r.uid} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                          <span className="w-4 shrink-0 text-center text-[10px] font-bold tabular-nums text-slate-400">{idx + 1}</span>
                           <Select value={r.field} onValueChange={(v) => onFilterField(r.uid, v)}>
                             <SelectTrigger className="h-8 w-[170px] text-[12px]" aria-label={t("Field filter baris {n}", "Filter field row {n}", { n: idx + 1 })}>
                               <SelectValue placeholder={t("Field…", "Field…")} />
@@ -716,7 +716,7 @@ export function CustomReportsView() {
                             </SelectContent>
                           </Select>
                           {noValue ? (
-                            <span className="flex h-8 items-center px-2 text-[11px] text-stone-400">
+                            <span className="flex h-8 items-center px-2 text-[11px] text-slate-400">
                               {t("(tanpa nilai)", "(no value)")}
                             </span>
                           ) : type === "date" ? (
@@ -792,7 +792,7 @@ export function CustomReportsView() {
                   </Button>
                 )}
                 {!canRun && !canExport && !canCreate && (
-                  <p className="flex items-center gap-1.5 text-[11px] text-stone-400">
+                  <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
                     <Info className="h-3.5 w-3.5" aria-hidden />
                     {t("Anda hanya dapat melihat laporan tersimpan.", "You can only view saved reports.")}
                   </p>
@@ -808,7 +808,7 @@ export function CustomReportsView() {
                 <Table2 className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
                 {t("Hasil", "Result")}
                 {result && (
-                  <span className="text-[11px] font-normal text-stone-500 dark:text-stone-400">
+                  <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
                     {entityLabelOf(result.entity)} · {t("{n} baris", "{n} rows", { n: result.total })}
                   </span>
                 )}
@@ -847,11 +847,11 @@ export function CustomReportsView() {
                       )}
                     </p>
                   )}
-                  <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-xl border border-stone-200 pr-1 [scrollbar-width:thin] dark:border-stone-800">
+                  <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 pr-1 [scrollbar-width:thin] dark:border-slate-800">
                     <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                      <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                         <TableRow>
-                          <TableHead className="w-8 text-[10px] text-stone-400">#</TableHead>
+                          <TableHead className="w-8 text-[10px] text-slate-400">#</TableHead>
                           {result.columns.map((c) => (
                             <TableHead
                               key={c.key}
@@ -866,7 +866,7 @@ export function CustomReportsView() {
                       <TableBody>
                         {result.rows.map((row, i) => (
                           <TableRow key={i} className="text-[12px]">
-                            <TableCell className="text-[10px] tabular-nums text-stone-400">{(result.page - 1) * result.pageSize + i + 1}</TableCell>
+                            <TableCell className="text-[10px] tabular-nums text-slate-400">{(result.page - 1) * result.pageSize + i + 1}</TableCell>
                             {result.columns.map((c) => (
                               <TableCell
                                 key={c.key}
@@ -921,7 +921,7 @@ export function CustomReportsView() {
               />
             </div>
             {entity && (
-              <p className="rounded-lg bg-stone-50 px-3 py-2 text-[11px] text-stone-500 dark:bg-stone-900/60 dark:text-stone-400">
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
                 {entityLabelOf(entity.key)} · {selected.length} {t("field", "fields")} · {filterRows.length} {t("filter", "filters")}
               </p>
             )}

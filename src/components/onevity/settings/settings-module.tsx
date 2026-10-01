@@ -71,7 +71,7 @@ function LookupPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           {/* categories */}
-          <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="h-fit rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 text-emerald-600" /> Kategori</CardTitle>
             </CardHeader>
@@ -82,10 +82,10 @@ function LookupPage() {
                 return (
                   <button key={c} onClick={() => setCategory(c)} className={cn(
                     "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition",
-                    c === current ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25" : "text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+                    c === current ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                   )}>
                     <span className="flex-1 truncate">{c}</span>
-                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-500")}>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-extrabold", c === current ? "bg-white/20" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500")}>
                       {catItems.length}
                     </span>
                     {inactive > 0 && c === current && <span className="ml-1 text-[9px] opacity-75">{inactive} off</span>}
@@ -96,7 +96,7 @@ function LookupPage() {
           </Card>
 
           {/* entries */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-bold">Entri: {current}</CardTitle>
               <Badge variant="secondary" className="font-mono text-[10px]">{items.length} item</Badge>
@@ -105,7 +105,7 @@ function LookupPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       <TableHead className="text-[11px] font-bold">Label</TableHead>
                       <TableHead className="text-[11px] font-bold">Kode</TableHead>
                       <TableHead className="text-[11px] font-bold">Urutan</TableHead>
@@ -115,17 +115,17 @@ function LookupPage() {
                   </TableHeader>
                   <TableBody>
                     {items.map((l) => (
-                      <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                        <TableCell className={cn("text-[13px] font-semibold", !l.active && "text-stone-400 line-through")}>{l.label}</TableCell>
-                        <TableCell className="font-mono text-[10px] text-stone-400">{l.code}</TableCell>
-                        <TableCell className="text-xs text-stone-500">{l.sortOrder}</TableCell>
+                      <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                        <TableCell className={cn("text-[13px] font-semibold", !l.active && "text-slate-400 line-through")}>{l.label}</TableCell>
+                        <TableCell className="font-mono text-[10px] text-slate-400">{l.code}</TableCell>
+                        <TableCell className="text-xs text-slate-500">{l.sortOrder}</TableCell>
                         <TableCell><Switch checked={l.active} onCheckedChange={() => toggle(l)} aria-label={`Toggle ${l.label}`} /></TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <button onClick={() => setEditing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                            <button onClick={() => setEditing(l)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
+                            <button onClick={() => remove(l)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -198,7 +198,7 @@ function SecurityPage() {
     Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
     "HR Manager": "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400",
     Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
-    Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+    Viewer: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
   };
 
   return (
@@ -212,25 +212,25 @@ function SecurityPage() {
         <LoadingRows rows={5} />
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="users" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+            <TabsTrigger value="users" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <UserCog className="h-3.5 w-3.5" /> Pengguna ({data?.users.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="groups" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="groups" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <Users className="h-3.5 w-3.5" /> Access Group ({data?.groups.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="scheme" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="scheme" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <Lock className="h-3.5 w-3.5" /> Data Scheme
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">Pengguna</TableHead>
                         <TableHead className="text-[11px] font-bold">Username</TableHead>
                         <TableHead className="text-[11px] font-bold">Role</TableHead>
@@ -242,29 +242,29 @@ function SecurityPage() {
                     </TableHeader>
                     <TableBody>
                       {(data?.users ?? []).map((u) => (
-                        <TableRow key={u.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                        <TableRow key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell>
                             <div className="flex items-center gap-2.5">
                               <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400")}>{initials(u.fullName)}</span>
                               <div>
                                 <p className="text-[13px] font-bold">{u.fullName}</p>
-                                <p className="text-[10px] text-stone-400">{u.email ?? "—"}</p>
+                                <p className="text-[10px] text-slate-400">{u.email ?? "—"}</p>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="font-mono text-[11px] font-bold text-stone-500">{u.username}</TableCell>
+                          <TableCell className="font-mono text-[11px] font-bold text-slate-500">{u.username}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn("text-[10px] font-bold", roleTone[u.role] ?? "")}>{u.role}</Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {u.groups.length > 0 ? u.groups.map((g) => <Badge key={g.code} variant="secondary" className="text-[9px]">{g.name}</Badge>) : <span className="text-[10px] text-stone-400">—</span>}
+                              {u.groups.length > 0 ? u.groups.map((g) => <Badge key={g.code} variant="secondary" className="text-[9px]">{g.name}</Badge>) : <span className="text-[10px] text-slate-400">—</span>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-stone-500">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "Belum pernah"}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "Belum pernah"}</TableCell>
                           <TableCell><StatusPill status={u.active ? "Active" : "Cancelled"} /></TableCell>
                           <TableCell>
-                            <button onClick={() => setUserDialog({ open: true, user: u })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit user">
+                            <button onClick={() => setUserDialog({ open: true, user: u })} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit user">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           </TableCell>
@@ -280,7 +280,7 @@ function SecurityPage() {
           <TabsContent value="groups">
             <div className="grid gap-4 lg:grid-cols-2">
               {(data?.groups ?? []).map((g) => (
-                <Card key={g.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+                <Card key={g.id} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -289,29 +289,29 @@ function SecurityPage() {
                         </div>
                         <div>
                           <p className="text-[14px] font-bold">{g.name}</p>
-                          <p className="font-mono text-[10px] text-stone-400">{g.code}</p>
+                          <p className="font-mono text-[10px] text-slate-400">{g.code}</p>
                         </div>
                       </div>
                       <Badge variant="secondary" className="text-[10px]">{g.members.length} anggota</Badge>
                     </div>
-                    {g.description && <p className="mt-2 text-[11px] text-stone-500">{g.description}</p>}
+                    {g.description && <p className="mt-2 text-[11px] text-slate-500">{g.description}</p>}
 
                     {/* permission matrix */}
-                    <div className="mt-4 overflow-x-auto rounded-xl border border-stone-100 dark:border-stone-800">
+                    <div className="mt-4 overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
                       <table className="w-full text-[10px]">
                         <thead>
-                          <tr className="bg-stone-50/80 dark:bg-stone-900/50">
-                            <th className="px-2.5 py-2 text-left font-bold uppercase text-stone-400">Modul</th>
-                            {["Lihat", "Buat", "Edit", "Hapus", "Approve"].map((h) => <th key={h} className="px-1.5 py-2 text-center font-bold uppercase text-stone-400">{h}</th>)}
+                          <tr className="bg-slate-50/80 dark:bg-slate-900/50">
+                            <th className="px-2.5 py-2 text-left font-bold uppercase text-slate-400">Modul</th>
+                            {["Lihat", "Buat", "Edit", "Hapus", "Approve"].map((h) => <th key={h} className="px-1.5 py-2 text-center font-bold uppercase text-slate-400">{h}</th>)}
                           </tr>
                         </thead>
                         <tbody>
                           {g.modules.map((m) => (
-                            <tr key={m.module} className="border-t border-stone-100 dark:border-stone-800">
+                            <tr key={m.module} className="border-t border-slate-100 dark:border-slate-800">
                               <td className="px-2.5 py-2 font-bold">{m.module}</td>
                               {[m.view, m.create, m.edit, m.delete, m.approve].map((ok, i) => (
                                 <td key={i} className="px-1.5 py-2 text-center">
-                                  {ok ? <Eye className="mx-auto h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <EyeOff className="mx-auto h-3.5 w-3.5 text-stone-200 dark:text-stone-700" />}
+                                  {ok ? <Eye className="mx-auto h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <EyeOff className="mx-auto h-3.5 w-3.5 text-slate-200 dark:text-slate-700" />}
                                 </td>
                               ))}
                             </tr>
@@ -324,7 +324,7 @@ function SecurityPage() {
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       {g.members.map((m) => (
                         <span key={m.id} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold",
-                          m.isApprover ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400" : "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400")}>
+                          m.isApprover ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400" : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400")}>
                           {m.fullName}
                           {m.isApprover && <CheckCircle2 className="h-3 w-3" />}
                         </span>
@@ -337,15 +337,15 @@ function SecurityPage() {
           </TabsContent>
 
           <TabsContent value="scheme">
-            <Card className="rounded-2xl border-dashed border-stone-300 bg-stone-50/50 dark:border-stone-700 dark:bg-stone-900/30">
+            <Card className="rounded-2xl border-dashed border-slate-300 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-900/30">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 text-stone-500 dark:bg-stone-800">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800">
                     <KeyRound className="h-5 w-5" />
                   </div>
                   <div>
                     <p className="text-sm font-bold">Data Access Scheme (Ilustrasi)</p>
-                    <p className="text-[11px] text-stone-400">Aturan akses data berbasis struktur organisasi — seperti Scheme Setup OranHR</p>
+                    <p className="text-[11px] text-slate-400">Aturan akses data berbasis struktur organisasi — seperti Scheme Setup OranHR</p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2.5">
@@ -355,9 +355,9 @@ function SecurityPage() {
                     "Approver → akses dokumen PA yang dia approve + data karyawan terkait",
                     "Viewer → read-only direktori tanpa data sensitif (gaji, NIK, rekening)",
                   ].map((rule, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-3.5 dark:border-stone-700 dark:bg-stone-900">
+                    <div key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900">
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">{i + 1}</span>
-                      <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">{rule}</p>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{rule}</p>
                     </div>
                   ))}
                 </div>
@@ -461,11 +461,11 @@ function ApprovalEnginePage() {
         <LoadingRows rows={4} />
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-            <TabsTrigger value="templates" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+            <TabsTrigger value="templates" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <Settings2 className="h-3.5 w-3.5" /> Template ({data?.templates.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="delegations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="delegations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <Clock className="h-3.5 w-3.5" /> Temporary Approver ({data?.delegations.length ?? 0})
             </TabsTrigger>
           </TabsList>
@@ -473,7 +473,7 @@ function ApprovalEnginePage() {
           <TabsContent value="templates">
             <div className="grid gap-4 lg:grid-cols-2">
               {(data?.templates ?? []).map((t) => (
-                <Card key={t.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+                <Card key={t.id} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -482,7 +482,7 @@ function ApprovalEnginePage() {
                         </div>
                         <div>
                           <p className="text-[14px] font-bold">{t.name}</p>
-                          <p className="font-mono text-[10px] text-stone-400">{t.code} · {t.docType}</p>
+                          <p className="font-mono text-[10px] text-slate-400">{t.code} · {t.docType}</p>
                         </div>
                       </div>
                       {t.autoApprove && (
@@ -499,9 +499,9 @@ function ApprovalEnginePage() {
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-extrabold text-emerald-700 ring-2 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:ring-emerald-500/30">
                               {l.layer}
                             </span>
-                            <span className="whitespace-nowrap text-[9.5px] font-bold text-stone-500">{l.role}</span>
+                            <span className="whitespace-nowrap text-[9.5px] font-bold text-slate-500">{l.role}</span>
                           </div>
-                          {i < t.layers.length - 1 && <ArrowRight className="mx-2 h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" />}
+                          {i < t.layers.length - 1 && <ArrowRight className="mx-2 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />}
                         </div>
                       ))}
                     </div>
@@ -514,33 +514,33 @@ function ApprovalEnginePage() {
           <TabsContent value="delegations">
             <div className="grid gap-4 lg:grid-cols-2">
               {(data?.delegations ?? []).map((d) => (
-                <Card key={d.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+                <Card key={d.id} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-[10px]">{d.docType}</Badge>
                       <Badge variant="outline" className={cn("text-[10px] font-bold",
                         d.state === "Aktif" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" :
                         d.state === "Akan Datang" ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400" :
-                        "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-500")}>
+                        "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500")}>
                         {d.state}
                       </Badge>
                     </div>
                     <div className="mt-3 flex items-center gap-3">
                       <div className="min-w-0 text-right">
-                        <p className="truncate text-xs font-bold text-stone-800 dark:text-stone-200">{d.approver.fullName}</p>
-                        <p className="text-[9px] text-stone-400">Approver asli</p>
+                        <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{d.approver.fullName}</p>
+                        <p className="text-[9px] text-slate-400">Approver asli</p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold text-emerald-700 dark:text-emerald-400">{d.delegate.fullName}</p>
-                        <p className="text-[9px] text-stone-400">Delegasi sementara</p>
+                        <p className="text-[9px] text-slate-400">Delegasi sementara</p>
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center gap-2 border-t border-dashed border-stone-100 pt-3 text-[11px] text-stone-500 dark:border-stone-800">
+                    <div className="mt-3 flex items-center gap-2 border-t border-dashed border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800">
                       <Calendar className="h-3.5 w-3.5" />
                       {fmtDate(d.validFrom)} — {fmtDate(d.validTo)}
                     </div>
-                    {d.reason && <p className="mt-1.5 text-[11px] italic text-stone-400">"{d.reason}"</p>}
+                    {d.reason && <p className="mt-1.5 text-[11px] italic text-slate-400">"{d.reason}"</p>}
                   </CardContent>
                 </Card>
               ))}

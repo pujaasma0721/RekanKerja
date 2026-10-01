@@ -2639,3 +2639,27 @@ Stage Summary:
 - RekanKerja kini berisi salinan lengkap OneVity: main d59bfb0 (identik, terverifikasi ls-remote) + ess-rebuild-design 6314a8e; PAT baru terpasang di kedua remote.
 - Sandbox dipulihkan ke-4 kali; root-cause kegagalan watchdog sebelumnya = git file mode 644 — kini fixed permanen di repo (100755).
 - Catatan untuk reset berikutnya: cukup .env + db:generate + PG + restore-demo + migrasi + seed-ess + watch-dev.sh (lihat langkah Work Log di atas).
+
+---
+Task ID: 85
+Agent: Z.ai (orkestrator utama)
+Task: Instruksi push permanen + ganti tema RekanKerja dengan tema repo SayOne-Learning (github.com/pujaasma0721/SayOne-Learning)
+
+Work Log:
+- INSTRUKSI PERMANEN: mulai Task 85, SEMUA perubahan selalu di-push ke repo RekanKerja (github.com/pujaasma0721/RekanKerja). Remote di-swap: origin → RekanKerja; repo lama OneVity disimpan sebagai remote "onevity" (referensi; TIDAK lagi menerima push kecuali diminta).
+- Analisis tema sumber (clone /tmp): SayOne-Learning = keluarga SayOne-Insight — light & clean: bg #F8FAFC · card putih · sidebar putih · primary blue #2563EB · border #E2E8F0 · Inter (ss01/cv01, ls -0.011em) · radius 0.75rem · scrollbar slate (#CBD5E1, hover #94A3B8; dark #3A3F4D) · selection #2563EB · charts blue-led (#3B82F6 #06B6D4 #10B981 #F59E0B #8B5CF6) · dark deep-space (#0F1117 bg, #1A1D27 card, #232634 muted) · token ekstra --surface/--surface-2/--line · auth: split hero gradient from-[#1e3a8a] via-[#1e40af] to-[#2563eb] + panel putih + pill input + CTA biru rounded-full shadow biru.
+- GANTI TEMA (frontend-only, tanpa sentuh logika bisnis):
+  (1) globals.css ditulis ulang: :root/.dark = token SayOne-Learning persis (hex); html color-scheme:light; body font-feature "ss01","cv01" ls -0.011em; ::selection #2563EB; scrollbar slate; --font-sans: var(--font-inter); token --surface/--surface-2/--line baru di @theme inline; Playfair (--font-editorial) PERTAHAN hanya utk dokumen surat resmi (letter preview/print).
+  (2) Modul seragam biru: seluruh blok html[data-module=hr|payroll|attendance|leave|travel|medical|settings] (dulu emerald/amber/teal/cyan/violet/rose/stone per modul) kini SATU palet biru (light: accent #3B82F6 solid #2563EB deep #1D4ED8 ink #1E3A8A soft #EFF6FF mist #DBEAFE border #BFDBFE; dark: accent #60A5FA solid #3B82F6 …) — plumbing --ov-accent-* & @utility ov-fill/ov-tile/ov-hero/dst TIDAK diubah sehingga ribuan komponen halaman ikut biru otomatis.
+  (3) accent-theme.ts: tema "blue" (#2563EB/#3B82F6/#1D4ED8) ditambah opsi pertama + DEFAULT_ACCENT="blue" (was cyan) → --accent-live default biru; pilihan emerald/amber/teal/cyan/violet/rose tetap tersedia di topbar.
+  (4) layout.tsx: Plus_Jakarta_Sans → Inter (--font-inter, 300–800); Playfair dipertahankan khusus --font-editorial surat; viewport themeColor #1C1917 → #2563EB.
+  (5) Netral hangat→dingin app-wide: sed mekanis stone-N → slate-N pada 217 file (11.814 kelas) — kontras skala sama, nol risiko fungsional; sisa stone-N = 0.
+  (6) Auth restyle ala SayOne: auth-screen — hero kiri jadi gradient biru (teks putih, bintang blue-300, divider white/20, stats blue-200/70), UnderlineField → pill field (rounded-2xl border-input bg-surface focus-within:border-primary/60 h-11), OTP slot → rounded-xl border-input, InkButton → CTA biru rounded-full bg-primary shadow rgba(37,99,235,.55) hover #1D4ED8, kartu form bg-card shadow biru lembut, HairlineFrame dihapus dari layar (fungsi dihapus), font-serif/italic editorial dihapus dari semua layar auth; editorial.tsx — EditorialLogo kini variant "hero" (glass white/15 ring-white/25 di gradient) vs default (bg-primary); MarqueeStrip biru (blue-200/80 + diamond blue-300/60); tenant-select — wrapper bg-background, kartu workspace bg-card + hover border-primary/50, chip kode bg-surface; ess-shell — logo box bg-primary (was slate-900), aksen Vity amber → brand (biru).
+  (7) Wrapper ivory → token: bg-[#faf8f3] di page.tsx/auth-gate/ess-shell → bg-background; sisa #faf8f3 = 0.
+  (8) Aset: public/logo.svg fill #2D2D2D → #2563EB; manifest.webmanifest theme_color #2563EB, background_color #F8FAFC.
+- VERIFIKASI: tsc 0 error file tersentuh; lint 0 error (2 warning pre-existing); dev.log 0 error (1× Fast Refresh full reload wajar saat mass-edit). Browser E2E + VLM screenshot: halaman login = hero gradient biru + panel putih + input pill + CTA biru (computed: bg #f8fafc, primary/accent-live #2563eb, font Inter, gradient rgb(30,58,138)→rgb(37,99,235), input radius 16px) ✓; workspace picker biru ✓; HR dashboard (data-module=hr) --ov-accent/--primary/--chart-1 = #2563eb, VLM: "konsisten tema biru bersih, aksen royal blue" (badge amber = notifikasi semantik, disengaja) ✓; dark token #0f1117/#2563eb ✓; mobile 390px ✓; 0 page error.
+
+Stage Summary:
+- Tema RekanKerja resmi berganti dari "Ivory Editorial" (emerald+stone+serif) → tema SayOne-Learning (biru #2563EB + slate + Inter + gradient hero auth + pill input) — 218 file berubah, aplikasi tampil seragam biru di semua modul.
+- Remote utama kini RekanKerja (origin); OneVity jadi remote sekunder "onevity" tanpa push.
+- Fitur fungsional (guard, RBAC, eSign, dll) tidak tersentuh — perubahan murni lapisan presentasi.

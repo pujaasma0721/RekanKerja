@@ -83,7 +83,7 @@ export function LetterPreviewDialog({
         {loading ? (
           <div className="flex flex-col items-center gap-3 py-16">
             <Loader2 className="h-7 w-7 animate-spin ov-text-accent" aria-hidden />
-            <p className="text-xs font-semibold text-stone-500 dark:text-stone-400">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               {t("Menyiapkan surat…", "Preparing the letter…")}
             </p>
           </div>
@@ -98,22 +98,22 @@ export function LetterPreviewDialog({
         ) : letter ? (
           <>
             {/* kartu meta: refNo + template + karyawan + tanggal terbit */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 dark:border-stone-700/70 dark:bg-stone-800/40">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/40">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-full bg-stone-900 px-2.5 font-mono text-[10px] font-bold text-white hover:bg-stone-900 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-100">
+                <Badge className="rounded-full bg-slate-900 px-2.5 font-mono text-[10px] font-bold text-white hover:bg-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-100">
                   {letter.refNo}
                 </Badge>
-                <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{letter.templateName}</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{letter.templateName}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500 dark:text-stone-400">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1"><User className="h-3 w-3" aria-hidden /> {letter.employeeName}</span>
                 <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" aria-hidden /> {fmtDate(letter.issuedAt)}</span>
               </div>
             </div>
 
             {/* kertas surat — snapshot body hasil render */}
-            <div className="max-h-[65vh] overflow-y-auto rounded-xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700">
-              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-stone-800">
+            <div className="max-h-[65vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700">
+              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-slate-800">
                 {letter.body}
               </div>
             </div>

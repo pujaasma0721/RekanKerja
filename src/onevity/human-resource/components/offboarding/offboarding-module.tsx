@@ -98,11 +98,11 @@ function ObStatusPill({ status, className }: { status: string; className?: strin
     },
     Cancelled: {
       label: "Dibatalkan", en: "Cancelled",
-      cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
-      dot: "bg-stone-400",
+      cls: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
+      dot: "bg-slate-400",
     },
   };
-  const s = map[status] ?? { label: status, en: status, cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25", dot: "bg-stone-400" };
+  const s = map[status] ?? { label: status, en: status, cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25", dot: "bg-slate-400" };
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap", s.cls, className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
@@ -122,9 +122,9 @@ const OWNER_CLS: Record<string, string> = {
 };
 const OWNERS = ["Supervisor", "IT", "Finance", "HR", "GA", "Payroll"];
 function OwnerChip({ owner }: { owner: string | null }) {
-  if (!owner) return <span className="text-[10px] text-stone-400">—</span>;
+  if (!owner) return <span className="text-[10px] text-slate-400">—</span>;
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-2 py-px text-[10px] font-bold", OWNER_CLS[owner] ?? "bg-stone-50 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25")}>
+    <span className={cn("inline-flex items-center rounded-full border px-2 py-px text-[10px] font-bold", OWNER_CLS[owner] ?? "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25")}>
       {owner}
     </span>
   );
@@ -185,15 +185,15 @@ function OffboardingList() {
         {statCards.map(([st, label, labelEn, val]) => (
           <button key={st} onClick={() => setStatus(status === st ? "all" : st)} className={cn(
             "rounded-2xl border p-3.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
-            status === st ? "ov-border-accent ov-soft" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900",
+            status === st ? "ov-border-accent ov-soft" : "border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
           )}>
-            <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{t(label, labelEn)}</p>
-            <p className="mt-0.5 text-xl font-extrabold text-stone-900 dark:text-stone-50">{val}</p>
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t(label, labelEn)}</p>
+            <p className="mt-0.5 text-xl font-extrabold text-slate-900 dark:text-slate-50">{val}</p>
           </button>
         ))}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
@@ -201,7 +201,7 @@ function OffboardingList() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <ServerSortHead label={t("Karyawan", "Employee")} active={offSortKey === "employee"} dir={offSortDir} onClick={() => clickSortOff("employee")} className="min-w-40 text-[11px] font-bold" />
                     <ServerSortHead label={t("Posisi & Unit", "Position & Unit")} active={offSortKey === "position"} dir={offSortDir} onClick={() => clickSortOff("position")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Hari Terakhir", "Last Day")} active={offSortKey === "lastDay"} dir={offSortDir} onClick={() => clickSortOff("lastDay")} className="text-[11px] font-bold" />
@@ -215,21 +215,21 @@ function OffboardingList() {
                     const pct = r.taskStats.total > 0 ? (r.taskStats.done / r.taskStats.total) * 100 : 0;
                     const allDone = r.taskStats.total > 0 && r.taskStats.done === r.taskStats.total;
                     return (
-                      <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("employee", "offboarding", { id: r.id })}>
+                      <TableRow key={r.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => navigate("employee", "offboarding", { id: r.id })}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(r.employee.fullName))}>{initials(r.employee.fullName)}</span>
                             <div className="min-w-0">
                               <p className="truncate text-xs font-bold">{r.employee.fullName}</p>
-                              <p className="truncate font-mono text-[10px] text-stone-400">{r.employee.employeeNo}</p>
+                              <p className="truncate font-mono text-[10px] text-slate-400">{r.employee.employeeNo}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <p className="text-xs text-stone-600 dark:text-stone-300">{r.employee.position?.title ?? "—"}</p>
-                          <p className="text-[10px] text-stone-400">{r.employee.orgUnit?.name ?? "—"}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">{r.employee.position?.title ?? "—"}</p>
+                          <p className="text-[10px] text-slate-400">{r.employee.orgUnit?.name ?? "—"}</p>
                         </TableCell>
-                        <TableCell className="text-xs text-stone-500">{fmtDate(r.lastDay)}</TableCell>
+                        <TableCell className="text-xs text-slate-500">{fmtDate(r.lastDay)}</TableCell>
                         <TableCell>
                           {r.sourcePA ? (
                             <button
@@ -240,13 +240,13 @@ function OffboardingList() {
                               {r.sourcePA.docNo}
                             </button>
                           ) : (
-                            <span className="text-[11px] text-stone-400">{t("Manual", "Manual")}</span>
+                            <span className="text-[11px] text-slate-400">{t("Manual", "Manual")}</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Progress value={pct} className="h-1.5 w-20 [&>div]:ov-chart" />
-                            <span className="text-[10px] font-bold tabular-nums text-stone-500">{r.taskStats.done}/{r.taskStats.total}</span>
+                            <span className="text-[10px] font-bold tabular-nums text-slate-500">{r.taskStats.done}/{r.taskStats.total}</span>
                             {allDone && <CheckCircle2 className="h-3.5 w-3.5 text-brand" />}
                           </div>
                         </TableCell>
@@ -339,7 +339,7 @@ function CreateOffboardingDialog({ open, setOpen, onCreated }: {
             <Label className="text-xs">{t("Alasan keluar", "Exit reason")}</Label>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5 min-h-20" placeholder={t("cth: pengunduran diri — peluang karier lain", "e.g.: resignation — other career opportunity")} />
           </div>
-          <p className="rounded-xl bg-stone-50 p-3 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+          <p className="rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
             {t(
               "Checklist clearance bawaan (9 tugas: handover, aset IT, akses sistem, clearance keuangan, BPJS, exit interview, settlement, arsip) akan dibuat otomatis — ditambah tugas pengembalian aset bila karyawan masih memegang aset perusahaan.",
               "A default clearance checklist (9 tasks: handover, IT assets, system access, financial clearance, BPJS, exit interview, settlement, archiving) will be created automatically — plus an asset return task if the employee still holds company assets.",
@@ -479,8 +479,8 @@ function OffboardingDetail({ id }: { id: string }) {
       </button>
 
       {/* ===== kartu ringkasan karyawan ===== */}
-      <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
-        <div className={cn("h-1.5", ob.status === "Completed" ? "bg-brand" : ob.status === "Cancelled" ? "bg-stone-300" : "bg-amber-400")} />
+      <Card className="mb-4 overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+        <div className={cn("h-1.5", ob.status === "Completed" ? "bg-brand" : ob.status === "Cancelled" ? "bg-slate-300" : "bg-amber-400")} />
         <CardContent className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -488,18 +488,18 @@ function OffboardingDetail({ id }: { id: string }) {
                 <ObStatusPill status={ob.status} />
                 <Badge variant="outline" className="text-[10px] font-bold">{t("Offboarding", "Offboarding")}</Badge>
               </div>
-              <h1 className="mt-2 text-lg font-extrabold text-stone-900 dark:text-stone-50">{ob.employee.fullName}</h1>
-              <p className="text-xs text-stone-500">{ob.employee.position?.title ?? "—"} · {ob.employee.orgUnit?.name ?? "—"} · <span className="font-mono">{ob.employee.employeeNo}</span></p>
+              <h1 className="mt-2 text-lg font-extrabold text-slate-900 dark:text-slate-50">{ob.employee.fullName}</h1>
+              <p className="text-xs text-slate-500">{ob.employee.position?.title ?? "—"} · {ob.employee.orgUnit?.name ?? "—"} · <span className="font-mono">{ob.employee.employeeNo}</span></p>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <StatusPill status={ob.employee.status} />
                 <Badge variant="secondary" className="text-[10px]">{t("Bergabung {date}", "Joined {date}", { date: fmtDate(ob.employee.joinDate) })}</Badge>
                 <Badge variant="secondary" className="text-[10px]">{t("Masa kerja {t}", "Tenure {t}", { t: tenure(ob.employee.joinDate) })}</Badge>
                 {ob.employee.grade && <Badge variant="outline" className="text-[10px]">{t("Grade {code}", "Grade {code}", { code: ob.employee.grade.code })}</Badge>}
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-[11px] text-stone-500">
-                <span><b className="text-stone-700 dark:text-stone-300">{t("Hari terakhir:", "Last day:")}</b> {fmtDate(ob.lastDay)}</span>
-                <span><b className="text-stone-700 dark:text-stone-300">{t("Dibuat:", "Created:")}</b> {fmtDateTime(ob.createdAt)}</span>
-                {ob.completedAt && <span><b className="text-stone-700 dark:text-stone-300">{t("Selesai:", "Completed:")}</b> {fmtDateTime(ob.completedAt)}</span>}
+              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-[11px] text-slate-500">
+                <span><b className="text-slate-700 dark:text-slate-300">{t("Hari terakhir:", "Last day:")}</b> {fmtDate(ob.lastDay)}</span>
+                <span><b className="text-slate-700 dark:text-slate-300">{t("Dibuat:", "Created:")}</b> {fmtDateTime(ob.createdAt)}</span>
+                {ob.completedAt && <span><b className="text-slate-700 dark:text-slate-300">{t("Selesai:", "Completed:")}</b> {fmtDateTime(ob.completedAt)}</span>}
               </div>
             </div>
             <div className={cn("flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold", avatarColor(ob.employee.fullName))}>
@@ -507,9 +507,9 @@ function OffboardingDetail({ id }: { id: string }) {
             </div>
           </div>
           {ob.reason && (
-            <div className="mt-4 rounded-xl border border-stone-100 bg-stone-50 p-3.5 dark:border-stone-800 dark:bg-stone-900">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Alasan Keluar", "Exit Reason")}</p>
-              <p className="mt-0.5 text-sm italic text-stone-700 dark:text-stone-300">"{ob.reason}"</p>
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-900">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Alasan Keluar", "Exit Reason")}</p>
+              <p className="mt-0.5 text-sm italic text-slate-700 dark:text-slate-300">"{ob.reason}"</p>
             </div>
           )}
         </CardContent>
@@ -537,10 +537,10 @@ function OffboardingDetail({ id }: { id: string }) {
         </Card>
       )}
       {ob.status === "Cancelled" && (
-        <Card className="mb-4 rounded-2xl border-stone-200 bg-stone-50 shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
+        <Card className="mb-4 rounded-2xl border-slate-200 bg-slate-50 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
-            <Ban className="h-5 w-5 shrink-0 text-stone-400" />
-            <p className="flex-1 text-[13px] font-bold text-stone-600 dark:text-stone-400">
+            <Ban className="h-5 w-5 shrink-0 text-slate-400" />
+            <p className="flex-1 text-[13px] font-bold text-slate-600 dark:text-slate-400">
               {t("Proses offboarding dibatalkan — tidak aktif", "Offboarding process cancelled — inactive")}
             </p>
           </CardContent>
@@ -550,18 +550,18 @@ function OffboardingDetail({ id }: { id: string }) {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* ===== kolom kiri: checklist + exit interview ===== */}
         <div className="space-y-4 lg:col-span-2">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <ClipboardCheck className="h-4 w-4 ov-text-accent" />
                   {t("Checklist Clearance ({done}/{total} selesai)", "Clearance Checklist ({done}/{total} done)", { done: done + na, total })}
                 </CardTitle>
-                <span className="text-[11px] font-bold text-stone-400">{t("{n} N/A", "{n} N/A", { n: na })}</span>
+                <span className="text-[11px] font-bold text-slate-400">{t("{n} N/A", "{n} N/A", { n: na })}</span>
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <Progress value={pct} className="h-2 flex-1 [&>div]:ov-chart" />
-                <span className="text-[11px] font-bold tabular-nums text-stone-500">{done + na}/{total}</span>
+                <span className="text-[11px] font-bold tabular-nums text-slate-500">{done + na}/{total}</span>
               </div>
             </CardHeader>
             <CardContent className="space-y-1.5 pt-0">
@@ -573,24 +573,24 @@ function OffboardingDetail({ id }: { id: string }) {
                   className={cn(
                     "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
                     task.status === "Done" ? "border-brand/25 bg-brand/10/50 dark:border-brand/25 dark:bg-brand/5" :
-                    task.status === "Na" ? "border-stone-200 bg-stone-50/70 dark:border-stone-800 dark:bg-stone-900/40" :
-                    "border-stone-100 bg-white dark:border-stone-800 dark:bg-stone-900",
+                    task.status === "Na" ? "border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40" :
+                    "border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900",
                   )}
                 >
                   <span className={cn(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold tabular-nums",
                     task.status === "Done" ? "bg-brand/15 text-brand-deep dark:bg-brand/20 dark:text-brand/85" :
-                    task.status === "Na" ? "bg-stone-100 text-stone-400 dark:bg-stone-800" :
+                    task.status === "Na" ? "bg-slate-100 text-slate-400 dark:bg-slate-800" :
                     "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
                   )}>
                     {task.seq}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className={cn("text-[13px] font-semibold", task.status === "Na" ? "text-stone-400 line-through" : "text-stone-800 dark:text-stone-200")}>{task.title}</p>
+                      <p className={cn("text-[13px] font-semibold", task.status === "Na" ? "text-slate-400 line-through" : "text-slate-800 dark:text-slate-200")}>{task.title}</p>
                       <OwnerChip owner={task.owner} />
                     </div>
-                    {task.notes && <p className="mt-0.5 text-[11px] italic text-stone-500">"{task.notes}"</p>}
+                    {task.notes && <p className="mt-0.5 text-[11px] italic text-slate-500">"{task.notes}"</p>}
                     {task.status === "Done" && (
                       <p className="mt-0.5 text-[10px] text-brand dark:text-brand/85">
                         <CheckCircle2 className="mr-1 inline h-3 w-3" />
@@ -614,7 +614,7 @@ function OffboardingDetail({ id }: { id: string }) {
                       disabled={!canUpdate || busy}
                       onClick={() => void setTaskStatus(task, task.status === "Na" ? "Pending" : "Na")}
                       title={t("Tandai tidak relevan", "Mark as not applicable")}
-                      className={cn("h-7 gap-1 px-2 text-[11px] font-bold", task.status === "Na" && "border-stone-300 bg-stone-100 text-stone-500 dark:bg-stone-800")}
+                      className={cn("h-7 gap-1 px-2 text-[11px] font-bold", task.status === "Na" && "border-slate-300 bg-slate-100 text-slate-500 dark:bg-slate-800")}
                     >
                       <Minus className="h-3.5 w-3.5" /> N/A
                     </Button>
@@ -624,7 +624,7 @@ function OffboardingDetail({ id }: { id: string }) {
                         disabled={!canUpdate || busy}
                         onClick={() => void setTaskStatus(task, "Pending")}
                         title={t("Kembalikan ke pending", "Reset to pending")}
-                        className="h-7 w-7 px-0 text-stone-400 hover:text-amber-600"
+                        className="h-7 w-7 px-0 text-slate-400 hover:text-amber-600"
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
@@ -634,7 +634,7 @@ function OffboardingDetail({ id }: { id: string }) {
                       disabled={!canUpdate || busy}
                       onClick={() => setNoteEdit({ taskId: task.id, title: task.title, status: task.status, notes: task.notes ?? "" })}
                       title={t("Catatan tugas", "Task note")}
-                      className="h-7 w-7 px-0 text-stone-400 hover:ov-text-accent"
+                      className="h-7 w-7 px-0 text-slate-400 hover:ov-text-accent"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -643,7 +643,7 @@ function OffboardingDetail({ id }: { id: string }) {
                         size="sm" variant="ghost"
                         onClick={() => void removeTask(task)}
                         title={t("Hapus tugas", "Remove task")}
-                        className="h-7 w-7 px-0 text-stone-400 hover:text-rose-500"
+                        className="h-7 w-7 px-0 text-slate-400 hover:text-rose-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -654,7 +654,7 @@ function OffboardingDetail({ id }: { id: string }) {
 
               {/* tambah tugas inline */}
               {canUpdate && (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-stone-300 p-2.5 dark:border-stone-700">
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-300 p-2.5 dark:border-slate-700">
                   <Input
                     value={newTask}
                     onChange={(e) => setNewTask(e.target.value)}
@@ -681,7 +681,7 @@ function OffboardingDetail({ id }: { id: string }) {
             "rounded-2xl shadow-sm",
             (ob.outstandingAssets?.length ?? 0) > 0
               ? "border-amber-200 dark:border-amber-500/25"
-              : "border-stone-200/80 dark:border-stone-800",
+              : "border-slate-200/80 dark:border-slate-800",
           )}>
             <CardHeader className="pb-3">
               <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
@@ -708,17 +708,17 @@ function OffboardingDetail({ id }: { id: string }) {
                   return (
                     <div
                       key={a.id}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-100 bg-white p-3 dark:border-stone-800 dark:bg-stone-900"
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
                     >
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
                         <Package className="h-4 w-4" aria-hidden />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.asset.name}</p>
-                          <span className="font-mono text-[10px] font-bold text-stone-400">{a.asset.code}</span>
+                          <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{a.asset.name}</p>
+                          <span className="font-mono text-[10px] font-bold text-slate-400">{a.asset.code}</span>
                           {a.asset.serialNumber && (
-                            <span className="font-mono text-[9px] text-stone-400">SN {a.asset.serialNumber}</span>
+                            <span className="font-mono text-[9px] text-slate-400">SN {a.asset.serialNumber}</span>
                           )}
                           {overdue && (
                             <Badge variant="outline" className="border-rose-200 bg-rose-50 text-[9px] font-bold text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400">
@@ -726,11 +726,11 @@ function OffboardingDetail({ id }: { id: string }) {
                             </Badge>
                           )}
                         </div>
-                        <p className="mt-0.5 text-[10.5px] text-stone-400">
+                        <p className="mt-0.5 text-[10.5px] text-slate-400">
                           {t("Dipegang sejak {date}", "Held since {date}", { date: fmtDate(a.assignedAt) })}
                           {a.dueAt ? ` · ${t("jatuh tempo", "due")} ${fmtDate(a.dueAt)}` : ""}
                         </p>
-                        {a.notes && <p className="mt-0.5 line-clamp-1 text-[10.5px] italic text-stone-400">"{a.notes}"</p>}
+                        {a.notes && <p className="mt-0.5 line-clamp-1 text-[10.5px] italic text-slate-400">"{a.notes}"</p>}
                       </div>
                       {perms.canOp("hr", "assets", "return") && (
                         <Button
@@ -747,7 +747,7 @@ function OffboardingDetail({ id }: { id: string }) {
                 })
               )}
               {(ob.outstandingAssets?.length ?? 0) > 0 && (
-                <p className="pt-1 text-[10.5px] leading-relaxed text-stone-400">
+                <p className="pt-1 text-[10.5px] leading-relaxed text-slate-400">
                   {t(
                     "Pengembalian di sini mencatat kondisi aset (Baik/Rusak/Hilang) dan memperbarui status inventaris — riwayat tetap tersimpan di modul Aset Karyawan.",
                     "Returning here records the asset condition (Good/Damaged/Lost) and updates the inventory status — history stays in the Employee Assets module.",
@@ -758,7 +758,7 @@ function OffboardingDetail({ id }: { id: string }) {
           </Card>
 
           {/* ===== exit interview ===== */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-3">
               <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-bold">
                 <MessageSquareText className="h-4 w-4 ov-text-accent" /> {t("Exit Interview", "Exit Interview")}
@@ -774,12 +774,12 @@ function OffboardingDetail({ id }: { id: string }) {
                   <InterviewRow label={t("Rencana berikutnya", "Next plan")} value={ob.exitInterview.nextPlan} />
                   <InterviewRow label={t("Umpan balik untuk perusahaan", "Feedback for the company")} value={ob.exitInterview.feedback} />
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Kepuasan bekerja di perusahaan", "Satisfaction working at the company")}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Kepuasan bekerja di perusahaan", "Satisfaction working at the company")}</p>
                     <div className="mt-1 flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((n) => (
-                        <Star key={n} className={cn("h-4 w-4", (ob.exitInterview?.satisfaction ?? 0) >= n ? "fill-amber-400 text-amber-500" : "text-stone-300 dark:text-stone-600")} />
+                        <Star key={n} className={cn("h-4 w-4", (ob.exitInterview?.satisfaction ?? 0) >= n ? "fill-amber-400 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
                       ))}
-                      <span className="ml-1.5 text-[11px] font-bold tabular-nums text-stone-500">{ob.exitInterview?.satisfaction ?? "—"}/5</span>
+                      <span className="ml-1.5 text-[11px] font-bold tabular-nums text-slate-500">{ob.exitInterview?.satisfaction ?? "—"}/5</span>
                     </div>
                   </div>
                   <InterviewRow label={t("Catatan HR", "HR notes")} value={ob.exitInterview.notes} />
@@ -792,7 +792,7 @@ function OffboardingDetail({ id }: { id: string }) {
               ) : canUpdate ? (
                 <InterviewForm initial={ob.exitInterview} busy={busy} onSubmit={saveInterview} onCancel={ob.exitInterview ? () => setIvEdit(false) : undefined} />
               ) : (
-                <p className="text-xs text-stone-400">{t("Exit interview belum dilakukan.", "Exit interview has not been conducted yet.")}</p>
+                <p className="text-xs text-slate-400">{t("Exit interview belum dilakukan.", "Exit interview has not been conducted yet.")}</p>
               )}
             </CardContent>
           </Card>
@@ -800,7 +800,7 @@ function OffboardingDetail({ id }: { id: string }) {
 
         {/* ===== kolom kanan: dokumen sumber + aksi ===== */}
         <div className="space-y-4">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><FileText className="h-4 w-4 ov-text-accent" /> {t("Dokumen Sumber", "Source Document")}</CardTitle>
             </CardHeader>
@@ -808,11 +808,11 @@ function OffboardingDetail({ id }: { id: string }) {
               {ob.sourcePA ? (
                 <div className="space-y-2.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-mono text-[13px] font-extrabold text-stone-600 dark:text-stone-300">{ob.sourcePA.docNo}</p>
+                    <p className="font-mono text-[13px] font-extrabold text-slate-600 dark:text-slate-300">{ob.sourcePA.docNo}</p>
                     <Badge variant="outline" className="text-[10px] font-bold">{paTypeLabelSafe(ob.sourcePA.type)}</Badge>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-500">
-                    <span><b className="text-stone-700 dark:text-stone-300">{t("Efektif:", "Effective:")}</b> {fmtDate(ob.sourcePA.effectiveDate)}</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                    <span><b className="text-slate-700 dark:text-slate-300">{t("Efektif:", "Effective:")}</b> {fmtDate(ob.sourcePA.effectiveDate)}</span>
                     <StatusPill status={ob.sourcePA.status} />
                   </div>
                   <Button size="sm" variant="outline" onClick={() => navigate("actions", "all", { id: ob.sourcePA!.id })} className="w-full gap-1.5 text-[11px] font-bold">
@@ -820,20 +820,20 @@ function OffboardingDetail({ id }: { id: string }) {
                   </Button>
                 </div>
               ) : (
-                <p className="text-xs text-stone-400">{t("Dibuat manual — tidak terhubung dokumen pengajuan.", "Created manually — not linked to a request document.")}</p>
+                <p className="text-xs text-slate-400">{t("Dibuat manual — tidak terhubung dokumen pengajuan.", "Created manually — not linked to a request document.")}</p>
               )}
             </CardContent>
           </Card>
 
-          <Card className="sticky top-20 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="sticky top-20 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><LogOut className="h-4 w-4 ov-text-accent" /> {t("Penyelesaian Proses", "Process Completion")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
               <div>
                 <div className="mb-1.5 flex justify-between text-[11px] font-bold">
-                  <span className="text-stone-400">{t("Progress Clearance", "Clearance Progress")}</span>
-                  <span className="text-stone-600 dark:text-stone-400">{done + na}/{total} {t("tuntas", "done")}</span>
+                  <span className="text-slate-400">{t("Progress Clearance", "Clearance Progress")}</span>
+                  <span className="text-slate-600 dark:text-slate-400">{done + na}/{total} {t("tuntas", "done")}</span>
                 </div>
                 <Progress value={pct} className="h-2 [&>div]:ov-chart" />
               </div>
@@ -867,7 +867,7 @@ function OffboardingDetail({ id }: { id: string }) {
                 <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
                   <CheckCircle2 className="mx-auto h-7 w-7 text-brand dark:text-brand/85" />
                   <p className="mt-1 text-[13px] font-bold text-brand-deep dark:text-brand/75">{t("Proses Selesai", "Process Completed")}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">{t("Ditutup {date}", "Closed {date}", { date: fmtDateTime(ob.completedAt) })}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{t("Ditutup {date}", "Closed {date}", { date: fmtDateTime(ob.completedAt) })}</p>
                 </div>
               )}
 
@@ -910,7 +910,7 @@ function OffboardingDetail({ id }: { id: string }) {
           </DialogHeader>
           {noteEdit && (
             <>
-              <p className="rounded-xl bg-stone-50 p-3 text-[13px] font-semibold dark:bg-stone-900">{noteEdit.title}</p>
+              <p className="rounded-xl bg-slate-50 p-3 text-[13px] font-semibold dark:bg-slate-900">{noteEdit.title}</p>
               <div>
                 <Label className="text-xs">{t("Catatan pengerjaan (opsional)", "Execution note (optional)")}</Label>
                 <Textarea
@@ -962,7 +962,7 @@ function OffboardingDetail({ id }: { id: string }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base"><Ban className="h-4 w-4 text-rose-500" /> {t("Batalkan Proses Offboarding?", "Cancel Offboarding Process?")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-slate-500">
             {t("Checklist & exit interview tidak akan bisa dilanjutkan. Gunakan bila pengajuan keluar dibatalkan atau proses dibuat keliru.", "The checklist & exit interview can no longer be continued. Use this if the exit request was cancelled or the process was created by mistake.")}
           </p>
           <div>
@@ -998,8 +998,8 @@ function OffboardingDetail({ id }: { id: string }) {
 function InterviewRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-      <p className="mt-0.5 whitespace-pre-wrap text-[13px] font-medium text-stone-800 dark:text-stone-200">{value || "—"}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-0.5 whitespace-pre-wrap text-[13px] font-medium text-slate-800 dark:text-slate-200">{value || "—"}</p>
     </div>
   );
 }
@@ -1043,10 +1043,10 @@ function InterviewForm({ initial, busy, onSubmit, onCancel }: {
               aria-label={t("Skor {n}", "Score {n}", { n })}
               className={cn("rounded-lg p-1 transition-transform hover:scale-110", satisfaction === n && "scale-110")}
             >
-              <Star className={cn("h-6 w-6", satisfaction >= n ? "fill-amber-400 text-amber-500" : "text-stone-300 dark:text-stone-600")} />
+              <Star className={cn("h-6 w-6", satisfaction >= n ? "fill-amber-400 text-amber-500" : "text-slate-300 dark:text-slate-600")} />
             </button>
           ))}
-          <span className="ml-1 text-[11px] font-bold tabular-nums text-stone-500">{satisfaction}/5</span>
+          <span className="ml-1 text-[11px] font-bold tabular-nums text-slate-500">{satisfaction}/5</span>
         </div>
       </div>
       <div>

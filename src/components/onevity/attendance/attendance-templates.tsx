@@ -31,14 +31,14 @@ export function AttendanceTemplatesPage() {
         description="Master tipe hari (jam kerja + toleransi), jadwal cycle rotasi, dan pengaturan perhitungan absensi"
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="day-types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+        <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsTrigger value="day-types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
             <Palette className="h-3.5 w-3.5" /> Tipe Hari
           </TabsTrigger>
-          <TabsTrigger value="schedules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="schedules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
             <CalendarClock className="h-3.5 w-3.5" /> Jadwal Cycle
           </TabsTrigger>
-          <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="rules" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
             <Settings2 className="h-3.5 w-3.5" /> Pengaturan
           </TabsTrigger>
         </TabsList>
@@ -118,12 +118,12 @@ function DayTypesTab() {
   const dayTypes = api.data?.dayTypes ?? [];
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="p-0">
-        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
           <div>
             <p className="text-[13px] font-bold">Master Tipe Hari</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Day Type — jam kerja, istirahat, toleransi telat/pulang cepat</p>
+            <p className="text-[11px] text-slate-400">Padanan oranHR Day Type — jam kerja, istirahat, toleransi telat/pulang cepat</p>
           </div>
           <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-3.5 w-3.5" /> Tipe Hari
@@ -135,7 +135,7 @@ function DayTypesTab() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   <TableHead className="text-[11px] font-bold">Tipe Hari</TableHead>
                   <TableHead className="text-[11px] font-bold">Jam Kerja</TableHead>
                   <TableHead className="text-[11px] font-bold">Istirahat</TableHead>
@@ -148,30 +148,30 @@ function DayTypesTab() {
               </TableHeader>
               <TableBody>
                 {dayTypes.map((d) => (
-                  <TableRow key={d.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                  <TableRow key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="h-6 w-2.5 shrink-0 rounded-full border border-stone-300/60 dark:border-stone-700" style={{ backgroundColor: d.color }} />
+                        <span className="h-6 w-2.5 shrink-0 rounded-full border border-slate-300/60 dark:border-slate-700" style={{ backgroundColor: d.color }} />
                         <div className="min-w-0">
-                          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{d.code}</p>
-                          <p className="truncate text-[11px] text-stone-400">{d.name}</p>
+                          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{d.code}</p>
+                          <p className="truncate text-[11px] text-slate-400">{d.name}</p>
                         </div>
                         {d.flexible && <Badge variant="outline" className="text-[9px] font-bold">FLEKSIBEL</Badge>}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-stone-600 dark:text-stone-300">
+                    <TableCell className="text-xs text-slate-600 dark:text-slate-300">
                       {d.timeIn ? `${d.timeIn}–${d.timeOut}${d.nextDay ? " +1" : ""}` : "—"}
                     </TableCell>
-                    <TableCell className="text-xs text-stone-600 dark:text-stone-300">
+                    <TableCell className="text-xs text-slate-600 dark:text-slate-300">
                       {d.breakMinutes > 0 ? `${d.breakMinutes} mnt${d.breakPaid ? " (dibayar)" : ""}` : "—"}
                     </TableCell>
                     <TableCell className="text-xs font-semibold">{d.normalMinutes > 0 ? `${(d.normalMinutes / 60).toLocaleString("id-ID")} jam` : "—"}</TableCell>
-                    <TableCell className="text-xs text-stone-500">±{d.toleranceLateMinutes}/±{d.toleranceEarlyMinutes} mnt</TableCell>
+                    <TableCell className="text-xs text-slate-500">±{d.toleranceLateMinutes}/±{d.toleranceEarlyMinutes} mnt</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn(
                         "text-[10px] font-bold",
                         d.category === "Workday" && "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-400",
-                        d.category === "Off" && "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+                        d.category === "Off" && "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
                         d.category === "Holiday" && "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
                       )}>{DAY_CATEGORY_LABEL[d.category] ?? d.category}</Badge>
                     </TableCell>
@@ -182,7 +182,7 @@ function DayTypesTab() {
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(d)} aria-label="Edit tipe hari">
-                        <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                        <Pencil className="h-3.5 w-3.5 text-slate-400" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -226,7 +226,7 @@ function DayTypesTab() {
                 <Label className="text-xs font-bold">Warna</Label>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {PRESET_COLORS.map((c) => (
-                    <button key={c} type="button" onClick={() => setForm({ ...form, color: c })} className={cn("h-6 w-6 rounded-full border-2", form.color === c ? "border-stone-800 dark:border-stone-200" : "border-transparent")} style={{ backgroundColor: c }} aria-label={`Pilih warna ${c}`} />
+                    <button key={c} type="button" onClick={() => setForm({ ...form, color: c })} className={cn("h-6 w-6 rounded-full border-2", form.color === c ? "border-slate-800 dark:border-slate-200" : "border-transparent")} style={{ backgroundColor: c }} aria-label={`Pilih warna ${c}`} />
                   ))}
                 </div>
               </div>
@@ -256,7 +256,7 @@ function DayTypesTab() {
                     <Label className="text-xs font-bold">Toleransi telat / pulang cepat</Label>
                     <div className="flex items-center gap-1.5">
                       <Input type="number" min={0} max={120} value={form.toleranceLateMinutes} onChange={(e) => setForm({ ...form, toleranceLateMinutes: e.target.value })} className="text-sm" />
-                      <span className="text-xs text-stone-400">/</span>
+                      <span className="text-xs text-slate-400">/</span>
                       <Input type="number" min={0} max={120} value={form.toleranceEarlyMinutes} onChange={(e) => setForm({ ...form, toleranceEarlyMinutes: e.target.value })} className="text-sm" />
                     </div>
                   </div>
@@ -337,12 +337,12 @@ function SchedulesTab() {
   const schedules = api.data?.schedules ?? [];
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="p-0">
-        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
           <div>
             <p className="text-[13px] font-bold">Jadwal Cycle (Rotasi)</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Work Schedule — urutan day type per cycle (umumnya 7 hari)</p>
+            <p className="text-[11px] text-slate-400">Padanan oranHR Work Schedule — urutan day type per cycle (umumnya 7 hari)</p>
           </div>
           <Button onClick={openCreate} size="sm" className="gap-1.5 bg-emerald-600 font-bold hover:bg-emerald-700">
             <Plus className="h-3.5 w-3.5" /> Jadwal
@@ -351,7 +351,7 @@ function SchedulesTab() {
         {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={4} /></div> : schedules.length === 0 ? (
           <div className="p-5"><EmptyState title="Belum ada jadwal" description="Buat jadwal cycle — mis. kantor Senin–Jumat atau rotasi 3 regu produksi." /></div>
         ) : (
-          <div className="divide-y divide-stone-100 dark:divide-stone-800">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {schedules.map((s) => (
               <div key={s.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -360,23 +360,23 @@ function SchedulesTab() {
                       <Layers className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">
-                        {s.name} <span className="font-mono text-[11px] font-semibold text-stone-400">({s.code})</span>
+                      <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                        {s.name} <span className="font-mono text-[11px] font-semibold text-slate-400">({s.code})</span>
                       </p>
-                      <p className="text-[11px] text-stone-400">Cycle {s.cycleDays} hari · {s._count.assignments} karyawan ter-assign</p>
+                      <p className="text-[11px] text-slate-400">Cycle {s.cycleDays} hari · {s._count.assignments} karyawan ter-assign</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => toggleActive(s)}><StatusPill status={s.active ? "Active" : "Closed"} /></button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)} aria-label="Edit jadwal">
-                      <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                      <Pencil className="h-3.5 w-3.5 text-slate-400" />
                     </Button>
                   </div>
                 </div>
                 {/* cycle strip */}
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   {s.days.map((d) => (
-                    <span key={d.id} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200/80 px-2 py-1 text-[10px] font-bold text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                    <span key={d.id} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/80 px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.dayType.color }} />
                       {d.sequence}. {d.dayType.code}
                     </span>
@@ -407,33 +407,33 @@ function SchedulesTab() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold">Urutan Cycle ({form.days.length} hari)</Label>
-                <span className="text-[10px] text-stone-400">seq 1 = hari anchor (Senin pertama)</span>
+                <span className="text-[10px] text-slate-400">seq 1 = hari anchor (Senin pertama)</span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/60 p-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+              <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                 {form.days.map((code, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+                  <span key={i} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     {i + 1}. {code}
-                    <button type="button" onClick={() => form.days.length > 1 && setForm({ ...form, days: form.days.filter((_, j) => j !== i) })} aria-label="Hapus urutan" className="text-stone-300 hover:text-rose-500">
+                    <button type="button" onClick={() => form.days.length > 1 && setForm({ ...form, days: form.days.filter((_, j) => j !== i) })} aria-label="Hapus urutan" className="text-slate-300 hover:text-rose-500">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
-                <button type="button" onClick={() => setForm({ ...form, days: [...form.days, "OFFICE"] })} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-stone-300 px-2 py-1 text-[10px] font-bold text-stone-500 hover:border-emerald-400 hover:text-emerald-600 dark:border-stone-700" aria-label="Tambah urutan">
+                <button type="button" onClick={() => setForm({ ...form, days: [...form.days, "OFFICE"] })} className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-2 py-1 text-[10px] font-bold text-slate-500 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-700" aria-label="Tambah urutan">
                   <Plus className="h-3 w-3" /> hari
                 </button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {dayTypes.map((d) => (
-                  <button key={d.id} type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1).concat([d.code]) })} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold text-stone-600 transition hover:border-emerald-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300" title={`Ganti hari terakhir → ${d.code}`}>
+                  <button key={d.id} type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1).concat([d.code]) })} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" title={`Ganti hari terakhir → ${d.code}`}>
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
                     {d.code}
                   </button>
                 ))}
-                <button type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1) })} className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold text-stone-500 hover:border-rose-300 dark:border-stone-700 dark:bg-stone-900" title="Hapus hari terakhir">
+                <button type="button" onClick={() => setForm({ ...form, days: form.days.slice(0, -1) })} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-500 hover:border-rose-300 dark:border-slate-700 dark:bg-slate-900" title="Hapus hari terakhir">
                   <Minus className="h-3 w-3" />
                 </button>
               </div>
-              <p className="text-[10px] leading-relaxed text-stone-400">
+              <p className="text-[10px] leading-relaxed text-slate-400">
                 Klik kode tipe hari untuk mengganti hari terakhir dalam cycle, tombol <Minus className="inline h-3 w-3" /> untuk menghapus hari terakhir, ikon <Trash2 className="inline h-3 w-3" /> pada chip untuk menghapus posisi tertentu.
               </p>
             </div>
@@ -479,12 +479,12 @@ function RulesTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-bold">Perhitungan & Pembulatan</p>
-              <p className="text-[11px] text-stone-400">Padanan oranHR User Defined Rounding + kebijakan non-clocking</p>
+              <p className="text-[11px] text-slate-400">Padanan oranHR User Defined Rounding + kebijakan non-clocking</p>
             </div>
             <Settings2 className="h-5 w-5 text-emerald-600" />
           </div>
@@ -492,12 +492,12 @@ function RulesTab() {
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Pembulatan menit clocking (kelipatan)</Label>
               <Input type="number" min={1} max={60} value={rule.roundingMinutes} onChange={(e) => set({ roundingMinutes: parseInt(e.target.value, 10) || 5 })} className="text-sm" />
-              <p className="text-[10px] text-stone-400">Telat/pulang cepat dibulatkan ke bawah kelipatan ini</p>
+              <p className="text-[10px] text-slate-400">Telat/pulang cepat dibulatkan ke bawah kelipatan ini</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Minimum menit lembur</Label>
               <Input type="number" min={0} max={240} value={rule.minOvertimeMinutes} onChange={(e) => set({ minOvertimeMinutes: parseInt(e.target.value, 10) || 0 })} className="text-sm" />
-              <p className="text-[10px] text-stone-400">Lembur di bawah nilai ini dianggap 0</p>
+              <p className="text-[10px] text-slate-400">Lembur di bawah nilai ini dianggap 0</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Pembulatan jam lembur (kelipatan)</Label>
@@ -513,17 +513,17 @@ function RulesTab() {
                   <SelectItem value="ByDays">Hitung per hari</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-stone-400">Padanan "Non Clocking Normal Hours Calculation" oranHR</p>
+              <p className="text-[10px] text-slate-400">Padanan "Non Clocking Normal Hours Calculation" oranHR</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-5">
           <div className="mb-4">
             <p className="text-[13px] font-bold">Pemetaan Komponen Payroll & Nilai</p>
-            <p className="text-[11px] text-stone-400">Padanan oranHR Overtime Specified — jam absensi → komponen upah saat Transfer to Payroll</p>
+            <p className="text-[11px] text-slate-400">Padanan oranHR Overtime Specified — jam absensi → komponen upah saat Transfer to Payroll</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -557,21 +557,21 @@ function RulesTab() {
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Tunjangan kehadiran / bulan (Rp)</Label>
               <Input type="number" min={0} value={rule.attendanceAllowanceAmount} onChange={(e) => set({ attendanceAllowanceAmount: Number(e.target.value) || 0 })} className="text-sm" />
-              <p className="text-[10px] text-stone-400">Diberikan bila sebulan penuh tanpa telat & absen (0 = nonaktif)</p>
+              <p className="text-[10px] text-slate-400">Diberikan bila sebulan penuh tanpa telat & absen (0 = nonaktif)</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Potongan telat / jam (Rp)</Label>
               <Input type="number" min={0} value={rule.lateDeductionPerHour} onChange={(e) => set({ lateDeductionPerHour: Number(e.target.value) || 0 })} className="text-sm" />
-              <p className="text-[10px] text-stone-400">0 = proporsional upah per jam (1/173 × gaji pokok)</p>
+              <p className="text-[10px] text-slate-400">0 = proporsional upah per jam (1/173 × gaji pokok)</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Potongan absen / hari (Rp)</Label>
               <Input type="number" min={0} value={rule.absenceDeductionPerDay} onChange={(e) => set({ absenceDeductionPerDay: Number(e.target.value) || 0 })} className="text-sm" />
-              <p className="text-[10px] text-stone-400">0 = 1/25 × gaji pokok per hari absen</p>
+              <p className="text-[10px] text-slate-400">0 = 1/25 × gaji pokok per hari absen</p>
             </div>
           </div>
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-stone-100 pt-4 dark:border-stone-800">
-            <p className="text-[11px] text-stone-400">
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <p className="text-[11px] text-slate-400">
               Upah lembur selalu dihitung 1/173 × gaji pokok dengan multiplier per kategori hari (PP 35/2021).
             </p>
             <div className="flex gap-2">

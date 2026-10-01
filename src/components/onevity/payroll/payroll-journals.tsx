@@ -76,7 +76,7 @@ export function PayrollJournalsPage() {
                       key={r.id}
                       onClick={() => generate(r)}
                       disabled={busyId === r.id}
-                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 text-[11px] font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-100/60 disabled:opacity-50 dark:border-amber-500/40 dark:bg-stone-900 dark:text-amber-300"
+                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 text-[11px] font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-100/60 disabled:opacity-50 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-300"
                     >
                       <BookOpen className="h-3 w-3" />
                       {busyId === r.id ? "Memposting…" : `Post ${r.runNo}`}
@@ -88,7 +88,7 @@ export function PayrollJournalsPage() {
             </Card>
           )}
 
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {journals.length === 0 ? (
                 <div className="p-5">
@@ -102,7 +102,7 @@ export function PayrollJournalsPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">Jurnal</TableHead>
                         <TableHead className="text-[11px] font-bold">Sumber Run</TableHead>
                         <TableHead className="text-[11px] font-bold">Deskripsi</TableHead>
@@ -115,13 +115,13 @@ export function PayrollJournalsPage() {
                     </TableHeader>
                     <TableBody>
                       {journals.map((j) => (
-                        <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => openDetail(j)}>
+                        <TableRow key={j.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => openDetail(j)}>
                           <TableCell>
                             <p className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{j.journalNo}</p>
-                            <p className="text-[10px] text-stone-400">{fmtDateTime(j.journalDate)}</p>
+                            <p className="text-[10px] text-slate-400">{fmtDateTime(j.journalDate)}</p>
                           </TableCell>
-                          <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
-                          <TableCell className="max-w-[320px] truncate text-xs text-stone-500" >{j.description ?? "—"}</TableCell>
+                          <TableCell className="font-mono text-[11px] text-slate-500">{j.runNo ?? "—"}</TableCell>
+                          <TableCell className="max-w-[320px] truncate text-xs text-slate-500" >{j.description ?? "—"}</TableCell>
                           <TableCell className="text-center text-xs font-semibold">{j._count.lines}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalDebit)}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalCredit)}</TableCell>
@@ -135,12 +135,12 @@ export function PayrollJournalsPage() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300">
+                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300">
                                 <FileDown className="h-3 w-3" /> CSV
                               </a>
                               <button
                                 onClick={() => j.runId ? navigate("payroll", "run", { id: j.runId }) : openDetail(j)}
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-500 transition hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
                                 aria-label="buka run"
                               >
                                 <ChevronRight className="h-3 w-3" />
@@ -157,24 +157,24 @@ export function PayrollJournalsPage() {
           </Card>
 
           {/* Penjelasan struktur jurnal */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-4">
               <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 text-emerald-600" /> Struktur posting (pattern oranHR "Transfer to Accounting")</p>
-              <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 sm:grid-cols-3">
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">1 · Beban</p>
+              <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 sm:grid-cols-3">
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">1 · Beban</p>
                   <p>D komponen THP → 5101/5102 · D iuran BPJS perusahaan → 5103 / C hutang BPJS 2103</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">2 · Kewajiban</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">2 · Kewajiban</p>
                   <p>D hutang gaji 2101 → C PPh21 2102 / BPJS 2103 / pinjaman 2104 / lain-lain 2105</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">3 · Pembayaran</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">3 · Pembayaran</p>
                   <p>D hutang gaji 2101 (net + pembulatan) → C kas &amp; bank 1101 — D selalu = C</p>
                 </div>
               </div>
-              <p className="mt-3 text-[11px] text-stone-400">
+              <p className="mt-3 text-[11px] text-slate-400">
                 Mapping akun per komponen dapat ditimpa lewat kolom "Akun Debit/Kredit" di menu Komponen Upah (Salary Chart of Account).
               </p>
             </CardContent>
@@ -201,7 +201,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
         {journal && (
           <div className="max-h-[60vh] overflow-y-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold">Akun</TableHead>
                   <TableHead className="text-[10px] font-bold">Memo</TableHead>
@@ -211,22 +211,22 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
               </TableHeader>
               <TableBody>
                 {journal.lines.map((l) => (
-                  <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                  <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                     <TableCell>
-                      <p className="font-mono text-[11px] font-bold text-stone-500">{l.accountCode}</p>
+                      <p className="font-mono text-[11px] font-bold text-slate-500">{l.accountCode}</p>
                       <p className="text-[11px]">{l.accountName}</p>
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate text-[11px] text-stone-500">{l.memo ?? "—"}</TableCell>
-                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-emerald-700 dark:text-emerald-400" : "text-stone-300 dark:text-stone-600")}>
+                    <TableCell className="max-w-[220px] truncate text-[11px] text-slate-500">{l.memo ?? "—"}</TableCell>
+                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-emerald-700 dark:text-emerald-400" : "text-slate-300 dark:text-slate-600")}>
                       {l.position === "Debit" ? fmtIDR(l.amount) : ""}
                     </TableCell>
-                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Credit" ? "text-rose-600 dark:text-rose-400" : "text-stone-300 dark:text-stone-600")}>
+                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Credit" ? "text-rose-600 dark:text-rose-400" : "text-slate-300 dark:text-slate-600")}>
                       {l.position === "Credit" ? fmtIDR(l.amount) : ""}
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Total — balance ✓</TableCell>
+                <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
+                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Total — balance ✓</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">{fmtIDR(journal.totalDebit)}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(journal.totalCredit)}</TableCell>
                 </TableRow>

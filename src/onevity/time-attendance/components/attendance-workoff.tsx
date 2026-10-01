@@ -120,43 +120,43 @@ export function AttendanceWorkoffPage() {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Menunggu Approval", "Awaiting Approval")}</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Menunggu Approval", "Awaiting Approval")}</p></div>
           <p className="text-lg font-extrabold text-amber-600 dark:text-amber-400">{stats?.pending ?? 0}</p>
-          <p className="text-[11px] text-stone-400">{t("dokumen izin", "permit documents")}</p>
+          <p className="text-[11px] text-slate-400">{t("dokumen izin", "permit documents")}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Disetujui")}</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Disetujui")}</p></div>
           <p className="text-lg font-extrabold text-brand dark:text-brand/85">{t("{a} · {b} hari", "{a} · {b} days", { a: stats?.approved ?? 0, b: stats?.totalDays ?? 0 })}</p>
-          <p className="text-[11px] text-stone-400">{t("{n} memotong saldo cuti", "{n} deduct leave balance", { n: stats?.deductLeave ?? 0 })}</p>
+          <p className="text-[11px] text-slate-400">{t("{n} memotong saldo cuti", "{n} deduct leave balance", { n: stats?.deductLeave ?? 0 })}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><FileInput className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Dibayar (gaji tetap)", "Paid (salary kept)")}</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><FileInput className="h-4 w-4 text-brand" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Dibayar (gaji tetap)", "Paid (salary kept)")}</p></div>
           <p className="text-lg font-extrabold text-brand dark:text-brand/85">{stats?.paid ?? 0}</p>
-          <p className="text-[11px] text-stone-400">{t("{n} tidak dibayar (potongan)", "{n} unpaid (deducted)", { n: stats?.unpaid ?? 0 })}</p>
+          <p className="text-[11px] text-slate-400">{t("{n} tidak dibayar (potongan)", "{n} unpaid (deducted)", { n: stats?.unpaid ?? 0 })}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-stone-400" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Total Dokumen", "Total Documents")}</p></div>
-          <p className="text-lg font-extrabold text-stone-500">{stats?.total ?? 0}</p>
-          <p className="text-[11px] text-stone-400">{t("seluruh status", "all statuses")}</p>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-slate-400" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Total Dokumen", "Total Documents")}</p></div>
+          <p className="text-lg font-extrabold text-slate-500">{stats?.total ?? 0}</p>
+          <p className="text-[11px] text-slate-400">{t("seluruh status", "all statuses")}</p>
         </div>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                 )}>
                   {t(f.label, STATUS_FILTERS_EN[f.key] ?? f.label)}
                 </button>
               ))}
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / document no.…")} className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
@@ -166,7 +166,7 @@ export function AttendanceWorkoffPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <ServerSortHead label={t("Dokumen", "Document")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} className="text-[11px] font-bold" />
@@ -179,17 +179,17 @@ export function AttendanceWorkoffPage() {
                 </TableHeader>
                 <TableBody>
                   {permits.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-500">{p.docNo}</p>
-                        {p.reason && <p className="max-w-44 truncate text-[10px] italic text-stone-400" title={p.reason}>{p.reason}</p>}
-                        {p.documentNote && <p className="max-w-44 truncate text-[9px] text-stone-400" title={p.documentNote}>📄 {p.documentNote}</p>}
+                        <p className="font-mono text-[11px] font-bold text-slate-500">{p.docNo}</p>
+                        {p.reason && <p className="max-w-44 truncate text-[10px] italic text-slate-400" title={p.reason}>{p.reason}</p>}
+                        {p.documentNote && <p className="max-w-44 truncate text-[9px] text-slate-400" title={p.documentNote}>📄 {p.documentNote}</p>}
                       </TableCell>
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{p.employee.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{p.employee.employeeNo} · {p.orgUnitName ?? "—"}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{p.employee.fullName}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{p.employee.employeeNo} · {p.orgUnitName ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-300">
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-300">
                         {fmtDate(p.dateFrom)}{daysBetween(p.dateFrom, p.dateTo) > 1 ? ` → ${fmtDate(p.dateTo)}` : ""}
                       </TableCell>
                       <TableCell>
@@ -203,7 +203,7 @@ export function AttendanceWorkoffPage() {
                         )}>{p.paid ? t("Dibayar", "Paid") : t("Tanpa upah", "Unpaid")}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", p.deductLeave ? "text-brand dark:text-brand/85" : "text-stone-400")}>
+                        <span className={cn("text-[11px] font-bold", p.deductLeave ? "text-brand dark:text-brand/85" : "text-slate-400")}>
                           {p.deductLeave ? t("Ya") : t("Tidak")}
                         </span>
                       </TableCell>
@@ -218,11 +218,11 @@ export function AttendanceWorkoffPage() {
                               {p.approval.status === "InProgress" ? t("Jenjang", "Tier") : t("Ditolak di", "Rejected at")} {p.approval.currentLevel}/{p.approval.totalLevels}
                             </span>
                             {p.approval.status === "InProgress" && p.approval.currentApprover && (
-                              <p className="max-w-36 truncate text-[10px] text-stone-400" title={p.approval.currentApprover}>{t("menunggu", "awaiting")} {p.approval.currentApprover}</p>
+                              <p className="max-w-36 truncate text-[10px] text-slate-400" title={p.approval.currentApprover}>{t("menunggu", "awaiting")} {p.approval.currentApprover}</p>
                             )}
                           </div>
                         )}
-                        {p.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-stone-400" title={p.decisionNote}>{p.decisionNote}</p>}
+                        {p.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-slate-400" title={p.decisionNote}>{p.decisionNote}</p>}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -242,7 +242,7 @@ export function AttendanceWorkoffPage() {
                           )}
                           {["Pending", "Approved"].includes(p.status) && (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Batalkan", "Cancel")} onClick={() => decide(p, "cancel", "Dibatalkan admin")} aria-label={t("Batalkan izin", "Cancel permit")}>
-                              <Ban className="h-4 w-4 text-stone-400" />
+                              <Ban className="h-4 w-4 text-slate-400" />
                             </Button>
                           )}
                         </div>
@@ -317,9 +317,9 @@ export function AttendanceWorkoffPage() {
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">{t("Keterangan Dokumen Pendukung", "Supporting Document Notes")}</Label>
               <Input value={form.documentNote} onChange={(e) => setForm({ ...form, documentNote: e.target.value })} placeholder={t("mis. surat dokter dr. Siti, 01-09-2026", "e.g. doctor's note dr. Siti, 01-09-2026")} className="text-sm" />
-              <p className="text-[10px] text-stone-400">{t("Padanan Need Supporting Documents — beberapa kebijakan izin mewajibkan bukti.", "Counterpart of Need Supporting Documents — some permit policies require proof.")}</p>
+              <p className="text-[10px] text-slate-400">{t("Padanan Need Supporting Documents — beberapa kebijakan izin mewajibkan bukti.", "Counterpart of Need Supporting Documents — some permit policies require proof.")}</p>
             </div>
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
               {t("Setelah disetujui, rekap absensi pada tanggal izin otomatis dihitung ulang (status ", "Once approved, the attendance recap for the permit dates is automatically recalculated (status ")}<b>{t("Izin", "Permit")}</b>{t("): dibayar → jam normal diakui penuh; tanpa upah → dihitung sebagai potongan absen saat transfer payroll.", "): paid → normal hours fully counted; unpaid → counted as an absence deduction on the payroll transfer.")}
             </p>
           </div>

@@ -223,7 +223,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
             {t("Dokumen Personnel Action Baru", "New Personnel Action Document")}
           </DialogTitle>
           <DialogDescription>
-            {t("Dokumen dibuat dengan status", "The document is created with status")} <Badge variant="outline" className="mx-1 border-stone-200 bg-stone-50 text-[10px] dark:border-stone-700 dark:bg-stone-800">Draft</Badge> {t("dan approval 3 layer (Dept Head → HR Manager → HR Director).", "and 3-layer approval (Dept Head → HR Manager → HR Director).")}
+            {t("Dokumen dibuat dengan status", "The document is created with status")} <Badge variant="outline" className="mx-1 border-slate-200 bg-slate-50 text-[10px] dark:border-slate-700 dark:bg-slate-800">Draft</Badge> {t("dan approval 3 layer (Dept Head → HR Manager → HR Director).", "and 3-layer approval (Dept Head → HR Manager → HR Director).")}
           </DialogDescription>
         </DialogHeader>
 
@@ -238,10 +238,10 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold", avatarColor(selected.fullName))}>{initials(selected.fullName)}</span>
                       <span className="truncate">{selected.fullName}</span>
-                      <span className="shrink-0 text-xs text-stone-400">{selected.employeeNo}</span>
+                      <span className="shrink-0 text-xs text-slate-400">{selected.employeeNo}</span>
                     </span>
                   ) : (
-                    <span className="text-stone-400">{t("Cari dan pilih karyawan…", "Search and select an employee…")}</span>
+                    <span className="text-slate-400">{t("Cari dan pilih karyawan…", "Search and select an employee…")}</span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -252,7 +252,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   <CommandList className="max-h-64">
                     <CommandEmpty>{t("Tidak ditemukan.", "No results found.")}</CommandEmpty>
                     <CommandGroup>
-                      {employees.loading && <p className="px-3 py-4 text-xs text-stone-400">{t("Memuat daftar karyawan…", "Loading employee list…")}</p>}
+                      {employees.loading && <p className="px-3 py-4 text-xs text-slate-400">{t("Memuat daftar karyawan…", "Loading employee list…")}</p>}
                       {list.map((e) => (
                         <CommandItem
                           key={e.id}
@@ -263,7 +263,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                           <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold", avatarColor(e.fullName))}>{initials(e.fullName)}</span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-semibold">{e.fullName}</span>
-                            <span className="block truncate text-[11px] text-stone-400">{e.employeeNo} · {e.position?.title ?? "—"}</span>
+                            <span className="block truncate text-[11px] text-slate-400">{e.employeeNo} · {e.position?.title ?? "—"}</span>
                           </span>
                           <Check className={cn("h-4 w-4", employeeId === e.id ? "opacity-100 ov-text-accent" : "opacity-0")} />
                         </CommandItem>
@@ -274,11 +274,11 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
               </PopoverContent>
             </Popover>
             {selected && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-stone-200/80 bg-stone-50/60 px-3 py-2 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40">
-                <span>{t("Posisi:", "Position:")} <b className="text-stone-700 dark:text-stone-300">{selected.position?.title ?? "—"}</b></span>
-                <span>Grade: <b className="text-stone-700 dark:text-stone-300">{selected.grade?.code ?? "—"}</b></span>
-                <span>{t("Gaji pokok:", "Base salary:")} <b className="text-stone-700 dark:text-stone-300">{fmtIDR(selected.baseSalary)}</b></span>
-                <span>Status: <b className="text-stone-700 dark:text-stone-300">{selected.employmentStatus}</b></span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200/80 bg-slate-50/60 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">
+                <span>{t("Posisi:", "Position:")} <b className="text-slate-700 dark:text-slate-300">{selected.position?.title ?? "—"}</b></span>
+                <span>Grade: <b className="text-slate-700 dark:text-slate-300">{selected.grade?.code ?? "—"}</b></span>
+                <span>{t("Gaji pokok:", "Base salary:")} <b className="text-slate-700 dark:text-slate-300">{fmtIDR(selected.baseSalary)}</b></span>
+                <span>Status: <b className="text-slate-700 dark:text-slate-300">{selected.employmentStatus}</b></span>
               </div>
             )}
           </div>
@@ -317,7 +317,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   <SelectContent className="max-h-64">
                     {positions.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        <span className="font-mono text-xs text-stone-400">{p.code}</span> · {p.title}
+                        <span className="font-mono text-xs text-slate-400">{p.code}</span> · {p.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -332,7 +332,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   <SelectContent className="max-h-64">
                     {units.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
-                        <span className="font-mono text-xs text-stone-400">{u.code}</span> · {u.name}
+                        <span className="font-mono text-xs text-slate-400">{u.code}</span> · {u.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -347,7 +347,7 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   <SelectContent>
                     {grades.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
-                        <span className="font-mono text-xs text-stone-400">{g.code}</span> · {g.name}
+                        <span className="font-mono text-xs text-slate-400">{g.code}</span> · {g.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -373,20 +373,20 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 </Select>
               )}
               {f.kind === "check" && (
-                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-stone-200 px-3 dark:border-stone-800">
+                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 px-3 dark:border-slate-800">
                   <Checkbox
                     checked={detail[f.key] === (f.checkValue ?? "true")}
                     onCheckedChange={(v) => setField(f.key, v ? (f.checkValue ?? "true") : "")}
                     className="h-4 w-4"
                   />
-                  <span className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {t(f.label, FIELD_LABEL_EN[f.label])}
                   </span>
                 </label>
               )}
               {f.kind === "number" && (
                 <div className="relative">
-                  {f.money && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-stone-400">Rp</span>}
+                  {f.money && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">Rp</span>}
                   <Input
                     type="number"
                     min={0}

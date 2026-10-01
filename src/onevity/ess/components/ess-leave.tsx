@@ -129,16 +129,16 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
-                      className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900"
+                      className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
                     >
                       <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-sm font-bold text-stone-800 dark:text-stone-100">{b.name}</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{b.name}</p>
                         <p className="text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
                           {r.avail}
-                          <span className="ml-1 text-xs font-bold text-stone-400">/ {r.entitlement} {r.unit}</span>
+                          <span className="ml-1 text-xs font-bold text-slate-400">/ {r.entitlement} {r.unit}</span>
                         </p>
                       </div>
-                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
@@ -146,10 +146,10 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600"
                         />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                        <span>{t("Terpakai", "Used")}: <b className="text-stone-700 dark:text-stone-200">{r.used}</b></span>
-                        <span>{t("Pending", "Pending")}: <b className={r.pending > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-700 dark:text-stone-200"}>{r.pending}</b></span>
-                        {b.code && <span className="font-mono text-stone-400">{b.code}</span>}
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        <span>{t("Terpakai", "Used")}: <b className="text-slate-700 dark:text-slate-200">{r.used}</b></span>
+                        <span>{t("Pending", "Pending")}: <b className={r.pending > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-200"}>{r.pending}</b></span>
+                        {b.code && <span className="font-mono text-slate-400">{b.code}</span>}
                       </div>
                     </motion.div>
                   );
@@ -166,14 +166,14 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(0.2 + i * 0.03, 0.45) }}
-                      className="rounded-xl border border-stone-200/80 bg-white p-3.5 shadow-sm transition-colors hover:border-amber-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-amber-500/40"
+                      className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-colors hover:border-amber-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-500/40"
                     >
-                      <p className="truncate text-[11px] font-semibold text-stone-500 dark:text-stone-400" title={b.name}>{b.name}</p>
-                      <p className="mt-1 text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">
+                      <p className="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400" title={b.name}>{b.name}</p>
+                      <p className="mt-1 text-lg font-extrabold tabular-nums text-slate-800 dark:text-slate-100">
                         {r.avail}
-                        <span className="ml-1 text-[10px] font-bold text-stone-400">/ {r.entitlement} {r.unit}</span>
+                        <span className="ml-1 text-[10px] font-bold text-slate-400">/ {r.entitlement} {r.unit}</span>
                       </p>
-                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div className="h-full rounded-full bg-amber-500" style={{ width: `${r.entitlement > 0 ? Math.max(4, Math.min(100, (r.avail / r.entitlement) * 100)) : 0}%` }} />
                       </div>
                       {r.pending > 0 && <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">{r.pending} {t("pending", "pending")}</p>}
@@ -187,7 +187,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
       })()}
 
       {/* ===== daftar permintaan ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <CalendarRange className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Permintaan Cuti Saya", "My Leave Requests")}
@@ -198,9 +198,9 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
             <div className="px-6"><LoadingRows rows={5} /></div>
           ) : api.error && !api.data ? (
             <div className="px-6 pb-2">
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-10 text-center dark:border-stone-700 dark:bg-stone-900/30">
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
                 <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
-                <p className="text-[13px] font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat data cuti", "Failed to load leave data")}</p>
+                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat data cuti", "Failed to load leave data")}</p>
                 <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
                   <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
                 </Button>
@@ -211,7 +211,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
               <EmptyState title={t("Belum ada permintaan cuti", "No leave requests yet")} description={t("Ajukan cuti pertama Anda lewat tombol Ajukan Cuti.", "Submit your first request via the Request Leave button.")} icon={Palmtree} />
             </div>
           ) : (
-            <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {requests.map((r) => {
                 // jenjang approval — bentuk aktual backend: approval {level,total,currentApproverName};
                 // fallback flat (approvalStep/approvalLevels/currentApprover) utk bentuk legacy
@@ -224,11 +224,11 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                 return (
                   <li key={r.docNo} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3.5 sm:px-6">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13.5px] font-bold text-stone-800 dark:text-stone-100">
+                      <p className="text-[13.5px] font-bold text-slate-800 dark:text-slate-100">
                         {r.typeName ?? t("Cuti", "Leave")}
-                        <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.docNo}</span>
+                        <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.docNo}</span>
                       </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-stone-400">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-slate-400">
                         <span>{dateText ?? "—"}</span>
                         {r.days != null && <span>· {t("{n} hari", "{n} days", { n: r.days })}</span>}
                       </p>
@@ -276,7 +276,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {submitTypes.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-stone-400">{t("Jenis cuti belum tersedia", "No leave types available")}</p>
+                    <p className="px-3 py-2 text-xs text-slate-400">{t("Jenis cuti belum tersedia", "No leave types available")}</p>
                   ) : submitTypes.map((ty) => (
                     <SelectItem key={ty.id} value={ty.id}>
                       {ty.name} · {t("sisa {n}", "{n} left", { n: ty.available })}
@@ -298,8 +298,8 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
             </div>
 
             {/* ===== panel estimasi live ===== */}
-            <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/50">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Estimasi Pengajuan", "Request Estimate")}</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Estimasi Pengajuan", "Request Estimate")}</p>
               {(() => {
                 const sel = submitTypes.find((x) => x.id === form.typeId);
                 const estAvail = sel?.available ?? null;
@@ -308,30 +308,30 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                 return valid ? (
                   <div className="mt-2 grid grid-cols-3 gap-3">
                     <div>
-                      <p className="text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{daysHint}</p>
-                      <p className="text-[10px] text-stone-400">{t("hari kalender", "calendar days")}</p>
+                      <p className="text-lg font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{daysHint}</p>
+                      <p className="text-[10px] text-slate-400">{t("hari kalender", "calendar days")}</p>
                     </div>
                     <div>
                       <p className={cn("text-lg font-extrabold tabular-nums", estLeft != null && estLeft < 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-400")}>
                         {estLeft != null ? estLeft : "—"}
                       </p>
-                      <p className="text-[10px] text-stone-400">{t("sisa est. setelahnya", "est. remaining")}</p>
+                      <p className="text-[10px] text-slate-400">{t("sisa est. setelahnya", "est. remaining")}</p>
                     </div>
                     <div>
-                      <p className="text-[13px] font-extrabold text-stone-800 dark:text-stone-100">{estAvail != null ? estAvail : "—"}</p>
-                      <p className="text-[10px] text-stone-400">{t("sisa saat ini", "current balance")}</p>
+                      <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-100">{estAvail != null ? estAvail : "—"}</p>
+                      <p className="text-[10px] text-slate-400">{t("sisa saat ini", "current balance")}</p>
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-1.5 text-[11px] text-stone-400">{t("Pilih jenis & tanggal untuk melihat estimasi.", "Pick a type & dates to see the estimate.")}</p>
+                  <p className="mt-1.5 text-[11px] text-slate-400">{t("Pilih jenis & tanggal untuk melihat estimasi.", "Pick a type & dates to see the estimate.")}</p>
                 );
               })()}
-              <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
                 {t("Hari kerja final dihitung sistem sesuai jadwal & hari libur nasional saat pengajuan diproses.", "Final working days are computed by the system per your schedule & national holidays upon submission.")}
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
+            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
               <Checkbox
                 id="ess-leave-half"
                 checked={form.halfDay}
@@ -339,7 +339,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
               />
               <Label htmlFor="ess-leave-half" className="cursor-pointer text-[12.5px] font-semibold leading-snug">
                 {t("Setengah hari (half-day)", "Half day")}
-                <span className="block text-[11px] font-normal text-stone-400">{t("Berlaku untuk pengajuan satu hari.", "Applies to a single-day request.")}</span>
+                <span className="block text-[11px] font-normal text-slate-400">{t("Berlaku untuk pengajuan satu hari.", "Applies to a single-day request.")}</span>
               </Label>
             </div>
 

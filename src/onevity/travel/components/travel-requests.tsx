@@ -160,7 +160,7 @@ export function TravelRequestsPage() {
               "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
               statusFilter === f.key
                 ? "ov-fill shadow-sm"
-                : "bg-white text-stone-600 hover:bg-stone-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800",
+                : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
             )}
           >
             {t(f.label)}
@@ -169,12 +169,12 @@ export function TravelRequestsPage() {
           </button>
         ))}
         <div className="relative ml-auto">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor / tujuan…", "Search name / number / purpose…")} className="w-56 pl-9 text-sm" />
         </div>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <LoadingRows rows={6} />
@@ -184,7 +184,7 @@ export function TravelRequestsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <TableHead className="w-8" />
                     <ServerSortHead label={t("Nomor", "No.")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} />
                     <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} />
@@ -199,33 +199,33 @@ export function TravelRequestsPage() {
                 <TableBody>
                   {requests.map((r) => (
                     <Fragment key={r.id}>
-                      <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/60" onClick={() => setExpanded(expanded === r.docNo ? null : r.docNo)}>
+                      <TableRow key={r.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" onClick={() => setExpanded(expanded === r.docNo ? null : r.docNo)}>
                         <TableCell className="p-2">
-                          {expanded === r.docNo ? <ChevronDown className="h-4 w-4 text-stone-400" /> : <ChevronRight className="h-4 w-4 text-stone-400" />}
+                          {expanded === r.docNo ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                         </TableCell>
                         <TableCell className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</TableCell>
                         <TableCell>
-                          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{r.fullName}</p>
-                          <p className="text-[11px] text-stone-500">{r.employeeNo}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.fullName}</p>
+                          <p className="text-[11px] text-slate-500">{r.employeeNo}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
                         </TableCell>
                         <TableCell>
-                          <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">{fmtDateID(r.dateFrom)} → {fmtDateID(r.dateTo)}</p>
-                          <p className="text-[11px] text-stone-500">{t("{n} hari · diajukan {d}", "{n} days · submitted {d}", { n: r.days, d: fmtDateID(r.requestDate) })}</p>
+                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{fmtDateID(r.dateFrom)} → {fmtDateID(r.dateTo)}</p>
+                          <p className="text-[11px] text-slate-500">{t("{n} hari · diajukan {d}", "{n} days · submitted {d}", { n: r.days, d: fmtDateID(r.requestDate) })}</p>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-[10px] font-bold">{r.templateName}</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <p className="text-xs text-stone-600 dark:text-stone-300">
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
                             {r.destinations.map((d) => d.city).join(" → ")}
                           </p>
-                          <p className="text-[11px] text-stone-500">{t("{n} kaki perjalanan", "{n} trip legs", { n: r.destinations.length })}</p>
+                          <p className="text-[11px] text-slate-500">{t("{n} kaki perjalanan", "{n} trip legs", { n: r.destinations.length })}</p>
                         </TableCell>
                         <TableCell className="text-right">
                           {r.advanceAmount > 0 ? (
                             <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{fmtIDRShort(r.advanceAmount)}</span>
                           ) : (
-                            <span className="text-xs text-stone-400">—</span>
+                            <span className="text-xs text-slate-400">—</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -244,51 +244,51 @@ export function TravelRequestsPage() {
                                 <Ban className="h-3 w-3" /> {t("Batal")}
                               </Button>
                             ) : (
-                              <span className="text-[11px] text-stone-400">{r.decisionNote ?? "—"}</span>
+                              <span className="text-[11px] text-slate-400">{r.decisionNote ?? "—"}</span>
                             )
                           ) : (
-                            <span className="text-[11px] text-stone-400">{r.decisionNote ?? "—"}</span>
+                            <span className="text-[11px] text-slate-400">{r.decisionNote ?? "—"}</span>
                           )}
                         </TableCell>
                       </TableRow>
                       {expanded === r.docNo && (
-                        <TableRow key={`${r.id}-detail`} className="bg-stone-50/60 dark:bg-stone-800/30">
+                        <TableRow key={`${r.id}-detail`} className="bg-slate-50/60 dark:bg-slate-800/30">
                           <TableCell colSpan={9} className="px-6 py-3">
                             <div className="grid gap-3 md:grid-cols-2">
                               <div>
-                                <p className="mb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-stone-500">
+                                <p className="mb-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-slate-500">
                                   <MapPin className="h-3.5 w-3.5" /> {t("Rincian Destinasi", "Destination Details")}
                                 </p>
                                 <div className="space-y-1.5">
                                   {r.destinations.map((d, i) => (
-                                    <div key={i} className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs dark:bg-stone-900">
+                                    <div key={i} className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs dark:bg-slate-900">
                                       <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{d.seq}</span>
-                                      <span className="font-semibold text-stone-800 dark:text-stone-200">{d.city}</span>
-                                      <span className="text-stone-500">{d.country}</span>
+                                      <span className="font-semibold text-slate-800 dark:text-slate-200">{d.city}</span>
+                                      <span className="text-slate-500">{d.country}</span>
                                       {d.overseas && <Globe2 className="h-3 w-3 text-brand" />}
                                       {d.zoneName && <Badge variant="outline" className="text-[9px]">{d.zoneName}</Badge>}
-                                      <span className="ml-auto text-stone-500">{fmtDateID(d.dateFrom)} → {fmtDateID(d.dateTo)}</span>
+                                      <span className="ml-auto text-slate-500">{fmtDateID(d.dateFrom)} → {fmtDateID(d.dateTo)}</span>
                                     </div>
                                   ))}
                                 </div>
                               </div>
                               <div>
-                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-stone-500">{t("Tujuan & Status", "Purpose & Status")}</p>
-                                <p className="rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-stone-700 dark:bg-stone-900 dark:text-stone-300">{r.purpose}</p>
-                                {r.remark && <p className="mt-1 rounded-lg bg-white px-3 py-2 text-[11px] text-stone-500 dark:bg-stone-900">{r.remark}</p>}
-                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-stone-500">
+                                <p className="mb-1 text-xs font-black uppercase tracking-wide text-slate-500">{t("Tujuan & Status", "Purpose & Status")}</p>
+                                <p className="rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 dark:bg-slate-900 dark:text-slate-300">{r.purpose}</p>
+                                {r.remark && <p className="mt-1 rounded-lg bg-white px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-900">{r.remark}</p>}
+                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
                                   {r.settlementDue && (
-                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
+                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-slate-900">
                                       <Clock className="h-3 w-3" /> {t("Jatuh tempo klaim: {d}", "Claim due date: {d}", { d: fmtDateID(r.settlementDue) })}
                                     </span>
                                   )}
                                   {r.claimCount > 0 && (
-                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
+                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-slate-900">
                                       <FileText className="h-3 w-3" /> {t("{n} klaim dibuat", "{n} claims created", { n: r.claimCount })}
                                     </span>
                                   )}
                                   {r.advanceAmount > 0 && (
-                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-stone-900">
+                                    <span className="flex items-center gap-1 rounded-full bg-white px-2 py-1 dark:bg-slate-900">
                                       <Wallet className="h-3 w-3" /> {t("Uang muka {amt}", "Advance {amt}", { amt: fmtIDR(r.advanceAmount) })}
                                     </span>
                                   )}
@@ -363,7 +363,7 @@ export function TravelRequestsPage() {
               </div>
               <div className="space-y-2">
                 {dests.map((d, i) => (
-                  <div key={i} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+                  <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="flex h-5 w-5 items-center justify-center rounded ov-fill text-[10px] font-black">{i + 1}</span>
                       {dests.length > 1 && (
@@ -374,11 +374,11 @@ export function TravelRequestsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Kota *", "City *")}</Label>
+                        <Label className="text-[10px] font-bold text-slate-500">{t("Kota *", "City *")}</Label>
                         <Input value={d.city} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, city: e.target.value } : x))} placeholder="Bandung" className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Zona", "Zone")}</Label>
+                        <Label className="text-[10px] font-bold text-slate-500">{t("Zona", "Zone")}</Label>
                         <Select value={d.zoneCode} onValueChange={(v) => setDests(dests.map((x, xi) => xi === i ? { ...x, zoneCode: v } : x))}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -394,16 +394,16 @@ export function TravelRequestsPage() {
                           (submitTravelRequest) dateFrom kaki = tanggal BERANGKAT,
                           dateTo = tanggal DATANG; label lama tertukar. */}
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Berangkat", "Departure Date")}</Label>
+                        <Label className="text-[10px] font-bold text-slate-500">{t("Tgl Berangkat", "Departure Date")}</Label>
                         <Input type="date" value={d.dateFrom} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateFrom: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-stone-500">{t("Tgl Datang", "Arrival Date")}</Label>
+                        <Label className="text-[10px] font-bold text-slate-500">{t("Tgl Datang", "Arrival Date")}</Label>
                         <Input type="date" value={d.dateTo} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateTo: e.target.value } : x))} className="h-8 text-sm" />
                       </div>
                       {zones.find((z) => z.code === d.zoneCode)?.overseas && (
                         <div className="col-span-2 space-y-1 sm:col-span-4">
-                          <Label className="text-[10px] font-bold text-stone-500">{t("Negara (luar negeri)", "Country (overseas)")}</Label>
+                          <Label className="text-[10px] font-bold text-slate-500">{t("Negara (luar negeri)", "Country (overseas)")}</Label>
                           <Input value={d.country} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, country: e.target.value } : x))} placeholder="Singapura" className="h-8 text-sm" />
                         </div>
                       )}

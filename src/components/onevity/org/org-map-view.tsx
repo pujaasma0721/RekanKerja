@@ -86,7 +86,7 @@ const STATUS_DOT: Record<string, string> = {
   Outsourcing: "bg-orange-400",
   Permanent: "bg-emerald-500",
 };
-const LINE = "bg-stone-300 dark:bg-stone-700";
+const LINE = "bg-slate-300 dark:bg-slate-700";
 const DEFAULT_DEPTH = 1; // kedalaman default terbuka (0 = akar)
 
 // ============ MAIN ============
@@ -391,16 +391,16 @@ export function OrgMapView() {
       <StatsStrip stats={data.stats} />
 
       {/* ====== explorer card ====== */}
-      <Card className="mt-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mt-4 overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         {/* toolbar */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-stone-200/80 p-3 dark:border-stone-800">
-          <div className="flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-stone-800 dark:bg-stone-900" role="group" aria-label="Mode tampilan">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 p-3 dark:border-slate-800">
+          <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900" role="group" aria-label="Mode tampilan">
             <button
               type="button"
               onClick={() => setMode("orang")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "orang" ? "bg-emerald-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                mode === "orang" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
               )}
             >
               <Users className="h-3.5 w-3.5" /> Orang
@@ -410,7 +410,7 @@ export function OrgMapView() {
               onClick={() => setMode("unit")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
-                mode === "unit" ? "bg-emerald-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                mode === "unit" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
               )}
             >
               <Building2 className="h-3.5 w-3.5" /> Unit
@@ -418,7 +418,7 @@ export function OrgMapView() {
           </div>
 
           <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -430,7 +430,7 @@ export function OrgMapView() {
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800"
+                className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                 aria-label="Hapus pencarian"
               >
                 <X className="h-3 w-3" />
@@ -454,7 +454,7 @@ export function OrgMapView() {
           className={cn(
             "relative hidden h-[620px] touch-none select-none overflow-hidden md:block",
             dragging ? "cursor-grabbing" : "cursor-grab",
-            "bg-stone-50 [background-image:radial-gradient(circle,#d6d3d1_1px,transparent_1px)] [background-size:24px_24px] dark:bg-stone-950/60 dark:[background-image:radial-gradient(circle,#292524_1px,transparent_1px)]"
+            "bg-slate-50 [background-image:radial-gradient(circle,#d6d3d1_1px,transparent_1px)] [background-size:24px_24px] dark:bg-slate-950/60 dark:[background-image:radial-gradient(circle,#292524_1px,transparent_1px)]"
           )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -483,23 +483,23 @@ export function OrgMapView() {
           </div>
 
           {/* zoom controls */}
-          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-1 rounded-xl border border-stone-200 bg-white/90 p-1 shadow-md backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
-            <button type="button" onClick={() => zoomAt(1.25)} title="Perbesar" aria-label="Perbesar" className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800">
+          <div className="absolute bottom-3 right-3 flex flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white/90 p-1 shadow-md backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+            <button type="button" onClick={() => zoomAt(1.25)} title="Perbesar" aria-label="Perbesar" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               <ZoomIn className="h-4 w-4" />
             </button>
-            <button type="button" onClick={() => zoomAt(0.8)} title="Perkecil" aria-label="Perkecil" className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800">
+            <button type="button" onClick={() => zoomAt(0.8)} title="Perkecil" aria-label="Perkecil" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               <ZoomOut className="h-4 w-4" />
             </button>
-            <button type="button" onClick={fit} title="Sesuaikan tampilan" aria-label="Sesuaikan tampilan" className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800">
+            <button type="button" onClick={fit} title="Sesuaikan tampilan" aria-label="Sesuaikan tampilan" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               <Maximize2 className="h-4 w-4" />
             </button>
-            <span className="px-1 pb-0.5 text-[9px] font-bold tabular-nums text-stone-400">{Math.round(tf.k * 100)}%</span>
+            <span className="px-1 pb-0.5 text-[9px] font-bold tabular-nums text-slate-400">{Math.round(tf.k * 100)}%</span>
           </div>
 
           {/* legend */}
-          <div className="absolute left-3 top-3 hidden rounded-xl border border-stone-200 bg-white/90 px-2.5 py-2 shadow-sm backdrop-blur dark:border-stone-800 dark:bg-stone-900/90 lg:block">
-            <p className="mb-1 text-[9px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Legenda</p>
-            <div className="space-y-1 text-[10px] font-medium text-stone-600 dark:text-stone-300">
+          <div className="absolute left-3 top-3 hidden rounded-xl border border-slate-200 bg-white/90 px-2.5 py-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 lg:block">
+            <p className="mb-1 text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Legenda</p>
+            <div className="space-y-1 text-[10px] font-medium text-slate-600 dark:text-slate-300">
               <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Karyawan tetap</p>
               <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> Percobaan</p>
               <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" /> Kontrak</p>
@@ -548,15 +548,15 @@ function StatsStrip({ stats }: { stats: OrgMapRes["stats"] }) {
     { icon: GitFork, label: "Rata-rata Span", value: String(stats.avgSpan), sub: "bawahan per atasan" },
   ];
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-stone-200/80 bg-stone-200/70 shadow-sm dark:border-stone-800 dark:bg-stone-800 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-200/70 shadow-sm dark:border-slate-800 dark:bg-slate-800 sm:grid-cols-3 lg:grid-cols-6">
       {items.map((it) => (
-        <div key={it.label} className="bg-white p-3 dark:bg-stone-900">
-          <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-stone-400">
+        <div key={it.label} className="bg-white p-3 dark:bg-slate-900">
+          <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
             <it.icon className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{it.label}</span>
           </div>
-          <p className="mt-1 truncate text-lg font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{it.value}</p>
-          <p className="truncate text-[9.5px] text-stone-400">{it.sub}</p>
+          <p className="mt-1 truncate text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{it.value}</p>
+          <p className="truncate text-[9.5px] text-slate-400">{it.sub}</p>
         </div>
       ))}
     </div>
@@ -654,8 +654,8 @@ function PersonCard({
       className={cn(
         "relative w-60 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
         root
-          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md shadow-emerald-900/10 dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900"
-          : "border-stone-200 bg-white shadow-sm hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700",
+          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md shadow-emerald-900/10 dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-slate-900"
+          : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700",
         matched && "ring-2 ring-emerald-500",
         dimmed && "opacity-40 saturate-50"
       )}
@@ -665,24 +665,24 @@ function PersonCard({
           <span className={cn("flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-extrabold", avatarColor(p.fullName), root && "ring-2 ring-emerald-500/40")}>
             {initials(p.fullName)}
           </span>
-          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
+          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             {root && <Crown className="h-3 w-3 shrink-0 fill-amber-400 text-amber-500" />}
-            <p className="truncate text-[12.5px] font-bold text-stone-900 dark:text-stone-100">{p.fullName}</p>
+            <p className="truncate text-[12.5px] font-bold text-slate-900 dark:text-slate-100">{p.fullName}</p>
             {isHead && !root && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />}
           </div>
-          <p className="truncate text-[10.5px] font-medium text-stone-500 dark:text-stone-400">{p.positionTitle ?? "Tanpa jabatan"}</p>
-          <p className="mt-0.5 truncate text-[9.5px] text-stone-400 dark:text-stone-500">{p.employeeNo} · {p.unitName ?? "—"}</p>
+          <p className="truncate text-[10.5px] font-medium text-slate-500 dark:text-slate-400">{p.positionTitle ?? "Tanpa jabatan"}</p>
+          <p className="mt-0.5 truncate text-[9.5px] text-slate-400 dark:text-slate-500">{p.employeeNo} · {p.unitName ?? "—"}</p>
         </div>
         {p.gradeCode && (
-          <span className="shrink-0 rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">{p.gradeCode}</span>
+          <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{p.gradeCode}</span>
         )}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-stone-200 pt-2 dark:border-stone-800">
-        <span className="flex items-center gap-1 text-[10px] text-stone-400 dark:text-stone-500">
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-slate-200 pt-2 dark:border-slate-800">
+        <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
           <Clock3 className="h-3 w-3" /> {tenure(p.joinDate)}
         </span>
         <span className="flex items-center gap-1">
@@ -699,7 +699,7 @@ function PersonCard({
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggle(); }}
               title={expanded ? "Tutup cabang" : "Buka cabang"}
-              className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[9.5px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+              className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
             >
               <Users className="h-2.5 w-2.5" />
               {total}
@@ -722,8 +722,8 @@ function VacancyCard({ v, dimmed }: { v: MapVacancy; dimmed: boolean }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-bold text-amber-700 dark:text-amber-400">Lowong · {v.slots} slot</p>
-          <p className="truncate text-[10.5px] font-medium text-stone-600 dark:text-stone-300">{v.title}</p>
-          <p className="truncate text-[9.5px] text-stone-400">{v.unitName ?? "—"}{v.reportsToTitle ? ` · bawahan ${v.reportsToTitle}` : ""}</p>
+          <p className="truncate text-[10.5px] font-medium text-slate-600 dark:text-slate-300">{v.title}</p>
+          <p className="truncate text-[9.5px] text-slate-400">{v.unitName ?? "—"}{v.reportsToTitle ? ` · bawahan ${v.reportsToTitle}` : ""}</p>
         </div>
         {v.gradeCode && (
           <span className="shrink-0 rounded-md bg-amber-100/80 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">{v.gradeCode}</span>
@@ -744,7 +744,7 @@ function OrphanVacancies({ vacs }: { vacs: MapVacancy[] }) {
           <VacancyCard key={v.id} v={v} dimmed={false} />
         ))}
       </div>
-      {vacs.length > 5 && <p className="text-[10px] font-medium text-stone-400">+{vacs.length - 5} lowongan lainnya</p>}
+      {vacs.length > 5 && <p className="text-[10px] font-medium text-slate-400">+{vacs.length - 5} lowongan lainnya</p>}
     </div>
   );
 }
@@ -787,7 +787,7 @@ const LEVEL_STYLE: Record<number, { icon: typeof Building; box: string }> = {
   1: { icon: Crown, box: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" },
   2: { icon: Landmark, box: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
   3: { icon: Building, box: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400" },
-  4: { icon: Network, box: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300" },
+  4: { icon: Network, box: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
 };
 
 function UnitLevelIcon({ level, className }: { level: number; className?: string }) {
@@ -817,8 +817,8 @@ function UnitCard({
       className={cn(
         "w-64 cursor-pointer rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
         root
-          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900"
-          : "border-stone-200 bg-white shadow-sm hover:border-stone-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700",
+          ? "border-emerald-600/70 bg-gradient-to-b from-emerald-50 to-white shadow-md dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-slate-900"
+          : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700",
         matched && "ring-2 ring-emerald-500",
         dimmed && "opacity-40 saturate-50"
       )}
@@ -828,45 +828,45 @@ function UnitCard({
           <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", style.box)}>
             <style.icon className="h-3.5 w-3.5" />
           </span>
-          <p className="truncate text-[12.5px] font-bold text-stone-900 dark:text-stone-100">{u.name}</p>
+          <p className="truncate text-[12.5px] font-bold text-slate-900 dark:text-slate-100">{u.name}</p>
         </span>
-        <span className="shrink-0 rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">L{u.level}</span>
+        <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">L{u.level}</span>
       </div>
 
       {head ? (
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-stone-50 px-2 py-1.5 dark:bg-stone-800/60">
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-800/60">
           <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-extrabold", avatarColor(head.fullName))}>{initials(head.fullName)}</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-semibold text-stone-700 dark:text-stone-200">{head.fullName}</p>
-            <p className="truncate text-[9.5px] text-stone-400">{head.positionTitle ?? "—"}</p>
+            <p className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{head.fullName}</p>
+            <p className="truncate text-[9.5px] text-slate-400">{head.positionTitle ?? "—"}</p>
           </div>
           <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
         </div>
       ) : (
-        <p className="mt-2 rounded-lg bg-stone-50 px-2 py-1.5 text-[10px] italic text-stone-400 dark:bg-stone-800/60">Belum ada kepala unit</p>
+        <p className="mt-2 rounded-lg bg-slate-50 px-2 py-1.5 text-[10px] italic text-slate-400 dark:bg-slate-800/60">Belum ada kepala unit</p>
       )}
 
-      <div className="mt-2 grid grid-cols-3 divide-x divide-stone-100 rounded-lg border border-stone-100 bg-stone-50/60 dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900/60">
+      <div className="mt-2 grid grid-cols-3 divide-x divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/60 dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900/60">
         <div className="px-1.5 py-1.5 text-center">
-          <p className="text-[8.5px] font-bold uppercase tracking-wide text-stone-400">Orang</p>
-          <p className="text-[13px] font-extrabold text-stone-800 dark:text-stone-200">{agg.total}</p>
-          <p className="text-[8px] text-stone-400">{agg.direct} langsung</p>
+          <p className="text-[8.5px] font-bold uppercase tracking-wide text-slate-400">Orang</p>
+          <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200">{agg.total}</p>
+          <p className="text-[8px] text-slate-400">{agg.direct} langsung</p>
         </div>
         <div className="px-1.5 py-1.5 text-center">
-          <p className="text-[8.5px] font-bold uppercase tracking-wide text-stone-400">Lowong</p>
-          <p className={cn("text-[13px] font-extrabold", agg.vac > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-800 dark:text-stone-200")}>{agg.vac}</p>
-          <p className="text-[8px] text-stone-400">{agg.positions} posisi</p>
+          <p className="text-[8.5px] font-bold uppercase tracking-wide text-slate-400">Lowong</p>
+          <p className={cn("text-[13px] font-extrabold", agg.vac > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-800 dark:text-slate-200")}>{agg.vac}</p>
+          <p className="text-[8px] text-slate-400">{agg.positions} posisi</p>
         </div>
         <div className="px-1.5 py-1.5 text-center">
-          <p className="text-[8.5px] font-bold uppercase tracking-wide text-stone-400">Rp/bln</p>
-          <p className="text-[13px] font-extrabold text-stone-800 dark:text-stone-200">{fmtIDRShort(agg.cost)}</p>
-          <p className="text-[8px] text-stone-400">gaji pokok</p>
+          <p className="text-[8.5px] font-bold uppercase tracking-wide text-slate-400">Rp/bln</p>
+          <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200">{fmtIDRShort(agg.cost)}</p>
+          <p className="text-[8px] text-slate-400">gaji pokok</p>
         </div>
       </div>
 
       {u.headcountBudget > 0 && (
         <div className="mt-2 flex items-center justify-between gap-2 text-[9.5px]">
-          <span className="text-stone-400">Budget {u.headcountBudget} org</span>
+          <span className="text-slate-400">Budget {u.headcountBudget} org</span>
           <span className={cn("font-bold", overBudget ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
             {agg.total}/{u.headcountBudget} {overBudget ? "melebihi" : "sesuai"}
           </span>
@@ -877,7 +877,7 @@ function UnitCard({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-stone-200 bg-stone-50 py-1 text-[9.5px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 py-1 text-[9.5px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
         >
           <Layers className="h-2.5 w-2.5" /> {subCount} sub-unit
           <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", expanded && "rotate-180")} />
@@ -903,19 +903,19 @@ function MobilePersonItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-slate-900" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
         <button type="button" onClick={() => openPerson(p.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className="relative flex shrink-0">
             <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</span>
-            <span className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-stone-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
+            <span className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900", STATUS_DOT[p.employmentStatus] ?? "bg-emerald-500")} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1">
-              <span className="truncate text-[12px] font-bold text-stone-900 dark:text-stone-100">{p.fullName}</span>
+              <span className="truncate text-[12px] font-bold text-slate-900 dark:text-slate-100">{p.fullName}</span>
               {isHead && <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />}
-              {p.gradeCode && <span className="ml-auto shrink-0 rounded bg-stone-100 px-1 font-mono text-[8px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">{p.gradeCode}</span>}
+              {p.gradeCode && <span className="ml-auto shrink-0 rounded bg-slate-100 px-1 font-mono text-[8px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{p.gradeCode}</span>}
             </span>
-            <span className="block truncate text-[10px] text-stone-500 dark:text-stone-400">{p.positionTitle ?? "Tanpa jabatan"} · {p.unitName ?? "—"}</span>
+            <span className="block truncate text-[10px] text-slate-500 dark:text-slate-400">{p.positionTitle ?? "Tanpa jabatan"} · {p.unitName ?? "—"}</span>
           </span>
         </button>
         {total > 0 && (
@@ -923,7 +923,7 @@ function MobilePersonItem({
             type="button"
             onClick={() => toggle(p.id, depth, total > 0, isExpanded)}
             aria-label={expanded ? "Tutup cabang" : "Buka cabang"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-500 dark:border-stone-700 dark:text-stone-400"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400"
           >
             <span className="text-[10px] font-bold">{total}</span>
             <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
@@ -931,7 +931,7 @@ function MobilePersonItem({
         )}
       </div>
       {expanded && total > 0 && (
-        <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-stone-200 pl-2.5 dark:border-stone-800">
+        <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-slate-200 pl-2.5 dark:border-slate-800">
           {kids.map((k) => (
             <MobilePersonItem key={k.id} p={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openPerson={openPerson} />
           ))}
@@ -940,7 +940,7 @@ function MobilePersonItem({
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-amber-400 text-amber-600 dark:text-amber-400"><UserPlus className="h-3 w-3" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Lowong · {v.slots} slot</p>
-                <p className="truncate text-[9.5px] text-stone-500 dark:text-stone-400">{v.title}</p>
+                <p className="truncate text-[9.5px] text-slate-500 dark:text-slate-400">{v.title}</p>
               </div>
             </div>
           ))}
@@ -964,17 +964,17 @@ function MobileUnitItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-stone-900" : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "border-emerald-600/70 bg-gradient-to-r from-emerald-50 to-white dark:border-emerald-500/50 dark:from-emerald-500/10 dark:to-slate-900" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-emerald-500", dimmed && "opacity-40")}>
         <button type="button" onClick={() => openUnit(u.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", (LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).box)}>
             {(LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).icon && <UnitLevelIcon level={u.level} />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1">
-              <span className="truncate text-[12px] font-bold text-stone-900 dark:text-stone-100">{u.name}</span>
-              <span className="ml-auto shrink-0 rounded bg-stone-100 px-1 font-mono text-[8px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">L{u.level}</span>
+              <span className="truncate text-[12px] font-bold text-slate-900 dark:text-slate-100">{u.name}</span>
+              <span className="ml-auto shrink-0 rounded bg-slate-100 px-1 font-mono text-[8px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">L{u.level}</span>
             </span>
-            <span className="block truncate text-[10px] text-stone-500 dark:text-stone-400">
+            <span className="block truncate text-[10px] text-slate-500 dark:text-slate-400">
               {head ? head.fullName : "Tanpa kepala"} · {agg.total} org{agg.vac > 0 ? ` · ${agg.vac} lowong` : ""} · {fmtIDRShort(agg.cost)}
             </span>
           </span>
@@ -984,7 +984,7 @@ function MobileUnitItem({
             type="button"
             onClick={() => toggle(u.id, depth, kids.length > 0, isExpanded)}
             aria-label={expanded ? "Tutup sub-unit" : "Buka sub-unit"}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-500 dark:border-stone-700 dark:text-stone-400"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400"
           >
             <span className="text-[10px] font-bold">{kids.length}</span>
             <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
@@ -992,7 +992,7 @@ function MobileUnitItem({
         )}
       </div>
       {expanded && kids.length > 0 && (
-        <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-stone-200 pl-2.5 dark:border-stone-800">
+        <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-slate-200 pl-2.5 dark:border-slate-800">
           {kids.map((k) => (
             <MobileUnitItem key={k.id} u={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openUnit={openUnit} />
           ))}
@@ -1049,24 +1049,24 @@ function PersonDrawer({
         {e && (
           <>
             {/* header */}
-            <div className="border-b border-stone-200 p-5 dark:border-stone-800">
+            <div className="border-b border-slate-200 p-5 dark:border-slate-800">
               <div className="flex items-start gap-3.5">
                 <div className="relative shrink-0">
                   <span className={cn("flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-extrabold", avatarColor(e.fullName))}>{initials(e.fullName)}</span>
-                  <span className={cn("absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-[3px] border-white dark:border-stone-900", STATUS_DOT[e.employmentStatus] ?? "bg-emerald-500")} />
+                  <span className={cn("absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-[3px] border-white dark:border-slate-900", STATUS_DOT[e.employmentStatus] ?? "bg-emerald-500")} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="truncate text-base font-bold text-stone-900 dark:text-stone-50">{e.fullName}</p>
+                    <p className="truncate text-base font-bold text-slate-900 dark:text-slate-50">{e.fullName}</p>
                     <StatusPill status={e.status} />
                   </div>
                   <p className="mt-0.5 truncate text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">{e.position?.title ?? "Tanpa jabatan"}</p>
-                  <p className="mt-0.5 truncate text-[11px] text-stone-400">
+                  <p className="mt-0.5 truncate text-[11px] text-slate-400">
                     {e.employeeNo} · {e.orgUnit?.name ?? "—"} {e.grade?.code ? `· Grade ${e.grade.code}` : ""}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{empLabel(e.employmentStatus)}</span>
-                    <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{e.workShift}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{empLabel(e.employmentStatus)}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{e.workShift}</span>
                   </div>
                 </div>
               </div>
@@ -1079,9 +1079,9 @@ function PersonDrawer({
                   { label: "Gaji Pokok", value: fmtIDRShort(e.baseSalary) },
                   { label: "Bawahan", value: String(e.directReports.length) },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-xl border border-stone-100 bg-stone-50/70 px-2.5 py-2 dark:border-stone-800 dark:bg-stone-900/60">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">{s.label}</p>
-                    <p className="mt-0.5 truncate text-[12.5px] font-extrabold text-stone-800 dark:text-stone-200">{s.value}</p>
+                  <div key={s.label} className="rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+                    <p className="mt-0.5 truncate text-[12.5px] font-extrabold text-slate-800 dark:text-slate-200">{s.value}</p>
                   </div>
                 ))}
               </div>
@@ -1089,23 +1089,23 @@ function PersonDrawer({
 
             {/* manager chain */}
             {chain.length > 0 && (
-              <div className="border-b border-stone-200 p-4 dark:border-stone-800">
-                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Garis Pelaporan</p>
+              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Garis Pelaporan</p>
                 <div className="flex flex-wrap items-center gap-1">
                   {chain.map((m, i) => (
                     <Fragment key={m.id}>
-                      {i > 0 && <ChevronRight className="h-3 w-3 text-stone-300 dark:text-stone-600" />}
+                      {i > 0 && <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />}
                       <button
                         type="button"
                         onClick={() => onSelectPerson(m.id)}
-                        className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-1 text-[10.5px] font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
+                        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-500/50 dark:hover:text-emerald-400"
                       >
                         <span className={cn("flex h-4.5 w-4.5 items-center justify-center rounded-full text-[7px] font-extrabold", avatarColor(m.fullName))}>{initials(m.fullName)}</span>
                         {m.fullName}
                       </button>
                     </Fragment>
                   ))}
-                  <ChevronRight className="h-3 w-3 text-stone-300 dark:text-stone-600" />
+                  <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />
                   <span className="rounded-full bg-emerald-600 px-2 py-1 text-[10.5px] font-bold text-white">{e.fullName}</span>
                 </div>
               </div>
@@ -1113,20 +1113,20 @@ function PersonDrawer({
 
             {/* direct reports */}
             {e.directReports.length > 0 && (
-              <div className="border-b border-stone-200 p-4 dark:border-stone-800">
-                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Bawahan Langsung ({e.directReports.length})</p>
+              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Bawahan Langsung ({e.directReports.length})</p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {e.directReports.map((r) => (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => onSelectPerson(r.id)}
-                      className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white p-2 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-500/50"
+                      className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-left transition hover:border-emerald-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-500/50"
                     >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold", avatarColor(r.fullName))}>{initials(r.fullName)}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</span>
-                        <span className="block truncate text-[9.5px] text-stone-400">{r.position?.title ?? "—"}</span>
+                        <span className="block truncate text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{r.fullName}</span>
+                        <span className="block truncate text-[9.5px] text-slate-400">{r.position?.title ?? "—"}</span>
                       </span>
                     </button>
                   ))}
@@ -1163,9 +1163,9 @@ function PersonDrawer({
                       ["Bank", e.bankName],
                       ["No. Rekening", e.bankAccount],
                     ] as [string, string | null][]).map(([l, v]) => (
-                      <div key={l} className="flex items-baseline justify-between gap-3 border-b border-dashed border-stone-100 py-1.5 dark:border-stone-800/70">
-                        <span className="shrink-0 text-[11px] text-stone-400">{l}</span>
-                        <span className="truncate text-right text-[11.5px] font-medium text-stone-700 dark:text-stone-200">{v ?? "—"}</span>
+                      <div key={l} className="flex items-baseline justify-between gap-3 border-b border-dashed border-slate-100 py-1.5 dark:border-slate-800/70">
+                        <span className="shrink-0 text-[11px] text-slate-400">{l}</span>
+                        <span className="truncate text-right text-[11.5px] font-medium text-slate-700 dark:text-slate-200">{v ?? "—"}</span>
                       </div>
                     ))}
                   </div>
@@ -1173,42 +1173,42 @@ function PersonDrawer({
 
                 <TabsContent value="karir" className="mt-3 space-y-4">
                   {/* salary band */}
-                  <div className="rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
-                    <p className="mb-2.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">
+                  <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+                    <p className="mb-2.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">
                       Posisi Gaji dalam Band {grade?.code ? `(${grade.code})` : ""}
                     </p>
                     {bandPct != null ? (
                       <>
-                        <div className="flex justify-between text-[10px] font-medium text-stone-400">
+                        <div className="flex justify-between text-[10px] font-medium text-slate-400">
                           <span>{fmtIDRShort(grade!.minSalary)}</span>
                           <span>{fmtIDRShort(grade!.maxSalary)}</span>
                         </div>
-                        <div className="relative mt-1.5 h-2.5 rounded-full bg-stone-100 dark:bg-stone-800">
+                        <div className="relative mt-1.5 h-2.5 rounded-full bg-slate-100 dark:bg-slate-800">
                           <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${bandPct}%` }} />
-                          <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-stone-900 shadow dark:border-stone-900 dark:bg-white" style={{ left: `${bandPct}%` }} />
+                          <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-slate-900 shadow dark:border-slate-900 dark:bg-white" style={{ left: `${bandPct}%` }} />
                         </div>
-                        <p className="mt-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+                        <p className="mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                           Gaji pokok <span className="font-bold text-emerald-700 dark:text-emerald-400">{fmtIDR(e.baseSalary)}</span> · {Math.round(bandPct)}% dari band
                         </p>
                       </>
                     ) : (
-                      <p className="text-[11px] text-stone-500">Gaji pokok {fmtIDR(e.baseSalary)} — band grade belum tersedia.</p>
+                      <p className="text-[11px] text-slate-500">Gaji pokok {fmtIDR(e.baseSalary)} — band grade belum tersedia.</p>
                     )}
                   </div>
 
                   {/* education */}
                   <div>
-                    <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Pendidikan</p>
+                    <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Pendidikan</p>
                     {e.education.length === 0 ? (
-                      <p className="text-[11.5px] italic text-stone-400">Belum ada data pendidikan</p>
+                      <p className="text-[11.5px] italic text-slate-400">Belum ada data pendidikan</p>
                     ) : (
                       <div className="space-y-1.5">
                         {e.education.map((ed) => (
-                          <div key={ed.id} className="flex items-start gap-2.5 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
+                          <div key={ed.id} className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"><GraduationCap className="h-3.5 w-3.5" /></span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{ed.level} · {ed.institution}</p>
-                              <p className="truncate text-[10px] text-stone-400">
+                              <p className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{ed.level} · {ed.institution}</p>
+                              <p className="truncate text-[10px] text-slate-400">
                                 {ed.major ?? "—"}{ed.startYear || ed.endYear ? ` · ${ed.startYear ?? "?"}–${ed.endYear ?? "sekarang"}` : ""}{ed.gpa ? ` · IPK ${ed.gpa}` : ""}
                               </p>
                             </div>
@@ -1220,17 +1220,17 @@ function PersonDrawer({
 
                   {/* experiences */}
                   <div>
-                    <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Pengalaman Kerja</p>
+                    <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Pengalaman Kerja</p>
                     {e.experiences.length === 0 ? (
-                      <p className="text-[11.5px] italic text-stone-400">Belum ada data pengalaman</p>
+                      <p className="text-[11.5px] italic text-slate-400">Belum ada data pengalaman</p>
                     ) : (
                       <div className="space-y-1.5">
                         {e.experiences.map((ex) => (
-                          <div key={ex.id} className="flex items-start gap-2.5 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
+                          <div key={ex.id} className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400"><Briefcase className="h-3.5 w-3.5" /></span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{ex.position} — {ex.company}</p>
-                              <p className="text-[10px] text-stone-400">{fmtDate(ex.startDate)} → {ex.endDate ? fmtDate(ex.endDate) : "sekarang"}</p>
+                              <p className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{ex.position} — {ex.company}</p>
+                              <p className="text-[10px] text-slate-400">{fmtDate(ex.startDate)} → {ex.endDate ? fmtDate(ex.endDate) : "sekarang"}</p>
                             </div>
                           </div>
                         ))}
@@ -1241,27 +1241,27 @@ function PersonDrawer({
 
                 <TabsContent value="disiplin" className="mt-3">
                   {e.disciplinary.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-stone-200 p-4 text-center text-[11.5px] italic text-stone-400 dark:border-stone-700">
+                    <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[11.5px] italic text-slate-400 dark:border-slate-700">
                       Rekam jejak disiplin bersih — tidak ada catatan.
                     </p>
                   ) : (
                     <div className="space-y-1.5">
                       {e.disciplinary.map((d) => (
-                        <div key={d.id} className="rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
+                        <div key={d.id} className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
                           <div className="flex items-center justify-between gap-2">
                             <span className={cn(
                               "rounded-full px-2 py-0.5 text-[9.5px] font-bold",
-                              d.warningLevel === "Verbal" ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
+                              d.warningLevel === "Verbal" ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                                 : d.warningLevel === "Written" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                                 : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
                             )}>
                               {d.warningLevel === "Verbal" ? "Teguran Lisan" : d.warningLevel === "Written" ? "Teguran Tertulis" : "Peringatan Akhir"}
                             </span>
-                            <span className="text-[9.5px] text-stone-400">{fmtDate(d.issuedAt)}</span>
+                            <span className="text-[9.5px] text-slate-400">{fmtDate(d.issuedAt)}</span>
                           </div>
-                          <p className="mt-1 text-[11.5px] font-semibold text-stone-700 dark:text-stone-200">{d.violation}</p>
-                          {d.sanction && <p className="text-[10px] text-stone-400">Sanksi: {d.sanction}</p>}
-                          {d.notes && <p className="text-[10px] italic text-stone-400">{d.notes}</p>}
+                          <p className="mt-1 text-[11.5px] font-semibold text-slate-700 dark:text-slate-200">{d.violation}</p>
+                          {d.sanction && <p className="text-[10px] text-slate-400">Sanksi: {d.sanction}</p>}
+                          {d.notes && <p className="text-[10px] italic text-slate-400">{d.notes}</p>}
                         </div>
                       ))}
                     </div>
@@ -1270,16 +1270,16 @@ function PersonDrawer({
 
                 <TabsContent value="pengajuan" className="mt-3">
                   {e.actions.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-stone-200 p-4 text-center text-[11.5px] italic text-stone-400 dark:border-stone-700">
+                    <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[11.5px] italic text-slate-400 dark:border-slate-700">
                       Tidak ada pengajuan aktif untuk karyawan ini.
                     </p>
                   ) : (
                     <div className="space-y-1.5">
                       {e.actions.map((a) => (
-                        <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
+                        <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
                           <div className="min-w-0">
-                            <p className="text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{paTypeLabelSafe(a.type)}</p>
-                            <p className="font-mono text-[9.5px] text-stone-400">{a.docNo} · efektif {fmtDate(a.effectiveDate)}</p>
+                            <p className="text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{paTypeLabelSafe(a.type)}</p>
+                            <p className="font-mono text-[9.5px] text-slate-400">{a.docNo} · efektif {fmtDate(a.effectiveDate)}</p>
                           </div>
                           <StatusPill status={a.status} />
                         </div>
@@ -1291,7 +1291,7 @@ function PersonDrawer({
             </div>
 
             {/* footer action */}
-            <div className="border-t border-stone-200 p-4 dark:border-stone-800">
+            <div className="border-t border-slate-200 p-4 dark:border-slate-800">
               <Button className="w-full gap-2" onClick={() => onOpenDirectory(e.id)}>
                 <Users className="h-4 w-4" /> Buka di Direktori Karyawan
               </Button>
@@ -1329,7 +1329,7 @@ function UnitDrawer({
         ) : (
           <>
             {/* header */}
-            <div className="border-b border-stone-200 p-5 dark:border-stone-800">
+            <div className="border-b border-slate-200 p-5 dark:border-slate-800">
               <div className="flex items-start gap-3">
                 {style && (
                   <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", style.box)}>
@@ -1337,8 +1337,8 @@ function UnitDrawer({
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-stone-900 dark:text-stone-50">{u.name}</p>
-                  <p className="mt-0.5 text-[11px] text-stone-400">
+                  <p className="text-base font-bold text-slate-900 dark:text-slate-50">{u.name}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
                     <span className="font-mono">{u.code}</span> · {levelLabel(u.level)} · {subUnits.length} sub-unit
                   </p>
                   {u.headcountBudget > 0 && (
@@ -1357,10 +1357,10 @@ function UnitDrawer({
                   { label: "Lowongan", value: String(agg.vac), sub: "slot kosong" },
                   { label: "Biaya Gaji", value: fmtIDRShort(agg.cost), sub: "per bulan" },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-xl border border-stone-100 bg-stone-50/70 px-2.5 py-2 dark:border-stone-800 dark:bg-stone-900/60">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">{s.label}</p>
-                    <p className={cn("mt-0.5 truncate text-[13px] font-extrabold", s.label === "Lowongan" && agg.vac > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-800 dark:text-stone-200")}>{s.value}</p>
-                    <p className="truncate text-[9px] text-stone-400">{s.sub}</p>
+                  <div key={s.label} className="rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/60">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+                    <p className={cn("mt-0.5 truncate text-[13px] font-extrabold", s.label === "Lowongan" && agg.vac > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-800 dark:text-slate-200")}>{s.value}</p>
+                    <p className="truncate text-[9px] text-slate-400">{s.sub}</p>
                   </div>
                 ))}
               </div>
@@ -1369,26 +1369,26 @@ function UnitDrawer({
                 <button
                   type="button"
                   onClick={() => onSelectPerson(head.id)}
-                  className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-stone-200 p-2.5 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-500/50"
+                  className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 text-left transition hover:border-emerald-300 dark:border-slate-800 dark:hover:border-emerald-500/50"
                 >
                   <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(head.fullName))}>{initials(head.fullName)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1">
                       <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
-                      <span className="truncate text-[12px] font-bold text-stone-800 dark:text-stone-200">{head.fullName}</span>
+                      <span className="truncate text-[12px] font-bold text-slate-800 dark:text-slate-200">{head.fullName}</span>
                     </span>
-                    <span className="block truncate text-[10px] text-stone-400">Kepala unit · {head.positionTitle ?? "—"}</span>
+                    <span className="block truncate text-[10px] text-slate-400">Kepala unit · {head.positionTitle ?? "—"}</span>
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
                 </button>
               )}
             </div>
 
             {/* members */}
-            <div className="border-b border-stone-200 p-4 dark:border-stone-800">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Anggota Langsung ({members.length})</p>
+            <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Anggota Langsung ({members.length})</p>
               {members.length === 0 ? (
-                <p className="text-[11.5px] italic text-stone-400">Tidak ada anggota langsung di unit ini.</p>
+                <p className="text-[11.5px] italic text-slate-400">Tidak ada anggota langsung di unit ini.</p>
               ) : (
                 <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
                   {members.map((m) => (
@@ -1396,12 +1396,12 @@ function UnitDrawer({
                       key={m.id}
                       type="button"
                       onClick={() => onSelectPerson(m.id)}
-                      className="flex w-full items-center gap-2 rounded-lg border border-stone-200 p-2 text-left transition hover:border-emerald-300 dark:border-stone-800 dark:hover:border-emerald-500/50"
+                      className="flex w-full items-center gap-2 rounded-lg border border-slate-200 p-2 text-left transition hover:border-emerald-300 dark:border-slate-800 dark:hover:border-emerald-500/50"
                     >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold", avatarColor(m.fullName))}>{initials(m.fullName)}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{m.fullName}</span>
-                        <span className="block truncate text-[9.5px] text-stone-400">{m.positionTitle ?? "—"}{m.gradeCode ? ` · ${m.gradeCode}` : ""}</span>
+                        <span className="block truncate text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{m.fullName}</span>
+                        <span className="block truncate text-[9.5px] text-slate-400">{m.positionTitle ?? "—"}{m.gradeCode ? ` · ${m.gradeCode}` : ""}</span>
                       </span>
                       <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[m.employmentStatus] ?? "bg-emerald-500")} />
                     </button>
@@ -1411,20 +1411,20 @@ function UnitDrawer({
             </div>
 
             {/* positions */}
-            <div className="border-b border-stone-200 p-4 dark:border-stone-800">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Posisi ({positions.length})</p>
+            <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Posisi ({positions.length})</p>
               {positions.length === 0 ? (
-                <p className="text-[11.5px] italic text-stone-400">Belum ada posisi di unit ini.</p>
+                <p className="text-[11.5px] italic text-slate-400">Belum ada posisi di unit ini.</p>
               ) : (
                 <div className="space-y-1.5">
                   {positions.map((p) => {
                     const open = Math.max(0, p.headcount - p.filled);
                     return (
-                      <div key={p.id} className="flex items-center gap-2 rounded-lg border border-stone-200 p-2.5 dark:border-stone-800">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-300"><BriefcaseBusiness className="h-3.5 w-3.5" /></span>
+                      <div key={p.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2.5 dark:border-slate-800">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"><BriefcaseBusiness className="h-3.5 w-3.5" /></span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11.5px] font-bold text-stone-800 dark:text-stone-200">{p.title}</p>
-                          <p className="truncate text-[9.5px] text-stone-400">
+                          <p className="truncate text-[11.5px] font-bold text-slate-800 dark:text-slate-200">{p.title}</p>
+                          <p className="truncate text-[9.5px] text-slate-400">
                             <span className="font-mono">{p.code}</span>{p.reportsToTitle ? ` · bawahan ${p.reportsToTitle}` : ""}{p.gradeCode ? ` · ${p.gradeCode}` : ""}
                           </p>
                         </div>
@@ -1441,12 +1441,12 @@ function UnitDrawer({
             {/* vacancies */}
             {vacs.length > 0 && (
               <div className="p-4">
-                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-stone-400">Lowongan ({vacs.length})</p>
+                <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Lowongan ({vacs.length})</p>
                 <div className="space-y-1.5">
                   {vacs.map((v) => (
                     <div key={v.id} className="rounded-lg border-2 border-dashed border-amber-300/90 bg-amber-50/60 p-2.5 dark:border-amber-500/40 dark:bg-amber-500/5">
                       <p className="text-[11.5px] font-bold text-amber-700 dark:text-amber-400">{v.title} · {v.slots} slot</p>
-                      <p className="text-[9.5px] text-stone-400">{v.reportsToTitle ? `Melapor ke ${v.reportsToTitle}` : "Belum terpetakan"}{v.gradeCode ? ` · ${v.gradeCode}` : ""}</p>
+                      <p className="text-[9.5px] text-slate-400">{v.reportsToTitle ? `Melapor ke ${v.reportsToTitle}` : "Belum terpetakan"}{v.gradeCode ? ` · ${v.gradeCode}` : ""}</p>
                     </div>
                   ))}
                 </div>

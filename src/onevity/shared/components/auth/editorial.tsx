@@ -1,11 +1,8 @@
 "use client";
 // ============================================================================
-// OneVity — fragmen desain "Ivory Editorial" (quiet luxury).
-// Dipilih user dari Auth Design Lab (?mockup=auth, opsi B) untuk halaman masuk.
-// Dipakai bersama oleh auth-screen (masuk/registrasi) & tenant-select (pilih
-// workspace) agar seluruh perjalanan auth satu bahasa visual.
-// Karakter: latar ivory hangat + noise film halus + bingkai hairline tipis +
-// serif display (Playfair via --font-editorial) + aksen amber + CTA hitam.
+// OneVity — fragmen layar auth (dipakai bersama oleh auth-screen & tenant-select).
+// Task 85 — restyle tema SayOne-Learning: hero gradient biru brand + panel putih
+// bersih; aksen biru #2563EB; marquee putih-biru di atas gradient.
 // ============================================================================
 import { motion } from "framer-motion";
 import { AlertCircle, Waypoints } from "lucide-react";
@@ -25,26 +22,18 @@ export function NoiseOverlay({ opacity = 0.035, className }: { opacity?: number;
   );
 }
 
-/**
- * Bingkai hairline editorial — margin 12px + border tipis (layar lebar saja).
- * Kesan "majalah premium" pada latar ivory penuh.
- */
-export function HairlineFrame({ className }: { className?: string }) {
-  return (
-    <div
-      aria-hidden
-      className={cn("pointer-events-none absolute inset-3 hidden border border-stone-300/70 lg:block dark:border-stone-700/60", className)}
-    />
-  );
-}
-
-/** Lockup logo versi editorial: kotak tinta + aksen amber pada "Vity". */
-export function EditorialLogo({ compact = false }: { compact?: boolean }) {
+/** Lockup logo — Task 85: varian "hero" (kaca di atas gradient biru) atau
+ * default (biru solid di atas latar terang). */
+export function EditorialLogo({ compact = false, variant = "default" }: { compact?: boolean; variant?: "default" | "hero" }) {
+  const hero = variant === "hero";
   return (
     <div className="flex items-center gap-3">
       <div
         className={cn(
-          "flex items-center justify-center rounded-2xl bg-stone-900 text-white shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none",
+          hero
+            ? "bg-white/15 text-white shadow-none backdrop-blur ring-1 ring-white/25"
+            : "bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_rgba(37,99,235,0.55)]",
+          "flex items-center justify-center rounded-2xl",
           compact ? "h-10 w-10" : "h-12 w-12",
         )}
       >
@@ -53,13 +42,14 @@ export function EditorialLogo({ compact = false }: { compact?: boolean }) {
       <div>
         <p
           className={cn(
-            "font-extrabold tracking-tight text-stone-900 dark:text-stone-100",
+            "font-extrabold tracking-tight",
+            hero ? "text-white" : "text-slate-900 dark:text-slate-100",
             compact ? "text-base" : "text-lg",
           )}
         >
-          One<span className="text-brand-deep dark:text-brand">Vity</span>
+          One<span className={hero ? "text-blue-200" : "text-brand-deep dark:text-brand"}>Vity</span>
         </p>
-        <p className="text-[9px] font-bold uppercase tracking-[0.32em] text-stone-400 dark:text-stone-500">
+        <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", hero ? "text-blue-200/80" : "text-slate-400 dark:text-slate-500")}>
           HR Suite
         </p>
       </div>
@@ -88,10 +78,10 @@ export function MarqueeStrip({ items }: { items: string[] }) {
         {doubled.map((c, i) => (
           <span
             key={i}
-            className="flex items-center whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.22em] text-stone-400 dark:text-stone-500"
+            className="flex items-center whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.22em] text-blue-200/80"
           >
             {c}
-            <span aria-hidden className="mx-10 block h-1.5 w-1.5 rotate-45 bg-brand/60 dark:bg-brand/50" />
+            <span aria-hidden className="mx-10 block h-1.5 w-1.5 rotate-45 bg-blue-300/60" />
           </span>
         ))}
       </div>

@@ -120,7 +120,7 @@ export function AuthScreen() {
     <div className="min-h-screen bg-background">
       <div className="grid min-h-screen lg:grid-cols-2">
         {/* Panel kiri — brand OneVity (hidden di mobile) */}
-        <div className="relative hidden flex-col overflow-hidden bg-stone-950 p-10 text-stone-300 sm:flex xl:p-14">
+        <div className="relative hidden flex-col overflow-hidden bg-slate-950 p-10 text-slate-300 sm:flex xl:p-14">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-[image:radial-gradient(ellipse_70%_55%_at_75%_0%,rgba(16,185,129,0.14),transparent_60%)]"
@@ -141,10 +141,10 @@ export function AuthScreen() {
                 <Waypoints className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-lg font-bold tracking-tight text-stone-50">
+                <p className="text-lg font-bold tracking-tight text-slate-50">
                   One<span className="text-emerald-400">Vity</span>
                 </p>
-                <p className="text-[11px] uppercase tracking-widest text-stone-500">HR Suite</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">HR Suite</p>
               </div>
             </div>
 
@@ -155,8 +155,8 @@ export function AuthScreen() {
               >
                 SaaS Multi-Tenant
               </Badge>
-              <h2 className="mt-5 text-3xl font-bold tracking-tight text-stone-50 xl:text-4xl">OneVity HR Suite</h2>
-              <p className="mt-3 text-sm leading-relaxed text-stone-400 xl:text-base">
+              <h2 className="mt-5 text-3xl font-bold tracking-tight text-slate-50 xl:text-4xl">OneVity HR Suite</h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-400 xl:text-base">
                 HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.
               </p>
               <ul className="mt-9 space-y-4">
@@ -166,15 +166,15 @@ export function AuthScreen() {
                       <f.icon className="h-[18px] w-[18px]" />
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold text-stone-200">{f.title}</span>
-                      <span className="mt-0.5 block text-xs text-stone-500">{f.desc}</span>
+                      <span className="block text-sm font-semibold text-slate-200">{f.title}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">{f.desc}</span>
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <p className="text-[11px] text-stone-600">© 2026 OneVity — HRIS multi-tenant SaaS</p>
+            <p className="text-[11px] text-slate-600">© 2026 OneVity — HRIS multi-tenant SaaS</p>
           </motion.div>
         </div>
 
@@ -186,7 +186,7 @@ export function AuthScreen() {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="w-full max-w-md"
           >
-            <Card className="border-stone-200 shadow-lg shadow-stone-200/60 dark:border-stone-800 dark:shadow-none">
+            <Card className="border-slate-200 shadow-lg shadow-slate-200/60 dark:border-slate-800 dark:shadow-none">
               <CardHeader>
                 <div className="mb-2 flex items-center gap-2.5 sm:hidden">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
@@ -258,7 +258,7 @@ export function AuthScreen() {
                         )}
                       </Button>
 
-                      <p className="text-center text-xs text-stone-500 dark:text-stone-400">
+                      <p className="text-center text-xs text-slate-500 dark:text-slate-400">
                         Belum punya akun?{" "}
                         <button
                           type="button"
@@ -327,7 +327,7 @@ export function AuthScreen() {
                           aria-invalid={isInvalid("reg-password")}
                           aria-describedby={describedBy("reg-password", "register-error")}
                         />
-                        <p className="text-xs text-stone-500 dark:text-stone-400">Minimal 8 karakter.</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Minimal 8 karakter.</p>
                       </div>
 
                       {shownError && <FormError id="register-error" message={shownError} />}
@@ -347,12 +347,12 @@ export function AuthScreen() {
                         )}
                       </Button>
                       {busy && (
-                        <p className="text-center text-xs text-stone-500 dark:text-stone-400">
+                        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
                           Provisioning database tenant ± beberapa detik.
                         </p>
                       )}
 
-                      <p className="text-center text-xs text-stone-500 dark:text-stone-400">
+                      <p className="text-center text-xs text-slate-500 dark:text-slate-400">
                         Sudah punya akun?{" "}
                         <button
                           type="button"

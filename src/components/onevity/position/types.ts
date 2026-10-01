@@ -86,6 +86,6 @@ export function jobCategoryIcon(category: string | null): { icon: string; cls: s
     case "Supervisory":
       return { icon: "user-cog", cls: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400", label: "Supervisory" };
     default:
-      return { icon: "user", cls: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400", label: category ?? "Staff" };
+      return { icon: "user", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400", label: category ?? "Staff" };
   }
 }

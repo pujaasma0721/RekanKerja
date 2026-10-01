@@ -28,7 +28,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function Field({ label, htmlFor, children, className }: { label: string; htmlFor?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("grid gap-1.5", className)}>
-      <Label htmlFor={htmlFor} className="text-xs font-semibold text-stone-600 dark:text-stone-300">{label}</Label>
+      <Label htmlFor={htmlFor} className="text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</Label>
       {children}
     </div>
   );
@@ -483,10 +483,10 @@ export function FamilyDialog({
           <Field label={t("Pekerjaan", "Occupation")} htmlFor="f-occ">
             <Input id="f-occ" value={form.occupation} onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))} placeholder={t("Ibu Rumah Tangga", "Homemaker")} />
           </Field>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3.5 dark:border-stone-800 sm:col-span-2">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3.5 dark:border-slate-800 sm:col-span-2">
             <div>
               <Label htmlFor="f-dep" className="text-sm font-semibold">{t("Tanggungan (Dependen)", "Dependent")}</Label>
-              <p className="text-xs text-stone-500 dark:text-stone-400">{t("Masuk perhitungan tunjangan keluarga & BPJS.", "Included in family allowance & BPJS calculations.")}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("Masuk perhitungan tunjangan keluarga & BPJS.", "Included in family allowance & BPJS calculations.")}</p>
             </div>
             <Switch id="f-dep" checked={form.isDependent} onCheckedChange={(v) => setForm((f) => ({ ...f, isDependent: v }))} />
           </div>
@@ -756,7 +756,7 @@ export function DisciplinaryDialog({
                   <SelectItem value="none" className="py-2.5">{t("— Pilih karyawan —", "— Select employee —")}</SelectItem>
                   {(opts.data?.managers ?? []).map((m) => (
                     <SelectItem key={m.id} value={m.id} className="py-2.5">
-                      {m.fullName} <span className="text-stone-400">· {m.employeeNo}</span>
+                      {m.fullName} <span className="text-slate-400">· {m.employeeNo}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -778,7 +778,7 @@ export function DisciplinaryDialog({
                         : lvl === "Written"
                           ? "border-orange-400 bg-orange-50 text-orange-700 dark:border-orange-500/60 dark:bg-orange-500/10 dark:text-orange-400"
                           : "border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-400"
-                      : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                   )}
                   aria-pressed={form.warningLevel === lvl}
                 >
@@ -839,7 +839,7 @@ export function DeleteRecordButton({
         <Button
           variant="ghost"
           size="icon"
-          className={cn("h-11 w-11 text-stone-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10", className)}
+          className={cn("h-11 w-11 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10", className)}
           aria-label={t("Hapus data", "Delete data")}
           disabled={busy}
         >

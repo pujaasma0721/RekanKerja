@@ -52,7 +52,7 @@ export function DashboardModule() {
     { label: "Total Karyawan Aktif", value: data.activeEmployees.toLocaleString("id-ID"), sub: `${data.totalEmployees - data.activeEmployees} tidak aktif`, icon: Users, accent: "from-emerald-500 to-teal-600", trend: `+${data.newHiresThisYear} hiring YTD` },
     { label: "Approval Menunggu", value: data.pendingActions.toLocaleString("id-ID"), sub: "Pengajuan karyawan", icon: Clock, accent: "from-amber-400 to-orange-500", trend: "Butuh keputusan" },
     { label: "Unit Organisasi", value: String(data.orgUnits), sub: `${data.positions} posisi terdefinisi`, icon: Network, accent: "from-teal-400 to-emerald-600", trend: "Struktur hidup" },
-    { label: "Rata-rata Gaji Pokok", value: fmtIDRShort(data.avgSalary), sub: "Karyawan aktif", icon: Wallet, accent: "from-stone-500 to-stone-700", trend: "Grade G1–G8" },
+    { label: "Rata-rata Gaji Pokok", value: fmtIDRShort(data.avgSalary), sub: "Karyawan aktif", icon: Wallet, accent: "from-slate-500 to-slate-700", trend: "Grade G1–G8" },
   ];
 
   const genderData = data.genderSplit.map((g) => ({ name: g.gender === "F" ? "Perempuan" : "Laki-laki", value: g.count }));
@@ -79,7 +79,7 @@ export function DashboardModule() {
             <div className="flex flex-wrap gap-2.5">
               <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-emerald-800 hover:bg-emerald-50 shadow-lg">
                 <CheckCircle2 className="h-4 w-4" /> Lihat Pengajuan
-                {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-stone-900">{data.pendingActions}</span>}
+                {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-slate-900">{data.pendingActions}</span>}
               </Button>
               <Button onClick={() => navigate("employee", "wizard")} variant="outline" className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
                 <UserCheck className="h-4 w-4" /> Onboarding
@@ -95,19 +95,19 @@ export function DashboardModule() {
           const Icon = k.icon;
           return (
             <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i, duration: 0.3 }}>
-              <Card className="relative overflow-hidden rounded-2xl border-stone-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-stone-200/60 dark:border-stone-800 dark:hover:shadow-stone-900/60">
+              <Card className="relative overflow-hidden rounded-2xl border-slate-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-slate-200/60 dark:border-slate-800 dark:hover:shadow-slate-900/60">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-stone-400">{k.label}</p>
-                      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{k.value}</p>
-                      <p className="mt-1 text-[11px] text-stone-400">{k.sub}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">{k.label}</p>
+                      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{k.value}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{k.sub}</p>
                     </div>
                     <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${k.accent} text-white shadow-md`}>
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-stone-100 pt-3 text-[11px] font-bold text-emerald-600 dark:border-stone-800 dark:text-emerald-400">
+                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-slate-100 pt-3 text-[11px] font-bold text-emerald-600 dark:border-slate-800 dark:text-emerald-400">
                     <ArrowUpRight className="h-3.5 w-3.5" /> {k.trend}
                   </div>
                 </CardContent>
@@ -120,11 +120,11 @@ export function DashboardModule() {
       {/* charts row */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* headcount trend */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm lg:col-span-2 dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm lg:col-span-2 dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <div>
               <CardTitle className="text-sm font-bold">Tren Rekrutmen — 12 Bulan</CardTitle>
-              <p className="mt-0.5 text-[11px] text-stone-400">Jumlah karyawan baru per bulan</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Jumlah karyawan baru per bulan</p>
             </div>
             <Badge2 label="Live" />
           </CardHeader>
@@ -150,10 +150,10 @@ export function DashboardModule() {
         </Card>
 
         {/* gender + status donuts */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Komposisi Karyawan</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">Gender & status kepegawaian</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">Gender & status kepegawaian</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2">
@@ -171,17 +171,17 @@ export function DashboardModule() {
                 {genderData.map((g, i) => (
                   <div key={g.name} className="flex items-center gap-2 text-xs">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="font-semibold text-stone-700 dark:text-stone-300">{g.name}</span>
-                    <span className="ml-auto font-bold text-stone-900 dark:text-stone-100">{g.value}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{g.name}</span>
+                    <span className="ml-auto font-bold text-slate-900 dark:text-slate-100">{g.value}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-1.5 border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
+            <div className="mt-3 grid grid-cols-4 gap-1.5 border-t border-dashed border-slate-100 pt-3 dark:border-slate-800">
               {data.employmentStatusSplit.map((s) => (
-                <div key={s.status} className="rounded-lg bg-stone-50 py-1.5 text-center dark:bg-stone-900">
-                  <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{s.count}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{s.status}</p>
+                <div key={s.status} className="rounded-lg bg-slate-50 py-1.5 text-center dark:bg-slate-900">
+                  <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{s.count}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{s.status}</p>
                 </div>
               ))}
             </div>
@@ -191,7 +191,7 @@ export function DashboardModule() {
 
       {/* headcount per division + grade */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Headcount per Divisi</CardTitle>
           </CardHeader>
@@ -210,10 +210,10 @@ export function DashboardModule() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Distribusi Grade</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">Struktur level G1–G8</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">Struktur level G1–G8</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2 pt-1">
@@ -221,8 +221,8 @@ export function DashboardModule() {
                 const max = Math.max(...data.gradeDistribution.map((x) => x.count), 1);
                 return (
                   <div key={g.code} className="flex items-center gap-2.5">
-                    <span className="w-6 text-[10px] font-extrabold text-stone-400">{g.code}</span>
-                    <div className="h-6 flex-1 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
+                    <span className="w-6 text-[10px] font-extrabold text-slate-400">{g.code}</span>
+                    <div className="h-6 flex-1 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(g.count / max) * 100}%` }}
@@ -232,7 +232,7 @@ export function DashboardModule() {
                         <span className="text-[10px] font-extrabold text-white">{g.count}</span>
                       </motion.div>
                     </div>
-                    <span className="w-24 truncate text-[10px] text-stone-400">{g.name}</span>
+                    <span className="w-24 truncate text-[10px] text-slate-400">{g.name}</span>
                   </div>
                 );
               })}
@@ -241,7 +241,7 @@ export function DashboardModule() {
         </Card>
 
         {/* recent PA */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">Pengajuan Terbaru</CardTitle>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400" onClick={() => navigate("actions", "all")}>
@@ -250,13 +250,13 @@ export function DashboardModule() {
           </CardHeader>
           <CardContent className="space-y-1.5 pt-0">
             {data.recentActions.map((a) => (
-              <button key={a.id} onClick={() => navigate("actions", "all", { id: a.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900">
+              <button key={a.id} onClick={() => navigate("actions", "all", { id: a.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900">
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-extrabold ${avatarColor(a.employee.fullName)}`}>
                   {initials(a.employee.fullName)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-stone-800 dark:text-stone-200">{a.docNo} · {paTypeLabelSafe(a.type)}</p>
-                  <p className="truncate text-[11px] text-stone-400">{a.employee.fullName}</p>
+                  <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{a.docNo} · {paTypeLabelSafe(a.type)}</p>
+                  <p className="truncate text-[11px] text-slate-400">{a.employee.fullName}</p>
                 </div>
                 <StatusPill status={a.status} />
               </button>
@@ -266,22 +266,22 @@ export function DashboardModule() {
       </div>
 
       {/* activity feed */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 text-emerald-600" /> Aktivitas Terakhir</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
+          <ol className="relative ml-2 space-y-4 border-l border-slate-200 pl-6 dark:border-slate-800">
             {data.activities.map((a) => (
               <li key={a.id} className="relative">
-                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-500/20 dark:ring-stone-950">
+                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-500/20 dark:ring-slate-950">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
                 </span>
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-stone-400">· {a.action}</span> <span className="font-semibold text-emerald-700 dark:text-emerald-400">{a.entity}</span></p>
-                  <time className="text-[10px] text-stone-400">{fmtDateTime(a.createdAt)}</time>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-slate-400">· {a.action}</span> <span className="font-semibold text-emerald-700 dark:text-emerald-400">{a.entity}</span></p>
+                  <time className="text-[10px] text-slate-400">{fmtDateTime(a.createdAt)}</time>
                 </div>
-                <p className="mt-0.5 text-[11px] text-stone-500">{a.detail}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{a.detail}</p>
               </li>
             ))}
           </ol>

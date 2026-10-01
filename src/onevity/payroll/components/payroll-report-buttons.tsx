@@ -16,7 +16,7 @@ import {
 
 const btnCls = (compact?: boolean) =>
   cn(
-    "inline-flex items-center gap-1 rounded-lg border border-stone-200 font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300",
+    "inline-flex items-center gap-1 rounded-lg border border-slate-200 font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300",
     compact ? "h-7 px-2.5 text-[11px]" : "h-9 gap-2 px-4 text-[13px]"
   );
 
@@ -33,15 +33,15 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
         <ChevronDown className="h-3 w-3 opacity-60" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
           {t("Rekap internal", "Internal recap")}
         </DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <a href={`/api/onevity/payroll-reports/bpjs?runId=${runId}&export=xlsx`} className="cursor-pointer">
-            <FileSpreadsheet className="h-4 w-4 text-stone-400" />
+            <FileSpreadsheet className="h-4 w-4 text-slate-400" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Rekap Iuran BPJS (XLSX)", "BPJS Contribution Recap (XLSX)")}</p>
-              <p className="text-[10px] text-stone-400">{t("JHT/JP/JKK/JKM/JKN per karyawan untuk run ini", "JHT/JP/JKK/JKM/JKN per employee for this run")}</p>
+              <p className="text-[10px] text-slate-400">{t("JHT/JP/JKK/JKM/JKN per karyawan untuk run ini", "JHT/JP/JKK/JKM/JKN per employee for this run")}</p>
             </div>
           </a>
         </DropdownMenuItem>
@@ -54,7 +54,7 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
             <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Laporan Kepegawaian BPJS TK (CSV)", "BPJS TK Employee Report (CSV)")}</p>
-              <p className="text-[10px] text-stone-400">
+              <p className="text-[10px] text-slate-400">
                 {t("NO KTP · NAMA · TEMPAT/TGL LAHIR · NO BPJS TK · KODE KANTOR · STATUS · JABATAN · TGL MASUK · GAJI — tanggal DDMMYYYY", "ID Card No. · Name · Birth Place/Date · BPJS TK No. · Office Code · Status · Title · Join Date · Salary — dates DDMMYYYY")}
               </p>
             </div>
@@ -65,14 +65,14 @@ export function BpjsExportButton({ runId, runNo, compact }: { runId: string; run
             <FileUp className="h-4 w-4 text-brand" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold">{t("Data Peserta BPJS Kesehatan (CSV)", "BPJS Health Members (CSV)")}</p>
-              <p className="text-[10px] text-stone-400">
+              <p className="text-[10px] text-slate-400">
                 {t("NIK · NO KARTU · NAMA · TGL LAHIR · JENIS KELAMIN (L/P) · HUBKEL · ALAMAT · STATUS · JABATAN · UPAH · KELAS", "NIK · Card No. · Name · Birth Date · Gender (L/P) · Family Relation · Address · Status · Title · Wage · Class")}
               </p>
             </div>
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <div className="flex items-start gap-2 px-2 py-2 text-[10px] leading-relaxed text-stone-400">
+        <div className="flex items-start gap-2 px-2 py-2 text-[10px] leading-relaxed text-slate-400">
           <Info className="mt-0.5 h-3 w-3 shrink-0" />
           <p>
             {t(

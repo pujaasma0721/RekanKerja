@@ -37,7 +37,7 @@ interface ReqCardProps {
 function RequestCard({ title, description, icon: Icon, cta, onOpen, latest }: ReqCardProps) {
   const { t } = useI18n();
   return (
-    <Card className="flex flex-col rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="flex flex-col rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
@@ -45,22 +45,22 @@ function RequestCard({ title, description, icon: Icon, cta, onOpen, latest }: Re
           </span>
           {title}
         </CardTitle>
-        <p className="mt-0.5 text-[11.5px] leading-relaxed text-stone-400">{description}</p>
+        <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-400">{description}</p>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col justify-between gap-3 pt-1">
         {/* status terakhir pengajuan jenis ini */}
-        <div className="rounded-xl border border-dashed border-stone-200 p-3 dark:border-stone-800">
-          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+        <div className="rounded-xl border border-dashed border-slate-200 p-3 dark:border-slate-800">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
             <History className="h-3 w-3" aria-hidden /> {t("Pengajuan Terakhir", "Latest Request")}
           </p>
           {latest ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-mono text-[12px] font-semibold text-stone-600 dark:text-stone-300">{latest.docNo}</span>
+              <span className="font-mono text-[12px] font-semibold text-slate-600 dark:text-slate-300">{latest.docNo}</span>
               <StatusPill status={latest.status} />
-              <span className="text-[11px] text-stone-400">{latest.dateLabel ?? "—"}</span>
+              <span className="text-[11px] text-slate-400">{latest.dateLabel ?? "—"}</span>
             </div>
           ) : (
-            <p className="text-[12px] text-stone-400">{t("Belum ada — Anda belum pernah mengajukan.", "None yet — you have never submitted this.")}</p>
+            <p className="text-[12px] text-slate-400">{t("Belum ada — Anda belum pernah mengajukan.", "None yet — you have never submitted this.")}</p>
           )}
         </div>
         <Button onClick={onOpen} className="w-full gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
@@ -184,7 +184,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
       </div>
 
       {/* riwayat ringkas gabungan */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Riwayat Terbaru", "Recent History")}
@@ -192,7 +192,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
         </CardHeader>
         <CardContent className="pt-1">
           {dash.loading && !dash.data ? (
-            <p className="py-4 text-center text-[12px] text-stone-400">{t("Memuat…")}</p>
+            <p className="py-4 text-center text-[12px] text-slate-400">{t("Memuat…")}</p>
           ) : recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)).length === 0 ? (
             <EmptyState
               title={t("Belum ada riwayat", "No history yet")}
@@ -200,15 +200,15 @@ export function EssRequests({ intent }: EssRequestsProps) {
               icon={History}
             />
           ) : (
-            <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)).map((r) => (
                 <li key={r.docNo + r.docType} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                    <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
                       {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
-                      <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.docNo}</span>
+                      <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.docNo}</span>
                     </p>
-                    <p className="text-[11px] text-stone-400">{r.dateLabel ?? "—"}</p>
+                    <p className="text-[11px] text-slate-400">{r.dateLabel ?? "—"}</p>
                   </div>
                   <StatusPill status={r.status} />
                 </li>
@@ -239,7 +239,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
+            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
               <Checkbox
                 id="ess-wo-half"
                 checked={wForm.halfDay}
@@ -250,12 +250,12 @@ export function EssRequests({ intent }: EssRequestsProps) {
               </Label>
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
               <div>
                 <Label htmlFor="ess-wo-paid" className="cursor-pointer text-[12.5px] font-semibold">
                   {t("Berbayar", "Paid")}
                 </Label>
-                <p className="text-[11px] font-normal text-stone-400">
+                <p className="text-[11px] font-normal text-slate-400">
                   {t("Gaji tetap dibayarkan untuk hari izin.", "Salary remains paid for the permit days.")}
                 </p>
               </div>

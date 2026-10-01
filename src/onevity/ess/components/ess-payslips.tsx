@@ -22,13 +22,13 @@ const isInfoKind = (kind: string) => /info/i.test(kind);
 
 function SlipRow({ label, amount, tone }: { label: string; amount: number; tone: "earn" | "deduct" | "info" }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-dashed border-stone-200/70 py-2 last:border-b-0 dark:border-stone-800/70">
-      <span className="min-w-0 break-words text-[12.5px] font-medium text-stone-600 dark:text-stone-300">{label}</span>
+    <div className="flex items-baseline justify-between gap-4 border-b border-dashed border-slate-200/70 py-2 last:border-b-0 dark:border-slate-800/70">
+      <span className="min-w-0 break-words text-[12.5px] font-medium text-slate-600 dark:text-slate-300">{label}</span>
       <span className={cn(
         "shrink-0 text-[13px] font-bold tabular-nums",
         tone === "earn" && "text-brand-deep dark:text-brand/85",
         tone === "deduct" && "text-rose-600 dark:text-rose-400",
-        tone === "info" && "text-stone-500 dark:text-stone-400",
+        tone === "info" && "text-slate-500 dark:text-slate-400",
       )}>
         {tone === "deduct" ? "−" : ""}{fmtIDR(amount)}
       </span>
@@ -41,16 +41,16 @@ function ItemList({ title, icon: Icon, items, tone, empty }: {
 }) {
   const { t } = useI18n();
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="pb-1">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <Icon className={cn("h-4 w-4", tone === "earn" && "text-brand dark:text-brand/85", tone === "deduct" && "text-rose-500 dark:text-rose-400", tone === "info" && "text-stone-400")} aria-hidden />
+          <Icon className={cn("h-4 w-4", tone === "earn" && "text-brand dark:text-brand/85", tone === "deduct" && "text-rose-500 dark:text-rose-400", tone === "info" && "text-slate-400")} aria-hidden />
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-5 py-1">
         {items.length === 0 ? (
-          <p className="py-3 text-center text-[12px] text-stone-400">{empty}</p>
+          <p className="py-3 text-center text-[12px] text-slate-400">{empty}</p>
         ) : items.map((it, i) => (
           <SlipRow key={`${it.name}-${i}`} label={it.name} amount={it.amount} tone={tone} />
         ))}
@@ -88,10 +88,10 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
             <LoadingRows rows={5} />
           </div>
         ) : detail.error || !detail.data ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-14 text-center dark:border-stone-700 dark:bg-stone-900/30">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/30">
             <AlertTriangle className="h-6 w-6 text-rose-400" aria-hidden />
-            <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat detail slip", "Failed to load payslip detail")}</p>
-            <p className="max-w-sm break-words text-xs text-stone-500">{detail.error ?? t("Slip tidak ditemukan.", "Slip not found.")}</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat detail slip", "Failed to load payslip detail")}</p>
+            <p className="max-w-sm break-words text-xs text-slate-500">{detail.error ?? t("Slip tidak ditemukan.", "Slip not found.")}</p>
             <Button onClick={detail.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
               <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
             </Button>
@@ -113,17 +113,17 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
 
               {/* ringkasan + NET */}
               <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-                <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+                <Card className="overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                   <CardContent className="p-5">
-                    <div className="flex items-center justify-between gap-3 border-b border-stone-100 pb-3.5 dark:border-stone-800">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 dark:border-slate-800">
                       <div className="flex items-center gap-2.5">
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
                           <ReceiptText className="h-5 w-5" aria-hidden />
                         </span>
                         <div>
-                          <p className="text-[14px] font-extrabold text-stone-900 dark:text-stone-50">{loc(d.periodName)}</p>
+                          <p className="text-[14px] font-extrabold text-slate-900 dark:text-slate-50">{loc(d.periodName)}</p>
                           <div className="mt-0.5 flex items-center gap-2">
-                            <span className="text-[11px] text-stone-400">{t("Run", "Run")}</span>
+                            <span className="text-[11px] text-slate-400">{t("Run", "Run")}</span>
                             <StatusPill status={d.runStatus} />
                           </div>
                         </div>
@@ -131,11 +131,11 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     </div>
                     <div className="space-y-2.5 py-4">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-semibold text-stone-500">{t("Gaji Kotor (Gross)", "Gross Pay")}</span>
-                        <span className="text-[14px] font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{fmtIDR(d.gross)}</span>
+                        <span className="text-[12.5px] font-semibold text-slate-500">{t("Gaji Kotor (Gross)", "Gross Pay")}</span>
+                        <span className="text-[14px] font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{fmtIDR(d.gross)}</span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-semibold text-stone-500">{t("Total Potongan", "Total Deductions")}</span>
+                        <span className="text-[12.5px] font-semibold text-slate-500">{t("Total Potongan", "Total Deductions")}</span>
                         <span className="text-[14px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">−{fmtIDR(d.totalDeductions)}</span>
                       </div>
                     </div>
@@ -147,7 +147,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     </div>
                   </CardContent>
                 </Card>
-                <p className="px-1 text-[11px] leading-relaxed text-stone-400">
+                <p className="px-1 text-[11px] leading-relaxed text-slate-400">
                   {t("Slip ini bersifat rahasia. Nilai mengikuti hasil proses payroll periode terkait.", "This slip is confidential. Figures follow the payroll run result of the period.")}
                 </p>
               </div>
@@ -167,14 +167,14 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
         title={t("Slip Gaji", "Payslips")}
         description={t("Riwayat slip gaji periode Anda — klik untuk melihat rincian.", "Your payslip history by period — click for the breakdown.")}
       />
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {list.loading && !list.data ? (
             <div className="p-5"><LoadingRows rows={5} /></div>
           ) : list.error && !list.data ? (
             <div className="flex flex-col items-center gap-2 p-10 text-center">
               <AlertTriangle className="h-6 w-6 text-rose-400" aria-hidden />
-              <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat daftar slip", "Failed to load payslip list")}</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat daftar slip", "Failed to load payslip list")}</p>
               <Button onClick={list.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
                 <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
               </Button>
@@ -188,7 +188,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
               />
             </div>
           ) : (
-            <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
               {slips.map((s) => (
                 <li key={s.lineId} className="flex items-center gap-1">
                   <button
@@ -199,15 +199,15 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                       <ReceiptText className="h-5 w-5" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13.5px] font-bold text-stone-800 dark:text-stone-100">{loc(s.periodName)}</p>
-                      <p className="mt-0.5 text-[11.5px] text-stone-400">
+                      <p className="text-[13.5px] font-bold text-slate-800 dark:text-slate-100">{loc(s.periodName)}</p>
+                      <p className="mt-0.5 text-[11.5px] text-slate-400">
                         {t("Gross {g}", "Gross {g}", { g: fmtIDR(s.gross) })}
                         {s.paidAt ? ` · ${t("dibayar {d}", "paid {d}", { d: fmtDate(s.paidAt) })}` : ""}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Net", "Net")}</p>
-                      <p className="text-[15px] font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{fmtIDR(s.net)}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Net", "Net")}</p>
+                      <p className="text-[15px] font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{fmtIDR(s.net)}</p>
                     </div>
                     <StatusPill status={s.status} />
                   </button>
@@ -219,7 +219,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     download
                     aria-label={t("Unduh PDF slip {p}", "Download payslip PDF {p}", { p: s.periodName })}
                     title={t("Unduh PDF", "Download PDF")}
-                    className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-stone-200 text-stone-500 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-800 dark:text-stone-400 sm:mr-4"
+                    className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-800 dark:text-slate-400 sm:mr-4"
                   >
                     <FileDown className="h-4 w-4" aria-hidden />
                   </a>

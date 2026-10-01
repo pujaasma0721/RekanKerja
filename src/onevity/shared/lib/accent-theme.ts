@@ -18,8 +18,10 @@ export interface AccentTheme {
   hexDeep: string;
 }
 
-// Sumber warna: identitas modul lama (dipertahankan sebagai pilihan tema).
+// Sumber warna: tema biru SayOne-Learning (default, Task 85) + identitas
+// modul lama (dipertahankan sebagai pilihan tema).
 export const ACCENT_THEMES: AccentTheme[] = [
+  { id: "blue",    label: "Biru",      labelEn: "Blue",      hex: "#2563eb", hexDark: "#3b82f6", hexDeep: "#1d4ed8" }, // tema SayOne-Learning (Task 85)
   { id: "emerald", label: "Emerald",   labelEn: "Emerald",   hex: "#10b981", hexDark: "#34d399", hexDeep: "#047857" }, // sml. HR Base
   { id: "amber",   label: "Amber",     labelEn: "Amber",     hex: "#f59e0b", hexDark: "#fbbf24", hexDeep: "#b45309" }, // sml. Payroll
   { id: "teal",    label: "Teal",      labelEn: "Teal",      hex: "#14b8a6", hexDark: "#2dd4bf", hexDeep: "#0f766e" }, // sml. Attendance
@@ -28,7 +30,7 @@ export const ACCENT_THEMES: AccentTheme[] = [
   { id: "rose",    label: "Rose",      labelEn: "Rose",      hex: "#f43f5e", hexDark: "#fb7185", hexDeep: "#be123c" }, // sml. Medical
 ];
 
-export const DEFAULT_ACCENT = "cyan"; // tema bawaan pengguna baru
+export const DEFAULT_ACCENT = "blue"; // tema bawaan pengguna baru — biru SayOne-Learning (Task 85)
 const ACCENT_KEY = "onevity:accent";
 
 function hexToRgb(hex: string): [number, number, number] {

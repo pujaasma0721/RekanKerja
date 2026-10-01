@@ -84,12 +84,12 @@ function GradeFormDialog({ open, onOpenChange, grade, onDone }: {
             <div className="grid gap-1.5">
               <Label htmlFor="g-min">Gaji Minimum (Rp)</Label>
               <Input id="g-min" type="number" min={0} step={500000} value={form.minSalary} onChange={(e) => setForm((f) => ({ ...f, minSalary: e.target.value }))} />
-              <p className="text-[10px] text-stone-400">{fmtIDR(Number(form.minSalary) || 0)}</p>
+              <p className="text-[10px] text-slate-400">{fmtIDR(Number(form.minSalary) || 0)}</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="g-max">Gaji Maksimum (Rp)</Label>
               <Input id="g-max" type="number" min={0} step={500000} value={form.maxSalary} onChange={(e) => setForm((f) => ({ ...f, maxSalary: e.target.value }))} />
-              <p className="text-[10px] text-stone-400">{fmtIDR(Number(form.maxSalary) || 0)}</p>
+              <p className="text-[10px] text-slate-400">{fmtIDR(Number(form.maxSalary) || 0)}</p>
             </div>
           </div>
         </div>
@@ -162,7 +162,7 @@ export function GradeView() {
             return (
               <Card
                 key={g.id}
-                className="group cursor-pointer rounded-2xl border-stone-200/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800"
+                className="group cursor-pointer rounded-2xl border-slate-200/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800"
                 onClick={() => { setEditing(g); setFormOpen(true); }}
               >
                 <CardContent className="p-5">
@@ -172,8 +172,8 @@ export function GradeView() {
                         {g.code}
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold leading-tight text-stone-900 dark:text-stone-50">{g.name}</p>
-                        <p className="mt-0.5 text-[11px] text-stone-500">
+                        <p className="truncate text-[15px] font-bold leading-tight text-slate-900 dark:text-slate-50">{g.name}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
                           {fmtIDRShort(g.minSalary)} – {fmtIDRShort(g.maxSalary)}
                         </p>
                       </div>
@@ -181,14 +181,14 @@ export function GradeView() {
                     <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(g); setFormOpen(true); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:text-emerald-700 dark:hover:bg-stone-800 dark:hover:text-emerald-400"
+                        className="rounded-lg p-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
                         aria-label={`Ubah grade ${g.code}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(g); setDeleteOpen(true); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+                        className="rounded-lg p-2.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                         aria-label={`Hapus grade ${g.code}`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -198,14 +198,14 @@ export function GradeView() {
 
                   {/* salary range bar */}
                   <div className="mt-5">
-                    <div className="relative h-2.5 w-full rounded-full bg-stone-100 dark:bg-stone-800">
+                    <div className="relative h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-800">
                       <div
                         className="absolute h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                         style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
                       />
-                      <span className="absolute -top-1 h-4.5 w-4.5 rounded-full border-2 border-emerald-500 bg-white dark:bg-stone-900" style={{ left: `calc(${Math.min(left + width, 100)}% - 9px)` }} />
+                      <span className="absolute -top-1 h-4.5 w-4.5 rounded-full border-2 border-emerald-500 bg-white dark:bg-slate-900" style={{ left: `calc(${Math.min(left + width, 100)}% - 9px)` }} />
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-stone-400">
+                    <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-slate-400">
                       <span>min {fmtIDR(g.minSalary)}</span>
                       <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                         <TrendingUp className="h-3 w-3" /> span {fmtIDRShort(g.maxSalary - g.minSalary)}
@@ -214,14 +214,14 @@ export function GradeView() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
-                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/70">
+                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {g._count.employees} karyawan
                     </span>
-                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       <BriefcaseBusiness className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> {g._count.positions} posisi
                     </span>
-                    <Badge variant="outline" className="text-[9px] text-stone-400">urutan {g.sortOrder}</Badge>
+                    <Badge variant="outline" className="text-[9px] text-slate-400">urutan {g.sortOrder}</Badge>
                   </div>
                 </CardContent>
               </Card>

@@ -130,7 +130,7 @@ export function MedicalAdjustmentPage() {
               "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               stateFilter === f.key
                 ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             {f.label}
@@ -139,31 +139,31 @@ export function MedicalAdjustmentPage() {
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Menunggu Approval</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.submitted ?? 0}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Menunggu Approval</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{stats.all?.submitted ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Total Disetujui</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.approved ?? 0}</p>
-            <p className="mt-1 text-xs text-stone-500">net {fmtIDR(stats.approvedAmount)}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Disetujui</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{stats.all?.approved ?? 0}</p>
+            <p className="mt-1 text-xs text-slate-500">net {fmtIDR(stats.approvedAmount)}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Efek</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Efek</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-emerald-600" /> Approve → saldo ± langsung
             </p>
-            <p className="mt-1 text-xs text-stone-500">employee / dependent terpisah</p>
+            <p className="mt-1 text-xs text-slate-500">employee / dependent terpisah</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
             <Activity className="h-4 w-4 text-rose-600" /> Riwayat Penyesuaian
@@ -177,7 +177,7 @@ export function MedicalAdjustmentPage() {
           ) : (
             <div className="max-h-[26rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>No. Dokumen</TableHead>
                     <TableHead>Karyawan</TableHead>
@@ -195,13 +195,13 @@ export function MedicalAdjustmentPage() {
                       <TableCell className="font-semibold">{a.docNo}</TableCell>
                       <TableCell>
                         <p className="font-medium">{a.fullName}</p>
-                        <p className="text-xs text-stone-500">{a.employeeNo}</p>
+                        <p className="text-xs text-slate-500">{a.employeeNo}</p>
                       </TableCell>
                       <TableCell>{a.typeName}</TableCell>
                       <TableCell>
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", a.forDependent
                           ? "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400"
-                          : "bg-stone-100 text-stone-600 dark:bg-stone-500/15 dark:text-stone-400")}>
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400")}>
                           {a.forDependent ? "Dependent" : "Karyawan"}
                         </span>
                       </TableCell>
@@ -302,15 +302,15 @@ export function MedicalAdjustmentPage() {
           </DialogHeader>
           {decideDialog && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+              <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
                 <p className="font-bold">{decideDialog.adj.docNo} — {decideDialog.adj.fullName}</p>
-                <p className="text-stone-600 dark:text-stone-300">
+                <p className="text-slate-600 dark:text-slate-300">
                   {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? "dependent" : "karyawan"} · {fmtDateID(decideDialog.adj.adjustmentDate)}
                 </p>
                 <p className="text-sm font-black">
                   {decideDialog.adj.amount > 0 ? "+" : ""}{fmtIDR(decideDialog.adj.amount)}
                 </p>
-                {decideDialog.adj.note && <p className="text-xs text-stone-500">{decideDialog.adj.note}</p>}
+                {decideDialog.adj.note && <p className="text-xs text-slate-500">{decideDialog.adj.note}</p>}
               </div>
               {decideDialog.action === "approve" && (
                 <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">

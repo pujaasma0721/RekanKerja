@@ -131,7 +131,7 @@ export function TravelClaimApprovalPage() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">{t("Klaim Menunggu", "Pending Claims")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{stats?.submitted ?? "—"}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats?.submitted ?? "—"}</p>
             </div>
             <Inbox className="h-7 w-7 text-amber-600" />
           </CardContent>
@@ -140,30 +140,30 @@ export function TravelClaimApprovalPage() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("Siap Transfer (Approved)", "Ready to Transfer (Approved)")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{aStats ? fmtIDR(aStats.payableEmployee) : "—"}</p>
-              <p className="text-[11px] text-stone-500">{t("{n} klaim · potongan {amt}", "{n} claims · deductions {amt}", { n: approvedClaims.length, amt: aStats ? fmtIDR(aStats.payableCompany) : "—" })}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{aStats ? fmtIDR(aStats.payableEmployee) : "—"}</p>
+              <p className="text-[11px] text-slate-500">{t("{n} klaim · potongan {amt}", "{n} claims · deductions {amt}", { n: approvedClaims.length, amt: aStats ? fmtIDR(aStats.payableCompany) : "—" })}</p>
             </div>
             <Wallet className="h-7 w-7 text-brand" />
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Sudah Ditransfer / Dibayar", "Transferred / Paid")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{((stats?.transferred ?? 0) + (stats?.paid ?? 0)) || "—"}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Sudah Ditransfer / Dibayar", "Transferred / Paid")}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{((stats?.transferred ?? 0) + (stats?.paid ?? 0)) || "—"}</p>
             </div>
-            <Landmark className="h-7 w-7 text-stone-400" />
+            <Landmark className="h-7 w-7 text-slate-400" />
           </CardContent>
         </Card>
       </div>
 
-      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-stone-500">{t("Antrean Klaim", "Claim Queue")}</h2>
+      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">{t("Antrean Klaim", "Claim Queue")}</h2>
       <div className="grid gap-3 lg:grid-cols-2">
         {api.loading && !api.data ? (
           <div className="lg:col-span-2"><LoadingRows rows={4} /></div>
         ) : pending.length === 0 ? (
           <div className="lg:col-span-2">
-            <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardContent className="p-0">
                 <EmptyState icon={CheckCircle2} title={t("Tidak ada klaim menunggu", "No pending claims")} description={t("Semua klaim settlement sudah diputuskan.", "All settlement claims have been decided.")} />
               </CardContent>
@@ -171,13 +171,13 @@ export function TravelClaimApprovalPage() {
           </div>
         ) : (
           pending.map((c) => (
-            <Card key={c.id} className="border-stone-200 bg-white/80 shadow-sm transition-shadow hover:shadow-md dark:border-stone-800 dark:bg-stone-900/80">
+            <Card key={c.id} className="border-slate-200 bg-white/80 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono text-xs font-bold ov-text-accent">{c.docNo}</p>
-                    <p className="mt-0.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">{c.fullName}</p>
-                    <p className="text-[11px] text-stone-500">
+                    <p className="mt-0.5 truncate text-sm font-bold text-slate-900 dark:text-slate-100">{c.fullName}</p>
+                    <p className="text-[11px] text-slate-500">
                       {c.employeeNo}{c.requestDocNo ? t(" · dari {no}", " · from {no}", { no: c.requestDocNo }) : t(" · mandiri", " · standalone")} · {fmtDateID(c.claimDate)}
                     </p>
                   </div>
@@ -194,15 +194,15 @@ export function TravelClaimApprovalPage() {
                   </div>
                 </div>
                 {c.approval?.status === "InProgress" && c.approval.currentApprover && (
-                  <p className="mt-1 truncate text-[11px] text-stone-400" title={c.approval.currentApprover}>
+                  <p className="mt-1 truncate text-[11px] text-slate-400" title={c.approval.currentApprover}>
                     {t("menunggu", "awaiting")} <b>{c.approval.currentApprover}</b>
                   </p>
                 )}
 
                 <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                  <div className="rounded-lg bg-stone-50 py-1.5 dark:bg-stone-800/60">
-                    <p className="text-[9px] font-bold text-stone-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p>
-                    <p className="text-xs font-black text-stone-800 dark:text-stone-200">{fmtIDR(c.exchangeLoss - c.otherCompanyExp)}</p>
+                  <div className="rounded-lg bg-slate-50 py-1.5 dark:bg-slate-800/60">
+                    <p className="text-[9px] font-bold text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p>
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">{fmtIDR(c.exchangeLoss - c.otherCompanyExp)}</p>
                   </div>
                   <div className="rounded-lg bg-brand/10 py-1.5 dark:bg-brand/90/30">
                     <p className="text-[9px] font-bold text-brand-deep dark:text-brand/85">{t("(b) karyawan", "(b) employee")}</p>
@@ -218,7 +218,7 @@ export function TravelClaimApprovalPage() {
                   </div>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                   <span>{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: c.expenseLines, amt: fmtIDR(c.totalExpenses) })}</span>
                   {c.advanceAmount > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("MUKA {amt}", "ADVANCE {amt}", { amt: fmtIDR(c.advanceAmount) })}</Badge>}
                   {c.overLimitLines > 0 && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("{n} LEBIH LIMIT", "{n} OVER LIMIT", { n: c.overLimitLines })}</Badge>}
@@ -239,7 +239,7 @@ export function TravelClaimApprovalPage() {
                     </>
                   )}
                   {perms.canOp("travel", "travel-claim", "cancel") && (
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500" onClick={() => { setDecide({ claim: c, action: "cancel" }); setNote(""); }}>
+                    <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-slate-500" onClick={() => { setDecide({ claim: c, action: "cancel" }); setNote(""); }}>
                       <Ban className="h-3.5 w-3.5" /> {t("Batalkan", "Cancel")}
                     </Button>
                   )}
@@ -252,17 +252,17 @@ export function TravelClaimApprovalPage() {
 
       {approvedClaims.length > 0 && (
         <>
-          <h2 className="mb-3 mt-6 text-sm font-black uppercase tracking-wide text-stone-500">
+          <h2 className="mb-3 mt-6 text-sm font-black uppercase tracking-wide text-slate-500">
             {t("Siap Transfer ke Payroll ({n})", "Ready to Transfer to Payroll ({n})", { n: approvedClaims.length })}
           </h2>
           <Card className="border-brand/25 bg-brand/10/40 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm">
-                  <p className="font-bold text-stone-800 dark:text-stone-200">
+                  <p className="font-bold text-slate-800 dark:text-slate-200">
                     {t("{n} klaim Approved — bayar karyawan {a} + potong perusahaan {b}", "{n} Approved claims — pay employees {a} + company deduction {b}", { n: approvedClaims.length, a: fmtIDR(aStats?.payableEmployee ?? 0), b: fmtIDR(aStats?.payableCompany ?? 0) })}
                   </p>
-                  <p className="text-xs text-stone-500">{t("Komponen payroll: UTRP (earning) untuk (b) & TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition", "Payroll components: UTRP (earning) for (b) & TRVSTLIN (deduction) for (c) — Travel Wage Definition equivalent")}</p>
+                  <p className="text-xs text-slate-500">{t("Komponen payroll: UTRP (earning) untuk (b) & TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition", "Payroll components: UTRP (earning) for (b) & TRVSTLIN (deduction) for (c) — Travel Wage Definition equivalent")}</p>
                 </div>
                 {perms.canOp("travel", "travel-claim-approval", "transfer") && (
                   <Button onClick={() => { setPeriodId(openPeriods[0]?.id ?? ""); setTransferOpen(true); }} className="gap-2 bg-brand font-bold hover:bg-brand/70">
@@ -276,24 +276,24 @@ export function TravelClaimApprovalPage() {
       )}
 
       {recent.length > 0 && (
-        <Card className="mt-6 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="mt-6 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-0">
-            <div className="border-b border-stone-100 px-4 py-3 text-sm font-black uppercase tracking-wide text-stone-500 dark:border-stone-800">
+            <div className="border-b border-slate-100 px-4 py-3 text-sm font-black uppercase tracking-wide text-slate-500 dark:border-slate-800">
               {t("Riwayat Keputusan & Pembayaran", "Decision & Payment History")}
             </div>
             <div className="max-h-96 overflow-y-auto">
               <table className="w-full text-xs">
                 <tbody>
                   {recent.map((c) => (
-                    <tr key={c.id} className="border-b border-stone-50 last:border-0 dark:border-stone-800/60">
+                    <tr key={c.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                       <td className="px-4 py-2 font-mono font-bold ov-text-accent">{c.docNo}</td>
-                      <td className="px-2 py-2 font-semibold text-stone-700 dark:text-stone-300">{c.fullName}</td>
-                      <td className="px-2 py-2 text-right font-bold text-stone-700 dark:text-stone-300">{fmtIDR(c.totalSettlement)}</td>
+                      <td className="px-2 py-2 font-semibold text-slate-700 dark:text-slate-300">{c.fullName}</td>
+                      <td className="px-2 py-2 text-right font-bold text-slate-700 dark:text-slate-300">{fmtIDR(c.totalSettlement)}</td>
                       <td className="px-2 py-2"><StatusPill status={t(TRAVEL_STATUS_LABEL[c.status] ?? c.status, TRAVEL_STATUS_LABEL_EN[c.status] ?? c.status)} /></td>
                       <td className="hidden px-2 py-2 md:table-cell">
-                        {c.journalNo ? <span className="font-mono text-[11px] font-bold text-brand-deep dark:text-brand/85">{c.journalNo}</span> : <span className="text-stone-400">—</span>}
+                        {c.journalNo ? <span className="font-mono text-[11px] font-bold text-brand-deep dark:text-brand/85">{c.journalNo}</span> : <span className="text-slate-400">—</span>}
                       </td>
-                      <td className="px-4 py-2 text-right text-stone-400">
+                      <td className="px-4 py-2 text-right text-slate-400">
                         {c.paidRunNo ? `run ${c.paidRunNo}` : c.periodCode ? `period ${c.periodCode}` : c.decidedAt ? fmtDateID(c.decidedAt) : "—"}
                       </td>
                     </tr>
@@ -309,7 +309,7 @@ export function TravelClaimApprovalPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {decide.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : decide.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}
+              {decide.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : decide.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-slate-500" />}
               {decide.action === "approve" ? t("Setujui Klaim", "Approve Claim") : decide.action === "reject" ? t("Tolak Klaim", "Reject Claim") : t("Batalkan Klaim", "Cancel Claim")}
             </DialogTitle>
           </DialogHeader>
@@ -320,14 +320,14 @@ export function TravelClaimApprovalPage() {
                   {t("Approval berjenjang: jenjang", "Tiered approval: tier")} <b>{decide.claim.approval.currentLevel}</b> {t("dari", "of")} <b>{decide.claim.approval.totalLevels}</b> — {t("menunggu keputusan", "awaiting decision by")} <b>{decide.claim.approval.currentApprover ?? t("jenjang berikutnya", "the next tier")}</b>. {t("Menyetujui jenjang ini belum membuat jurnal — hanya keputusan jenjang TERAKHIR yang memposting jurnal + status Approved.", "Approving this tier does not create the journal yet — only the FINAL tier decision posts the journal + sets Approved.")}
                 </p>
               )}
-              <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800/60">
+              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
                 <p className="font-mono text-xs font-bold ov-text-accent">{decide.claim.docNo}</p>
-                <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{decide.claim.fullName}</p>
-                <p className="text-xs text-stone-500">{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: decide.claim.expenseLines, amt: fmtIDR(decide.claim.totalExpenses) })}</p>
+                <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">{decide.claim.fullName}</p>
+                <p className="text-xs text-slate-500">{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: decide.claim.expenseLines, amt: fmtIDR(decide.claim.totalExpenses) })}</p>
                 <div className="mt-2 grid grid-cols-4 gap-1.5 text-center text-[10px]">
-                  <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-stone-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(decide.claim.exchangeLoss - decide.claim.otherCompanyExp)}</p></div>
-                  <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-brand">(b)</p><p className="font-black text-brand-deep">{fmtIDR(decide.claim.payableEmployee)}</p></div>
-                  <div className="rounded bg-white py-1 dark:bg-stone-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
+                  <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(decide.claim.exchangeLoss - decide.claim.otherCompanyExp)}</p></div>
+                  <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-brand">(b)</p><p className="font-black text-brand-deep">{fmtIDR(decide.claim.payableEmployee)}</p></div>
+                  <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
                   <div className="rounded border ov-border-accent ov-soft py-1"><p>TOTAL</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>
                 </div>
               </div>
@@ -364,7 +364,7 @@ export function TravelClaimApprovalPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
-            <p className="leading-relaxed text-stone-600 dark:text-stone-300">
+            <p className="leading-relaxed text-slate-600 dark:text-slate-300">
               {t("{n} klaim Approved akan masuk payroll sebagai komponen ", "{n} Approved claims will enter payroll as components ", { n: approvedClaims.length })}
               <span className="font-bold">UTRP</span>
               {t(" (bayar ke karyawan)", " (pay to employee)")}
@@ -384,9 +384,9 @@ export function TravelClaimApprovalPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="rounded-lg bg-stone-50 p-3 text-xs dark:bg-stone-800/60">
-              <p className="font-bold text-stone-700 dark:text-stone-300">{t("Setelah transfer:", "After the transfer:")}</p>
-              <ol className="mt-1 list-inside list-decimal space-y-1 text-stone-600 dark:text-stone-400">
+            <div className="rounded-lg bg-slate-50 p-3 text-xs dark:bg-slate-800/60">
+              <p className="font-bold text-slate-700 dark:text-slate-300">{t("Setelah transfer:", "After the transfer:")}</p>
+              <ol className="mt-1 list-inside list-decimal space-y-1 text-slate-600 dark:text-slate-400">
                 <li>{t("Klaim berstatus ", "Claims become ")}<span className="font-bold">Transferred</span></li>
                 <li>{t("Jalankan payroll run period ini (proses Salary)", "Run payroll for this period (Salary process)")}</li>
                 <li>{t("Saat run dikonfirmasi → klaim otomatis ", "When the run is confirmed → the claim automatically becomes ")}<span className="font-bold">{t("Dibayar", "Paid")}</span>{t(" + nomor run tercatat", " + the run number is recorded")}</li>

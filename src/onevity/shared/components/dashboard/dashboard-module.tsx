@@ -85,9 +85,9 @@ export function DashboardModule() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2.5">
-              <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-stone-900 hover:bg-stone-100 shadow-lg">
+              <Button onClick={() => navigate("actions", "inbox")} className="gap-2 bg-white font-bold text-slate-900 hover:bg-slate-100 shadow-lg">
                 <CheckCircle2 className="h-4 w-4" /> {t("Lihat Pengajuan", "View Requests")}
-                {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-stone-900">{data.pendingActions}</span>}
+                {data.pendingActions > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-extrabold text-slate-900">{data.pendingActions}</span>}
               </Button>
               <Button onClick={() => navigate("employee", "wizard")} variant="outline" className="gap-2 border-white/25 bg-white/10 font-bold text-white hover:bg-white/20 hover:text-white backdrop-blur">
                 <UserCheck className="h-4 w-4" /> {t("Onboarding")}
@@ -103,19 +103,19 @@ export function DashboardModule() {
           const Icon = k.icon;
           return (
             <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i, duration: 0.3 }}>
-              <Card className="relative overflow-hidden rounded-2xl border-stone-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-stone-200/60 dark:border-stone-800 dark:hover:shadow-stone-900/60">
+              <Card className="relative overflow-hidden rounded-2xl border-slate-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-slate-200/60 dark:border-slate-800 dark:hover:shadow-slate-900/60">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-stone-400">{k.label}</p>
-                      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{k.value}</p>
-                      <p className="mt-1 text-[11px] text-stone-400">{k.sub}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">{k.label}</p>
+                      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{k.value}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{k.sub}</p>
                     </div>
                     <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${k.hero ? "ov-fill" : "ov-tile"}`}>
                       <Icon className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-stone-100 pt-3 text-[11px] font-bold ov-text-accent dark:border-stone-800">
+                  <div className="mt-3.5 flex items-center gap-1.5 border-t border-dashed border-slate-100 pt-3 text-[11px] font-bold ov-text-accent dark:border-slate-800">
                     <ArrowUpRight className="h-3.5 w-3.5" /> {k.trend}
                   </div>
                 </CardContent>
@@ -128,11 +128,11 @@ export function DashboardModule() {
       {/* charts row */}
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         {/* headcount trend */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm lg:col-span-2 dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm lg:col-span-2 dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <div>
               <CardTitle className="text-sm font-bold">{t("Tren Rekrutmen — 12 Bulan", "Hiring Trend — 12 Months")}</CardTitle>
-              <p className="mt-0.5 text-[11px] text-stone-400">{t("Jumlah karyawan baru per bulan", "New employees per month")}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">{t("Jumlah karyawan baru per bulan", "New employees per month")}</p>
             </div>
             <Badge2 label="Live" />
           </CardHeader>
@@ -158,10 +158,10 @@ export function DashboardModule() {
         </Card>
 
         {/* gender + status donuts */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Komposisi Karyawan", "Employee Composition")}</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">{t("Gender & status kepegawaian", "Gender & employment status")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("Gender & status kepegawaian", "Gender & employment status")}</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2">
@@ -179,17 +179,17 @@ export function DashboardModule() {
                 {genderData.map((g, i) => (
                   <div key={g.name} className="flex items-center gap-2 text-xs">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="font-semibold text-stone-700 dark:text-stone-300">{g.name}</span>
-                    <span className="ml-auto font-bold text-stone-900 dark:text-stone-100">{g.value}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{g.name}</span>
+                    <span className="ml-auto font-bold text-slate-900 dark:text-slate-100">{g.value}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-1.5 border-t border-dashed border-stone-100 pt-3 dark:border-stone-800">
+            <div className="mt-3 grid grid-cols-4 gap-1.5 border-t border-dashed border-slate-100 pt-3 dark:border-slate-800">
               {data.employmentStatusSplit.map((s) => (
-                <div key={s.status} className="rounded-lg bg-stone-50 py-1.5 text-center dark:bg-stone-900">
-                  <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{s.count}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{s.status}</p>
+                <div key={s.status} className="rounded-lg bg-slate-50 py-1.5 text-center dark:bg-slate-900">
+                  <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{s.count}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{s.status}</p>
                 </div>
               ))}
             </div>
@@ -199,7 +199,7 @@ export function DashboardModule() {
 
       {/* headcount per division + grade */}
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Headcount per Divisi", "Headcount per Division")}</CardTitle>
           </CardHeader>
@@ -218,10 +218,10 @@ export function DashboardModule() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Distribusi Grade", "Grade Distribution")}</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">{t("Struktur level G1–G8", "Level structure G1–G8")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("Struktur level G1–G8", "Level structure G1–G8")}</p>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2 pt-1">
@@ -229,8 +229,8 @@ export function DashboardModule() {
                 const max = Math.max(...data.gradeDistribution.map((x) => x.count), 1);
                 return (
                   <div key={g.code} className="flex items-center gap-2.5">
-                    <span className="w-6 text-[10px] font-extrabold text-stone-400">{g.code}</span>
-                    <div className="h-6 flex-1 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
+                    <span className="w-6 text-[10px] font-extrabold text-slate-400">{g.code}</span>
+                    <div className="h-6 flex-1 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(g.count / max) * 100}%` }}
@@ -240,7 +240,7 @@ export function DashboardModule() {
                         <span className="text-[10px] font-extrabold text-white">{g.count}</span>
                       </motion.div>
                     </div>
-                    <span className="w-24 truncate text-[10px] text-stone-400">{g.name}</span>
+                    <span className="w-24 truncate text-[10px] text-slate-400">{g.name}</span>
                   </div>
                 );
               })}
@@ -249,7 +249,7 @@ export function DashboardModule() {
         </Card>
 
         {/* recent PA */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">{t("Pengajuan Terbaru", "Recent Requests")}</CardTitle>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-bold ov-text-accent hover:ov-text-accent" onClick={() => navigate("actions", "all")}>
@@ -258,13 +258,13 @@ export function DashboardModule() {
           </CardHeader>
           <CardContent className="space-y-1.5 pt-0">
             {data.recentActions.map((a) => (
-              <button key={a.id} onClick={() => navigate("actions", "all", { id: a.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900">
+              <button key={a.id} onClick={() => navigate("actions", "all", { id: a.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900">
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-extrabold ${avatarColor(a.employee.fullName)}`}>
                   {initials(a.employee.fullName)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-stone-800 dark:text-stone-200">{a.docNo} · {paTypeLabelSafe(a.type)}</p>
-                  <p className="truncate text-[11px] text-stone-400">{a.employee.fullName}</p>
+                  <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{a.docNo} · {paTypeLabelSafe(a.type)}</p>
+                  <p className="truncate text-[11px] text-slate-400">{a.employee.fullName}</p>
                 </div>
                 <StatusPill status={a.status} />
               </button>
@@ -274,22 +274,22 @@ export function DashboardModule() {
       </div>
 
       {/* activity feed */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold"><TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Aktivitas Terakhir", "Recent Activity")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
+          <ol className="relative ml-2 space-y-4 border-l border-slate-200 pl-6 dark:border-slate-800">
             {data.activities.map((a) => (
               <li key={a.id} className="relative">
-                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ov-tile ring-4 ring-white dark:ring-stone-950">
+                <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ov-tile ring-4 ring-white dark:ring-slate-950">
                   <span className="h-1.5 w-1.5 rounded-full ov-bar" />
                 </span>
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-stone-400">· {a.action}</span> <span className="font-semibold ov-text-accent">{a.entity}</span></p>
-                  <time className="text-[10px] text-stone-400">{fmtDateTime(a.createdAt)}</time>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{a.appUser?.fullName ?? "System"} <span className="font-medium text-slate-400">· {a.action}</span> <span className="font-semibold ov-text-accent">{a.entity}</span></p>
+                  <time className="text-[10px] text-slate-400">{fmtDateTime(a.createdAt)}</time>
                 </div>
-                <p className="mt-0.5 text-[11px] text-stone-500">{locActivity(a.detail)}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{locActivity(a.detail)}</p>
               </li>
             ))}
           </ol>

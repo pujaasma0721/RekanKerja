@@ -116,14 +116,14 @@ export function EsignSignDialog({ open, onOpenChange, docType, docId, docLabel, 
           </div>
         ) : factor === null ? (
           <div className="space-y-4">
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-slate-600">
               {t("Tanda tangan dibuat dengan kunci kriptografis pribadi Anda dan tercatat permanen. Lanjutkan dengan faktor verifikasi:", "Your signature is created with your personal cryptographic key and recorded permanently. Continue with a verification factor:")}
             </p>
             <div className="grid gap-2">
               <button
                 type="button" disabled={busy || (status ? !status.hasKey : false)}
                 onClick={() => void requestChallenge()}
-                className="flex items-center gap-3 rounded-xl border border-stone-200 p-3 text-left transition hover:border-stone-900 disabled:opacity-50"
+                className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-slate-900 disabled:opacity-50"
               >
                 {status?.hasPin ? <KeyRound className="h-5 w-5" /> : <MailCheck className="h-5 w-5" />}
                 <span className="text-sm font-bold">
@@ -145,7 +145,7 @@ export function EsignSignDialog({ open, onOpenChange, docType, docId, docLabel, 
                 className="h-11 text-center font-mono text-xl tracking-[0.4em]" placeholder="••••••"
               />
               {factor === "otp" && (
-                <button type="button" className="text-[11px] font-semibold text-stone-500 underline underline-offset-2 hover:text-stone-800" onClick={() => void requestChallenge()} disabled={busy}>
+                <button type="button" className="text-[11px] font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-800" onClick={() => void requestChallenge()} disabled={busy}>
                   {t("Kirim ulang kode", "Resend code")}
                 </button>
               )}

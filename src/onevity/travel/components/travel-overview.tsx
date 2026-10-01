@@ -74,14 +74,14 @@ export function TravelOverview() {
             {kpi.map((k) => (
               <Card
                 key={k.label}
-                className="cursor-pointer border-stone-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/80"
+                className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
                 onClick={k.onClick}
               >
                 <CardContent className="flex items-start justify-between gap-3 p-4 sm:p-5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{k.label}</p>
-                    <p className="mt-1 truncate text-2xl font-black text-stone-900 dark:text-stone-100">{k.value}</p>
-                    {k.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{k.sub}</p>}
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{k.label}</p>
+                    <p className="mt-1 truncate text-2xl font-black text-slate-900 dark:text-slate-100">{k.value}</p>
+                    {k.sub && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{k.sub}</p>}
                   </div>
                   <div className={cn("rounded-xl p-2.5", k.hero ? "ov-fill" : "ov-tile")}>
                     <k.icon className="h-5 w-5" />
@@ -104,7 +104,7 @@ export function TravelOverview() {
           )}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-5">
-            <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
                   <TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Alur Perjalanan Dinas", "Business Travel Flow")}
@@ -115,17 +115,17 @@ export function TravelOverview() {
                   <button
                     key={st.n}
                     onClick={() => navigate("travel", st.view)}
-                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
+                    className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:ov-border-accent dark:border-slate-800 dark:bg-slate-900"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-fill text-sm font-black">
                       {st.n}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2 font-bold text-stone-900 dark:text-stone-100">
+                      <span className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
                         {st.title}
-                        <ArrowRight className="h-3 w-3 text-stone-400" />
+                        <ArrowRight className="h-3 w-3 text-slate-400" />
                       </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-500 dark:text-stone-400">{st.desc}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{st.desc}</span>
                     </span>
                   </button>
                 ))}
@@ -133,26 +133,26 @@ export function TravelOverview() {
             </Card>
 
             <div className="space-y-4 lg:col-span-2">
-              <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+              <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
                     <Calculator className="h-4 w-4 ov-text-accent" /> {t("Formula Settlement")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("(a) Biaya pihak lain (kontra) + rugi kurs", "(a) Third-party costs (contra) + exchange loss")}</span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-300">{t("(a) Biaya pihak lain (kontra) + rugi kurs", "(a) Third-party costs (contra) + exchange loss")}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-300">{t("(b) Dibayar ke karyawan", "(b) Paid to employee")}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("(c) Kembali ke perusahaan", "(c) Returned to company")}</span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-300">{t("(c) Kembali ke perusahaan", "(c) Returned to company")}</span>
                   </div>
                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
                     {t("Total = Rincian + Rugi kurs − (a)", "Total = Expenses + Exchange loss − (a)")}
                   </div>
-                  <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     {t("Uang muka (advance) mengurangi (b) atau menambah (c) saat klaim dibuat; biaya pihak lain tidak dibayar ke karyawan — padanan", "The advance reduces (b) or adds to (c) when the claim is created; third-party costs are not paid to the employee — equivalent to")}
                     <span className="font-semibold"> Travel &amp; Entertainment Settlement </span>
                     {t("dengan status akhir Transferred → Paid via payroll.", "with final status Transferred → Paid via payroll.")}
@@ -161,7 +161,7 @@ export function TravelOverview() {
               </Card>
 
               {budget && (
-                <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+                <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base font-bold">
                       <Wallet className="h-4 w-4 ov-text-accent" /> Budget {budget.year}
@@ -169,8 +169,8 @@ export function TravelOverview() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(budget.used)}</span>
-                      <span className="text-xs text-stone-500 dark:text-stone-400">{t("dari {total}", "of {total}", { total: fmtIDRShort(budget.totalBudget) })}</span>
+                      <span className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(budget.used)}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{t("dari {total}", "of {total}", { total: fmtIDRShort(budget.totalBudget) })}</span>
                     </div>
                     <Progress value={budgetPct} className="h-2 [&>div]:ov-bar" />
                     {overBudget && (
@@ -178,7 +178,7 @@ export function TravelOverview() {
                         <AlertTriangle className="h-3.5 w-3.5" /> {t("Terpakai melebihi budget — perilaku standar: warning, klaim tetap diproses", "Usage exceeds budget — standard behavior: warning, claims still processed")}
                       </p>
                     )}
-                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {t("{n} klaim dalam periode · sisa {sisa} · {m} cost center", "{n} claims in period · {sisa} remaining · {m} cost centers", { n: budget.claimCount, sisa: fmtIDRShort(Math.max(0, budget.remaining)), m: budget.items.length })}
                     </p>
                   </CardContent>
@@ -186,7 +186,7 @@ export function TravelOverview() {
               )}
 
               {s && s.topExpenseKinds.length > 0 && (
-                <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+                <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base font-bold">{t("Komposisi Biaya Tahun Ini", "Expense Composition This Year")}</CardTitle>
                   </CardHeader>
@@ -196,10 +196,10 @@ export function TravelOverview() {
                       return (
                         <div key={k.kind}>
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-stone-700 dark:text-stone-300">{k.kind}</span>
-                            <span className="text-stone-500 dark:text-stone-400">{fmtIDRShort(k.amount)}</span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{k.kind}</span>
+                            <span className="text-slate-500 dark:text-slate-400">{fmtIDRShort(k.amount)}</span>
                           </div>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                             <div className="h-full rounded-full ov-bar" style={{ width: `${(k.amount / max) * 100}%` }} />
                           </div>
                         </div>

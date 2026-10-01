@@ -188,17 +188,17 @@ export function EmployeeLetterIssueDialog({
 
         {issued ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 dark:border-stone-700/70 dark:bg-stone-800/40">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-800/40">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-full bg-stone-900 px-2.5 font-mono text-[10px] font-bold text-white hover:bg-stone-900 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-100">
+                <Badge className="rounded-full bg-slate-900 px-2.5 font-mono text-[10px] font-bold text-white hover:bg-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-100">
                   {issued.refNo}
                 </Badge>
-                <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{issued.templateName}</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{issued.templateName}</p>
               </div>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">{fmtDate(issued.issuedAt)}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmtDate(issued.issuedAt)}</p>
             </div>
-            <div className="max-h-[62vh] overflow-y-auto rounded-xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700">
-              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-stone-800">{issued.body}</div>
+            <div className="max-h-[62vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700">
+              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-slate-800">{issued.body}</div>
             </div>
           </>
         ) : (
@@ -218,7 +218,7 @@ export function EmployeeLetterIssueDialog({
                   </SelectContent>
                 </Select>
                 {tpl?.description && (
-                  <p className="text-[11px] leading-relaxed text-stone-400">{tpl.description}</p>
+                  <p className="text-[11px] leading-relaxed text-slate-400">{tpl.description}</p>
                 )}
                 {templates.length === 0 && (
                   <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
@@ -238,14 +238,14 @@ export function EmployeeLetterIssueDialog({
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder={t("cth: pengajuan kredit, KPR, visa…", "e.g. loan application, mortgage, visa…")}
                 />
-                <p className="text-[10px] text-stone-400">
+                <p className="text-[10px] text-slate-400">
                   {t("Kosongkan bila surat cukup memuat \"sesuai keperluan\".", "Leave empty to print \"as needed\".")}
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs">{t("Data yang dipakai", "Data used")}</Label>
-                <div className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3.5 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
                   <p className="font-mono">{employee.employeeNo} · {employee.fullName}</p>
                   <p>{employee.position?.title ?? "—"} — {employee.orgUnit?.name ?? "—"}</p>
                   <p>
@@ -266,22 +266,22 @@ export function EmployeeLetterIssueDialog({
 
             {/* ===== kolom kanan: pratinjau langsung ===== */}
             <div className="lg:sticky lg:top-0 lg:self-start">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {t("Pratinjau Langsung", "Live Preview")}
               </p>
               <div className={cn(
-                "max-h-[56vh] overflow-y-auto rounded-xl border bg-white p-6 shadow-sm dark:border-stone-700",
-                tpl ? "border-stone-200" : "border-dashed border-stone-300 dark:border-stone-700",
+                "max-h-[56vh] overflow-y-auto rounded-xl border bg-white p-6 shadow-sm dark:border-slate-700",
+                tpl ? "border-slate-200" : "border-dashed border-slate-300 dark:border-slate-700",
               )}>
                 {tpl ? (
-                  <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-stone-800">{preview}</div>
+                  <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-slate-800">{preview}</div>
                 ) : (
-                  <p className="py-16 text-center text-xs text-stone-400">
+                  <p className="py-16 text-center text-xs text-slate-400">
                     {t("Pilih jenis surat untuk melihat pratinjau.", "Pick a letter type to see the preview.")}
                   </p>
                 )}
               </div>
-              <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
                 {t("Nomor surat & tanggal terisi otomatis saat diterbitkan.", "Letter number & date are filled automatically when issued.")}
               </p>
             </div>

@@ -59,7 +59,7 @@ export function TravelReportsPage() {
         description={t("Rekap klaim settlement per rentang tanggal — komposisi biaya per kelompok (General/Allowance/Mileage/Entertainment) dan per kode biaya, padanan laporan Travel", "Settlement claim recap per date range — expense composition by group (General/Allowance/Mileage/Entertainment) and by expense code, Travel report equivalent")}
       />
 
-      <Card className="mb-4 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="mb-4 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="grid gap-3 p-4 sm:grid-cols-4">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold">{t("Dari Tanggal", "From Date")}</Label>
@@ -74,7 +74,7 @@ export function TravelReportsPage() {
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
-              className="h-9 w-full rounded-md border border-stone-200 bg-transparent px-3 text-sm shadow-sm focus:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
+              className="h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 text-sm shadow-sm focus:ov-border-accent dark:border-slate-800 dark:bg-slate-900"
             >
               <option value="">{t("Semua karyawan", "All employees")}</option>
               {(master.data?.employees ?? []).map((e) => (
@@ -87,7 +87,7 @@ export function TravelReportsPage() {
                 menghormati money-vault (nominal dikosongkan bila masked). */}
             <a
               href={`/api/onevity/travel/reports?from=${from}&to=${to}${employeeId ? `&employeeId=${employeeId}` : ""}&export=csv`}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-stone-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
               aria-label={t("Unduh daftar klaim sebagai CSV", "Download the claim list as CSV")}
             >
               <Download className="h-4 w-4" /> {t("Export CSV")}
@@ -104,34 +104,34 @@ export function TravelReportsPage() {
           <Card className="ov-border-accent bg-primary/10 shadow-sm">
             <CardContent className="p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider ov-text-accent">Total Settlement</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.totalSettlement)}</p>
-              <p className="text-[11px] text-stone-500">{t("{n} klaim", "{n} claims", { n: summary.claims })}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.totalSettlement)}</p>
+              <p className="text-[11px] text-slate-500">{t("{n} klaim", "{n} claims", { n: summary.claims })}</p>
             </CardContent>
           </Card>
-          <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+          <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
             <CardContent className="p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Total Rincian Biaya", "Total Expenses")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.totalExpenses)}</p>
-              <p className="text-[11px] text-stone-500">{t("rincian bruto — settlement = rincian + rugi kurs − (a)", "gross expenses — settlement = expenses + exchange loss − (a)")}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Total Rincian Biaya", "Total Expenses")}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.totalExpenses)}</p>
+              <p className="text-[11px] text-slate-500">{t("rincian bruto — settlement = rincian + rugi kurs − (a)", "gross expenses — settlement = expenses + exchange loss − (a)")}</p>
             </CardContent>
           </Card>
           <Card className="border-brand/25 bg-brand/10/50 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
             <CardContent className="p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("(b) Dibayar Karyawan", "(b) Paid to Employee")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.payableEmployee)}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.payableEmployee)}</p>
             </CardContent>
           </Card>
           <Card className="border-rose-200 bg-rose-50/50 shadow-sm dark:border-rose-800 dark:bg-rose-950/20">
             <CardContent className="p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">{t("(c) Kembali Perusahaan", "(c) Returned to Company")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(summary.payableCompany)}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.payableCompany)}</p>
             </CardContent>
           </Card>
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-1">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
               <BarChart3 className="h-4 w-4 ov-text-accent" /> {t("Komposisi per Kelompok", "Composition by Group")}
@@ -146,28 +146,28 @@ export function TravelReportsPage() {
               summary.byKind.map((k) => (
                 <div key={k.kind}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-stone-700 dark:text-stone-300">
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
                       {EXPENSE_KIND_LABEL[k.kind] ?? k.kind}
-                      <span className="ml-1 font-normal text-stone-400">{t("({n} baris)", "({n} lines)", { n: k.lines })}</span>
+                      <span className="ml-1 font-normal text-slate-400">{t("({n} baris)", "({n} lines)", { n: k.lines })}</span>
                     </span>
-                    <span className="font-bold text-stone-700 dark:text-stone-300">{fmtIDRShort(k.amount)}</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDRShort(k.amount)}</span>
                   </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div className="h-full rounded-full ov-bar" style={{ width: `${(k.amount / maxKind) * 100}%` }} />
                   </div>
                 </div>
               ))
             )}
             {summary?.byExpense.length ? (
-              <div className="border-t border-stone-100 pt-3 dark:border-stone-800">
-                <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-stone-500">
+              <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+                <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
                   <TrendingUp className="h-3 w-3" /> {t("Teratas per Kode", "Top by Code")}
                 </p>
                 <div className="space-y-1">
                   {summary.byExpense.slice(0, 8).map((x) => (
                     <div key={x.code} className="flex items-center justify-between text-[11px]">
-                      <span className="font-mono font-bold text-stone-600 dark:text-stone-400">{x.code}</span>
-                      <span className="text-stone-600 dark:text-stone-400">{fmtIDR(x.amount)} <span className="text-stone-400">({x.lines}×)</span></span>
+                      <span className="font-mono font-bold text-slate-600 dark:text-slate-400">{x.code}</span>
+                      <span className="text-slate-600 dark:text-slate-400">{fmtIDR(x.amount)} <span className="text-slate-400">({x.lines}×)</span></span>
                     </div>
                   ))}
                 </div>
@@ -176,13 +176,13 @@ export function TravelReportsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-2">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-2">
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-3">
             <CardTitle className="flex min-w-0 items-center gap-2 text-base font-bold">
               <FileText className="h-4 w-4 shrink-0 ov-text-accent" /> {t("Daftar Klaim ({n})", "Claims List ({n})", { n: rows.length })}
             </CardTitle>
             <div className="relative w-full min-w-0 sm:w-44">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari…", "Search…")} className="w-full pl-9 text-sm" />
             </div>
           </CardHeader>
@@ -194,7 +194,7 @@ export function TravelReportsPage() {
             ) : (
               <div className="max-h-[560px] overflow-y-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-white dark:bg-stone-900">
+                  <TableHeader className="sticky top-0 bg-white dark:bg-slate-900">
                     <TableRow>
                       <TableHead>{t("Nomor", "No.")}</TableHead>
                       <TableHead>{t("Karyawan")}</TableHead>
@@ -206,19 +206,19 @@ export function TravelReportsPage() {
                   </TableHeader>
                   <TableBody>
                     {rows.map((r) => (
-                      <TableRow key={r.docNo} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                      <TableRow key={r.docNo} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <TableCell>
                           <p className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</p>
-                          <p className="text-[11px] text-stone-500">{fmtDateID(r.claimDate)}</p>
+                          <p className="text-[11px] text-slate-500">{fmtDateID(r.claimDate)}</p>
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{r.fullName}</p>
-                          <p className="text-[11px] text-stone-500">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.fullName}</p>
+                          <p className="text-[11px] text-slate-500">
                             {r.requestDocNo ? t("dari {no}", "from {no}", { no: r.requestDocNo }) : t("mandiri", "standalone")}{r.costCenter ? ` · CC ${r.costCenter}` : ""}
                           </p>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <p className="text-xs font-bold text-stone-700 dark:text-stone-300">{fmtIDRShort(r.totalExpenses)}</p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{fmtIDRShort(r.totalExpenses)}</p>
                           <div className="mt-0.5 flex flex-wrap gap-1">
                             {r.expenses.slice(0, 4).map((e, i) => (
                               <Badge key={i} variant="outline" className="text-[8px] font-bold">{e.expenseCode}</Badge>
@@ -227,7 +227,7 @@ export function TravelReportsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <p className="text-sm font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(r.totalSettlement)}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(r.totalSettlement)}</p>
                           {r.payableEmployee > 0 && <p className="text-[10px] font-bold text-brand-deep dark:text-brand/85">(b) {fmtIDRShort(r.payableEmployee)}</p>}
                           {r.payableCompany > 0 && <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) {fmtIDRShort(r.payableCompany)}</p>}
                         </TableCell>
@@ -237,7 +237,7 @@ export function TravelReportsPage() {
                               <Landmark className="h-3 w-3" /> {r.journalNo}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-stone-400">—</span>
+                            <span className="text-[11px] text-slate-400">—</span>
                           )}
                         </TableCell>
                         <TableCell><StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} /></TableCell>

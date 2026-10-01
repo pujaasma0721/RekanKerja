@@ -54,15 +54,15 @@ export default async function VerifyPage({ params }: {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-stone-100 px-4 py-10">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm ring-1 ring-stone-200">
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
         <div className="mb-6 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-stone-900 text-white">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
             <Fingerprint className="h-6 w-6" />
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-stone-400">OneVity e-Sign</p>
-            <h1 className="text-lg font-bold leading-tight text-stone-900">Verifikasi Tanda Tangan Elektronik</h1>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">OneVity e-Sign</p>
+            <h1 className="text-lg font-bold leading-tight text-slate-900">Verifikasi Tanda Tangan Elektronik</h1>
           </div>
         </div>
 
@@ -89,7 +89,7 @@ export default async function VerifyPage({ params }: {
               </p>
             </div>
 
-            <dl className="divide-y divide-stone-100 rounded-xl ring-1 ring-stone-200">
+            <dl className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
               <Row label="Dokumen" value={`${DOC_LABEL[data.docType ?? ""] ?? data.docType ?? "—"}${data.docRef ? ` · ${data.docRef}` : ""}`} />
               <Row label="Penandatangan" value={data.signerName ?? "—"} icon />
               <Row label="Peran" value={data.signerRole ?? "—"} />
@@ -108,13 +108,13 @@ export default async function VerifyPage({ params }: {
           </div>
         )}
 
-        <p className="mt-6 flex items-center gap-1.5 text-[11px] text-stone-400">
+        <p className="mt-6 flex items-center gap-1.5 text-[11px] text-slate-400">
           <FileSignature className="h-3.5 w-3.5" />
           Bukti kriptografis RSA-PSS · SHA-256 · hash-chain per organisasi
         </p>
-        <p className="mt-1 text-[11px] text-stone-400">
+        <p className="mt-1 text-[11px] text-slate-400">
           Butuh memeriksa dokumen fisik/digital? Cocokkan nomor dokumen dan penandatangan di atas dengan salinan resmi Anda.{" "}
-          <Link href="/" className="font-semibold text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-700">Beranda OneVity</Link>
+          <Link href="/" className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">Beranda OneVity</Link>
         </p>
       </div>
     </main>
@@ -124,8 +124,8 @@ export default async function VerifyPage({ params }: {
 function Row({ label, value, icon }: { label: string; value: string; icon?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-stone-400">{label}</dt>
-      <dd className="text-right text-sm font-bold text-stone-800">{icon ? <span className="inline-flex items-center gap-1.5">{value}</span> : value}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className="text-right text-sm font-bold text-slate-800">{icon ? <span className="inline-flex items-center gap-1.5">{value}</span> : value}</dd>
     </div>
   );
 }

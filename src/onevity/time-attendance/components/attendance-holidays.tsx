@@ -43,7 +43,7 @@ const kindLabel = (t: (id: string, en: string) => string, kind: string) =>
 
 const kindCellStyle: Record<string, string> = {
   National: "bg-rose-500/90 text-white hover:bg-rose-500",
-  Joint: "bg-amber-400/90 text-stone-900 hover:bg-amber-400",
+  Joint: "bg-amber-400/90 text-slate-900 hover:bg-amber-400",
   Company: "bg-brand/90 text-white hover:bg-brand",
 };
 
@@ -139,7 +139,7 @@ export function AttendanceHolidaysPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v, 10))}>
               <SelectTrigger className="h-9 w-28 rounded-xl text-xs font-bold" aria-label={t("Pilih tahun", "Select year")}>
-                <CalendarDays className="mr-1.5 h-3.5 w-3.5 text-stone-400" />
+                <CalendarDays className="mr-1.5 h-3.5 w-3.5 text-slate-400" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -161,7 +161,7 @@ export function AttendanceHolidaysPage() {
       {api.loading && !api.data ? (
         <LoadingRows rows={6} />
       ) : holidays.length === 0 ? (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-5">
             <EmptyState
               title={t("Belum ada hari libur tahun {y}", "No holidays for {y}", { y: year })}
@@ -173,16 +173,16 @@ export function AttendanceHolidaysPage() {
       ) : (
         <div className="space-y-4">
           {/* ==== grid kalender 12 bulan ==== */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-[13px] font-bold">{t("Kalender {y}", "Calendar {y}", { y: year })}</p>
-                  <p className="text-[11px] text-stone-400">
+                  <p className="text-[11px] text-slate-400">
                     {t("Sel berwarna = hari libur — arahkan kursor untuk nama.", "Colored cells = holidays — hover for the name.")}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-stone-500">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-slate-500">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> {t("Nasional", "National")}</span>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> {t("Cuti Bersama", "Joint Leave")}</span>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-brand" /> {t("Perusahaan", "Company")}</span>
@@ -197,9 +197,9 @@ export function AttendanceHolidaysPage() {
           </Card>
 
           {/* ==== daftar tabel per tahun ==== */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <CalendarDays className="h-4 w-4 ov-text-accent" />
                   <p className="text-[13px] font-bold">{t("Daftar Hari Libur {y}", "Holiday List {y}", { y: year })}</p>
@@ -219,7 +219,7 @@ export function AttendanceHolidaysPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       {sort.head("date", t("Tanggal", "Date"), "text-[11px] font-bold")}
                       <TableHead className="text-[11px] font-bold">{t("Hari", "Day")}</TableHead>
                       {sort.head("name", t("Nama Libur", "Holiday Name"), "text-[11px] font-bold")}
@@ -232,14 +232,14 @@ export function AttendanceHolidaysPage() {
                       const d = new Date(`${h.date}T00:00:00`);
                       const isToday = h.date === todayIso;
                       return (
-                        <TableRow key={h.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", isToday && "bg-rose-50/60 dark:bg-rose-500/5")}>
-                          <TableCell className={cn("font-mono text-xs font-bold text-stone-700 dark:text-stone-300", isToday && "text-rose-600 dark:text-rose-400")}>
+                        <TableRow key={h.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", isToday && "bg-rose-50/60 dark:bg-rose-500/5")}>
+                          <TableCell className={cn("font-mono text-xs font-bold text-slate-700 dark:text-slate-300", isToday && "text-rose-600 dark:text-rose-400")}>
                             {h.date}{isToday ? t(" (hari ini)", " (today)") : ""}
                           </TableCell>
-                          <TableCell className="text-xs text-stone-500">
+                          <TableCell className="text-xs text-slate-500">
                             {new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d)}
                           </TableCell>
-                          <TableCell className="text-[13px] font-medium text-stone-800 dark:text-stone-200">{h.name}</TableCell>
+                          <TableCell className="text-[13px] font-medium text-slate-800 dark:text-slate-200">{h.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn("text-[10px] font-bold", kindBadgeStyle[h.kind] ?? kindBadgeStyle.Company)}>
                               {kindLabel(t, h.kind)}
@@ -248,10 +248,10 @@ export function AttendanceHolidaysPage() {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(h)} aria-label={t("Edit hari libur", "Edit holiday")}>
-                                <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                                <Pencil className="h-3.5 w-3.5 text-slate-400" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => setDeleteTarget(h)} aria-label={t("Hapus hari libur", "Delete holiday")}>
-                                <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                                <Trash2 className="h-3.5 w-3.5 text-slate-400" />
                               </Button>
                             </div>
                           </TableCell>
@@ -261,8 +261,8 @@ export function AttendanceHolidaysPage() {
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex items-center justify-between gap-2 border-t border-stone-100 px-5 py-3 dark:border-stone-800">
-                <p className="text-[11px] text-stone-400">
+              <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
+                <p className="text-[11px] text-slate-400">
                   {t("{n} hari libur tahun {y} — hari kerja cuti otomatis melewati tanggal-tanggal ini.", "{n} holidays in {y} — leave day counts automatically skip these dates.", { n: holidays.length, y: year })}
                 </p>
                 <StatusPill status="Active" />
@@ -309,8 +309,8 @@ export function AttendanceHolidaysPage() {
                 maxLength={120}
               />
             </div>
-            <p className="flex items-start gap-2 rounded-xl border border-stone-200/70 bg-stone-50/60 px-3 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:border-stone-800 dark:bg-stone-900/40">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-stone-400" />
+            <p className="flex items-start gap-2 rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
               {t("Tanggal libur menimpa jadwal shift: lembur hari itu masuk kategori Holiday (2×/3×/4×) dan saldo cuti tidak terpotong.", "Holiday dates override shift schedules: overtime falls under Holiday category (2×/3×/4×) and leave balance is not deducted.")}
             </p>
           </div>
@@ -329,7 +329,7 @@ export function AttendanceHolidaysPage() {
           <DialogHeader>
             <DialogTitle className="text-base">{t("Hapus hari libur?", "Delete holiday?")}</DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-stone-500">
+          <p className="text-[13px] text-slate-500">
             {deleteTarget
               ? t(`"${deleteTarget.name}" (${deleteTarget.date}) akan dihapus dari kalender — jadwal shift kembali mengikuti cycle.`, `"${deleteTarget.name}" (${deleteTarget.date}) will be removed — shift schedules take over again.`)
               : ""}
@@ -378,11 +378,11 @@ function MiniMonth({
   ];
 
   return (
-    <div className="rounded-xl border border-stone-200/70 bg-stone-50/50 p-3 dark:border-stone-800 dark:bg-stone-900/40">
-      <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-stone-600 dark:text-stone-300">{monthLabel}</p>
+    <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+      <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-600 dark:text-slate-300">{monthLabel}</p>
       <div className="grid grid-cols-7 gap-1 text-center">
         {weekdays.map((w) => (
-          <span key={w} className="text-[8px] font-bold uppercase text-stone-400">{w.slice(0, 3)}</span>
+          <span key={w} className="text-[8px] font-bold uppercase text-slate-400">{w.slice(0, 3)}</span>
         ))}
         {cells.map((day, i) => {
           if (day === null) return <span key={`e${i}`} />;
@@ -397,8 +397,8 @@ function MiniMonth({
                 "flex h-6 items-center justify-center rounded-md text-[10px] font-bold",
                 h
                   ? kindCellStyle[h.kind] ?? kindCellStyle.Company
-                  : "text-stone-500 dark:text-stone-400",
-                isToday && "ring-2 ring-stone-800/60 dark:ring-stone-300/60",
+                  : "text-slate-500 dark:text-slate-400",
+                isToday && "ring-2 ring-slate-800/60 dark:ring-slate-300/60",
               )}
             >
               {day}
@@ -493,7 +493,7 @@ function HolidayImportDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-stone-400">
+            <p className="text-[11px] text-slate-400">
               {t("Format per baris: YYYY-MM-DD;Nama;National|Joint|Company (jenis opsional). Duplikat (tanggal+nama) dilewati otomatis.", "One row per line: YYYY-MM-DD;Name;National|Joint|Company (kind optional). Duplicates (date+name) are skipped automatically.")}
             </p>
             <Button variant="outline" size="sm" onClick={generateNextYear} className="gap-1.5 font-bold">
@@ -508,7 +508,7 @@ function HolidayImportDialog({
             placeholder={`2027-01-01;Tahun Baru Masehi 2027;National\n2027-08-17;Hari Proklamasi Kemerdekaan RI;National\n2027-12-24;Cuti Bersama Natal;Joint`}
             className="rounded-xl font-mono text-xs"
           />
-          <p className="text-[11px] font-semibold text-stone-500">
+          <p className="text-[11px] font-semibold text-slate-500">
             {parsed.length > 0
               ? t("{n} baris valid siap diimpor", "{n} valid rows ready to import", { n: parsed.length })
               : t("Tempel CSV di atas, atau generate template tahun berikutnya.", "Paste CSV above, or generate next year's template.")}

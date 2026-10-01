@@ -230,7 +230,7 @@ export function OnboardingWizard() {
           "Complete new employee data in 4 steps — the summary on the right fills in as you type",
         )}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate("employee", "directory")} className="h-8 gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">
+          <Button variant="ghost" size="sm" onClick={() => navigate("employee", "directory")} className="h-8 gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
             <ArrowRight className="h-3.5 w-3.5" /> {t("Ke direktori", "To directory")}
           </Button>
         }
@@ -238,9 +238,9 @@ export function OnboardingWizard() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* ============ KOLOM UTAMA ============ */}
-        <Card className={cn("rounded-2xl border-stone-200/90 shadow-sm dark:border-stone-800", step === 5 && "overflow-hidden")}>
+        <Card className={cn("rounded-2xl border-slate-200/90 shadow-sm dark:border-slate-800", step === 5 && "overflow-hidden")}>
           {/* stepper kompak */}
-          <div className="rounded-t-2xl border-b border-stone-200/80 bg-stone-50/60 px-4 py-3.5 dark:border-stone-800 dark:bg-stone-900/40 sm:px-6">
+          <div className="rounded-t-2xl border-b border-slate-200/80 bg-slate-50/60 px-4 py-3.5 dark:border-slate-800 dark:bg-slate-900/40 sm:px-6">
             <ol className="hidden items-center sm:flex">
               {STEPS.map((s, i) => {
                 const done = step > s.id;
@@ -256,18 +256,18 @@ export function OnboardingWizard() {
                       <span className={cn(
                         "flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-all",
                         done ? "ov-fill ov-glow group-hover:ov-fill-deep" :
-                        active ? "bg-white ov-text-accent ring-2 ring-ring ring-offset-2 ring-offset-stone-50 dark:bg-stone-900 dark:ring-offset-stone-900" :
-                        "bg-stone-200/80 text-stone-400 dark:bg-stone-800 dark:text-stone-500",
+                        active ? "bg-white ov-text-accent ring-2 ring-ring ring-offset-2 ring-offset-slate-50 dark:bg-slate-900 dark:ring-offset-slate-900" :
+                        "bg-slate-200/80 text-slate-400 dark:bg-slate-800 dark:text-slate-500",
                       )}>
                         {done ? <Check className="h-3.5 w-3.5" /> : s.id}
                       </span>
                       <span className={cn(
                         "max-w-[88px] truncate text-[11px] font-semibold leading-tight",
-                        active ? "text-stone-900 dark:text-stone-100" : done ? "text-stone-500 dark:text-stone-400 group-hover:text-stone-700" : "text-stone-400 dark:text-stone-500",
+                        active ? "text-slate-900 dark:text-slate-100" : done ? "text-slate-500 dark:text-slate-400 group-hover:text-slate-700" : "text-slate-400 dark:text-slate-500",
                       )}>{t(s.label, STEPS_EN[s.id])}</span>
                     </button>
                     {i < STEPS.length - 1 && (
-                      <div className={cn("mx-2 mb-4 h-0.5 flex-1 rounded-full sm:mx-3", step > s.id ? "ov-bar" : "bg-stone-200 dark:bg-stone-800")} />
+                      <div className={cn("mx-2 mb-4 h-0.5 flex-1 rounded-full sm:mx-3", step > s.id ? "ov-bar" : "bg-slate-200 dark:bg-slate-800")} />
                     )}
                   </li>
                 );
@@ -276,10 +276,10 @@ export function OnboardingWizard() {
             {/* mobile: mini progress */}
             <div className="sm:hidden">
               <div className="flex items-baseline justify-between">
-                <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{t("Langkah {n} dari 4", "Step {n} of 4", { n: Math.min(step, 4) })} · <span className="font-semibold ov-text-accent">{stepMeta && t(stepMeta.label, STEPS_EN[stepMeta.id])}</span></p>
-                <p className="text-[10px] font-semibold text-stone-400">{t("{p}% terisi", "{p}% complete", { p: pct })}</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{t("Langkah {n} dari 4", "Step {n} of 4", { n: Math.min(step, 4) })} · <span className="font-semibold ov-text-accent">{stepMeta && t(stepMeta.label, STEPS_EN[stepMeta.id])}</span></p>
+                <p className="text-[10px] font-semibold text-slate-400">{t("{p}% terisi", "{p}% complete", { p: pct })}</p>
               </div>
-              <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                 <div className="h-full rounded-full ov-chart transition-all duration-500" style={{ width: `${pct}%` }} />
               </div>
             </div>
@@ -289,9 +289,9 @@ export function OnboardingWizard() {
           <div className="px-4 py-5 sm:px-6 sm:py-6">
             {step <= 4 && !opts.data && (
               <div className="space-y-3">
-                <div className="h-5 w-40 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
+                <div className="h-5 w-40 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />)}
+                  {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}
                 </div>
               </div>
             )}
@@ -305,11 +305,11 @@ export function OnboardingWizard() {
                       <Input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Andi Pratama" className={cn("h-9", errors.fullName && "border-rose-400 focus-visible:ring-rose-400")} />
                     </Field>
                     <Field label={t("Jenis Kelamin", "Gender")}>
-                      <div className="grid grid-cols-2 gap-1 rounded-lg border border-stone-200 bg-stone-50 p-1 dark:border-stone-800 dark:bg-stone-900">
+                      <div className="grid grid-cols-2 gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
                         {([["M", t("Laki-laki", "Male")], ["F", t("Perempuan", "Female")]] as const).map(([v, l]) => (
                           <button key={v} type="button" onClick={() => set("gender", v)}
                             className={cn("flex h-7 items-center justify-center rounded-md text-xs font-semibold transition-all",
-                              form.gender === v ? "bg-stone-900 text-white shadow-sm dark:bg-stone-100 dark:text-stone-900" : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200")}>
+                              form.gender === v ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200")}>
                             {l}
                           </button>
                         ))}
@@ -552,7 +552,7 @@ export function OnboardingWizard() {
               )}
 
               {step === 4 && (
-                <div className="divide-y divide-stone-100 dark:divide-stone-800">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   <ReviewSection icon={User} title={t("Data Personal", "Personal Details")} onEdit={() => setStep(1)} items={[
                     [t("Nama Lengkap"), form.fullName || "—"], [t("Jenis Kelamin", "Gender"), form.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")],
                     [t("Tempat/Tgl Lahir", "Place/Date of Birth"), [form.birthPlace, form.birthDate].filter(Boolean).join(", ") || "—"],
@@ -607,7 +607,7 @@ export function OnboardingWizard() {
                       <UserPlus className="h-4 w-4" /> {t("Onboarding Karyawan Lagi", "Onboard Another Employee")}
                     </Button>
                   )}
-                  <Button variant="ghost" onClick={() => navigate("employee", "directory")} className="h-9 gap-2 font-semibold text-stone-500">
+                  <Button variant="ghost" onClick={() => navigate("employee", "directory")} className="h-9 gap-2 font-semibold text-slate-500">
                     <Users2 className="h-4 w-4" /> {t("Ke Direktori", "To Directory")}
                   </Button>
                 </div>
@@ -617,16 +617,16 @@ export function OnboardingWizard() {
 
           {/* aksi footer — sticky bottom agar selalu terjangkau saat form panjang */}
           {step < 5 && (
-            <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-stone-200/80 bg-stone-50/95 px-4 py-3 backdrop-blur-md dark:border-stone-800 dark:bg-stone-900/95 sm:px-6">
+            <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/95 px-4 py-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 sm:px-6">
               {step > 1 ? (
-                <Button variant="ghost" onClick={back} className="h-9 gap-1.5 text-sm font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-300">
+                <Button variant="ghost" onClick={back} className="h-9 gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300">
                   <ChevronLeft className="h-4 w-4" /> {t("Sebelumnya")}
                 </Button>
               ) : (
-                <p className="hidden text-[11px] font-medium text-stone-400 sm:block">{t("Data tersimpan otomatis sebagai draft", "Data is saved automatically as a draft")}</p>
+                <p className="hidden text-[11px] font-medium text-slate-400 sm:block">{t("Data tersimpan otomatis sebagai draft", "Data is saved automatically as a draft")}</p>
               )}
               <div className="flex items-center gap-3">
-                <p className="hidden text-[11px] font-medium text-stone-400 md:block">{t("Langkah {n} dari 4", "Step {n} of 4", { n: step })}</p>
+                <p className="hidden text-[11px] font-medium text-slate-400 md:block">{t("Langkah {n} dari 4", "Step {n} of 4", { n: step })}</p>
                 {step < 4 ? (
                   <Button onClick={next} className="h-9 gap-1.5 px-5 text-sm font-bold">
                     {t("Lanjut")} <ChevronRight className="h-4 w-4" />
@@ -649,16 +649,16 @@ export function OnboardingWizard() {
         {/* ============ RAIL RINGKASAN (desktop) ============ */}
         <aside className="hidden space-y-4 lg:block">
           <div className="sticky top-20 space-y-4">
-            <Card className="rounded-2xl border-stone-200/90 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/90 shadow-sm dark:border-slate-800">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <ProgressRing pct={pct} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">{form.fullName || t("Karyawan Baru", "New Employee")}</p>
-                    <p className="text-[11px] text-stone-400">{form.positionId ? selectedPosition?.title : t("Data diri belum lengkap", "Personal details incomplete")}</p>
+                    <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{form.fullName || t("Karyawan Baru", "New Employee")}</p>
+                    <p className="text-[11px] text-slate-400">{form.positionId ? selectedPosition?.title : t("Data diri belum lengkap", "Personal details incomplete")}</p>
                   </div>
                 </div>
-                <dl className="mt-4 space-y-2 border-t border-stone-100 pt-3.5 dark:border-stone-800">
+                <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3.5 dark:border-slate-800">
                   <RailRow label={t("Unit", "Unit")} value={form.orgUnitId ? selectedUnit?.name : ""} />
                   <RailRow label={t("Posisi")} value={form.positionId ? selectedPosition?.title : ""} />
                   <RailRow label={t("Grade")} value={form.gradeId ? selectedGrade?.code : ""} />
@@ -670,12 +670,12 @@ export function OnboardingWizard() {
             </Card>
 
             {draftAt && step < 5 && (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/90 bg-stone-50/70 px-3.5 py-2.5 text-[11px] text-stone-500 dark:border-stone-800 dark:bg-stone-900/40 dark:text-stone-400">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-50/70 px-3.5 py-2.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Sparkles className="h-3.5 w-3.5 ov-text-accent" />
                   {t("Draft tersimpan", "Draft saved")} · {draftAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                 </span>
-                <button onClick={reset} className="flex items-center gap-1 font-semibold text-stone-400 transition-colors hover:text-rose-600" title={t("Buang draft", "Discard draft")}>
+                <button onClick={reset} className="flex items-center gap-1 font-semibold text-slate-400 transition-colors hover:text-rose-600" title={t("Buang draft", "Discard draft")}>
                   <Trash2 className="h-3 w-3" /> {t("Buang", "Discard")}
                 </button>
               </div>
@@ -686,7 +686,7 @@ export function OnboardingWizard() {
                 <p className="flex items-center gap-1.5 text-[11px] font-bold ov-text-accent">
                   <Lightbulb className="h-3.5 w-3.5" /> {t("Tips langkah {n}", "Tips for step {n}", { n: step })}
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">{t(TIPS[step].text, TIPS_EN[step])}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{t(TIPS[step].text, TIPS_EN[step])}</p>
               </div>
             )}
           </div>
@@ -702,8 +702,8 @@ function SectionLabel({ icon: Icon, title, className }: { icon: React.ElementTyp
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <Icon className="h-3.5 w-3.5 ov-text-accent" />
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{title}</h3>
-      <div className="h-px flex-1 bg-stone-100 dark:bg-stone-800" />
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h3>
+      <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
     </div>
   );
 }
@@ -712,10 +712,10 @@ function Field({ label, children, required, error, hint, className }: { label: s
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className="flex items-baseline justify-between gap-2">
-        <Label className={cn("text-xs font-semibold", error ? "text-rose-600 dark:text-rose-400" : "text-stone-600 dark:text-stone-400")}>
+        <Label className={cn("text-xs font-semibold", error ? "text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-400")}>
           {label}{required && <span className="ml-0.5 text-rose-500">*</span>}
         </Label>
-        {hint && !error && <span className="text-[10px] font-medium text-stone-400">{hint}</span>}
+        {hint && !error && <span className="text-[10px] font-medium text-slate-400">{hint}</span>}
       </div>
       {children}
       {error && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
@@ -726,12 +726,12 @@ function Field({ label, children, required, error, hint, className }: { label: s
 function RailRow({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-[11px] font-medium text-stone-400">{label}</dt>
+      <dt className="shrink-0 text-[11px] font-medium text-slate-400">{label}</dt>
       <dd className="min-w-0 truncate text-right text-xs font-semibold">
         {value ? (
-          <motion.span key={value} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="inline-block text-stone-800 dark:text-stone-200">{value}</motion.span>
+          <motion.span key={value} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="inline-block text-slate-800 dark:text-slate-200">{value}</motion.span>
         ) : (
-          <span className="text-stone-300 dark:text-stone-600">—</span>
+          <span className="text-slate-300 dark:text-slate-600">—</span>
         )}
       </dd>
     </div>
@@ -743,11 +743,11 @@ function ProgressRing({ pct }: { pct: number }) {
   return (
     <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
       <svg viewBox="0 0 48 48" className="h-12 w-12 -rotate-90">
-        <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" className="stroke-stone-200 dark:stroke-stone-800" />
+        <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" className="stroke-slate-200 dark:stroke-slate-800" />
         <circle cx="24" cy="24" r={r} fill="none" strokeWidth="4" strokeLinecap="round" className="ov-text-accent stroke-current transition-all duration-500"
           strokeDasharray={c} strokeDashoffset={c - (c * pct) / 100} />
       </svg>
-      <span className="absolute text-[10px] font-extrabold text-stone-700 dark:text-stone-300">{pct}%</span>
+      <span className="absolute text-[10px] font-extrabold text-slate-700 dark:text-slate-300">{pct}%</span>
     </div>
   );
 }
@@ -758,18 +758,18 @@ function SalaryMeter({ grade, salary }: { grade: { code: string; name: string; m
   const below = salary < grade.minSalary;
   const above = salary > grade.maxSalary;
   return (
-    <div className="rounded-xl border border-stone-200/90 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+    <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-bold text-stone-600 dark:text-stone-400">{t("Rentang Grade {code} — {name}", "Grade {code} Range — {name}", { code: grade.code, name: grade.name })}</p>
+        <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400">{t("Rentang Grade {code} — {name}", "Grade {code} Range — {name}", { code: grade.code, name: grade.name })}</p>
         {(below || above) && (
           <p className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> {above ? t("di atas maksimum", "above maximum") : t("di bawah minimum", "below minimum")}</p>
         )}
       </div>
-      <div className="relative mt-3 h-1.5 rounded-full bg-gradient-to-r from-stone-200 to-stone-200 dark:from-stone-700 dark:to-stone-700">
+      <div className="relative mt-3 h-1.5 rounded-full bg-gradient-to-r from-slate-200 to-slate-200 dark:from-slate-700 dark:to-slate-700">
         <div className="absolute inset-y-0 left-0 rounded-full ov-chart" style={{ width: `${pct}%` }} />
-        <div className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ov-fill shadow-sm dark:border-stone-900" style={{ left: `${pct}%` }} />
+        <div className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ov-fill shadow-sm dark:border-slate-900" style={{ left: `${pct}%` }} />
       </div>
-      <div className="mt-2 flex justify-between text-[10px] font-semibold text-stone-400">
+      <div className="mt-2 flex justify-between text-[10px] font-semibold text-slate-400">
         <span>{t("min {v}", "min {v}", { v: fmtIDR(grade.minSalary) })}</span>
         <span>{t("max {v}", "max {v}", { v: fmtIDR(grade.maxSalary) })}</span>
       </div>
@@ -782,12 +782,12 @@ function ReviewSection({ icon: Icon, title, items, onEdit }: { icon: React.Eleme
   return (
     <div className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-xs font-bold text-stone-800 dark:text-stone-200"><Icon className="h-3.5 w-3.5 ov-text-accent" /> {title}</p>
+        <p className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200"><Icon className="h-3.5 w-3.5 ov-text-accent" /> {title}</p>
         <dl className="mt-3 grid gap-x-6 gap-y-2.5 sm:grid-cols-3">
           {items.map(([k, v]) => (
             <div key={k} className="min-w-0">
-              <dt className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">{k}</dt>
-              <dd className="truncate text-[13px] font-semibold text-stone-800 dark:text-stone-200">{v}</dd>
+              <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{k}</dt>
+              <dd className="truncate text-[13px] font-semibold text-slate-800 dark:text-slate-200">{v}</dd>
             </div>
           ))}
         </dl>
@@ -856,14 +856,14 @@ export function DisciplinaryPage() {
       />
       <div className="mb-4 grid grid-cols-3 gap-3">
         {([["Verbal", stats.verbal, FileWarning], ["Tertulis", stats.written, AlertTriangle], ["Final", stats.final, Ban]] as const).map(([label, val, Icon]) => (
-          <Card key={label} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card key={label} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-center gap-3 p-4">
               <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", levelTone[label === "Verbal" ? "Verbal" : label === "Tertulis" ? "Written" : "Final"].badge.replace("text-", "text-").replace(/border-\S+/, ""))}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t(`Peringatan ${label}`, label === "Tertulis" ? "Written Warning" : label === "Final" ? "Final Warning" : "Verbal Warning")}</p>
-                <p className="text-lg font-extrabold text-stone-900 dark:text-stone-50">{val}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t(`Peringatan ${label}`, label === "Tertulis" ? "Written Warning" : label === "Final" ? "Final Warning" : "Verbal Warning")}</p>
+                <p className="text-lg font-extrabold text-slate-900 dark:text-slate-50">{val}</p>
               </div>
             </CardContent>
           </Card>
@@ -873,34 +873,34 @@ export function DisciplinaryPage() {
       {loading && !data ? (
         <LoadingRows rows={5} />
       ) : data && data.disciplinary.length > 0 ? (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-stone-50/80 dark:bg-stone-900/50">
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Karyawan")}</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Level")}</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Pelanggaran", "Violation")}</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Sanksi", "Sanction")}</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Diterbitkan", "Issued")}</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Kedaluwarsa", "Expiry")}</th>
-                    <th className="w-24 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Aksi", "Actions")}</th>
+                  <tr className="bg-slate-50/80 dark:bg-slate-900/50">
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Karyawan")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Level")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Pelanggaran", "Violation")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Sanksi", "Sanction")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Diterbitkan", "Issued")}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Kedaluwarsa", "Expiry")}</th>
+                    <th className="w-24 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Aksi", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.disciplinary.map((d) => {
                     const tone = levelTone[d.warningLevel] ?? levelTone.Verbal;
                     return (
-                      <tr key={d.id} className="border-t border-stone-100 hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900/60">
+                      <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/60">
                         <td className="px-4 py-3">
                           <button onClick={() => navigate("employee", "detail", { id: d.employee.id })} className="flex items-center gap-2.5 text-left">
-                            <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-extrabold", "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400")}>
+                            <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-extrabold", "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400")}>
                               <Users2 className="h-3.5 w-3.5" />
                             </span>
                             <span>
-                              <p className="text-xs font-bold text-stone-800 dark:text-stone-200">{d.employee.fullName}</p>
-                              <p className="text-[10px] text-stone-400">{d.employee.position?.title ?? "—"}</p>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{d.employee.fullName}</p>
+                              <p className="text-[10px] text-slate-400">{d.employee.position?.title ?? "—"}</p>
                             </span>
                           </button>
                         </td>
@@ -910,9 +910,9 @@ export function DisciplinaryPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs font-semibold">{d.violation}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500">{d.sanction ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500">{new Date(d.issuedAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</td>
-                        <td className="px-4 py-3 text-xs text-stone-500">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{d.sanction ?? "—"}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{new Date(d.issuedAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{d.expiresAt ? new Date(d.expiresAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <Button variant="outline" size="sm" onClick={() => setLetterRecord(d)} title={t("Terbitkan & pratinjau surat", "Issue & preview the letter")} className="h-7 gap-1.5 rounded-lg px-2 text-[11px] font-bold">
@@ -1054,7 +1054,7 @@ function AddDisciplinaryDialog({ open, setOpen }: { open: boolean; setOpen: (v: 
             <div>
               <Label className="text-xs">{t("Masa Berlaku s.d.", "Valid Until")}</Label>
               <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="mt-1.5" />
-              <p className="mt-1 text-[10px] text-stone-400">{t("Surat peringatan umumnya berlaku 6 bulan", "Warning letters are typically valid for 6 months")}</p>
+              <p className="mt-1 text-[10px] text-slate-400">{t("Surat peringatan umumnya berlaku 6 bulan", "Warning letters are typically valid for 6 months")}</p>
             </div>
           </div>
           <div>

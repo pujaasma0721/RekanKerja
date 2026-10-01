@@ -295,17 +295,17 @@ export function MoneyVaultButton() {
 
   // Titik status tombol — matriks configured × open × canManage × myView.
   const dot: DotState = useMemo(() => {
-    if (missing || failed || !st) return { cls: "bg-stone-300 dark:bg-stone-600", pulse: false };
+    if (missing || failed || !st) return { cls: "bg-slate-300 dark:bg-slate-600", pulse: false };
     if (!st.configured) {
       return st.canManage
         ? { cls: "bg-amber-500", pulse: true } // admin: belum diatur → ajakan aksi
-        : { cls: "bg-stone-400 dark:bg-stone-500", pulse: false };
+        : { cls: "bg-slate-400 dark:bg-slate-500", pulse: false };
     }
     if (st.open) return { cls: "bg-brand", pulse: false };
     // tertutup: admin & pengguna ber-grant peduli; pemirsa none/legacy abu-abu
     return st.canManage || st.myView === "granted"
       ? { cls: "bg-rose-500", pulse: false }
-      : { cls: "bg-stone-400 dark:bg-stone-500", pulse: false };
+      : { cls: "bg-slate-400 dark:bg-slate-500", pulse: false };
   }, [st, missing, failed]);
 
   const tooltip = useMemo(() => {
@@ -443,7 +443,7 @@ export function MoneyVaultButton() {
           <button
             onClick={() => setOpen(true)}
             aria-label={t("Brankas Uang", "Money Vault")}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <Vault className="h-[18px] w-[18px]" aria-hidden />
             <span className={cn("absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full", dot.cls, dot.pulse && "animate-pulse")} aria-hidden />
@@ -553,16 +553,16 @@ export function MoneyVaultButton() {
                   </Alert>
                 )}
 
-                <div className="space-y-1.5 rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-3 text-[12px] leading-relaxed dark:border-stone-800 dark:bg-stone-900/40">
-                  <p className="text-stone-600 dark:text-stone-300">
+                <div className="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-[12px] leading-relaxed dark:border-slate-800 dark:bg-slate-900/40">
+                  <p className="text-slate-600 dark:text-slate-300">
                     {t("Hak lihat uang Anda:", "Your money view rights:")}{" "}
                     <span className={cn(
                       "font-bold",
-                      st.myView === "admin" || st.myView === "granted" ? "text-brand dark:text-brand/85" : st.myView === "none" ? "text-rose-600 dark:text-rose-400" : "text-stone-500",
+                      st.myView === "admin" || st.myView === "granted" ? "text-brand dark:text-brand/85" : st.myView === "none" ? "text-rose-600 dark:text-rose-400" : "text-slate-500",
                     )}>{myViewLabel(st.myView)}</span>
                   </p>
                   {st.configured && (
-                    <p className="text-stone-600 dark:text-stone-300">
+                    <p className="text-slate-600 dark:text-slate-300">
                       {t("{n} anggota lain diberi hak lihat uang.", "{n} other members have granted money view rights.", { n: st.grantsCount })}
                     </p>
                   )}
@@ -584,7 +584,7 @@ export function MoneyVaultButton() {
                           ? t("Klik lagi untuk konfirmasi", "Click again to confirm")
                           : t("Kunci Brankas", "Lock Vault")}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => void fetchStatus()} className="gap-1.5 text-[11px] font-bold text-stone-500">
+                    <Button variant="ghost" size="sm" onClick={() => void fetchStatus()} className="gap-1.5 text-[11px] font-bold text-slate-500">
                       <RefreshCw className="h-3.5 w-3.5" /> {t("Segarkan", "Refresh")}
                     </Button>
                   </div>
@@ -592,7 +592,7 @@ export function MoneyVaultButton() {
 
                 {canManage && st.configured && !st.open && (
                   <form
-                    className="space-y-2.5 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
+                    className="space-y-2.5 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800"
                     onSubmit={(e) => { e.preventDefault(); void submitUnlock(); }}
                   >
                     <p className="text-xs font-bold">{t("Buka Brankas", "Open Vault")}</p>
@@ -616,7 +616,7 @@ export function MoneyVaultButton() {
                     <Button onClick={() => setTab("password")} className="gap-2 rounded-xl font-bold">
                       <KeyRound className="h-4 w-4" /> {t("Atur Kata Sandi Sekarang", "Set Password Now")}
                     </Button>
-                    <span className="text-[11px] text-stone-400">
+                    <span className="text-[11px] text-slate-400">
                       {t("Lihat tab Kata Sandi.", "See the Password tab.")}
                     </span>
                   </div>
@@ -636,7 +636,7 @@ export function MoneyVaultButton() {
                 ) : !st.configured ? (
                   <>
                     <form
-                      className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
+                      className="space-y-3 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800"
                       onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
                     >
                       <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
@@ -650,12 +650,12 @@ export function MoneyVaultButton() {
                         </AlertDescription>
                       </Alert>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Kata Sandi Baru", "New Password")} *</p>
                         <PasswordInput value={setupPw} onChange={setSetupPw} disabled={busy !== null} />
-                        <p className="text-[10px] text-stone-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
+                        <p className="text-[10px] text-slate-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
                       </div>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi", "Confirm Password")} *</p>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Konfirmasi Kata Sandi", "Confirm Password")} *</p>
                         <PasswordInput value={setupPw2} onChange={setSetupPw2} disabled={busy !== null} />
                       </div>
                       {setupErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{setupErr}</p>}
@@ -677,21 +677,21 @@ export function MoneyVaultButton() {
                       </AlertDescription>
                     </Alert>
                     <form
-                      className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800"
+                      className="space-y-3 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800"
                       onSubmit={(e) => { e.preventDefault(); void submitChange(); }}
                     >
                       <p className="text-xs font-bold">{t("Ganti Kata Sandi Enkripsi", "Change Encryption Password")}</p>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Saat Ini", "Current Password")} *</p>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Kata Sandi Saat Ini", "Current Password")} *</p>
                         <PasswordInput value={curPw} onChange={setCurPw} autoComplete="current-password" disabled={busy !== null} />
                       </div>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Kata Sandi Baru", "New Password")} *</p>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Kata Sandi Baru", "New Password")} *</p>
                         <PasswordInput value={newPw} onChange={setNewPw} disabled={busy !== null} />
-                        <p className="text-[10px] text-stone-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
+                        <p className="text-[10px] text-slate-400">{t("Minimal 6 karakter — terserah Anda", "Minimum 6 characters — up to you")}</p>
                       </div>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">{t("Konfirmasi Kata Sandi Baru", "Confirm New Password")} *</p>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Konfirmasi Kata Sandi Baru", "Confirm New Password")} *</p>
                         <PasswordInput value={newPw2} onChange={setNewPw2} disabled={busy !== null} />
                       </div>
                       {changeErr && <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{changeErr}</p>}
@@ -715,9 +715,9 @@ export function MoneyVaultButton() {
                         {t("Hanya Admin yang dapat mengatur hak lihat uang.", "Only Admins can manage money view rights.")}
                       </AlertDescription>
                     </Alert>
-                    <p className="text-[12px] text-stone-500 dark:text-stone-400">
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400">
                       {t("Hak lihat uang Anda:", "Your money view rights:")}{" "}
-                      <span className="font-bold text-stone-700 dark:text-stone-200">{myViewLabel(st.myView)}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200">{myViewLabel(st.myView)}</span>
                     </p>
                   </>
                 ) : (
@@ -733,15 +733,15 @@ export function MoneyVaultButton() {
                       </AlertDescription>
                     </Alert>
 
-                    <div className="max-h-96 overflow-y-auto rounded-xl border border-stone-200 dark:border-stone-800">
+                    <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
                       {membersLoading ? (
                         <div className="space-y-2.5 p-3.5">
                           {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
                         </div>
                       ) : membersError ? (
                         <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
-                          <TriangleAlert className="h-5 w-5 text-stone-400" aria-hidden />
-                          <p className="text-xs text-stone-500">{membersError}</p>
+                          <TriangleAlert className="h-5 w-5 text-slate-400" aria-hidden />
+                          <p className="text-xs text-slate-500">{membersError}</p>
                           <Button variant="outline" size="sm" onClick={() => void fetchMembers()} className="gap-1.5 rounded-lg text-[11px] font-bold">
                             <RefreshCw className="h-3.5 w-3.5" /> {t("Coba Lagi", "Retry")}
                           </Button>
@@ -762,7 +762,7 @@ export function MoneyVaultButton() {
                               return (
                                 <TableRow key={m.userId}>
                                   <TableCell className="max-w-[160px] truncate py-2.5 text-[12px] font-semibold">{m.name}</TableCell>
-                                  <TableCell className="hidden max-w-[200px] truncate py-2.5 text-[12px] text-stone-500 sm:table-cell">{m.email}</TableCell>
+                                  <TableCell className="hidden max-w-[200px] truncate py-2.5 text-[12px] text-slate-500 sm:table-cell">{m.email}</TableCell>
                                   <TableCell className="py-2.5">{roleBadge(m.role)}</TableCell>
                                   <TableCell className="py-2.5 text-right">
                                     {implicit ? (
@@ -785,7 +785,7 @@ export function MoneyVaultButton() {
                         </Table>
                       ) : (
                         <div className="px-3 py-8 text-center">
-                          <p className="text-xs text-stone-400">{t("Belum ada anggota lain di workspace ini.", "No other members in this workspace yet.")}</p>
+                          <p className="text-xs text-slate-400">{t("Belum ada anggota lain di workspace ini.", "No other members in this workspace yet.")}</p>
                         </div>
                       )}
                     </div>

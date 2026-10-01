@@ -65,7 +65,7 @@ export function PasswordRuleChecklist({
   const v = validatePassword(policy, password, { username, fullName, email });
   if (password.length === 0) {
     return (
-      <p className={cn("text-stone-400", compact ? "text-[10px]" : "text-[11px]")}>
+      <p className={cn("text-slate-400", compact ? "text-[10px]" : "text-[11px]")}>
         {t("Kata sandi divalidasi terhadap {n} aturan kebijakan saat ini.", "The password is validated against the current {n} policy rules.", { n: v.checks.length })}
       </p>
     );
@@ -79,7 +79,7 @@ export function PasswordRuleChecklist({
           ) : (
             <X className={cn("mt-0.5 shrink-0 text-rose-500", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
           )}
-          <span className={cn("leading-tight", compact ? "text-[10px]" : "text-[11px]", c.pass ? "text-stone-500 dark:text-stone-400" : "font-semibold text-rose-600 dark:text-rose-400")}>
+          <span className={cn("leading-tight", compact ? "text-[10px]" : "text-[11px]", c.pass ? "text-slate-500 dark:text-slate-400" : "font-semibold text-rose-600 dark:text-rose-400")}>
             {t(c.label, checkLabelEn(c.label))}
           </span>
         </li>
@@ -104,7 +104,7 @@ export function PasswordStrengthBar({ password, compact }: { password: string; c
     : "text-brand-deep dark:text-brand/85";
   return (
     <div className="flex items-center gap-2.5">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800" role="progressbar" aria-valuenow={s.pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Kekuatan kata sandi", "Password strength")}>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="progressbar" aria-valuenow={s.pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Kekuatan kata sandi", "Password strength")}>
         <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${s.pct}%` }} />
       </div>
       <span className={cn("shrink-0 font-bold", compact ? "text-[10px]" : "text-[11px]", text)}>{t(s.label, STRENGTH_LABEL_EN[s.label] ?? s.label)}</span>
@@ -148,7 +148,7 @@ export function PasswordInput({
         type="button"
         onClick={() => setShow((s) => !s)}
         aria-label={show ? t("Sembunyikan kata sandi", "Hide password") : t("Perlihatkan kata sandi", "Show password")}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
       >
         {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>

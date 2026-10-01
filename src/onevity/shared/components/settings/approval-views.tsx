@@ -65,14 +65,14 @@ export function ApprovalEngineView() {
         description={t("Struktur persetujuan multi-level per dokumen (cuti, travel, medical, pinjaman) — dicocokkan ke pemohon berdasarkan kantor, lokasi kerja, unit, posisi, grade & level jabatan, plus jenjang bersyarat nominal.", "Multi-level approval structures per document (leave, travel, medical, loan) — matched to the requester by office, work location, unit, position, grade & job level, plus amount-conditional tiers.")}
       />
       <Tabs defaultValue="structure" className="space-y-5">
-        <TabsList className="h-12 rounded-xl bg-stone-100 p-1 dark:bg-stone-800/70">
-          <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+        <TabsList className="h-12 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70">
+          <TabsTrigger value="structure" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <GitBranch className="h-4 w-4" /> {t("Struktur Berjenjang", "Tiered Structure")}
           </TabsTrigger>
-          <TabsTrigger value="templates" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+          <TabsTrigger value="templates" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <Layers className="h-4 w-4" /> {t("Template PA", "PA Templates")}
           </TabsTrigger>
-          <TabsTrigger value="temp" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-900">
+          <TabsTrigger value="temp" className="h-10 gap-2 rounded-lg px-4 text-[13px] font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900">
             <UserRound className="h-4 w-4" /> Temporary Approver
           </TabsTrigger>
         </TabsList>
@@ -111,7 +111,7 @@ function TemplatesTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-500 dark:text-stone-400">{t("{n} template — menentukan layer approval per jenis dokumen.", "{n} templates — define the approval layers per document type.", { n: templates.length })}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t("{n} template — menentukan layer approval per jenis dokumen.", "{n} templates — define the approval layers per document type.", { n: templates.length })}</p>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
           <Plus className="h-4 w-4" /> {t("Template Baru", "New Template")}
         </Button>
@@ -126,15 +126,15 @@ function TemplatesTab() {
       ) : (
         <div className="grid gap-5 xl:grid-cols-2">
           {templates.map((tpl) => (
-            <article key={tpl.id} className="group rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/60">
+            <article key={tpl.id} className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl ov-fill ov-glow">
                     <CheckCircle2 className="h-5.5 w-5.5" />
                   </span>
                   <div>
-                    <h3 className="text-[15px] font-bold text-stone-900 dark:text-stone-50">{tpl.name}</h3>
-                    <p className="font-mono text-[11px] text-stone-400">{tpl.code}</p>
+                    <h3 className="text-[15px] font-bold text-slate-900 dark:text-slate-50">{tpl.name}</h3>
+                    <p className="font-mono text-[11px] text-slate-400">{tpl.code}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -145,10 +145,10 @@ function TemplatesTab() {
                     </Badge>
                   )}
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                    <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:ov-text-accent" onClick={() => setEditing(tpl)} aria-label={`Edit ${tpl.code}`}>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:ov-text-accent" onClick={() => setEditing(tpl)} aria-label={`Edit ${tpl.code}`}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(tpl)} disabled={tpl.code === "AT-PA-STD"} aria-label={`Hapus ${tpl.code}`}>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-rose-600" onClick={() => setDeleting(tpl)} disabled={tpl.code === "AT-PA-STD"} aria-label={`Hapus ${tpl.code}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -159,16 +159,16 @@ function TemplatesTab() {
               <ol className="mt-4 flex flex-wrap items-center gap-2">
                 {tpl.layers.map((l, i) => (
                   <li key={l.layer} className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-xl border border-stone-200/80 bg-stone-50/70 px-3 py-2 dark:border-stone-700 dark:bg-stone-800/40">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-stone-800 font-mono text-[10px] font-extrabold text-white dark:bg-stone-200 dark:text-stone-900">{l.layer}</span>
-                      <span className="text-xs font-bold text-stone-700 dark:text-stone-200">{l.role}</span>
+                    <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/40">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 font-mono text-[10px] font-extrabold text-white dark:bg-slate-200 dark:text-slate-900">{l.layer}</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{l.role}</span>
                     </span>
-                    {i < tpl.layers.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" />}
+                    {i < tpl.layers.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />}
                   </li>
                 ))}
               </ol>
 
-              <p className="mt-3 text-[11px] text-stone-400">
+              <p className="mt-3 text-[11px] text-slate-400">
                 {t("{n} layer approval{auto}{off}", "{n} approval layers{auto}{off}", {
                   n: tpl.layers.length,
                   auto: tpl.autoApprove ? t(" · dokumen auto-approve bila approver tidak ditemukan", " · document auto-approves when no approver is found") : "",
@@ -279,11 +279,11 @@ function TemplateDialog({ initial, onClose, onDone }: { initial: ApprovalTemplat
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-stone-400">{t("Layer Approval", "Approval Layers")}</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">{t("Layer Approval", "Approval Layers")}</Label>
             <ul className="space-y-2">
               {layers.map((l, i) => (
                 <li key={i} className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-800 font-mono text-xs font-extrabold text-white dark:bg-stone-200 dark:text-stone-900">{i + 1}</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 font-mono text-xs font-extrabold text-white dark:bg-slate-200 dark:text-slate-900">{i + 1}</span>
                   <Input
                     value={l.role}
                     onChange={(e) => setRole(i, e.target.value)}
@@ -291,7 +291,7 @@ function TemplateDialog({ initial, onClose, onDone }: { initial: ApprovalTemplat
                     className="h-11"
                     aria-label={t("Role layer {n}", "Role for layer {n}", { n: i + 1 })}
                   />
-                  <Button size="icon" variant="ghost" onClick={() => removeLayer(i)} disabled={layers.length === 1} className="h-11 w-11 shrink-0 text-stone-400 hover:text-rose-600" aria-label={t("Hapus layer", "Delete layer")}>
+                  <Button size="icon" variant="ghost" onClick={() => removeLayer(i)} disabled={layers.length === 1} className="h-11 w-11 shrink-0 text-slate-400 hover:text-rose-600" aria-label={t("Hapus layer", "Delete layer")}>
                     <MinusCircle className="h-4.5 w-4.5" />
                   </Button>
                 </li>
@@ -302,11 +302,11 @@ function TemplateDialog({ initial, onClose, onDone }: { initial: ApprovalTemplat
             </Button>
           </div>
 
-          <div className="flex items-start gap-3 rounded-xl border border-stone-200/70 bg-stone-50/60 p-3.5 dark:border-stone-700/60 dark:bg-stone-800/30">
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200/70 bg-slate-50/60 p-3.5 dark:border-slate-700/60 dark:bg-slate-800/30">
             <Switch id="at-auto" checked={autoApprove} onCheckedChange={setAutoApprove} />
             <div>
               <Label htmlFor="at-auto" className="text-xs font-semibold">{t("Auto-approve bila approver tidak ditemukan", "Auto-approve when no approver is found")}</Label>
-              <p className="mt-0.5 text-[11px] text-stone-400">{t("Dokumen otomatis diloloskan pada layer tanpa approver aktif.", "Documents are automatically passed on layers without an active approver.")}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">{t("Dokumen otomatis diloloskan pada layer tanpa approver aktif.", "Documents are automatically passed on layers without an active approver.")}</p>
             </div>
           </div>
         </div>
@@ -333,7 +333,7 @@ function delegationStatus(d: Delegation): { label: string; cls: string } {
   const now = new Date();
   const from = new Date(d.validFrom);
   const to = new Date(d.validTo);
-  if (!d.active) return { label: "Nonaktif", cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" };
+  if (!d.active) return { label: "Nonaktif", cls: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25" };
   if (now < from) return { label: "Terjadwal", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
   if (now > to) return { label: "Kedaluwarsa", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" };
   return { label: "Aktif", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" };
@@ -364,7 +364,7 @@ function TempApproversTab() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-stone-500 dark:text-stone-400">{t("{n} delegasi approver aktif/tercatat.", "{n} approver delegations active/recorded.", { n: delegations.length })}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t("{n} delegasi approver aktif/tercatat.", "{n} approver delegations active/recorded.", { n: delegations.length })}</p>
           <p className="mt-0.5 text-xs text-brand dark:text-brand/85">{t("Delegasi AKTIF — mesin approval membacanya saat keputusan jenjang (Leave/Travel/Medical/Loan/WorkOff/PA).", "Delegations are LIVE — the approval engine enforces them on tier decisions (Leave/Travel/Medical/Loan/WorkOff/PA).")}</p>
         </div>
         <Button onClick={() => setCreating(true)} className="h-11 gap-2 px-5 font-bold">
@@ -383,7 +383,7 @@ function TempApproversTab() {
           {delegations.map((d) => {
             const st = delegationStatus(d);
             return (
-              <article key={d.id} className="group rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/60">
+              <article key={d.id} className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/60">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   {/* approver → delegate */}
                   <div className="flex items-center gap-3">
@@ -391,53 +391,53 @@ function TempApproversTab() {
                       {initials(d.approver.fullName)}
                     </span>
                     <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-stone-900 dark:text-stone-50">
-                        <UserCog className="h-4 w-4 shrink-0 text-stone-400" />
+                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-slate-900 dark:text-slate-50">
+                        <UserCog className="h-4 w-4 shrink-0 text-slate-400" />
                         <span className="truncate">{d.approver.fullName}</span>
                       </p>
-                      <p className="font-mono text-[10px] text-stone-400">{d.approver.username} · {d.approver.role}</p>
+                      <p className="font-mono text-[10px] text-slate-400">{d.approver.username} · {d.approver.role}</p>
                     </div>
                     <ArrowRight className="mx-1 h-5 w-5 shrink-0 ov-text-accent" aria-label={t("mendelegasikan ke", "delegates to")} />
                     <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ring-2 ring-(--ov-accent)/60", avatarColor(d.delegate.fullName))} title={`${d.delegate.fullName} (${d.delegate.role})`}>
                       {initials(d.delegate.fullName)}
                     </span>
                     <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-stone-900 dark:text-stone-50">
+                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-slate-900 dark:text-slate-50">
                         <UserCheck className="h-4 w-4 shrink-0 ov-text-accent" />
                         <span className="truncate">{d.delegate.fullName}</span>
                       </p>
-                      <p className="font-mono text-[10px] text-stone-400">{d.delegate.username} · {d.delegate.role}</p>
+                      <p className="font-mono text-[10px] text-slate-400">{d.delegate.username} · {d.delegate.role}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold", st.cls)}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", st.label === "Aktif" ? "bg-brand" : st.label === "Terjadwal" ? "bg-brand" : st.label === "Kedaluwarsa" ? "bg-rose-500" : "bg-stone-400")} />
+                      <span className={cn("h-1.5 w-1.5 rounded-full", st.label === "Aktif" ? "bg-brand" : st.label === "Terjadwal" ? "bg-brand" : st.label === "Kedaluwarsa" ? "bg-rose-500" : "bg-slate-400")} />
                       {t(st.label, DELEGATION_LABEL_EN[st.label] ?? st.label)}
                     </span>
                     <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                      <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:ov-text-accent" onClick={() => setEditing(d)} aria-label={t("Edit delegasi", "Edit delegation")}>
+                      <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:ov-text-accent" onClick={() => setEditing(d)} aria-label={t("Edit delegasi", "Edit delegation")}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-9 w-9 text-stone-400 hover:text-rose-600" onClick={() => setDeleting(d)} aria-label={t("Hapus delegasi", "Delete delegation")}>
+                      <Button size="icon" variant="ghost" className="h-9 w-9 text-slate-400 hover:text-rose-600" onClick={() => setDeleting(d)} aria-label={t("Hapus delegasi", "Delete delegation")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-stone-500 dark:text-stone-400">
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarRange className="h-3.5 w-3.5" />
-                    {fmtDate(d.validFrom)} <span className="text-stone-300 dark:text-stone-600">{t("s.d.", "to")}</span> {fmtDate(d.validTo)}
+                    {fmtDate(d.validFrom)} <span className="text-slate-300 dark:text-slate-600">{t("s.d.", "to")}</span> {fmtDate(d.validTo)}
                   </span>
                   <Badge variant="outline" className="rounded-full border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{d.docType}</Badge>
-                  <span className="inline-flex items-center gap-1.5 text-stone-400">
+                  <span className="inline-flex items-center gap-1.5 text-slate-400">
                     <Clock3 className="h-3.5 w-3.5" />
                     {t("{n} hari tersisa", "{n} days left", { n: Math.max(0, Math.ceil((new Date(d.validTo).getTime() - Date.now()) / 86400000)) })}
                   </span>
                 </div>
                 {d.reason && (
-                  <p className="mt-3 rounded-xl border border-stone-200/70 bg-stone-50/60 px-3.5 py-2.5 text-xs italic text-stone-500 dark:border-stone-700/60 dark:bg-stone-800/30 dark:text-stone-400">
+                  <p className="mt-3 rounded-xl border border-slate-200/70 bg-slate-50/60 px-3.5 py-2.5 text-xs italic text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/30 dark:text-slate-400">
                     “{d.reason}”
                   </p>
                 )}
@@ -517,7 +517,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
     <SelectItem key={u.id} value={u.id} className="py-2.5">
       <span className={cn("mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold", avatarColor(u.fullName))}>{initials(u.fullName)}</span>
       <span className="min-w-0 flex-1 truncate">{u.fullName}</span>
-      <span className="ml-2 font-mono text-[10px] text-stone-400">{u.username}</span>
+      <span className="ml-2 font-mono text-[10px] text-slate-400">{u.username}</span>
     </SelectItem>
   );
 
@@ -563,7 +563,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
                   {DELEGATION_DOC_TYPES.map((d) => <SelectItem key={d} value={d} className="py-2.5">{d}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-stone-400">{t("All = semua jenis dokumen. Rentang tanggal mengatur kapan delegate boleh memutus.", "All = every document type. The date range controls when the delegate may decide.")}</p>
+              <p className="text-[11px] text-slate-400">{t("All = semua jenis dokumen. Rentang tanggal mengatur kapan delegate boleh memutus.", "All = every document type. The date range controls when the delegate may decide.")}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ta-from">{t("Valid Dari", "Valid From")} <span className="text-rose-500">*</span></Label>
@@ -580,7 +580,7 @@ function DelegationDialog({ initial, users, onClose, onDone }: { initial: Delega
           </div>
           <div className="flex items-center gap-3">
             <Switch id="ta-active" checked={active} onCheckedChange={setActive} />
-            <Label htmlFor="ta-active" className="text-xs font-normal text-stone-500">{t("Delegasi aktif", "Delegation active")}</Label>
+            <Label htmlFor="ta-active" className="text-xs font-normal text-slate-500">{t("Delegasi aktif", "Delegation active")}</Label>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-0">

@@ -19,7 +19,7 @@ export function AccentSwitcher({ className }: { className?: string }) {
           aria-label={t("Ganti tema warna", "Change accent theme")}
           title={t("Ganti tema warna", "Change accent theme")}
           className={cn(
-            "flex items-center gap-1.5 rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200",
+            "flex items-center gap-1.5 rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
             className,
           )}
         >

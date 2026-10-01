@@ -48,12 +48,12 @@ export default function Page() {
 function ModeSplash() {
   const { t } = useI18n();
   return (
-    <div className="grid min-h-screen place-items-center bg-[#faf8f3] dark:bg-stone-950">
+    <div className="grid min-h-screen place-items-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-900 text-white shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)] dark:bg-stone-100 dark:text-stone-900 dark:shadow-none">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)] dark:bg-slate-100 dark:text-slate-900 dark:shadow-none">
           <Waypoints className="h-7 w-7" aria-hidden />
         </div>
-        <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500 dark:text-stone-400">
+        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin text-amber-700 dark:text-amber-500" aria-hidden />
           {t("Menyiapkan ruang kerja Anda…", "Preparing your workspace…")}
         </div>

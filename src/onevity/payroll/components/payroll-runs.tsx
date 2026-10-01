@@ -107,7 +107,7 @@ export function PayrollRunsPage() {
       />
 
       {/* filter bar */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center gap-3 p-3.5">
           <Select value={periodFilter} onValueChange={setPeriodFilter}>
             <SelectTrigger className="h-9 w-[190px] text-xs font-bold"><SelectValue /></SelectTrigger>
@@ -128,11 +128,11 @@ export function PayrollRunsPage() {
               <SelectItem value="Paid">{t("Dibayar", "Paid")}</SelectItem>
             </SelectContent>
           </Select>
-          <span className="ml-auto text-[11px] font-bold text-stone-400">{t("{n} run", "{n} runs", { n: runs.length })}</span>
+          <span className="ml-auto text-[11px] font-bold text-slate-400">{t("{n} run", "{n} runs", { n: runs.length })}</span>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
@@ -142,7 +142,7 @@ export function PayrollRunsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sortHead("runNo", t("Run"), "text-[11px] font-bold")}
                     {sortHead("period", t("Period"), "text-[11px] font-bold")}
                     {sortHead("type", t("Jenis Proses", "Process Type"), "text-[11px] font-bold")}
@@ -156,10 +156,10 @@ export function PayrollRunsPage() {
                 </TableHeader>
                 <TableBody>
                   {sortedRows.map((r) => (
-                    <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
+                    <TableRow key={r.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-500">{r.runNo}</p>
-                        <p className="text-[10px] text-stone-400">{r.calculatedAt ? fmtDateTime(r.calculatedAt) : "—"}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-500">{r.runNo}</p>
+                        <p className="text-[10px] text-slate-400">{r.calculatedAt ? fmtDateTime(r.calculatedAt) : "—"}</p>
                       </TableCell>
                       <TableCell className="text-[13px] font-semibold">{loc(r.period.name)}</TableCell>
                       <TableCell>
@@ -219,7 +219,7 @@ function RunActionButton({ icon: Icon, label, tone, disabled, onClick }: { icon:
     emerald: "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10",
     teal: "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10",
     rose: "border-rose-200 text-rose-500 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10",
-    stone: "border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800",
+    stone: "border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800",
   };
   return (
     <button
@@ -290,10 +290,10 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">{t("Hitung PPh21", "Calculate PPh21")}</p>
-              <p className="text-[10px] text-stone-400">{t("Kalkulasi pajak progresif + BPJS saat proses", "Progressive tax + BPJS calculation during the run")}</p>
+              <p className="text-[10px] text-slate-400">{t("Kalkulasi pajak progresif + BPJS saat proses", "Progressive tax + BPJS calculation during the run")}</p>
             </div>
             <Switch checked={calculateTax} onCheckedChange={setCalculateTax} />
           </div>
@@ -301,7 +301,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
             <Label className="text-xs">{t("Catatan")}</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("opsional", "optional")} className="mt-1.5" />
           </div>
-          <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+          <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
             {t("Run", "A")} <b>{t("Gaji Bulanan", "Monthly Salary")}</b> {t("memproses payroll penuh (template + pinjaman + komponen periodik). Jenis lain (THR/Bonus/Benefit/Rapel) bersifat ", "run processes full payroll (template + loans + periodic components). Other types (THR/Bonus/Benefit/Retro Pay) are ")}
             <b>{t("suplemental", "supplemental")}</b>: {t("hanya komponen khusus yang didaftarkan untuk period & jenis proses ini yang dibayarkan — tidak mengulang gaji bulanan. Run ", "only special components registered for this period & process type are paid — monthly salary is not repeated. A ")}
             <b>{t("Benefit")}</b> {t("membayar klaim benefit yang dijadwalkan pada period terpilih.", "run pays benefit claims scheduled on the selected period.")}

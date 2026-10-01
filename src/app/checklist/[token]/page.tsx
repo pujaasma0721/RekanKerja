@@ -63,7 +63,7 @@ export default function PublicChecklistPage() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-stone-50 p-6">
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="max-w-md rounded-xl border border-red-200 bg-white p-6 text-center">
           <Mail className="mx-auto mb-3 h-8 w-8 text-red-400" />
           <p className="text-sm text-red-600">{error}</p>
@@ -73,8 +73,8 @@ export default function PublicChecklistPage() {
   }
   if (!data) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-stone-50 p-6">
-        <p className="text-sm text-stone-500">Memuat…</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <p className="text-sm text-slate-500">Memuat…</p>
       </main>
     );
   }
@@ -84,18 +84,18 @@ export default function PublicChecklistPage() {
   const kindLabel = data.kind === "onboarding" ? "Onboarding" : "Offboarding / Clearance";
 
   return (
-    <main className="min-h-screen bg-stone-50 p-4 sm:p-8">
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="mx-auto max-w-2xl space-y-4">
-        <header className="rounded-xl border border-stone-200 bg-white p-5">
-          <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-stone-500">
+        <header className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
             <ListChecks className="h-4 w-4" /> Checklist {kindLabel}
           </div>
-          <h1 className="text-lg font-semibold text-stone-900">{data.employee.fullName}</h1>
-          <p className="text-sm text-stone-500">
-            {data.employee.employeeNo} · Bagian: <span className="font-medium text-stone-700">{data.dept}</span>
+          <h1 className="text-lg font-semibold text-slate-900">{data.employee.fullName}</h1>
+          <p className="text-sm text-slate-500">
+            {data.employee.employeeNo} · Bagian: <span className="font-medium text-slate-700">{data.dept}</span>
             {data.date ? ` · ${data.kind === "onboarding" ? "Mulai" : "Hari terakhir"}: ${String(data.date).slice(0, 10)}` : ""}
           </p>
-          <p className="mt-2 text-xs text-stone-500">
+          <p className="mt-2 text-xs text-slate-500">
             Progres bagian Anda: {done} selesai, {na} tidak berlaku, dari {data.tasks.length} tugas
             {data.status !== "Open" ? " · Proses sudah ditutup" : ""}
           </p>
@@ -103,17 +103,17 @@ export default function PublicChecklistPage() {
 
         <div className="space-y-2">
           {data.tasks.length === 0 && (
-            <p className="rounded-xl border border-stone-200 bg-white p-5 text-sm text-stone-500">
+            <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
               Tidak ada tugas untuk bagian ini.
             </p>
           )}
           {data.tasks.map((t) => (
-            <div key={t.id} className="flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-4">
+            <div key={t.id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-stone-900">
+                <p className="text-sm font-medium text-slate-900">
                   {t.seq}. {t.title}
                 </p>
-                <p className="mt-0.5 text-xs text-stone-500">
+                <p className="mt-0.5 text-xs text-slate-500">
                   Status: {STATUS_LABEL[t.status] ?? t.status}
                   {t.completedAt ? ` · ${String(t.completedAt).slice(0, 10)}` : ""}
                   {t.notes ? ` · ${t.notes}` : ""}
@@ -134,7 +134,7 @@ export default function PublicChecklistPage() {
                     type="button"
                     disabled={busyTask === t.id || t.status === "Na"}
                     onClick={() => void setTask(t.id, "Na")}
-                    className="rounded-lg border border-stone-200 bg-stone-50 p-2 text-stone-600 disabled:opacity-40"
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-600 disabled:opacity-40"
                     title="Tidak berlaku"
                   >
                     <MinusCircle className="h-4 w-4" />
@@ -150,13 +150,13 @@ export default function PublicChecklistPage() {
                   </button>
                 </div>
               ) : (
-                <span className="shrink-0 text-xs text-stone-400">terkunci</span>
+                <span className="shrink-0 text-xs text-slate-400">terkunci</span>
               )}
             </div>
           ))}
         </div>
 
-        <p className="pb-6 text-center text-xs text-stone-400">
+        <p className="pb-6 text-center text-xs text-slate-400">
           Tautan ini khusus bagian {data.dept} — tugas bagian lain tidak terlihat dan tidak bisa diubah.
         </p>
       </div>

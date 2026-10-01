@@ -77,7 +77,7 @@ const ACTION_LABEL_EN: Record<string, string> = {
 function ActionBadge({ action }: { action: string }) {
   const { t } = useI18n();
   return (
-    <Badge variant="outline" className={cn("rounded-full px-2 text-[10px] font-bold whitespace-nowrap", ACTION_CLS[action] ?? "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25")}>
+    <Badge variant="outline" className={cn("rounded-full px-2 text-[10px] font-bold whitespace-nowrap", ACTION_CLS[action] ?? "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25")}>
       {t(action, ACTION_LABEL_EN[action])}
     </Badge>
   );
@@ -107,7 +107,7 @@ export function ActivityLogView() {
   // header kolom dengan state server — ikon & aksi dari sortKey/sortDir
   const sortHead = (key: typeof sortKey, label: string, cls?: string) => (
     <TableHead className={cls}>
-      <button onClick={() => toggleSort(key)} className="inline-flex items-center gap-1 hover:text-stone-600 dark:hover:text-stone-300" aria-label={`${label} — ${sortKey === key && sortDir === "asc" ? "descending" : "ascending"}`}>
+      <button onClick={() => toggleSort(key)} className="inline-flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300" aria-label={`${label} — ${sortKey === key && sortDir === "asc" ? "descending" : "ascending"}`}>
         {label}
         {sortKey === key
           ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3 shrink-0" /> : <ArrowDown className="h-3 w-3 shrink-0" />)
@@ -175,7 +175,7 @@ export function ActivityLogView() {
           perms.canOp("settings", "audit", "export") ? (
             <a
               href={exportUrl}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-stone-900 px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-900 px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
               aria-label={t("Ekspor log aktivitas ke CSV", "Export activity log to CSV")}
             >
               <Download className="h-4 w-4" /> {t("Export CSV")}
@@ -187,7 +187,7 @@ export function ActivityLogView() {
       {/* toolbar filter */}
       <div className="flex flex-col gap-2.5 lg:flex-row">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -207,7 +207,7 @@ export function ActivityLogView() {
                 <SelectItem key={a.key} value={a.key}>
                   <span className="flex items-center justify-between gap-3">
                     <span>{t(a.key, ACTION_LABEL_EN[a.key])}</span>
-                    <span className="text-[10px] font-bold tabular-nums text-stone-400">{a.count}</span>
+                    <span className="text-[10px] font-bold tabular-nums text-slate-400">{a.count}</span>
                   </span>
                 </SelectItem>
               ))}
@@ -223,7 +223,7 @@ export function ActivityLogView() {
                 <SelectItem key={e.key} value={e.key}>
                   <span className="flex items-center justify-between gap-3">
                     <span>{e.key}</span>
-                    <span className="text-[10px] font-bold tabular-nums text-stone-400">{e.count}</span>
+                    <span className="text-[10px] font-bold tabular-nums text-slate-400">{e.count}</span>
                   </span>
                 </SelectItem>
               ))}
@@ -245,12 +245,12 @@ export function ActivityLogView() {
           <div className="flex items-center gap-1.5">
             <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setOffset(0); }} aria-label={t("Dari tanggal", "From date")}
               className="h-10 w-[132px] rounded-xl text-[12.5px]" />
-            <span className="text-xs text-stone-400">–</span>
+            <span className="text-xs text-slate-400">–</span>
             <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setOffset(0); }} aria-label={t("Sampai tanggal", "To date")}
               className="h-10 w-[132px] rounded-xl text-[12.5px]" />
             {hasFilter && (
               <button onClick={resetFilters} aria-label={t("Reset filter", "Reset filter")}
-                className="inline-flex h-10 items-center gap-1 rounded-xl px-2.5 text-[12px] font-medium text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10">
+                className="inline-flex h-10 items-center gap-1 rounded-xl px-2.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10">
                 <X className="h-3.5 w-3.5" /> {t("Reset")}
               </button>
             )}
@@ -260,13 +260,13 @@ export function ActivityLogView() {
 
       {/* tabel log */}
       {loading && rows.length === 0 ? (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-4"><LoadingRows rows={8} /></CardContent>
         </Card>
       ) : error ? (
         <EmptyState title={t("Gagal memuat log", "Failed to load logs")} description={error} icon={<ScrollText className="h-6 w-6" />} />
       ) : rows.length === 0 ? (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-6">
             <EmptyState
               title={t("Tidak ada aktivitas yang cocok", "No matching activity")}
@@ -278,27 +278,27 @@ export function ActivityLogView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] dark:border-stone-800 dark:bg-stone-900/50">
-          <div className="max-h-[620px] overflow-y-auto pr-0.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="max-h-[620px] overflow-y-auto pr-0.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                 <TableRow className="hover:bg-transparent">
-                  {sortHead("time", t("Waktu", "Time"), "h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sortHead("actor", t("Aktor", "Actor"), "h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sortHead("employee", t("Karyawan"), "h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 md:table-cell")}
-                  {sortHead("action", t("Aksi", "Action"), "h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-stone-400")}
-                  {sortHead("entity", t("Entitas", "Entity"), "h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-stone-400 sm:table-cell")}
-                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase text-stone-400">{t("Detail")}</TableHead>
+                  {sortHead("time", t("Waktu", "Time"), "h-11 min-w-[132px] text-[11px] font-semibold tracking-wider uppercase text-slate-400")}
+                  {sortHead("actor", t("Aktor", "Actor"), "h-11 min-w-[128px] text-[11px] font-semibold tracking-wider uppercase text-slate-400")}
+                  {sortHead("employee", t("Karyawan"), "h-11 min-w-[150px] hidden text-[11px] font-semibold tracking-wider uppercase text-slate-400 md:table-cell")}
+                  {sortHead("action", t("Aksi", "Action"), "h-11 min-w-[100px] text-[11px] font-semibold tracking-wider uppercase text-slate-400")}
+                  {sortHead("entity", t("Entitas", "Entity"), "h-11 min-w-[140px] hidden text-[11px] font-semibold tracking-wider uppercase text-slate-400 sm:table-cell")}
+                  <TableHead className="h-11 text-[11px] font-semibold tracking-wider uppercase text-slate-400">{t("Detail")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id} className="align-top transition-colors hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
+                  <TableRow key={r.id} className="align-top transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <TableCell className="py-3 pr-4">
-                      <p className="text-[12.5px] font-semibold text-stone-700 dark:text-stone-200">
+                      <p className="text-[12.5px] font-semibold text-slate-700 dark:text-slate-200">
                         {new Date(r.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
                       </p>
-                      <p className="font-mono text-[10.5px] text-stone-400">
+                      <p className="font-mono text-[10.5px] text-slate-400">
                         {new Date(r.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </TableCell>
@@ -306,28 +306,28 @@ export function ActivityLogView() {
                       {r.actorType === "system" ? (
                         <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wide">Sistem</Badge>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-stone-700 dark:text-stone-200">
-                          <User className="h-3.5 w-3.5 text-stone-400" aria-hidden />
+                        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
+                          <User className="h-3.5 w-3.5 text-slate-400" aria-hidden />
                           {r.appUser?.username ?? r.appUser?.fullName ?? "—"}
                         </span>
                       )}
                     </TableCell>
                     <TableCell className="hidden py-3 pr-4 md:table-cell">
                       {r.employee ? (
-                        <span className="block max-w-44 truncate text-[12.5px] text-stone-600 dark:text-stone-300">
+                        <span className="block max-w-44 truncate text-[12.5px] text-slate-600 dark:text-slate-300">
                           {r.employee.fullName}
-                          <span className="ml-1 font-mono text-[10.5px] text-stone-400">{r.employee.employeeNo}</span>
+                          <span className="ml-1 font-mono text-[10.5px] text-slate-400">{r.employee.employeeNo}</span>
                         </span>
                       ) : (
-                        <span className="text-[12.5px] text-stone-300">—</span>
+                        <span className="text-[12.5px] text-slate-300">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-3 pr-4"><ActionBadge action={r.action} /></TableCell>
                     <TableCell className="hidden py-3 pr-4 sm:table-cell">
-                      <span className="text-[12.5px] font-medium text-stone-600 dark:text-stone-300">{r.entity}</span>
+                      <span className="text-[12.5px] font-medium text-slate-600 dark:text-slate-300">{r.entity}</span>
                     </TableCell>
                     <TableCell className="py-3 pr-4">
-                      <p className="max-w-xl text-[12.5px] leading-relaxed text-stone-600 dark:text-stone-300">{locActivity(r.detail) ?? "—"}</p>
+                      <p className="max-w-xl text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300">{locActivity(r.detail) ?? "—"}</p>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -336,8 +336,8 @@ export function ActivityLogView() {
           </div>
 
           {/* paginasi */}
-          <div className="flex flex-col items-center justify-between gap-2 border-t border-stone-200/80 px-4 py-3 dark:border-stone-800 sm:flex-row">
-            <p className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
+          <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-800 sm:flex-row">
+            <p className="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
               {t("{f}–{l} dari {n} entri", "{f}–{l} of {n} entries", { f: from_, l: to_, n: total })}
             </p>
             <div className="flex items-center gap-1.5">

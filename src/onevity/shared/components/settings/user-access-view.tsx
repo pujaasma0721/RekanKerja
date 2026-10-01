@@ -166,7 +166,7 @@ const ROLE_TONE: Record<string, string> = {
   Admin: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400",
   "HR Manager": "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85",
   Approver: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400",
-  Viewer: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400",
+  Viewer: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
 };
 
 // =================================================================
@@ -354,14 +354,14 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
           { label: t("Rule Data Pengguna", "User Data Rules"), value: stats?.rules ?? 0, icon: SlidersHorizontal },
           { label: t("Super Admin (otomatis)", "Super Admins (automatic)"), value: stats?.superAdmins ?? 0, icon: Crown },
         ].map((c) => (
-          <Card key={c.label} className="rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
+          <Card key={c.label} className="rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800">
-                <c.icon className="h-5 w-5 text-stone-600 dark:text-stone-300" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                <c.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
-                <div className="text-lg font-bold text-stone-900 dark:text-stone-50">{c.value}</div>
-                <div className="text-[11px] font-medium uppercase tracking-wide text-stone-500">{c.label}</div>
+                <div className="text-lg font-bold text-slate-900 dark:text-slate-50">{c.value}</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{c.label}</div>
               </div>
             </CardContent>
           </Card>
@@ -373,20 +373,20 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
         <p className="flex items-center gap-2 text-[13px] font-bold">
           <ShieldCheck className="h-4 w-4" /> {t("Hak akses diatur", "Access rights are configured")} <b>{t("per pengguna", "per user")}</b> {t("— bukan per grup; pengguna dengan role sama bisa haknya berbeda", "— not per group; users with the same role can have different rights")}
         </p>
-        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300 sm:grid-cols-2 xl:grid-cols-4">
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <span><b>Super Admin</b> {t("otomatis akses semua menu & data — tanpa diatur.", "automatically gets all menus & data — no setup needed.")}</span>
           </span>
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserCheck className="mt-0.5 h-4 w-4 shrink-0 ov-text-accent" />
             <span><b>{t("Atasan langsung", "Direct superior")}</b> {t("otomatis mengakses data seluruh bawahannya.", "automatically accesses all of their subordinates' data.")}</span>
           </span>
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
             <span><b>{t("Setiap pengguna", "Every user")}</b> {t("selalu dapat mengakses data dirinya.", "can always access their own data.")}</span>
           </span>
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <SlidersHorizontal className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
             <span>{t("Hak menu turun ke", "Menu rights go down to")} <b>{t("level aksi", "action level")}</b> {t("— Lihat/Baru/Ubah/Hapus + operasi khusus tiap menu.", "— View/Create/Update/Delete + special operations per menu.")}</span>
           </span>
@@ -402,13 +402,13 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
       ) : (
         <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
           {/* ============ daftar pengguna ============ */}
-          <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="h-fit rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <Users className="h-4 w-4 ov-text-accent" /> {t("Pengguna ({n})", "Users ({n})", { n: users.length })}
               </CardTitle>
               <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Cari nama / username / role…", "Search name / username / role…")} className="h-9 rounded-xl pl-8 text-xs" />
               </div>
             </CardHeader>
@@ -422,7 +422,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       onClick={() => setSelectedId(u.id)}
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition",
-                        active ? "ov-fill shadow-md" : "hover:bg-stone-100 dark:hover:bg-stone-800",
+                        active ? "ov-fill shadow-md" : "hover:bg-slate-100 dark:hover:bg-slate-800",
                       )}
                     >
                       <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold",
@@ -430,11 +430,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                         {initials(u.fullName)}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className={cn("flex items-center gap-1 truncate text-[13px] font-bold", active ? "text-white" : "text-stone-900 dark:text-stone-100")}>
+                        <span className={cn("flex items-center gap-1 truncate text-[13px] font-bold", active ? "text-white" : "text-slate-900 dark:text-slate-100")}>
                           {u.fullName}
                           {u.isSuperAdmin && <Crown className="h-3 w-3 shrink-0 text-amber-400" />}
                         </span>
-                        <span className={cn("block truncate text-[10px]", active ? "text-white/70" : "text-stone-400")}>
+                        <span className={cn("block truncate text-[10px]", active ? "text-white/70" : "text-slate-400")}>
                           @{u.username} · {u.role}
                           {u.menuMode === "CUSTOM" ? t(" · {n} menu", " · {n} menus", { n: u.menus.length }) : ""}
                         </span>
@@ -450,7 +450,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                     </button>
                   );
                 })}
-                {filteredUsers.length === 0 && <p className="px-2 py-6 text-center text-xs text-stone-400">{t("Tidak ada pengguna cocok.", "No matching users.")}</p>}
+                {filteredUsers.length === 0 && <p className="px-2 py-6 text-center text-xs text-slate-400">{t("Tidak ada pengguna cocok.", "No matching users.")}</p>}
               </div>
             </CardContent>
           </Card>
@@ -459,14 +459,14 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
           {selected && (
             <div className="min-w-0 space-y-4">
               {/* identitas + akses otomatis */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardContent className="p-5">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="flex h-11 w-11 items-center justify-center rounded-full ov-fill text-xs font-extrabold shadow">
                       {initials(selected.fullName)}
                     </span>
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-[15px] font-bold text-stone-900 dark:text-stone-50">
+                      <p className="flex items-center gap-2 text-[15px] font-bold text-slate-900 dark:text-slate-50">
                         {selected.fullName}
                         {selected.isSuperAdmin && (
                           <Badge variant="outline" className="gap-1 border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
@@ -474,7 +474,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           </Badge>
                         )}
                       </p>
-                      <p className="text-[11px] text-stone-400">
+                      <p className="text-[11px] text-slate-400">
                         @{selected.username} · {selected.email ?? t("tanpa email", "no email")}
                         {selected.employee ? ` · ${selected.employee.employeeNo} — ${selected.employee.fullName}` : ""}
                       </p>
@@ -486,7 +486,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           <UserCheck className="h-3 w-3" /> {t("{n} bawahan", "{n} subordinates", { n: selected.subordinateCount })}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="gap-1 border-stone-200 text-[10px] font-bold text-stone-500 dark:border-stone-700 dark:text-stone-400">
+                      <Badge variant="outline" className="gap-1 border-slate-200 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:text-slate-400">
                         <UserRound className="h-3 w-3" /> {t("akses data diri", "own data access")}
                       </Badge>
                     </div>
@@ -501,7 +501,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               </Card>
 
               {/* ============ akses menu ============ */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
                     <LayoutGrid className="h-4 w-4 ov-text-accent" /> {t("Akses Menu", "Menu Access")}
@@ -515,14 +515,14 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                 </CardHeader>
                 <CardContent className="pt-0">
                   {selected.isSuperAdmin ? (
-                    <p className="flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-3 text-[13px] text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                    <p className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-3 text-[13px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                       <Crown className="h-4 w-4 shrink-0 text-amber-500" /> {t("Semua menu terbuka otomatis (super admin).", "All menus open automatically (super admin).")}
                     </p>
                   ) : (
                     <div className="space-y-3">
                       {/* mode */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 dark:border-stone-700 dark:bg-stone-900">
+                        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
                           {([
                             { v: "ALL", label: t("Semua Menu", "All Menus") },
                             { v: "CUSTOM", label: t("Batasi — pilih menu", "Restrict — select menus") },
@@ -532,7 +532,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                               onClick={() => { setDraftMode(m.v); setDirty(true); }}
                               className={cn(
                                 "rounded-lg px-3 py-1.5 text-[12px] font-bold transition",
-                                draftMode === m.v ? "ov-fill shadow-sm" : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300",
+                                draftMode === m.v ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
                               )}
                             >
                               {m.label}
@@ -540,13 +540,13 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                           ))}
                         </div>
                         {draftMode === "CUSTOM" && (
-                          <span className="text-[11px] text-stone-400">{t("{n} menu dipilih", "{n} menus selected", { n: Object.keys(draftPerms).length })}</span>
+                          <span className="text-[11px] text-slate-400">{t("{n} menu dipilih", "{n} menus selected", { n: Object.keys(draftPerms).length })}</span>
                         )}
                       </div>
 
                       {draftMode === "CUSTOM" ? (
                         <>
-                        <p className="flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                        <p className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
                           <span>
                             {t("Menu tercentang mendapat", "Checked menus get")} <b>{t("seluruh aksi", "all actions")}</b> {t("(Baru/Ubah/Hapus + operasi khusus). Klik ikon", "(Create/Update/Delete + special operations). Click the")} <SlidersHorizontal className="inline h-3 w-3 -translate-y-px" /> {t("di samping menu untuk membatasi — ikon amber menandai menu dengan aksi terbatas.", "icon next to a menu to restrict it — the amber icon marks menus with limited actions.")}
@@ -558,7 +558,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                             const onCount = modKeys.filter((k) => k in draftPerms).length;
                             const allOn = onCount === modKeys.length && modKeys.length > 0;
                             return (
-                              <div key={mod.id} className="rounded-xl border border-stone-200 dark:border-stone-800">
+                              <div key={mod.id} className="rounded-xl border border-slate-200 dark:border-slate-800">
                                 <button
                                   onClick={() => setModuleAll(mod.id, !allOn)}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left"
@@ -566,19 +566,19 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                   title={t("Pilih semua = seluruh menu modul ini dengan seluruh aksi", "Select all = every menu of this module with all actions")}
                                 >
                                   <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
-                                    allOn ? "ov-fill" : "border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")}>
+                                    allOn ? "ov-fill" : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900")}>
                                     {allOn && <Check className="h-3 w-3 text-white" />}
                                   </span>
-                                  <span className="flex-1 text-[12px] font-bold text-stone-700 dark:text-stone-200">{t(mod.label)}</span>
-                                  <span className="text-[10px] font-bold text-stone-400">
+                                  <span className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-200">{t(mod.label)}</span>
+                                  <span className="text-[10px] font-bold text-slate-400">
                                     {onCount}/{modKeys.length}
-                                    <span className="ml-1 font-medium text-stone-300 dark:text-stone-600">{t("· aksi penuh", "· full actions")}</span>
+                                    <span className="ml-1 font-medium text-slate-300 dark:text-slate-600">{t("· aksi penuh", "· full actions")}</span>
                                   </span>
                                 </button>
-                                <div className="grid gap-1 border-t border-stone-100 px-3 py-2 dark:border-stone-800/60 sm:grid-cols-2">
+                                <div className="grid gap-1 border-t border-slate-100 px-3 py-2 dark:border-slate-800/60 sm:grid-cols-2">
                                   {mod.groups.map((g) => (
                                     <div key={g.label ?? "root"} className={g.label ? "sm:col-span-2" : ""}>
-                                      {g.label && <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">{t(g.label)}</p>}
+                                      {g.label && <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(g.label)}</p>}
                                       <div className="grid gap-1 sm:grid-cols-2">
                                         {g.items.map((it) => {
                                           const perm = draftPerms[it.key];
@@ -593,11 +593,11 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                                   "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition",
                                                   on
                                                     ? "ov-soft ov-border-accent"
-                                                    : "border-stone-200 text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:text-stone-400",
+                                                    : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-800 dark:text-slate-400",
                                                 )}
                                               >
                                                 <span className={cn("flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border transition",
-                                                  on ? "ov-fill" : "border-stone-300 dark:border-stone-600")}>
+                                                  on ? "ov-fill" : "border-slate-300 dark:border-slate-600")}>
                                                   {on && <Check className="h-2.5 w-2.5 text-white" />}
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate">{t(it.label)}</span>
@@ -611,7 +611,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                                                   className={cn(
                                                     "h-7 w-7 shrink-0 rounded-lg",
                                                     full
-                                                      ? "text-stone-400 hover:ov-soft"
+                                                      ? "text-slate-400 hover:ov-soft"
                                                       : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400",
                                                   )}
                                                   aria-label={t("Atur aksi menu {label}", "Configure actions for {label}", { label: t(it.label) })}
@@ -635,7 +635,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                         </div>
                         </>
                       ) : (
-                        <p className="rounded-xl bg-stone-50 px-3 py-3 text-[13px] text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                        <p className="rounded-xl bg-slate-50 px-3 py-3 text-[13px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                           {t("Semua menu di seluruh modul terbuka dengan", "All menus across every module are open with")} <b>{t("seluruh aksi", "all actions")}</b> {t("(Baru/Ubah/Hapus/operasi khusus) untuk pengguna ini (default). Pilih", "(Create/Update/Delete/special operations) for this user (default). Choose")} <b>{t("&ldquo;Batasi — pilih menu&rdquo;", "&ldquo;Restrict — select menus&rdquo;")}</b> {t("untuk mengatur menu & aksinya secara individual.", "to configure menus & their actions individually.")}
                         </p>
                       )}
@@ -660,18 +660,18 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               </Card>
 
               {/* ============ akses data karyawan ============ */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
                     <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> {t("Akses Data Karyawan", "Employee Data Access")}
-                    <Badge variant="outline" className="text-[10px] font-bold text-stone-400">{t("{n} rule aktif", "{n} active rules", { n: userRules.filter((r) => r.active).length })}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold text-slate-400">{t("{n} rule aktif", "{n} active rules", { n: userRules.filter((r) => r.active).length })}</Badge>
                   </CardTitle>
                   <Button onClick={() => setRuleDialog({ open: true, rule: null })} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
                     <Plus className="h-3.5 w-3.5" /> {t("Rule Baru", "New Rule")}
                   </Button>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <p className="mb-3 flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                  <p className="mb-3 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                     <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 ov-text-accent" />
                     {t("Rule parametrik", "Parametric rule")} <b>{t("untuk {name}", "for {name}", { name: selected.fullName })}</b> {t("— karyawan yang dapat diakses sesuai penempatan (semua kriteria terpilih = AND). Tanpa kriteria = akses penuh. Bawahan langsung & data diri selalu otomatis.", "— accessible employees follow their placement (all selected criteria = AND). No criteria = full access. Direct subordinates & own data are always automatic.")}
                   </p>
@@ -702,7 +702,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
               </Card>
 
               {/* ============ simulasi ============ */}
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
                     <Wand2 className="h-4 w-4 ov-text-accent" /> {t("Simulasi Akses Efektif", "Effective Access Simulation")}
@@ -713,7 +713,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                 </CardHeader>
                 <CardContent className="pt-0">
                   {!preview ? (
-                    <p className="rounded-xl bg-stone-50 px-3 py-3 text-[13px] text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                    <p className="rounded-xl bg-slate-50 px-3 py-3 text-[13px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                       {t("Lihat cakupan efektif {name} — gabungan akses otomatis (super admin, atasan langsung, diri sendiri) dan rule parametriknya.", "See {name}'s effective scope — the combination of automatic access (super admin, direct superior, self) and their parametric rules.", { name: selected.fullName })}
                     </p>
                   ) : (
@@ -726,27 +726,27 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                       )}>
                         {preview.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-brand" />}
                         <div>
-                          <p className="text-sm font-bold text-stone-900 dark:text-stone-50">
+                          <p className="text-sm font-bold text-slate-900 dark:text-slate-50">
                             {preview.all ? t("Akses penuh — seluruh data karyawan", "Full access — all employee data") : t("{n} karyawan dapat diakses", "{n} employees accessible", { n: preview.accessibleCount })}
                           </p>
-                          <p className="text-xs text-stone-500 dark:text-stone-400">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {preview.all ? t("Semua karyawan terlihat di direktori & detail.", "All employees are visible in the directory & details.") : t("Hanya karyawan dalam cakupan ini yang terlihat di direktori & detail.", "Only employees within this scope are visible in the directory & details.")}
                           </p>
                         </div>
                       </div>
 
                       <div>
-                        <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-stone-400">
+                        <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
                           <Network className="h-3.5 w-3.5" /> {t("Sumber akses", "Access Sources")}
                         </p>
                         <div className="max-h-40 space-y-1.5 overflow-y-auto">
                           {preview.sources.length === 0 && (
-                            <p className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                            <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                               {t("Tidak ada akses data karyawan lain — hanya data diri (tanpa bawahan/rule/super admin).", "No access to other employees' data — own data only (no subordinates/rules/super admin).")}
                             </p>
                           )}
                           {preview.sources.map((s, i) => (
-                            <p key={i} className="flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs font-medium text-stone-600 dark:bg-stone-900/40 dark:text-stone-300">
+                            <p key={i} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
                               <UserCog className="h-3.5 w-3.5 shrink-0 ov-text-accent" /> {s}
                             </p>
                           ))}
@@ -755,15 +755,15 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
 
                       {!preview.all && preview.sample.length > 0 && (
                         <div>
-                          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-stone-400">{t("Contoh karyawan dalam cakupan", "Sample employees in scope")}</p>
+                          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">{t("Contoh karyawan dalam cakupan", "Sample employees in scope")}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {preview.sample.map((e) => (
-                              <Badge key={e.id} variant="outline" className="rounded-lg border-stone-200 text-[11px] text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                              <Badge key={e.id} variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
                                 {e.fullName} · {e.employeeNo}
                               </Badge>
                             ))}
                             {preview.accessibleCount > preview.sample.length && (
-                              <Badge variant="outline" className="rounded-lg border-stone-200 text-[11px] text-stone-400 dark:border-stone-700">
+                              <Badge variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-400 dark:border-slate-700">
                                 {t("+{n} lainnya", "+{n} more", { n: preview.accessibleCount - preview.sample.length })}
                               </Badge>
                             )}
@@ -838,16 +838,16 @@ function UserRuleCard({ r, busy, onToggle, onEdit, onDelete }: {
   if (r.employmentStatus) criteria.push({ label: t("Status: {v}", "Status: {v}", { v: t(EMPLOYMENT_STATUS_LABEL[r.employmentStatus] ?? r.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[r.employmentStatus] ?? r.employmentStatus) }), icon: BadgeCheck });
 
   return (
-    <Card className={cn("rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900", !r.active && "opacity-60")}>
+    <Card className={cn("rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900", !r.active && "opacity-60")}>
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{r.code}</span>
-              <span className="font-semibold text-stone-900 dark:text-stone-50">{r.name}</span>
+              <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{r.code}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">{r.name}</span>
               {!r.active && <Badge variant="secondary" className="rounded-lg text-[10px]">{t("Nonaktif")}</Badge>}
             </div>
-            {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-stone-500 dark:text-stone-400">{r.description}</p>}
+            {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">{r.description}</p>}
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
                 <Badge variant="outline" className="gap-1 rounded-lg border-brand/25 bg-brand/10 text-[11px] text-brand-deep dark:border-brand/70 dark:bg-brand/90 dark:text-brand/75">
@@ -858,7 +858,7 @@ function UserRuleCard({ r, busy, onToggle, onEdit, onDelete }: {
                   <c.icon className="h-3 w-3" /> {c.label}
                 </Badge>
               ))}
-              <Badge variant="outline" className="rounded-lg border-stone-300 text-[10px] text-stone-400 dark:border-stone-600">{t("prioritas {n}", "priority {n}", { n: r.priority })}</Badge>
+              <Badge variant="outline" className="rounded-lg border-slate-300 text-[10px] text-slate-400 dark:border-slate-600">{t("prioritas {n}", "priority {n}", { n: r.priority })}</Badge>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -960,11 +960,11 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+          <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
             <span className="flex h-8 w-8 items-center justify-center rounded-full ov-tile text-[10px] font-extrabold">{initials(user.fullName)}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold text-stone-900 dark:text-stone-50">{t("Subjek: {name}", "Subject: {name}", { name: user.fullName })}</p>
-              <p className="text-[10px] text-stone-400">{t("@{u} · {r} — tetap, tidak bisa diubah", "@{u} · {r} — fixed, cannot be changed", { u: user.username, r: user.role })}</p>
+              <p className="text-[13px] font-bold text-slate-900 dark:text-slate-50">{t("Subjek: {name}", "Subject: {name}", { name: user.fullName })}</p>
+              <p className="text-[10px] text-slate-400">{t("@{u} · {r} — tetap, tidak bisa diubah", "@{u} · {r} — fixed, cannot be changed", { u: user.username, r: user.role })}</p>
             </div>
             <Badge variant="outline" className="ov-soft ov-border-accent text-[10px] font-bold">{t("per pengguna", "per user")}</Badge>
           </div>
@@ -980,8 +980,8 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
             </div>
           </div>
 
-          <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
               <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> {t("Kriteria sasaran — karyawan yang dapat diakses {name}", "Target criteria — employees accessible to {name}", { name: user.fullName })}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -995,9 +995,9 @@ function UserRuleFormDialog({ user, rule, suggestedCode, resp, onClose, onDone }
                 { key: "employmentStatus" as const, label: t("Status Kerja", "Employment Status"), items: (resp?.employmentStatuses ?? []).map((s) => ({ value: s, label: t(EMPLOYMENT_STATUS_LABEL[s] ?? s, EMPLOYMENT_STATUS_LABEL_EN[s] ?? s) })) },
               ]).map((f) => (
                 <div key={f.key} className="space-y-1.5">
-                  <Label className="text-xs text-stone-500">{f.label}</Label>
+                  <Label className="text-xs text-slate-500">{f.label}</Label>
                   <Select value={d[f.key] || "__all"} onValueChange={(v) => set({ [f.key]: v === "__all" ? "" : v } as Partial<RuleDraft>)}>
-                    <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">{t("Semua (tanpa filter)", "All (no filter)")}</SelectItem>
                       {f.items.map((it) => <SelectItem key={it.value} value={it.value}>{it.label}</SelectItem>)}
@@ -1120,7 +1120,7 @@ function PermSummaryBadge({ perm, menuKey }: { perm: MenuPerm; menuKey: string }
   const crudOn = (perm.create ? 1 : 0) + (perm.update ? 1 : 0) + (perm.delete ? 1 : 0);
   if (isFullPerm(perm, menuKey)) {
     return (
-      <span className="shrink-0 rounded-md border border-stone-300/70 bg-stone-100 px-1 py-px text-[9px] font-bold leading-4 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+      <span className="shrink-0 rounded-md border border-slate-300/70 bg-slate-100 px-1 py-px text-[9px] font-bold leading-4 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
         {t("semua aksi", "all actions")}
       </span>
     );
@@ -1182,26 +1182,26 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
         <DialogHeader>
           <DialogTitle>{t("Atur Aksi — {label}", "Configure Actions — {label}", { label: t(menuLabel) })}</DialogTitle>
           <DialogDescription>
-            {t("Hak aksi pada menu", "Action rights on menu")} <b>{t(menuLabel)}</b> <span className="font-mono text-[11px] text-stone-400">({menuKey})</span> {t("untuk pengguna terpilih. Matikan aksi yang tidak diizinkan —", "for the selected user. Turn off actions that are not allowed —")} <b>{t("Lihat", "View")}</b> {t("selalu aktif selama menu diizinkan.", "stays on as long as the menu is allowed.")}
+            {t("Hak aksi pada menu", "Action rights on menu")} <b>{t(menuLabel)}</b> <span className="font-mono text-[11px] text-slate-400">({menuKey})</span> {t("untuk pengguna terpilih. Matikan aksi yang tidak diizinkan —", "for the selected user. Turn off actions that are not allowed —")} <b>{t("Lihat", "View")}</b> {t("selalu aktif selama menu diizinkan.", "stays on as long as the menu is allowed.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           {/* aksi dasar CRUD */}
           <div className="space-y-1.5">
-            <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
               <ShieldCheck className="h-4 w-4 ov-text-accent" /> {t("Aksi Dasar", "Basic Actions")}
             </p>
             {MENU_ACTION_DEFS.map((d) => {
               const locked = d.key === "view";
               return (
-                <div key={d.key} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                <div key={d.key} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                   <div className="min-w-0">
-                    <Label htmlFor={`ma-${menuKey}-${d.key}`} className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                    <Label htmlFor={`ma-${menuKey}-${d.key}`} className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
                       {t(d.label, MENU_ACTION_LABEL_EN[d.key] ?? d.label)}
                       {locked && <span className="ml-1.5 rounded-md bg-brand/15 px-1 py-px text-[9px] font-bold text-brand-deep dark:bg-brand/15 dark:text-brand/85">{t("terkunci", "locked")}</span>}
                     </Label>
-                    <p className="text-[11px] leading-snug text-stone-400">{locked ? t("Aktif karena menu diizinkan", "On because the menu is allowed") : t(d.hint, MENU_ACTION_HINT_EN[d.key] ?? d.hint)}</p>
+                    <p className="text-[11px] leading-snug text-slate-400">{locked ? t("Aktif karena menu diizinkan", "On because the menu is allowed") : t(d.hint, MENU_ACTION_HINT_EN[d.key] ?? d.hint)}</p>
                   </div>
                   <Switch
                     id={`ma-${menuKey}-${d.key}`}
@@ -1218,15 +1218,15 @@ function MenuActionDialog({ menuKey, menuLabel, perm, onClose, onSave }: {
           {/* operasi khusus menu */}
           {ops.length > 0 && (
             <div className="space-y-1.5">
-              <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+              <p className="flex items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
                 <SlidersHorizontal className="h-4 w-4 ov-text-accent" /> {t("Operasi Khusus Menu", "Menu Special Operations")}
               </p>
-              <p className="text-[11px] leading-snug text-stone-400">{t("Operasi spesifik pada menu ini — masing-masing dapat diizinkan atau dibatasi.", "Operations specific to this menu — each can be allowed or restricted.")}</p>
+              <p className="text-[11px] leading-snug text-slate-400">{t("Operasi spesifik pada menu ini — masing-masing dapat diizinkan atau dibatasi.", "Operations specific to this menu — each can be allowed or restricted.")}</p>
               {ops.map((o) => (
-                <div key={o.key} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                <div key={o.key} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                   <div className="min-w-0">
-                    <Label htmlFor={`mo-${menuKey}-${o.key}`} className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{t(o.label, MENU_OPS_LABEL_EN[o.label] ?? o.label)}</Label>
-                    {o.hint && <p className="text-[11px] leading-snug text-stone-400">{t(o.hint, MENU_OPS_HINT_EN[o.hint] ?? o.hint)}</p>}
+                    <Label htmlFor={`mo-${menuKey}-${o.key}`} className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{t(o.label, MENU_OPS_LABEL_EN[o.label] ?? o.label)}</Label>
+                    {o.hint && <p className="text-[11px] leading-snug text-slate-400">{t(o.hint, MENU_OPS_HINT_EN[o.hint] ?? o.hint)}</p>}
                   </div>
                   <Switch id={`mo-${menuKey}-${o.key}`} checked={opOn[o.key]} onCheckedChange={(v) => setOp(o.key, v)} aria-label={t(o.label, MENU_OPS_LABEL_EN[o.label] ?? o.label)} />
                 </div>

@@ -22,7 +22,7 @@ const STATUS_TONE: Record<string, string> = {
   Late: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
   Absent: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
   WorkOff: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
-  Off: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
+  Off: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
 };
 
 const fmtTime = (d: string | null) => {
@@ -94,25 +94,25 @@ export function AttendanceClockingPage() {
           { label: "Telat", value: stats?.late ?? 0, tone: "text-amber-600 dark:text-amber-400" },
           { label: "Absen", value: stats?.absent ?? 0, tone: "text-rose-600 dark:text-rose-400" },
           { label: "Izin", value: stats?.workoff ?? 0, tone: "text-violet-600 dark:text-violet-400" },
-          { label: "Off", value: stats?.off ?? 0, tone: "text-stone-500" },
+          { label: "Off", value: stats?.off ?? 0, tone: "text-slate-500" },
           { label: "Total Telat", value: `${Math.round((stats?.lateMinutes ?? 0) / 60)} j`, tone: "text-amber-700" },
         ].map((k) => (
-          <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
+          <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
             <p className={cn("text-lg font-extrabold", k.tone)}>{k.value}</p>
           </div>
         ))}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           <Tabs defaultValue="recap">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3 dark:border-stone-800">
-              <TabsList className="h-auto rounded-xl bg-stone-100 p-1 dark:bg-stone-900">
-                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+              <TabsList className="h-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+                <TabsTrigger value="recap" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
                   <Activity className="h-3.5 w-3.5" /> Rekap ({api.data?.rows.length ?? 0})
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+                <TabsTrigger value="logs" className="gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
                   <Clock className="h-3.5 w-3.5" /> Log Mentah ({api.data?.logs.length ?? 0})
                 </TabsTrigger>
               </TabsList>
@@ -129,7 +129,7 @@ export function AttendanceClockingPage() {
                   </SelectContent>
                 </Select>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                   <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="h-8 w-48 pl-8 text-xs" />
                 </div>
               </div>
@@ -142,7 +142,7 @@ export function AttendanceClockingPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                         <TableHead className="text-[11px] font-bold">Tipe Hari</TableHead>
                         <TableHead className="text-[11px] font-bold">Clock In</TableHead>
@@ -156,36 +156,36 @@ export function AttendanceClockingPage() {
                     </TableHeader>
                     <TableBody>
                       {rows.map((r) => (
-                        <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                        <TableRow key={r.employeeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell>
-                            <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
-                            {r.notes && <p className="text-[10px] italic text-stone-400">{r.notes}</p>}
+                            <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{r.fullName}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
+                            {r.notes && <p className="text-[10px] italic text-slate-400">{r.notes}</p>}
                           </TableCell>
                           <TableCell>
                             {r.dayTypeCode ? (
-                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: r.dayTypeColor ?? "#E7E5E4" }} />
                                 {r.dayTypeCode}
                               </span>
-                            ) : <span className="text-xs text-stone-400">tanpa jadwal</span>}
+                            ) : <span className="text-xs text-slate-400">tanpa jadwal</span>}
                           </TableCell>
                           <TableCell className="font-mono text-xs">{fmtTime(r.checkIn)}</TableCell>
                           <TableCell className="font-mono text-xs">{fmtTime(r.checkOut)}</TableCell>
-                          <TableCell className={cn("text-right text-xs font-bold", r.lateMinutes > 0 ? "text-amber-600 dark:text-amber-400" : "text-stone-400")}>
+                          <TableCell className={cn("text-right text-xs font-bold", r.lateMinutes > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400")}>
                             {r.lateMinutes > 0 ? `${r.lateMinutes} mnt` : "—"}
                           </TableCell>
-                          <TableCell className={cn("text-right text-xs font-bold", r.earlyMinutes > 0 ? "text-orange-600 dark:text-orange-400" : "text-stone-400")}>
+                          <TableCell className={cn("text-right text-xs font-bold", r.earlyMinutes > 0 ? "text-orange-600 dark:text-orange-400" : "text-slate-400")}>
                             {r.earlyMinutes > 0 ? `${r.earlyMinutes} mnt` : "—"}
                           </TableCell>
                           <TableCell className="text-right text-xs font-semibold">
                             {r.workMinutes > 0 ? `${(r.workMinutes / 60).toFixed(1)} j` : "—"}
                           </TableCell>
-                          <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-stone-400")}>
+                          <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "text-teal-600 dark:text-teal-400" : "text-slate-400")}>
                             {r.overtimeMinutes > 0 ? `${(r.overtimeMinutes / 60).toFixed(1)} j` : "—"}
                           </TableCell>
                           <TableCell>
-                            <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold", STATUS_TONE[r.status] ?? "bg-stone-100 text-stone-500")}>
+                            <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold", STATUS_TONE[r.status] ?? "bg-slate-100 text-slate-500")}>
                               {ATT_STATUS_LABEL[r.status] ?? r.status}
                             </span>
                           </TableCell>
@@ -204,7 +204,7 @@ export function AttendanceClockingPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">Waktu</TableHead>
                         <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                         <TableHead className="text-[11px] font-bold">Arah</TableHead>
@@ -214,19 +214,19 @@ export function AttendanceClockingPage() {
                     </TableHeader>
                     <TableBody>
                       {(api.data?.logs ?? []).map((l) => (
-                        <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                        <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell className="font-mono text-xs font-bold">{fmtTime(l.timestamp)}</TableCell>
                           <TableCell className="text-xs">
                             <p className="font-semibold">{l.employee.fullName}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{l.employee.employeeNo}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{l.employee.employeeNo}</p>
                           </TableCell>
                           <TableCell>
                             <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold", l.direction === "IN" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400")}>
                               {l.direction === "IN" ? <LogIn className="h-3 w-3" /> : <LogOut className="h-3 w-3" />} {l.direction}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs text-stone-500">{l.source}</TableCell>
-                          <TableCell className="text-xs text-stone-500">{l.note ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{l.source}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{l.note ?? "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -275,7 +275,7 @@ export function AttendanceClockingPage() {
               <Label className="text-xs font-bold">Catatan</Label>
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="mis. lupa kartu, input operator" className="text-sm" />
             </div>
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
               Rekap harian karyawan otomatis dihitung ulang setelah clock dicatat (padanan Temporary Employee Clocking + Refresh).
             </p>
           </div>

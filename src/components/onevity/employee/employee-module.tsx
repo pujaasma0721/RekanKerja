@@ -92,20 +92,20 @@ function EmployeeDetail() {
       </button>
 
       {/* header card */}
-      <Card className="mb-4 overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <div className="h-20 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800" />
         <CardContent className="relative p-6 pt-0">
           <div className="-mt-10 flex flex-wrap items-end justify-between gap-4">
             <div className="flex items-end gap-4">
-              <div className={cn("flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white text-2xl font-extrabold shadow-lg dark:border-stone-900", avatarColor(e.fullName))}>
+              <div className={cn("flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white text-2xl font-extrabold shadow-lg dark:border-slate-900", avatarColor(e.fullName))}>
                 {initials(e.fullName)}
               </div>
               <div className="pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{e.fullName}</h1>
+                  <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-50">{e.fullName}</h1>
                   <StatusPill status={e.status} />
                 </div>
-                <p className="mt-0.5 text-xs text-stone-500">
+                <p className="mt-0.5 text-xs text-slate-500">
                   <span className="font-mono font-bold">{e.employeeNo}</span> · {e.position?.title ?? "—"} · {e.orgUnit?.name ?? "—"}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -132,7 +132,7 @@ function EmployeeDetail() {
 
       {/* tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto w-full flex-wrap justify-start gap-1 rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
           {([
             ["personal", "Personal", User],
             ["work", "Pekerjaan", Briefcase],
@@ -141,7 +141,7 @@ function EmployeeDetail() {
             ["experience", "Pengalaman", History],
             ["discipline", "Disiplin", Scale],
           ] as const).map(([id, label, Icon]) => (
-            <TabsTrigger key={id} value={id} className="gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger key={id} value={id} className="gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
               <Icon className="h-3.5 w-3.5" /> {label}
               {id === "work" && e.assignments.length > 1 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.assignments.length}</Badge>}
               {id === "family" && e.family.length > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">{e.family.length}</Badge>}
@@ -152,7 +152,7 @@ function EmployeeDetail() {
         </TabsList>
 
         <TabsContent value="personal">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-6">
               <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
                 <InfoItem icon={IdCard} label="NIK (KTP)" value={e.nationalId ?? "—"} mono />
@@ -175,9 +175,9 @@ function EmployeeDetail() {
         <TabsContent value="work">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-4 lg:col-span-2">
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardContent className="p-6">
-                  <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">Penempatan Saat Ini</p>
+                  <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Penempatan Saat Ini</p>
                   <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                     <InfoItem icon={Briefcase} label="Posisi" value={e.position?.title ?? "—"} />
                     <InfoItem icon={Users} label="Unit Organisasi" value={e.orgUnit?.name ?? "—"} />
@@ -190,7 +190,7 @@ function EmployeeDetail() {
                     {e.grade && (
                       <div className="sm:col-span-2">
                         <InfoItem icon={GraduationCap} label="Rentang Grade" value={`${fmtIDR(e.grade.minSalary)} — ${fmtIDR(e.grade.maxSalary)}`} />
-                        <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                        <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                           <div className="absolute inset-y-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{
                             left: `${Math.max((e.baseSalary - e.grade.minSalary) / (e.grade.maxSalary - e.grade.minSalary || 1) * 100, 2)}%`,
                             width: "14%",
@@ -204,36 +204,36 @@ function EmployeeDetail() {
               <AssignmentTimeline assignments={e.assignments} />
             </div>
             <div className="space-y-4">
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-bold">Atasan Langsung</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {e.manager ? (
-                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-stone-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-stone-800 dark:hover:bg-emerald-500/5">
+                    <button onClick={() => navigate("employee", "detail", { id: e.manager!.id })} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-slate-800 dark:hover:bg-emerald-500/5">
                       <span className={cn("flex h-10 w-10 items-center justify-center rounded-full text-xs font-extrabold", avatarColor(e.manager.fullName))}>{initials(e.manager.fullName)}</span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">{e.manager.fullName}</p>
-                        <p className="truncate text-[11px] text-stone-400">{e.manager.position?.title ?? "—"}</p>
+                        <p className="truncate text-[11px] text-slate-400">{e.manager.position?.title ?? "—"}</p>
                       </div>
                     </button>
-                  ) : <p className="text-xs text-stone-400">Tidak ada atasan (top level)</p>}
+                  ) : <p className="text-xs text-slate-400">Tidak ada atasan (top level)</p>}
                 </CardContent>
               </Card>
-              <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-bold">Bawahan Langsung ({e.directReports.length})</CardTitle>
                 </CardHeader>
                 <CardContent className="max-h-64 space-y-2 overflow-y-auto pt-0">
                   {e.directReports.length > 0 ? e.directReports.map((r) => (
-                    <button key={r.id} onClick={() => navigate("employee", "detail", { id: r.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <button key={r.id} onClick={() => navigate("employee", "detail", { id: r.id })} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(r.fullName))}>{initials(r.fullName)}</span>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold">{r.fullName}</p>
-                        <p className="truncate text-[10px] text-stone-400">{r.position?.title ?? "—"}</p>
+                        <p className="truncate text-[10px] text-slate-400">{r.position?.title ?? "—"}</p>
                       </div>
                     </button>
-                  )) : <p className="text-xs text-stone-400">Tidak memiliki bawahan</p>}
+                  )) : <p className="text-xs text-slate-400">Tidak memiliki bawahan</p>}
                 </CardContent>
               </Card>
             </div>
@@ -286,20 +286,20 @@ function EmployeeDetail() {
         </TabsContent>
 
         <TabsContent value="discipline">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold"><Scale className="h-4 w-4 text-emerald-600" /> Catatan Disiplin</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {e.disciplinary.length > 0 ? (
-                <ol className="relative ml-2 space-y-4 border-l border-stone-200 pl-6 dark:border-stone-800">
+                <ol className="relative ml-2 space-y-4 border-l border-slate-200 pl-6 dark:border-slate-800">
                   {e.disciplinary.map((d) => (
                     <li key={d.id} className="relative">
-                      <span className={cn("absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white dark:ring-stone-950",
+                      <span className={cn("absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-950",
                         d.warningLevel === "Final" ? "bg-rose-100 dark:bg-rose-500/20" : d.warningLevel === "Written" ? "bg-orange-100 dark:bg-orange-500/20" : "bg-amber-100 dark:bg-amber-500/20")}>
-                        <Scale className="h-2.5 w-2.5 text-stone-600 dark:text-stone-300" />
+                        <Scale className="h-2.5 w-2.5 text-slate-600 dark:text-slate-300" />
                       </span>
-                      <div className="rounded-xl border border-stone-100 p-3 dark:border-stone-800">
+                      <div className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className={cn("text-[10px] font-bold",
                             d.warningLevel === "Final" ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400" :
@@ -308,10 +308,10 @@ function EmployeeDetail() {
                             {d.warningLevel}
                           </Badge>
                           <span className="text-xs font-bold">{d.violation}</span>
-                          <span className="ml-auto text-[10px] text-stone-400">{fmtDate(d.issuedAt)}</span>
+                          <span className="ml-auto text-[10px] text-slate-400">{fmtDate(d.issuedAt)}</span>
                         </div>
-                        {d.sanction && <p className="mt-1 text-[11px] text-stone-500">Sanksi: {d.sanction}</p>}
-                        {d.expiresAt && <p className="text-[10px] text-stone-400">Berlaku s.d. {fmtDate(d.expiresAt)}</p>}
+                        {d.sanction && <p className="mt-1 text-[11px] text-slate-500">Sanksi: {d.sanction}</p>}
+                        {d.expiresAt && <p className="text-[10px] text-slate-400">Berlaku s.d. {fmtDate(d.expiresAt)}</p>}
                       </div>
                     </li>
                   ))}
@@ -319,7 +319,7 @@ function EmployeeDetail() {
               ) : (
                 <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center dark:border-emerald-500/25 dark:bg-emerald-500/5">
                   <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Rekam jejak bersih ✨</p>
-                  <p className="mt-0.5 text-xs text-stone-400">Tidak ada catatan pelanggaran untuk karyawan ini.</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Tidak ada catatan pelanggaran untuk karyawan ini.</p>
                 </div>
               )}
             </CardContent>
@@ -334,16 +334,16 @@ function EmployeeDetail() {
 
 // ================= TIMELINE RIWAYAT PEKERJAAN =================
 const REASON_TONE: Record<string, string> = {
-  Initial: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  Initial: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   Promotion: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
   Demotion: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25",
   Transfer: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/25",
   Mutation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
   SalaryAdjustment: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25",
-  ChangeStatus: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  ChangeStatus: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   ContractRenewal: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
   ExtendProbation: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25",
-  ManualEdit: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700",
+  ManualEdit: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
 };
 
 function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] }) {
@@ -368,7 +368,7 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
   };
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <History className="h-4 w-4 text-emerald-600" /> Riwayat Pekerjaan
@@ -376,7 +376,7 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-5 dark:border-stone-800">
+        <ol className="relative ml-2 space-y-0 border-l border-slate-200 pl-5 dark:border-slate-800">
           {assignments.map((a, i) => {
             const active = a.validTo === null;
             const chips = diffChips(i);
@@ -387,31 +387,31 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
                   "absolute -left-[27px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ring-4",
                   active
                     ? "border-emerald-600 bg-emerald-500 ring-emerald-500/15"
-                    : "border-stone-300 bg-white ring-white dark:border-stone-600 dark:bg-stone-900 dark:ring-stone-900",
+                    : "border-slate-300 bg-white ring-white dark:border-slate-600 dark:bg-slate-900 dark:ring-slate-900",
                 )} />
                 <div className={cn(
                   "rounded-xl border p-3.5 transition",
                   active
                     ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5"
-                    : "border-stone-200/80 bg-white hover:border-stone-300 dark:border-stone-800 dark:bg-transparent dark:hover:border-stone-700",
+                    : "border-slate-200/80 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-transparent dark:hover:border-slate-700",
                 )}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold", REASON_TONE[a.changeReason] ?? REASON_TONE.Initial)}>
                       {a.changeReasonLabel ?? a.changeReason}
                     </span>
-                    <span className={cn("text-[11px] font-bold", active ? "text-emerald-700 dark:text-emerald-400" : "text-stone-500 dark:text-stone-400")}>{period(a)}</span>
+                    <span className={cn("text-[11px] font-bold", active ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400")}>{period(a)}</span>
                     {active && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-extrabold tracking-wide text-white">SAAT INI</span>}
                     {a.sourceDocNo && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-stone-400" title="Dokumen sumber">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-slate-400" title="Dokumen sumber">
                         <FileText className="h-3 w-3" /> {a.sourceDocNo}
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm font-bold text-stone-800 dark:text-stone-200">
+                  <p className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-200">
                     {a.position?.title ?? "—"}
-                    <span className="font-normal text-stone-400"> · {a.orgUnit?.name ?? "—"}</span>
+                    <span className="font-normal text-slate-400"> · {a.orgUnit?.name ?? "—"}</span>
                   </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500 dark:text-stone-400">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" /> {a.grade ? `Grade ${a.grade.code}` : "—"}</span>
                     <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {a.employmentStatus}</span>
                     <span className="inline-flex items-center gap-1"><Banknote className="h-3 w-3" /> {fmtIDR(a.baseSalary)}</span>
@@ -420,15 +420,15 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
                   </div>
                   {chips.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-semibold text-stone-400">Berubah:</span>
+                      <span className="text-[10px] font-semibold text-slate-400">Berubah:</span>
                       {chips.map((c) => (
-                        <span key={c} className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                        <span key={c} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                           <ArrowRight className="h-2.5 w-2.5" /> {c}
                         </span>
                       ))}
                     </div>
                   )}
-                  {a.notes && <p className="mt-2 text-[11px] italic text-stone-400">{a.notes}</p>}
+                  {a.notes && <p className="mt-2 text-[11px] italic text-slate-400">{a.notes}</p>}
                 </div>
               </li>
             );
@@ -441,7 +441,7 @@ function AssignmentTimeline({ assignments }: { assignments: AssignmentHistory[] 
 
 function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
       <Icon className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
       <span className="truncate">{text}</span>
     </span>
@@ -451,12 +451,12 @@ function ContactChip({ icon: Icon, text }: { icon: React.ElementType; text: stri
 function InfoItem({ icon: Icon, label, value, mono, span }: { icon: React.ElementType; label: string; value: string; mono?: boolean; span?: boolean }) {
   return (
     <div className={cn("flex items-start gap-3", span && "sm:col-span-2 lg:col-span-3")}>
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-50 text-emerald-600 dark:bg-stone-900">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-emerald-600 dark:bg-slate-900">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-        <p className={cn("break-words text-[13px] font-semibold text-stone-800 dark:text-stone-200", mono && "font-mono")}>{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+        <p className={cn("break-words text-[13px] font-semibold text-slate-800 dark:text-slate-200", mono && "font-mono")}>{value}</p>
       </div>
     </div>
   );
@@ -470,7 +470,7 @@ function ListSection({ title, addLabel, items, renderAdd }: {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-bold">{title}</CardTitle>
         <Button variant="outline" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5 text-xs font-bold">
@@ -479,16 +479,16 @@ function ListSection({ title, addLabel, items, renderAdd }: {
       </CardHeader>
       <CardContent className="space-y-2.5 pt-0">
         {items.length > 0 ? items.map((it) => (
-          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-stone-100 p-3.5 transition hover:border-emerald-200 dark:border-stone-800 dark:hover:border-emerald-500/30">
+          <div key={it.id} className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3.5 transition hover:border-emerald-200 dark:border-slate-800 dark:hover:border-emerald-500/30">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-stone-800 dark:text-stone-200">{it.title}</p>
-              <p className="truncate text-[11px] text-stone-400">{it.subtitle}</p>
+              <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{it.title}</p>
+              <p className="truncate text-[11px] text-slate-400">{it.subtitle}</p>
               {it.right && <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{it.right}</p>}
             </div>
             <button
               onClick={async () => { setBusyId(it.id); try { await it.onDelete(); } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); } }}
               disabled={busyId === it.id}
-              className="rounded-lg p-2 text-stone-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
+              className="rounded-lg p-2 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
               aria-label="Hapus"
             >
               <Trash2 className="h-4 w-4" />

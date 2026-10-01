@@ -58,16 +58,16 @@ export function AttendanceMatrixPage() {
         }
       />
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <Layers className="h-4 w-4 text-emerald-600" />
               <p className="text-[13px] font-bold">Pekan {from} — {iso(shiftDate(from, 6))} · {api.data?.total ?? 0} karyawan</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="h-8 w-48 pl-8 text-xs" />
               </div>
             </div>
@@ -79,7 +79,7 @@ export function AttendanceMatrixPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="min-w-52 text-[11px] font-bold">Karyawan</TableHead>
                     {days.map((d) => (
                       <TableHead key={d.date} className="min-w-24 text-center text-[10px] font-bold uppercase">{d.label}</TableHead>
@@ -89,10 +89,10 @@ export function AttendanceMatrixPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.slice(0, 80).map((r) => (
-                    <TableRow key={r.employeeId} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", !r.assigned && "opacity-60")}>
+                    <TableRow key={r.employeeId} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", !r.assigned && "opacity-60")}>
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{r.fullName}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
                       </TableCell>
                       {r.cells.map((c) => (
                         <TableCell key={c.date} className="p-1.5 text-center">
@@ -102,18 +102,18 @@ export function AttendanceMatrixPage() {
                               style={{ backgroundColor: (c.color ?? "#E7E5E4") + "55", borderColor: (c.color ?? "#E7E5E4") }}
                               title={`${c.name} (${c.category})`}
                             >
-                              <p className="text-[10px] font-extrabold text-stone-800 dark:text-stone-200">{c.code}</p>
-                              <p className="hidden text-[8px] font-medium text-stone-500 sm:block">{c.category === "Off" ? "LIBUR" : c.code === "OFFICE" ? "KANTOR" : ""}</p>
+                              <p className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{c.code}</p>
+                              <p className="hidden text-[8px] font-medium text-slate-500 sm:block">{c.category === "Off" ? "LIBUR" : c.code === "OFFICE" ? "KANTOR" : ""}</p>
                             </div>
                           ) : (
-                            <div className="rounded-lg border border-dashed border-stone-300 py-1.5 text-[10px] font-bold text-stone-400 dark:border-stone-700" title="Tidak ada jadwal">
+                            <div className="rounded-lg border border-dashed border-slate-300 py-1.5 text-[10px] font-bold text-slate-400 dark:border-slate-700" title="Tidak ada jadwal">
                               —
                             </div>
                           )}
                         </TableCell>
                       ))}
                       <TableCell>
-                        <span className={cn("text-[10px] font-bold", r.clockingRequired ? "text-emerald-600 dark:text-emerald-400" : "text-stone-400")}>
+                        <span className={cn("text-[10px] font-bold", r.clockingRequired ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400")}>
                           {r.clockingRequired ? "Wajib" : "Non-clock"}
                         </span>
                       </TableCell>
@@ -124,14 +124,14 @@ export function AttendanceMatrixPage() {
             </div>
           )}
           {(api.data?.rows.length ?? 0) > 80 && (
-            <p className="border-t border-stone-100 px-5 py-2.5 text-[11px] text-stone-400 dark:border-stone-800">
+            <p className="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400 dark:border-slate-800">
               Menampilkan 80 dari {api.data?.rows.length} karyawan — gunakan pencarian untuk memfilter.
             </p>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 px-5 py-3 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
               {legend().map((l) => (
-                <span key={l.code} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-stone-500">
+                <span key={l.code} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} /> {l.code}
                 </span>
               ))}

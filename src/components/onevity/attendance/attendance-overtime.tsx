@@ -85,43 +85,43 @@ export function AttendanceOvertimePage() {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Menunggu Approval</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-amber-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Menunggu Approval</p></div>
           <p className="text-lg font-extrabold text-amber-600 dark:text-amber-400">{stats?.pending ?? 0}</p>
-          <p className="text-[11px] text-stone-400">perintah lembur</p>
+          <p className="text-[11px] text-slate-400">perintah lembur</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Disetujui (siap bayar)</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Disetujui (siap bayar)</p></div>
           <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{stats?.approved ?? 0}</p>
-          <p className="text-[11px] text-stone-400">estimasi {fmtIDRShort(stats?.approvedPay ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">estimasi {fmtIDRShort(stats?.approvedPay ?? 0)}</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Dibayar via Payroll</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-teal-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Dibayar via Payroll</p></div>
           <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">{stats?.paid ?? 0}</p>
-          <p className="text-[11px] text-stone-400">{Math.round((stats?.paidMinutes ?? 0) / 60)} jam terbayar</p>
+          <p className="text-[11px] text-slate-400">{Math.round((stats?.paidMinutes ?? 0) / 60)} jam terbayar</p>
         </div>
-        <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-stone-400" /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Ditolak / Batal</p></div>
-          <p className="text-lg font-extrabold text-stone-500">{(stats?.rejected ?? 0)}</p>
-          <p className="text-[11px] text-stone-400">total keseluruhan {stats?.total ?? 0}</p>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-slate-400" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Ditolak / Batal</p></div>
+          <p className="text-lg font-extrabold text-slate-500">{(stats?.rejected ?? 0)}</p>
+          <p className="text-[11px] text-slate-400">total keseluruhan {stats?.total ?? 0}</p>
         </div>
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "bg-emerald-600 text-white shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                 )}>
                   {f.label}
                 </button>
               ))}
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan / no. order…" className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
@@ -131,7 +131,7 @@ export function AttendanceOvertimePage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Order</TableHead>
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Tanggal</TableHead>
@@ -146,19 +146,19 @@ export function AttendanceOvertimePage() {
                 </TableHeader>
                 <TableBody>
                   {orders.map((o) => (
-                    <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={o.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="font-mono text-[11px] font-bold text-stone-500">{o.orderNo}</p>
-                        {o.letterNo && <p className="font-mono text-[9px] text-stone-400">surat {o.letterNo}</p>}
-                        {o.reason && <p className="max-w-36 truncate text-[10px] italic text-stone-400" title={o.reason}>{o.reason}</p>}
+                        <p className="font-mono text-[11px] font-bold text-slate-500">{o.orderNo}</p>
+                        {o.letterNo && <p className="font-mono text-[9px] text-slate-400">surat {o.letterNo}</p>}
+                        {o.reason && <p className="max-w-36 truncate text-[10px] italic text-slate-400" title={o.reason}>{o.reason}</p>}
                       </TableCell>
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{o.employee.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{o.employee.employeeNo} · {o.orgUnitName ?? "—"}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{o.employee.fullName}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{o.employee.employeeNo} · {o.orgUnitName ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-300">
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-300">
                         {fmtDate(o.overtimeDate)}
-                        <p className="font-mono text-[10px] text-stone-400">
+                        <p className="font-mono text-[10px] text-slate-400">
                           {new Date(o.timeFrom).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}–{new Date(o.timeTo).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </TableCell>
@@ -176,7 +176,7 @@ export function AttendanceOvertimePage() {
                       <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{o.estPay > 0 ? fmtIDR(o.estPay) : "—"}</TableCell>
                       <TableCell>
                         <StatusPill status={o.status} />
-                        {o.paidRunNo && <p className="font-mono text-[9px] text-stone-400">{o.paidRunNo}</p>}
+                        {o.paidRunNo && <p className="font-mono text-[9px] text-slate-400">{o.paidRunNo}</p>}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -196,7 +196,7 @@ export function AttendanceOvertimePage() {
                                 <Pencil className="h-4 w-4 text-teal-600" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Batalkan" onClick={() => decide(o, "cancel", { note: "Dibatalkan admin" })} aria-label="Batalkan lembur">
-                                <Ban className="h-4 w-4 text-stone-400" />
+                                <Ban className="h-4 w-4 text-slate-400" />
                               </Button>
                             </>
                           )}
@@ -251,7 +251,7 @@ export function AttendanceOvertimePage() {
               <Label className="text-xs font-bold">Alasan / Pekerjaan</Label>
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="mis. penyelesaian order ekspor unit #47" className="min-h-16 text-sm" />
             </div>
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
               Kategori hari otomatis dari jadwal karyawan (weekday / hari libur mingguan / libur nasional) → menentukan multiplier upah. Saat disetujui, jam aktual diambil dari clocking, jam diverifikasi dapat dikoreksi.
             </p>
           </div>
@@ -291,16 +291,16 @@ export function AttendanceOvertimePage() {
           </DialogHeader>
           <div className="grid gap-3.5 py-1">
             {verifyTarget && (
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-stone-50 p-3 text-center text-[11px] dark:bg-stone-900/60">
-                <div><p className="font-bold text-stone-400">RENCANA</p><p className="font-extrabold">{(verifyTarget.planMinutes / 60).toFixed(1)} jam</p></div>
-                <div><p className="font-bold text-stone-400">AKTUAL</p><p className="font-extrabold">{(verifyTarget.actualMinutes / 60).toFixed(1)} jam</p></div>
-                <div><p className="font-bold text-stone-400">SAAT INI</p><p className="font-extrabold text-teal-600">{(verifyTarget.verifiedMinutes / 60).toFixed(1)} jam</p></div>
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center text-[11px] dark:bg-slate-900/60">
+                <div><p className="font-bold text-slate-400">RENCANA</p><p className="font-extrabold">{(verifyTarget.planMinutes / 60).toFixed(1)} jam</p></div>
+                <div><p className="font-bold text-slate-400">AKTUAL</p><p className="font-extrabold">{(verifyTarget.actualMinutes / 60).toFixed(1)} jam</p></div>
+                <div><p className="font-bold text-slate-400">SAAT INI</p><p className="font-extrabold text-teal-600">{(verifyTarget.verifiedMinutes / 60).toFixed(1)} jam</p></div>
               </div>
             )}
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Jam dibayar (menit) *</Label>
               <Input type="number" min={30} max={600} step={15} value={verifyMinutes} onChange={(e) => setVerifyMinutes(e.target.value)} className="text-sm" />
-              <p className="text-[10px] text-stone-400">Padanan kolom Verified Overtime oranHR — jam inilah yang dibayar lewat transfer payroll.</p>
+              <p className="text-[10px] text-slate-400">Padanan kolom Verified Overtime oranHR — jam inilah yang dibayar lewat transfer payroll.</p>
             </div>
           </div>
           <DialogFooter>

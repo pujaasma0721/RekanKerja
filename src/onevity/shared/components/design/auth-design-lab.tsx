@@ -150,7 +150,7 @@ function AuroraField() {
 /** Mesh gradient multi-warna (konsep C). */
 function MeshField() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-stone-950">
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-950">
       <div
         className="absolute inset-0"
         style={{
@@ -189,14 +189,14 @@ function LogoLockup({ compact = false, light = false }: { compact?: boolean; lig
           "flex items-center justify-center rounded-2xl text-white",
           compact ? "h-10 w-10" : "h-12 w-12",
           light
-            ? "bg-stone-900 shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)]"
+            ? "bg-slate-900 shadow-[0_10px_28px_-12px_rgba(28,25,23,0.7)]"
             : "bg-gradient-to-br from-brand/40 via-brand to-brand shadow-[0_10px_28px_-10px_rgba(16,185,129,0.75),inset_0_1px_0_rgba(255,255,255,0.35)]",
         )}
       >
         <Waypoints className={compact ? "h-5 w-5" : "h-6 w-6"} />
       </div>
       <div>
-        <p className={cn("font-extrabold tracking-tight", compact ? "text-base" : "text-lg", light ? "text-stone-900" : "text-stone-50")}>
+        <p className={cn("font-extrabold tracking-tight", compact ? "text-base" : "text-lg", light ? "text-slate-900" : "text-slate-50")}>
           One
           {light ? (
             <span className="text-amber-700">Vity</span>
@@ -204,7 +204,7 @@ function LogoLockup({ compact = false, light = false }: { compact?: boolean; lig
             <span className="bg-gradient-to-r from-brand/30 to-brand/40 bg-clip-text text-transparent">Vity</span>
           )}
         </p>
-        <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", light ? "text-stone-400" : "text-stone-500")}>HR Suite</p>
+        <p className={cn("text-[9px] font-bold uppercase tracking-[0.32em]", light ? "text-slate-400" : "text-slate-500")}>HR Suite</p>
       </div>
     </div>
   );
@@ -229,14 +229,14 @@ function LangPill({ sim, dark = true }: { sim: Sim; dark?: boolean }) {
       className={cn(
         "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold backdrop-blur transition",
         dark
-          ? "border-white/15 bg-white/[0.06] text-stone-300 hover:border-white/35 hover:text-stone-100"
-          : "border-stone-300 bg-white/80 text-stone-600 hover:border-stone-400 hover:text-stone-900",
+          ? "border-white/15 bg-white/[0.06] text-slate-300 hover:border-white/35 hover:text-slate-100"
+          : "border-slate-300 bg-white/80 text-slate-600 hover:border-slate-400 hover:text-slate-900",
       )}
     >
       <Languages className="h-3.5 w-3.5" />
-      <span className={lang === "id" ? "text-brand" : "text-stone-500 dark:text-stone-500"}>ID</span>
+      <span className={lang === "id" ? "text-brand" : "text-slate-500 dark:text-slate-500"}>ID</span>
       <span className="opacity-40">·</span>
-      <span className={lang === "en" ? "text-brand" : "text-stone-500 dark:text-stone-500"}>EN</span>
+      <span className={lang === "en" ? "text-brand" : "text-slate-500 dark:text-slate-500"}>EN</span>
     </button>
   );
 }
@@ -251,7 +251,7 @@ function GlassField({
   const [focus, setFocus] = useState(false);
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400">
+      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
         {label}
       </label>
       <div
@@ -264,7 +264,7 @@ function GlassField({
               : "border-white/10 hover:border-white/25",
         )}
       >
-        <Icon className={cn("pointer-events-none absolute left-4 h-4 w-4 transition-colors", focus ? "text-brand/85" : "text-stone-500")} />
+        <Icon className={cn("pointer-events-none absolute left-4 h-4 w-4 transition-colors", focus ? "text-brand/85" : "text-slate-500")} />
         <input
           id={id}
           type={type}
@@ -274,10 +274,10 @@ function GlassField({
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           onChange={(e) => onChange(e.target.value)}
-          className="h-12 w-full rounded-xl bg-transparent pl-11 pr-4 text-sm text-stone-100 caret-brand/60 outline-none placeholder:text-stone-600"
+          className="h-12 w-full rounded-xl bg-transparent pl-11 pr-4 text-sm text-slate-100 caret-brand/60 outline-none placeholder:text-slate-600"
         />
       </div>
-      {hint && <p className="text-[11px] leading-relaxed text-stone-500">{hint}</p>}
+      {hint && <p className="text-[11px] leading-relaxed text-slate-500">{hint}</p>}
     </div>
   );
 }
@@ -291,10 +291,10 @@ function UnderlineField({
 }) {
   return (
     <div className="group space-y-1.5">
-      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.26em] text-stone-400">
+      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">
         {label}
       </label>
-      <div className={cn("border-b pb-2 pt-1 transition-colors duration-300", invalid ? "border-rose-400" : "border-stone-300 focus-within:border-amber-600")}>
+      <div className={cn("border-b pb-2 pt-1 transition-colors duration-300", invalid ? "border-rose-400" : "border-slate-300 focus-within:border-amber-600")}>
         <input
           id={id}
           type={type}
@@ -302,7 +302,7 @@ function UnderlineField({
           placeholder={placeholder}
           autoComplete={autoComplete}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-full bg-transparent text-[15px] text-stone-800 caret-amber-700 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300"
+          className="h-9 w-full bg-transparent text-[15px] text-slate-800 caret-amber-700 outline-none placeholder:font-serif placeholder:italic placeholder:text-slate-300"
         />
       </div>
     </div>
@@ -318,7 +318,7 @@ function ShineCTA({ onClick, busy, children }: { onClick: () => void; busy: bool
       disabled={busy}
       whileHover={{ y: -1.5 }}
       whileTap={{ y: 0 }}
-      className="relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-r from-brand via-brand/60 to-brand/60 text-[14px] font-bold tracking-wide text-stone-950 shadow-[0_14px_36px_-12px_rgba(16,185,129,0.75)] disabled:opacity-70"
+      className="relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-r from-brand via-brand/60 to-brand/60 text-[14px] font-bold tracking-wide text-slate-950 shadow-[0_14px_36px_-12px_rgba(16,185,129,0.75)] disabled:opacity-70"
     >
       <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
         <motion.span
@@ -426,11 +426,11 @@ function StatRow({ compact = false }: { compact?: boolean }) {
           transition={{ delay: 0.5 + i * 0.12, duration: 0.5, ease: "easeOut" }}
           className={cn(compact ? "pt-3" : "pt-5")}
         >
-          <p className="bg-gradient-to-b from-stone-50 to-stone-400 bg-clip-text text-[26px] font-extrabold tracking-tight text-transparent xl:text-[30px]">
+          <p className="bg-gradient-to-b from-slate-50 to-slate-400 bg-clip-text text-[26px] font-extrabold tracking-tight text-transparent xl:text-[30px]">
             {s.big}
           </p>
           <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/70">{s.label}</p>
-          {!compact && <p className="mt-1 text-[11px] leading-relaxed text-stone-500">{s.desc}</p>}
+          {!compact && <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{s.desc}</p>}
         </motion.div>
       ))}
     </div>
@@ -465,11 +465,11 @@ function FloatPayroll() {
           <Coins className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-[11px] font-bold text-stone-200">Payroll · Agustus 2026</p>
+          <p className="truncate text-[11px] font-bold text-slate-200">Payroll · Agustus 2026</p>
           <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-brand/85">Terbayar penuh</p>
         </div>
       </div>
-      <p className="mt-3 font-mono text-[19px] font-bold tracking-tight text-stone-50">Rp 531.700.000</p>
+      <p className="mt-3 font-mono text-[19px] font-bold tracking-tight text-slate-50">Rp 531.700.000</p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
         <motion.div
           className="h-full rounded-full bg-gradient-to-r from-brand/60 to-brand/40"
@@ -478,7 +478,7 @@ function FloatPayroll() {
           transition={{ delay: 0.8, duration: 1.6, ease: "easeOut" }}
         />
       </div>
-      <p className="mt-2 text-[10px] text-stone-500">44/44 karyawan · PPh21 &amp; BPJS terproses</p>
+      <p className="mt-2 text-[10px] text-slate-500">44/44 karyawan · PPh21 &amp; BPJS terproses</p>
     </FloatCard>
   );
 }
@@ -495,7 +495,7 @@ function FloatApprovals() {
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/55/15 text-brand/75">
           <CalendarCheck2 className="h-4 w-4" />
         </span>
-        <p className="text-[11px] font-bold text-stone-200">Menunggu persetujuan</p>
+        <p className="text-[11px] font-bold text-slate-200">Menunggu persetujuan</p>
         <span className="ml-auto rounded-full bg-brand/55/20 px-1.5 py-0.5 text-[10px] font-extrabold text-brand/75">3</span>
       </div>
       <div className="mt-3 flex items-center gap-1.5">
@@ -503,14 +503,14 @@ function FloatApprovals() {
           <span
             key={n}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full border border-stone-950 text-[9px] font-extrabold text-stone-950",
+              "flex h-7 w-7 items-center justify-center rounded-full border border-slate-950 text-[9px] font-extrabold text-slate-950",
               i === 0 ? "bg-brand/35" : i === 1 ? "bg-amber-300" : "bg-brand/35",
             )}
           >
             {n}
           </span>
         ))}
-        <span className="ml-1 text-[10px] text-stone-500">pengaju hari ini</span>
+        <span className="ml-1 text-[10px] text-slate-500">pengaju hari ini</span>
       </div>
       <div className="mt-2.5 flex gap-1.5">
         {items.map((it) => (
@@ -546,11 +546,11 @@ function FloatAttendance() {
               </linearGradient>
             </defs>
           </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-stone-100">96%</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-slate-100">96%</span>
         </div>
         <div>
-          <p className="text-[11px] font-bold text-stone-200">Kehadiran</p>
-          <p className="text-[10px] text-stone-500">hari ini · 424 hadir</p>
+          <p className="text-[11px] font-bold text-slate-200">Kehadiran</p>
+          <p className="text-[10px] text-slate-500">hari ini · 424 hadir</p>
         </div>
       </div>
     </FloatCard>
@@ -569,7 +569,7 @@ function MarqueeStrip() {
         transition={{ duration: 26, repeat: Infinity, ease: "linear" }}
       >
         {doubled.map((c, i) => (
-          <span key={i} className="flex items-center gap-10 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.22em] text-stone-400">
+          <span key={i} className="flex items-center gap-10 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
             {c}
             <span aria-hidden className="block h-1.5 w-1.5 rotate-45 bg-amber-600/60" />
           </span>
@@ -590,11 +590,11 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
     { icon: Coins, t: "Payroll Indonesia PPh21/BPJS", d: "Pajak progresif, TER, jurnal & SPT 1721-A1" },
     { icon: Users, t: "Modul HR lengkap", d: "Organisasi, karyawan, pengajuan & benefit" },
   ];
-  const inputCls = "h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
+  const inputCls = "h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
   return (
     <div className="grid h-full min-h-0 bg-white lg:grid-cols-2">
       {variant === "desktop" && (
-        <div className="relative hidden flex-col overflow-hidden bg-stone-950 p-10 text-stone-300 lg:flex xl:p-14">
+        <div className="relative hidden flex-col overflow-hidden bg-slate-950 p-10 text-slate-300 lg:flex xl:p-14">
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-[image:radial-gradient(ellipse_70%_55%_at_75%_0%,rgba(16,185,129,0.14),transparent_60%)]" />
           <div aria-hidden className="pointer-events-none absolute inset-0 bg-[image:linear-gradient(to_right,rgba(214,211,209,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(214,211,209,0.05)_1px,transparent_1px)] bg-[size:36px_36px]" />
           <div className="relative z-10 flex h-full flex-col justify-between gap-10">
@@ -603,14 +603,14 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
                 <Waypoints className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-lg font-bold tracking-tight text-stone-50">One<span className="text-brand/85">Vity</span></p>
-                <p className="text-[11px] uppercase tracking-widest text-stone-500">HR Suite</p>
+                <p className="text-lg font-bold tracking-tight text-slate-50">One<span className="text-brand/85">Vity</span></p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">HR Suite</p>
               </div>
             </div>
             <div className="max-w-md">
               <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand/85">SaaS Multi-Tenant</span>
-              <h2 className="mt-5 text-3xl font-bold tracking-tight text-stone-50 xl:text-4xl">OneVity HR Suite</h2>
-              <p className="mt-3 text-sm leading-relaxed text-stone-400">HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.</p>
+              <h2 className="mt-5 text-3xl font-bold tracking-tight text-slate-50 xl:text-4xl">OneVity HR Suite</h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-400">HRIS multi-tenant — satu platform, tiap perusahaan punya data terisolasi.</p>
               <ul className="mt-9 space-y-4">
                 {feats.map((f) => (
                   <li key={f.t} className="flex items-start gap-3.5">
@@ -618,34 +618,34 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
                       <f.icon className="h-[18px] w-[18px]" />
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold text-stone-200">{f.t}</span>
-                      <span className="mt-0.5 block text-xs text-stone-500">{f.d}</span>
+                      <span className="block text-sm font-semibold text-slate-200">{f.t}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">{f.d}</span>
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
-            <p className="text-[11px] text-stone-600">© 2026 OneVity — HRIS multi-tenant SaaS</p>
+            <p className="text-[11px] text-slate-600">© 2026 OneVity — HRIS multi-tenant SaaS</p>
           </div>
         </div>
       )}
       <div className="relative flex items-center justify-center px-4 py-10 sm:px-8">
         <LangPill sim={sim} dark={false} />
-        <div className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-6 shadow-lg shadow-stone-200/60">
+        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
           <div className="mb-3 flex items-center gap-2.5 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand/60 to-brand text-white shadow-md">
               <Waypoints className="h-5 w-5" />
             </div>
-            <p className="text-base font-bold tracking-tight text-stone-900">One<span className="text-brand">Vity</span></p>
+            <p className="text-base font-bold tracking-tight text-slate-900">One<span className="text-brand">Vity</span></p>
           </div>
-          <h1 className="text-xl font-bold text-stone-900">{tt("welcome", lang)}</h1>
-          <p className="mt-1 text-sm text-stone-500">{tt("welcomeDesc", lang)}</p>
-          <div className="mt-5 flex rounded-lg bg-stone-100 p-1">
+          <h1 className="text-xl font-bold text-slate-900">{tt("welcome", lang)}</h1>
+          <p className="mt-1 text-sm text-slate-500">{tt("welcomeDesc", lang)}</p>
+          <div className="mt-5 flex rounded-lg bg-slate-100 p-1">
             {(["login", "register"] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => switchTab(k)}
-                className={cn("h-8 flex-1 rounded-md text-[13px] font-semibold transition", tab === k ? "bg-white text-stone-900 shadow" : "text-stone-500")}
+                className={cn("h-8 flex-1 rounded-md text-[13px] font-semibold transition", tab === k ? "bg-white text-slate-900 shadow" : "text-slate-500")}
               >
                 {k === "login" ? tt("masuk", lang) : tt("buat", lang)}
               </button>
@@ -655,27 +655,27 @@ function BaselineLogin({ variant }: { variant: "desktop" | "mobile" }) {
             {tab === "login" ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-[13px] font-semibold text-stone-800" htmlFor="b0e">{tt("email", lang)}</label>
+                  <label className="text-[13px] font-semibold text-slate-800" htmlFor="b0e">{tt("email", lang)}</label>
                   <input id="b0e" className={inputCls} value={sim.email} onChange={(e) => sim.setEmail(e.target.value)} placeholder="nama@perusahaan.id" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[13px] font-semibold text-stone-800" htmlFor="b0p">{tt("password", lang)}</label>
+                  <label className="text-[13px] font-semibold text-slate-800" htmlFor="b0p">{tt("password", lang)}</label>
                   <input id="b0p" type="password" className={inputCls} value={sim.pw} onChange={(e) => sim.setPw(e.target.value)} placeholder="••••••••" />
                 </div>
               </>
             ) : (
               <>
-                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-stone-800" htmlFor="b0w">{tt("ws", lang)}</label><input id="b0w" className={inputCls} value={sim.ws} onChange={(e) => sim.setWs(e.target.value)} placeholder="PT Nusantara Sejahtera" /></div>
-                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-stone-800" htmlFor="b0n">{tt("name", lang)}</label><input id="b0n" className={inputCls} value={sim.name} onChange={(e) => sim.setName(e.target.value)} placeholder="Budi Santoso" /></div>
-                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-stone-800" htmlFor="b0e2">{tt("email", lang)}</label><input id="b0e2" className={inputCls} value={sim.email} onChange={(e) => sim.setEmail(e.target.value)} placeholder="nama@perusahaan.id" /></div>
-                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-stone-800" htmlFor="b0p2">{tt("password", lang)}</label><input id="b0p2" type="password" className={inputCls} value={sim.pw} onChange={(e) => sim.setPw(e.target.value)} placeholder="••••••••" /></div>
+                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-800" htmlFor="b0w">{tt("ws", lang)}</label><input id="b0w" className={inputCls} value={sim.ws} onChange={(e) => sim.setWs(e.target.value)} placeholder="PT Nusantara Sejahtera" /></div>
+                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-800" htmlFor="b0n">{tt("name", lang)}</label><input id="b0n" className={inputCls} value={sim.name} onChange={(e) => sim.setName(e.target.value)} placeholder="Budi Santoso" /></div>
+                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-800" htmlFor="b0e2">{tt("email", lang)}</label><input id="b0e2" className={inputCls} value={sim.email} onChange={(e) => sim.setEmail(e.target.value)} placeholder="nama@perusahaan.id" /></div>
+                <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-800" htmlFor="b0p2">{tt("password", lang)}</label><input id="b0p2" type="password" className={inputCls} value={sim.pw} onChange={(e) => sim.setPw(e.target.value)} placeholder="••••••••" /></div>
               </>
             )}
             <SimErrorLight err={sim.err} />
             <button type="submit" className="h-10 w-full rounded-md bg-brand text-sm font-semibold text-white shadow-sm hover:bg-brand/70">
               {sim.phase === "busy" ? tt("busy", lang) : tab === "login" ? tt("masuk", lang) : tt("buat", lang)}
             </button>
-            <p className="text-center text-xs text-stone-500">
+            <p className="text-center text-xs text-slate-500">
               {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}{" "}
               <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-semibold text-brand-deep hover:underline">
                 {tab === "login" ? tt("buatLink", lang) : tt("masukLink", lang)}
@@ -703,8 +703,8 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <AnimatePresence>{sim.phase === "done" && <SuccessOverlay label={tt("done", lang)} />}</AnimatePresence>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}>
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-200/70">OneVity · {tab === "login" ? "Masuk" : "Registrasi"}</p>
-          <h2 className="mt-2 text-[22px] font-bold tracking-tight text-stone-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-stone-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
+          <h2 className="mt-2 text-[22px] font-bold tracking-tight text-slate-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-slate-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
 
           {/* tabs segmented kaca */}
           <div className="mt-6 flex rounded-full border border-white/10 bg-white/[0.05] p-1 backdrop-blur-md">
@@ -712,7 +712,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               <button
                 key={k}
                 onClick={() => switchTab(k)}
-                className={cn("relative h-9 flex-1 rounded-full text-[12.5px] font-bold transition-colors", tab === k ? "text-stone-950" : "text-stone-400 hover:text-stone-200")}
+                className={cn("relative h-9 flex-1 rounded-full text-[12.5px] font-bold transition-colors", tab === k ? "text-slate-950" : "text-slate-400 hover:text-slate-200")}
               >
                 {tab === k && (
                   <motion.span
@@ -745,7 +745,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               {tab === "login" ? tt("cta", lang) : tt("ctaReg", lang)} <ArrowRight className="h-4 w-4" />
             </ShineCTA>
             <div className="flex items-center justify-between gap-3 pt-0.5">
-              <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
                 {tt("secure", lang)}
               </span>
@@ -761,7 +761,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
 
   if (variant === "mobile") {
     return (
-      <div className="relative flex h-full flex-col overflow-hidden bg-stone-950 text-stone-200">
+      <div className="relative flex h-full flex-col overflow-hidden bg-slate-950 text-slate-200">
         <AuroraField />
         <NoiseOverlay opacity={0.06} />
         <div className="relative z-10 flex items-center justify-between px-5 pt-6">
@@ -773,14 +773,14 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
         </div>
         <div className="relative z-10 px-5 pb-5">
           <GoldHairline />
-          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">© 2026 OneVity · Data terisolasi per tenant</p>
+          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">© 2026 OneVity · Data terisolasi per tenant</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full overflow-hidden bg-stone-950 text-stone-200">
+    <div className="relative h-full overflow-hidden bg-slate-950 text-slate-200">
       <AuroraField />
       <NoiseOverlay opacity={0.06} />
       <div className="relative z-10 grid h-full grid-cols-1 lg:grid-cols-[1.08fr_1fr]">
@@ -792,7 +792,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-300 backdrop-blur-md"
+              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300 backdrop-blur-md"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-brand/55 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
               SaaS Multi-Tenant
@@ -801,7 +801,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }}
-              className="mt-6 text-[42px] font-extrabold leading-[1.05] tracking-[-0.025em] text-stone-50 xl:text-[52px]"
+              className="mt-6 text-[42px] font-extrabold leading-[1.05] tracking-[-0.025em] text-slate-50 xl:text-[52px]"
             >
               Satu gerbang.
               <br />
@@ -815,7 +815,7 @@ function AuroraLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.45, duration: 0.6 }}
-              className="mt-5 max-w-md text-[14px] leading-relaxed text-stone-400"
+              className="mt-5 max-w-md text-[14px] leading-relaxed text-slate-400"
             >
               OneVity menyatukan HR, payroll PPh21/BPJS, presensi hingga benefit —
               dengan data terisolasi untuk setiap perusahaan.
@@ -850,22 +850,22 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="relative w-full max-w-md overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-8 shadow-[0_40px_80px_-40px_rgba(87,83,78,0.35)] sm:p-10"
+      className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-8 shadow-[0_40px_80px_-40px_rgba(87,83,78,0.35)] sm:p-10"
     >
       <AnimatePresence>{sim.phase === "done" && <SuccessOverlay label={tt("done", lang)} />}</AnimatePresence>
       <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-700">{tab === "login" ? "Masuk ke akun" : "Registrasi"}</p>
-      <h2 className="mt-2.5 font-serif text-[27px] italic leading-tight text-stone-900">
+      <h2 className="mt-2.5 font-serif text-[27px] italic leading-tight text-slate-900">
         {tab === "login" ? "Selamat datang." : "Mulai perjalanan."}
       </h2>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
 
-      <div className="mt-6 flex items-center gap-5 border-b border-stone-200 pb-5">
+      <div className="mt-6 flex items-center gap-5 border-b border-slate-200 pb-5">
         {(["login", "register"] as const).map((k, i) => (
           <button key={k} onClick={() => switchTab(k)} className="group relative pb-1">
-            <span className={cn("text-[12px] font-bold uppercase tracking-[0.2em] transition-colors", tab === k ? "text-stone-900" : "text-stone-400 hover:text-stone-700")}>
+            <span className={cn("text-[12px] font-bold uppercase tracking-[0.2em] transition-colors", tab === k ? "text-slate-900" : "text-slate-400 hover:text-slate-700")}>
               {k === "login" ? tt("masuk", lang) : tt("buat", lang)}
             </span>
-            <span className={cn("absolute inset-x-0 -bottom-[21px] h-[2px] transition-all", tab === k ? "bg-amber-600" : "bg-transparent group-hover:bg-stone-300")} />
+            <span className={cn("absolute inset-x-0 -bottom-[21px] h-[2px] transition-all", tab === k ? "bg-amber-600" : "bg-transparent group-hover:bg-slate-300")} />
           </button>
         ))}
       </div>
@@ -883,7 +883,7 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
             <UnderlineField id="e-re" label={tt("email", lang)} type="email" autoComplete="email" placeholder="nama@perusahaan.id" value={sim.email} onChange={sim.setEmail} invalid={!!sim.err} />
             <div>
               <UnderlineField id="e-rp" label={tt("password", lang)} type="password" autoComplete="new-password" placeholder="••••••••" value={sim.pw} onChange={sim.setPw} />
-              <p className="mt-2 font-serif text-[11.5px] italic text-stone-400">{tt("pwHint", lang)}</p>
+              <p className="mt-2 font-serif text-[11.5px] italic text-slate-400">{tt("pwHint", lang)}</p>
             </div>
           </>
         )}
@@ -892,7 +892,7 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
           type="submit"
           whileHover={{ y: -1.5 }}
           whileTap={{ y: 0 }}
-          className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-stone-900 text-[13px] font-bold uppercase tracking-[0.16em] text-stone-50 shadow-[0_18px_40px_-16px_rgba(28,25,23,0.6)] transition-colors hover:bg-stone-800"
+          className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-slate-900 text-[13px] font-bold uppercase tracking-[0.16em] text-slate-50 shadow-[0_18px_40px_-16px_rgba(28,25,23,0.6)] transition-colors hover:bg-slate-800"
         >
           {sim.phase === "busy" ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> {tab === "login" ? tt("busy", lang) : tt("busyReg", lang)}</>
@@ -904,7 +904,7 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
           )}
         </motion.button>
         <div className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400">
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
             <ShieldCheck className="h-3.5 w-3.5 text-amber-700" />
             {tt("secure", lang)}
           </span>
@@ -918,20 +918,20 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
 
   if (variant === "mobile") {
     return (
-      <div className="relative flex h-full flex-col overflow-hidden bg-[#faf8f3] text-stone-800">
+      <div className="relative flex h-full flex-col overflow-hidden bg-[#faf8f3] text-slate-800">
         <NoiseOverlay opacity={0.035} />
         <div className="relative z-10 flex items-center justify-between px-5 pt-6">
           <LogoLockup compact light />
           <LangPill sim={sim} dark={false} />
         </div>
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-8">
-          <p className="mb-5 max-w-[280px] text-center font-serif text-[20px] italic leading-snug text-stone-700">
+          <p className="mb-5 max-w-[280px] text-center font-serif text-[20px] italic leading-snug text-slate-700">
             HR yang tertata, <span className="text-amber-700">bisnis yang tenang.</span>
           </p>
           {card}
         </div>
         <div className="relative z-10">
-          <div className="border-t border-stone-200" />
+          <div className="border-t border-slate-200" />
           <MarqueeStrip />
         </div>
       </div>
@@ -939,10 +939,10 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
   }
 
   return (
-    <div className="relative h-full overflow-hidden bg-[#faf8f3] text-stone-800">
+    <div className="relative h-full overflow-hidden bg-[#faf8f3] text-slate-800">
       <NoiseOverlay opacity={0.035} />
       {/* bingkai hairline editorial */}
-      <div aria-hidden className="pointer-events-none absolute inset-3 hidden border border-stone-300/70 lg:block" />
+      <div aria-hidden className="pointer-events-none absolute inset-3 hidden border border-slate-300/70 lg:block" />
       <div className="relative z-10 grid h-full grid-cols-1 lg:grid-cols-[1.12fr_1fr]">
         {/* kiri — editorial */}
         <div className="hidden h-full flex-col justify-between p-12 lg:flex xl:p-20">
@@ -960,7 +960,7 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-              className="mt-4 font-serif text-[46px] leading-[1.07] tracking-tight text-stone-900 xl:text-[56px]"
+              className="mt-4 font-serif text-[46px] leading-[1.07] tracking-tight text-slate-900 xl:text-[56px]"
             >
               HR yang tertata,
               <br />
@@ -977,30 +977,30 @@ function EditorialLogin({ variant }: { variant: "desktop" | "mobile" }) {
                   <span key={i} className="text-[13px] text-amber-600">★</span>
                 ))}
               </div>
-              <blockquote className="mt-3 font-serif text-[17px] italic leading-relaxed text-stone-700">
+              <blockquote className="mt-3 font-serif text-[17px] italic leading-relaxed text-slate-700">
                 “Payroll PPh21 kami dari tiga hari menjadi dua jam — dan tiap perusahaan
                 datanya benar-benar terpisah.”
               </blockquote>
-              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.2em] text-stone-400">
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 Tri Handayani · HR Director
               </p>
             </motion.div>
           </div>
           <div className="relative">
-            <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400 lg:flex">
+            <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400 lg:flex">
               <span>86 tabel siap</span>
               <span aria-hidden className="h-1 w-1 rotate-45 bg-amber-600/60" />
               <span>Ter-isolasi per tenant</span>
               <span aria-hidden className="h-1 w-1 rotate-45 bg-amber-600/60" />
               <span>PPh21 · BPJS · SPT 1721-A1</span>
             </div>
-            <div className="border-t border-stone-300/80 pt-0" />
+            <div className="border-t border-slate-300/80 pt-0" />
             <MarqueeStrip />
           </div>
         </div>
         {/* kanan — kartu */}
         <div className="relative flex h-full items-center justify-center bg-white/40 p-6 sm:p-10 lg:bg-transparent">
-          <div className="absolute inset-y-0 left-0 hidden w-px bg-stone-300/80 lg:block" />
+          <div className="absolute inset-y-0 left-0 hidden w-px bg-slate-300/80 lg:block" />
           <div className="absolute right-6 top-6 sm:right-10 sm:top-10 z-20"><LangPill sim={sim} dark={false} /></div>
           <div className="flex w-full justify-center lg:hidden">
             <LogoLockup compact light />
@@ -1032,12 +1032,12 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
       <AnimatePresence>{sim.phase === "done" && <SuccessOverlay label={tt("done", lang)} />}</AnimatePresence>
       <div className="text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand/75/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
-        <h2 className="mt-2 text-[22px] font-bold tracking-tight text-stone-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
-        <p className="mt-1 text-[12.5px] text-stone-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
+        <h2 className="mt-2 text-[22px] font-bold tracking-tight text-slate-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
+        <p className="mt-1 text-[12.5px] text-slate-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
       </div>
       <div className="mt-5 flex justify-center rounded-full border border-white/10 bg-white/[0.05] p-1 backdrop-blur-md">
         {(["login", "register"] as const).map((k) => (
-          <button key={k} onClick={() => switchTab(k)} className={cn("relative h-8 flex-1 rounded-full px-4 text-[12px] font-bold transition-colors", tab === k ? "text-stone-950" : "text-stone-400 hover:text-stone-200")}>
+          <button key={k} onClick={() => switchTab(k)} className={cn("relative h-8 flex-1 rounded-full px-4 text-[12px] font-bold transition-colors", tab === k ? "text-slate-950" : "text-slate-400 hover:text-slate-200")}>
             {tab === k && (
               <motion.span layoutId="showcase-tab" className="absolute inset-0 rounded-full bg-gradient-to-r from-brand/40 to-brand/40" transition={{ type: "spring", stiffness: 380, damping: 32 }} />
             )}
@@ -1065,7 +1065,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <ShineCTA onClick={() => sim.submit()} busy={sim.phase === "busy"}>
           {tab === "login" ? tt("cta", lang) : tt("ctaReg", lang)} <ArrowRight className="h-4 w-4" />
         </ShineCTA>
-        <p className="text-center text-[11px] text-stone-500">
+        <p className="text-center text-[11px] text-slate-500">
           {tab === "login" ? tt("noAcc", lang) : tt("haveAcc", lang)}{" "}
           <button type="button" onClick={() => switchTab(tab === "login" ? "register" : "login")} className="font-bold text-brand/85 hover:underline">
             {tab === "login" ? tt("buatLink", lang) : tt("masukLink", lang)}
@@ -1077,7 +1077,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
 
   if (variant === "mobile") {
     return (
-      <div className="relative flex h-full flex-col overflow-hidden bg-stone-950 text-stone-200">
+      <div className="relative flex h-full flex-col overflow-hidden bg-slate-950 text-slate-200">
         <MeshField />
         <NoiseOverlay opacity={0.05} />
         <div className="relative z-10 flex items-center justify-between px-5 pt-6">
@@ -1087,13 +1087,13 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <div className="relative z-10 flex flex-1 items-center justify-center px-5">
           {card}
         </div>
-        <p className="relative z-10 pb-5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">© 2026 OneVity</p>
+        <p className="relative z-10 pb-5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">© 2026 OneVity</p>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full overflow-hidden bg-stone-950 text-stone-200">
+    <div className="relative h-full overflow-hidden bg-slate-950 text-slate-200">
       <MeshField />
       <NoiseOverlay opacity={0.05} />
       {/* kartu produk mengambang */}
@@ -1108,15 +1108,15 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
           <LogoLockup />
         </motion.div>
         <div className="hidden text-center lg:mb-7 lg:block">
-          <h1 className="text-[30px] font-extrabold tracking-[-0.02em] text-stone-50">
+          <h1 className="text-[30px] font-extrabold tracking-[-0.02em] text-slate-50">
             Satu platform,{" "}
             <span className="bg-gradient-to-r from-brand/30 to-brand/30 bg-clip-text text-transparent">enam modul</span>{" "}
             — data terisolasi.
           </h1>
-          <p className="mt-2 text-[13px] text-stone-400">Lihat produknya bekerja bahkan sebelum Anda masuk.</p>
+          <p className="mt-2 text-[13px] text-slate-400">Lihat produknya bekerja bahkan sebelum Anda masuk.</p>
         </div>
         {card}
-        <p className="mt-6 flex items-center gap-1.5 text-[11px] text-stone-500">
+        <p className="mt-6 flex items-center gap-1.5 text-[11px] text-slate-500">
           <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
           {tt("secure", lang)}
         </p>
@@ -1140,19 +1140,19 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: "easeOut" }}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-200/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-stone-500">
+            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
               <Lock className="h-3 w-3 text-brand/80" />
               TLS
             </span>
           </div>
-          <h2 className="mt-2 text-[22px] font-bold tracking-tight text-stone-50">
+          <h2 className="mt-2 text-[22px] font-bold tracking-tight text-slate-50">
             {tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}
           </h2>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-stone-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-slate-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
 
           <div className="mt-6 flex rounded-full border border-white/10 bg-white/[0.05] p-1 backdrop-blur-md">
             {(["login", "register"] as const).map((k) => (
-              <button key={k} onClick={() => switchTab(k)} className={cn("relative h-9 flex-1 rounded-full text-[12.5px] font-bold transition-colors", tab === k ? "text-stone-950" : "text-stone-400 hover:text-stone-200")}>
+              <button key={k} onClick={() => switchTab(k)} className={cn("relative h-9 flex-1 rounded-full text-[12.5px] font-bold transition-colors", tab === k ? "text-slate-950" : "text-slate-400 hover:text-slate-200")}>
                 {tab === k && (
                   <motion.span
                     layoutId="grand-tab"
@@ -1188,7 +1188,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
               {tab === "login" ? tt("cta", lang) : tt("ctaReg", lang)} <ArrowRight className="h-4 w-4" />
             </ShineCTA>
             <div className="flex items-center justify-between gap-3 pt-0.5">
-              <span className="flex items-center gap-1.5 text-[11px] text-stone-500">
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
                 {tt("secure", lang)}
               </span>
@@ -1204,7 +1204,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
 
   if (variant === "mobile") {
     return (
-      <div className="relative flex h-full flex-col overflow-hidden bg-stone-950 text-stone-200">
+      <div className="relative flex h-full flex-col overflow-hidden bg-slate-950 text-slate-200">
         <AuroraField />
         <NoiseOverlay opacity={0.06} />
         <div className="relative z-10 flex items-center justify-between px-5 pt-6">
@@ -1216,7 +1216,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
         </div>
         <div className="relative z-10 px-5 pb-5">
           <GoldHairline />
-          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">
+          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
             © 2026 OneVity · 6 modul · data terisolasi per tenant
           </p>
         </div>
@@ -1225,7 +1225,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
   }
 
   return (
-    <div className="relative h-full overflow-hidden bg-stone-950 text-stone-200">
+    <div className="relative h-full overflow-hidden bg-slate-950 text-slate-200">
       <AuroraField />
       <NoiseOverlay opacity={0.06} />
       <div className="relative z-10 grid h-full grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
@@ -1237,7 +1237,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-300 backdrop-blur-md"
+              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300 backdrop-blur-md"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-brand/55 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
               SaaS Multi-Tenant · HR Suite
@@ -1246,7 +1246,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25, duration: 0.6, ease: "easeOut" }}
-              className="mt-6 text-[42px] font-extrabold leading-[1.05] tracking-[-0.025em] text-stone-50 xl:text-[52px]"
+              className="mt-6 text-[42px] font-extrabold leading-[1.05] tracking-[-0.025em] text-slate-50 xl:text-[52px]"
             >
               Kesan pertama yang
               <br />
@@ -1258,7 +1258,7 @@ function GrandLogin({ variant }: { variant: "desktop" | "mobile" }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.45, duration: 0.6 }}
-              className="mt-5 max-w-md text-[14px] leading-relaxed text-stone-400"
+              className="mt-5 max-w-md text-[14px] leading-relaxed text-slate-400"
             >
               HR, payroll PPh21/BPJS, presensi, cuti, travel &amp; medis — satu platform
               dengan data terisolasi untuk tiap perusahaan.
@@ -1341,7 +1341,7 @@ const OPTIONS: OptionDef[] = [
       "Cocok dengan identitas gelap panel kiri yang sudah ada — evolusi, bukan revolusi",
     ],
     watch: [
-      "Kontras teks harus dijaga (WCAG): teks sekunder minimal stone-400",
+      "Kontras teks harus dijaga (WCAG): teks sekunder minimal slate-400",
       "Backdrop-blur berat di perangkat lawas — perlu fallback",
       "Area kanan app live terang → gerbang gelap adalah pilihan tema (putuskan sadar)",
     ],
@@ -1428,14 +1428,14 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[15px] font-extrabold tracking-tight text-stone-50">{opt.title}</h3>
-        <span className="shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">{opt.effort}</span>
+        <h3 className="text-[15px] font-extrabold tracking-tight text-slate-50">{opt.title}</h3>
+        <span className="shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{opt.effort}</span>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Apa yang berubah</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Apa yang berubah</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.changed.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-300">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: opt.accent }} />
               {t}
             </li>
@@ -1443,10 +1443,10 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         </ul>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Kelebihan</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Kelebihan</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.pros.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-300">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand/85" />
               {t}
             </li>
@@ -1454,10 +1454,10 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         </ul>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Perlu diperhatikan</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Perlu diperhatikan</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.watch.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-400">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-400">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/80" />
               {t}
             </li>
@@ -1468,7 +1468,7 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
           <div className="flex gap-2">
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: opt.accent }} />
-            <p className="text-[12px] font-semibold leading-relaxed text-stone-200">{opt.verdict}</p>
+            <p className="text-[12px] font-semibold leading-relaxed text-slate-200">{opt.verdict}</p>
           </div>
         </div>
       )}
@@ -1478,12 +1478,12 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
 
 function BrowserFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-stone-900 shadow-2xl">
-      <div className="flex items-center gap-2 border-b border-white/[0.07] bg-stone-900 px-4 py-2.5">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
+      <div className="flex items-center gap-2 border-b border-white/[0.07] bg-slate-900 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-brand/55/70" />
-        <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-stone-500">
+        <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-slate-500">
           onevity.sayone.my.id · pratinjau desain halaman masuk
         </div>
         <span className="w-12" />
@@ -1496,8 +1496,8 @@ function BrowserFrame({ children }: { children: ReactNode }) {
 function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div className="relative w-[390px] max-w-full">
-      <div className="relative overflow-hidden rounded-[2.6rem] border border-stone-700 bg-stone-950 shadow-2xl ring-8 ring-stone-800/80">
-        <div aria-hidden className="absolute left-1/2 top-2.5 z-50 h-5 w-24 -translate-x-1/2 rounded-full bg-stone-800" />
+      <div className="relative overflow-hidden rounded-[2.6rem] border border-slate-700 bg-slate-950 shadow-2xl ring-8 ring-slate-800/80">
+        <div aria-hidden className="absolute left-1/2 top-2.5 z-50 h-5 w-24 -translate-x-1/2 rounded-full bg-slate-800" />
         <div className="relative h-[760px] overflow-hidden">{children}</div>
       </div>
     </div>
@@ -1509,7 +1509,7 @@ export function AuthDesignLab() {
   const active = OPTIONS.find((o) => o.key === opt)!;
 
   return (
-    <div className="relative min-h-screen bg-stone-950 text-stone-100">
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
       {/* latar studio */}
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
@@ -1530,12 +1530,12 @@ export function AuthDesignLab() {
               <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">
                 OneVity <span className="text-brand/85">Design Lab</span>
               </p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">Preview desain halaman masuk</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Preview desain halaman masuk</p>
             </div>
           </div>
           <Link
             href="/"
-            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-stone-300 transition hover:border-white/30 hover:bg-white/5 hover:text-white"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-white/30 hover:bg-white/5 hover:text-white"
           >
             Buka aplikasi <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -1546,9 +1546,9 @@ export function AuthDesignLab() {
           <h1 className="max-w-2xl text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
             Lima konsep halaman masuk — rasakan kesan pertamanya
           </h1>
-          <p className="mt-3 max-w-3xl text-[13.5px] leading-relaxed text-stone-400">
+          <p className="mt-3 max-w-3xl text-[13.5px] leading-relaxed text-slate-400">
             Halaman masuk adalah kesan pertama pengguna terhadap produk. Lab ini merender konsep secara{" "}
-            <span className="font-bold text-stone-200">interaktif penuh</span>: ketik email, coba submit kosong (validasi hidup),
+            <span className="font-bold text-slate-200">interaktif penuh</span>: ketik email, coba submit kosong (validasi hidup),
             ganti tab Masuk/Buat Workspace, dan saklar bahasa ID/EN di pojok. Halaman login live{" "}
             <span className="font-bold text-brand/85">tidak tersentuh sama sekali</span> sampai Anda memilih.
           </p>
@@ -1567,8 +1567,8 @@ export function AuthDesignLab() {
                 className={cn(
                   "rounded-full border px-4 py-2 text-[12.5px] font-bold transition",
                   isOn
-                    ? "border-transparent bg-stone-100 text-stone-950 shadow-lg"
-                    : "border-white/15 text-stone-400 hover:border-white/30 hover:bg-white/5 hover:text-stone-200",
+                    ? "border-transparent bg-slate-100 text-slate-950 shadow-lg"
+                    : "border-white/15 text-slate-400 hover:border-white/30 hover:bg-white/5 hover:text-slate-200",
                   o.key === "rec" && !isOn && "border-amber-500/30 text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/5 hover:text-amber-200",
                 )}
               >
@@ -1582,7 +1582,7 @@ export function AuthDesignLab() {
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
           <div className="min-w-0">
             <BrowserFrame key={`desk-${opt}`}>{active.render("desktop")}</BrowserFrame>
-            <p className="mt-3 flex items-center gap-2 text-[11.5px] text-stone-500">
+            <p className="mt-3 flex items-center gap-2 text-[11.5px] text-slate-500">
               <CheckCircle2 className="h-3.5 w-3.5 text-brand/70" />
               Form di atas hidup: ketik, submit (loading → sukses), ganti tab &amp; bahasa.
             </p>
@@ -1590,10 +1590,10 @@ export function AuthDesignLab() {
             <div className="mt-6 flex flex-wrap items-start justify-center gap-6">
               <PhoneFrame key={`phone-${opt}`}>{active.render("mobile")}</PhoneFrame>
               <div className="max-w-[240px] pt-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Pratinjau mobile 390px</p>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-stone-400">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Pratinjau mobile 390px</p>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-slate-400">
                   Setengah trafik pertama datang dari ponsel — tiap konsep punya varian{" "}
-                  <span className="font-bold text-stone-200">mobile tersendiri</span> (bukan sekadar menyembunyikan panel kiri).
+                  <span className="font-bold text-slate-200">mobile tersendiri</span> (bukan sekadar menyembunyikan panel kiri).
                 </p>
               </div>
             </div>
@@ -1603,7 +1603,7 @@ export function AuthDesignLab() {
 
         {/* footer */}
         <footer className="mt-10 border-t border-white/[0.07] pt-5">
-          <p className="text-[11px] leading-relaxed text-stone-500">
+          <p className="text-[11px] leading-relaxed text-slate-500">
             OneVity Design Lab · mockup interaktif untuk pengambilan keputusan — bukan kode produksi.
             Angka (Rp 531,7 jt, 96%, 44/44) merupakan data contoh dari seed demo. Fase produksi akan menghormati kontras WCAG
             &amp; prefers-reduced-motion, dan mengganti serif sistem dengan display serif bila konsep editorial dipilih.

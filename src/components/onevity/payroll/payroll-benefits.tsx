@@ -104,11 +104,11 @@ export function PayrollBenefitsPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+        <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsTrigger value="claims" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
             <HeartHandshake className="h-3.5 w-3.5" /> Klaim ({claimsApi.data?.claims.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-emerald-400">
+          <TabsTrigger value="types" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-emerald-400">
             <Sparkles className="h-3.5 w-3.5" /> Jenis Benefit ({typesApi.data?.types.length ?? 0})
           </TabsTrigger>
         </TabsList>
@@ -123,14 +123,14 @@ export function PayrollBenefitsPage() {
                   "rounded-full border px-3 py-1 text-[11px] font-bold transition-colors",
                   statusFilter === f.key
                     ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400"
-                    : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
                 )}
               >
                 {f.label}
               </button>
             ))}
           </div>
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {claimsApi.loading && !claimsApi.data ? (
                 <div className="p-4"><LoadingRows rows={5} /></div>
@@ -146,7 +146,7 @@ export function PayrollBenefitsPage() {
                 <div className="max-h-[560px] overflow-y-auto overflow-x-auto">
                   <Table>
                     <TableHeader className="sticky top-0 z-10">
-                      <TableRow className="bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                      <TableRow className="bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                         <TableHead className="text-[11px] font-bold">Klaim</TableHead>
                         <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                         <TableHead className="text-[11px] font-bold">Jenis Benefit</TableHead>
@@ -177,7 +177,7 @@ export function PayrollBenefitsPage() {
           {typesApi.loading && !typesApi.data ? (
             <div className="grid gap-3 md:grid-cols-2"><LoadingRows rows={3} /></div>
           ) : (typesApi.data?.types.length ?? 0) === 0 ? (
-            <Card className="rounded-2xl border-stone-200/80 dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800">
               <CardContent className="p-5">
                 <EmptyState
                   title="Belum ada jenis benefit"
@@ -218,15 +218,15 @@ function KpiCard({ icon, tone, label, value, sub }: {
     teal: "from-teal-500 to-emerald-600",
   };
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-3 p-4">
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md", tones[tone])}>
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className="truncate text-[15px] font-extrabold text-stone-800 dark:text-stone-100">{value}</p>
-          {sub && <p className="truncate text-[10px] text-stone-400">{sub}</p>}
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="truncate text-[15px] font-extrabold text-slate-800 dark:text-slate-100">{value}</p>
+          {sub && <p className="truncate text-[10px] text-slate-400">{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -253,14 +253,14 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
   const CatIcon = CATEGORY_ICON[claim.benefitType.category] ?? HeartHandshake;
 
   return (
-    <TableRow className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+    <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
       <TableCell>
-        <p className="font-mono text-[12px] font-bold text-stone-700 dark:text-stone-200">{claim.claimNo}</p>
-        {claim.description && <p className="max-w-52 truncate text-[10px] text-stone-400">{claim.description}</p>}
+        <p className="font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200">{claim.claimNo}</p>
+        {claim.description && <p className="max-w-52 truncate text-[10px] text-slate-400">{claim.description}</p>}
       </TableCell>
       <TableCell>
         <p className="text-[13px] font-bold">{claim.employee.fullName}</p>
-        <p className="font-mono text-[10px] text-stone-400">{claim.employee.employeeNo}</p>
+        <p className="font-mono text-[10px] text-slate-400">{claim.employee.employeeNo}</p>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
@@ -269,18 +269,18 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold">{claim.benefitType.name}</p>
-            <p className="text-[10px] text-stone-400">
+            <p className="text-[10px] text-slate-400">
               {RESET_LABEL[claim.benefitType.resetPeriod] ?? claim.benefitType.resetPeriod}
               {claim.benefitType.unlimited ? " · tanpa limit" : ` · limit ${fmtIDRShort(claim.benefitType.maxClaimAmount)}`}
             </p>
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-xs text-stone-500">{fmtDate(claim.claimDate)}</TableCell>
+      <TableCell className="text-xs text-slate-500">{fmtDate(claim.claimDate)}</TableCell>
       <TableCell className="text-right text-xs font-bold">{fmtIDR(claim.amount)}</TableCell>
       <TableCell>
         {claim.benefitType.unlimited ? (
-          <Badge variant="outline" className="text-[9px] font-bold text-stone-500">Tanpa Limit</Badge>
+          <Badge variant="outline" className="text-[9px] font-bold text-slate-500">Tanpa Limit</Badge>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -341,7 +341,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
           {claim.status === "Scheduled" && claim.period && (
             <button
               onClick={() => navigate("payroll", "runs", { period: claim.periodId ?? undefined })}
-              className="flex h-7 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:bg-stone-900 dark:text-violet-400 dark:hover:bg-violet-500/10"
+              className="flex h-7 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:bg-slate-900 dark:text-violet-400 dark:hover:bg-violet-500/10"
             >
               Lihat Run <ChevronRight className="h-3 w-3" />
             </button>
@@ -353,7 +353,7 @@ function ClaimRow({ claim, onReject, onSchedule, onChanged }: {
                 if (!window.confirm(`Batalkan klaim ${claim.claimNo} (${claim.employee.fullName})?`)) return;
                 act("c", "cancel", undefined, `Klaim ${claim.claimNo} dibatalkan`);
               }}
-              className="rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 dark:hover:bg-stone-800"
+              className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-500 dark:hover:bg-slate-800"
               aria-label="Batalkan"
             >
               <Ban className="h-3.5 w-3.5" />
@@ -379,7 +379,7 @@ function TypeCard({ type, onEdit, onChanged }: {
     } catch (e) { toast.error((e as Error).message); }
   };
   return (
-    <Card className={cn("rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800", !type.active && "opacity-60")}>
+    <Card className={cn("rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800", !type.active && "opacity-60")}>
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md">
@@ -390,17 +390,17 @@ function TypeCard({ type, onEdit, onChanged }: {
               <p className="truncate text-[14px] font-bold">{type.name}</p>
               <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-violet-600 dark:text-violet-400">{type.category}</Badge>
             </div>
-            <p className="font-mono text-[10px] text-stone-400">{type.code} · {RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</p>
-            {type.description && <p className="mt-1 text-[11px] leading-snug text-stone-500 dark:text-stone-400">{type.description}</p>}
+            <p className="font-mono text-[10px] text-slate-400">{type.code} · {RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</p>
+            {type.description && <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{type.description}</p>}
           </div>
         </div>
-        <div className="mt-3 rounded-xl bg-stone-50 px-3.5 py-2.5 dark:bg-stone-900/60">
-          <p className="text-[11px] font-bold text-stone-700 dark:text-stone-200">
+        <div className="mt-3 rounded-xl bg-slate-50 px-3.5 py-2.5 dark:bg-slate-900/60">
+          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
             {type.unlimited || type.maxClaimAmount <= 0
               ? "Tanpa limit nominal"
-              : <>Limit {fmtIDR(type.maxClaimAmount)} <span className="font-normal text-stone-400">{RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</span></>}
+              : <>Limit {fmtIDR(type.maxClaimAmount)} <span className="font-normal text-slate-400">{RESET_LABEL[type.resetPeriod] ?? type.resetPeriod}</span></>}
           </p>
-          <p className="mt-0.5 text-[10px] text-stone-400">
+          <p className="mt-0.5 text-[10px] text-slate-400">
             {type.activeClaimCount} klaim aktif · total {fmtIDR(type.totalApprovedAmount)}
             {type.wageComponent && <> · komponen <b className="font-semibold">{type.wageComponent.code}</b></>}
           </p>
@@ -413,14 +413,14 @@ function TypeCard({ type, onEdit, onChanged }: {
             {type.payInPayroll ? <><CalendarClock className="h-2.5 w-2.5" /> Pay-in-payroll (BENEFIT)</> : <><Wallet className="h-2.5 w-2.5" /> Kas langsung</>}
           </Badge>
           {type.needDocuments && <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"><FileText className="h-2.5 w-2.5" /> Perlu dokumen</Badge>}
-          {type.allowOverlimit && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">Boleh overlimit</Badge>}
-          {type.entitleFor !== "All" && <Badge variant="outline" className="text-[9px] font-bold text-stone-500">{type.entitleFor} saja</Badge>}
+          {type.allowOverlimit && <Badge variant="outline" className="text-[9px] font-bold text-slate-500">Boleh overlimit</Badge>}
+          {type.entitleFor !== "All" && <Badge variant="outline" className="text-[9px] font-bold text-slate-500">{type.entitleFor} saja</Badge>}
         </div>
         <div className="mt-3 flex gap-2">
           <Button variant="outline" size="sm" onClick={onEdit} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold">
             <Pencil className="h-3 w-3" /> Ubah
           </Button>
-          <Button variant="ghost" size="sm" onClick={toggleActive} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold text-stone-500">
+          <Button variant="ghost" size="sm" onClick={toggleActive} className="h-7 gap-1 rounded-lg px-2.5 text-[10px] font-bold text-slate-500">
             {type.active ? "Nonaktifkan" : "Aktifkan"}
           </Button>
         </div>
@@ -523,7 +523,7 @@ function ClaimDialog({ open, onClose, onSubmitted }: { open: boolean; onClose: (
             <p className={cn(
               "rounded-xl px-3.5 py-2.5 text-[11px] leading-relaxed font-semibold",
               usage.limit === null
-                ? "bg-stone-50 text-stone-600 dark:bg-stone-900 dark:text-stone-400"
+                ? "bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400"
                 : usage.inLimit && amt <= (usage.remaining ?? 0)
                   ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                   : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
@@ -677,8 +677,8 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
               </Select>
             </div>
           </div>
-          <div className="rounded-xl bg-stone-50 p-3.5 dark:bg-stone-900/60">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">Perilaku</p>
+          <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-900/60">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Perilaku</p>
             <div className="grid gap-2.5">
               <ToggleRow checked={unlimited} onChange={setUnlimited} label="Tanpa limit nominal" hint="Abaikan limit per siklus" />
               <ToggleRow checked={autoApproveInLimit} onChange={setAutoApproveInLimit} label="Auto-approve dalam limit" hint="Klaim ≤ limit langsung disetujui sistem" />
@@ -698,7 +698,7 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1.5 text-[10px] leading-relaxed text-stone-400">
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
                 Komponen muncul di payslip & jurnal saat klaim dijadwalkan; klaim karyawan di period yang sama otomatis dijumlahkan.
               </p>
             </div>
@@ -725,7 +725,7 @@ function ToggleRow({ checked, onChange, label, hint }: {
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <p className="text-[12px] font-semibold">{label}</p>
-        <p className="text-[10px] text-stone-400">{hint}</p>
+        <p className="text-[10px] text-slate-400">{hint}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </div>
@@ -755,7 +755,7 @@ function RejectDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | nul
           <DialogTitle className="flex items-center gap-2 text-base"><XCircle className="h-4 w-4 text-rose-500" /> Tolak Klaim {claim?.claimNo}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-slate-500">
             {claim?.employee.fullName} · {claim?.benefitType.name} · {claim ? fmtIDR(claim.amount) : ""}
           </p>
           <div>
@@ -800,7 +800,7 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
           <DialogTitle className="flex items-center gap-2 text-base"><CalendarClock className="h-4 w-4 text-violet-600" /> Jadwalkan {claim?.claimNo}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-slate-500">
             {claim?.employee.fullName} · {claim?.benefitType.name} · {claim ? fmtIDR(claim.amount) : ""}
           </p>
           <div>

@@ -6,9 +6,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-onevity), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  /* display serif editorial (Playfair) — aksen layar auth "Ivory Editorial" */
+  /* serif display (Playfair) — KHUSUS dokumen surat resmi (letter preview);
+     layar aplikasi memakai Inter (tema SayOne-Learning, Task 85). */
   --font-serif: var(--font-editorial), Georgia, "Times New Roman", serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -43,6 +44,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* token permukaan SayOne-Learning (Task 85) */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -58,99 +63,109 @@
    theme-aware (var(--accent-live)) dan hanya sekali per dokumen. */
 
 /* ============================================================
-   OneVity Design Tokens
-   Brand: premium emerald + warm stone neutrals + obsidian shell
+   RekanKerja Design Tokens — Task 85
+   TEMA DIGANTI: "Ivory Editorial" (emerald + warm stone + serif)
+   → tema SayOne-Learning (SayOne-Insight family):
+   Light & clean — app bg #F8FAFC · card putih · sidebar putih ·
+   primary blue #2563EB · border #E2E8F0 · Inter · subtle shadows.
    ============================================================ */
 
 :root {
   --radius: 0.75rem;
-  /* light: warm paper white */
-  --background: oklch(0.985 0.002 84);
-  --foreground: oklch(0.201 0.006 56);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.201 0.006 56);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.201 0.006 56);
-  /* primary: deep emerald */
-  --primary: oklch(0.508 0.118 168.5);
-  --primary-foreground: oklch(0.985 0.01 165);
-  --secondary: oklch(0.955 0.008 84);
-  --secondary-foreground: oklch(0.33 0.02 60);
-  --muted: oklch(0.955 0.004 84);
-  --muted-foreground: oklch(0.524 0.012 60);
-  --accent: oklch(0.94 0.03 160);
-  --accent-foreground: oklch(0.30 0.06 165);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.912 0.005 70);
-  --input: oklch(0.912 0.005 70);
-  --ring: oklch(0.55 0.11 168);
-  /* charts: emerald-led premium ramp */
-  --chart-1: oklch(0.55 0.13 165);
-  --chart-2: oklch(0.72 0.14 85);
-  --chart-3: oklch(0.62 0.09 220);
-  --chart-4: oklch(0.66 0.19 25);
-  --chart-5: oklch(0.45 0.09 100);
-  /* Task 64e — sidebar mengikuti warna halaman (bukan lagi obsidian gelap);
-     teks & ikon kontras jelas di atas paper white. Restore: branch
-     backup/sidebar-obsidian (a477f31). */
-  --sidebar: var(--card);
-  --sidebar-foreground: oklch(0.30 0.012 60);
-  --sidebar-primary: oklch(0.508 0.118 168.5);
-  --sidebar-primary-foreground: oklch(0.985 0.01 165);
-  --sidebar-accent: oklch(0.94 0.03 160);
-  --sidebar-accent-foreground: oklch(0.30 0.06 165);
-  --sidebar-border: oklch(0.912 0.005 70);
-  --sidebar-ring: oklch(0.55 0.11 168);
+  /* light: clean slate white */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  /* primary: brand blue */
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #ef4444;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+  /* charts: blue-led ramp (SayOne-Learning) */
+  --chart-1: #3b82f6;
+  --chart-2: #06b6d4;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #8b5cf6;
+  /* sidebar: putih mengikuti kartu (SayOne-Learning) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2563eb;
+  /* token permukaan SayOne-Learning */
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --line: #e2e8f0;
 }
 
 .dark {
-  /* dark: deep obsidian green-tinted */
-  --background: oklch(0.156 0.006 170);
-  --foreground: oklch(0.95 0.004 90);
-  --card: oklch(0.196 0.007 170);
-  --card-foreground: oklch(0.95 0.004 90);
-  --popover: oklch(0.21 0.007 170);
-  --popover-foreground: oklch(0.95 0.004 90);
-  --primary: oklch(0.66 0.15 163);
-  --primary-foreground: oklch(0.14 0.03 168);
-  --secondary: oklch(0.26 0.01 170);
-  --secondary-foreground: oklch(0.93 0.005 90);
-  --muted: oklch(0.25 0.008 170);
-  --muted-foreground: oklch(0.68 0.01 90);
-  --accent: oklch(0.28 0.04 163);
-  --accent-foreground: oklch(0.93 0.02 160);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.98 0 0 / 9%);
-  --input: oklch(0.98 0 0 / 13%);
-  --ring: oklch(0.66 0.15 163);
-  --chart-1: oklch(0.66 0.15 163);
-  --chart-2: oklch(0.75 0.14 85);
-  --chart-3: oklch(0.68 0.1 220);
-  --chart-4: oklch(0.7 0.18 25);
-  --chart-5: oklch(0.55 0.09 100);
-  /* Task 64e — dark: sidebar = kartu obsidian (tone page, sedikit beda utk
-     keterbacaan); teks tetap terang. */
-  --sidebar: oklch(0.196 0.007 170);
-  --sidebar-foreground: oklch(0.95 0.004 90);
-  --sidebar-primary: oklch(0.66 0.15 163);
-  --sidebar-primary-foreground: oklch(0.985 0.01 165);
-  --sidebar-accent: oklch(0.28 0.04 163);
-  --sidebar-accent-foreground: oklch(0.93 0.02 160);
-  --sidebar-border: oklch(0.98 0 0 / 9%);
-  --sidebar-ring: oklch(0.66 0.15 163);
+  /* dark: deep space (SayOne-Learning) */
+  --background: #0f1117;
+  --foreground: #e4e5ea;
+  --card: #1a1d27;
+  --card-foreground: #e4e5ea;
+  --popover: #1a1d27;
+  --popover-foreground: #e4e5ea;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #232634;
+  --secondary-foreground: #e4e5ea;
+  --muted: #232634;
+  --muted-foreground: #9ca0ad;
+  --accent: #232634;
+  --accent-foreground: #e4e5ea;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #06b6d4;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #8b5cf6;
+  --sidebar: #161a24;
+  --sidebar-foreground: #e4e5ea;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #3b82f6;
+  --surface: #1a1d27;
+  --surface-2: #232634;
+  --line: rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    color-scheme: light;
+  }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
-    letter-spacing: -0.01em;
+    font-feature-settings: "ss01", "cv01";
+    letter-spacing: -0.011em;
   }
   ::selection {
-    background: oklch(0.85 0.09 163);
+    background: #2563eb;
+    color: #ffffff;
   }
 }
 
@@ -159,15 +174,16 @@
    --accent-live-* ditulis oleh accent-theme.ts (inline style :root).
    Saat tema aktif, seluruh UI (semua halaman & modul) memakai SATU
    aksen: --primary/--ring/--sidebar-primary ditimpa dari --accent-live.
-   Default (tanpa data-accent) = tema bawaan emerald.
+   Default (tanpa data-accent) = tema bawaan biru SayOne (#2563EB, Task 85).
    ============================================================ */
 :root {
-  /* default = tema cyan (pengguna baru); ditimpa oleh accent-theme.ts saat hydrate */
-  --accent-live: #06b6d4;
-  --accent-live-rgb: 6 182 212;
+  /* default = tema biru SayOne-Learning (Task 85); ditimpa oleh
+     accent-theme.ts saat hydrate */
+  --accent-live: #2563eb;
+  --accent-live-rgb: 37 99 235;
   --accent-live-fg: #ffffff;
   /* versi pekat utk teks di atas latar terang (ganti saat dark via JS) */
-  --accent-live-deep: #0e7490;
+  --accent-live-deep: #1d4ed8;
 }
 :root[data-accent="1"] {
   --primary: var(--accent-live);
@@ -188,14 +204,14 @@
 }
 
 /* ============================================================
-   OneVity Custom Scrollbar — thin, premium
+   Scrollbar — sleek ala SayOne-Learning (slate)
    ============================================================ */
 * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.75 0.01 90 / 45%) transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
 .dark * {
-  scrollbar-color: oklch(0.45 0.01 90 / 40%) transparent;
+  scrollbar-color: #3a3f4d transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
@@ -205,111 +221,66 @@
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: oklch(0.78 0.01 90 / 40%);
-  border-radius: 999px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.6 0.01 90 / 50%);
+  background: #94a3b8;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 .dark *::-webkit-scrollbar-thumb {
-  background: oklch(0.45 0.01 90 / 40%);
+  background: #3a3f4d;
 }
 .dark *::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.55 0.01 90 / 50%);
+  background: #4a5063;
 }
 
 /* ============================================================
-   OneVity Module Theme — aksen halaman mengikuti modul aktif
-   Shell menandai <html data-module="…">; token di bawah membuat
-   seluruh area konten (termasuk dialog/portal) mengikuti warna
-   identitas modul: HR emerald · Payroll amber · Attendance teal ·
-   Leave cyan · Travel violet · Medical rose · Settings stone.
+   Task 85 — AKSEN SERAGAM BIRU (tema SayOne-Learning).
+   Sebelumnya tiap modul punya identitas warna sendiri (HR emerald ·
+   Payroll amber · Attendance teal · Leave cyan · Travel violet ·
+   Medical rose · Settings stone). Penggantian tema menjadikan SEMUA
+   modul satu keluarga biru brand — token --ov-accent-* dipertahankan
+   (plumbing komponen ov-fill/ov-tile/ov-hero/… tetap jalan) tapi
+   nilainya seragam biru.
    Warna SEMANTIK (status/sukses/gagal) tetap dari token dasar.
    ============================================================ */
-
-html[data-module="hr"] {
-  --ov-accent: #10b981; --ov-accent-strong: #059669; --ov-accent-solid: #059669;
-  --ov-accent-deep: #047857; --ov-accent-ink: #064e3b;
-  --ov-accent-soft: #ecfdf5; --ov-accent-mist: #d1fae5; --ov-accent-border: #a7f3d0;
-  --ov-accent-glow: rgba(16, 185, 129, 0.28); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="hr"] {
-  --ov-accent: #34d399; --ov-accent-strong: #34d399; --ov-accent-solid: #10b981;
-  --ov-accent-deep: #047857; --ov-accent-ink: #065f46;
-  --ov-accent-soft: rgba(16, 185, 129, 0.12); --ov-accent-mist: rgba(16, 185, 129, 0.18);
-  --ov-accent-border: rgba(52, 211, 153, 0.30); --ov-accent-glow: rgba(16, 185, 129, 0.22);
-}
-html[data-module="payroll"] {
-  --ov-accent: #f59e0b; --ov-accent-strong: #d97706; --ov-accent-solid: #d97706;
-  --ov-accent-deep: #b45309; --ov-accent-ink: #78350f;
-  --ov-accent-soft: #fffbeb; --ov-accent-mist: #fef3c7; --ov-accent-border: #fde68a;
-  --ov-accent-glow: rgba(245, 158, 11, 0.30); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="payroll"] {
-  --ov-accent: #fbbf24; --ov-accent-strong: #fbbf24; --ov-accent-solid: #f59e0b;
-  --ov-accent-deep: #b45309; --ov-accent-ink: #92400e;
-  --ov-accent-soft: rgba(245, 158, 11, 0.12); --ov-accent-mist: rgba(245, 158, 11, 0.18);
-  --ov-accent-border: rgba(251, 191, 36, 0.32); --ov-accent-glow: rgba(245, 158, 11, 0.24);
-}
-html[data-module="attendance"] {
-  --ov-accent: #14b8a6; --ov-accent-strong: #0d9488; --ov-accent-solid: #0d9488;
-  --ov-accent-deep: #0f766e; --ov-accent-ink: #134e4a;
-  --ov-accent-soft: #f0fdfa; --ov-accent-mist: #ccfbf1; --ov-accent-border: #99f6e4;
-  --ov-accent-glow: rgba(20, 184, 166, 0.28); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="attendance"] {
-  --ov-accent: #2dd4bf; --ov-accent-strong: #2dd4bf; --ov-accent-solid: #14b8a6;
-  --ov-accent-deep: #0f766e; --ov-accent-ink: #115e59;
-  --ov-accent-soft: rgba(20, 184, 166, 0.12); --ov-accent-mist: rgba(20, 184, 166, 0.18);
-  --ov-accent-border: rgba(45, 212, 191, 0.30); --ov-accent-glow: rgba(20, 184, 166, 0.22);
-}
-html[data-module="leave"] {
-  --ov-accent: #06b6d4; --ov-accent-strong: #0891b2; --ov-accent-solid: #0891b2;
-  --ov-accent-deep: #0e7490; --ov-accent-ink: #164e63;
-  --ov-accent-soft: #ecfeff; --ov-accent-mist: #cff4fe; --ov-accent-border: #a5f3fc;
-  --ov-accent-glow: rgba(6, 182, 212, 0.28); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="leave"] {
-  --ov-accent: #22d3ee; --ov-accent-strong: #22d3ee; --ov-accent-solid: #06b6d4;
-  --ov-accent-deep: #0e7490; --ov-accent-ink: #155e75;
-  --ov-accent-soft: rgba(6, 182, 212, 0.12); --ov-accent-mist: rgba(6, 182, 212, 0.18);
-  --ov-accent-border: rgba(34, 211, 238, 0.30); --ov-accent-glow: rgba(6, 182, 212, 0.22);
-}
-html[data-module="travel"] {
-  --ov-accent: #8b5cf6; --ov-accent-strong: #7c3aed; --ov-accent-solid: #7c3aed;
-  --ov-accent-deep: #6d28d9; --ov-accent-ink: #4c1d95;
-  --ov-accent-soft: #f5f3ff; --ov-accent-mist: #ede9fe; --ov-accent-border: #ddd6fe;
-  --ov-accent-glow: rgba(139, 92, 246, 0.30); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="travel"] {
-  --ov-accent: #a78bfa; --ov-accent-strong: #a78bfa; --ov-accent-solid: #8b5cf6;
-  --ov-accent-deep: #6d28d9; --ov-accent-ink: #5b21b6;
-  --ov-accent-soft: rgba(139, 92, 246, 0.14); --ov-accent-mist: rgba(139, 92, 246, 0.20);
-  --ov-accent-border: rgba(167, 139, 250, 0.32); --ov-accent-glow: rgba(139, 92, 246, 0.24);
-}
-html[data-module="medical"] {
-  --ov-accent: #f43f5e; --ov-accent-strong: #e11d48; --ov-accent-solid: #e11d48;
-  --ov-accent-deep: #be123c; --ov-accent-ink: #881337;
-  --ov-accent-soft: #fff1f2; --ov-accent-mist: #ffe4e6; --ov-accent-border: #fecdd3;
-  --ov-accent-glow: rgba(244, 63, 94, 0.28); --ov-accent-fg: #ffffff;
-}
-html.dark[data-module="medical"] {
-  --ov-accent: #fb7185; --ov-accent-strong: #fb7185; --ov-accent-solid: #f43f5e;
-  --ov-accent-deep: #be123c; --ov-accent-ink: #9f1239;
-  --ov-accent-soft: rgba(244, 63, 94, 0.12); --ov-accent-mist: rgba(244, 63, 94, 0.18);
-  --ov-accent-border: rgba(251, 113, 133, 0.30); --ov-accent-glow: rgba(244, 63, 94, 0.22);
-}
+html[data-module="hr"],
+html[data-module="payroll"],
+html[data-module="attendance"],
+html[data-module="leave"],
+html[data-module="travel"],
+html[data-module="medical"],
 html[data-module="settings"] {
-  --ov-accent: #a8a29e; --ov-accent-strong: #78716c; --ov-accent-solid: #78716c;
-  --ov-accent-deep: #57534e; --ov-accent-ink: #1c1917;
-  --ov-accent-soft: #fafaf9; --ov-accent-mist: #f5f5f4; --ov-accent-border: #e7e5e4;
-  --ov-accent-glow: rgba(120, 113, 108, 0.22); --ov-accent-fg: #ffffff;
+  --ov-accent: #3b82f6;
+  --ov-accent-strong: #2563eb;
+  --ov-accent-solid: #2563eb;
+  --ov-accent-deep: #1d4ed8;
+  --ov-accent-ink: #1e3a8a;
+  --ov-accent-soft: #eff6ff;
+  --ov-accent-mist: #dbeafe;
+  --ov-accent-border: #bfdbfe;
+  --ov-accent-glow: rgba(37, 99, 235, 0.28);
+  --ov-accent-fg: #ffffff;
 }
+html.dark[data-module="hr"],
+html.dark[data-module="payroll"],
+html.dark[data-module="attendance"],
+html.dark[data-module="leave"],
+html.dark[data-module="travel"],
+html.dark[data-module="medical"],
 html.dark[data-module="settings"] {
-  --ov-accent: #a8a29e; --ov-accent-strong: #a8a29e; --ov-accent-solid: #78716c;
-  --ov-accent-deep: #57534e; --ov-accent-ink: #292524;
-  --ov-accent-soft: rgba(168, 162, 158, 0.10); --ov-accent-mist: rgba(168, 162, 158, 0.16);
-  --ov-accent-border: rgba(168, 162, 158, 0.28); --ov-accent-glow: rgba(120, 113, 108, 0.18);
+  --ov-accent: #60a5fa;
+  --ov-accent-strong: #60a5fa;
+  --ov-accent-solid: #3b82f6;
+  --ov-accent-deep: #1d4ed8;
+  --ov-accent-ink: #1e40af;
+  --ov-accent-soft: rgba(59, 130, 246, 0.12);
+  --ov-accent-mist: rgba(59, 130, 246, 0.18);
+  --ov-accent-border: rgba(96, 165, 250, 0.3);
+  --ov-accent-glow: rgba(59, 130, 246, 0.22);
 }
 
 /* Jembatan ke token shadcn — komponen UI (Button/Badge/Tabs/Checkbox/
@@ -337,9 +308,9 @@ html[data-module][data-accent="1"] {
   --ov-accent-solid: var(--accent-live);
   --ov-accent-deep: var(--accent-live-deep);
   --ov-accent-ink: var(--accent-live-deep);
-  --ov-accent-soft: rgb(var(--accent-live-rgb) / 0.10);
+  --ov-accent-soft: rgb(var(--accent-live-rgb) / 0.1);
   --ov-accent-mist: rgb(var(--accent-live-rgb) / 0.16);
-  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.30);
+  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.3);
   --ov-accent-glow: rgb(var(--accent-live-rgb) / 0.28);
   --ov-accent-fg: var(--accent-live-fg);
 }
@@ -347,7 +318,7 @@ html.dark[data-accent="1"],
 html.dark[data-module][data-accent="1"] {
   --ov-accent-soft: rgb(var(--accent-live-rgb) / 0.12);
   --ov-accent-mist: rgb(var(--accent-live-rgb) / 0.18);
-  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.30);
+  --ov-accent-border: rgb(var(--accent-live-rgb) / 0.3);
   --ov-accent-glow: rgb(var(--accent-live-rgb) / 0.22);
 }
 
@@ -395,7 +366,7 @@ html.dark[data-module][data-accent="1"] {
   box-shadow: 0 8px 24px -12px var(--ov-accent-glow);
 }
 
-/* OneVity utility flourish — aksen mengikuti modul aktif */
+/* Utility flourish — aksen mengikuti tema aktif */
 @utility text-gradient-accent {
   background: linear-gradient(135deg, var(--ov-accent-strong), var(--ov-accent));
   -webkit-background-clip: text;
@@ -404,9 +375,8 @@ html.dark[data-module][data-accent="1"] {
 }
 
 /* ============================================================
-   Ivory Editorial (layar auth) — marquee klien
-   Strip duplikat 2× konten; -50% = tepat satu salinan → mulus.
-   motion-safe: hormati prefers-reduced-motion.
+   Marquee (layar auth) — strip duplikat 2× konten; -50% = tepat satu
+   salinan → mulus. motion-safe: hormati prefers-reduced-motion.
    ============================================================ */
 @keyframes onevity-marquee {
   from {

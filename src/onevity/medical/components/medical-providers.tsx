@@ -93,7 +93,7 @@ export function MedicalProvidersPage() {
               "flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-all",
               tab === tb.key
                 ? "ov-soft ov-border-accent"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             <tb.icon className="h-3.5 w-3.5" /> {t(tb.label, TAB_LABEL_EN[tb.key])} ({tb.count})
@@ -101,7 +101,7 @@ export function MedicalProvidersPage() {
         ))}
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -110,7 +110,7 @@ export function MedicalProvidersPage() {
           ) : (
             <div className="max-h-[30rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>{t("Nama")}</TableHead>
                     <TableHead>{t("Kota", "City")}</TableHead>
@@ -124,14 +124,14 @@ export function MedicalProvidersPage() {
                     <TableRow key={p.id}>
                       <TableCell>
                         <p className="font-semibold">{p.name}</p>
-                        <p className="text-xs text-stone-500">{p.code}</p>
+                        <p className="text-xs text-slate-500">{p.code}</p>
                       </TableCell>
                       <TableCell className="text-sm">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-stone-400" />{p.city ?? "—"}</span>
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-slate-400" />{p.city ?? "—"}</span>
                       </TableCell>
-                      <TableCell className="max-w-xs text-sm text-stone-500">{p.address ?? "—"}</TableCell>
+                      <TableCell className="max-w-xs text-sm text-slate-500">{p.address ?? "—"}</TableCell>
                       <TableCell className="text-sm">
-                        <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-stone-400" />{p.phone ?? "—"}</span>
+                        <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-slate-400" />{p.phone ?? "—"}</span>
                       </TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>

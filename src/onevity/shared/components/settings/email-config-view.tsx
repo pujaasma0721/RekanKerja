@@ -61,7 +61,7 @@ const RECIPIENT_LABEL_EN: Record<string, string> = {
 export function EmailConfigView() {
   const { t } = useI18n();
   const [tab, setTab] = useState("server");
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800";
 
   return (
     <div>
@@ -71,7 +71,7 @@ export function EmailConfigView() {
         description={t("Pengaturan SMTP & notifikasi otomatis — sistem mengirim email saat ada pengajuan cuti, perjalanan dinas, klaim medis, dan konfirmasi payroll.", "SMTP settings & automatic notifications — the system sends emails for leave requests, business travel, medical claims, and payroll confirmations.")}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
           <TabsTrigger value="server" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <Server className="h-3.5 w-3.5" /> {t("Server SMTP", "SMTP Server")}
           </TabsTrigger>
@@ -148,11 +148,11 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
 
   const statusBadge = cfg?.active
     ? <Badge className="gap-1 rounded-full bg-brand/15 px-2 text-[10px] font-extrabold text-brand-deep dark:bg-brand/15 dark:text-brand/75"><CheckCircle2 className="h-3 w-3" /> {t("AKTIF", "ACTIVE")}</Badge>
-    : <Badge className="gap-1 rounded-full bg-stone-100 px-2 text-[10px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400"><MinusCircle className="h-3 w-3" /> {t("NONAKTIF", "INACTIVE")}</Badge>;
+    : <Badge className="gap-1 rounded-full bg-slate-100 px-2 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400"><MinusCircle className="h-3 w-3" /> {t("NONAKTIF", "INACTIVE")}</Badge>;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <Server className="h-4 w-4 ov-text-accent" /> {t("Server SMTP & Pengirim", "SMTP Server & Sender")}
@@ -160,12 +160,12 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
           {statusBadge}
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/60 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
             <div className="flex items-start gap-3">
               <Zap className="mt-0.5 h-4 w-4 text-amber-500" />
               <div>
                 <p className="text-[13px] font-bold">{t("Kirim Email Otomatis", "Automatic Email Sending")}</p>
-                <p className="text-xs text-stone-500">{t("Sistem mengirim email tiap ada pengajuan / persetujuan (cuti, travel, klaim medis, payroll)", "The system sends an email for every request / approval (leave, travel, medical claims, payroll)")}</p>
+                <p className="text-xs text-slate-500">{t("Sistem mengirim email tiap ada pengajuan / persetujuan (cuti, travel, klaim medis, payroll)", "The system sends an email for every request / approval (leave, travel, medical claims, payroll)")}</p>
               </div>
             </div>
             <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} aria-label={t("Aktifkan email otomatis", "Enable automatic emails")} />
@@ -214,7 +214,7 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
       </Card>
 
       <div className="space-y-4">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 ov-text-accent" /> {t("Tes Kirim Email", "Send a Test Email")}</CardTitle>
           </CardHeader>
@@ -243,14 +243,14 @@ function SmtpPanel({ onSaved }: { onSaved?: () => void }) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 bg-stone-50/60 shadow-sm dark:border-stone-800 dark:bg-stone-900/40">
+        <Card className="rounded-2xl border-slate-200/80 bg-slate-50/60 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-bold"><Mail className="h-4 w-4 ov-text-accent" /> {t("Petunjuk Cepat", "Quick Guide")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 pt-0 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
-            <p><b className="text-stone-700 dark:text-stone-300">Gmail:</b> {t("aktifkan 2FA lalu buat", "enable 2FA then create")} <i>App Password</i> ({t("16 huruf", "16 letters")}) — {t("isi sebagai password SMTP, host", "use it as the SMTP password, host")} <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">smtp.gmail.com</code> port 587.</p>
-            <p><b className="text-stone-700 dark:text-stone-300">Office365:</b> {t("host", "host")} <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">smtp.office365.com</code> port 587.</p>
-            <p><b className="text-stone-700 dark:text-stone-300">{t("Relay internal:", "Internal relay:")}</b> {t("isi host server email perusahaan.", "enter the company mail server host.")}</p>
+          <CardContent className="space-y-2 pt-0 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+            <p><b className="text-slate-700 dark:text-slate-300">Gmail:</b> {t("aktifkan 2FA lalu buat", "enable 2FA then create")} <i>App Password</i> ({t("16 huruf", "16 letters")}) — {t("isi sebagai password SMTP, host", "use it as the SMTP password, host")} <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">smtp.gmail.com</code> port 587.</p>
+            <p><b className="text-slate-700 dark:text-slate-300">Office365:</b> {t("host", "host")} <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">smtp.office365.com</code> port 587.</p>
+            <p><b className="text-slate-700 dark:text-slate-300">{t("Relay internal:", "Internal relay:")}</b> {t("isi host server email perusahaan.", "enter the company mail server host.")}</p>
             <p>{t("Selama SMTP belum diisi, setiap pemicu notifikasi dicatat sebagai ", "While SMTP is not configured, every notification trigger is recorded as ")}<i>Skipped</i>{t(" di Riwayat Kirim — proses approval tetap berjalan normal.", " in the Send History — the approval process continues normally.")}</p>
           </CardContent>
         </Card>
@@ -313,7 +313,7 @@ function TemplatesPanel() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Object.entries(groups).map(([mod, items]) => (
-          <Card key={mod} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card key={mod} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <FileText className="h-4 w-4 ov-text-accent" /> {t(MODULE_LABEL[mod] ?? mod, MODULE_LABEL_EN[mod] ?? mod)}
@@ -324,14 +324,14 @@ function TemplatesPanel() {
               {items.map((tpl) => (
                 <div key={tpl.id} className={cn(
                   "rounded-xl border p-3 transition",
-                  tpl.active ? "border-stone-200 bg-white hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900"
-                           : "border-stone-200 bg-stone-50 opacity-70 dark:border-stone-800 dark:bg-stone-900/50",
+                  tpl.active ? "border-slate-200 bg-white hover:ov-border-accent dark:border-slate-800 dark:bg-slate-900"
+                           : "border-slate-200 bg-slate-50 opacity-70 dark:border-slate-800 dark:bg-slate-900/50",
                 )}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-bold">{tpl.label}</p>
-                      <p className="truncate font-mono text-[10px] text-stone-400">{tpl.event}</p>
-                      <p className="mt-1 truncate text-[11px] text-stone-500">{tpl.subject}</p>
+                      <p className="truncate font-mono text-[10px] text-slate-400">{tpl.event}</p>
+                      <p className="mt-1 truncate text-[11px] text-slate-500">{tpl.subject}</p>
                     </div>
                     <Switch checked={tpl.active} onCheckedChange={() => toggleActive(tpl)} aria-label={`Toggle ${tpl.label}`} />
                   </div>
@@ -341,7 +341,7 @@ function TemplatesPanel() {
                     {tpl.notifyHrd && <Badge variant="secondary" className="rounded-full text-[9px] font-bold">HRD</Badge>}
                     <button
                       onClick={() => setEditing(tpl)}
-                      className="ml-auto rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800"
+                      className="ml-auto rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
                       aria-label={`Edit template ${tpl.label}`}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -471,7 +471,7 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
             <Label className="text-xs font-semibold">{t("Subjek", "Subject")}</Label>
             {preview ? (
               <div className="rounded-lg border ov-border-accent ov-soft px-3 py-2 text-[13px] font-semibold">
-                {render(subject) || <span className="italic text-stone-400">{t("(subjek kosong)", "(empty subject)")}</span>}
+                {render(subject) || <span className="italic text-slate-400">{t("(subjek kosong)", "(empty subject)")}</span>}
               </div>
             ) : (
               <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="text-[13px]" />
@@ -486,14 +486,14 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
             </div>
             {preview ? (
               <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border ov-border-accent ov-soft px-3 py-2.5 text-[13px] leading-relaxed">
-                {render(body) || <span className="italic text-stone-400">{t("(isi kosong)", "(empty)")}</span>}
+                {render(body) || <span className="italic text-slate-400">{t("(isi kosong)", "(empty)")}</span>}
               </div>
             ) : (
               <Textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="text-[13px] leading-relaxed" />
             )}
           </div>
-          <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
-            <p className="font-bold text-stone-600 dark:text-stone-300">{t("Variabel untuk event ini — klik untuk menyisipkan ke kursor:", "Variables for this event — click to insert at the cursor:")}</p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+            <p className="font-bold text-slate-600 dark:text-slate-300">{t("Variabel untuk event ini — klik untuk menyisipkan ke kursor:", "Variables for this event — click to insert at the cursor:")}</p>
             {phDefs.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {phDefs.map((p) => (
@@ -503,16 +503,16 @@ function TemplateDialog({ tpl, onClose, onSaved }: { tpl: EmailTemplateRow | nul
                     title={`${p.label} · contoh: ${p.contoh}`}
                     onClick={() => insertAtCursor(`{{${p.key}}}`)}
                     disabled={preview}
-                    className="rounded-full border border-stone-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-stone-700 transition-colors hover:ov-soft hover:ov-border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+                    className="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-mono text-[11px] font-bold text-slate-700 transition-colors hover:ov-soft hover:ov-border-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                   >
                     {`{{${p.key}}}`}
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="mt-1 text-[11px] text-stone-500">{t("Event ini tidak memiliki variabel dinamis (teks sistem).", "This event has no dynamic variables (system text).")}</p>
+              <p className="mt-1 text-[11px] text-slate-500">{t("Event ini tidak memiliki variabel dinamis (teks sistem).", "This event has no dynamic variables (system text).")}</p>
             )}
-            <p className="mt-2 text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
               {t("Nilai variabel diisi otomatis dari data pengajuan saat email dikirim. Variabel tak dikenal tampil apa adanya.", "Variable values are filled automatically from request data when the email is sent. Unknown variables appear as-is.")}
             </p>
             {usedKeys.length > 0 && (
@@ -563,23 +563,23 @@ function LogsPanel() {
         {([
           ["Sent", "Terkirim", "Sent", CheckCircle2, "text-brand"],
           ["Failed", "Gagal", "Failed", XCircle, "text-rose-500"],
-          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-stone-400"],
+          ["Skipped", "Dilewati", "Skipped", MinusCircle, "text-slate-400"],
         ] as const).map(([key, label, labelEn, Icon, cls]) => (
-          <Card key={key} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card key={key} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-center gap-3 p-4">
-              <div className={cn("rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900", cls)}>
+              <div className={cn("rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900", cls)}>
                 <Icon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xl font-extrabold tabular-nums">{stats[key] ?? 0}</p>
-                <p className="text-[11px] font-semibold text-stone-500">{t(label, labelEn)}</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t(label, labelEn)}</p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 ov-text-accent" /> {t("Riwayat Pengiriman", "Delivery History")}
@@ -596,15 +596,15 @@ function LogsPanel() {
             <LoadingRows rows={6} />
           ) : logs.length === 0 ? (
             <div className="py-10 text-center">
-              <Mail className="mx-auto h-10 w-10 text-stone-300 dark:text-stone-600" />
-              <p className="mt-3 text-sm font-bold text-stone-500">{t("Belum ada email terkirim", "No emails sent yet")}</p>
-              <p className="mt-1 text-xs text-stone-400">{t("Notifikasi tercatat di sini setelah SMTP dikonfigurasi & pengajuan/approval terjadi.", "Notifications will appear here once SMTP is configured and requests/approvals happen.")}</p>
+              <Mail className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+              <p className="mt-3 text-sm font-bold text-slate-500">{t("Belum ada email terkirim", "No emails sent yet")}</p>
+              <p className="mt-1 text-xs text-slate-400">{t("Notifikasi tercatat di sini setelah SMTP dikonfigurasi & pengajuan/approval terjadi.", "Notifications will appear here once SMTP is configured and requests/approvals happen.")}</p>
             </div>
           ) : (
             <div className="max-h-[520px] overflow-y-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <ServerSortHead label={t("Waktu", "Time")} active={sortKey === "createdAt"} dir={sortDir} onClick={() => clickSort("createdAt")} className="text-[11px] font-bold" />
                     <ServerSortHead label="Event" active={sortKey === "event"} dir={sortDir} onClick={() => clickSort("event")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Tujuan", "Recipient")} active={sortKey === "toEmail"} dir={sortDir} onClick={() => clickSort("toEmail")} className="text-[11px] font-bold" />
@@ -614,11 +614,11 @@ function LogsPanel() {
                 </TableHeader>
                 <TableBody>
                   {logs.map((l) => (
-                    <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                      <TableCell className="whitespace-nowrap text-[11px] text-stone-500">{fmtDate(l.createdAt)}</TableCell>
-                      <TableCell className="font-mono text-[10px] text-stone-500">{l.event}</TableCell>
+                    <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                      <TableCell className="whitespace-nowrap text-[11px] text-slate-500">{fmtDate(l.createdAt)}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-slate-500">{l.event}</TableCell>
                       <TableCell className="max-w-[180px] truncate text-[12px] font-semibold">{l.toEmail}</TableCell>
-                      <TableCell className="max-w-[260px] truncate text-[12px] text-stone-600 dark:text-stone-400">
+                      <TableCell className="max-w-[260px] truncate text-[12px] text-slate-600 dark:text-slate-400">
                         <span title={l.error ?? l.subject}>{l.subject}</span>
                       </TableCell>
                       <TableCell>
@@ -628,7 +628,7 @@ function LogsPanel() {
                               <XCircle className="h-3 w-3" /> {t("Gagal")}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400" title={l.error ?? undefined}>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400" title={l.error ?? undefined}>
                               <MinusCircle className="h-3 w-3" /> Skipped
                             </span>
                           )}

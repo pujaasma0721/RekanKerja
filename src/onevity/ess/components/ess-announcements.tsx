@@ -46,7 +46,7 @@ interface EssAnnouncementsData {
 
 // ================= CHIP KATEGORI =================
 const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = {
-  Umum: { icon: Megaphone, cls: "border-stone-200 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300" },
+  Umum: { icon: Megaphone, cls: "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" },
   Kebijakan: { icon: Scale, cls: "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" },
   Event: { icon: PartyPopper, cls: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" },
   Darurat: { icon: Siren, cls: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400" },
@@ -145,8 +145,8 @@ export function EssAnnouncements() {
               className={cn(
                 "group rounded-2xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500",
                 ann.pinned
-                  ? "border-amber-300 bg-gradient-to-br from-amber-50/80 to-white dark:border-amber-500/40 dark:from-amber-500/10 dark:to-stone-900"
-                  : "border-stone-200/80 bg-white dark:border-stone-800 dark:bg-stone-900",
+                  ? "border-amber-300 bg-gradient-to-br from-amber-50/80 to-white dark:border-amber-500/40 dark:from-amber-500/10 dark:to-slate-900"
+                  : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900",
               )}
               aria-label={t("Buka pengumuman {title}", "Open announcement {title}", { title: ann.title })}
             >
@@ -168,18 +168,18 @@ export function EssAnnouncements() {
                 )}
               </div>
               <p className={cn(
-                "mt-2 text-[14px] font-bold leading-snug text-stone-800 dark:text-stone-100",
-                !ann.readByMe && "text-stone-900 dark:text-white",
+                "mt-2 text-[14px] font-bold leading-snug text-slate-800 dark:text-slate-100",
+                !ann.readByMe && "text-slate-900 dark:text-white",
               )}>
                 {ann.title}
               </p>
-              <p className="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-stone-500 dark:text-stone-400">
+              <p className="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
                 {ann.body}
               </p>
-              <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-medium text-stone-400">
+              <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-medium text-slate-400">
                 <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                 {ann.publishedAt ? fmtDateTime(ann.publishedAt) : "—"}
-                <span className="font-mono text-stone-300 dark:text-stone-600">· {ann.code}</span>
+                <span className="font-mono text-slate-300 dark:text-slate-600">· {ann.code}</span>
               </p>
             </motion.button>
           ))}
@@ -198,7 +198,7 @@ export function EssAnnouncements() {
                 </DialogTitle>
                 <DialogDescription className="flex flex-wrap items-center gap-2">
                   <CategoryBadge category={detail.category} />
-                  <span className="font-mono text-[11px] font-semibold text-stone-400">{detail.code}</span>
+                  <span className="font-mono text-[11px] font-semibold text-slate-400">{detail.code}</span>
                   {detail.publishedAt && (
                     <span className="flex items-center gap-1">
                       <CalendarDays className="h-3 w-3" aria-hidden /> {fmtDate(detail.publishedAt)}
@@ -209,7 +209,7 @@ export function EssAnnouncements() {
 
               {/* isi — paragraf dipertahankan, panjang di-scroll */}
               <div
-                className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-stone-200 bg-stone-50/60 p-4 text-[13px] leading-relaxed text-stone-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700"
+                className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-[13px] leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700"
                 role="region"
                 aria-label={t("Isi pengumuman", "Announcement body")}
               >
@@ -217,7 +217,7 @@ export function EssAnnouncements() {
               </div>
 
               {detail.expiresAt && (
-                <p className="text-[10.5px] text-stone-400">
+                <p className="text-[10.5px] text-slate-400">
                   {t("Tersedia hingga {date}.", "Available until {date}.", { date: fmtDate(detail.expiresAt) })}
                 </p>
               )}

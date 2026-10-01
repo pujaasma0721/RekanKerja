@@ -187,14 +187,14 @@ export function ApprovalStructureView() {
           { label: t("Jenis Dokumen", "Document Types"), value: 4, icon: FileIcon },
           { label: t("Kriteria Dimensi", "Criteria Dimensions"), value: 6, icon: SlidersIcon },
         ].map((c) => (
-          <Card key={c.label} className="rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
+          <Card key={c.label} className="rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800">
-                <c.icon className="h-5 w-5 text-stone-600 dark:text-stone-300" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                <c.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
-                <div className="text-lg font-bold text-stone-900 dark:text-stone-50">{c.value}</div>
-                <div className="text-[11px] font-medium uppercase tracking-wide text-stone-500">{c.label}</div>
+                <div className="text-lg font-bold text-slate-900 dark:text-slate-50">{c.value}</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{c.label}</div>
               </div>
             </CardContent>
           </Card>
@@ -205,7 +205,7 @@ export function ApprovalStructureView() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="w-56">
           <Select value={docFilter} onValueChange={setDocFilter}>
-            <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("Semua Jenis Dokumen", "All Document Types")}</SelectItem>
               {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
@@ -298,19 +298,19 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
   if (s.positionLevel) criteria.push({ label: t("Level: {c} — {v}", "Level: {c} — {v}", { c: s.positionLevel.code, v: s.positionLevel.name }), icon: TrendingUp });
 
   return (
-    <Card className={cn("rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900", !s.active && "opacity-60")}>
+    <Card className={cn("rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900", !s.active && "opacity-60")}>
       <CardContent className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{s.code}</span>
-              <span className="font-semibold text-stone-900 dark:text-stone-50">{s.name}</span>
+              <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{s.code}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">{s.name}</span>
               <Badge className="rounded-lg bg-brand/10 text-brand-deep hover:bg-brand/10 dark:bg-brand/90 dark:text-brand/75">{t(docTypeLabel(s.docType), docTypeLabelEn(s.docType))}</Badge>
               {!s.active && <Badge variant="secondary" className="rounded-lg">{t("Nonaktif")}</Badge>}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
-                <Badge variant="outline" className="gap-1 rounded-lg border-stone-300 text-[11px] text-stone-600 dark:border-stone-600 dark:text-stone-300">
+                <Badge variant="outline" className="gap-1 rounded-lg border-slate-300 text-[11px] text-slate-600 dark:border-slate-600 dark:text-slate-300">
                   <SlidersIcon className="h-3 w-3" /> {t("Berlaku untuk semua karyawan", "Applies to all employees")}
                 </Badge>
               ) : criteria.map((c, i) => (
@@ -343,10 +343,10 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
                 "flex max-w-64 flex-col gap-0.5 rounded-xl border px-3 py-2",
                 l.minAmount != null || l.maxAmount != null
                   ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
-                  : "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60",
+                  : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60",
               )}>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Jenjang {n}", "Tier {n}", { n: l.levelNo })}</span>
-                <span className="truncate text-xs font-semibold text-stone-800 dark:text-stone-100">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Jenjang {n}", "Tier {n}", { n: l.levelNo })}</span>
+                <span className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
                   {approverTargetLabel(l, t)}
                 </span>
                 {(l.minAmount != null || l.maxAmount != null) && (
@@ -354,9 +354,9 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
                     {tierLabel(l.minAmount, l.maxAmount)}
                   </span>
                 )}
-                {l.note && <span className="truncate text-[10px] text-stone-400">{l.note}</span>}
+                {l.note && <span className="truncate text-[10px] text-slate-400">{l.note}</span>}
               </div>
-              {i < s.levels.length - 1 && <ArrowDown className="mx-1 h-3.5 w-3.5 rotate-[-90deg] text-stone-300" />}
+              {i < s.levels.length - 1 && <ArrowDown className="mx-1 h-3.5 w-3.5 rotate-[-90deg] text-slate-300" />}
             </div>
           ))}
         </div>
@@ -509,13 +509,13 @@ function StructureFormDialog(p: StructureFormDialogProps) {
     const Icon = icon;
     return (
       <div className="space-y-1.5">
-        <Label className="flex items-center gap-1.5 text-xs text-stone-600 dark:text-stone-300">
+        <Label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
           <Icon className="h-3.5 w-3.5" /> {label}
         </Label>
         <Select value={form[field] || "all"} onValueChange={(v) => set(field, v === "all" ? "" : v)}>
-          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Semua")} /></SelectTrigger>
+          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue placeholder={t("Semua")} /></SelectTrigger>
           <SelectContent className="max-h-64">
-            <SelectItem value="all"><span className="text-stone-500">{t("Semua (tanpa batasan)", "All (no restriction)")}</span></SelectItem>
+            <SelectItem value="all"><span className="text-slate-500">{t("Semua (tanpa batasan)", "All (no restriction)")}</span></SelectItem>
             {items.map((it) => <SelectItem key={it.id} value={it.id}>{it.label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -554,27 +554,27 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                 }}
                 disabled={!!s}
               >
-                <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-stone-200 px-4 py-2.5 dark:border-stone-700">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5 dark:border-slate-700">
               <div>
                 <Label className="text-xs">{t("Struktur Aktif", "Structure Active")}</Label>
-                <p className="text-[11px] text-stone-500">{t("Nonaktif = pengajuan baru memakai struktur lain / fallback", "Inactive = new requests use another structure / the fallback")}</p>
+                <p className="text-[11px] text-slate-500">{t("Nonaktif = pengajuan baru memakai struktur lain / fallback", "Inactive = new requests use another structure / the fallback")}</p>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} />
             </div>
           </div>
 
           {/* kriteria */}
-          <div className="rounded-2xl border border-stone-200 p-4 dark:border-stone-700">
+          <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
             <div className="mb-3 flex items-center gap-2">
-              <SlidersIcon className="h-4 w-4 text-stone-500" />
-              <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">{t("Berlaku Untuk (Kriteria Pemohon)", "Applies To (Applicant Criteria)")}</span>
-              <Badge variant="outline" className="rounded-lg text-[10px] text-stone-500">{t("kosongkan = semua", "leave empty = all")}</Badge>
+              <SlidersIcon className="h-4 w-4 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t("Berlaku Untuk (Kriteria Pemohon)", "Applies To (Applicant Criteria)")}</span>
+              <Badge variant="outline" className="rounded-lg text-[10px] text-slate-500">{t("kosongkan = semua", "leave empty = all")}</Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {criteriaSelect("Company Office", Building2, "companyOfficeId", p.offices.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}` })))}
@@ -587,11 +587,11 @@ function StructureFormDialog(p: StructureFormDialogProps) {
           </div>
 
           {/* jenjang */}
-          <div className="rounded-2xl border border-stone-200 p-4 dark:border-stone-700">
+          <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-stone-500" />
-                <span className="text-sm font-semibold text-stone-800 dark:text-stone-100">{t("Jenjang Persetujuan (berurutan)", "Approval Tiers (sequential)")}</span>
+                <GitBranch className="h-4 w-4 text-slate-500" />
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t("Jenjang Persetujuan (berurutan)", "Approval Tiers (sequential)")}</span>
               </div>
               <Button type="button" size="sm" variant="outline" onClick={() => setLevelDrafts((ls) => [...ls, emptyLevel()])} className="h-8 gap-1.5 rounded-lg">
                 <Plus className="h-3.5 w-3.5" /> {t("Jenjang", "Tier")}
@@ -604,12 +604,12 @@ function StructureFormDialog(p: StructureFormDialogProps) {
             )}
             <div className="space-y-2.5">
               {levelDrafts.map((l, i) => (
-                <div key={i} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 dark:border-stone-700 dark:bg-stone-800/40">
+                <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-[11px] font-bold text-white dark:bg-stone-200 dark:text-stone-900">{i + 1}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-[11px] font-bold text-white dark:bg-slate-200 dark:text-slate-900">{i + 1}</span>
                     <div className="w-56">
                       <Select value={l.approverType} onValueChange={(v) => setLevel(i, { approverType: v })}>
-                        <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {APPROVER_TYPES.map((a) => <SelectItem key={a.value} value={a.value}>{t(a.label, a.en)}</SelectItem>)}
                         </SelectContent>
@@ -624,9 +624,9 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {l.approverType === "POSISI" && (
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] text-stone-500">{t("Posisi Approver", "Approver Position")}</Label>
+                        <Label className="text-[11px] text-slate-500">{t("Posisi Approver", "Approver Position")}</Label>
                         <Select value={l.approverPositionId || "none"} onValueChange={(v) => setLevel(i, { approverPositionId: v === "none" ? "" : v })}>
-                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih posisi", "Select a position")} /></SelectTrigger>
+                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih posisi", "Select a position")} /></SelectTrigger>
                           <SelectContent className="max-h-64">
                             <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                             {p.positions.map((o) => <SelectItem key={o.id} value={o.id}>{o.code} — {o.title}</SelectItem>)}
@@ -636,9 +636,9 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                     )}
                     {l.approverType === "KARYAWAN" && (
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] text-stone-500">{t("Karyawan Approver", "Approver Employee")}</Label>
+                        <Label className="text-[11px] text-slate-500">{t("Karyawan Approver", "Approver Employee")}</Label>
                         <Select value={l.approverEmployeeId || "none"} onValueChange={(v) => setLevel(i, { approverEmployeeId: v === "none" ? "" : v })}>
-                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
+                          <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
                           <SelectContent className="max-h-64">
                             <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                             {p.employees.map((o) => <SelectItem key={o.id} value={o.id}>{o.employeeNo} — {o.fullName}{o.position?.title ? ` (${o.position.title})` : ""}</SelectItem>)}
@@ -648,26 +648,26 @@ function StructureFormDialog(p: StructureFormDialogProps) {
                     )}
                     {l.approverType === "ATASAN_BERJENJANG" && (
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-stone-500">{t("Naik berapa tingkat dari pemohon", "How many levels above the requester")}</Label>
+                        <Label className="text-[11px] text-slate-500">{t("Naik berapa tingkat dari pemohon", "How many levels above the requester")}</Label>
                         <Input type="number" min={1} value={l.superiorLevel} onChange={(e) => setLevel(i, { superiorLevel: e.target.value })} className="h-9 rounded-lg" />
                       </div>
                     )}
                     {amountDoc && (
                       <>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-stone-500">{t("Nominal Minimum (opsional)", "Minimum Amount (optional)")}</Label>
+                          <Label className="text-[11px] text-slate-500">{t("Nominal Minimum (opsional)", "Minimum Amount (optional)")}</Label>
                           <Input type="number" min={0} placeholder={t("mis. 10000000", "e.g. 10000000")} value={l.minAmount} onChange={(e) => setLevel(i, { minAmount: e.target.value })} className="h-9 rounded-lg" />
-                          {l.minAmount && <p className="text-[10px] text-stone-400">{fmtIDR(Number(l.minAmount))}</p>}
+                          {l.minAmount && <p className="text-[10px] text-slate-400">{fmtIDR(Number(l.minAmount))}</p>}
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-stone-500">{t("Nominal Maksimum (opsional)", "Maximum Amount (optional)")}</Label>
+                          <Label className="text-[11px] text-slate-500">{t("Nominal Maksimum (opsional)", "Maximum Amount (optional)")}</Label>
                           <Input type="number" min={0} placeholder={t("kosong = tanpa batas", "empty = no limit")} value={l.maxAmount} onChange={(e) => setLevel(i, { maxAmount: e.target.value })} className="h-9 rounded-lg" />
-                          {l.maxAmount && <p className="text-[10px] text-stone-400">{fmtIDR(Number(l.maxAmount))}</p>}
+                          {l.maxAmount && <p className="text-[10px] text-slate-400">{fmtIDR(Number(l.maxAmount))}</p>}
                         </div>
                       </>
                     )}
                     <div className="space-y-1 sm:col-span-2">
-                      <Label className="text-[11px] text-stone-500">{t("Catatan (opsional)", "Note (optional)")}</Label>
+                      <Label className="text-[11px] text-slate-500">{t("Catatan (opsional)", "Note (optional)")}</Label>
                       <Textarea rows={1} value={l.note} onChange={(e) => setLevel(i, { note: e.target.value })} placeholder={t("mis. ≥ Rp 10 jt: HR Manager", "e.g. ≥ Rp 10M: HR Manager")} className="min-h-0 rounded-lg py-1.5 text-xs" />
                     </div>
                   </div>
@@ -734,7 +734,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
           <div className="space-y-1.5 sm:col-span-2">
             <Label className="text-xs">{t("Karyawan Pemohon", "Requesting Employee")}</Label>
             <Select value={employeeId || "none"} onValueChange={(v) => setEmployeeId(v === "none" ? "" : v)}>
-              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
+              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih karyawan", "Select an employee")} /></SelectTrigger>
               <SelectContent className="max-h-64">
                 <SelectItem value="none">{t("— pilih —", "— select —")}</SelectItem>
                 {employees.map((o) => <SelectItem key={o.id} value={o.id}>{o.employeeNo} — {o.fullName}</SelectItem>)}
@@ -744,7 +744,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
           <div className="space-y-1.5">
             <Label className="text-xs">{t("Jenis Dokumen", "Document Type")}</Label>
             <Select value={docType} onValueChange={setDocType}>
-              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 rounded-lg bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {DOC_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{t(d.label, d.en)}</SelectItem>)}
               </SelectContent>
@@ -753,7 +753,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
           <div className="space-y-1.5">
             <Label className="text-xs">{t("Nominal {s}", "Amount {s}", { s: amountDoc ? t("(besaran / jumlah)", "(benefit / loan value)") : t("(tidak dipakai)", "(not used)") })}</Label>
             <Input type="number" min={0} placeholder={t("mis. 25000000", "e.g. 25000000")} value={amount} disabled={!amountDoc} onChange={(e) => setAmount(e.target.value)} className="h-9 rounded-lg" />
-            {amount && amountDoc && <p className="text-[10px] text-stone-400">{fmtIDR(Number(amount))}</p>}
+            {amount && amountDoc && <p className="text-[10px] text-slate-400">{fmtIDR(Number(amount))}</p>}
           </div>
         </div>
 
@@ -762,9 +762,9 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
         </Button>
 
         {preview && (
-          <div className="space-y-2 rounded-2xl border border-stone-200 p-4 dark:border-stone-700">
+          <div className="space-y-2 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t("Struktur Cocok", "Matching Structure")}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("Struktur Cocok", "Matching Structure")}</span>
               {preview.fallback ? (
                 <Badge className="rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t("Fallback — atasan langsung / Admin-HR", "Fallback — direct superior / Admin-HR")}</Badge>
               ) : (
@@ -777,12 +777,12 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                   "flex items-center gap-3 rounded-xl border px-3 py-2",
                   st.minAmount != null || st.maxAmount != null
                     ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
-                    : "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-800/60",
+                    : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60",
                 )}>
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-[11px] font-bold text-white dark:bg-stone-200 dark:text-stone-900">{st.levelNo}</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-[11px] font-bold text-white dark:bg-slate-200 dark:text-slate-900">{st.levelNo}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-semibold text-stone-800 dark:text-stone-100">{st.approverLabel}</div>
-                    <div className="text-[10px] text-stone-400">{t(APPROVER_TYPE_LABEL[st.approverType] ?? st.approverType, APPROVER_TYPE_LABEL_EN[st.approverType] ?? st.approverType)}</div>
+                    <div className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{st.approverLabel}</div>
+                    <div className="text-[10px] text-slate-400">{t(APPROVER_TYPE_LABEL[st.approverType] ?? st.approverType, APPROVER_TYPE_LABEL_EN[st.approverType] ?? st.approverType)}</div>
                   </div>
                   {(st.minAmount != null || st.maxAmount != null) && (
                     <Badge variant="outline" className="shrink-0 rounded-lg border-brand/25 text-[10px] text-brand-deep dark:border-brand/70 dark:text-brand/75">
@@ -792,7 +792,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-stone-500">
+            <p className="text-[11px] text-slate-500">
               {t("{n} jenjang akan menunggu keputusan secara berurutan — pengajuan berpindah ke jenjang berikutnya setiap persetujuan.", "{n} tiers will await a decision sequentially — the request moves to the next tier after each approval.", { n: preview.steps.length })}
             </p>
           </div>

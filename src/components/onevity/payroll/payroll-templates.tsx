@@ -50,7 +50,7 @@ export function PayrollTemplatesPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {(data?.templates ?? []).map((t) => (
-            <Card key={t.id} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card key={t.id} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -58,13 +58,13 @@ export function PayrollTemplatesPage() {
                       <Badge variant="outline" className="font-mono text-[10px] font-bold">{t.code}</Badge>
                       <p className="truncate text-[15px] font-bold">{t.name}</p>
                     </div>
-                    {t.description && <p className="mt-0.5 text-[11px] text-stone-400">{t.description}</p>}
+                    {t.description && <p className="mt-0.5 text-[11px] text-slate-400">{t.description}</p>}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <button onClick={() => setDialog({ open: true, tpl: t })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                    <button onClick={() => setDialog({ open: true, tpl: t })} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => remove(t)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
+                    <button onClick={() => remove(t)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -76,16 +76,16 @@ export function PayrollTemplatesPage() {
                       "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
                       it.wageComponent.type === "Earning" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400" :
                       it.wageComponent.type === "Deduction" ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400" :
-                      "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400"
+                      "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
                     )}>
                       {it.wageComponent.name}
                     </span>
                   ))}
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 border-t border-dashed border-stone-200 pt-3 dark:border-stone-800">
-                  <Users className="h-3.5 w-3.5 text-stone-400" />
-                  <p className="text-[11px] font-bold text-stone-500">{t._count.profiles} karyawan memakai template ini</p>
+                <div className="mt-3 flex items-center gap-2 border-t border-dashed border-slate-200 pt-3 dark:border-slate-800">
+                  <Users className="h-3.5 w-3.5 text-slate-400" />
+                  <p className="text-[11px] font-bold text-slate-500">{t._count.profiles} karyawan memakai template ini</p>
                 </div>
               </CardContent>
             </Card>
@@ -168,13 +168,13 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
                 <SelectContent />
               </Select>
             </div>
-            <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+            <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               {Object.entries(groups).map(([gname, comps]) => (
                 <div key={gname}>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">{gname}</p>
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{gname}</p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
                     {comps.map((c) => (
-                      <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                      <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <Checkbox checked={selected.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
                         <span className="truncate text-xs font-medium">{c.name}</span>
                       </label>
@@ -182,10 +182,10 @@ function TemplateDialog({ open, tpl, onClose }: { open: boolean; tpl: TemplateRo
                   </div>
                 </div>
               ))}
-              {compsApi.loading && <p className="py-3 text-center text-xs text-stone-400">Memuat komponen…</p>}
+              {compsApi.loading && <p className="py-3 text-center text-xs text-slate-400">Memuat komponen…</p>}
             </div>
           </div>
-          <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+          <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
             Komponen <b>PPH21</b> otomatis dihitung engine saat run diproses (tidak perlu dimasukkan). Angsuran pinjaman juga otomatis masuk bila jatuh tempo.
           </p>
         </div>

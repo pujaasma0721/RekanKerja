@@ -48,10 +48,10 @@ const MANDIRI = "__mandiri__";
 function ErrorRetry({ message, onRetry }: { message: string | null; onRetry: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-10 text-center dark:border-stone-700 dark:bg-stone-900/30">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
       <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
-      <p className="text-[13px] font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat klaim", "Failed to load claims")}</p>
-      <p className="max-w-sm break-words text-xs text-stone-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+      <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat klaim", "Failed to load claims")}</p>
+      <p className="max-w-sm break-words text-xs text-slate-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
       <Button onClick={onRetry} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
         <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
       </Button>
@@ -74,8 +74,8 @@ function FormError({ message }: { message: string | null }) {
 function InfoLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-0.5">
-      <span className="text-[11.5px] font-semibold text-stone-500 dark:text-stone-400">{label}</span>
-      <span className="text-right text-[12px] font-bold tabular-nums text-stone-800 dark:text-stone-100">{value}</span>
+      <span className="text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-right text-[12px] font-bold tabular-nums text-slate-800 dark:text-slate-100">{value}</span>
     </div>
   );
 }
@@ -204,7 +204,7 @@ function MedicalClaimDialog({
 
         <div className="space-y-4">
           {types === null && !loadError ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-stone-500">
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500">
               <Loader2 className="h-4 w-4 animate-spin" /> {t("Memuat jenis benefit & saldo…", "Loading benefit types & balance…")}
             </div>
           ) : loadError && !types ? (
@@ -241,7 +241,7 @@ function MedicalClaimDialog({
 
               {/* kartu saldo jenis terpilih */}
               {selected && (
-                <div className="rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                   <InfoLine label={t("Plafon tahun ini", "This year's limit")} value={selected.limitRule === "UNLIMITED" ? "∞" : fmtIDR(selected.benefitAmount)} />
                   <InfoLine label={t("Sisa untuk klaim", "Available to claim")} value={selected.limitRule === "UNLIMITED" ? "∞" : fmtIDR(selected.remainingForClaim)} />
                   {selected.pendingReserved > 0 && (
@@ -264,7 +264,7 @@ function MedicalClaimDialog({
 
               {/* klaim dependent */}
               {selected?.dependentEnabled && (
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
                   <Checkbox
                     checked={forDependent}
                     onCheckedChange={(v) => setForDependent(v === true)}
@@ -272,7 +272,7 @@ function MedicalClaimDialog({
                   />
                   <span className="text-[12px] leading-relaxed">
                     <span className="font-bold">{t("Klaim untuk keluarga (dependent)", "Claim for a family member (dependent)")}</span>
-                    <span className="block text-stone-500">
+                    <span className="block text-slate-500">
                       {selected.depRemaining > 0
                         ? t("Memotong plafon dependent terpisah — sisa {n}", "Deducts from a separate dependent pool — {n} left", { n: fmtIDR(selected.depRemaining) })
                         : t("Memotong plafon bersama karyawan", "Deducts from the shared employee pool")}
@@ -284,9 +284,9 @@ function MedicalClaimDialog({
               {/* baris perawatan */}
               <div className="space-y-2.5">
                 {lines.map((l, i) => (
-                  <div key={i} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+                  <div key={i} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
                         {t("Perawatan #{n}", "Treatment #{n}", { n: i + 1 })}
                       </p>
                       {lines.length > 1 && (
@@ -301,7 +301,7 @@ function MedicalClaimDialog({
                     </div>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] font-semibold text-stone-500">
+                        <Label className="text-[11px] font-semibold text-slate-500">
                           {forDependent ? t("Nama keluarga yang dirawat *", "Treated family member's name *") : t("Nama yang dirawat *", "Treated person's name *")}
                         </Label>
                         <Input
@@ -312,19 +312,19 @@ function MedicalClaimDialog({
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-stone-500">{t("Diagnosa / perawatan", "Diagnosis / treatment")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500">{t("Diagnosa / perawatan", "Diagnosis / treatment")}</Label>
                         <Input value={l.treatment} onChange={(e) => setLine(i, { treatment: e.target.value })} placeholder={t("mis. Scaling & tambal gigi", "e.g. Scaling & filling")} className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-stone-500">{t("Tanggal perawatan", "Treatment date")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500">{t("Tanggal perawatan", "Treatment date")}</Label>
                         <Input type="date" max={todayISO()} value={l.treatmentDate} onChange={(e) => setLine(i, { treatmentDate: e.target.value })} className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-stone-500">{t("No. kwitansi", "Receipt no.")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500">{t("No. kwitansi", "Receipt no.")}</Label>
                         <Input value={l.receiptNo} onChange={(e) => setLine(i, { receiptNo: e.target.value })} placeholder="RSK-0001" className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-stone-500">{t("Dokter / RS / klinik", "Physician / hospital")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500">{t("Dokter / RS / klinik", "Physician / hospital")}</Label>
                         <Input value={[l.physician, l.hospital].filter(Boolean).join(" — ")}
                           onChange={(e) => {
                             const [p, h] = e.target.value.split(" — ");
@@ -335,7 +335,7 @@ function MedicalClaimDialog({
                         />
                       </div>
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] font-semibold text-stone-500">{t("Nilai tagihan (Rp) *", "Billed amount (Rp) *")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500">{t("Nilai tagihan (Rp) *", "Billed amount (Rp) *")}</Label>
                         <Input type="number" min={0} step="any" inputMode="numeric" value={l.billAmount} onChange={(e) => setLine(i, { billAmount: e.target.value })} placeholder="450000" className="rounded-lg tabular-nums" />
                       </div>
                     </div>
@@ -371,8 +371,8 @@ function MedicalClaimDialog({
         </div>
 
         <DialogFooter className="items-center gap-3">
-          <div className="mr-auto text-[12px] font-bold tabular-nums text-stone-600 dark:text-stone-300">
-            {t("Total tagihan:", "Total billed:")} <span className="text-stone-900 dark:text-white">{fmtIDR(totalBill)}</span>
+          <div className="mr-auto text-[12px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+            {t("Total tagihan:", "Total billed:")} <span className="text-slate-900 dark:text-white">{fmtIDR(totalBill)}</span>
           </div>
           <Button variant="outline" className="rounded-xl font-bold" onClick={() => onOpenChange(false)} disabled={busy}>
             {t("Batal", "Cancel")}
@@ -501,7 +501,7 @@ function TravelClaimDialog({
 
         <div className="space-y-4">
           {requests === null && !loadError ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-stone-500">
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500">
               <Loader2 className="h-4 w-4 animate-spin" /> {t("Memuat pengajuan dinas & jenis biaya…", "Loading trips & expense types…")}
             </div>
           ) : loadError && !requests ? (
@@ -553,9 +553,9 @@ function TravelClaimDialog({
                 {lines.map((l, i) => {
                   const et = expenseTypes.find((x) => x.code === l.expenseCode);
                   return (
-                    <div key={i} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+                    <div key={i} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
                           {t("Biaya #{n}", "Expense #{n}", { n: i + 1 })}
                         </p>
                         {lines.length > 1 && (
@@ -570,7 +570,7 @@ function TravelClaimDialog({
                       </div>
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                         <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[11px] font-semibold text-stone-500">{t("Jenis biaya *", "Expense type *")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Jenis biaya *", "Expense type *")}</Label>
                           <Select value={l.expenseCode} onValueChange={(v) => setLine(i, { expenseCode: v })}>
                             <SelectTrigger className="rounded-lg"><SelectValue placeholder={t("Pilih jenis…", "Pick a type…")} /></SelectTrigger>
                             <SelectContent>
@@ -585,7 +585,7 @@ function TravelClaimDialog({
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold text-stone-500">{t("Tanggal", "Date")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Tanggal", "Date")}</Label>
                           <Input
                             type="date"
                             value={l.expenseDate}
@@ -596,11 +596,11 @@ function TravelClaimDialog({
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold text-stone-500">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
                           <Input type="number" min={0} step="any" inputMode="numeric" value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} placeholder="350000" className="rounded-lg tabular-nums" />
                         </div>
                         <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[11px] font-semibold text-stone-500">{t("Keterangan", "Description")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Keterangan", "Description")}</Label>
                           <Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder={t("mis. Hotel 2 malam", "e.g. Hotel, 2 nights")} className="rounded-lg" />
                         </div>
                       </div>
@@ -623,13 +623,13 @@ function TravelClaimDialog({
               </div>
 
               {/* penyesuaian lanjutan */}
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-stone-300 p-3 dark:border-stone-700 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-slate-300 p-3 dark:border-slate-700 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-stone-500">{t("Dibayar pihak lain (Rp)", "Paid by third party (Rp)")}</Label>
+                  <Label className="text-[11px] font-semibold text-slate-500">{t("Dibayar pihak lain (Rp)", "Paid by third party (Rp)")}</Label>
                   <Input type="number" min={0} step="any" value={otherCompanyExp} onChange={(e) => setOtherCompanyExp(e.target.value)} className="rounded-lg tabular-nums" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-stone-500">{t("Rugi kurs (Rp)", "Exchange loss (Rp)")}</Label>
+                  <Label className="text-[11px] font-semibold text-slate-500">{t("Rugi kurs (Rp)", "Exchange loss (Rp)")}</Label>
                   <Input type="number" min={0} step="any" value={exchangeLoss} onChange={(e) => setExchangeLoss(e.target.value)} className="rounded-lg tabular-nums" />
                 </div>
               </div>
@@ -645,8 +645,8 @@ function TravelClaimDialog({
         </div>
 
         <DialogFooter className="items-center gap-3">
-          <div className="mr-auto text-[12px] font-bold tabular-nums text-stone-600 dark:text-stone-300">
-            {t("Total rincian:", "Expense total:")} <span className="text-stone-900 dark:text-white">{fmtIDR(total)}</span>
+          <div className="mr-auto text-[12px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+            {t("Total rincian:", "Expense total:")} <span className="text-slate-900 dark:text-white">{fmtIDR(total)}</span>
           </div>
           <Button variant="outline" className="rounded-xl font-bold" onClick={() => onOpenChange(false)} disabled={busy}>
             {t("Batal", "Cancel")}
@@ -696,10 +696,10 @@ export function EssClaims() {
         </TabsList>
 
         <TabsContent value="medical">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="px-0 pb-2 pt-2">
               <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-2">
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-slate-500">
                   {t("Reimbursement medis Anda — plafon per jenis diaudit server.", "Your medical reimbursements — per-type limits are audited server-side.")}
                 </p>
                 <Button onClick={() => setMedDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-rose-600 font-bold text-white hover:bg-rose-700">
@@ -733,13 +733,13 @@ export function EssClaims() {
                         const date = pickStr(c, ["submittedAt", "date", "createdAt", "dateLabel", "tanggal", "requestDate"]);
                         return (
                           <TableRow key={docNo + i}>
-                            <TableCell className="font-mono text-[12px] font-semibold text-stone-600 dark:text-stone-300">{docNo}</TableCell>
+                            <TableCell className="font-mono text-[12px] font-semibold text-slate-600 dark:text-slate-300">{docNo}</TableCell>
                             <TableCell>
-                              <span className="text-[12.5px] font-medium text-stone-700 dark:text-stone-200">
+                              <span className="text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
                                 {pickStr(c, ["typeName", "type", "benefitType", "jenis"]) ?? "—"}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-stone-700 dark:text-stone-200">
+                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-slate-700 dark:text-slate-200">
                               {fmtIDR(pickNum(c, ["bill", "claimAmount", "amount", "billed", "tagihan", "total"]))}
                             </TableCell>
                             <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-brand-deep dark:text-brand/85">
@@ -748,7 +748,7 @@ export function EssClaims() {
                             <TableCell>
                               <StatusPill status={pickStr(c, ["status"]) ?? "—"} />
                             </TableCell>
-                            <TableCell className="text-right text-[12px] text-stone-400">{date ? fmtDate(date) : "—"}</TableCell>
+                            <TableCell className="text-right text-[12px] text-slate-400">{date ? fmtDate(date) : "—"}</TableCell>
                           </TableRow>
                         );
                       })}
@@ -761,10 +761,10 @@ export function EssClaims() {
         </TabsContent>
 
         <TabsContent value="travel">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="px-0 pb-2 pt-2">
               <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-2">
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-slate-500">
                   {t("Settlement biaya perjalanan dinas vs uang muka.", "Business travel expense settlement vs advance.")}
                 </p>
                 <Button onClick={() => setTrDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-sky-700 font-bold text-white hover:bg-sky-800">
@@ -796,16 +796,16 @@ export function EssClaims() {
                         const docNo = pickStr(c, ["docNo", "no", "documentNo", "doc"]) ?? `#${i + 1}`;
                         return (
                           <TableRow key={docNo + i}>
-                            <TableCell className="font-mono text-[12px] font-semibold text-stone-600 dark:text-stone-300">{docNo}</TableCell>
+                            <TableCell className="font-mono text-[12px] font-semibold text-slate-600 dark:text-slate-300">{docNo}</TableCell>
                             <TableCell>
-                              <span className="text-[12.5px] font-medium text-stone-700 dark:text-stone-200">
+                              <span className="text-[12.5px] font-medium text-slate-700 dark:text-slate-200">
                                 {pickStr(c, ["purpose", "destination", "tujuan", "destinationCity", "city", "destinationLabel"]) ?? "—"}
                               </span>
                             </TableCell>
                             <TableCell>
                               <StatusPill status={pickStr(c, ["status"]) ?? "—"} />
                             </TableCell>
-                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-stone-700 dark:text-stone-200">
+                            <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-slate-700 dark:text-slate-200">
                               {fmtIDR(pickNum(c, ["advance", "advanceAmount", "uangMuka"]))}
                             </TableCell>
                             <TableCell className="text-right text-[12.5px] font-bold tabular-nums text-amber-700 dark:text-amber-400">

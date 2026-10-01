@@ -250,36 +250,36 @@ const PLAIN_BADGES: Record<string, number> = { "hr:inbox": 2, "payroll:runs": 2,
 // ============ area konten palsu ============
 function ContentArea({ hex, live, modLabel }: { hex: string; live: boolean; modLabel: string }) {
   return (
-    <div className="relative hidden min-w-0 flex-1 flex-col overflow-y-auto bg-stone-50 p-6 md:flex">
-      <span className="absolute right-4 top-4 z-10 rounded-full border border-stone-200 bg-white px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">
+    <div className="relative hidden min-w-0 flex-1 flex-col overflow-y-auto bg-slate-50 p-6 md:flex">
+      <span className="absolute right-4 top-4 z-10 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
         Area konten · ilustrasi
       </span>
       <div className="pt-6">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: hex }}>{modLabel}</p>
-        <h2 className="mt-1 text-xl font-extrabold tracking-tight text-stone-900">Selamat pagi, Tri Handayani</h2>
-        <p className="mt-1 text-xs text-stone-500">Ringkasan operasional hari ini — Jumat, 4 September 2026</p>
+        <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Selamat pagi, Tri Handayani</h2>
+        <p className="mt-1 text-xs text-slate-500">Ringkasan operasional hari ini — Jumat, 4 September 2026</p>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Karyawan Aktif</p>
-          <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900">44</p>
-          <p className="text-[10px] text-stone-500">+2 onboarding bulan ini</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Karyawan Aktif</p>
+          <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-slate-900">44</p>
+          <p className="text-[10px] text-slate-500">+2 onboarding bulan ini</p>
         </div>
         <div className="rounded-xl border p-4" style={{ borderColor: hexA(hex, 0.35), background: hexA(hex, 0.05) }}>
           <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: hex }}>Menunggu Persetujuan</p>
           <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: hex }}>2</p>
-          <p className="text-[10px] text-stone-500">cuti 1 · klaim medis 1</p>
+          <p className="text-[10px] text-slate-500">cuti 1 · klaim medis 1</p>
         </div>
         <div className="rounded-xl border p-4" style={{ borderColor: live ? hexA(hex, 0.35) : "rgb(231 229 228)", background: live ? hexA(hex, 0.05) : "white" }}>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Siklus Gajian</p>
-          <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900">D-3</p>
-          <p className="text-[10px] text-stone-500">{live ? "payroll Sep belum dikonfirmasi" : "payroll Sep draft"}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Siklus Gajian</p>
+          <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-slate-900">D-3</p>
+          <p className="text-[10px] text-slate-500">{live ? "payroll Sep belum dikonfirmasi" : "payroll Sep draft"}</p>
         </div>
       </div>
-      <div className="mt-5 rounded-xl border border-stone-200 bg-white p-4">
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold text-stone-700">Tren kehadiran mingguan</p>
-          <p className="text-[10px] text-stone-400">Minggu 31–36</p>
+          <p className="text-[11px] font-bold text-slate-700">Tren kehadiran mingguan</p>
+          <p className="text-[10px] text-slate-400">Minggu 31–36</p>
         </div>
         <div className="mt-3 flex h-24 items-end gap-1.5">
           {[42, 58, 47, 72, 64, 84, 70, 92, 76, 68, 90, 96].map((h, i) => (
@@ -300,13 +300,13 @@ function ContentArea({ hex, live, modLabel }: { hex: string; live: boolean; modL
           ["Siti Rahma", "Klaim medis · Kacamata", "Menunggu"],
           ["Budi Santoso", "Lembur · 3 jam (24 Agu)", "Disetujui"],
         ].map(([n, d, s]) => (
-          <div key={n} className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-[10px] font-extrabold text-stone-500">
+          <div key={n} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-extrabold text-slate-500">
               {n.split(" ").map((w) => w[0]).join("")}
             </span>
-            <span className="text-xs font-semibold text-stone-700">{n}</span>
-            <span className="truncate text-xs text-stone-400">{d}</span>
-            <span className="ml-auto shrink-0 rounded-full border border-stone-200 px-2 py-0.5 text-[9px] font-bold text-stone-500">{s}</span>
+            <span className="text-xs font-semibold text-slate-700">{n}</span>
+            <span className="truncate text-xs text-slate-400">{d}</span>
+            <span className="ml-auto shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[9px] font-bold text-slate-500">{s}</span>
           </div>
         ))}
       </div>
@@ -326,7 +326,7 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
 
   return (
     <div className="flex h-full min-w-0 flex-1">
-      <aside className="flex w-[264px] shrink-0 flex-col bg-[#232228] text-stone-300">
+      <aside className="flex w-[264px] shrink-0 flex-col bg-[#232228] text-slate-300">
         {/* brand */}
         <div className="flex items-center gap-3 px-5 pb-4 pt-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `linear-gradient(135deg, ${accent}, ${hexA(accent, 0.7)})`, boxShadow: `0 10px 24px -8px ${hexA(accent, 0.55)}` }}>
@@ -339,7 +339,7 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
             <p className="text-[17px] font-extrabold leading-tight tracking-tight text-white">
               One<span style={{ color: accent }}>Vity</span>
             </p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">HR Suite</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">HR Suite</p>
           </div>
         </div>
         {/* kartu perusahaan */}
@@ -347,8 +347,8 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
           <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-[11px] font-extrabold text-white">MII</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-stone-100">MII</p>
-              <p className="truncate text-[10px] text-stone-500">PT Mitra Industri Internasional</p>
+              <p className="truncate text-xs font-bold text-slate-100">MII</p>
+              <p className="truncate text-[10px] text-slate-500">PT Mitra Industri Internasional</p>
             </div>
             <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-brand/85">Aktif</span>
           </div>
@@ -366,10 +366,10 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
               <mod.icon className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">Modul Aktif</p>
-              <p className="truncate text-[13px] font-bold text-stone-50">{mod.label}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Modul Aktif</p>
+              <p className="truncate text-[13px] font-bold text-slate-50">{mod.label}</p>
             </div>
-            <ChevronDown className={cn("h-4 w-4 shrink-0 text-stone-400 transition-transform", popover && "rotate-180")} />
+            <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", popover && "rotate-180")} />
           </button>
           <AnimatePresence>
             {popover && (
@@ -391,7 +391,7 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: active ? (colorIdentity ? m.hex : EMERALD) : "rgba(255,255,255,0.08)", color: active ? "white" : "#a8a29e" }}>
                         <m.icon className="h-3.5 w-3.5" />
                       </div>
-                      <span className={cn("flex-1 text-[13px] font-semibold", active ? "text-stone-50" : "text-stone-300")}>{m.label}</span>
+                      <span className={cn("flex-1 text-[13px] font-semibold", active ? "text-slate-50" : "text-slate-300")}>{m.label}</span>
                       {active && <Check className="h-4 w-4" style={{ color: colorIdentity ? m.hex : EMERALD }} />}
                     </button>
                   );
@@ -411,7 +411,7 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
             {groupsOf(activeMod).map((g, gi) => (
               <motion.div key={`${activeMod}-${gi}-${g.label ?? "root"}`} className="pb-1" variants={{ hidden: { opacity: 0, x: -6 }, show: { opacity: 1, x: 0, transition: { duration: 0.18 } } }}>
                 {g.label && (
-                  <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">{g.label}</p>
+                  <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{g.label}</p>
                 )}
                 {g.items.map((item) => {
                   const active = sel[activeMod] === item.id && (g.label !== undefined || item.id === firstItemOf(activeMod));
@@ -432,8 +432,8 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <item.icon className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !active && "text-stone-500 group-hover:text-stone-300 group-hover:translate-x-0.5")} style={active ? { color: accent } : undefined} />
-                      <span className={cn("flex-1 truncate text-[12.5px] font-medium", active ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{item.label}</span>
+                      <item.icon className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !active && "text-slate-500 group-hover:text-slate-300 group-hover:translate-x-0.5")} style={active ? { color: accent } : undefined} />
+                      <span className={cn("flex-1 truncate text-[12.5px] font-medium", active ? "text-slate-50" : "text-slate-400 group-hover:text-slate-200")}>{item.label}</span>
                       {live ? (
                         <ItemLiveWidget mod={activeMod} item={item} hex={accent} />
                       ) : (
@@ -449,10 +449,10 @@ function ClassicSidebar({ colorIdentity, live }: { colorIdentity: boolean; live:
         {/* user */}
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[10px] font-extrabold text-white">TH</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-[10px] font-extrabold text-white">TH</span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-stone-100">Tri Handayani</p>
-              <p className="truncate text-[10px] text-stone-500">HRD · MII</p>
+              <p className="truncate text-xs font-bold text-slate-100">Tri Handayani</p>
+              <p className="truncate text-[10px] text-slate-500">HRD · MII</p>
             </div>
           </div>
         </div>
@@ -503,13 +503,13 @@ function RailSidebar({ colorIdentity, live }: { colorIdentity: boolean; live: bo
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <m.icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-stone-500 group-hover:text-stone-200")} />
+              <m.icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-slate-500 group-hover:text-slate-200")} />
               {b != null && (
                 <span className="absolute -right-0.5 -top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-extrabold text-white" style={{ background: m.hex }}>
                   {b}
                 </span>
               )}
-              <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-black px-2 py-1 text-[10px] font-semibold text-stone-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+              <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-black px-2 py-1 text-[10px] font-semibold text-slate-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
                 {m.short}
               </span>
             </button>
@@ -521,22 +521,22 @@ function RailSidebar({ colorIdentity, live }: { colorIdentity: boolean; live: bo
             onClick={() => setActiveMod("settings")}
             aria-label="Pengaturan Sistem"
           >
-            <Settings2 className={cn("h-[18px] w-[18px] transition-colors", activeMod === "settings" ? "text-stone-200" : "text-stone-500 group-hover:text-stone-200")} />
-            <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-black px-2 py-1 text-[10px] font-semibold text-stone-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+            <Settings2 className={cn("h-[18px] w-[18px] transition-colors", activeMod === "settings" ? "text-slate-200" : "text-slate-500 group-hover:text-slate-200")} />
+            <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-black px-2 py-1 text-[10px] font-semibold text-slate-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
               Pengaturan
             </span>
           </button>
         </div>
       </div>
       {/* panel modul */}
-      <div className="flex w-[264px] shrink-0 flex-col border-l border-white/[0.06] bg-[#232228] text-stone-300">
+      <div className="flex w-[264px] shrink-0 flex-col border-l border-white/[0.06] bg-[#232228] text-slate-300">
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow" style={{ background: `linear-gradient(135deg, ${accent}, ${hexA(accent, 0.72)})` }}>
             <mod.icon className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-extrabold text-stone-50">{mod.label}</p>
-            <p className="truncate text-[10px] text-stone-500">{mod.desc}</p>
+            <p className="truncate text-[13px] font-extrabold text-slate-50">{mod.label}</p>
+            <p className="truncate text-[10px] text-slate-500">{mod.desc}</p>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-3 pt-1" aria-label="Navigasi modul">
@@ -549,7 +549,7 @@ function RailSidebar({ colorIdentity, live }: { colorIdentity: boolean; live: bo
             {groupsOf(activeMod).map((g, gi) => (
               <motion.div key={`${activeMod}-${gi}-${g.label ?? "root"}`} className="pb-1" variants={{ hidden: { opacity: 0, x: -6 }, show: { opacity: 1, x: 0, transition: { duration: 0.18 } } }}>
                 {g.label && (
-                  <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">{g.label}</p>
+                  <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{g.label}</p>
                 )}
                 {g.items.map((item) => {
                   const active = sel[activeMod] === item.id && (g.label !== undefined || item.id === firstItemOf(activeMod));
@@ -570,8 +570,8 @@ function RailSidebar({ colorIdentity, live }: { colorIdentity: boolean; live: bo
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <item.icon className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !active && "text-stone-500 group-hover:text-stone-300 group-hover:translate-x-0.5")} style={active ? { color: accent } : undefined} />
-                      <span className={cn("flex-1 truncate text-[12.5px] font-medium", active ? "text-stone-50" : "text-stone-400 group-hover:text-stone-200")}>{item.label}</span>
+                      <item.icon className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !active && "text-slate-500 group-hover:text-slate-300 group-hover:translate-x-0.5")} style={active ? { color: accent } : undefined} />
+                      <span className={cn("flex-1 truncate text-[12.5px] font-medium", active ? "text-slate-50" : "text-slate-400 group-hover:text-slate-200")}>{item.label}</span>
                       {live ? (
                         <ItemLiveWidget mod={activeMod} item={item} hex={accent} />
                       ) : (
@@ -586,10 +586,10 @@ function RailSidebar({ colorIdentity, live }: { colorIdentity: boolean; live: bo
         </nav>
         <div className="border-t border-white/10 p-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-stone-500 to-stone-700 text-[9px] font-extrabold text-white">TH</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-[9px] font-extrabold text-white">TH</span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-bold text-stone-100">Tri Handayani</p>
-              <p className="truncate text-[9px] text-stone-500">HRD · MII</p>
+              <p className="truncate text-[11px] font-bold text-slate-100">Tri Handayani</p>
+              <p className="truncate text-[9px] text-slate-500">HRD · MII</p>
             </div>
           </div>
         </div>
@@ -610,22 +610,22 @@ function PhonePreview({ colorIdentity, live }: { colorIdentity: boolean; live: b
   const sheetMod = MODULES.find((x) => x.id === sheet);
 
   return (
-    <div className="relative flex h-[560px] w-[270px] shrink-0 flex-col overflow-hidden rounded-[2.2rem] border-[8px] border-stone-800 bg-stone-50 shadow-2xl">
+    <div className="relative flex h-[560px] w-[270px] shrink-0 flex-col overflow-hidden rounded-[2.2rem] border-[8px] border-slate-800 bg-slate-50 shadow-2xl">
       {/* notch */}
-      <div className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-stone-800" />
+      <div className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-slate-800" />
       {/* status bar */}
-      <div className="flex items-center justify-between px-6 pt-3 text-[10px] font-bold text-stone-800">
+      <div className="flex items-center justify-between px-6 pt-3 text-[10px] font-bold text-slate-800">
         <span>09:41</span>
         <span className="tracking-[0.2em]">····</span>
       </div>
       {/* mini konten */}
       <div className="flex-1 overflow-hidden px-4 pt-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: accent }}>Selamat pagi</p>
-        <p className="mt-0.5 text-sm font-extrabold tracking-tight text-stone-900">Tri Handayani</p>
+        <p className="mt-0.5 text-sm font-extrabold tracking-tight text-slate-900">Tri Handayani</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-stone-200 bg-white p-2.5">
-            <p className="text-[8px] font-bold uppercase tracking-wider text-stone-400">Karyawan</p>
-            <p className="text-base font-extrabold text-stone-900">44</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Karyawan</p>
+            <p className="text-base font-extrabold text-slate-900">44</p>
           </div>
           <div className="rounded-xl border p-2.5" style={{ borderColor: hexA(accent, 0.35), background: hexA(accent, 0.05) }}>
             <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: accent }}>Persetujuan</p>
@@ -634,24 +634,24 @@ function PhonePreview({ colorIdentity, live }: { colorIdentity: boolean; live: b
         </div>
         <div className="mt-3 space-y-1.5">
           {["Andi Wijaya · Cuti 2 hari", "Siti Rahma · Klaim medis", "Payroll Sep · Draft"].map((t, i) => (
-            <div key={t} className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5">
+            <div key={t} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: i === 2 ? "#f59e0b" : accent }} />
-              <span className="truncate text-[10px] font-medium text-stone-600">{t}</span>
+              <span className="truncate text-[10px] font-medium text-slate-600">{t}</span>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-center text-[9px] font-medium uppercase tracking-wider text-stone-400">Area konten · ilustrasi</p>
+        <p className="mt-4 text-center text-[9px] font-medium uppercase tracking-wider text-slate-400">Area konten · ilustrasi</p>
         {live && (
-          <div className="mt-3 rounded-xl border border-stone-200 bg-white p-2.5">
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-2.5">
             <div className="flex items-center gap-2">
               <AvatarStack />
-              <p className="text-[9px] font-bold text-stone-600">menunggu persetujuan Anda</p>
+              <p className="text-[9px] font-bold text-slate-600">menunggu persetujuan Anda</p>
             </div>
           </div>
         )}
       </div>
       {/* bottom tab bar */}
-      <div className="flex items-center justify-around border-t border-stone-200 bg-white/95 px-2 pb-3 pt-2 backdrop-blur">
+      <div className="flex items-center justify-around border-t border-slate-200 bg-white/95 px-2 pb-3 pt-2 backdrop-blur">
         {tabs.map((m) => {
           const M = MODULES.find((x) => x.id === m)!;
           const active = activeTab === m;
@@ -690,18 +690,18 @@ function PhonePreview({ colorIdentity, live }: { colorIdentity: boolean; live: b
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 380, damping: 36 }}
             >
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" />
               {sheet === "all" ? (
                 <div>
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-stone-400">Semua modul</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Semua modul</p>
                   <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}>
                     {MODULES.map((m) => (
-                      <motion.button key={m.id} variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-stone-100" onClick={() => { setSheet(m.id); if (m.id !== "settings") setActiveTab(m.id); }}>
+                      <motion.button key={m.id} variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-slate-100" onClick={() => { setSheet(m.id); if (m.id !== "settings") setActiveTab(m.id); }}>
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: colorIdentity ? m.hex : EMERALD }}>
                           <m.icon className="h-4 w-4" />
                         </span>
-                        <span className="flex-1 text-[13px] font-bold text-stone-700">{m.label}</span>
-                        <ArrowRight className="h-3.5 w-3.5 text-stone-300" />
+                        <span className="flex-1 text-[13px] font-bold text-slate-700">{m.label}</span>
+                        <ArrowRight className="h-3.5 w-3.5 text-slate-300" />
                       </motion.button>
                     ))}
                   </motion.div>
@@ -712,24 +712,24 @@ function PhonePreview({ colorIdentity, live }: { colorIdentity: boolean; live: b
                     <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: colorIdentity ? sheetMod.hex : EMERALD }}>
                       <sheetMod.icon className="h-4 w-4" />
                     </span>
-                    <p className="flex-1 text-[14px] font-extrabold text-stone-800">{sheetMod.label}</p>
-                    <button className="rounded-full p-1.5 hover:bg-stone-100" onClick={() => setSheet(null)} aria-label="Tutup">
-                      <X className="h-4 w-4 text-stone-400" />
+                    <p className="flex-1 text-[14px] font-extrabold text-slate-800">{sheetMod.label}</p>
+                    <button className="rounded-full p-1.5 hover:bg-slate-100" onClick={() => setSheet(null)} aria-label="Tutup">
+                      <X className="h-4 w-4 text-slate-400" />
                     </button>
                   </div>
                   <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}>
                     {groupsOf(sheet).map((g, gi) => (
                       <motion.div key={`${gi}-${g.label ?? "root"}`} variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}>
-                        {g.label && <p className="px-2 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">{g.label}</p>}
+                        {g.label && <p className="px-2 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">{g.label}</p>}
                         {g.items.map((item) => (
                           <motion.button
                             key={item.id}
                             variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
-                            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-stone-100"
+                            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100"
                             onClick={() => setSheet(null)}
                           >
                             <item.icon className="h-4 w-4 shrink-0" style={{ color: colorIdentity ? sheetMod.hex : EMERALD }} />
-                            <span className="flex-1 text-[13px] font-semibold text-stone-700">{item.label}</span>
+                            <span className="flex-1 text-[13px] font-semibold text-slate-700">{item.label}</span>
                           </motion.button>
                         ))}
                       </motion.div>
@@ -812,14 +812,14 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
   return (
     <div className={cn("rounded-2xl border p-5", opt.key === "rec" ? "border-amber-500/30 bg-amber-500/[0.04]" : "border-white/10 bg-white/[0.03]")}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[15px] font-extrabold tracking-tight text-stone-50">{opt.title}</h3>
-        <span className="shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">{opt.effort}</span>
+        <h3 className="text-[15px] font-extrabold tracking-tight text-slate-50">{opt.title}</h3>
+        <span className="shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{opt.effort}</span>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Apa yang berubah</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Apa yang berubah</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.changed.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-300">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: accent }} />
               {t}
             </li>
@@ -827,10 +827,10 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         </ul>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Kelebihan</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Kelebihan</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.pros.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-300">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-300">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand/85" />
               {t}
             </li>
@@ -838,10 +838,10 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         </ul>
       </div>
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Perlu diperhatikan</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Perlu diperhatikan</p>
         <ul className="mt-1.5 space-y-1.5">
           {opt.watch.map((t) => (
-            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-stone-400">
+            <li key={t} className="flex gap-2 text-[12px] leading-relaxed text-slate-400">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/80" />
               {t}
             </li>
@@ -850,10 +850,10 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
       </div>
       {opt.key === "c" && (
         <div className="mt-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Palet aksen</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Palet aksen</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {MODULES.filter((m) => m.id !== "settings").map((m) => (
-              <span key={m.id} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-stone-300">
+              <span key={m.id} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-slate-300">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: m.hex }} />
                 {m.short}
               </span>
@@ -865,7 +865,7 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
           <div className="flex gap-2">
             <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-            <p className="text-[12px] font-semibold leading-relaxed text-stone-200">{opt.verdict}</p>
+            <p className="text-[12px] font-semibold leading-relaxed text-slate-200">{opt.verdict}</p>
           </div>
         </div>
       )}
@@ -876,12 +876,12 @@ function NotesPanel({ opt }: { opt: OptionDef }) {
 // ============ frame browser ============
 function BrowserFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-stone-900 shadow-2xl">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-brand/80" />
-        <div className="mx-auto w-full max-w-xs rounded-full bg-stone-800 px-4 py-1 text-center text-[10px] font-semibold tracking-wide text-stone-500">
+        <div className="mx-auto w-full max-w-xs rounded-full bg-slate-800 px-4 py-1 text-center text-[10px] font-semibold tracking-wide text-slate-500">
           onevity.app · pratinjau desain menu
         </div>
         <span className="w-12" />
@@ -897,7 +897,7 @@ export function MenuDesignLab() {
   const active = OPTIONS.find((o) => o.key === opt)!;
 
   return (
-    <div className="relative min-h-screen bg-stone-950 text-stone-100">
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
       {/* latar studio */}
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
@@ -918,12 +918,12 @@ export function MenuDesignLab() {
             </div>
             <div>
               <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">OneVity <span className="text-brand/85">Design Lab</span></p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">Preview desain menu navigasi</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Preview desain menu navigasi</p>
             </div>
           </div>
           <Link
             href="/"
-            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-stone-300 transition hover:border-white/30 hover:bg-white/5 hover:text-white"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-white/30 hover:bg-white/5 hover:text-white"
           >
             Buka aplikasi <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -934,7 +934,7 @@ export function MenuDesignLab() {
           <h1 className="max-w-2xl text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
             Lima konsep menu — rasakan sebelum diputuskan
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-400">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
             Ini mockup interaktif terisolasi: menu live aplikasi tidak tersentuh. Klik modul di rail / dropdown,
             klik item menu, coba pratinjau ponsel — semua gerak, warna, dan sinyal data bisa dicoba langsung.
           </p>
@@ -953,8 +953,8 @@ export function MenuDesignLab() {
                 className={cn(
                   "rounded-full border px-4 py-2 text-[12.5px] font-bold transition",
                   isOn
-                    ? "border-transparent bg-stone-100 text-stone-950 shadow-lg"
-                    : "border-white/15 text-stone-400 hover:border-white/30 hover:bg-white/5 hover:text-stone-200",
+                    ? "border-transparent bg-slate-100 text-slate-950 shadow-lg"
+                    : "border-white/15 text-slate-400 hover:border-white/30 hover:bg-white/5 hover:text-slate-200",
                   o.key === "rec" && !isOn && "border-amber-500/30 text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/5 hover:text-amber-200"
                 )}
               >
@@ -979,10 +979,10 @@ export function MenuDesignLab() {
               <div className="mt-6 flex flex-wrap items-start justify-center gap-6">
                 <PhonePreview key={`phone-${opt}`} colorIdentity={active.colorIdentity} live={active.live} />
                 <div className="max-w-[240px] pt-6">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Pratinjau mobile</p>
-                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-stone-400">
-                    Pola navigasi native: <span className="font-bold text-stone-200">bottom tab</span> untuk modul utama,
-                    item menu dibuka lewat <span className="font-bold text-stone-200">bottom sheet</span> (tap ikon di bawah untuk mencoba).
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Pratinjau mobile</p>
+                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-slate-400">
+                    Pola navigasi native: <span className="font-bold text-slate-200">bottom tab</span> untuk modul utama,
+                    item menu dibuka lewat <span className="font-bold text-slate-200">bottom sheet</span> (tap ikon di bawah untuk mencoba).
                   </p>
                 </div>
               </div>
@@ -993,7 +993,7 @@ export function MenuDesignLab() {
 
         {/* footer */}
         <footer className="mt-10 border-t border-white/[0.07] pt-5">
-          <p className="text-[11px] leading-relaxed text-stone-500">
+          <p className="text-[11px] leading-relaxed text-slate-500">
             OneVity Design Lab · mockup interaktif untuk pengambilan keputusan — bukan kode produksi.
             Data menu diambil dari struktur navigasi asli (6 modul + Pengaturan Sistem); angka &amp; aktivitas berupa contoh.
           </p>

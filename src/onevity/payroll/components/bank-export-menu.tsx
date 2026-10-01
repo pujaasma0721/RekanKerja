@@ -19,7 +19,7 @@ export function BankExportMenu({ runId, runNo, compact }: { runId: string; runNo
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1 rounded-lg border border-stone-200 font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300",
+          "inline-flex items-center gap-1 rounded-lg border border-slate-200 font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300",
           compact ? "h-7 px-2.5 text-[11px]" : "h-9 gap-2 px-4 text-[13px]"
         )}
         aria-label={t("Ekspor file bank run {no}", "Export bank transfer file for run {no}", { no: runNo })}
@@ -29,7 +29,7 @@ export function BankExportMenu({ runId, runNo, compact }: { runId: string; runNo
         <FileDown className={compact ? "h-3 w-3" : "h-4 w-4"} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
           {t("File transfer — {no}", "Bank transfer file — {no}", { no: runNo })}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -37,7 +37,7 @@ export function BankExportMenu({ runId, runNo, compact }: { runId: string; runNo
           <DropdownMenuItem key={it.key} asChild>
             <a href={`${base}&bank=${it.key}`} className="flex cursor-pointer items-center justify-between gap-2">
               <span className="text-[12px] font-semibold">{it.label}</span>
-              <span className="text-[10px] text-stone-400">{it.hint}</span>
+              <span className="text-[10px] text-slate-400">{it.hint}</span>
             </a>
           </DropdownMenuItem>
         ))}

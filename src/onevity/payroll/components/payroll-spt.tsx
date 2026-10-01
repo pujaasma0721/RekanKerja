@@ -58,7 +58,7 @@ export function PayrollSptPage() {
     {
       label: t("PPh21 Pasal 17 Setahun", "Annual PPh21 Article 17"), value: totals ? fmtIDRShort(totals.pph21Annual) : "—",
       sub: report ? t("Biaya jabatan {r}% cap {c}/thn", "Employment expense {r}% capped at {c}/yr", { r: (report.regulation.biayaJabatanRate * 100).toFixed(0), c: fmtIDRShort(report.regulation.biayaJabatanCapAnnual) }) : "",
-      icon: FileSpreadsheet, tone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
+      icon: FileSpreadsheet, tone: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
     },
     {
       label: t("Kurang / (Lebih) Bayar", "Under / (Over) Paid"), value: totals ? fmtIDRShort(totals.delta) : "—",
@@ -108,7 +108,7 @@ export function PayrollSptPage() {
                     <li>{t("Iuran Pensiun/THT/JHT ← potongan JHT 2% + JP 1% pegawai", "Pension/JHT contributions ← employee JHT 2% + JP 1%")}</li>
                     <li>{t("Bruto & PPh21 masa terakhir/sebelumnya ← pecahan per masa pajak dari run final", "Last & prior-masa gross/PPh21 ← per-tax-month split from final runs")}</li>
                   </ul>
-                  <p className="mt-1 font-semibold text-stone-500">
+                  <p className="mt-1 font-semibold text-slate-500">
                     {t("Angka tanpa tanda baca · tanggal dd/mm/yyyy · NPWP 15 digit · Honorarium/Natura/Zakat = 0 (belum dipisah). Tempel ke sheet A1 Template Impor e-Bupot 21/26 (maks 2 MB/10.000 baris, masa pajak = masa terakhir) — hati-hati Excel mengubah kolom NPWP jadi notasi ilmiah saat CSV dibuka & disimpan ulang.", "Numbers without punctuation · dates dd/mm/yyyy · NPWP 15 digits · Honorarium/Natura/Zakat = 0 (not split yet). Paste into sheet A1 of the e-Bupot 21/26 import template (max 2 MB/10,000 rows, tax period = last period) — beware Excel converting the NPWP column to scientific notation when the CSV is re-opened & re-saved.")}
                   </p>
                 </TooltipContent>
@@ -119,7 +119,7 @@ export function PayrollSptPage() {
       />
 
       {/* Tahun + Coretax bulanan */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-center gap-3 p-3.5">
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
             <SelectTrigger className="h-9 w-[150px] text-xs font-bold"><SelectValue /></SelectTrigger>
@@ -130,7 +130,7 @@ export function PayrollSptPage() {
             </SelectContent>
           </Select>
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-[11px] font-bold text-stone-400">{t("Bukti potong Coretax bulanan", "Monthly Coretax withholding slips")}</span>
+            <span className="text-[11px] font-bold text-slate-400">{t("Bukti potong Coretax bulanan", "Monthly Coretax withholding slips")}</span>
             <Select value={coretaxPeriod} onValueChange={setCoretaxPeriod}>
               <SelectTrigger className="h-9 w-[190px] text-xs font-bold"><SelectValue placeholder={t("Pilih period", "Select period")} /></SelectTrigger>
               <SelectContent>
@@ -145,7 +145,7 @@ export function PayrollSptPage() {
                 "inline-flex h-9 items-center gap-2 rounded-xl border px-3.5 text-[12px] font-bold transition",
                 coretaxPeriod
                   ? "border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/40 dark:text-brand/85 dark:hover:bg-brand/10"
-                  : "pointer-events-none border-stone-200 text-stone-300 dark:border-stone-700 dark:text-stone-600"
+                  : "pointer-events-none border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
               )}
             >
               <FileDown className="h-3.5 w-3.5" /> CSV
@@ -157,7 +157,7 @@ export function PayrollSptPage() {
       {loading && !report ? (
         <LoadingRows rows={6} />
       ) : !report || report.employees.length === 0 ? (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-5">
             <EmptyState
               title={t("Belum ada run final pada tahun {y}", "No final runs in year {y}", { y: year })}
@@ -172,24 +172,24 @@ export function PayrollSptPage() {
             {kpi.map((k) => {
               const Icon = k.icon;
               return (
-                <div key={k.label} className="flex items-start gap-3 rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+                <div key={k.label} className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${k.tone}`}><Icon className="h-5 w-5" /></div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
-                    <p className="truncate text-lg font-extrabold text-stone-900 dark:text-stone-50">{k.value}</p>
-                    <p className="truncate text-[11px] text-stone-400">{k.sub}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
+                    <p className="truncate text-lg font-extrabold text-slate-900 dark:text-slate-50">{k.value}</p>
+                    <p className="truncate text-[11px] text-slate-400">{k.sub}</p>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       {sptSort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
                       {sptSort.head("ptkp", t("PTKP"), "text-[11px] font-bold")}
                       {sptSort.head("regular", t("Bruto Reguler", "Regular Gross"), "text-right text-[11px] font-bold")}
@@ -204,10 +204,10 @@ export function PayrollSptPage() {
                   </TableHeader>
                   <TableBody>
                     {sptSort.sorted.map((r) => (
-                      <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={r.employeeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell>
                           <p className="text-[13px] font-semibold">{r.employeeName}</p>
-                          <p className="text-[10px] text-stone-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
+                          <p className="text-[10px] text-slate-400">{r.employeeNo} · {r.orgUnitName ?? "—"}</p>
                         </TableCell>
                         <TableCell>
                           <TooltipProvider>
@@ -224,14 +224,14 @@ export function PayrollSptPage() {
                           </TooltipProvider>
                         </TableCell>
                         <TableCell className="text-right text-xs">{fmtIDR(r.incomeRegular)}</TableCell>
-                        <TableCell className="text-right text-xs text-stone-500">{r.incomeIrregular ? fmtIDR(r.incomeIrregular) : "—"}</TableCell>
-                        <TableCell className="text-right text-xs text-stone-500">{fmtIDR(r.biayaJabatan)}</TableCell>
-                        <TableCell className="text-right text-xs text-stone-500">{fmtIDR(r.iuranJstk)}</TableCell>
+                        <TableCell className="text-right text-xs text-slate-500">{r.incomeIrregular ? fmtIDR(r.incomeIrregular) : "—"}</TableCell>
+                        <TableCell className="text-right text-xs text-slate-500">{fmtIDR(r.biayaJabatan)}</TableCell>
+                        <TableCell className="text-right text-xs text-slate-500">{fmtIDR(r.iuranJstk)}</TableCell>
                         <TableCell className="text-right text-xs">
                           <p>{fmtIDR(r.neto)}</p>
-                          <p className="text-[10px] text-stone-400">PKP {fmtIDR(r.pkp)}</p>
+                          <p className="text-[10px] text-slate-400">PKP {fmtIDR(r.pkp)}</p>
                         </TableCell>
-                        <TableCell className="text-right text-xs font-bold text-stone-700 dark:text-stone-300">{fmtIDR(r.pph21Annual)}</TableCell>
+                        <TableCell className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">{fmtIDR(r.pph21Annual)}</TableCell>
                         <TableCell className="text-right text-xs text-brand-deep dark:text-brand/85">{fmtIDR(r.taxWithheld)}</TableCell>
                         <TableCell className="text-right">
                           <span className={cn(
@@ -245,8 +245,8 @@ export function PayrollSptPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total ({n} pegawai)", "Total ({n} employees)", { n: totals?.employees ?? 0 })}</TableCell>
+                    <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
+                      <TableCell className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{t("Total ({n} pegawai)", "Total ({n} employees)", { n: totals?.employees ?? 0 })}</TableCell>
                       <TableCell />
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeRegular, 0))}</TableCell>
                       <TableCell className="text-right text-xs font-extrabold">{fmtIDR(report.employees.reduce((s, r) => s + r.incomeIrregular, 0))}</TableCell>
@@ -263,10 +263,10 @@ export function PayrollSptPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="flex items-start gap-3 p-4">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
-              <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                 {t("Metode: bruto kena pajak (reguler + irreguler) − biaya jabatan 5% (cap Rp 6.000.000/thn) − iuran JHT/JP pegawai = neto; neto − PTKP tahunan = PKP → ", "Method: taxable gross (regular + irregular) − employment expense 5% (capped at Rp 6,000,000/yr) − employee JHT/JP contributions = net; net − annual PTKP = PKP → ")}
                 <b>{t("progresif Pasal 17 setahun", "annual Article 17 progressive")}</b>
                 {t(". Dipotong = akumulasi PPh21 bulanan (TER/progresif annualized) dari run final. Selisih positif = ", ". Withheld = accumulated monthly PPh21 (TER/annualized progressive) from final runs. A positive difference means ")}

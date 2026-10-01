@@ -13,7 +13,7 @@ import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import { useSession } from "@/onevity/shared/lib/session-store";
 import { useI18n } from "@/onevity/shared/lib/i18n";
 import { LanguageSwitcher } from "@/onevity/shared/components/shell/language-switcher";
-import { NoiseOverlay, HairlineFrame, EditorialLogo, MarqueeStrip, EditorialError } from "./editorial";
+import { NoiseOverlay, EditorialLogo, MarqueeStrip, EditorialError } from "./editorial";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,7 @@ function validateRegister(workspaceName: string, companyCode: string, fullName: 
   return { message: null, fields: [] };
 }
 
-// ============ field underline editorial ============
+// ============ field pill (SayOne-Learning) ============
 interface UnderlineFieldProps {
   id: FieldId;
   label: string;
@@ -91,15 +91,15 @@ function UnderlineField({
 }: UnderlineFieldProps) {
   return (
     <div className="group space-y-1.5">
-      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.26em] text-stone-500 dark:text-stone-400">
+      <label htmlFor={id} className="block text-[10px] font-bold uppercase tracking-[0.26em] text-slate-500 dark:text-slate-400">
         {label}
       </label>
       <div
         className={cn(
-          "border-b pb-2 pt-1 transition-colors duration-300",
+          "flex items-center rounded-2xl border bg-surface px-4 transition-colors duration-200",
           invalid
-            ? "border-brand/40"
-            : "border-stone-300 focus-within:border-brand hover:border-stone-400 dark:border-stone-700 dark:focus-within:border-brand dark:hover:border-stone-600",
+            ? "border-destructive/60"
+            : "border-input focus-within:border-primary/60 hover:border-primary/40 dark:focus-within:border-primary/60",
         )}
       >
         <input
@@ -115,23 +115,22 @@ function UnderlineField({
           aria-invalid={invalid ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            "h-9 w-full bg-transparent text-[15px] text-stone-800 caret-brand/70 outline-none placeholder:font-serif placeholder:italic placeholder:text-stone-300 disabled:opacity-60 dark:text-stone-200 dark:caret-brand dark:placeholder:text-stone-600",
+            "h-11 w-full bg-transparent text-[15px] text-foreground caret-primary outline-none placeholder:text-muted-foreground/60 disabled:opacity-60",
             mono && "font-mono text-[14px] uppercase tracking-[0.14em]",
           )}
         />
       </div>
-      {hint && <p className="font-serif text-[11.5px] italic text-stone-400 dark:text-stone-500">{hint}</p>}
+      {hint && <p className="text-[11.5px] text-slate-400 dark:text-slate-500">{hint}</p>}
     </div>
   );
 }
 
-// ============ slot OTP editorial (underline) — T17-MFA ============
-// InputOTPSlot default kotak shadcn ditimpa jadi garis-bawah serif senada
-// field lain di kartu masuk (pola: 3 digit · 3 digit).
+// ============ slot OTP (SayOne-Learning) — T17-MFA ============
+// InputOTPSlot gaya kartu pill lembut senada field lain (pola: 3 digit · 3 digit).
 const OTP_SLOT_CLS =
-  "h-12 w-10 rounded-none border-0 border-b border-stone-300 bg-transparent font-serif text-[18px] text-stone-800 shadow-none first:rounded-none first:border-l-0 last:rounded-none data-[active=true]:border-brand data-[active=true]:ring-0 dark:border-stone-600 dark:bg-transparent dark:text-stone-200 dark:data-[active=true]:border-brand";
+  "h-12 w-10 rounded-xl border border-input bg-surface text-[18px] text-foreground shadow-none data-[active=true]:border-primary data-[active=true]:ring-0 dark:data-[active=true]:border-primary";
 
-// ============ CTA tinta ============
+// ============ CTA biru (SayOne-Learning) ============
 function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: string; children: React.ReactNode }) {
   return (
     <motion.button
@@ -139,7 +138,7 @@ function InkButton({ busy, busyLabel, children }: { busy: boolean; busyLabel: st
       disabled={busy}
       whileHover={{ y: -1.5 }}
       whileTap={{ y: 0 }}
-      className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-stone-900 text-[13px] font-bold uppercase tracking-[0.16em] text-stone-50 shadow-[0_18px_40px_-16px_rgba(28,25,23,0.6)] transition-colors hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f3] disabled:pointer-events-none disabled:opacity-70 dark:bg-stone-100 dark:text-stone-900 dark:shadow-none dark:hover:bg-white dark:focus-visible:ring-offset-stone-950"
+      className="group flex h-[52px] w-full items-center justify-center gap-2.5 rounded-full bg-primary text-[13px] font-bold uppercase tracking-[0.16em] text-primary-foreground shadow-[0_18px_40px_-16px_rgba(37,99,235,0.55)] transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-70 dark:bg-primary dark:hover:bg-[#2563eb]"
     >
       {busy ? (
         <>
@@ -304,26 +303,25 @@ export function AuthScreen() {
   ];
 
   const langPillCls =
-    "rounded-full border border-stone-300 bg-white/80 text-stone-600 shadow-none backdrop-blur hover:border-stone-400 hover:bg-white hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900/80 dark:text-stone-300 dark:hover:border-stone-500 dark:hover:text-stone-100";
+    "rounded-full border border-slate-300 bg-white/80 text-slate-600 shadow-none backdrop-blur hover:border-slate-400 hover:bg-white hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-slate-100";
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative min-h-screen overflow-hidden bg-[#faf8f3] text-stone-800 dark:bg-stone-950 dark:text-stone-300">
+      <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
         <NoiseOverlay opacity={0.035} />
-        <HairlineFrame />
 
         <div className="relative z-10 grid min-h-screen grid-cols-1 lg:grid-cols-[1.12fr_1fr]">
-          {/* ============ Panel kiri — editorial (desktop) ============ */}
+          {/* ============ Panel kiri — hero gradient biru (SayOne-Learning, desktop) ============ */}
           {/* min-w-0: nolkan minimum konten (marquee w-max) agar track fr berukuran benar */}
-          <div className="relative z-10 hidden h-full min-w-0 flex-col justify-between p-12 lg:flex xl:p-20">
-            <EditorialLogo />
+          <div className="relative z-10 hidden h-full min-w-0 flex-col justify-between bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#2563eb] p-12 text-white lg:flex xl:p-20">
+            <EditorialLogo variant="hero" />
 
             <div className="max-w-xl">
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
-                className="text-[10px] font-bold uppercase tracking-[0.32em] text-brand-deep dark:text-brand"
+                className="text-[10px] font-bold uppercase tracking-[0.32em] text-blue-100"
               >
                 {t("Satu platform · multi perusahaan", "One platform · many companies")}
               </motion.p>
@@ -331,11 +329,11 @@ export function AuthScreen() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-                className="mt-4 font-serif text-[46px] leading-[1.07] tracking-tight text-stone-900 xl:text-[56px] dark:text-stone-100"
+                className="mt-4 text-[42px] font-bold leading-[1.07] tracking-tight text-white xl:text-[52px]"
               >
                 {t("Bagian rumit dari HR,", "The messy part of HR,")}
                 <br />
-                <span className="italic text-brand-deep dark:text-brand">{t("biar kami yang pikirkan.", "we've already figured out.")}</span>
+                <span className="italic text-blue-200">{t("biar kami yang pikirkan.", "we've already figured out.")}</span>
               </motion.h1>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -345,13 +343,13 @@ export function AuthScreen() {
               >
                 <div className="flex items-center gap-1.5" aria-hidden>
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} className="text-[13px] text-brand dark:text-brand">
+                    <span key={i} className="text-[13px] text-blue-300">
                       ★
                     </span>
                   ))}
                 </div>
                 <p className="sr-only">{t("Rating 5 dari 5", "Rated 5 of 5")}</p>
-                <blockquote className="mt-3 font-serif text-[17px] italic leading-relaxed text-stone-700 dark:text-stone-300">
+                <blockquote className="mt-3 text-[17px] italic leading-relaxed text-white/80">
                   {t(
                     "“Rekrut, absensi, cuti, sampai gaji terenkripsi — ternyata cukup satu tempat. Tinggalnya? Coba sendiri.”",
                     "“Hiring, attendance, leave, even encrypted payroll — it all fits in one place. The rest? See for yourself.”",
@@ -361,22 +359,22 @@ export function AuthScreen() {
             </div>
 
             <div className="relative">
-              <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-stone-400 lg:flex dark:text-stone-500">
+              <div className="mb-3 hidden items-center gap-6 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/70 lg:flex">
                 <span>{t("86 tabel siap", "86 tables ready")}</span>
-                <span aria-hidden className="h-1 w-1 rotate-45 bg-brand/60 dark:bg-brand/50" />
+                <span aria-hidden className="h-1 w-1 rotate-45 bg-blue-300/60" />
                 <span>{t("Ter-isolasi per tenant", "Isolated per tenant")}</span>
-                <span aria-hidden className="h-1 w-1 rotate-45 bg-brand/60 dark:bg-brand/50" />
+                <span aria-hidden className="h-1 w-1 rotate-45 bg-blue-300/60" />
                 <span>PPh21 · BPJS · SPT 1721-A1</span>
               </div>
-              <div aria-hidden className="border-t border-stone-300/80 dark:border-stone-700/60" />
+              <div aria-hidden className="border-t border-white/20" />
               <MarqueeStrip items={marqueeItems} />
             </div>
           </div>
 
           {/* ============ Panel kanan — kartu masuk / buat workspace ============ */}
-          <div className="relative flex min-h-screen min-w-0 flex-col bg-white/40 lg:bg-transparent dark:bg-stone-900/40 lg:dark:bg-transparent">
+          <div className="relative flex min-h-screen min-w-0 flex-col bg-white/40 lg:bg-transparent dark:bg-slate-900/40 lg:dark:bg-transparent">
             {/* pembatas vertikal hairline */}
-            <div aria-hidden className="absolute inset-y-0 left-0 hidden w-px bg-stone-300/80 lg:block dark:bg-stone-700/60" />
+            <div aria-hidden className="absolute inset-y-0 left-0 hidden w-px bg-slate-300/80 lg:block dark:bg-slate-700/60" />
 
             {/* header mobile: logo + bahasa */}
             <div className="relative z-10 flex items-center justify-between px-5 pt-6 lg:hidden">
@@ -390,8 +388,8 @@ export function AuthScreen() {
             </div>
 
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-8 sm:px-8 lg:py-12">
-              {/* tagline serif — mobile (panel kiri tersembunyi) */}
-              <p className="mb-5 max-w-[300px] text-center font-serif text-[20px] italic leading-snug text-stone-700 lg:hidden dark:text-stone-300">
+              {/* tagline — mobile (panel kiri tersembunyi) */}
+              <p className="mb-5 max-w-[300px] text-center text-[20px] italic leading-snug text-slate-700 lg:hidden dark:text-slate-300">
                 {t("Bagian rumit dari HR,", "The messy part of HR,")}{" "}
                 <span className="text-brand-deep dark:text-brand">{t("biar kami yang pikirkan.", "we've already figured out.")}</span>
               </p>
@@ -400,7 +398,7 @@ export function AuthScreen() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="relative w-full max-w-md overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-8 shadow-[0_40px_80px_-40px_rgba(87,83,78,0.35)] sm:p-10 dark:border-stone-800 dark:bg-stone-900 dark:shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)]"
+                className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/90 bg-card p-8 shadow-[0_40px_80px_-40px_rgba(37,99,235,0.18)] sm:p-10 dark:border-white/10"
               >
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand-deep dark:text-brand">
                   {tab === "register"
@@ -409,14 +407,14 @@ export function AuthScreen() {
                       ? t("Verifikasi Dua Langkah", "Two-Step Verification")
                       : t("Masuk ke akun", "Sign in to your account")}
                 </p>
-                <h2 className="mt-2.5 font-serif text-[27px] italic leading-tight text-stone-900 dark:text-stone-100">
+                <h2 className="mt-2.5 text-[27px] font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
                   {tab === "register"
                     ? t("Mulai perjalanan.", "Begin your journey.")
                     : mfaStep
                       ? t("Kode autentikator.", "Authenticator code.")
                       : t("Selamat datang.", "Welcome.")}
                 </h2>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+                <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
                   {tab === "register"
                     ? t("Database terisolasi siap dalam ± 2 menit.", "Isolated database ready in ± 2 minutes.")
                     : mfaStep
@@ -429,7 +427,7 @@ export function AuthScreen() {
 
                 {/* tab garis bawah editorial (disembunyikan saat langkah OTP) */}
                 {!mfaStep && (
-                <div className="mt-6 flex items-center gap-5 border-b border-stone-200 pb-5 dark:border-stone-800">
+                <div className="mt-6 flex items-center gap-5 border-b border-slate-200 pb-5 dark:border-slate-800">
                   {(["login", "register"] as const)
                     .filter((k) => k !== "register" || hostInfo?.exists !== true) // Task 78: alamat sudah terpakai → tanpa tab daftar
                     .map((k) => (
@@ -445,8 +443,8 @@ export function AuthScreen() {
                         className={cn(
                           "text-[12px] font-bold uppercase tracking-[0.2em] transition-colors",
                           tab === k
-                            ? "text-stone-900 dark:text-stone-100"
-                            : "text-stone-400 hover:text-stone-700 dark:text-stone-500 dark:hover:text-stone-300",
+                            ? "text-slate-900 dark:text-slate-100"
+                            : "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300",
                         )}
                       >
                         {k === "login" ? t("Masuk") : t("Buat Workspace", "Create Workspace")}
@@ -457,7 +455,7 @@ export function AuthScreen() {
                           "absolute inset-x-0 -bottom-[21px] h-[2px] transition-all",
                           tab === k
                             ? "bg-brand dark:bg-brand"
-                            : "bg-transparent group-hover:bg-stone-300 dark:group-hover:bg-stone-600",
+                            : "bg-transparent group-hover:bg-slate-300 dark:group-hover:bg-slate-600",
                         )}
                       />
                     </button>
@@ -475,7 +473,7 @@ export function AuthScreen() {
                       void submitOtp(otp);
                     }}
                   >
-                    <p className="text-[13px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
                       {t(
                         "Kode berlaku 30 detik dan berganti otomatis. Akun: {email}.",
                         "The code is valid for 30 seconds and rotates automatically. Account: {email}.",
@@ -509,7 +507,7 @@ export function AuthScreen() {
                             <InputOTPSlot key={i} index={i} className={OTP_SLOT_CLS} />
                           ))}
                         </InputOTPGroup>
-                        <span aria-hidden className="h-px w-4 bg-stone-300 dark:bg-stone-600" />
+                        <span aria-hidden className="h-px w-4 bg-slate-300 dark:bg-slate-600" />
                         <InputOTPGroup className="gap-2.5">
                           {[3, 4, 5].map((i) => (
                             <InputOTPSlot key={i} index={i} className={OTP_SLOT_CLS} />
@@ -525,7 +523,7 @@ export function AuthScreen() {
                     </InkButton>
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Autentikasi dua faktor aktif di akun ini", "Two-factor authentication is active on this account")}
                       </span>
@@ -576,7 +574,7 @@ export function AuthScreen() {
                     </InkButton>
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Koneksi terenkripsi · data terisolasi per tenant", "Encrypted · data isolated per tenant")}
                       </span>
@@ -622,16 +620,16 @@ export function AuthScreen() {
                       describedBy={describedBy("reg-companycode", "register-error")}
                     />
                     {hostRegister ? (
-                      <p className="-mt-3 text-[11px] text-stone-400 dark:text-stone-500">
+                      <p className="-mt-3 text-[11px] text-slate-400 dark:text-slate-500">
                         {t(
                           `Kode perusahaan otomatis mengikuti alamat: ${hostInfo?.slug?.toUpperCase() ?? ""}`,
                           `Company code follows your address: ${hostInfo?.slug?.toUpperCase() ?? ""}`,
                         )}
                       </p>
                     ) : (
-                      <p className="-mt-3 text-[11px] text-stone-400 dark:text-stone-500">
+                      <p className="-mt-3 text-[11px] text-slate-400 dark:text-slate-500">
                         {t("Alamat workspace:", "Workspace address:")}{" "}
-                        <span className="font-mono font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">
                           {(companyCode || "kode").toLowerCase()}.{baseDomain || "domain"}
                         </span>
                       </p>
@@ -672,7 +670,7 @@ export function AuthScreen() {
                         invalid={isInvalid("reg-password")}
                         describedBy={describedBy("reg-password", "register-error")}
                       />
-                      <p className="mt-2 font-serif text-[11.5px] italic text-stone-400 dark:text-stone-500">
+                      <p className="mt-2 text-[11.5px] text-slate-400 dark:text-slate-500">
                         {t(
                           "Minimal 8 karakter — kombinasi huruf besar/kecil, angka & simbol.",
                           "8+ characters — mixed case, numbers & symbols.",
@@ -686,7 +684,7 @@ export function AuthScreen() {
                       {t("Buat Workspace", "Create Workspace")}
                     </InkButton>
                     {busy && (
-                      <p className="text-center font-serif text-[12px] italic text-stone-400 dark:text-stone-500">
+                      <p className="text-center text-[12px] text-slate-400 dark:text-slate-500">
                         {t(
                           "Provisioning database tenant ± beberapa detik.",
                           "Provisioning the tenant database takes a few seconds.",
@@ -695,7 +693,7 @@ export function AuthScreen() {
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         <ShieldCheck className="h-3.5 w-3.5 text-brand-deep dark:text-brand" aria-hidden />
                         {t("Koneksi terenkripsi · data terisolasi per tenant", "Encrypted · data isolated per tenant")}
                       </span>
@@ -714,7 +712,7 @@ export function AuthScreen() {
 
             {/* marquee klien — mobile (desktop memakai panel kiri) */}
             <div className="relative z-10 lg:hidden">
-              <div aria-hidden className="border-t border-stone-200 dark:border-stone-800" />
+              <div aria-hidden className="border-t border-slate-200 dark:border-slate-800" />
               <MarqueeStrip items={marqueeItems} />
             </div>
           </div>

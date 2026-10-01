@@ -80,7 +80,7 @@ export function MinimumWageTab() {
   };
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <Coins className="h-4 w-4 ov-text-accent" /> {t("UMP/UMK per Kantor — PP 36/2021", "UMP/UMK per Office — PP 36/2021")}
@@ -126,7 +126,7 @@ export function MinimumWageTab() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   {sort.head("year", t("Tahun", "Year"), "text-[11px] font-bold")}
                   {sort.head("office", t("Kantor", "Office"), "text-[11px] font-bold")}
                   {sort.head("label", t("Label"), "text-[11px] font-bold")}
@@ -137,28 +137,28 @@ export function MinimumWageTab() {
               </TableHeader>
               <TableBody>
                 {sort.sorted.map((w) => (
-                  <TableRow key={w.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                  <TableRow key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                     <TableCell className="font-mono text-xs font-bold">{w.year}</TableCell>
                     <TableCell>
                       {w.companyOffice ? (
-                        <span className="text-[13px] font-semibold">{w.companyOffice.name}<span className="ml-1.5 font-mono text-[10px] text-stone-400">{w.companyOffice.code}</span></span>
+                        <span className="text-[13px] font-semibold">{w.companyOffice.name}<span className="ml-1.5 font-mono text-[10px] text-slate-400">{w.companyOffice.code}</span></span>
                       ) : (
                         <Badge variant="secondary" className="text-[10px] font-bold">{t("Default tenant", "Tenant default")}</Badge>
                       )}
                     </TableCell>
-                    <TableCell className={cn("text-[13px]", !w.active && "text-stone-400 line-through")}>{w.label}</TableCell>
+                    <TableCell className={cn("text-[13px]", !w.active && "text-slate-400 line-through")}>{w.label}</TableCell>
                     <TableCell className="text-right font-mono text-[13px] font-bold ov-text-accent">{fmtIDR(w.monthlyAmount)}</TableCell>
                     <TableCell>
                       <Switch checked={w.active} onCheckedChange={() => toggle(w)} disabled={!perms.can("payroll", "parameters", "update")} aria-label={t("Toggle aktif", "Toggle active")} />
                     </TableCell>
                     <TableCell>
                       {perms.can("payroll", "parameters", "update") && (
-                        <button onClick={() => setEditing(w)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Ubah entri", "Edit entry")}>
+                        <button onClick={() => setEditing(w)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Ubah entri", "Edit entry")}>
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                       )}
                       {perms.can("payroll", "parameters", "delete") && (
-                        <button onClick={() => setConfirmDelete(w)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus entri", "Delete entry")}>
+                        <button onClick={() => setConfirmDelete(w)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus entri", "Delete entry")}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -170,7 +170,7 @@ export function MinimumWageTab() {
           </div>
         )}
         {!loading && data && !hasDefault && wages.length > 0 && (
-          <p className="mt-2.5 text-[11px] text-stone-400">
+          <p className="mt-2.5 text-[11px] text-slate-400">
             {t("Belum ada entri default tenant (tanpa kantor) — karyawan tanpa kantor penempatan memakai entri terbaru mana pun.", "No tenant-default entry (no office) yet — employees without a placement office fall back to the latest entry.")}
           </p>
         )}
@@ -196,7 +196,7 @@ export function MinimumWageTab() {
           <DialogHeader>
             <DialogTitle className="text-base">{t("Hapus entri UMP/UMK?", "Delete minimum wage entry?")}</DialogTitle>
           </DialogHeader>
-          <p className="text-[13px] text-stone-600 dark:text-stone-300">
+          <p className="text-[13px] text-slate-600 dark:text-slate-300">
             {t("{label} ({year}) akan dihapus permanen.", "{label} ({year}) will be permanently deleted.", { label: confirmDelete?.label ?? "", year: String(confirmDelete?.year ?? "") })}
           </p>
           <DialogFooter>

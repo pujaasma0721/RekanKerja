@@ -315,4 +315,4 @@ export const WORK_SHIFTS_EN: Record<string, string> = {
 };
 
 export const employmentStatusBadge = (s: string) =>
-  EMPLOYMENT_STATUS_CLS[s] ?? "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25";
+  EMPLOYMENT_STATUS_CLS[s] ?? "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25";

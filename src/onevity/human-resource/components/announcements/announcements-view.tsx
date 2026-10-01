@@ -62,8 +62,8 @@ interface AnnouncementsData {
 const STATUS_META: Record<string, { label: string; en: string; cls: string; dot: string }> = {
   draft: {
     label: "Draft", en: "Draft",
-    cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25",
-    dot: "bg-stone-400",
+    cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25",
+    dot: "bg-slate-400",
   },
   published: {
     label: "Terbit", en: "Published",
@@ -89,7 +89,7 @@ function AnnStatusPill({ status }: { status: string }) {
 
 /** Chip kategori — ikon + warna ringan per kelompok pengumuman. */
 const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = {
-  Umum: { icon: Megaphone, cls: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" },
+  Umum: { icon: Megaphone, cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25" },
   Kebijakan: { icon: Scale, cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
   Event: { icon: PartyPopper, cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
   Darurat: { icon: Siren, cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
@@ -111,12 +111,12 @@ function ReadProgress({ reads, total }: { reads: number; total: number }) {
   return (
     <div className="w-32 max-w-full" aria-label={t("{n} dari {total} karyawan membaca", "{n} of {total} employees read", { n: reads, total })}>
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-bold tabular-nums text-stone-600 dark:text-stone-300">
-          {reads}<span className="text-stone-400">/{total}</span>
+        <span className="text-[11px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
+          {reads}<span className="text-slate-400">/{total}</span>
         </span>
-        <span className="text-[10px] font-semibold text-stone-400">{pct}%</span>
+        <span className="text-[10px] font-semibold text-slate-400">{pct}%</span>
       </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         <div
           className={cn("h-full rounded-full transition-all", pct >= 80 ? "bg-brand" : pct >= 40 ? "bg-brand/55" : "bg-amber-400")}
           style={{ width: `${pct}%` }}
@@ -244,18 +244,18 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
       </div>
 
       {/* ===== toolbar: tab status + kategori + cari + buat ===== */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="space-y-3 p-3.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="h-10 rounded-xl bg-stone-100 p-1 dark:bg-stone-900">
+              <TabsList className="h-10 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
                 {([
                   ["all", t("Semua", "All")],
                   ["published", t("Terbit", "Published")],
                   ["draft", t("Draft", "Draft")],
                   ["expired", t("Kedaluwarsa", "Expired")],
                 ] as const).map(([key, label]) => (
-                  <TabsTrigger key={key} value={key} className="rounded-lg px-3.5 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-stone-900 dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-stone-50">
+                  <TabsTrigger key={key} value={key} className="rounded-lg px-3.5 text-[12px] font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-50">
                     {label}
                   </TabsTrigger>
                 ))}
@@ -269,7 +269,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-44 flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -287,7 +287,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
                 {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-[11px] font-bold text-stone-400" aria-live="polite">
+            <p className="text-[11px] font-bold text-slate-400" aria-live="polite">
               {t("{n} baris", "{n} rows", { n: rows.length })}
             </p>
           </div>
@@ -295,16 +295,16 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
       </Card>
 
       {/* ===== daftar: tabel desktop / kartu mobile ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
           ) : rows.length > 0 ? (
             <>
               {/* desktop */}
-              <div className="hidden max-h-[480px] overflow-y-auto overflow-x-auto pr-1 md:block [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700">
+              <div className="hidden max-h-[480px] overflow-y-auto overflow-x-auto pr-1 md:block [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                     <TableRow>
                       <TableHead className="min-w-56 text-[11px] font-bold">{t("Pengumuman", "Announcement")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Kategori", "Category")}</TableHead>
@@ -317,32 +317,32 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
                   </TableHeader>
                   <TableBody>
                     {rows.map((a) => (
-                      <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell>
                           <div className="flex items-start gap-2">
                             {a.pinned && (
                               <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-label={t("Disematkan", "Pinned")} />
                             )}
                             <div className="min-w-0">
-                              <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.title}</p>
-                              <p className="font-mono text-[10px] text-stone-400">{a.code}</p>
-                              <p className="mt-0.5 line-clamp-2 max-w-72 text-[11px] leading-snug text-stone-400">{a.body}</p>
+                              <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{a.title}</p>
+                              <p className="font-mono text-[10px] text-slate-400">{a.code}</p>
+                              <p className="mt-0.5 line-clamp-2 max-w-72 text-[11px] leading-snug text-slate-400">{a.body}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell><CategoryBadge category={a.category} /></TableCell>
                         <TableCell><AnnStatusPill status={a.status} /></TableCell>
                         <TableCell><ReadProgress reads={a.reads} total={stats.totalActive} /></TableCell>
-                        <TableCell className="hidden text-xs text-stone-600 dark:text-stone-400 lg:table-cell">
-                          {a.publishedAt ? fmtDate(a.publishedAt) : <span className="text-stone-400">—</span>}
+                        <TableCell className="hidden text-xs text-slate-600 dark:text-slate-400 lg:table-cell">
+                          {a.publishedAt ? fmtDate(a.publishedAt) : <span className="text-slate-400">—</span>}
                         </TableCell>
                         <TableCell className="hidden text-xs lg:table-cell xl:table-cell">
                           {a.expiresAt ? (
-                            <span className={cn("flex items-center gap-1 font-semibold", a.status === "expired" ? "text-brand dark:text-brand/85" : "text-stone-600 dark:text-stone-400")}>
+                            <span className={cn("flex items-center gap-1 font-semibold", a.status === "expired" ? "text-brand dark:text-brand/85" : "text-slate-600 dark:text-slate-400")}>
                               <CalendarClock className="h-3.5 w-3.5" aria-hidden /> {fmtDate(a.expiresAt)}
                             </span>
                           ) : (
-                            <span className="text-xs text-stone-400">{t("tanpa batas", "no limit")}</span>
+                            <span className="text-xs text-slate-400">{t("tanpa batas", "no limit")}</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -357,21 +357,21 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
               {/* mobile */}
               <ul className="space-y-2.5 p-3 md:hidden">
                 {rows.map((a) => (
-                  <li key={a.id} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+                  <li key={a.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-2">
                         {a.pinned && <Pin className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-500" aria-label={t("Disematkan", "Pinned")} />}
                         <div className="min-w-0">
-                          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.title}</p>
-                          <p className="font-mono text-[10px] text-stone-400">{a.code}</p>
+                          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{a.title}</p>
+                          <p className="font-mono text-[10px] text-slate-400">{a.code}</p>
                         </div>
                       </div>
                       <AnnStatusPill status={a.status} />
                     </div>
-                    <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-stone-500 dark:text-stone-400">{a.body}</p>
+                    <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">{a.body}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <CategoryBadge category={a.category} />
-                      <span className="text-[10.5px] text-stone-400">
+                      <span className="text-[10.5px] text-slate-400">
                         {a.publishedAt ? `${t("terbit", "published")} ${fmtDate(a.publishedAt)}` : t("belum terbit", "not published")}
                         {a.expiresAt ? ` · ${t("s.d.", "until")} ${fmtDate(a.expiresAt)}` : ""}
                       </span>
@@ -468,11 +468,11 @@ function RowActions({
         aria-label={t("Pratinjau {code}", "Preview {code}", { code: row.code })}
         title={t("Pratinjau isi", "Preview content")}
       >
-        <Eye className="h-4 w-4 text-stone-400" />
+        <Eye className="h-4 w-4 text-slate-400" />
       </Button>
       {busy ? (
         <span className="flex h-8 w-8 items-center justify-center" role="status" aria-label={t("Memproses…", "Processing…")}>
-          <Loader2 className="h-4 w-4 animate-spin text-stone-400" />
+          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
         </span>
       ) : (
         <>
@@ -483,7 +483,7 @@ function RowActions({
               aria-label={t("Terbitkan {code}", "Publish {code}", { code: row.code })}
               title={t("Terbitkan ke seluruh ESS", "Publish to all ESS")}
             >
-              <Rocket className="h-4 w-4 text-stone-400" />
+              <Rocket className="h-4 w-4 text-slate-400" />
             </Button>
           )}
           {canUpdate && row.status !== "draft" && (
@@ -493,7 +493,7 @@ function RowActions({
               aria-label={t("Batalkan terbitan {code}", "Unpublish {code}", { code: row.code })}
               title={t("Batalkan terbitan — kembali draft", "Unpublish — back to draft")}
             >
-              <Undo2 className="h-4 w-4 text-stone-400" />
+              <Undo2 className="h-4 w-4 text-slate-400" />
             </Button>
           )}
           {canUpdate && (
@@ -503,7 +503,7 @@ function RowActions({
               aria-label={row.pinned ? t("Lepas sematan {code}", "Unpin {code}", { code: row.code }) : t("Sematkan {code}", "Pin {code}", { code: row.code })}
               title={row.pinned ? t("Lepas dari sematan", "Unpin") : t("Sematkan di feed ESS", "Pin to the ESS feed")}
             >
-              {row.pinned ? <PinOff className="h-4 w-4 text-amber-500" /> : <Pin className="h-4 w-4 text-stone-400" />}
+              {row.pinned ? <PinOff className="h-4 w-4 text-amber-500" /> : <Pin className="h-4 w-4 text-slate-400" />}
             </Button>
           )}
           {canUpdate && (
@@ -513,7 +513,7 @@ function RowActions({
               aria-label={t("Ubah {code}", "Edit {code}", { code: row.code })}
               title={t("Ubah pengumuman", "Edit announcement")}
             >
-              <Pencil className="h-4 w-4 text-stone-400" />
+              <Pencil className="h-4 w-4 text-slate-400" />
             </Button>
           )}
           {canDelete && row.status === "draft" && (
@@ -523,7 +523,7 @@ function RowActions({
               aria-label={t("Hapus {code}", "Delete {code}", { code: row.code })}
               title={t("Hapus draft", "Delete draft")}
             >
-              <Trash2 className="h-4 w-4 text-stone-400" />
+              <Trash2 className="h-4 w-4 text-slate-400" />
             </Button>
           )}
         </>
@@ -658,7 +658,7 @@ function AnnouncementDialog({ open, editing, canPublish, setOpen, onSaved }: {
                 value={form.expiresAt}
                 onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
               />
-              <p className="text-[10px] text-stone-400">
+              <p className="text-[10px] text-slate-400">
                 {t("Lewat tanggal ini pengumuman otomatis keluar feed ESS.", "Past this date the announcement automatically leaves the ESS feed.")}
               </p>
             </div>
@@ -678,10 +678,10 @@ function AnnouncementDialog({ open, editing, canPublish, setOpen, onSaved }: {
               className="min-h-36"
             />
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="min-w-0">
               <Label htmlFor="pgm-pin" className="text-xs font-bold">{t("Sematkan di feed ESS", "Pin to ESS feed")}</Label>
-              <p className="text-[10.5px] leading-relaxed text-stone-400">
+              <p className="text-[10.5px] leading-relaxed text-slate-400">
                 {t("Pengumuman disematkan selalu tampil paling atas.", "Pinned announcements always show at the top.")}
               </p>
             </div>
@@ -693,7 +693,7 @@ function AnnouncementDialog({ open, editing, canPublish, setOpen, onSaved }: {
             />
           </div>
           {!editing && (
-            <p className="rounded-xl bg-stone-50 p-3 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+            <p className="rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
               {t(
                 "Kode dibuat otomatis (PGM-0001, dst.). Menerbitkan mengirim notifikasi in-app ke seluruh akun ESS aktif.",
                 "The code is generated automatically (PGM-0001, etc.). Publishing sends an in-app notification to every active ESS account.",
@@ -750,7 +750,7 @@ function PreviewDialog({ row, onClose }: { row: AnnouncementRow; onClose: () => 
             {row.pinned && <Pin className="h-3.5 w-3.5 text-amber-500" aria-label={t("Disematkan", "Pinned")} />}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] font-semibold text-stone-400">{row.code}</span>
+            <span className="font-mono text-[11px] font-semibold text-slate-400">{row.code}</span>
             <CategoryBadge category={row.category} />
             <AnnStatusPill status={row.status} />
           </DialogDescription>
@@ -758,23 +758,23 @@ function PreviewDialog({ row, onClose }: { row: AnnouncementRow; onClose: () => 
 
         {/* meta ringkas */}
         <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3">
-          <div className="rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{t("Terbit", "Published")}</p>
-            <p className="mt-0.5 font-semibold text-stone-700 dark:text-stone-200">{row.publishedAt ? fmtDateTime(row.publishedAt) : "—"}</p>
+          <div className="rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t("Terbit", "Published")}</p>
+            <p className="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{row.publishedAt ? fmtDateTime(row.publishedAt) : "—"}</p>
           </div>
-          <div className="rounded-xl bg-stone-50 p-2.5 dark:bg-stone-900">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{t("Kedaluwarsa", "Expires")}</p>
-            <p className="mt-0.5 font-semibold text-stone-700 dark:text-stone-200">{row.expiresAt ? fmtDate(row.expiresAt) : t("tanpa batas", "no limit")}</p>
+          <div className="rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t("Kedaluwarsa", "Expires")}</p>
+            <p className="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{row.expiresAt ? fmtDate(row.expiresAt) : t("tanpa batas", "no limit")}</p>
           </div>
-          <div className="col-span-2 rounded-xl bg-stone-50 p-2.5 sm:col-span-1 dark:bg-stone-900">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{t("Dibaca", "Read")}</p>
-            <p className="mt-0.5 font-semibold text-stone-700 dark:text-stone-200">{row.reads}</p>
+          <div className="col-span-2 rounded-xl bg-slate-50 p-2.5 sm:col-span-1 dark:bg-slate-900">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{t("Dibaca", "Read")}</p>
+            <p className="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{row.reads}</p>
           </div>
         </div>
 
         {/* isi — whitespace dipertahankan, panjang di-scroll */}
         <div
-          className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-stone-200 bg-white p-4 text-[13px] leading-relaxed text-stone-700 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700"
+          className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-4 text-[13px] leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700"
           role="region"
           aria-label={t("Isi pengumuman", "Announcement body")}
         >
@@ -798,7 +798,7 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
   mono?: boolean;
 }) {
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-3 p-4">
         <span className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
@@ -809,8 +809,8 @@ function MiniStat({ label, value, icon: Icon, tone, mono }: {
           <Icon className="h-4.5 w-4.5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className={cn("mt-0.5 truncate font-extrabold text-stone-900 dark:text-stone-50", mono ? "text-[15px] tabular-nums" : "text-xl")}>{value}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className={cn("mt-0.5 truncate font-extrabold text-slate-900 dark:text-slate-50", mono ? "text-[15px] tabular-nums" : "text-xl")}>{value}</p>
         </div>
       </CardContent>
     </Card>

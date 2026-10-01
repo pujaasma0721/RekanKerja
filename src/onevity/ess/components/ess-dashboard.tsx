@@ -30,13 +30,13 @@ function EssKpi({ label, value, sub, icon: Icon, hero = false }: {
   label: string; value: string; sub?: string; icon: React.ElementType; hero?: boolean;
 }) {
   return (
-    <Card className="relative overflow-hidden rounded-2xl border-stone-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-amber-100/60 dark:border-stone-800 dark:hover:shadow-stone-900/60">
+    <Card className="relative overflow-hidden rounded-2xl border-slate-200/80 shadow-sm transition-all hover:shadow-md hover:shadow-amber-100/60 dark:border-slate-800 dark:hover:shadow-slate-900/60">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-stone-400">{label}</p>
-            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 dark:text-stone-50">{value}</p>
-            {sub && <p className="mt-1 text-[11px] text-stone-400">{sub}</p>}
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
+            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{value}</p>
+            {sub && <p className="mt-1 text-[11px] text-slate-400">{sub}</p>}
           </div>
           <div className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
@@ -122,12 +122,12 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
     return (
       <div>
         <PageHeader title={t("Dashboard", "Dashboard")} description={t("Ringkasan aktivitas kekaryawanan Anda.", "A summary of your employee activity.")} />
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-16 text-center dark:border-stone-700 dark:bg-stone-900/30">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10">
             <AlertTriangle className="h-6 w-6 text-rose-500 dark:text-rose-400" aria-hidden />
           </div>
-          <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat dashboard", "Failed to load dashboard")}</p>
-          <p className="max-w-sm break-words text-xs text-stone-500">{dash.error ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat dashboard", "Failed to load dashboard")}</p>
+          <p className="max-w-sm break-words text-xs text-slate-500">{dash.error ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
           <Button onClick={dash.refresh} variant="outline" className="gap-2 rounded-xl font-bold">
             <Loader2 className="h-4 w-4" /> {t("Coba Lagi", "Try Again")}
           </Button>
@@ -298,10 +298,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
         </Card>
 
         {/* aksi cepat */}
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Aksi Cepat", "Quick Actions")}</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">{t("Pengajuan paling sering dipakai", "Most-used requests")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("Pengajuan paling sering dipakai", "Most-used requests")}</p>
           </CardHeader>
           <CardContent className="space-y-2 pt-2">
             {quickActions.map((a) => {
@@ -310,15 +310,15 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 <button
                   key={a.label}
                   onClick={a.onClick}
-                  className="flex w-full items-center gap-3 rounded-xl border border-stone-200 px-3.5 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50/60 dark:border-stone-700 dark:hover:border-amber-500/40 dark:hover:bg-amber-500/10"
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-3.5 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50/60 dark:border-slate-700 dark:hover:border-amber-500/40 dark:hover:bg-amber-500/10"
                 >
                   <Icon className={cn("h-5 w-5 shrink-0", a.cls)} aria-hidden />
-                  <span className="flex-1 text-[13px] font-bold text-stone-700 dark:text-stone-200">{a.label}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" aria-hidden />
+                  <span className="flex-1 text-[13px] font-bold text-slate-700 dark:text-slate-200">{a.label}</span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />
                 </button>
               );
             })}
-            <p className="pt-1 text-[11px] leading-relaxed text-stone-400">
+            <p className="pt-1 text-[11px] leading-relaxed text-slate-400">
               {t("Lembur bulan ini: {n} jam", "Overtime this month: {n} h", { n: k.overtimeHoursMonth ?? 0 })}
             </p>
           </CardContent>
@@ -327,7 +327,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
       {/* ===== pengajuan terbaru + saldo cuti ===== */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">{t("Pengajuan Terbaru", "Recent Requests")}</CardTitle>
             <Button size="sm" variant="ghost" onClick={() => go("leave")} className="h-7 gap-1 px-2 text-[11px] font-bold text-amber-700 hover:text-amber-800 dark:text-amber-400">
@@ -344,13 +344,13 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
             ) : (
               <ul className="space-y-1">
                 {d.recentRequests.slice(0, 6).map((r) => (
-                  <li key={r.docNo + r.docType} className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                  <li key={r.docNo + r.docType} className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                      <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">
                         {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
-                        <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.docNo}</span>
+                        <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.docNo}</span>
                       </p>
-                      <p className="text-[11px] text-stone-400">{r.dateLabel ?? "—"}</p>
+                      <p className="text-[11px] text-slate-400">{r.dateLabel ?? "—"}</p>
                     </div>
                     <StatusPill status={r.status} />
                   </li>
@@ -360,7 +360,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">{t("Ringkas Saldo Cuti", "Leave Balance Summary")}</CardTitle>
             <StatusPill status="Active" />
@@ -372,12 +372,12 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
               d.leaveBalances.slice(0, 5).map((b) => (
                 <div key={b.code ?? b.name}>
                   <div className="mb-1 flex items-baseline justify-between gap-2">
-                    <p className="truncate text-[12px] font-bold text-stone-700 dark:text-stone-200">{b.name}</p>
+                    <p className="truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">{b.name}</p>
                     <p className="shrink-0 text-[12px] font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
                       {t("{n} hari", "{n} days", { n: b.available ?? 0 })}
                     </p>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600"
                       style={{ width: `${Math.min(100, Math.max(3, ((b.available ?? 0) / maxBalance) * 100))}%` }}
@@ -392,26 +392,26 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
       {/* ===== slip gaji terakhir + feed notifikasi ===== */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Slip Gaji Terakhir", "Latest Payslip")}</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">{t("Periode berjalan terakhir yang tersedia", "Latest available period")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("Periode berjalan terakhir yang tersedia", "Latest available period")}</p>
           </CardHeader>
           <CardContent className="pt-2">
             {d.latestPayslip ? (
-              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-stone-200/80 bg-stone-50/60 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
                   <ReceiptText className="h-5 w-5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-bold text-stone-800 dark:text-stone-100">{loc(d.latestPayslip.periodName)}</p>
-                  <p className="mt-0.5 flex items-center gap-2 text-[11px] text-stone-400">
+                  <p className="truncate text-[14px] font-bold text-slate-800 dark:text-slate-100">{loc(d.latestPayslip.periodName)}</p>
+                  <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
                     <StatusPill status={d.latestPayslip.status} />
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Diterima", "Net Pay")}</p>
-                  <p className="text-lg font-extrabold tabular-nums text-stone-900 dark:text-stone-50">{fmtIDR(d.latestPayslip.netAmount)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Diterima", "Net Pay")}</p>
+                  <p className="text-lg font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{fmtIDR(d.latestPayslip.netAmount)}</p>
                 </div>
                 <Button onClick={() => go("payslips", `line:${d.latestPayslip!.lineId}`)} size="sm" className="gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
                   {t("Lihat")} <ArrowRight className="h-3.5 w-3.5" />
@@ -427,10 +427,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">{t("Notifikasi Terbaru", "Recent Notifications")}</CardTitle>
-            <p className="mt-0.5 text-[11px] text-stone-400">{t("Dari bell di kanan atas untuk feed lengkap", "Use the bell above for the full feed")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("Dari bell di kanan atas untuk feed lengkap", "Use the bell above for the full feed")}</p>
           </CardHeader>
           <CardContent className="pt-2">
             {d.notifications.length === 0 ? (
@@ -440,11 +440,11 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 {d.notifications.slice(0, 5).map((n) => {
                   const unread = !n.readAt;
                   return (
-                    <li key={n.id} className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-stone-50 dark:hover:bg-stone-800/60">
-                      <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", unread ? "bg-amber-500" : "bg-stone-200 dark:bg-stone-700")} aria-hidden />
+                    <li key={n.id} className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                      <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", unread ? "bg-amber-500" : "bg-slate-200 dark:bg-slate-700")} aria-hidden />
                       <div className="min-w-0 flex-1">
-                        <p className={cn("truncate text-[12.5px]", unread ? "font-bold text-stone-800 dark:text-stone-100" : "font-medium text-stone-600 dark:text-stone-400")}>{locActivity(n.title)}</p>
-                        {n.body && <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-stone-400">{locActivity(n.body)}</p>}
+                        <p className={cn("truncate text-[12.5px]", unread ? "font-bold text-slate-800 dark:text-slate-100" : "font-medium text-slate-600 dark:text-slate-400")}>{locActivity(n.title)}</p>
+                        {n.body && <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-slate-400">{locActivity(n.body)}</p>}
                       </div>
                     </li>
                   );

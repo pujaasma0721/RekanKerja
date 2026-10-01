@@ -213,7 +213,7 @@ export function EmployeeDocumentsView() {
               "flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               expiryFilter === f.key
                 ? "ov-soft ov-border-accent"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             <CalendarClock className="h-3 w-3" />
@@ -221,12 +221,12 @@ export function EmployeeDocumentsView() {
           </button>
         ))}
         {stats && (
-          <span className="ml-1 text-[11px] font-bold text-stone-400">
+          <span className="ml-1 text-[11px] font-bold text-slate-400">
             {t("{n} dokumen · {e} kedaluwarsa · {s} ≤30 hari", "{n} documents · {e} expired · {s} ≤30 days", { n: stats.total, e: stats.expired, s: stats.expiring30 })}
           </span>
         )}
         <div className="relative ml-auto w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama / nomor…", "Search name / number…")} className="pl-8" />
         </div>
         <Select value={employeeFilter || "all"} onValueChange={(v) => setEmployeeFilter(v === "all" ? "" : v)}>
@@ -240,7 +240,7 @@ export function EmployeeDocumentsView() {
         </Select>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -255,7 +255,7 @@ export function EmployeeDocumentsView() {
           ) : (
             <div className="max-h-[34rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>{t("Karyawan", "Employee")}</TableHead>
                     <TableHead>{t("Jenis", "Type")}</TableHead>
@@ -270,17 +270,17 @@ export function EmployeeDocumentsView() {
                   {documents.map((d) => {
                     const exp = expiryInfo(d.expiresAt, t);
                     return (
-                      <TableRow key={d.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60">
+                      <TableRow key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <TableCell>
-                          <p className="font-medium text-stone-900 dark:text-stone-100">{d.employeeName}</p>
-                          <p className="text-xs text-stone-500">{d.employeeNo}</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{d.employeeName}</p>
+                          <p className="text-xs text-slate-500">{d.employeeNo}</p>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px] font-bold">{docTypeLabel(t, d.docType)}</Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{d.docNumber || <span className="text-stone-400">—</span>}</TableCell>
+                        <TableCell className="font-mono text-xs">{d.docNumber || <span className="text-slate-400">—</span>}</TableCell>
                         <TableCell className="hidden text-sm md:table-cell">
-                          {d.issuedAt ? new Date(d.issuedAt).toLocaleDateString(t("id-ID", "en-US")) : <span className="text-stone-400">—</span>}
+                          {d.issuedAt ? new Date(d.issuedAt).toLocaleDateString(t("id-ID", "en-US")) : <span className="text-slate-400">—</span>}
                         </TableCell>
                         <TableCell>
                           <span
@@ -289,13 +289,13 @@ export function EmployeeDocumentsView() {
                               exp.kind === "expired" && "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
                               exp.kind === "soon" && "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
                               exp.kind === "warn" && "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
-                              exp.kind === "ok" && "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
+                              exp.kind === "ok" && "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
                             )}
                           >
                             {exp.kind !== "none" && <CalendarClock className="h-3 w-3" />}
                             {exp.label}
                           </span>
-                          {d.expiresAt && <p className="mt-0.5 text-[10px] text-stone-400">{new Date(d.expiresAt).toLocaleDateString(t("id-ID", "en-US"))}</p>}
+                          {d.expiresAt && <p className="mt-0.5 text-[10px] text-slate-400">{new Date(d.expiresAt).toLocaleDateString(t("id-ID", "en-US"))}</p>}
                         </TableCell>
                         <TableCell>
                           {d.attachment ? (
@@ -303,15 +303,15 @@ export function EmployeeDocumentsView() {
                               href={attachmentUrl(d.attachment.id)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 hover:underline dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+                              className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:underline dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                               title={`${d.attachment.fileName} · ${fmtSize(d.attachment.sizeBytes)}`}
                             >
-                              <Eye className="h-3 w-3 shrink-0 text-stone-400" />
+                              <Eye className="h-3 w-3 shrink-0 text-slate-400" />
                               <span className="truncate">{d.attachment.fileName}</span>
-                              <span className="shrink-0 text-[9px] font-bold text-stone-400">{fmtSize(d.attachment.sizeBytes)}</span>
+                              <span className="shrink-0 text-[9px] font-bold text-slate-400">{fmtSize(d.attachment.sizeBytes)}</span>
                             </a>
                           ) : (
-                            <span className="text-[11px] text-stone-400">{t("tanpa file", "no file")}</span>
+                            <span className="text-[11px] text-slate-400">{t("tanpa file", "no file")}</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -360,7 +360,7 @@ export function EmployeeDocumentsView() {
                 </SelectContent>
               </Select>
               {form.id && (
-                <p className="text-[11px] text-stone-500">{t("Karyawan tidak dapat diganti saat mengubah.", "Employee cannot be changed while editing.")}</p>
+                <p className="text-[11px] text-slate-500">{t("Karyawan tidak dapat diganti saat mengubah.", "Employee cannot be changed while editing.")}</p>
               )}
             </div>
             <div className="space-y-1.5">
@@ -398,7 +398,7 @@ export function EmployeeDocumentsView() {
               <AttachmentChips
                 attachments={documents.filter((d) => d.id === form.id && d.attachment).map((d) => ({ ...(d.attachment as { id: string; fileName: string; mimeType: string; sizeBytes: number }) }))}
               />
-              <p className="text-[11px] text-stone-500">{t("Lampiran hanya dapat diganti dengan menambah dokumen baru.", "The attachment can only be replaced by adding a new document.")}</p>
+              <p className="text-[11px] text-slate-500">{t("Lampiran hanya dapat diganti dengan menambah dokumen baru.", "The attachment can only be replaced by adding a new document.")}</p>
             </div>
           ) : (
             <div className="space-y-1.5">

@@ -154,14 +154,14 @@ export function DataAccessView() {
           { label: "Dimensi Kriteria", value: 7, icon: Network },
           { label: "Akses Otomatis", value: 3, icon: Crown },
         ].map((c) => (
-          <Card key={c.label} className="rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
+          <Card key={c.label} className="rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800">
-                <c.icon className="h-5 w-5 text-stone-600 dark:text-stone-300" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                <c.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
-                <div className="text-lg font-bold text-stone-900 dark:text-stone-50">{c.value}</div>
-                <div className="text-[11px] font-medium uppercase tracking-wide text-stone-500">{c.label}</div>
+                <div className="text-lg font-bold text-slate-900 dark:text-slate-50">{c.value}</div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{c.label}</div>
               </div>
             </CardContent>
           </Card>
@@ -173,16 +173,16 @@ export function DataAccessView() {
         <p className="flex items-center gap-2 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
           <Crown className="h-4 w-4" /> Akses otomatis — tanpa perlu diatur di menu ini
         </p>
-        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-stone-600 dark:text-stone-300 sm:grid-cols-3">
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+        <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300 sm:grid-cols-3">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <span><b>Super Admin</b> (role Admin / workspace OWNER &amp; ADMIN) mengakses semua data karyawan.</span>
           </span>
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
             <span><b>Atasan langsung</b> otomatis mengakses data seluruh bawahannya.</span>
           </span>
-          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-stone-900/50">
+          <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
             <span><b>Setiap pengguna</b> selalu dapat mengakses data dirinya sendiri.</span>
           </span>
@@ -193,7 +193,7 @@ export function DataAccessView() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="w-56">
           <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-            <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Subjek</SelectItem>
               {SUBJECT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -277,17 +277,17 @@ function RuleCard({ r, busy, onToggle, onEdit, onDelete }: {
   if (r.employmentStatus) criteria.push({ label: `Status: ${EMPLOYMENT_STATUS_LABEL[r.employmentStatus] ?? r.employmentStatus}`, icon: BadgeCheck });
 
   return (
-    <Card className={cn("rounded-2xl border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900", !r.active && "opacity-60")}>
+    <Card className={cn("rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900", !r.active && "opacity-60")}>
       <CardContent className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-stone-100 px-2 py-0.5 font-mono text-[11px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">{r.code}</span>
-              <span className="font-semibold text-stone-900 dark:text-stone-50">{r.name}</span>
+              <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{r.code}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-50">{r.name}</span>
               <Badge className="rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">{subjectLabel(r)}</Badge>
               {!r.active && <Badge variant="secondary" className="rounded-lg">Nonaktif</Badge>}
             </div>
-            {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-stone-500 dark:text-stone-400">{r.description}</p>}
+            {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">{r.description}</p>}
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
                 <Badge variant="outline" className="gap-1 rounded-lg border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -298,7 +298,7 @@ function RuleCard({ r, busy, onToggle, onEdit, onDelete }: {
                   <c.icon className="h-3 w-3" /> {c.label}
                 </Badge>
               ))}
-              <Badge variant="outline" className="rounded-lg border-stone-300 text-[10px] text-stone-400 dark:border-stone-600">
+              <Badge variant="outline" className="rounded-lg border-slate-300 text-[10px] text-slate-400 dark:border-slate-600">
                 prioritas {r.priority}
               </Badge>
             </div>
@@ -424,14 +424,14 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
             <Label>Subjek — pemegang hak akses</Label>
             <div className="grid gap-3 sm:grid-cols-2">
               <Select value={d.subjectType} onValueChange={(v) => set({ subjectType: v, role: "", appUserId: "", accessGroupId: "" })}>
-                <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SUBJECT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               {d.subjectType === "ROLE" && (
                 <Select value={d.role} onValueChange={(v) => set({ role: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih role" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih role" /></SelectTrigger>
                   <SelectContent>
                     {(resp?.roles ?? []).map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
@@ -439,7 +439,7 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
               )}
               {d.subjectType === "USER" && (
                 <Select value={d.appUserId} onValueChange={(v) => set({ appUserId: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
                   <SelectContent>
                     {(resp?.users ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName} ({u.username} · {u.role})</SelectItem>)}
                   </SelectContent>
@@ -447,7 +447,7 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
               )}
               {d.subjectType === "ACCESS_GROUP" && (
                 <Select value={d.accessGroupId} onValueChange={(v) => set({ accessGroupId: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih access group" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih access group" /></SelectTrigger>
                   <SelectContent>
                     {(resp?.groups ?? []).map((g) => <SelectItem key={g.id} value={g.id}>{g.name} ({g.code})</SelectItem>)}
                   </SelectContent>
@@ -456,8 +456,8 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
             </div>
           </div>
 
-          <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 dark:border-stone-800 dark:bg-stone-900/40">
-            <p className="flex items-center gap-2 text-[13px] font-bold text-stone-800 dark:text-stone-100">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Kriteria sasaran — karyawan yang dapat diakses
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -471,9 +471,9 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
                 { key: "employmentStatus" as const, label: "Status Kerja", items: (resp?.employmentStatuses ?? []).map((s) => ({ value: s, label: EMPLOYMENT_STATUS_LABEL[s] ?? s })) },
               ]).map((f) => (
                 <div key={f.key} className="space-y-1.5">
-                  <Label className="text-xs text-stone-500">{f.label}</Label>
+                  <Label className="text-xs text-slate-500">{f.label}</Label>
                   <Select value={d[f.key] || "__all"} onValueChange={(v) => set({ [f.key]: v === "__all" ? "" : v } as Partial<Draft>)}>
-                    <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">Semua (tanpa filter)</SelectItem>
                       {f.items.map((it) => <SelectItem key={it.value} value={it.value}>{it.label}</SelectItem>)}
@@ -539,7 +539,7 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
           <div className="space-y-1.5">
             <Label>Pengguna</Label>
             <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-stone-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
+              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
               <SelectContent>
                 {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName} ({u.username} · {u.role})</SelectItem>)}
               </SelectContent>
@@ -558,27 +558,27 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
               )}>
                 {p.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-emerald-600" />}
                 <div>
-                  <p className="text-sm font-bold text-stone-900 dark:text-stone-50">
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-50">
                     {p.all ? "Akses penuh — seluruh data karyawan" : `${p.accessibleCount} karyawan dapat diakses`}
                   </p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {p.all ? "Semua karyawan terlihat di direktori & detail." : "Hanya karyawan dalam cakupan ini yang terlihat di direktori & detail."}
                   </p>
                 </div>
               </div>
 
               <div>
-                <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-stone-400">
+                <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
                   <Network className="h-3.5 w-3.5" /> Sumber akses
                 </p>
                 <div className="max-h-44 space-y-1.5 overflow-y-auto">
                   {p.sources.length === 0 && (
-                    <p className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                    <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                       Tidak ada akses — pengguna ini tidak dapat melihat data karyawan lain (hanya dirinya, tanpa bawahan/rule).
                     </p>
                   )}
                   {p.sources.map((s, i) => (
-                    <p key={i} className="flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs font-medium text-stone-600 dark:bg-stone-900/40 dark:text-stone-300">
+                    <p key={i} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
                       <UserCog className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> {s}
                     </p>
                   ))}
@@ -593,15 +593,15 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
 
               {!p.all && p.sample.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-stone-400">Contoh karyawan dalam cakupan</p>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">Contoh karyawan dalam cakupan</p>
                   <div className="flex flex-wrap gap-1.5">
                     {p.sample.map((e) => (
-                      <Badge key={e.id} variant="outline" className="rounded-lg border-stone-200 text-[11px] text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                      <Badge key={e.id} variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
                         {e.fullName} · {e.employeeNo}
                       </Badge>
                     ))}
                     {p.accessibleCount > p.sample.length && (
-                      <Badge variant="outline" className="rounded-lg border-stone-200 text-[11px] text-stone-400 dark:border-stone-700">
+                      <Badge variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-400 dark:border-slate-700">
                         +{p.accessibleCount - p.sample.length} lainnya
                       </Badge>
                     )}

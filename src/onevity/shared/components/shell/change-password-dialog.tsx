@@ -81,7 +81,7 @@ export function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen
             <PasswordInput value={confirm} onChange={setConfirm} />
           </div>
 
-          <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/40">
             <PasswordStrengthBar password={next} />
             <PasswordRuleChecklist
               policy={policy}

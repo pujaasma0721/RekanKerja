@@ -92,12 +92,12 @@ export function LeaveTypesPage() {
         }
       />
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
-            <p className="text-xs font-bold text-stone-500 dark:text-stone-400">{types.length} jenis — UU 13/2003 & PP 35/2021 + kebijakan perusahaan</p>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{types.length} jenis — UU 13/2003 & PP 35/2021 + kebijakan perusahaan</p>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari jenis cuti…" className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
@@ -107,7 +107,7 @@ export function LeaveTypesPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Kode</TableHead>
                     <TableHead className="text-[11px] font-bold">Jenis Cuti</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">Hak</TableHead>
@@ -119,18 +119,18 @@ export function LeaveTypesPage() {
                 </TableHeader>
                 <TableBody>
                   {types.map((t) => (
-                    <TableRow key={t.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", !t.active && "opacity-50")}>
-                      <TableCell className="font-mono text-[11px] font-bold text-stone-500">{t.code}</TableCell>
+                    <TableRow key={t.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", !t.active && "opacity-50")}>
+                      <TableCell className="font-mono text-[11px] font-bold text-slate-500">{t.code}</TableCell>
                       <TableCell>
-                        <p className="text-xs font-bold text-stone-800 dark:text-stone-100">{t.name}</p>
-                        {t.description && <p className="max-w-md text-[10px] text-stone-400">{t.description}</p>}
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{t.name}</p>
+                        {t.description && <p className="max-w-md text-[10px] text-slate-400">{t.description}</p>}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-stone-700 dark:text-stone-200">
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">
                         {t.entitlement} {t.unit === "MONTH" ? "bln" : "hr"}
                       </TableCell>
-                      <TableCell className="text-[11px] text-stone-500">
+                      <TableCell className="text-[11px] text-slate-500">
                         {t.periodMode === "ANNIVERSARY" ? "Anniversary" : "Kalender"}
-                        {t.prorateMonthly && <span className="block text-[10px] text-stone-400">prorate bulanan</span>}
+                        {t.prorateMonthly && <span className="block text-[10px] text-slate-400">prorate bulanan</span>}
                       </TableCell>
                       <TableCell>
                         <div className="flex max-w-64 flex-wrap gap-1">
@@ -139,17 +139,17 @@ export function LeaveTypesPage() {
                           {t.carryOverMax > 0 && <Badge className="bg-orange-100 text-[9px] font-bold text-orange-700 hover:bg-orange-100 dark:bg-orange-500/15 dark:text-orange-400">Carry {t.carryOverMax}</Badge>}
                           {t.waitingMonths > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">Tunggu {t.waitingMonths} bln</Badge>}
                           {t.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">Advance</Badge>}
-                          {t.needDocs && <Badge className="bg-stone-100 text-[9px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">Dokumen</Badge>}
+                          {t.needDocs && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">Dokumen</Badge>}
                         </div>
                       </TableCell>
                       <TableCell><StatusPill status={t.active ? "Approved" : "Cancelled"} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} title="Ubah">
-                            <Pencil className="h-3.5 w-3.5 text-stone-500" />
+                            <Pencil className="h-3.5 w-3.5 text-slate-500" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleActive(t)} title={t.active ? "Nonaktifkan" : "Aktifkan"}>
-                            {t.active ? <Ban className="h-3.5 w-3.5 text-stone-400" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
+                            {t.active ? <Ban className="h-3.5 w-3.5 text-slate-400" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
                           </Button>
                         </div>
                       </TableCell>
@@ -225,7 +225,7 @@ export function LeaveTypesPage() {
                 <Input type="number" value={form.waitingMonths} onChange={(e) => setForm({ ...form, waitingMonths: e.target.value })} className="h-8 text-xs" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-900/60">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
               {([
                 ["paid", "Cuti dibayar (absen berbayar)"],
                 ["prorateMonthly", "Prorate bulanan (earned ÷12)"],
@@ -234,7 +234,7 @@ export function LeaveTypesPage() {
                 ["allowHalfDay", "Izinkan setengah hari (AM/PM)"],
                 ["needDocs", "Perlu dokumen pendukung"],
               ] as const).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+                <label key={key} className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                   <Checkbox checked={form[key]} onCheckedChange={(v) => setForm({ ...form, [key]: Boolean(v) })} />
                   {label}
                 </label>

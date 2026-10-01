@@ -105,25 +105,25 @@ export function LeaveOverview() {
                 <button
                   key={k.label}
                   onClick={k.onClick}
-                  className="group rounded-2xl border border-stone-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800 dark:bg-stone-900"
+                  className="group rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
                 >
                   <div className="flex items-center justify-between">
                     <div className={cn("rounded-xl p-2", k.hero ? "ov-fill" : "ov-tile")}><Icon className="h-5 w-5" /></div>
-                    <ArrowRight className="h-3.5 w-3.5 text-stone-300 transition group-hover:translate-x-0.5 group-hover:text-stone-500 dark:text-stone-600" />
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500 dark:text-slate-600" />
                   </div>
-                  <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
-                  <p className="text-2xl font-extrabold text-stone-800 dark:text-stone-100">{k.value}</p>
-                  {k.sub && <p className="text-[11px] text-stone-400">{k.sub}</p>}
+                  <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{k.value}</p>
+                  {k.sub && <p className="text-[11px] text-slate-400">{k.sub}</p>}
                 </button>
               );
             })}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900 lg:col-span-2">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 ov-text-accent" />
-                <h3 className="text-sm font-bold text-stone-800 dark:text-stone-100">{t("Alur Kerja Modul Cuti", "Leave Module Workflow")}</h3>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{t("Alur Kerja Modul Cuti", "Leave Module Workflow")}</h3>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {steps.map((s) => {
@@ -132,14 +132,14 @@ export function LeaveOverview() {
                     <button
                       key={s.n}
                       onClick={() => navigate("leave", s.view)}
-                      className="group flex gap-3 rounded-xl border border-stone-100 bg-stone-50/60 p-3 text-left transition hover:ov-border-accent dark:border-stone-800 dark:bg-stone-900/60"
+                      className="group flex gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-left transition hover:ov-border-accent dark:border-slate-800 dark:bg-slate-900/60"
                     >
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-tile text-xs font-extrabold">{s.n}</div>
                       <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-xs font-bold text-stone-800 dark:text-stone-100">
-                          {s.title} <Icon className="h-3 w-3 text-stone-400" />
+                        <p className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                          {s.title} <Icon className="h-3 w-3 text-slate-400" />
                         </p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">{s.desc}</p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{s.desc}</p>
                       </div>
                     </button>
                   );
@@ -147,7 +147,7 @@ export function LeaveOverview() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-stone-200/80 ov-hero p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 ov-hero p-5 shadow-sm">
               <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4" />
                 <h3 className="text-sm font-bold">{t("Formula Saldo", "Balance Formula")}</h3>

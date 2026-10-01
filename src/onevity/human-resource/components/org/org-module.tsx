@@ -73,7 +73,7 @@ function OrgTree() {
             "group flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-all",
             isSel
               ? "ov-fill shadow-md"
-              : "text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+              : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           )}
           style={{ paddingLeft: `${depth * 16 + 10}px` }}
           aria-current={isSel ? "true" : undefined}
@@ -81,20 +81,20 @@ function OrgTree() {
           {hasChildren ? (
             isOpen && depth < 3 ? <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" />
           ) : (
-            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isSel ? "bg-white/60" : "bg-stone-300 dark:bg-stone-600")} />
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isSel ? "bg-white/60" : "bg-slate-300 dark:bg-slate-600")} />
           )}
           {depth === 0 ? <Landmark className="h-4 w-4 shrink-0" /> : depth === 1 ? <Building className="h-4 w-4 shrink-0" /> : <Building2 className="h-4 w-4 shrink-0" />}
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{node.name}</span>
           <span className={cn(
             "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold",
-            isSel ? "bg-white/20 text-white" : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+            isSel ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
           )}>
             {node.employeeCount}
           </span>
         </button>
         {hasChildren && !collapsed.has(node.id) && (
           <div className="relative">
-            <div className="absolute left-[7px] top-0 h-full w-px bg-stone-200 dark:bg-stone-700" style={{ marginLeft: `${depth * 16 + 17}px` }} />
+            <div className="absolute left-[7px] top-0 h-full w-px bg-slate-200 dark:bg-slate-700" style={{ marginLeft: `${depth * 16 + 17}px` }} />
             {node.children!.map((c) => renderNode(c, depth + 1))}
           </div>
         )}
@@ -125,7 +125,7 @@ function OrgTree() {
       />
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         {/* tree panel */}
-        <Card className="h-fit rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="h-fit rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
               <Network className="h-4 w-4 ov-text-accent" /> {t("Pohon Organisasi", "Organization Tree")}
@@ -139,16 +139,16 @@ function OrgTree() {
         {/* detail panel */}
         {selected ? (
           <div className="space-y-4">
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardContent className="p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="font-mono text-[10px]">{selected.code}</Badge>
-                      <Badge className="bg-stone-100 text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-400">Level {selected.level}</Badge>
+                      <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400">Level {selected.level}</Badge>
                     </div>
-                    <h2 className="mt-1.5 text-lg font-bold text-stone-900 dark:text-stone-100">{selected.name}</h2>
-                    <p className="text-xs text-stone-500">{t("Induk: {p}", "Parent: {p}", { p: selected.parentName ?? "—" })}</p>
+                    <h2 className="mt-1.5 text-lg font-bold text-slate-900 dark:text-slate-100">{selected.name}</h2>
+                    <p className="text-xs text-slate-500">{t("Induk: {p}", "Parent: {p}", { p: selected.parentName ?? "—" })}</p>
                   </div>
                   <DeleteUnitButton unit={selected} onDeleted={() => { setSelected(null); refresh(); }} />
                 </div>
@@ -159,7 +159,7 @@ function OrgTree() {
                 </div>
                 {selected.headcountBudget > 0 && (
                   <div className="mt-4">
-                    <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-stone-500">
+                    <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-slate-500">
                       <span>{t("Okupasi vs Budget", "Occupancy vs Budget")}</span>
                       <span>{selected.employeeCount}/{selected.headcountBudget} ({Math.round((selected.employeeCount / selected.headcountBudget) * 100)}%)</span>
                     </div>
@@ -169,7 +169,7 @@ function OrgTree() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <Users className="h-4 w-4 ov-text-accent" /> {t("Karyawan di Unit Ini", "Employees in This Unit")}
@@ -183,7 +183,7 @@ function OrgTree() {
                   <div className="max-h-72 overflow-y-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                        <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                           <TableHead className="text-[11px]">{t("Karyawan")}</TableHead>
                           <TableHead className="text-[11px]">{t("Posisi")}</TableHead>
                           <TableHead className="text-[11px]">{t("Status")}</TableHead>
@@ -191,13 +191,13 @@ function OrgTree() {
                       </TableHeader>
                       <TableBody>
                         {employees.data.employees.map((e) => (
-                          <TableRow key={e.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("employee", "detail", { id: e.id })}>
+                          <TableRow key={e.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => navigate("employee", "detail", { id: e.id })}>
                             <TableCell>
                               <div className="flex items-center gap-2.5">
                                 <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(e.fullName))}>{initials(e.fullName)}</div>
                                 <div className="min-w-0">
                                   <p className="truncate text-xs font-bold">{e.fullName}</p>
-                                  <p className="font-mono text-[10px] text-stone-400">{e.employeeNo}</p>
+                                  <p className="font-mono text-[10px] text-slate-400">{e.employeeNo}</p>
                                 </div>
                               </div>
                             </TableCell>
@@ -217,13 +217,13 @@ function OrgTree() {
             </Card>
           </div>
         ) : (
-          <Card className="flex min-h-[320px] items-center justify-center rounded-2xl border-dashed border-stone-300 bg-stone-50/50 dark:border-stone-700 dark:bg-stone-900/30">
+          <Card className="flex min-h-[320px] items-center justify-center rounded-2xl border-dashed border-slate-300 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-900/30">
             <div className="p-8 text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ov-fill shadow-lg">
                 <Network className="h-7 w-7" />
               </div>
-              <p className="text-sm font-bold text-stone-700 dark:text-stone-300">{t("Pilih unit organisasi", "Select an organizational unit")}</p>
-              <p className="mt-1 max-w-xs text-xs text-stone-400">{t("Klik salah satu node di pohon untuk melihat detail, okupasi, dan daftar karyawan unit tersebut.", "Click a node in the tree to see its details, occupancy, and employee list.")}</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{t("Pilih unit organisasi", "Select an organizational unit")}</p>
+              <p className="mt-1 max-w-xs text-xs text-slate-400">{t("Klik salah satu node di pohon untuk melihat detail, okupasi, dan daftar karyawan unit tersebut.", "Click a node in the tree to see its details, occupancy, and employee list.")}</p>
             </div>
           </Card>
         )}
@@ -236,11 +236,11 @@ function OrgTree() {
 
 function StatMini({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
-    <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-400">
+    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
         <Icon className="h-3 w-3" /> {label}
       </div>
-      <p className="mt-0.5 text-xl font-extrabold text-stone-900 dark:text-stone-100">{value}</p>
+      <p className="mt-0.5 text-xl font-extrabold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   );
 }
@@ -269,7 +269,7 @@ function DeleteUnitButton({ unit, onDeleted }: { unit: UnitNode; onDeleted: () =
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle className="text-base">{t("Hapus unit?", "Delete unit?")}</DialogTitle></DialogHeader>
-          <p className="text-sm text-stone-500">{t("Unit")} <b>{unit.name}</b> {t("akan dihapus permanen.", "will be permanently deleted.")}</p>
+          <p className="text-sm text-slate-500">{t("Unit")} <b>{unit.name}</b> {t("akan dihapus permanen.", "will be permanently deleted.")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t("Batal")}</Button>
             <Button onClick={doDelete} disabled={busy} className="bg-rose-600 hover:bg-rose-700">{busy ? t("Menghapus…", "Deleting…") : t("Hapus")}</Button>
@@ -399,15 +399,15 @@ function CompanyProfile() {
         }
       />
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="overflow-hidden rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800 lg:col-span-2">
+        <Card className="overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800 lg:col-span-2">
           <div className="h-24 ov-hero" />
           <CardContent className="relative p-6 pt-0">
             <div className="-mt-10 mb-4 flex items-end gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-amber-400 to-amber-600 text-lg font-extrabold text-white shadow-lg dark:border-stone-900">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-amber-400 to-amber-600 text-lg font-extrabold text-white shadow-lg dark:border-slate-900">
                 {c?.shortName?.slice(0, 3) ?? "MII"}
               </div>
               <div className="pb-1">
-                <h2 className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{c?.name}</h2>
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-50">{c?.name}</h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="font-mono text-[10px]">{c?.code}</Badge>
                   <Badge className="gap-1 bg-brand/10 text-brand-deep hover:bg-brand/10 dark:bg-brand/10 dark:text-brand/85">
@@ -462,13 +462,13 @@ function CompanyProfile() {
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ov-text-accent shadow-sm dark:bg-stone-800">
+    <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ov-text-accent shadow-sm dark:bg-slate-800">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-        <p className="break-words text-[13px] font-semibold text-stone-800 dark:text-stone-200">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+        <p className="break-words text-[13px] font-semibold text-slate-800 dark:text-slate-200">{value}</p>
       </div>
     </div>
   );
@@ -476,14 +476,14 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-4 p-5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ov-tile shadow-md">
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className="text-2xl font-extrabold text-stone-900 dark:text-stone-50">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-50">{value}</p>
         </div>
       </CardContent>
     </Card>

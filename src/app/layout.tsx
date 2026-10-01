@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist_Mono, Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-onevity",
+// Task 85 — tema SayOne-Learning: Inter sebagai font utama.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
 });
@@ -16,8 +17,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Display serif editorial — aksen "Ivory Editorial" pada layar auth
-// (halaman masuk & pilih workspace). Dipetakan ke utility font-serif.
+// Display serif — KHUSUS dokumen surat resmi (letter preview/print);
+// layar aplikasi memakai Inter (tema SayOne-Learning, Task 85).
 const playfair = Playfair_Display({
   variable: "--font-editorial",
   subsets: ["latin"],
@@ -49,9 +50,9 @@ export const metadata: Metadata = {
   },
 };
 
-// PWA (Task 27-d) — warna bilah browser/OS mengikuti tema brand ink-stone.
+// PWA (Task 27-d) — warna bilah browser/OS mengikuti tema biru SayOne-Learning (Task 85).
 export const viewport: Viewport = {
-  themeColor: "#1c1917",
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -59,7 +60,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body className={`${jakarta.variable} ${geistMono.variable} ${playfair.variable} font-sans`}>
+      <body className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
           <Toaster />

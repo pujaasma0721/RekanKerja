@@ -154,22 +154,22 @@ export function EsignAdminView() {
                     {(keysApi.data?.keys ?? []).map((k) => (
                       <TableRow key={k.appUserId}>
                         <TableCell>
-                          <p className="font-bold text-stone-800 dark:text-stone-100">{k.fullName}</p>
-                          <p className="text-xs text-stone-400">{k.username}{k.role ? ` · ${k.role}` : ""}{!k.active && t(" · nonaktif", " · inactive")}</p>
+                          <p className="font-bold text-slate-800 dark:text-slate-100">{k.fullName}</p>
+                          <p className="text-xs text-slate-400">{k.username}{k.role ? ` · ${k.role}` : ""}{!k.active && t(" · nonaktif", " · inactive")}</p>
                         </TableCell>
                         <TableCell>
                           {k.status === "Active"
                             ? <Badge variant="outline" className="bg-brand/10 text-brand-deep border-brand/25"><ShieldCheck className="mr-1 h-3 w-3" /> Active</Badge>
                             : <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200"><ShieldOff className="mr-1 h-3 w-3" /> Revoked</Badge>}
-                          <p className="mt-0.5 text-[10px] text-stone-400">{k.algorithm}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-400">{k.algorithm}</p>
                         </TableCell>
                         <TableCell>
                           {k.hasPin
-                            ? <span className="text-xs font-semibold text-stone-700 dark:text-stone-200">{t("Terpasang", "Set")}{k.pinSetAt ? ` · ${fmtDateTime(k.pinSetAt)}` : ""}</span>
-                            : <span className="text-xs text-stone-400">{t("Belum — faktor OTP email", "Not set — email OTP factor")}</span>}
+                            ? <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t("Terpasang", "Set")}{k.pinSetAt ? ` · ${fmtDateTime(k.pinSetAt)}` : ""}</span>
+                            : <span className="text-xs text-slate-400">{t("Belum — faktor OTP email", "Not set — email OTP factor")}</span>}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell"><code className="text-[10px] text-stone-400">…{k.publicKeyFp}</code></TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs text-stone-500">{fmtDateTime(k.createdAt)}</TableCell>
+                        <TableCell className="hidden md:table-cell"><code className="text-[10px] text-slate-400">…{k.publicKeyFp}</code></TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs text-slate-500">{fmtDateTime(k.createdAt)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1.5">
                             {k.hasPin && canReset && (
@@ -211,13 +211,13 @@ export function EsignAdminView() {
 
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={chainQ} onChange={(e) => { setChainQ(e.target.value); }} placeholder={t("Cari no. dokumen / penandatangan…", "Search doc ref / signer…")} className="w-64 pl-9" />
             </div>
             <Button variant="outline" className="h-9" onClick={() => { setChainOffset(0); reloadAll(); }}>
               {t("Cari", "Search")}
             </Button>
-            <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500">
+            <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               {chain?.chainIntact ? <><Link2 className="h-4 w-4 text-brand" /> {t("Rantai utuh", "Chain intact")}</> : <><Link2Off className="h-4 w-4 text-rose-500" /> {t("Rantai putus", "Chain broken")}</>}
             </span>
           </div>
@@ -241,15 +241,15 @@ export function EsignAdminView() {
                     {(chain?.records ?? []).map((r) => (
                       <TableRow key={r.id} className={cn(r.chainBroken && "bg-rose-50/60 dark:bg-rose-500/[0.07]")}>
                         <TableCell>
-                          <p className="font-bold text-stone-800 dark:text-stone-100">{r.docRef}</p>
-                          <p className="text-xs text-stone-400">{r.docType}</p>
+                          <p className="font-bold text-slate-800 dark:text-slate-100">{r.docRef}</p>
+                          <p className="text-xs text-slate-400">{r.docType}</p>
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm font-semibold text-stone-700 dark:text-stone-200">{r.signerName}</p>
-                          {r.signerRole && <p className="text-xs text-stone-400">{r.signerRole}</p>}
+                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{r.signerName}</p>
+                          {r.signerRole && <p className="text-xs text-slate-400">{r.signerRole}</p>}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-xs text-stone-500">{fmtDateTime(r.signedAt)}</TableCell>
-                        <TableCell className="hidden lg:table-cell"><code className="text-[10px] text-stone-400">{r.docHash.slice(0, 12)}…</code></TableCell>
+                        <TableCell className="hidden md:table-cell text-xs text-slate-500">{fmtDateTime(r.signedAt)}</TableCell>
+                        <TableCell className="hidden lg:table-cell"><code className="text-[10px] text-slate-400">{r.docHash.slice(0, 12)}…</code></TableCell>
                         <TableCell>
                           {r.chainBroken
                             ? <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-700"><Link2Off className="mr-1 h-3 w-3" /> {t("PUTUS", "BROKEN")}</Badge>
@@ -265,7 +265,7 @@ export function EsignAdminView() {
 
           {(chain?.total ?? 0) > PAGE && (
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-stone-400">
+              <p className="text-xs text-slate-400">
                 {t("{from}–{to} dari {total}", "{from}–{to} of {total}", { from: (chain?.offset ?? 0) + 1, to: Math.min(chain?.total ?? 0, (chain?.offset ?? 0) + PAGE), total: chain?.total ?? 0 })}
               </p>
               <div className="flex gap-2">

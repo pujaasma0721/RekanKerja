@@ -68,14 +68,14 @@ export function MedicalOverview() {
             {kpi.map((k) => (
               <Card
                 key={k.label}
-                className="cursor-pointer border-stone-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-stone-800 dark:bg-stone-900/80"
+                className="cursor-pointer border-slate-200 bg-white/80 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
                 onClick={k.onClick}
               >
                 <CardContent className="flex items-start justify-between gap-3 p-4 sm:p-5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{k.label}</p>
-                    <p className="mt-1 truncate text-2xl font-black text-stone-900 dark:text-stone-100">{k.value}</p>
-                    {k.sub && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{k.sub}</p>}
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{k.label}</p>
+                    <p className="mt-1 truncate text-2xl font-black text-slate-900 dark:text-slate-100">{k.value}</p>
+                    {k.sub && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{k.sub}</p>}
                   </div>
                   <div className={cn("rounded-xl p-2.5", k.hero ? "ov-fill" : "ov-tile")}>
                     <k.icon className="h-5 w-5" />
@@ -86,7 +86,7 @@ export function MedicalOverview() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-5">
-            <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
                   <TrendingUp className="h-4 w-4 ov-text-accent" /> {t("Alur Klaim Medis", "Medical Claim Flow")}
@@ -97,17 +97,17 @@ export function MedicalOverview() {
                   <button
                     key={st.n}
                     onClick={() => navigate("medical", st.view)}
-                    className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition-all hover:ov-border-accent hover:ov-soft dark:border-stone-800 dark:bg-stone-900"
+                    className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:ov-border-accent hover:ov-soft dark:border-slate-800 dark:bg-slate-900"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ov-fill text-sm font-black">
                       {st.n}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2 font-bold text-stone-900 dark:text-stone-100">
+                      <span className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
                         {st.title}
-                        <ArrowRight className="h-3 w-3 text-stone-400" />
+                        <ArrowRight className="h-3 w-3 text-slate-400" />
                       </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-500 dark:text-stone-400">{st.desc}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{st.desc}</span>
                     </span>
                   </button>
                 ))}
@@ -115,30 +115,30 @@ export function MedicalOverview() {
             </Card>
 
             <div className="space-y-4 lg:col-span-2">
-              <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+              <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
                     <HeartPulse className="h-4 w-4 ov-text-accent" /> {t("Formula Saldo Medis", "Medical Balance Formula")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("Benefit Limit (kebijakan jenis)", "Benefit Limit (type policy)")}</span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-300">{t("Benefit Limit (kebijakan jenis)", "Benefit Limit (type policy)")}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 dark:bg-stone-800/60">
-                    <span className="text-stone-600 dark:text-stone-300">{t("+ Penyesuaian ± + Carry-over − Used", "+ Adjustment ± + Carry-over − Used")}</span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-300">{t("+ Penyesuaian ± + Carry-over − Used", "+ Adjustment ± + Carry-over − Used")}</span>
                   </div>
                   <div className="rounded-lg border-2 ov-border-accent ov-soft px-3 py-2 text-center font-black">
                     {t("Sisa = Limit + Adj. + Carry − Used", "Remaining = Limit + Adj. + Carry − Used")}
                   </div>
-                  <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     {t("Padanan ", "Equivalent to ")}<span className="font-semibold">My Medical Information</span>{t(": snapshot Max Benefit / Used / Balance tercatat di tiap klaim. Sisa > 0 pada jenis CASH ditarik tunai via komponen ", ": snapshot Max Benefit / Used / Balance recorded on each claim. Remaining > 0 on CASH types is drawn in cash via the ")}<span className="font-semibold">UMC</span>{t(" di payroll.", " component in payroll.")}
                   </p>
                 </CardContent>
               </Card>
 
               {s && s.byType.length > 0 && (
-                <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+                <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base font-bold">{t("Klaim Settled per Jenis", "Settled Claims by Type")}</CardTitle>
                   </CardHeader>
@@ -148,16 +148,16 @@ export function MedicalOverview() {
                       return (
                         <div key={k.typeCode}>
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-stone-700 dark:text-stone-300">{k.typeName}</span>
-                            <span className="text-stone-500 dark:text-stone-400">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{k.typeName}</span>
+                            <span className="text-slate-500 dark:text-slate-400">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
                           </div>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                             <div className="h-full rounded-full ov-chart" style={{ width: `${(k.approvedAmount / max) * 100}%` }} />
                           </div>
                         </div>
                       );
                     })}
-                    <p className="pt-1 text-xs text-stone-500 dark:text-stone-400">
+                    <p className="pt-1 text-xs text-slate-500 dark:text-slate-400">
                       {t("Total settled {a} dari tagihan {b}", "Total settled {a} of {b} billed", { a: fmtIDR(s.settledApproved), b: fmtIDR(s.settledBill) })}
                     </p>
                   </CardContent>

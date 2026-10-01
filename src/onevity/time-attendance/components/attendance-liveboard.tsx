@@ -46,7 +46,7 @@ const STATUS_TONE: Record<string, string> = {
   WorkOff: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   OnLeave: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
   Holiday: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85",
-  Off: "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400",
+  Off: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
 };
 
 const fmtTime = (d: string | null, locale: string) => {
@@ -112,7 +112,7 @@ export function AttendanceLiveboardPage() {
     {
       key: "done",
       title: t("Sudah Clock-Out", "Already Clocked Out"),
-      icon: DoorClosed, dot: "bg-stone-400",
+      icon: DoorClosed, dot: "bg-slate-400",
       count: rows.filter((r) => r.state === "done").length,
       items: rows.filter((r) => r.state === "done"),
     },
@@ -141,7 +141,7 @@ export function AttendanceLiveboardPage() {
 
   const chips = [
     { label: t("Di kantor sekarang", "In office now"), value: stats?.inOffice ?? 0, tone: "text-brand dark:text-brand/85" },
-    { label: t("Sudah pulang", "Already left"), value: stats?.done ?? 0, tone: "text-stone-600 dark:text-stone-300" },
+    { label: t("Sudah pulang", "Already left"), value: stats?.done ?? 0, tone: "text-slate-600 dark:text-slate-300" },
     { label: t("Terlambat", "Late"), value: stats?.late ?? 0, tone: "text-amber-600 dark:text-amber-400" },
     { label: t("Off & cuti", "Off & leave"), value: stats?.off ?? 0, tone: "text-brand dark:text-brand/85" },
     { label: t("Belum absen", "Not clocked"), value: stats?.noClock ?? 0, tone: "text-orange-600 dark:text-orange-400" },
@@ -163,13 +163,13 @@ export function AttendanceLiveboardPage() {
               aria-label={t("Tanggal papan", "Board date")}
               className="h-9 w-36 text-xs font-bold"
             />
-            <div className="flex items-center gap-2 rounded-xl border border-stone-200/80 bg-white px-3 py-1.5 dark:border-stone-800 dark:bg-stone-900">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900">
               <Switch
                 id="liveboard-auto" checked={autoRefresh}
                 onCheckedChange={setAutoRefresh}
                 aria-label={t("Auto-refresh tiap 30 detik", "Auto-refresh every 30 seconds")}
               />
-              <Label htmlFor="liveboard-auto" className="cursor-pointer text-[11px] font-bold text-stone-600 dark:text-stone-300">
+              <Label htmlFor="liveboard-auto" className="cursor-pointer text-[11px] font-bold text-slate-600 dark:text-slate-300">
                 {t("Auto-refresh", "Auto-refresh")}
               </Label>
             </div>
@@ -187,8 +187,8 @@ export function AttendanceLiveboardPage() {
         <div className="flex items-center gap-2.5">
           <Radar className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
           {isHistory ? (
-            <span className="flex items-center gap-2 text-xs font-bold text-stone-600 dark:text-stone-300">
-              <span className="h-2 w-2 rounded-full bg-stone-400" aria-hidden />
+            <span className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+              <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
               {t("Mode riwayat — data tanggal {d}", "History mode — data for {d}", { d: api.data?.date ?? "—" })}
             </span>
           ) : (
@@ -198,9 +198,9 @@ export function AttendanceLiveboardPage() {
             </span>
           )}
         </div>
-        <p role="status" className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+        <p role="status" className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
           {t("Terakhir diperbarui", "Last updated")}{" "}
-          <span className="font-mono font-bold text-stone-700 dark:text-stone-200">
+          <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
             {api.data ? fmtClock(api.data.updatedAt, locale) : "—"}
           </span>
           <span className="sr-only">
@@ -212,8 +212,8 @@ export function AttendanceLiveboardPage() {
       {/* chip statistik — aria-live polite utk pembaca layar */}
       <div role="status" aria-live="polite" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {chips.map((k) => (
-          <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
+          <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
             <p className={cn("text-lg font-extrabold", k.tone)}>{stats ? k.value : "—"}</p>
           </div>
         ))}
@@ -234,7 +234,7 @@ export function AttendanceLiveboardPage() {
             </SelectContent>
           </Select>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" aria-hidden />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
             <Input
               value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder={t("Cari nama / NIK…", "Search name / ID…")}
@@ -243,7 +243,7 @@ export function AttendanceLiveboardPage() {
             />
           </div>
         </div>
-        <p className="text-[11px] font-semibold text-stone-400">
+        <p className="text-[11px] font-semibold text-slate-400">
           {t("Menampilkan {n} dari {total} karyawan aktif", "Showing {n} of {total} active employees", { n: rows.length, total: stats?.total ?? 0 })}
         </p>
       </div>
@@ -263,25 +263,25 @@ export function AttendanceLiveboardPage() {
           {sections.map((sec) => {
             const Icon = sec.icon;
             return (
-              <Card key={sec.key} className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card key={sec.key} className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardContent className="p-4 sm:p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="flex items-center gap-2 text-sm font-extrabold text-stone-800 dark:text-stone-200">
+                    <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800 dark:text-slate-200">
                       <span className={cn("h-2.5 w-2.5 rounded-full", sec.dot, sec.key === "inOffice" && !isHistory && "animate-pulse")} aria-hidden />
-                      <Icon className="h-4 w-4 text-stone-400" aria-hidden />
+                      <Icon className="h-4 w-4 text-slate-400" aria-hidden />
                       {sec.title}
-                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                         {sec.count}
                       </span>
                     </h3>
                   </div>
 
                   {sec.items.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 px-4 py-6 text-center text-xs text-stone-400 dark:border-stone-700 dark:bg-stone-900/30">
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
                       {t("Tidak ada karyawan di kelompok ini", "No employees in this group")}
                     </div>
                   ) : (
-                    <div className="max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700">
+                    <div className="max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {sec.items.map((r) => (
                           <EmployeeCard key={r.employeeId} r={r} locale={locale} t={t} section={sec.key} />
@@ -311,7 +311,7 @@ function EmployeeCard({
     ? t(ATT_STATUS_LABEL[r.status] ?? r.status, ATT_STATUS_LABEL_EN[r.status] ?? r.status)
     : t("Tanpa rekap", "No recap");
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-stone-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:ov-border-accent hover:shadow-md dark:border-stone-800 dark:bg-stone-900">
+    <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:ov-border-accent hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-start gap-2.5">
         <div className="relative shrink-0">
           <Avatar className="h-10 w-10 rounded-xl">
@@ -321,20 +321,20 @@ function EmployeeCard({
             </AvatarFallback>
           </Avatar>
           {section === "inOffice" && (
-            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-brand dark:border-stone-900" aria-hidden />
+            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-brand dark:border-slate-900" aria-hidden />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{r.fullName}</p>
-          <p className="truncate font-mono text-[10px] text-stone-400">{r.employeeNo}</p>
-          <p className="truncate text-[10px] text-stone-400">
+          <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{r.fullName}</p>
+          <p className="truncate font-mono text-[10px] text-slate-400">{r.employeeNo}</p>
+          <p className="truncate text-[10px] text-slate-400">
             {r.orgUnitName ?? "—"}{r.workLocationName ? ` · ${r.workLocationName}` : ""}
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold", STATUS_TONE[r.status ?? ""] ?? "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400")}>
+        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold", STATUS_TONE[r.status ?? ""] ?? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>
           {statusLabel}
         </span>
         {r.lateMinutes > 0 && (
@@ -345,15 +345,15 @@ function EmployeeCard({
         )}
       </div>
 
-      <div className="mt-auto flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800/70">
+      <div className="mt-auto flex items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-800/70">
         {r.checkIn ? (
           <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-brand dark:text-brand/85" title={t("Jam masuk", "Clock in")}>
             <LogIn className="h-3 w-3" aria-hidden /> {fmtTime(r.checkIn, locale)}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 font-mono text-[11px] text-stone-300 dark:text-stone-600">—</span>
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-300 dark:text-slate-600">—</span>
         )}
-        <span className="text-[10px] text-stone-300 dark:text-stone-600" aria-hidden>→</span>
+        <span className="text-[10px] text-slate-300 dark:text-slate-600" aria-hidden>→</span>
         {r.checkOut ? (
           <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-rose-600 dark:text-rose-400" title={t("Jam pulang", "Clock out")}>
             <LogOut className="h-3 w-3" aria-hidden /> {fmtTime(r.checkOut, locale)}
@@ -361,7 +361,7 @@ function EmployeeCard({
         ) : section === "inOffice" ? (
           <span className="text-[10px] font-bold text-brand/80 dark:text-brand/85/70">{t("masih di kantor", "still in office")}</span>
         ) : (
-          <span className="font-mono text-[11px] text-stone-300 dark:text-stone-600">—</span>
+          <span className="font-mono text-[11px] text-slate-300 dark:text-slate-600">—</span>
         )}
         {(section === "inOffice" || section === "done") && (
           <span className="sr-only">

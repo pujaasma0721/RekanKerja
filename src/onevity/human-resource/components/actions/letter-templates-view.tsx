@@ -250,12 +250,12 @@ export function LetterTemplatesView() {
   };
 
   const renderRow = (tpl: TemplateRow) => (
-    <Card key={tpl.id} className="rounded-2xl border-stone-200/80 shadow-sm transition-shadow hover:shadow-md dark:border-stone-800">
+    <Card key={tpl.id} className="rounded-2xl border-slate-200/80 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800">
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-bold text-stone-800 dark:text-stone-100">{tpl.name}</p>
-            <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[10px] font-bold text-stone-500 dark:text-stone-400">
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{tpl.name}</p>
+            <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400">
               {tpl.key}
             </Badge>
             {/* pil aktif — klik untuk toggle */}
@@ -267,17 +267,17 @@ export function LetterTemplatesView() {
                 "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition-colors",
                 tpl.active
                   ? "border-brand/25 bg-brand/10 text-brand-deep hover:bg-brand/15 dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
-                  : "border-stone-200 bg-stone-50 text-stone-400 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-500",
+                  : "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500",
               )}
             >
-              <span className={cn("h-1.5 w-1.5 rounded-full", tpl.active ? "bg-brand" : "bg-stone-300 dark:bg-stone-600")} aria-hidden />
+              <span className={cn("h-1.5 w-1.5 rounded-full", tpl.active ? "bg-brand" : "bg-slate-300 dark:bg-slate-600")} aria-hidden />
               {tpl.active ? t("Aktif", "Active") : t("Nonaktif", "Inactive")}
             </button>
           </div>
           {tpl.description && (
-            <p className="mt-1 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{tpl.description}</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{tpl.description}</p>
           )}
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-stone-400">
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
             <span className="inline-flex items-center gap-1">
               <PenLine className="h-3 w-3" aria-hidden />
               {tpl.signatoryName ? `${tpl.signatoryName} — ${tpl.signatoryTitle}` : `— — ${tpl.signatoryTitle}`}
@@ -311,18 +311,18 @@ export function LetterTemplatesView() {
 
       {/* tab katalog / permintaan masuk (26-a) */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-stone-100/90 p-1 dark:bg-stone-800/70">
-          <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
+        <TabsList className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100/90 p-1 dark:bg-slate-800/70">
+          <TabsTrigger value="catalog" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
             <FileText className="h-4 w-4" aria-hidden /> {t("Katalog Template", "Template Catalog")}
           </TabsTrigger>
           {/* Task 80f — tab Dokumen Terbit: semua surat terbit + status eSign */}
-          <TabsTrigger value="documents" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
+          <TabsTrigger value="documents" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
             <FileSignature className="h-4 w-4" aria-hidden /> {t("Dokumen Terbit", "Issued Documents")}
             <span className="ml-1 rounded-full bg-brand/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-brand-deep dark:bg-brand/15 dark:text-brand/85">
               {signedCount}/{(issued.data?.letters ?? []).length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-stone-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-stone-900/[0.06] dark:text-stone-400 dark:data-[state=active]:bg-stone-900 dark:data-[state=active]:ring-stone-100/10">
+          <TabsTrigger value="requests" className="shrink-0 gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium whitespace-nowrap text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-900/[0.06] dark:text-slate-400 dark:data-[state=active]:bg-slate-900 dark:data-[state=active]:ring-slate-100/10">
             <Inbox className="h-4 w-4" aria-hidden /> {t("Permintaan Masuk", "Incoming Requests")}
             {pendingCount > 0 && (
               <span data-count className="ml-1 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
@@ -346,9 +346,9 @@ export function LetterTemplatesView() {
             <div className="space-y-6">
               {/* seksi Disipliner */}
               <section aria-label={t("Template Disipliner", "Disciplinary Templates")}>
-                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                   <Scale className="h-3.5 w-3.5" aria-hidden /> {t("Disipliner", "Disciplinary")}
-                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-stone-400">{disciplinary.length}</Badge>
+                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">{disciplinary.length}</Badge>
                 </h3>
                 <div className="grid gap-3">
                   {disciplinary.map(renderRow)}
@@ -357,9 +357,9 @@ export function LetterTemplatesView() {
 
               {/* seksi Personnel Action */}
               <section aria-label={t("Template Personnel Action", "Personnel Action Templates")}>
-                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                   <FileText className="h-3.5 w-3.5" aria-hidden /> {t("Personnel Action")}
-                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-stone-400">{personnel.length}</Badge>
+                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">{personnel.length}</Badge>
                 </h3>
                 <div className="grid gap-3">
                   {personnel.map(renderRow)}
@@ -368,9 +368,9 @@ export function LetterTemplatesView() {
 
               {/* ===== seksi Surat Layanan Karyawan (26-a) ===== */}
               <section aria-label={t("Template Surat Layanan Karyawan", "Employee Service Templates")}>
-                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                   <HeartHandshake className="h-3.5 w-3.5" aria-hidden /> {t("Surat Layanan Karyawan", "Employee Service")}
-                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-stone-400">{service.length}</Badge>
+                  <Badge variant="outline" className="rounded-full px-2 text-[10px] font-bold text-slate-400">{service.length}</Badge>
                 </h3>
                 <div className="grid gap-3">
                   {service.map(renderRow)}
@@ -382,7 +382,7 @@ export function LetterTemplatesView() {
 
         {/* ===== TAB PERMINTAAN MASUK (26-a) ===== */}
         <TabsContent value="requests">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-4 sm:p-6">
               {requests.loading && !requests.data ? (
                 <LoadingRows rows={4} />
@@ -409,28 +409,28 @@ export function LetterTemplatesView() {
                         "rounded-xl border p-4 transition-colors",
                         r.status === "Pending"
                           ? "border-amber-200 bg-amber-50/50 dark:border-amber-500/25 dark:bg-amber-500/5"
-                          : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900/40",
+                          : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40",
                       )}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <UserRound className="h-3.5 w-3.5 text-stone-400" aria-hidden />
-                              <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">
+                              <UserRound className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                              <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
                                 {r.employee.fullName}
-                                <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{r.employee.employeeNo}</span>
+                                <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.employee.employeeNo}</span>
                               </p>
                               <StatusPill status={r.status} />
                             </div>
-                            <p className="mt-1 text-[12px] font-semibold text-stone-600 dark:text-stone-300">
+                            <p className="mt-1 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
                               {r.templateName}
-                              <span className="ml-2 font-mono text-[11px] font-semibold text-stone-400">{r.reqNo}</span>
+                              <span className="ml-2 font-mono text-[11px] font-semibold text-slate-400">{r.reqNo}</span>
                             </p>
-                            <p className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
+                            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                               {r.employee.positionTitle ?? "—"} · {r.employee.orgUnitName ?? "—"}
                               {r.purpose ? ` · ${t("keperluan", "for")}: ${r.purpose}` : ""}
                             </p>
                             {r.notes && (
-                              <p className="mt-1 rounded-lg bg-stone-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+                              <p className="mt-1 rounded-lg bg-slate-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                                 “{r.notes}”
                               </p>
                             )}
@@ -439,7 +439,7 @@ export function LetterTemplatesView() {
                                 {t("Alasan tolak", "Reject reason")}: {r.rejectReason}
                               </p>
                             )}
-                            <p className="mt-1 text-[10px] text-stone-400">
+                            <p className="mt-1 text-[10px] text-slate-400">
                               {t("diajukan", "requested")} {fmtDateTime(r.createdAt)}
                               {r.decidedAt && r.decidedBy ? ` · ${t("diputuskan", "decided")} ${fmtDateTime(r.decidedAt)} (${r.decidedBy})` : ""}
                             </p>
@@ -481,10 +481,10 @@ export function LetterTemplatesView() {
         </TabsContent>
         {/* Task 80f — DOKUMEN TERBIT: semua surat terbit + badge eSign + ttd */}
         <TabsContent value="documents">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-4 sm:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[12px] text-stone-500 dark:text-stone-400">
+                <p className="text-[12px] text-slate-500 dark:text-slate-400">
                   {t("Semua surat terbit — tandai secara elektronik agar PDF membawa QR verifikasi.", "All issued letters — sign electronically so the PDF carries a verification QR.")}
                 </p>
                 <Input
@@ -512,14 +512,14 @@ export function LetterTemplatesView() {
                         "rounded-xl border p-4 transition-colors",
                         d.esign
                           ? "border-emerald-200 bg-emerald-50/40 dark:border-emerald-500/25 dark:bg-emerald-500/5"
-                          : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900/40",
+                          : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40",
                       )}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <FileText className="h-3.5 w-3.5 text-stone-400" aria-hidden />
-                              <p className="font-mono text-[12px] font-bold text-stone-700 dark:text-stone-200">{d.refNo}</p>
-                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold text-stone-500 dark:text-stone-400">
+                              <FileText className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                              <p className="font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200">{d.refNo}</p>
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                                 {CATEGORY_LABEL[d.category] ?? d.category}
                               </Badge>
                               {d.esign ? (
@@ -529,17 +529,17 @@ export function LetterTemplatesView() {
                                   {d.esign.viaPa ? ` · ${t("via PA", "via PA")}` : ""}
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                                   {t("Belum ditandatangani", "Unsigned")}
                                 </span>
                               )}
                             </div>
-                            <p className="mt-1 text-[13px] font-bold text-stone-800 dark:text-stone-100">{d.templateName}</p>
-                            <p className="mt-0.5 text-[12px] font-semibold text-stone-600 dark:text-stone-300">
-                              {d.employeeName} <span className="ml-1 font-mono text-[11px] font-semibold text-stone-400">{d.employeeNo}</span>
+                            <p className="mt-1 text-[13px] font-bold text-slate-800 dark:text-slate-100">{d.templateName}</p>
+                            <p className="mt-0.5 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
+                              {d.employeeName} <span className="ml-1 font-mono text-[11px] font-semibold text-slate-400">{d.employeeNo}</span>
                               {d.subject ? ` · ${d.subject}` : ""}
                             </p>
-                            <p className="mt-1 text-[10px] text-stone-400">
+                            <p className="mt-1 text-[10px] text-slate-400">
                               {t("terbit", "issued")} {fmtDateTime(d.issuedAt)}
                               {d.esign ? ` · ${t("ditandatangani", "signed")} ${fmtDateTime(d.esign.signedAt)} ${t("oleh", "by")} ${d.esign.signerName}` : ""}
                             </p>
@@ -607,7 +607,7 @@ export function LetterTemplatesView() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-[12px] leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
               {rejectTarget && t(
                 "{name} meminta {tpl} ({req}). Alasan penolakan akan dikirim sebagai notifikasi kepada karyawan.",
                 "{name} requested {tpl} ({req}). The rejection reason will be sent to the employee as a notification.",
@@ -758,7 +758,7 @@ function TemplateEditDialog({ tpl, open, setOpen, onSaved }: {
           <DialogTitle className="flex flex-wrap items-center gap-2.5 text-base">
             <Pencil className="h-4 w-4 ov-text-accent" />
             {t("Ubah Template Surat", "Edit Letter Template")}
-            <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[10px] font-bold text-stone-500 dark:text-stone-400">{tpl.key}</Badge>
+            <Badge variant="outline" className="rounded-md px-1.5 font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400">{tpl.key}</Badge>
           </DialogTitle>
         </DialogHeader>
 
@@ -792,21 +792,21 @@ function TemplateEditDialog({ tpl, open, setOpen, onSaved }: {
                 className="mt-1.5 min-h-[420px] font-mono text-xs leading-relaxed"
                 aria-label={t("Isi surat dengan placeholder", "Letter body with placeholders")}
               />
-              <p className="mt-1 text-[10px] text-stone-400">
+              <p className="mt-1 text-[10px] text-slate-400">
                 {t("{n} karakter — placeholder ditulis", "{n} characters — placeholders are written as", { n: body.length })}
                 <span className="font-mono"> {"{{token}}"}</span>
               </p>
             </div>
 
             {/* palet placeholder — klik menyisipkan di posisi kursor */}
-            <div className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3.5 dark:border-stone-800 dark:bg-stone-900/40">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {t("Sisipkan Placeholder", "Insert Placeholder")}
               </p>
               <div className="mt-2.5 max-h-52 space-y-2.5 overflow-y-auto pr-1">
                 {LETTER_PLACEHOLDERS.map((g) => (
                   <div key={g.group}>
-                    <p className="text-[10px] font-semibold text-stone-500 dark:text-stone-400">{g.group}</p>
+                    <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{g.group}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {g.tokens.map((tk) => (
                         <button
@@ -814,7 +814,7 @@ function TemplateEditDialog({ tpl, open, setOpen, onSaved }: {
                           type="button"
                           title={tk.desc}
                           onClick={() => insertToken(tk.token)}
-                          className="cursor-pointer rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-600 transition-colors hover:border-stone-300 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+                          className="cursor-pointer rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         >
                           {`{{${tk.token}}}`}
                         </button>
@@ -828,15 +828,15 @@ function TemplateEditDialog({ tpl, open, setOpen, onSaved }: {
 
           {/* ===== KOLOM KANAN: pratinjau langsung (kertas) ===== */}
           <div className="lg:sticky lg:top-0 lg:self-start">
-            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-400">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               <Eye className="h-3.5 w-3.5" aria-hidden /> {t("Pratinjau Langsung", "Live Preview")}
             </p>
-            <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700">
-              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-stone-800">
+            <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700">
+              <div className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-slate-800">
                 {preview}
               </div>
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-stone-400">
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
               {t(
                 "Pratinjau memakai data contoh — nilai aktual diisi otomatis saat surat diterbitkan.",
                 "The preview uses sample data — actual values are filled in when the letter is issued.",

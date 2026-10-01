@@ -33,16 +33,16 @@ export function PayrollProfilesPage() {
         description="NPWP, status PTKP (penentu pajak), metode Gross-to-Net / Net-to-Gross, template upah, dan rekening bank per karyawan"
       />
 
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-3.5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama atau nomor karyawan…" className="pl-9" />
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
@@ -52,7 +52,7 @@ export function PayrollProfilesPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Gaji Pokok</TableHead>
                     <TableHead className="text-[11px] font-bold">NPWP</TableHead>
@@ -65,10 +65,10 @@ export function PayrollProfilesPage() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => (
-                    <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={r.employeeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <p className="text-[13px] font-bold">{r.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.positionName ?? "—"}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{r.employeeNo} · {r.positionName ?? "—"}</p>
                       </TableCell>
                       <TableCell className="text-xs font-bold">{fmtIDR(r.baseSalary)}</TableCell>
                       <TableCell>
@@ -81,7 +81,7 @@ export function PayrollProfilesPage() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-[11px] font-bold">{r.profile ? (TAX_STATUS_OPTIONS.find((t) => t.value === r.profile!.taxStatus)?.label ?? r.profile.taxStatus) : "—"}</span>
-                          <span className="text-[10px] text-stone-400">{r.profile ? `PTKP ${fmtIDR(r.profile.ptkpValue)}/thn` : ""}</span>
+                          <span className="text-[10px] text-slate-400">{r.profile ? `PTKP ${fmtIDR(r.profile.ptkpValue)}/thn` : ""}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -90,16 +90,16 @@ export function PayrollProfilesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs font-semibold">{r.profile?.wageTemplateName ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-stone-500">
+                      <TableCell className="text-xs text-slate-500">
                         {r.profile?.bankName ? (
                           <div className="flex items-center gap-1">
-                            <Wallet className="h-3 w-3 text-stone-400" />
-                            <span>{r.profile.bankName} <span className="font-mono text-[10px] text-stone-400">{r.profile.bankAccount}</span></span>
+                            <Wallet className="h-3 w-3 text-slate-400" />
+                            <span>{r.profile.bankName} <span className="font-mono text-[10px] text-slate-400">{r.profile.bankAccount}</span></span>
                           </div>
                         ) : "—"}
                       </TableCell>
                       <TableCell>
-                        <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit profil payroll">
+                        <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit profil payroll">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                       </TableCell>
@@ -172,10 +172,10 @@ function ProfileDialog({ row, templates, onClose }: { row: ProfileRow | null; te
           <DialogTitle className="flex items-center gap-2 text-base"><IdCard className="h-4 w-4 text-emerald-600" /> Data Payroll — {row.fullName}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">Punya NPWP</p>
-              <p className="text-[10px] text-stone-400">Non-NPWP dikenai tarif 20% lebih tinggi</p>
+              <p className="text-[10px] text-slate-400">Non-NPWP dikenai tarif 20% lebih tinggi</p>
             </div>
             <Switch checked={hasNpwp} onCheckedChange={setHasNpwp} />
           </div>

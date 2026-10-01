@@ -177,7 +177,7 @@ export function JobView() {
               <Card
                 key={j.id}
                 className={cn(
-                  "group cursor-pointer rounded-2xl border-stone-200/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-800",
+                  "group cursor-pointer rounded-2xl border-slate-200/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800",
                   !j.active && "opacity-70"
                 )}
                 onClick={() => openEdit(j)}
@@ -192,45 +192,45 @@ export function JobView() {
                         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold",
                         j.active
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400"
-                          : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400"
+                          : "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400"
                       )}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", j.active ? "bg-emerald-500" : "bg-stone-400")} />
+                        <span className={cn("h-1.5 w-1.5 rounded-full", j.active ? "bg-emerald-500" : "bg-slate-400")} />
                         {j.active ? "Aktif" : "Nonaktif"}
                       </span>
                       {j._count.positions > 0 && (
-                        <Badge className="h-6 rounded-full bg-stone-100 px-2 text-[10px] font-bold text-stone-600 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-300">
+                        <Badge className="h-6 rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">
                           <Boxes className="mr-1 h-3 w-3" /> {j._count.positions}
                         </Badge>
                       )}
                     </div>
                   </div>
                   <div className="mt-3.5">
-                    <p className="flex items-center gap-2 text-[15px] font-bold leading-tight text-stone-900 dark:text-stone-50">
+                    <p className="flex items-center gap-2 text-[15px] font-bold leading-tight text-slate-900 dark:text-slate-50">
                       {j.title}
                     </p>
                     <div className="mt-2 flex items-center gap-1.5">
                       <Badge variant="outline" className="font-mono text-[10px]">{j.code}</Badge>
-                      <Badge variant="outline" className="text-[10px] text-stone-500">{cat.label}</Badge>
+                      <Badge variant="outline" className="text-[10px] text-slate-500">{cat.label}</Badge>
                     </div>
                   </div>
                   {j.description && (
-                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-stone-500 dark:text-stone-400">{j.description}</p>
+                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{j.description}</p>
                   )}
-                  <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
-                    <p className="text-[10px] font-medium text-stone-400">
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/70">
+                    <p className="text-[10px] font-medium text-slate-400">
                       {j._count.positions} posisi menggunakan job ini
                     </p>
                     <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={(e) => { e.stopPropagation(); openEdit(j); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-stone-100 hover:text-emerald-700 dark:hover:bg-stone-800 dark:hover:text-emerald-400"
+                        className="rounded-lg p-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
                         aria-label={`Ubah job ${j.title}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditing(j); setDeleteOpen(true); }}
-                        className="rounded-lg p-2.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+                        className="rounded-lg p-2.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                         aria-label={`Hapus job ${j.title}`}
                       >
                         <Trash2 className="h-4 w-4" />

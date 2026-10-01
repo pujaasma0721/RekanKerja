@@ -111,12 +111,12 @@ export function PwaRegister() {
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[45] w-[min(20rem,calc(100vw-2rem))] md:right-6 md:bottom-6"
         >
-          <div className="relative rounded-2xl border border-stone-700/60 bg-stone-900 p-4 text-stone-100 shadow-2xl shadow-stone-900/40 dark:border-stone-700 dark:bg-stone-900">
+          <div className="relative rounded-2xl border border-slate-700/60 bg-slate-900 p-4 text-slate-100 shadow-2xl shadow-slate-900/40 dark:border-slate-700 dark:bg-slate-900">
             <button
               type="button"
               onClick={dismiss}
               aria-label={t("Tutup", "Dismiss")}
-              className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-lg text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-200"
+              className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -126,7 +126,7 @@ export function PwaRegister() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold">{t("Instal aplikasi OneVity", "Install the OneVity app")}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-stone-400">
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
                   {t(
                     "Akses lebih cepat dan tampil layaknya aplikasi asli di perangkat Anda.",
                     "Faster access and a native-like experience on your device.",
@@ -146,7 +146,7 @@ export function PwaRegister() {
               <button
                 type="button"
                 onClick={dismiss}
-                className="inline-flex h-11 items-center justify-center rounded-lg border border-stone-700 px-4 text-xs font-semibold text-stone-300 transition-colors hover:bg-stone-800"
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-700 px-4 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800"
               >
                 {t("Nanti", "Later")}
               </button>

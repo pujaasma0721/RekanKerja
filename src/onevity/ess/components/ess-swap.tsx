@@ -69,7 +69,7 @@ interface SwapHistoryRow {
 interface ListData { mine: SwapHistoryRow[]; toMe: SwapHistoryRow[] }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700";
+const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
 
 const timeLabel = (timeIn: string | null, timeOut: string | null) =>
   !timeIn && !timeOut ? "—" : `${timeIn ?? "?"}–${timeOut ?? "?"}`;
@@ -86,12 +86,12 @@ function SwapHistoryCard({
 }) {
   const partner = role === "mine" ? r.target : r.requester;
   return (
-    <div className="rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
+    <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[11px] font-bold text-stone-500">{r.code}</span>
+        <span className="font-mono text-[11px] font-bold text-slate-500">{r.code}</span>
         <StatusPill status={r.status} />
-        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-stone-700 dark:text-stone-300">
-          <CalendarRange className="h-3.5 w-3.5 text-stone-400" aria-hidden /> {fmtDate(r.swapDate)}
+        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-slate-700 dark:text-slate-300">
+          <CalendarRange className="h-3.5 w-3.5 text-slate-400" aria-hidden /> {fmtDate(r.swapDate)}
         </span>
       </div>
 
@@ -101,10 +101,10 @@ function SwapHistoryCard({
           <AvatarFallback className={cn("rounded-xl text-[11px] font-extrabold", avatarColor(partner.fullName))}>{initials(partner.fullName)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">
+          <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">
             {role === "mine" ? t("dengan", "with") : t("dari", "from")} {partner.fullName}
           </p>
-          <p className="truncate font-mono text-[10px] text-stone-400">{partner.employeeNo}</p>
+          <p className="truncate font-mono text-[10px] text-slate-400">{partner.employeeNo}</p>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ function SwapHistoryCard({
       </div>
 
       {r.reason && (
-        <p className="mt-1.5 rounded-lg bg-stone-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+        <p className="mt-1.5 rounded-lg bg-slate-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
           “{r.reason}”
         </p>
       )}
@@ -143,21 +143,21 @@ function SwapHistoryCard({
         </p>
       )}
       {r.status === "Cancelled" && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-stone-400">
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
           <Ban className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("Dibatalkan", "Cancelled")}
         </p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] text-stone-400">
+        <p className="text-[10px] text-slate-400">
           {t("diajukan", "submitted")} {fmtDateTime(r.createdAt)}
           {r.decidedAt ? ` · ${t("diputuskan", "decided")} ${fmtDateTime(r.decidedAt)}` : ""}
         </p>
         {role === "mine" && r.status === "Pending" && onCancel && (
           <Button
             variant="outline" size="sm" disabled={busy}
-            className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-stone-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+            className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
             onClick={() => onCancel(r)}
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} {t("Batalkan", "Cancel")}
@@ -247,7 +247,7 @@ export function EssSwap() {
       />
 
       {/* ===== seksi 1: ajukan tukar shift ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
@@ -264,14 +264,14 @@ export function EssSwap() {
                 id="ess-swap-date" type="date" value={date} min={todayIso()}
                 onChange={(e) => onDateChange(e.target.value)} className="text-sm"
               />
-              <p className="text-[10px] text-stone-400">{t("Hari ini atau masa depan — hari lampau tidak bisa diajukan.", "Today or later — past dates cannot be requested.")}</p>
+              <p className="text-[10px] text-slate-400">{t("Hari ini atau masa depan — hari lampau tidak bisa diajukan.", "Today or later — past dates cannot be requested.")}</p>
             </div>
 
             {/* jadwal saya tanggal tsb */}
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">{t("Jadwal Saya", "My Schedule")}</Label>
               {propose.loading && !propose.data ? (
-                <div className="h-9 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
+                <div className="h-9 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
               ) : myShift?.holiday ? (
                 <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/25 dark:bg-rose-500/10">
                   <CalendarRange className="h-4 w-4 text-rose-500" aria-hidden />
@@ -280,11 +280,11 @@ export function EssSwap() {
                   </p>
                 </div>
               ) : myShift?.dayType ? (
-                <div className="flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-800 dark:bg-stone-800/60">
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/60">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ borderColor: myShift.dayType.color ?? "#d6d3d1", background: myShift.dayType.color ?? "#d6d3d1" }} aria-hidden />
-                  <p className="min-w-0 flex-1 truncate text-[12px] font-bold text-stone-700 dark:text-stone-200">
+                  <p className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">
                     {myShift.dayType.name}
-                    <span className="ml-1.5 font-mono text-[11px] font-semibold text-stone-400">{timeLabel(myShift.dayType.timeIn, myShift.dayType.timeOut)}</span>
+                    <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{timeLabel(myShift.dayType.timeIn, myShift.dayType.timeOut)}</span>
                   </p>
                 </div>
               ) : (
@@ -296,7 +296,7 @@ export function EssSwap() {
                 </div>
               )}
               {myShift?.scheduleName && (
-                <p className="text-[10px] text-stone-400">{myShift.scheduleName}{!myShift.clockingRequired ? " · non-clocking" : ""}</p>
+                <p className="text-[10px] text-slate-400">{myShift.scheduleName}{!myShift.clockingRequired ? " · non-clocking" : ""}</p>
               )}
             </div>
           </div>
@@ -320,12 +320,12 @@ export function EssSwap() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label className="text-xs font-bold">
                 {t("Rekan Tukar *", "Swap Partner *")}
-                <span className="ml-1.5 font-mono text-[10px] font-semibold text-stone-400">
+                <span className="ml-1.5 font-mono text-[10px] font-semibold text-slate-400">
                   {t("{n} rekan berbeda shift", "{n} colleagues on a different shift", { n: candidates.length })}
                 </span>
               </Label>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" aria-hidden />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
                 <Input
                   value={query} onChange={(e) => setQuery(e.target.value)}
                   placeholder={t("Cari nama / NIK…", "Search name / ID…")}
@@ -338,11 +338,11 @@ export function EssSwap() {
             {propose.loading && !propose.data ? (
               <LoadingRows rows={3} />
             ) : !myShift?.dayType ? (
-              <p className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 px-4 py-5 text-center text-xs text-stone-400 dark:border-stone-700 dark:bg-stone-900/30">
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
                 {t("Pilih tanggal ketika Anda berjadwal untuk melihat rekan yang bisa diajak tukar.", "Pick a date on which you have a schedule to see swap candidates.")}
               </p>
             ) : candidates.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 px-4 py-5 text-center text-xs text-stone-400 dark:border-stone-700 dark:bg-stone-900/30">
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
                 {t(
                   "Tidak ada rekan dengan shift berbeda pada tanggal ini.",
                   "No colleague has a different shift on this date.",
@@ -360,7 +360,7 @@ export function EssSwap() {
                         "flex w-full items-center gap-2.5 rounded-xl border p-2.5 text-left transition hover:border-amber-300 hover:bg-amber-50/50 dark:hover:border-amber-500/40 dark:hover:bg-amber-500/5",
                         isSel
                           ? "border-amber-400 bg-amber-50 ring-1 ring-amber-400 dark:border-amber-500/50 dark:bg-amber-500/10"
-                          : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900",
+                          : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
                       )}
                     >
                       <Avatar className="h-9 w-9 shrink-0 rounded-xl">
@@ -368,16 +368,16 @@ export function EssSwap() {
                         <AvatarFallback className={cn("rounded-xl text-[11px] font-extrabold", avatarColor(c.fullName))}>{initials(c.fullName)}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{c.fullName}</p>
-                        <p className="truncate font-mono text-[10px] text-stone-400">
+                        <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{c.fullName}</p>
+                        <p className="truncate font-mono text-[10px] text-slate-400">
                           {c.employeeNo}{c.unitName ? ` · ${c.unitName}` : ""}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <Badge variant="outline" className="max-w-40 truncate border-stone-200 text-[10px] font-bold dark:border-stone-700">
+                        <Badge variant="outline" className="max-w-40 truncate border-slate-200 text-[10px] font-bold dark:border-slate-700">
                           {c.dayType.name}
                         </Badge>
-                        <p className="mt-0.5 font-mono text-[10px] font-semibold text-stone-400">{c.timeLabel}</p>
+                        <p className="mt-0.5 font-mono text-[10px] font-semibold text-slate-400">{c.timeLabel}</p>
                       </div>
                       {isSel && <UserCheck className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />}
                     </button>
@@ -398,7 +398,7 @@ export function EssSwap() {
             />
           </div>
 
-          <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
             {t(
               "Permintaan masuk ke admin (menu Kehadiran → Tukar Shift). Setelah disetujui, jadwal Anda dan rekan tertukar pada tanggal tsb — rekap absensi & jam kerja dihitung mengikuti shift baru.",
               "The request goes to admin (Attendance → Shift Swap). Once approved, your and your colleague's schedules swap on that date — attendance recap and working hours follow the new shift.",
@@ -419,13 +419,13 @@ export function EssSwap() {
       </Card>
 
       {/* ===== seksi 2: permintaan saya ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Permintaan Saya", "My Requests")}
             {mineRows.length > 0 && (
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-extrabold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-extrabold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 {mineRows.length}
               </span>
             )}
@@ -451,7 +451,7 @@ export function EssSwap() {
       </Card>
 
       {/* ===== seksi 3: permintaan ke saya ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <Inbox className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
@@ -459,7 +459,7 @@ export function EssSwap() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-1">
-          <p className="mb-2.5 text-[11px] leading-relaxed text-stone-400">
+          <p className="mb-2.5 text-[11px] leading-relaxed text-slate-400">
             {t(
               "Rekan yang mengajukan tukar shift dengan Anda. Keputusan diambil admin — Anda akan menerima notifikasi saat disetujui/ditolak.",
               "Colleagues requesting a swap with you. Admin decides — you get a notification once approved/rejected.",
@@ -468,7 +468,7 @@ export function EssSwap() {
           {list.loading && !list.data ? (
             <LoadingRows rows={2} />
           ) : toMeRows.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 px-4 py-5 text-center text-xs text-stone-400 dark:border-stone-700 dark:bg-stone-900/30">
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
               {t("Belum ada rekan yang mengajukan tukar shift dengan Anda.", "No colleague has requested a swap with you yet.")}
             </p>
           ) : (

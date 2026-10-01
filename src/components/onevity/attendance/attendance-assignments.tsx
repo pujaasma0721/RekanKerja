@@ -104,10 +104,10 @@ export function AttendanceAssignmentsPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {kpi.map((k) => (
-          <div key={k.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
-            <p className="text-lg font-extrabold text-stone-900 dark:text-stone-50">{k.value}</p>
-            <p className="truncate text-[11px] text-stone-400">{k.sub}</p>
+          <div key={k.label} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
+            <p className="text-lg font-extrabold text-slate-900 dark:text-slate-50">{k.value}</p>
+            <p className="truncate text-[11px] text-slate-400">{k.sub}</p>
           </div>
         ))}
       </div>
@@ -125,12 +125,12 @@ export function AttendanceAssignmentsPage() {
         </Card>
       )}
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <p className="text-[13px] font-bold">Penugasan Aktif ({active.length})</p>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan / no. pegawai…" className="h-8 w-56 pl-8 text-xs" />
             </div>
           </div>
@@ -140,7 +140,7 @@ export function AttendanceAssignmentsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Jadwal</TableHead>
                     <TableHead className="text-[11px] font-bold">Cycle</TableHead>
@@ -151,40 +151,40 @@ export function AttendanceAssignmentsPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.slice(0, 100).map((a) => (
-                    <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
-                        <p className="text-[13px] font-bold text-stone-800 dark:text-stone-200">{a.employee.fullName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{a.employee.employeeNo} · {a.employee.assignments[0]?.orgUnit?.name ?? "—"}</p>
+                        <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200">{a.employee.fullName}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{a.employee.employeeNo} · {a.employee.assignments[0]?.orgUnit?.name ?? "—"}</p>
                       </TableCell>
                       <TableCell>
                         <p className="text-xs font-semibold">{a.schedule.name}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{a.schedule.code}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{a.schedule.code}</p>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-1">
                           {a.schedule.days.slice(0, 7).map((d) => (
-                            <span key={d.sequence} className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[8px] font-extrabold text-stone-700 dark:text-stone-300" style={{ backgroundColor: d.dayType.color + "66" }} title={`seq ${d.sequence}: ${d.dayType.name}`}>
+                            <span key={d.sequence} className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[8px] font-extrabold text-slate-700 dark:text-slate-300" style={{ backgroundColor: d.dayType.color + "66" }} title={`seq ${d.sequence}: ${d.dayType.name}`}>
                               {d.dayType.code.slice(0, 3)}
                             </span>
                           ))}
-                          {a.schedule.days.length > 7 && <span className="text-[9px] font-bold text-stone-400">+{a.schedule.days.length - 7}</span>}
+                          {a.schedule.days.length > 7 && <span className="text-[9px] font-bold text-slate-400">+{a.schedule.days.length - 7}</span>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="text-xs text-stone-600 dark:text-stone-300">{fmtDate(a.validFrom)}</p>
-                        <p className="flex items-center gap-1 text-[10px] text-stone-400"><Anchor className="h-2.5 w-2.5" /> anchor seq {a.anchorSequence} · {fmtDate(a.anchorMonday)}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300">{fmtDate(a.validFrom)}</p>
+                        <p className="flex items-center gap-1 text-[10px] text-slate-400"><Anchor className="h-2.5 w-2.5" /> anchor seq {a.anchorSequence} · {fmtDate(a.anchorMonday)}</p>
                       </TableCell>
                       <TableCell>
                         <button onClick={() => toggleClocking(a)} className="inline-flex items-center gap-1.5" title={a.clockingRequired ? "Non-clocking: jam dianggap normal" : "Wajib clocking"}>
-                          <span className={cn("relative h-4 w-7 rounded-full transition", a.clockingRequired ? "bg-emerald-500" : "bg-stone-300 dark:bg-stone-700")}>
+                          <span className={cn("relative h-4 w-7 rounded-full transition", a.clockingRequired ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700")}>
                             <span className={cn("absolute top-0.5 h-3 w-3 rounded-full bg-white transition", a.clockingRequired ? "left-3.5" : "left-0.5")} />
                           </span>
-                          <span className="text-[10px] font-bold text-stone-500">{a.clockingRequired ? "Wajib" : "Non-clock"}</span>
+                          <span className="text-[10px] font-bold text-slate-500">{a.clockingRequired ? "Wajib" : "Non-clock"}</span>
                         </button>
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => endAssignment(a)} title="Akhiri penugasan" aria-label="Akhiri penugasan">
-                          <LogOut className="h-3.5 w-3.5 text-stone-400 hover:text-rose-500" />
+                          <LogOut className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -194,14 +194,14 @@ export function AttendanceAssignmentsPage() {
             </div>
           )}
           {history.length > 0 && (
-            <div className="border-t border-stone-100 px-5 py-3 dark:border-stone-800">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-400">Riwayat Penugatan ({history.length})</p>
+            <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Riwayat Penugatan ({history.length})</p>
               <div className="max-h-40 overflow-y-auto">
                 {history.slice(0, 30).map((a) => (
-                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[11px] hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                    <span className="font-semibold text-stone-600 dark:text-stone-300">{a.employee.employeeNo} · {a.employee.fullName}</span>
-                    <span className="text-stone-400">{a.schedule.name}</span>
-                    <span className="text-stone-400">{fmtDate(a.validFrom)} → {fmtDate(a.validTo)}</span>
+                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">{a.employee.employeeNo} · {a.employee.fullName}</span>
+                    <span className="text-slate-400">{a.schedule.name}</span>
+                    <span className="text-slate-400">{fmtDate(a.validFrom)} → {fmtDate(a.validTo)}</span>
                   </div>
                 ))}
               </div>
@@ -257,14 +257,14 @@ export function AttendanceAssignmentsPage() {
             <div className="flex items-center gap-2">
               <Switch id="clockingReq" checked={form.clockingRequired} onCheckedChange={(v) => setForm({ ...form, clockingRequired: v })} />
               <Label htmlFor="clockingReq" className="flex items-center gap-1.5 text-xs font-medium">
-                <Clock className="h-3.5 w-3.5 text-stone-400" /> Wajib clocking (nonaktif = jam dianggap normal, padanan clocking_all)
+                <Clock className="h-3.5 w-3.5 text-slate-400" /> Wajib clocking (nonaktif = jam dianggap normal, padanan clocking_all)
               </Label>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">Catatan</Label>
               <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="mis. pindah regu produksi" className="text-sm" />
             </div>
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/60">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/60">
               Assignment lama otomatis ditutup sehari sebelum tanggal mulai (riwayat tetap tersimpan). Cycle dihitung dari anchor Senin: tanggal = sequence ke-((selisih hari + seq anchor) mod cycle).
             </p>
           </div>

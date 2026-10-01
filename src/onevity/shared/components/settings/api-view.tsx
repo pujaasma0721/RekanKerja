@@ -84,7 +84,7 @@ const SCOPE_HINT: Record<string, string> = {
 export function ApiKeysView() {
   const { t } = useI18n();
   const [tab, setTab] = useState("keys");
-  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800";
+  const tabCls = "gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800";
 
   return (
     <div>
@@ -97,7 +97,7 @@ export function ApiKeysView() {
         )}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
+        <TabsList className="mb-4 h-auto max-w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
           <TabsTrigger value="keys" className={cn(tabCls, "shrink-0 whitespace-nowrap")}>
             <KeyRound className="h-3.5 w-3.5" /> {t("Kunci API", "API Keys")}
           </TabsTrigger>
@@ -139,7 +139,7 @@ function ApiKeysPanel() {
   const keys = data?.keys ?? [];
 
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
           <KeyRound className="h-4 w-4 ov-text-accent" /> {t("Kunci Public API", "Public API Keys")}
@@ -159,7 +159,7 @@ function ApiKeysPanel() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   <TableHead className="text-[11px] font-bold">{t("Nama")}</TableHead>
                   <TableHead className="text-[11px] font-bold">{t("Kunci (prefix)")}</TableHead>
                   <TableHead className="text-[11px] font-bold">Scope</TableHead>
@@ -171,9 +171,9 @@ function ApiKeysPanel() {
               </TableHeader>
               <TableBody>
                 {keys.map((k) => (
-                  <TableRow key={k.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", k.revokedAt && "opacity-60")}>
+                  <TableRow key={k.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", k.revokedAt && "opacity-60")}>
                     <TableCell className="text-[13px] font-semibold">{k.name}</TableCell>
-                    <TableCell className="font-mono text-[11px] text-stone-500">{k.prefix}…</TableCell>
+                    <TableCell className="font-mono text-[11px] text-slate-500">{k.prefix}…</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {k.scopes.map((s) => (
@@ -181,8 +181,8 @@ function ApiKeysPanel() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-stone-500">{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "—"}</TableCell>
-                    <TableCell className="text-xs text-stone-500">{fmtDate(k.createdAt)}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "—"}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{fmtDate(k.createdAt)}</TableCell>
                     <TableCell>
                       {k.revokedAt ? (
                         <Badge className="gap-1 rounded-full bg-rose-100 px-2 text-[10px] font-extrabold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
@@ -213,7 +213,7 @@ function ApiKeysPanel() {
             </Table>
           </div>
         )}
-        <p className="mt-3 text-[11px] leading-relaxed text-stone-400">
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
           {t(
             "Kirim header x-api-key pada /api/public/*. Kunci penuh hanya tampil SEKALI saat dibuat — hash SHA-256 yang disimpan, bukan kuncinya.",
             "Send the x-api-key header on /api/public/*. The full key is shown only ONCE at creation — the stored value is its SHA-256 hash, never the key itself.",
@@ -278,11 +278,11 @@ function ApiKeyCreateDialog({
             <Label className="text-xs">{t("Scope (hak akses endpoint)", "Scopes (endpoint access)")}</Label>
             <div className="mt-2 space-y-2">
               {scopes.map((s) => (
-                <label key={s} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-stone-200 p-3 transition hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900/60">
+                <label key={s} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/60">
                   <Checkbox checked={selected.includes(s)} onCheckedChange={() => toggle(s)} className="mt-0.5" />
                   <span className="min-w-0">
                     <span className="block text-[13px] font-bold">{s}</span>
-                    <span className="block truncate font-mono text-[10px] text-stone-400">{SCOPE_HINT[s] ?? s}</span>
+                    <span className="block truncate font-mono text-[10px] text-slate-400">{SCOPE_HINT[s] ?? s}</span>
                   </span>
                 </label>
               ))}
@@ -346,11 +346,11 @@ function KeyRevealDialog({ created, onClose }: { created: { key: string; record:
                   </Button>
                 </div>
               </div>
-              <div className="break-all rounded-xl border border-stone-200 bg-stone-50 p-3 font-mono text-[11px] dark:border-stone-800 dark:bg-stone-900/60">
+              <div className="break-all rounded-xl border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] dark:border-slate-800 dark:bg-slate-900/60">
                 {shown ? created.key : `${created.key.slice(0, 12)}${"•".repeat(24)}`}
               </div>
             </div>
-            <div className="rounded-xl bg-stone-50 p-3 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/40">
+            <div className="rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900/40">
               {t("Contoh pemakaian:", "Usage example:")}{" "}
               <code className="font-mono">curl -H &quot;x-api-key: {created.key.slice(0, 12)}…&quot; {`$BASE/api/public/employees`}</code>
             </div>
@@ -423,7 +423,7 @@ function WebhooksPanel() {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <Webhook className="h-4 w-4 ov-text-accent" /> {t("Endpoint Webhook", "Webhook Endpoints")}
@@ -443,7 +443,7 @@ function WebhooksPanel() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">URL</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Event", "Events")}</TableHead>
                     <TableHead className="text-[11px] font-bold">Secret</TableHead>
@@ -453,7 +453,7 @@ function WebhooksPanel() {
                 </TableHeader>
                 <TableBody>
                   {webhooks.map((w) => (
-                    <TableRow key={w.id} className={cn("hover:bg-stone-50 dark:hover:bg-stone-900/60", !w.isActive && "opacity-60")}>
+                    <TableRow key={w.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", !w.isActive && "opacity-60")}>
                       <TableCell className="max-w-[280px] truncate font-mono text-[11px]" title={w.url}>{w.url}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -462,17 +462,17 @@ function WebhooksPanel() {
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-[140px] truncate font-mono text-[10px] text-stone-400" title={`${w.secret.slice(0, 10)}…`}>{w.secret.slice(0, 10)}…</TableCell>
+                      <TableCell className="max-w-[140px] truncate font-mono text-[10px] text-slate-400" title={`${w.secret.slice(0, 10)}…`}>{w.secret.slice(0, 10)}…</TableCell>
                       <TableCell><Switch checked={w.isActive} onCheckedChange={() => toggleActive(w)} aria-label={t("Toggle aktif", "Toggle active")} /></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="outline" size="sm" onClick={() => test(w)} disabled={testing === w.id} className="h-7 gap-1.5 rounded-lg px-2 text-[11px] font-bold">
                             <Send className="h-3.5 w-3.5" /> {testing === w.id ? t("Mengirim…", "Sending…") : t("Uji Kirim", "Test Send")}
                           </Button>
-                          <button onClick={() => setEditing(w)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                          <button onClick={() => setEditing(w)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => remove(w)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
+                          <button onClick={() => remove(w)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label={t("Hapus")}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -483,7 +483,7 @@ function WebhooksPanel() {
               </Table>
             </div>
           )}
-          <p className="mt-3 text-[11px] leading-relaxed text-stone-400">
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
             {t(
               "Tiap event dikirim POST JSON dgn header X-OneVity-Event & X-OneVity-Signature = HMAC-SHA256(secret, body) hex — verifikasi signature di sisi Anda. Timeout 5 detik.",
               "Each event is POSTed as JSON with X-OneVity-Event & X-OneVity-Signature = HMAC-SHA256(secret, body) hex headers — verify the signature on your side. 5-second timeout.",
@@ -505,7 +505,7 @@ function WebhooksPanel() {
       </Card>
 
       {/* log pengiriman terakhir */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 ov-text-accent" /> {t("Log Pengiriman (10 terakhir)", "Delivery Log (last 10)")}
@@ -525,7 +525,7 @@ function WebhooksPanel() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">{t("Waktu", "Time")}</TableHead>
                     <TableHead className="text-[11px] font-bold">Event</TableHead>
                     <TableHead className="text-[11px] font-bold">URL</TableHead>
@@ -538,10 +538,10 @@ function WebhooksPanel() {
                   {logs.map((l) => {
                     const hook = webhooks.find((w) => w.id === l.webhookId);
                     return (
-                      <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                        <TableCell className="text-xs text-stone-500">{fmtDateTime(l.createdAt)}</TableCell>
+                      <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                        <TableCell className="text-xs text-slate-500">{fmtDateTime(l.createdAt)}</TableCell>
                         <TableCell><Badge variant="secondary" className="rounded-full px-2 font-mono text-[9px] font-bold">{l.event}</Badge></TableCell>
-                        <TableCell className="max-w-[200px] truncate font-mono text-[10px] text-stone-400" title={hook?.url ?? l.webhookId}>{hook?.url ?? l.webhookId}</TableCell>
+                        <TableCell className="max-w-[200px] truncate font-mono text-[10px] text-slate-400" title={hook?.url ?? l.webhookId}>{hook?.url ?? l.webhookId}</TableCell>
                         <TableCell>
                           {/* Fix audit 40 M-14 — status log webhook kini granular:
                               delivered / failed / dead (max retry) / pending retry /
@@ -554,7 +554,7 @@ function WebhooksPanel() {
                             <Badge className="gap-1 rounded-full bg-rose-100 px-2 text-[10px] font-extrabold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"><Ban className="h-3 w-3" /> Dead</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs font-mono text-stone-500">{l.responseStatus ?? "—"}</TableCell>
+                        <TableCell className="text-xs font-mono text-slate-500">{l.responseStatus ?? "—"}</TableCell>
                         <TableCell className="max-w-[220px] truncate text-[11px] text-rose-500" title={l.error ?? ""}>{l.error ?? "—"}</TableCell>
                       </TableRow>
                     );
@@ -563,7 +563,7 @@ function WebhooksPanel() {
               </Table>
             </div>
           )}
-          <p className="mt-3 text-[11px] text-stone-400">
+          <p className="mt-3 text-[11px] text-slate-400">
             <Zap className="mr-1 inline h-3 w-3 text-amber-500" />
             {t("Maks 500 baris log disimpan per tenant — terlama dihapus otomatis.", "At most 500 log rows are kept per tenant — oldest trimmed automatically.")}
           </p>
@@ -632,11 +632,11 @@ function WebhookDialog({
             <Label className="text-xs">{t("Event yang dilanggan *", "Subscribed events *")}</Label>
             <div className="mt-2 max-h-52 space-y-1.5 overflow-y-auto pr-1">
               {events.map((e) => (
-                <label key={e.key} className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-stone-200 p-2.5 transition hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900/60">
+                <label key={e.key} className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/60">
                   <Checkbox checked={selected.includes(e.key)} onCheckedChange={() => toggle(e.key)} />
                   <span className="min-w-0">
                     <span className="block font-mono text-[11px] font-bold">{e.key}</span>
-                    <span className="block text-[11px] text-stone-400">{e.label}</span>
+                    <span className="block text-[11px] text-slate-400">{e.label}</span>
                   </span>
                 </label>
               ))}
@@ -650,16 +650,16 @@ function WebhookDialog({
               </Button>
             </div>
             <Input value={secret} onChange={(e) => setSecret(e.target.value)} className="font-mono text-[11px]" placeholder="whsec_…" />
-            <p className="mt-1.5 text-[11px] text-stone-400">
+            <p className="mt-1.5 text-[11px] text-slate-400">
               {t("Dipakai menghitung X-OneVity-Signature = HMAC-SHA256(secret, body). Ganti = penerima harus update verifikasi.", "Used to compute X-OneVity-Signature = HMAC-SHA256(secret, body). Changing it requires receivers to update verification.")}
             </p>
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/60 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
             <div className="flex items-start gap-2.5">
               <Zap className="mt-0.5 h-4 w-4 text-amber-500" />
               <div>
                 <p className="text-[13px] font-bold">{t("Webhook Aktif", "Webhook Active")}</p>
-                <p className="text-[11px] text-stone-500">{t("Event dikirim hanya saat aktif.", "Events are delivered only when active.")}</p>
+                <p className="text-[11px] text-slate-500">{t("Event dikirim hanya saat aktif.", "Events are delivered only when active.")}</p>
               </div>
             </div>
             <Switch checked={isActive} onCheckedChange={setIsActive} aria-label={t("Toggle aktif", "Toggle active")} />

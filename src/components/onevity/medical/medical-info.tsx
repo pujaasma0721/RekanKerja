@@ -109,36 +109,36 @@ export function MedicalInfoPage() {
           </SelectContent>
         </Select>
         <div className="relative ml-auto w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan…" className="pl-8" />
         </div>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Total Limit</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDR(totals.limit)}</p>
-            <p className="mt-1 text-xs text-stone-500">{balances.length} baris saldo{typeFilter !== "all" ? ` · ${typeFilter}` : ""}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Limit</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDR(totals.limit)}</p>
+            <p className="mt-1 text-xs text-slate-500">{balances.length} baris saldo{typeFilter !== "all" ? ` · ${typeFilter}` : ""}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Terpakai</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDR(totals.used)}</p>
-            <p className="mt-1 text-xs text-stone-500">klaim settled + initial dibawa</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Terpakai</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDR(totals.used)}</p>
+            <p className="mt-1 text-xs text-slate-500">klaim settled + initial dibawa</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Sisa</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Sisa</p>
             <p className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-400">{fmtIDR(totals.remaining)}</p>
-            <p className="mt-1 text-xs text-stone-500">jenis CASH ditarik tunai akhir tahun</p>
+            <p className="mt-1 text-xs text-slate-500">jenis CASH ditarik tunai akhir tahun</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -153,7 +153,7 @@ export function MedicalInfoPage() {
           ) : (
             <div className="max-h-[32rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>Karyawan</TableHead>
                     <TableHead>Jenis</TableHead>
@@ -169,11 +169,11 @@ export function MedicalInfoPage() {
                     <TableRow key={b.id}>
                       <TableCell>
                         <p className="font-medium">{b.fullName}</p>
-                        <p className="text-xs text-stone-500">{b.employeeNo}{b.orgUnitName ? ` · ${b.orgUnitName}` : ""}</p>
+                        <p className="text-xs text-slate-500">{b.employeeNo}{b.orgUnitName ? ` · ${b.orgUnitName}` : ""}</p>
                       </TableCell>
                       <TableCell>
                         <p className="font-medium">{b.typeName}</p>
-                        <p className="text-xs text-stone-500">
+                        <p className="text-xs text-slate-500">
                           {LIMIT_RULE_LABEL[b.limitRule] ?? b.limitRule}{b.limitRule === "FACTOR" ? ` × gaji ${fmtIDR(b.baseSalary)}` : ""}
                         </p>
                       </TableCell>
@@ -183,10 +183,10 @@ export function MedicalInfoPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {fmtIDR(b.usedAmount)}
-                        {b.initialUsed > 0 && <span className="block text-xs text-stone-400">+ {fmtIDR(b.initialUsed)} dibawa</span>}
+                        {b.initialUsed > 0 && <span className="block text-xs text-slate-400">+ {fmtIDR(b.initialUsed)} dibawa</span>}
                       </TableCell>
                       <TableCell className="text-right font-semibold">{b.limitRule === "UNLIMITED" ? "∞" : fmtIDR(b.remaining)}</TableCell>
-                      <TableCell className="text-right text-stone-500">{b.depBenefitAmount > 0 ? fmtIDR(b.depRemaining) : "—"}</TableCell>
+                      <TableCell className="text-right text-slate-500">{b.depBenefitAmount > 0 ? fmtIDR(b.depRemaining) : "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -204,7 +204,7 @@ export function MedicalInfoPage() {
               <RefreshCw className="h-5 w-5 text-rose-600" /> Generate Saldo Medis
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-stone-600 dark:text-stone-300">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             Padanan <span className="font-semibold">Generate Employee Medical Information</span> oranHR —
             membuat baris saldo karyawan aktif × jenis untuk tahun terpilih.
             Limit dihitung dari gaji pokok assignment aktif.

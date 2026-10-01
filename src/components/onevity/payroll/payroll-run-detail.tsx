@@ -64,8 +64,8 @@ export function PayrollRunDetailPage() {
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => navigate("payroll", "runs")}><ArrowLeft className="h-4 w-4" /> Semua Run</Button>
-        <span className="text-[11px] text-stone-400">/</span>
-        <span className="font-mono text-xs font-bold text-stone-500">{run.runNo}</span>
+        <span className="text-[11px] text-slate-400">/</span>
+        <span className="font-mono text-xs font-bold text-slate-500">{run.runNo}</span>
       </div>
 
       <PageHeader
@@ -95,7 +95,7 @@ export function PayrollRunDetailPage() {
             {(run.status === "Confirmed" || run.status === "Paid") && (
               <button
                 onClick={() => navigate("payroll", "journals")}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 px-4 text-[13px] font-bold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-[13px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300"
               >
                 <BookOpen className="h-4 w-4" /> Jurnal
               </button>
@@ -108,7 +108,7 @@ export function PayrollRunDetailPage() {
       {/* ringkasan */}
       {run.status !== "Draft" && (
         <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
-          <SummaryCard icon={Users} label="Karyawan" value={String(run.employeeCount)} tone="text-stone-700 dark:text-stone-200" />
+          <SummaryCard icon={Users} label="Karyawan" value={String(run.employeeCount)} tone="text-slate-700 dark:text-slate-200" />
           <SummaryCard icon={Receipt} label="Bruto" value={fmtIDR(run.totalBruto)} tone="text-emerald-700 dark:text-emerald-400" />
           <SummaryCard icon={BanknoteArrowDown} label="Potongan" value={fmtIDR(run.totalDeduction)} tone="text-rose-600 dark:text-rose-400" />
           <SummaryCard icon={Receipt} label="PPh21" value={fmtIDR(run.totalTax)} tone="text-amber-600 dark:text-amber-400" />
@@ -128,12 +128,12 @@ export function PayrollRunDetailPage() {
       )}
 
       {/* tabel hasil per karyawan */}
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-4 py-3 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
             <p className="text-[13px] font-bold">Hasil per Karyawan {run.status !== "Draft" && `(${run.lines.length})`}</p>
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari karyawan…" className="h-9 pl-9 text-xs" />
             </div>
           </div>
@@ -145,7 +145,7 @@ export function PayrollRunDetailPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Karyawan</TableHead>
                     <TableHead className="text-[11px] font-bold">Posisi</TableHead>
                     <TableHead className="text-[11px] font-bold">PTKP</TableHead>
@@ -158,12 +158,12 @@ export function PayrollRunDetailPage() {
                 </TableHeader>
                 <TableBody>
                   {lines.map((l) => (
-                    <TableRow key={l.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => setSlipLine(l)}>
+                    <TableRow key={l.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => setSlipLine(l)}>
                       <TableCell>
                         <p className="text-[13px] font-bold">{l.employeeName}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{l.employeeNo}{l.notes ? ` · ${l.notes}` : ""}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{l.employeeNo}{l.notes ? ` · ${l.notes}` : ""}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-500">{l.positionName ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{l.positionName ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] font-bold">{TAX_STATUS_LABEL[l.ptkpStatus] ?? l.ptkpStatus}</Badge>
                       </TableCell>
@@ -180,8 +180,8 @@ export function PayrollRunDetailPage() {
                   ))}
                 </TableBody>
                 <TableBody>
-                  <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                    <TableCell colSpan={3} className="text-xs font-bold uppercase tracking-wide text-stone-500">Total ({run.lines.length} karyawan)</TableCell>
+                  <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
+                    <TableCell colSpan={3} className="text-xs font-bold uppercase tracking-wide text-slate-500">Total ({run.lines.length} karyawan)</TableCell>
                     <TableCell className="text-right text-xs font-extrabold">{fmtIDR(run.totalBruto)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(run.totalDeduction)}</TableCell>
                     <TableCell className="text-right text-xs font-extrabold text-amber-700 dark:text-amber-400">{fmtIDR(run.totalTax)}</TableCell>
@@ -197,10 +197,10 @@ export function PayrollRunDetailPage() {
 
       {/* agregat komponen */}
       {run.status !== "Draft" && (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Agregat Komponen Run</CardTitle>
-            <p className="text-[11px] text-stone-400">Total seluruh karyawan per komponen — termasuk iuran perusahaan (di luar THP)</p>
+            <p className="text-[11px] text-slate-400">Total seluruh karyawan per komponen — termasuk iuran perusahaan (di luar THP)</p>
           </CardHeader>
           <CardContent className="grid gap-4 pt-0 lg:grid-cols-2">
             <div>
@@ -237,10 +237,10 @@ export function PayrollRunDetailPage() {
 
 function SummaryCard({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-1.5">
         <Icon className={cn("h-3.5 w-3.5", tone)} />
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
       </div>
       <p className={cn("mt-1 truncate text-base font-extrabold", tone)}>{value}</p>
     </div>
@@ -263,20 +263,20 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
           </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-xl bg-stone-50 p-4 dark:bg-stone-900/60">
+        <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-900/60">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Karyawan</p>
-              <p className="text-sm font-bold">{line.employeeName} <span className="font-mono text-[11px] font-medium text-stone-400">{line.employeeNo}</span></p>
-              <p className="text-[11px] text-stone-500">{line.positionName ?? "—"} · {line.orgUnitName ?? "—"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Karyawan</p>
+              <p className="text-sm font-bold">{line.employeeName} <span className="font-mono text-[11px] font-medium text-slate-400">{line.employeeNo}</span></p>
+              <p className="text-[11px] text-slate-500">{line.positionName ?? "—"} · {line.orgUnitName ?? "—"}</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Period · Run</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Period · Run</p>
               <p className="text-sm font-bold">{context.periodName}</p>
-              <p className="font-mono text-[10px] text-stone-400">{context.runNo} · {context.processName}</p>
+              <p className="font-mono text-[10px] text-slate-400">{context.runNo} · {context.processName}</p>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-dashed border-stone-200 pt-2 dark:border-stone-700">
+          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-dashed border-slate-200 pt-2 dark:border-slate-700">
             <Badge variant="outline" className="text-[10px] font-bold">PTKP {TAX_STATUS_LABEL[line.ptkpStatus] ?? line.ptkpStatus} · {fmtIDR(line.ptkpValue)}/thn</Badge>
             {line.actualNetTax != null && <Badge variant="outline" className="text-[10px] font-bold text-amber-600">NetToGross — pajak ditanggung perusahaan</Badge>}
             {line.notes && <Badge variant="outline" className="text-[10px] font-bold">{line.notes}</Badge>}
@@ -289,10 +289,10 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             <div className="space-y-1">
               {inThp.map((i) => (
                 <div key={i.id} className="flex items-center justify-between text-[13px]">
-                  <span className={cn("text-stone-600 dark:text-stone-300", i.code.endsWith("_C") && "text-stone-400")}>
+                  <span className={cn("text-slate-600 dark:text-slate-300", i.code.endsWith("_C") && "text-slate-400")}>
                     {i.name}
-                    {i.code.endsWith("_C") && <span className="ml-1 text-[9px] font-bold uppercase text-stone-400">(iuran perush.)</span>}
-                    {i.note && <span className="ml-1 text-[10px] text-stone-400">· {i.note}</span>}
+                    {i.code.endsWith("_C") && <span className="ml-1 text-[9px] font-bold uppercase text-slate-400">(iuran perush.)</span>}
+                    {i.note && <span className="ml-1 text-[10px] text-slate-400">· {i.note}</span>}
                   </span>
                   <span className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400">{fmtIDR(i.amount)}</span>
                 </div>
@@ -304,7 +304,7 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             <div className="space-y-1">
               {deductions.map((i) => (
                 <div key={i.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-stone-600 dark:text-stone-300">{i.name}{i.note && <span className="ml-1 text-[10px] text-stone-400">· {i.note}</span>}</span>
+                  <span className="text-slate-600 dark:text-slate-300">{i.name}{i.note && <span className="ml-1 text-[10px] text-slate-400">· {i.note}</span>}</span>
                   <span className="font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">{fmtIDR(i.amount)}</span>
                 </div>
               ))}
@@ -338,8 +338,8 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
 function SlipRow({ label, value, tone, strong }: { label: string; value: string; tone?: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-stone-500 dark:text-stone-400">{label}</span>
-      <span className={cn("font-mono text-xs font-bold", strong ? "text-stone-800 dark:text-stone-200" : "", tone ?? "")}>{value}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+      <span className={cn("font-mono text-xs font-bold", strong ? "text-slate-800 dark:text-slate-200" : "", tone ?? "")}>{value}</span>
     </div>
   );
 }

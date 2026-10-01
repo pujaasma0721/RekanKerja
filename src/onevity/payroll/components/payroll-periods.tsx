@@ -55,7 +55,7 @@ export function PayrollPeriodsPage() {
         }
       />
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
@@ -65,7 +65,7 @@ export function PayrollPeriodsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sort.head("name", t("Period"), "text-[11px] font-bold")}
                     {sort.head("start", t("Jendela Payroll", "Payroll Window"), "text-[11px] font-bold")}
                     {sort.head("taStart", t("Jendela Kehadiran (TA)", "Attendance Window (TA)"), "text-[11px] font-bold")}
@@ -77,20 +77,20 @@ export function PayrollPeriodsPage() {
                 </TableHeader>
                 <TableBody>
                   {sort.sorted.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <p className="text-[13px] font-bold">{loc(p.name)}</p>
-                        <p className="font-mono text-[10px] text-stone-400">{p.code} · {p.payType}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{p.code} · {p.payType}</p>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-500">{fmtDate(p.startDate)} – {fmtDate(p.endDate)}</TableCell>
-                      <TableCell className="text-xs text-stone-500">
+                      <TableCell className="text-xs text-slate-500">{fmtDate(p.startDate)} – {fmtDate(p.endDate)}</TableCell>
+                      <TableCell className="text-xs text-slate-500">
                         {p.taStartDate ? `${fmtDate(p.taStartDate)} – ${fmtDate(p.taEndDate ?? p.endDate)}` : "—"}
                       </TableCell>
                       <TableCell className="text-xs font-semibold">{p.sptMonth}/{p.sptYear}</TableCell>
                       <TableCell className="text-center">
                         <button
                           onClick={() => navigate("payroll", "runs", { period: p.id })}
-                          className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-bold text-stone-600 transition hover:ov-soft dark:bg-stone-800 dark:text-stone-300"
+                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 transition hover:ov-soft dark:bg-slate-800 dark:text-slate-300"
                         >
                           {p._count.runs} <ChevronRight className="h-3 w-3" />
                         </button>
@@ -156,7 +156,7 @@ function TaEditDialog({ period, onClose }: { period: PeriodRow; onClose: () => v
           <DialogTitle className="flex items-center gap-2 text-base"><CalendarRange className="h-4 w-4 ov-text-accent" /> {t("Jendela Kehadiran (TA)", "Attendance Window (TA)")} — {period.code}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <p className="text-xs leading-relaxed text-stone-500">
+          <p className="text-xs leading-relaxed text-slate-500">
             {t("Period payroll", "Payroll period")}: <b>{fmtDate(period.startDate)} – {fmtDate(period.endDate)}</b>
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -169,7 +169,7 @@ function TaEditDialog({ period, onClose }: { period: PeriodRow; onClose: () => v
               <Input type="date" value={taEnd} onChange={(e) => setTaEnd(e.target.value)} className="mt-1.5" />
             </div>
           </div>
-          <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+          <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
             {t("Jendela TA dipakai sebagai window default transfer absensi & cutoff kehadiran payroll. Kosongkan keduanya bila TA = rentang period.", "The TA window is the default window for attendance transfers and the attendance cutoff for payroll. Leave both empty when TA = period range.")}
           </p>
         </div>
@@ -272,13 +272,13 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
           <DialogTitle className="flex items-center gap-2 text-base"><CalendarRange className="h-4 w-4 ov-text-accent" /> {t("Period Payroll Baru", "New Payroll Period")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-stone-50 p-1 dark:bg-stone-900">
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 dark:bg-slate-900">
             {([
               ["single", t("Satu Period", "Single Period")],
               ["bulk", t("12 Bulan Sekaligus", "12 Months at Once")],
             ] as const).map(([k, label]) => (
               <button key={k} onClick={() => setMode(k)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${mode === k ? "bg-white shadow-sm ov-text-accent dark:bg-stone-800" : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"}`}>
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${mode === k ? "bg-white shadow-sm ov-text-accent dark:bg-slate-800" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
                 {label}
               </button>
             ))}
@@ -300,7 +300,7 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1.5" />
                 </div>
               </div>
-              <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+              <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
                 {t("Kode period & bulan pajak (SPT) diisi otomatis dari rentang tanggal. Jendela TA dapat diatur setelah period dibuat (tombol Ubah TA).", "Period code & tax month (SPT) are filled automatically from the date range. The TA window can be set after creation (Ubah TA button).")}
               </p>
             </>
@@ -316,16 +316,16 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                   <Input type="number" min={1} max={28} value={startDay} onChange={(e) => setStartDay(e.target.value)} className="mt-1.5" />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-xs font-semibold text-stone-600 dark:text-stone-300">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <input type="checkbox" checked={useTa} onChange={(e) => setUseTa(e.target.checked)} className="h-4 w-4 accent-current" />
                 {t("Set jendela TA (kehadiran) sekaligus", "Also set the attendance (TA) window")}
               </label>
               {useTa && (
-                <div className="grid grid-cols-2 gap-3 rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+                <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                   <div>
                     <Label className="text-xs">{t("TA mulai tgl", "TA start day")}</Label>
                     <Input type="number" min={1} max={28} value={taStartDay} onChange={(e) => setTaStartDay(e.target.value)} className="mt-1.5" />
-                    <select value={taStartOff} onChange={(e) => setTaStartOff(e.target.value)} className="mt-1.5 w-full rounded-md border border-stone-200 bg-white px-2 py-1.5 text-xs dark:border-stone-700 dark:bg-stone-900">
+                    <select value={taStartOff} onChange={(e) => setTaStartOff(e.target.value)} className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900">
                       <option value="-1">{t("bulan sebelumnya", "previous month")}</option>
                       <option value="0">{t("bulan yang sama", "same month")}</option>
                     </select>
@@ -333,7 +333,7 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                   <div>
                     <Label className="text-xs">{t("TA selesai tgl", "TA end day")}</Label>
                     <Input type="number" min={1} max={28} value={taEndDay} onChange={(e) => setTaEndDay(e.target.value)} className="mt-1.5" />
-                    <select value={taEndOff} onChange={(e) => setTaEndOff(e.target.value)} className="mt-1.5 w-full rounded-md border border-stone-200 bg-white px-2 py-1.5 text-xs dark:border-stone-700 dark:bg-stone-900">
+                    <select value={taEndOff} onChange={(e) => setTaEndOff(e.target.value)} className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900">
                       <option value="-1">{t("bulan sebelumnya", "previous month")}</option>
                       <option value="0">{t("bulan yang sama", "same month")}</option>
                     </select>
@@ -343,9 +343,9 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
 
               <div>
                 <Label className="text-xs">{t("Preview 12 bulan", "12-month preview")}</Label>
-                <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-stone-200 dark:border-stone-800">
+                <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="w-full text-[11px]">
-                    <thead className="sticky top-0 bg-stone-50 text-stone-500 dark:bg-stone-900">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-500 dark:bg-slate-900">
                       <tr>
                         <th className="px-2.5 py-1.5 text-left font-bold">{t("Period")}</th>
                         <th className="px-2.5 py-1.5 text-left font-bold">{t("Payroll", "Payroll")}</th>
@@ -355,10 +355,10 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                     </thead>
                     <tbody>
                       {preview.map((r) => (
-                        <tr key={r.code} className={`border-t border-stone-100 dark:border-stone-800 ${r.skip ? "opacity-45" : ""}`}>
+                        <tr key={r.code} className={`border-t border-slate-100 dark:border-slate-800 ${r.skip ? "opacity-45" : ""}`}>
                           <td className="px-2.5 py-1.5 font-bold">{r.name}</td>
-                          <td className="px-2.5 py-1.5 font-mono text-stone-500">{r.start.slice(5)} → {r.end.slice(5)}</td>
-                          <td className="px-2.5 py-1.5 font-mono text-stone-500">
+                          <td className="px-2.5 py-1.5 font-mono text-slate-500">{r.start.slice(5)} → {r.end.slice(5)}</td>
+                          <td className="px-2.5 py-1.5 font-mono text-slate-500">
                             {r.taStart ? `${r.taStart.slice(5)} → ${r.taEnd?.slice(5)}` : "—"}
                           </td>
                           <td className={`px-2.5 py-1.5 font-semibold ${r.skip ? "text-amber-600" : "ov-text-accent"}`}>
@@ -370,7 +370,7 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                   </table>
                 </div>
               </div>
-              <p className="text-[11px] leading-relaxed text-stone-500">
+              <p className="text-[11px] leading-relaxed text-slate-500">
                 {t("{n} period akan dibuat — bulan yang sudah ada/beririsan dilewati.", "{n} periods will be created — existing/overlapping months are skipped.", { n: creatable.length })}
               </p>
             </>

@@ -39,7 +39,7 @@ const STATUS_META: Record<string, { id: string; en: string; cls: string }> = {
   Diterima: { id: "Diterima", en: "Received", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/25" },
   Investigasi: { id: "Investigasi", en: "Investigating", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
   Selesai: { id: "Selesai", en: "Resolved", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25" },
-  Ditutup: { id: "Ditutup", en: "Closed", cls: "bg-stone-100 text-stone-500 border-stone-200 dark:bg-stone-500/10 dark:text-stone-400 dark:border-stone-500/25" },
+  Ditutup: { id: "Ditutup", en: "Closed", cls: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/25" },
 };
 
 const catLabel = (v: string) => WB_CATEGORIES.find((c) => c.value === v)?.id ?? v;
@@ -63,12 +63,12 @@ function ReportPage() {
           "Official channel for reporting sexual violence & workplace violations (Law 12/2022). Reports are handled by the authorized team — anonymous reporters are protected by law.",
         )}
       />
-      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <WhistleblowForm />
       </div>
       <button
         onClick={() => navigate("whistleblowing", "triage")}
-        className="mx-auto mt-4 flex items-center gap-1.5 text-[11px] font-bold text-stone-400 underline-offset-2 hover:text-stone-600 hover:underline dark:hover:text-stone-300"
+        className="mx-auto mt-4 flex items-center gap-1.5 text-[11px] font-bold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline dark:hover:text-slate-300"
       >
         <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
         {t("Anggota tim penangan? Buka Kelola Laporan", "Handling team member? Open Report Management")}
@@ -142,10 +142,10 @@ function TriagePage() {
           <button
             key={s}
             onClick={() => setStatus(status === s ? "all" : s)}
-            className={`rounded-xl border p-3 text-left transition-colors ${status === s ? "border-stone-400 dark:border-stone-500" : "border-stone-200/80 hover:border-stone-300 dark:border-stone-800 dark:hover:border-stone-700"} bg-white dark:bg-stone-900`}
+            className={`rounded-xl border p-3 text-left transition-colors ${status === s ? "border-slate-400 dark:border-slate-500" : "border-slate-200/80 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"} bg-white dark:bg-slate-900`}
           >
-            <p className="text-lg font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{stats?.byStatus?.[s] ?? 0}</p>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t(STATUS_META[s].id, STATUS_META[s].en)}</p>
+            <p className="text-lg font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{stats?.byStatus?.[s] ?? 0}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t(STATUS_META[s].id, STATUS_META[s].en)}</p>
           </button>
         ))}
       </div>
@@ -153,7 +153,7 @@ function TriagePage() {
       {/* filter */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-52 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" aria-hidden />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
           <Input value={q} onChange={(e) => setQ(e.target.value)} className="h-8 pl-8 text-xs" placeholder={t("cari no. tiket / isi laporan…", "search ticket no. / report content…")} />
         </div>
         <Select value={status} onValueChange={setStatus}>
@@ -185,17 +185,17 @@ function TriagePage() {
           icon={ShieldCheck}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-stone-200/80 dark:border-stone-800">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800">
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+              <thead className="sticky top-0 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                 <tr>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Tiket", "Ticket")}</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Kategori", "Category")}</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Masuk", "Received")}</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Pelapor", "Reporter")}</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Penangan", "Handler")}</th>
-                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Status", "Status")}</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Tiket", "Ticket")}</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Kategori", "Category")}</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Masuk", "Received")}</th>
+                  <th className="px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Pelapor", "Reporter")}</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Penangan", "Handler")}</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Status", "Status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -203,19 +203,19 @@ function TriagePage() {
                   <tr
                     key={r.id}
                     onClick={() => setSelected(r)}
-                    className="cursor-pointer border-t border-stone-100 hover:bg-stone-50 dark:border-stone-800/60 dark:hover:bg-stone-900/60"
+                    className="cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-900/60"
                   >
-                    <td className="px-3 py-2 font-mono font-bold text-stone-700 dark:text-stone-200">{r.ticketNo}</td>
-                    <td className="px-3 py-2 text-stone-600 dark:text-stone-300">{t(catLabel(r.category), WB_CATEGORIES.find((c) => c.value === r.category)?.en ?? r.category)}</td>
-                    <td className="px-3 py-2 text-stone-400">{new Date(r.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })}</td>
+                    <td className="px-3 py-2 font-mono font-bold text-slate-700 dark:text-slate-200">{r.ticketNo}</td>
+                    <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{t(catLabel(r.category), WB_CATEGORIES.find((c) => c.value === r.category)?.en ?? r.category)}</td>
+                    <td className="px-3 py-2 text-slate-400">{new Date(r.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "2-digit" })}</td>
                     <td className="px-3 py-2 text-center">
                       {r.anonymous ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-400"><EyeOff className="h-3 w-3" aria-hidden /> {t("Anonim", "Anonymous")}</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400"><EyeOff className="h-3 w-3" aria-hidden /> {t("Anonim", "Anonymous")}</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-600 dark:text-stone-300"><UserRound className="h-3 w-3" aria-hidden /> {r.reporterName ?? "—"}</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 dark:text-slate-300"><UserRound className="h-3 w-3" aria-hidden /> {r.reporterName ?? "—"}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-stone-500">{r.assignedToName ?? "—"}</td>
+                    <td className="px-3 py-2 text-slate-500">{r.assignedToName ?? "—"}</td>
                     <td className="px-3 py-2">
                       <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${STATUS_META[r.status]?.cls ?? ""}`}>
                         {t(STATUS_META[r.status]?.id ?? r.status, STATUS_META[r.status]?.en ?? r.status)}
@@ -252,18 +252,18 @@ function TriagePage() {
 
               <div className="space-y-3">
                 {/* meta kejadian */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" aria-hidden /> {selected.incidentDate ? new Date(selected.incidentDate).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : t("tanpa tanggal", "no date")}</span>
                   {selected.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" aria-hidden /> {selected.location}</span>}
                   <span className="flex items-center gap-1">{t("kanal", "channel")}: {selected.channel}</span>
                 </div>
 
                 {/* kronologi */}
-                <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3.5 dark:border-stone-800 dark:bg-stone-900/40">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Kronologi Laporan", "Report Narrative")}</p>
-                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-stone-700 dark:text-stone-200">{selected.description}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Kronologi Laporan", "Report Narrative")}</p>
+                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200">{selected.description}</p>
                   {selected.involvedHint && (
-                    <p className="mt-2 text-[10px] text-stone-500 dark:text-stone-400"><b>{t("Pihak terlibat:", "Involved parties:")}</b> {selected.involvedHint}</p>
+                    <p className="mt-2 text-[10px] text-slate-500 dark:text-slate-400"><b>{t("Pihak terlibat:", "Involved parties:")}</b> {selected.involvedHint}</p>
                   )}
                 </div>
 
@@ -276,8 +276,8 @@ function TriagePage() {
 
                 {/* aksi sesuai status */}
                 {selected.status !== "Selesai" && selected.status !== "Ditutup" ? (
-                  <div className="space-y-3 rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Tindakan Penanganan", "Handling Actions")}</p>
+                  <div className="space-y-3 rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Tindakan Penanganan", "Handling Actions")}</p>
 
                     {/* penugasan */}
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -309,7 +309,7 @@ function TriagePage() {
                     </div>
 
                     {/* alur status */}
-                    <div className="flex flex-wrap gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
+                    <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
                       {selected.status === "Baru" && (
                         <Button size="sm" className="h-8 gap-1.5 text-xs font-bold" disabled={actBusy} onClick={() => run("receive")}>
                           {actBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} {t("Terima Laporan", "Receive Report")}
@@ -336,7 +336,7 @@ function TriagePage() {
                       </Button>
                     </div>
                     {selected.status === "Baru" && (
-                      <p className="text-[10px] text-stone-400">
+                      <p className="text-[10px] text-slate-400">
                         <X className="mr-1 inline h-3 w-3" aria-hidden />
                         {t("Penutupan membutuhkan laporan diterima + alasan ≥ 10 karakter (di kolom catatan).", "Closing requires the report to be received + reason ≥ 10 characters (in the note field).")}
                       </p>

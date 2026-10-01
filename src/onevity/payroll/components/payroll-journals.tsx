@@ -102,7 +102,7 @@ export function PayrollJournalsPage() {
                       key={r.id}
                       onClick={() => generate(r)}
                       disabled={busyId === r.id}
-                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-brand/40 bg-white px-3 text-[11px] font-bold text-brand-deep transition hover:border-brand/40 hover:bg-brand/15/60 disabled:opacity-50 dark:border-brand/40 dark:bg-stone-900 dark:text-brand/75"
+                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-brand/40 bg-white px-3 text-[11px] font-bold text-brand-deep transition hover:border-brand/40 hover:bg-brand/15/60 disabled:opacity-50 dark:border-brand/40 dark:bg-slate-900 dark:text-brand/75"
                     >
                       <BookOpen className="h-3 w-3" />
                       {busyId === r.id ? t("Memposting…", "Posting…") : t("Post {no}", "Post {no}", { no: r.runNo })}
@@ -114,7 +114,7 @@ export function PayrollJournalsPage() {
             </Card>
           )}
 
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {journals.length === 0 ? (
                 <div className="p-5">
@@ -128,7 +128,7 @@ export function PayrollJournalsPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <ServerSortHead label={t("Jurnal", "Journal")} active={sortKey === "journal"} dir={sortDir} onClick={() => clickSort("journal")} className="text-[11px] font-bold" />
                         <ServerSortHead label={t("Sumber Run", "Source Run")} active={sortKey === "run"} dir={sortDir} onClick={() => clickSort("run")} className="text-[11px] font-bold" />
                         <ServerSortHead label={t("Deskripsi")} active={sortKey === "desc"} dir={sortDir} onClick={() => clickSort("desc")} className="text-[11px] font-bold" />
@@ -141,13 +141,13 @@ export function PayrollJournalsPage() {
                     </TableHeader>
                     <TableBody>
                       {sort.sorted.map((j) => (
-                        <TableRow key={j.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => openDetail(j)}>
+                        <TableRow key={j.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => openDetail(j)}>
                           <TableCell>
                             <p className="font-mono text-[11px] font-bold ov-text-accent">{j.journalNo}</p>
-                            <p className="text-[10px] text-stone-400">{fmtDateTime(j.journalDate)}</p>
+                            <p className="text-[10px] text-slate-400">{fmtDateTime(j.journalDate)}</p>
                           </TableCell>
-                          <TableCell className="font-mono text-[11px] text-stone-500">{j.runNo ?? "—"}</TableCell>
-                          <TableCell className="max-w-[320px] truncate text-xs text-stone-500" >{j.description ?? "—"}</TableCell>
+                          <TableCell className="font-mono text-[11px] text-slate-500">{j.runNo ?? "—"}</TableCell>
+                          <TableCell className="max-w-[320px] truncate text-xs text-slate-500" >{j.description ?? "—"}</TableCell>
                           <TableCell className="text-center text-xs font-semibold">{j._count.lines}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalDebit)}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalCredit)}</TableCell>
@@ -161,12 +161,12 @@ export function PayrollJournalsPage() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-stone-700 dark:text-stone-300">
+                              <a href={`/api/onevity/payroll-journals?export=csv&id=${j.id}`} className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-600 transition hover:ov-border-accent hover:ov-text-accent dark:border-slate-700 dark:text-slate-300">
                                 <FileDown className="h-3 w-3" /> CSV
                               </a>
                               <button
                                 onClick={() => j.runId ? navigate("payroll", "run", { id: j.runId }) : openDetail(j)}
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 px-2.5 text-[11px] font-bold text-stone-500 transition hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
+                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
                                 aria-label={t("buka run", "open run")}
                               >
                                 <ChevronRight className="h-3 w-3" />
@@ -183,24 +183,24 @@ export function PayrollJournalsPage() {
           </Card>
 
           {/* Penjelasan struktur jurnal */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-4">
               <p className="flex items-center gap-2 text-[13px] font-bold"><Landmark className="h-4 w-4 ov-text-accent" /> {t('Struktur posting (pattern "Transfer to Accounting")', 'Posting structure (pattern "Transfer to Accounting")')}</p>
-              <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-stone-500 dark:text-stone-400 sm:grid-cols-3">
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("1 · Beban", "1 · Expenses")}</p>
+              <div className="mt-3 grid gap-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 sm:grid-cols-3">
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("1 · Beban", "1 · Expenses")}</p>
                   <p>{t("D komponen THP → 5101/5102 · D iuran BPJS perusahaan → 5103 / C hutang BPJS 2103", "D THP components → 5101/5102 · D company BPJS contributions → 5103 / C BPJS payable 2103")}</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("2 · Kewajiban", "2 · Liabilities")}</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("2 · Kewajiban", "2 · Liabilities")}</p>
                   <p>{t("D hutang gaji 2101 → C PPh21 2102 / BPJS 2103 / pinjaman 2104 / lain-lain 2105", "D salaries payable 2101 → C PPh21 2102 / BPJS 2103 / loans 2104 / others 2105")}</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("3 · Pembayaran", "3 · Payment")}</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("3 · Pembayaran", "3 · Payment")}</p>
                   <p>{t("D hutang gaji 2101 (net + pembulatan) → C kas & bank 1101 — D selalu = C", "D salaries payable 2101 (net + rounding) → C cash & bank 1101 — D always equals C")}</p>
                 </div>
               </div>
-              <p className="mt-3 text-[11px] text-stone-400">
+              <p className="mt-3 text-[11px] text-slate-400">
                 {t('Mapping akun per komponen dapat ditimpa lewat kolom "Akun Debit/Kredit" di menu Komponen Upah (Salary Chart of Account).', 'Per-component account mapping can be overridden via the "Debit/Credit Account" column in the Wage Components menu (Salary Chart of Account).')}
               </p>
             </CardContent>
@@ -228,7 +228,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
         {journal && (
           <div className="max-h-[60vh] overflow-y-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900">
+              <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold">{t("Akun", "Account")}</TableHead>
                   <TableHead className="text-[10px] font-bold">{t("Memo")}</TableHead>
@@ -238,22 +238,22 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
               </TableHeader>
               <TableBody>
                 {journal.lines.map((l) => (
-                  <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                  <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                     <TableCell>
-                      <p className="font-mono text-[11px] font-bold text-stone-500">{l.accountCode}</p>
+                      <p className="font-mono text-[11px] font-bold text-slate-500">{l.accountCode}</p>
                       <p className="text-[11px]">{l.accountName}</p>
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate text-[11px] text-stone-500">{l.memo ?? "—"}</TableCell>
-                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-brand-deep dark:text-brand/85" : "text-stone-300 dark:text-stone-600")}>
+                    <TableCell className="max-w-[220px] truncate text-[11px] text-slate-500">{l.memo ?? "—"}</TableCell>
+                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-brand-deep dark:text-brand/85" : "text-slate-300 dark:text-slate-600")}>
                       {l.position === "Debit" ? fmtIDR(l.amount) : ""}
                     </TableCell>
-                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Credit" ? "text-rose-600 dark:text-rose-400" : "text-stone-300 dark:text-stone-600")}>
+                    <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Credit" ? "text-rose-600 dark:text-rose-400" : "text-slate-300 dark:text-slate-600")}>
                       {l.position === "Credit" ? fmtIDR(l.amount) : ""}
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="border-t-2 border-stone-200 bg-stone-50/80 font-bold dark:border-stone-700 dark:bg-stone-900/50">
-                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-stone-500">{t("Total — balance ✓", "Total — balanced ✓")}</TableCell>
+                <TableRow className="border-t-2 border-slate-200 bg-slate-50/80 font-bold dark:border-slate-700 dark:bg-slate-900/50">
+                  <TableCell colSpan={2} className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{t("Total — balance ✓", "Total — balanced ✓")}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-brand-deep dark:text-brand/85">{fmtIDR(journal.totalDebit)}</TableCell>
                   <TableCell className="text-right text-[11px] font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(journal.totalCredit)}</TableCell>
                 </TableRow>

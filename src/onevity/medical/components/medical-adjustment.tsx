@@ -132,7 +132,7 @@ export function MedicalAdjustmentPage() {
               "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               stateFilter === f.key
                 ? "ov-soft ov-border-accent"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             {t(f.label)}
@@ -141,31 +141,31 @@ export function MedicalAdjustmentPage() {
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Menunggu Approval", "Pending Approval")}</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.submitted ?? 0}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Menunggu Approval", "Pending Approval")}</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{stats.all?.submitted ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Total Disetujui", "Total Approved")}</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{stats.all?.approved ?? 0}</p>
-            <p className="mt-1 text-xs text-stone-500">net {fmtIDR(stats.approvedAmount)}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Total Disetujui", "Total Approved")}</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{stats.all?.approved ?? 0}</p>
+            <p className="mt-1 text-xs text-slate-500">net {fmtIDR(stats.approvedAmount)}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Efek", "Effect")}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Efek", "Effect")}</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-brand" /> {t("Approve → saldo ± langsung", "Approve → balance ± applied immediately")}
             </p>
-            <p className="mt-1 text-xs text-stone-500">{t("employee / dependent terpisah", "employee / dependent tracked separately")}</p>
+            <p className="mt-1 text-xs text-slate-500">{t("employee / dependent terpisah", "employee / dependent tracked separately")}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
             <Activity className="h-4 w-4 ov-text-accent" /> {t("Riwayat Penyesuaian", "Adjustment History")}
@@ -179,7 +179,7 @@ export function MedicalAdjustmentPage() {
           ) : (
             <div className="max-h-[26rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead>{t("No. Dokumen", "Doc. No.")}</TableHead>
                     <TableHead>{t("Karyawan")}</TableHead>
@@ -197,13 +197,13 @@ export function MedicalAdjustmentPage() {
                       <TableCell className="font-semibold">{a.docNo}</TableCell>
                       <TableCell>
                         <p className="font-medium">{a.fullName}</p>
-                        <p className="text-xs text-stone-500">{a.employeeNo}</p>
+                        <p className="text-xs text-slate-500">{a.employeeNo}</p>
                       </TableCell>
                       <TableCell>{a.typeName}</TableCell>
                       <TableCell>
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", a.forDependent
                           ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
-                          : "bg-stone-100 text-stone-600 dark:bg-stone-500/15 dark:text-stone-400")}>
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400")}>
                           {a.forDependent ? "Dependent" : t("Karyawan")}
                         </span>
                       </TableCell>
@@ -304,15 +304,15 @@ export function MedicalAdjustmentPage() {
           </DialogHeader>
           {decideDialog && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+              <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
                 <p className="font-bold">{decideDialog.adj.docNo} — {decideDialog.adj.fullName}</p>
-                <p className="text-stone-600 dark:text-stone-300">
+                <p className="text-slate-600 dark:text-slate-300">
                   {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? "dependent" : t("karyawan", "employee")} · {fmtDateID(decideDialog.adj.adjustmentDate)}
                 </p>
                 <p className="text-sm font-black">
                   {decideDialog.adj.amount > 0 ? "+" : ""}{fmtIDR(decideDialog.adj.amount)}
                 </p>
-                {decideDialog.adj.note && <p className="text-xs text-stone-500">{decideDialog.adj.note}</p>}
+                {decideDialog.adj.note && <p className="text-xs text-slate-500">{decideDialog.adj.note}</p>}
               </div>
               {decideDialog.action === "approve" && (
                 <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs text-brand-deep dark:border-brand/70 dark:bg-brand/90/30 dark:text-brand/75">

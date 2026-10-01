@@ -46,7 +46,7 @@ export function PayrollOverview() {
     },
     {
       label: "Karyawan Payroll", value: String(profileCount), sub: "Profil pajak & template upah aktif",
-      icon: Users, tone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
+      icon: Users, tone: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
       onClick: () => navigate("payroll", "profiles"),
     },
   ];
@@ -73,12 +73,12 @@ export function PayrollOverview() {
             {kpi.map((k) => {
               const Icon = k.icon;
               return (
-                <button key={k.label} onClick={k.onClick} className="group flex items-start gap-3 rounded-2xl border border-stone-200/80 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:hover:border-emerald-600/40">
+                <button key={k.label} onClick={k.onClick} className="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-600/40">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${k.tone}`}><Icon className="h-5 w-5" /></div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{k.label}</p>
-                    <p className="truncate text-lg font-extrabold text-stone-900 dark:text-stone-50">{k.value}</p>
-                    <p className="truncate text-[11px] text-stone-400">{k.sub}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{k.label}</p>
+                    <p className="truncate text-lg font-extrabold text-slate-900 dark:text-slate-50">{k.value}</p>
+                    <p className="truncate text-[11px] text-slate-400">{k.sub}</p>
                   </div>
                 </button>
               );
@@ -87,12 +87,12 @@ export function PayrollOverview() {
 
           {/* Breakdown payroll terakhir */}
           {lastPaid && (
-            <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+            <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
               <CardContent className="p-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Payroll Terakhir — {lastPaid.period.name} ({lastPaid.runNo})</p>
-                    <p className="text-sm font-bold text-stone-900 dark:text-stone-50">Distribusi {fmtIDR(lastPaid.totalNet)}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payroll Terakhir — {lastPaid.period.name} ({lastPaid.runNo})</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-50">Distribusi {fmtIDR(lastPaid.totalNet)}</p>
                   </div>
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("payroll", "run", { id: lastPaid.id })}>
                     Lihat Detail <ChevronRight className="h-3.5 w-3.5" />
@@ -109,9 +109,9 @@ export function PayrollOverview() {
           )}
 
           {/* Riwayat run */}
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
-              <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
                 <p className="text-[13px] font-bold">Riwayat Proses Payroll</p>
                 <Button variant="ghost" size="sm" className="gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400" onClick={() => navigate("payroll", "runs")}>
                   Semua run <ChevronRight className="h-3.5 w-3.5" />
@@ -123,7 +123,7 @@ export function PayrollOverview() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">Run</TableHead>
                         <TableHead className="text-[11px] font-bold">Period</TableHead>
                         <TableHead className="text-[11px] font-bold">Jenis</TableHead>
@@ -134,10 +134,10 @@ export function PayrollOverview() {
                     </TableHeader>
                     <TableBody>
                       {runs.slice(0, 6).map((r) => (
-                        <TableRow key={r.id} className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
-                          <TableCell className="font-mono text-[11px] font-bold text-stone-500">{r.runNo}</TableCell>
+                        <TableRow key={r.id} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60" onClick={() => navigate("payroll", "run", { id: r.id })}>
+                          <TableCell className="font-mono text-[11px] font-bold text-slate-500">{r.runNo}</TableCell>
                           <TableCell className="text-[13px] font-semibold">{r.period.name}</TableCell>
-                          <TableCell className="text-xs text-stone-500">{r.processType.name}</TableCell>
+                          <TableCell className="text-xs text-slate-500">{r.processType.name}</TableCell>
                           <TableCell><StatusPill status={r.status} /></TableCell>
                           <TableCell className="text-right text-xs font-semibold">{r.employeeCount}</TableCell>
                           <TableCell className="text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">{r.status === "Draft" ? "—" : fmtIDR(r.totalNet)}</TableCell>
@@ -157,10 +157,10 @@ export function PayrollOverview() {
 
 function MiniStat({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-xl border border-stone-200/70 bg-stone-50/60 p-3 dark:border-stone-800 dark:bg-stone-900/40">
+    <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
       <div className="flex items-center gap-1.5">
         <Icon className={`h-3.5 w-3.5 ${tone}`} />
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
       </div>
       <p className={`mt-1 text-sm font-extrabold ${tone}`}>{value}</p>
     </div>

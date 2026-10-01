@@ -165,7 +165,7 @@ export function MedicalClaimsPage() {
               "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
               statusFilter === f.key
                 ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400",
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400",
             )}
           >
             {f.label}
@@ -177,12 +177,12 @@ export function MedicalClaimsPage() {
           </button>
         ))}
         <div className="relative ml-auto w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama / no. dokumen…" className="pl-8" />
         </div>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -191,7 +191,7 @@ export function MedicalClaimsPage() {
           ) : (
             <div className="max-h-[30rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     <TableHead className="w-8" />
                     <TableHead>No. Dokumen</TableHead>
@@ -214,12 +214,12 @@ export function MedicalClaimsPage() {
                           onClick={() => setExpanded(open ? null : c.id)}
                         >
                           <TableCell>
-                            {open ? <ChevronDown className="h-4 w-4 text-stone-400" /> : <ChevronRight className="h-4 w-4 text-stone-400" />}
+                            {open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                           </TableCell>
-                          <TableCell className="font-semibold text-stone-900 dark:text-stone-100">{c.docNo}</TableCell>
+                          <TableCell className="font-semibold text-slate-900 dark:text-slate-100">{c.docNo}</TableCell>
                           <TableCell>
                             <p className="font-medium">{c.fullName}</p>
-                            <p className="text-xs text-stone-500">{c.employeeNo}{c.orgUnitName ? ` · ${c.orgUnitName}` : ""}</p>
+                            <p className="text-xs text-slate-500">{c.employeeNo}{c.orgUnitName ? ` · ${c.orgUnitName}` : ""}</p>
                           </TableCell>
                           <TableCell>
                             <span className="font-medium">{c.typeName}</span>
@@ -231,34 +231,34 @@ export function MedicalClaimsPage() {
                           <TableCell><StatusPill status={c.state} /></TableCell>
                         </TableRow>
                         {open && (
-                          <TableRow className="bg-stone-50/70 dark:bg-stone-900/60 hover:bg-stone-50/70">
+                          <TableRow className="bg-slate-50/70 dark:bg-slate-900/60 hover:bg-slate-50/70">
                             <TableCell colSpan={8} className="p-4">
                               {!detail ? (
-                                <p className="text-sm text-stone-500">Memuat rincian…</p>
+                                <p className="text-sm text-slate-500">Memuat rincian…</p>
                               ) : (
                                 <div className="space-y-4">
                                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                                    <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="text-[11px] font-bold uppercase text-stone-400">Snapshot Limit</p>
+                                    <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">Snapshot Limit</p>
                                       <p className="text-sm font-black">{fmtIDR(c.maxBenefitAt)}</p>
-                                      <p className="text-xs text-stone-500">used saat ajukan: {fmtIDR(c.usedAt)}</p>
+                                      <p className="text-xs text-slate-500">used saat ajukan: {fmtIDR(c.usedAt)}</p>
                                     </div>
-                                    <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="text-[11px] font-bold uppercase text-stone-400">Total Reimbursement</p>
+                                    <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">Total Reimbursement</p>
                                       <p className="text-sm font-black">{fmtIDR(c.totalReimburse)}</p>
                                     </div>
-                                    <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="text-[11px] font-bold uppercase text-stone-400">Non Reimbursement</p>
+                                    <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">Non Reimbursement</p>
                                       <p className="text-sm font-black">{fmtIDR(c.totalNonRe)}</p>
                                     </div>
-                                    <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="text-[11px] font-bold uppercase text-stone-400">Settlement</p>
+                                    <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">Settlement</p>
                                       <p className="text-sm font-black">{c.settleDate ? fmtDateID(c.settleDate) : "—"}</p>
-                                      {c.journalNo && <p className="text-xs text-stone-500">jurnal {c.journalNo}</p>}
+                                      {c.journalNo && <p className="text-xs text-slate-500">jurnal {c.journalNo}</p>}
                                     </div>
                                   </div>
 
-                                  <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
+                                  <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Table>
                                       <TableHeader>
                                         <TableRow>
@@ -281,7 +281,7 @@ export function MedicalClaimsPage() {
                                             <TableCell className="text-sm">{fmtDateID(l.treatmentDate)}</TableCell>
                                             <TableCell className="text-sm">
                                               {l.physician || l.hospital ? `${l.physician ?? ""}${l.hospital ? ` · ${l.hospital}` : ""}` : "—"}
-                                              {l.receiptNo && <span className="block text-xs text-stone-500">kwitansi {l.receiptNo}</span>}
+                                              {l.receiptNo && <span className="block text-xs text-slate-500">kwitansi {l.receiptNo}</span>}
                                             </TableCell>
                                             <TableCell className="text-right">{fmtIDR(l.billAmount)}</TableCell>
                                             <TableCell className="text-right font-semibold">{fmtIDR(l.approvedAmount)}</TableCell>
@@ -292,11 +292,11 @@ export function MedicalClaimsPage() {
                                   </div>
 
                                   {detail.statusLog?.length > 0 && (
-                                    <div className="rounded-lg bg-white p-3 dark:bg-stone-900">
-                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-stone-400">Status Log (padanan oranHR)</p>
+                                    <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
+                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-slate-400">Status Log (padanan oranHR)</p>
                                       <div className="space-y-1">
                                         {detail.statusLog.map((sl, i) => (
-                                          <p key={i} className="text-xs text-stone-600 dark:text-stone-400">
+                                          <p key={i} className="text-xs text-slate-600 dark:text-slate-400">
                                             <span className="font-semibold">{CLAIM_STATUS_LABEL[sl.state] ?? sl.state}</span>
                                             {" · "}{fmtDateTimeID(sl.at)}{sl.note ? ` · ${sl.note}` : ""}
                                           </p>
@@ -387,7 +387,7 @@ export function MedicalClaimsPage() {
                 <p className="font-black">
                   {preview.freqUnlimited ? "Unlimited" : `${preview.freqValue}× / ${preview.freqPeriod}`}
                 </p>
-                <p className="text-xs text-stone-500">{preview.claimCountYear} klaim tahun ini</p>
+                <p className="text-xs text-slate-500">{preview.claimCountYear} klaim tahun ini</p>
               </div>
             </div>
           )}
@@ -401,7 +401,7 @@ export function MedicalClaimsPage() {
             </div>
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {lines.map((l, i) => (
-                <div key={i} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+                <div key={i} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="space-y-1">
                       <Label className="text-xs">Nama yang Dirawat *</Label>
@@ -457,10 +457,10 @@ export function MedicalClaimsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
             <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 text-rose-600" /> Total</span>
-            <span className="text-stone-600 dark:text-stone-300">Tagihan <span className="font-black">{fmtIDR(totals.bill)}</span></span>
-            <span className="text-stone-600 dark:text-stone-300">Reimburse <span className="font-black">{fmtIDR(totals.re)}</span></span>
+            <span className="text-slate-600 dark:text-slate-300">Tagihan <span className="font-black">{fmtIDR(totals.bill)}</span></span>
+            <span className="text-slate-600 dark:text-slate-300">Reimburse <span className="font-black">{fmtIDR(totals.re)}</span></span>
             <span className="text-rose-700 dark:text-rose-400">Approved <span className="font-black">{fmtIDR(totals.approved)}</span></span>
           </div>
 

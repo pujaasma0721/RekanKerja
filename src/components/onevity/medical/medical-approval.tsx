@@ -28,7 +28,7 @@ const ACTION_META: Record<Action, { title: string; label: string; tone: string; 
   approve: { title: "Setujui Klaim", label: "Setujui", tone: "bg-emerald-600 hover:bg-emerald-700", icon: CheckCircle2 },
   settle: { title: "Settle Klaim", label: "Settle", tone: "bg-teal-600 hover:bg-teal-700", icon: Landmark },
   reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-rose-600 hover:bg-rose-700", icon: XCircle },
-  cancel: { title: "Batalkan Klaim", label: "Batalkan", tone: "bg-stone-600 hover:bg-stone-700", icon: Ban },
+  cancel: { title: "Batalkan Klaim", label: "Batalkan", tone: "bg-slate-600 hover:bg-slate-700", icon: Ban },
   return: { title: "Kembalikan ke Pemohon", label: "Kembalikan", tone: "bg-amber-600 hover:bg-amber-700", icon: History },
 };
 
@@ -127,37 +127,37 @@ export function MedicalApprovalPage() {
       />
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Menunggu Persetujuan</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{pending.length}</p>
-            <p className="mt-1 text-xs text-stone-500">{fmtIDRShort(pending.reduce((s, c) => s + c.totalApproved, 0))} menunggu diputuskan</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Menunggu Persetujuan</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{pending.length}</p>
+            <p className="mt-1 text-xs text-slate-500">{fmtIDRShort(pending.reduce((s, c) => s + c.totalApproved, 0))} menunggu diputuskan</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Siap Settle</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{approved.length}</p>
-            <p className="mt-1 text-xs text-stone-500">approved → settle = jurnal + saldo bertambah</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Siap Settle</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{approved.length}</p>
+            <p className="mt-1 text-xs text-slate-500">approved → settle = jurnal + saldo bertambah</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Settled (Dibayar)</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(api.data?.stats?.settledAmount ?? 0)}</p>
-            <p className="mt-1 text-xs text-stone-500">reimbursement dibayarkan via jurnal settlement</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Settled (Dibayar)</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(api.data?.stats?.settledAmount ?? 0)}</p>
+            <p className="mt-1 text-xs text-slate-500">reimbursement dibayarkan via jurnal settlement</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Transfer UMC</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">Akhir Tahun</p>
-            <p className="mt-1 text-xs text-stone-500">sisa saldo jenis CASH ditarik tunai via payslip</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Transfer UMC</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">Akhir Tahun</p>
+            <p className="mt-1 text-xs text-slate-500">sisa saldo jenis CASH ditarik tunai via payslip</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-bold">
             <Inbox className="h-4 w-4 text-rose-600" /> Antrean Persetujuan
@@ -175,20 +175,20 @@ export function MedicalApprovalPage() {
                 "flex flex-wrap items-center gap-3 rounded-xl border p-3",
                 c.state === "Approved"
                   ? "border-teal-200 bg-teal-50/50 dark:border-teal-800 dark:bg-teal-950/20"
-                  : "border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900",
+                  : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
               )}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold text-stone-900 dark:text-stone-100">{c.docNo}</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100">{c.docNo}</span>
                   <StatusPill status={c.state} />
                   {c.forDependent && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-400">dependent</span>}
                 </div>
-                <p className="mt-0.5 text-sm text-stone-600 dark:text-stone-300">
+                <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                   {c.fullName} · {c.typeName} · {fmtDateID(c.claimDate)}
                 </p>
-                <p className="text-xs text-stone-500">
-                  tagihan {fmtIDR(c.totalBill)} → approved <span className="font-semibold text-stone-700 dark:text-stone-300">{fmtIDR(c.totalApproved)}</span>
+                <p className="text-xs text-slate-500">
+                  tagihan {fmtIDR(c.totalBill)} → approved <span className="font-semibold text-slate-700 dark:text-slate-300">{fmtIDR(c.totalApproved)}</span>
                   {" · snapshot sisa saat ajukan: "}{fmtIDR(Math.max(0, c.maxBenefitAt - c.usedAt))}
                 </p>
               </div>
@@ -223,7 +223,7 @@ export function MedicalApprovalPage() {
       </Card>
 
       {settledHistory.length > 0 && (
-        <Card className="mt-4 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="mt-4 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
               <FileText className="h-4 w-4 text-teal-600" /> Riwayat Settlement Terbaru
@@ -231,10 +231,10 @@ export function MedicalApprovalPage() {
           </CardHeader>
           <CardContent className="space-y-1.5">
             {settledHistory.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60">
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/60">
                 <span className="font-semibold">{c.docNo} · {c.fullName} · {c.typeName}</span>
-                <span className="text-stone-500">
-                  {fmtDateID(c.settleDate)}{c.journalNo ? ` · jurnal ${c.journalNo}` : ""} · <span className="font-semibold text-stone-700 dark:text-stone-300">{fmtIDR(c.totalApproved)}</span>
+                <span className="text-slate-500">
+                  {fmtDateID(c.settleDate)}{c.journalNo ? ` · jurnal ${c.journalNo}` : ""} · <span className="font-semibold text-slate-700 dark:text-slate-300">{fmtIDR(c.totalApproved)}</span>
                 </span>
               </div>
             ))}
@@ -252,10 +252,10 @@ export function MedicalApprovalPage() {
           </DialogHeader>
           {claim && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+              <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
                 <p className="font-bold">{claim.docNo} — {claim.fullName}</p>
-                <p className="text-stone-600 dark:text-stone-300">{claim.typeName} · {fmtDateID(claim.claimDate)}</p>
-                <p className="text-xs text-stone-500">
+                <p className="text-slate-600 dark:text-slate-300">{claim.typeName} · {fmtDateID(claim.claimDate)}</p>
+                <p className="text-xs text-slate-500">
                   Tagihan {fmtIDR(claim.totalBill)} · Approved <span className="font-semibold">{fmtIDR(claim.totalApproved)}</span> · Non-re {fmtIDR(claim.totalNonRe)}
                 </p>
               </div>
@@ -289,7 +289,7 @@ export function MedicalApprovalPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-stone-600 dark:text-stone-300">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Padanan oranHR <span className="font-semibold">&quot;Paid to employee in cash at end of period with Wage Code&quot;</span>:
               sisa saldo jenis dengan kebijakan <span className="font-semibold">CASH</span> (mis. Rawat Jalan)
               dibayarkan tunai ke karyawan melalui komponen upah <span className="font-semibold">UMC</span> di period payroll terpilih.

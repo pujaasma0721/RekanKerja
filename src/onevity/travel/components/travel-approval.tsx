@@ -81,7 +81,7 @@ export function TravelApprovalPage() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">{t("Menunggu Keputusan", "Awaiting Decision")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{stats?.submitted ?? "—"}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats?.submitted ?? "—"}</p>
             </div>
             <Inbox className="h-7 w-7 text-amber-600" />
           </CardContent>
@@ -90,7 +90,7 @@ export function TravelApprovalPage() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("Uang Muka Menunggu", "Pending Advances")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{stats ? fmtIDR(stats.advanceTotal) : "—"}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats ? fmtIDR(stats.advanceTotal) : "—"}</p>
             </div>
             <Wallet className="h-7 w-7 text-brand" />
           </CardContent>
@@ -99,7 +99,7 @@ export function TravelApprovalPage() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">{t("Telat Settlement", "Overdue Settlement")}</p>
-              <p className="text-2xl font-black text-stone-900 dark:text-stone-100">{stats?.overdueSettlement ?? "—"}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats?.overdueSettlement ?? "—"}</p>
             </div>
             <Clock className="h-7 w-7 text-rose-600" />
           </CardContent>
@@ -107,9 +107,9 @@ export function TravelApprovalPage() {
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-black uppercase tracking-wide text-stone-500">{t("Antrean Persetujuan", "Approval Queue")}</h2>
+        <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">{t("Antrean Persetujuan", "Approval Queue")}</h2>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari antrean…", "Search queue…")} className="w-52 pl-9 text-sm" />
         </div>
       </div>
@@ -119,7 +119,7 @@ export function TravelApprovalPage() {
           <div className="lg:col-span-2"><LoadingRows rows={4} /></div>
         ) : pending.length === 0 ? (
           <div className="lg:col-span-2">
-            <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+            <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <CardContent className="p-0">
                 <EmptyState icon={CheckCircle2} title={t("Semua permintaan sudah diputuskan", "All requests have been decided")} description={t("Tidak ada antrean persetujuan travel saat ini.", "No travel approval queue at the moment.")} />
               </CardContent>
@@ -127,13 +127,13 @@ export function TravelApprovalPage() {
           </div>
         ) : (
           pending.map((r) => (
-            <Card key={r.id} className="border-stone-200 bg-white/80 shadow-sm transition-shadow hover:shadow-md dark:border-stone-800 dark:bg-stone-900/80">
+            <Card key={r.id} className="border-slate-200 bg-white/80 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono text-xs font-bold ov-text-accent">{r.docNo}</p>
-                    <p className="mt-0.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">{r.fullName}</p>
-                    <p className="text-[11px] text-stone-500">{r.employeeNo}{r.orgUnitName ? ` · ${r.orgUnitName}` : ""}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
+                    <p className="mt-0.5 truncate text-sm font-bold text-slate-900 dark:text-slate-100">{r.fullName}</p>
+                    <p className="text-[11px] text-slate-500">{r.employeeNo}{r.orgUnitName ? ` · ${r.orgUnitName}` : ""}{r.costCenter ? ` · CC ${r.costCenter}` : ""}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     <StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} />
@@ -146,7 +146,7 @@ export function TravelApprovalPage() {
                 </div>
 
                 <div className="mt-3 space-y-2 text-xs">
-                  <p className="rounded-lg bg-stone-50 px-3 py-2 leading-relaxed text-stone-700 dark:bg-stone-800/60 dark:text-stone-300">{r.purpose}</p>
+                  <p className="rounded-lg bg-slate-50 px-3 py-2 leading-relaxed text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">{r.purpose}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {r.destinations.map((d, i) => (
                       <Badge key={i} variant="outline" className="gap-1 text-[10px] font-semibold">
@@ -155,7 +155,7 @@ export function TravelApprovalPage() {
                       </Badge>
                     ))}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500 dark:text-stone-400">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <span>{fmtDateID(r.dateFrom)} → {fmtDateID(r.dateTo)} {t("({n} hari)", "({n} days)", { n: r.days })}</span>
                     <span className="font-semibold">{r.templateName}</span>
                     {r.advanceAmount > 0 && <span className="font-bold text-amber-700 dark:text-amber-400">{t("Muka {amt}", "Advance {amt}", { amt: fmtIDR(r.advanceAmount) })}</span>}
@@ -187,7 +187,7 @@ export function TravelApprovalPage() {
                   )}
                   {perms.canOp("travel", "travel-request", "cancel") && (
                     <Button
-                      size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-stone-500"
+                      size="sm" variant="ghost" className="h-8 gap-1.5 text-xs font-bold text-slate-500"
                       onClick={() => { setDialog({ request: r, action: "cancel" }); setNote(""); }}
                     >
                       <Ban className="h-3.5 w-3.5" /> {t("Batalkan", "Cancel")}
@@ -201,22 +201,22 @@ export function TravelApprovalPage() {
       </div>
 
       {recent.length > 0 && (
-        <Card className="mt-6 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="mt-6 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-0">
-            <div className="border-b border-stone-100 px-4 py-3 text-sm font-black uppercase tracking-wide text-stone-500 dark:border-stone-800">
+            <div className="border-b border-slate-100 px-4 py-3 text-sm font-black uppercase tracking-wide text-slate-500 dark:border-slate-800">
               {t("Keputusan Terbaru", "Recent Decisions")}
             </div>
             <div className="max-h-96 overflow-y-auto">
               <table className="w-full text-xs">
                 <tbody>
                   {recent.map((r) => (
-                    <tr key={r.id} className="border-b border-stone-50 last:border-0 dark:border-stone-800/60">
+                    <tr key={r.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                       <td className="px-4 py-2 font-mono font-bold ov-text-accent">{r.docNo}</td>
-                      <td className="px-2 py-2 font-semibold text-stone-700 dark:text-stone-300">{r.fullName}</td>
-                      <td className="hidden px-2 py-2 text-stone-500 sm:table-cell">{r.destinations.map((d) => d.city).join(" → ")}</td>
+                      <td className="px-2 py-2 font-semibold text-slate-700 dark:text-slate-300">{r.fullName}</td>
+                      <td className="hidden px-2 py-2 text-slate-500 sm:table-cell">{r.destinations.map((d) => d.city).join(" → ")}</td>
                       <td className="px-2 py-2"><StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} /></td>
-                      <td className="hidden px-2 py-2 text-stone-500 md:table-cell">{r.decisionNote ?? "—"}</td>
-                      <td className="px-4 py-2 text-right text-stone-400">{r.decidedAt ? fmtDateID(r.decidedAt) : "—"}</td>
+                      <td className="hidden px-2 py-2 text-slate-500 md:table-cell">{r.decisionNote ?? "—"}</td>
+                      <td className="px-4 py-2 text-right text-slate-400">{r.decidedAt ? fmtDateID(r.decidedAt) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -230,16 +230,16 @@ export function TravelApprovalPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {dialog.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : dialog.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-stone-500" />}
+              {dialog.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : dialog.action === "reject" ? <XCircle className="h-5 w-5 text-rose-600" /> : <Ban className="h-5 w-5 text-slate-500" />}
               {dialog.action === "approve" ? t("Setujui Permintaan", "Approve Request") : dialog.action === "reject" ? t("Tolak Permintaan", "Reject Request") : t("Batalkan Permintaan", "Cancel Request")}
             </DialogTitle>
           </DialogHeader>
           {dialog.request && (
             <div className="space-y-3 text-sm">
-              <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-800/60">
+              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
                 <p className="font-mono text-xs font-bold ov-text-accent">{dialog.request.docNo}</p>
-                <p className="mt-1 font-bold text-stone-900 dark:text-stone-100">{dialog.request.fullName}</p>
-                <p className="text-xs text-stone-500">{dialog.request.destinations.map((d) => d.city).join(" → ")} · {t("{n} hari", "{n} days", { n: dialog.request.days })}</p>
+                <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">{dialog.request.fullName}</p>
+                <p className="text-xs text-slate-500">{dialog.request.destinations.map((d) => d.city).join(" → ")} · {t("{n} hari", "{n} days", { n: dialog.request.days })}</p>
                 {dialog.request.advanceAmount > 0 && (
                   <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-400">{t("Uang muka {amt} akan dicairkan", "Advance of {amt} will be disbursed", { amt: fmtIDR(dialog.request.advanceAmount) })}</p>
                 )}

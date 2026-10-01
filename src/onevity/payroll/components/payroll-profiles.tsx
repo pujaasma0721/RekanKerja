@@ -82,11 +82,11 @@ export function PayrollProfilesPage() {
         description={t("NPWP, status PTKP (penentu pajak), metode Gross-to-Net / Net-to-Gross, template upah, dan rekening bank per karyawan", "NPWP, PTKP status (tax determinant), Gross-to-Net / Net-to-Gross method, wage template, and bank account per employee")}
       />
 
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-3.5">
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Cari nama atau nomor karyawan…", "Search by name or employee number…")} className="pl-9" />
             </div>
             <Button variant="outline" onClick={() => setSyncOpen(true)} className="gap-1.5 whitespace-nowrap text-xs font-bold">
@@ -97,7 +97,7 @@ export function PayrollProfilesPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={8} /></div>
@@ -107,7 +107,7 @@ export function PayrollProfilesPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sortHead("employee", t("Karyawan"), "text-[11px] font-bold")}
                     {sortHead("salary", t("Gaji Pokok"), "text-[11px] font-bold")}
                     {sortHead("npwp", t("NPWP"), "text-[11px] font-bold")}
@@ -127,10 +127,10 @@ export function PayrollProfilesPage() {
                     const mismatch = !auto && r.profile && r.ptkpSuggestion.taxStatus !== r.profile.taxStatus;
                     const nextYear = new Date().getFullYear() + 1;
                     return (
-                      <TableRow key={r.employeeId} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={r.employeeId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell>
                           <p className="text-[13px] font-bold">{r.fullName}</p>
-                          <p className="font-mono text-[10px] text-stone-400">{r.employeeNo} · {r.positionName ?? "—"}</p>
+                          <p className="font-mono text-[10px] text-slate-400">{r.employeeNo} · {r.positionName ?? "—"}</p>
                         </TableCell>
                         <TableCell className="text-xs font-bold">{fmtIDR(r.baseSalary)}</TableCell>
                         <TableCell>
@@ -153,12 +153,12 @@ export function PayrollProfilesPage() {
                                 <Badge variant="outline" className={cn("h-4 px-1 text-[8px] font-bold",
                                   auto
                                     ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85"
-                                    : "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-400")}>
+                                    : "border-slate-300 bg-slate-50 text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400")}>
                                   {auto ? t("Auto", "Auto") : "Manual"}
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-[10px] text-stone-400">{r.profile ? t("PTKP {v}/thn", "PTKP {v}/yr", { v: fmtIDR(r.profile.ptkpValue) }) : ""}</span>
+                            <span className="text-[10px] text-slate-400">{r.profile ? t("PTKP {v}/thn", "PTKP {v}/yr", { v: fmtIDR(r.profile.ptkpValue) }) : ""}</span>
                             {mismatch && (
                               <span className="text-[10px] font-bold text-brand dark:text-brand/85">
                                 {t("Saran keluarga: {s}", "Family suggests: {s}", { s: r.ptkpSuggestion.taxStatus })}
@@ -177,20 +177,20 @@ export function PayrollProfilesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs font-semibold">{r.profile?.wageTemplateName ?? "—"}</TableCell>
-                        <TableCell className="text-xs text-stone-500">
+                        <TableCell className="text-xs text-slate-500">
                           {r.profile?.bankName ? (
                             <div className="flex items-center gap-1">
-                              <Wallet className="h-3 w-3 text-stone-400" />
-                              <span>{r.profile.bankName} <span className="font-mono text-[10px] text-stone-400">{safeText(r.profile.bankAccount)}</span></span>
+                              <Wallet className="h-3 w-3 text-slate-400" />
+                              <span>{r.profile.bankName} <span className="font-mono text-[10px] text-slate-400">{safeText(r.profile.bankAccount)}</span></span>
                             </div>
                           ) : "—"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => setHistRow(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Lihat riwayat gaji & template", "View salary & template history")}>
+                            <button onClick={() => setHistRow(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Lihat riwayat gaji & template", "View salary & template history")}>
                               <History className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label={t("Edit profil payroll", "Edit payroll profile")}>
+                            <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Edit profil payroll", "Edit payroll profile")}>
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -266,62 +266,62 @@ function PayrollHistoryDialog({ row, templates, onClose, onCorrected }: { row: P
           </DialogTitle>
         </DialogHeader>
         {!row ? null : loading || !data ? (
-          <p className="py-6 text-center text-sm text-stone-400">{t("Memuat…", "Loading…")}</p>
+          <p className="py-6 text-center text-sm text-slate-400">{t("Memuat…", "Loading…")}</p>
         ) : (
           <div className="space-y-5">
             <div>
               <p className="text-sm font-bold">{data.employee.fullName}</p>
-              <p className="font-mono text-[10px] text-stone-400">{data.employee.employeeNo}</p>
+              <p className="font-mono text-[10px] text-slate-400">{data.employee.employeeNo}</p>
             </div>
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Riwayat Gaji Pokok (per periode berlaku)", "Base Salary History (per effective period)")}</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Riwayat Gaji Pokok (per periode berlaku)", "Base Salary History (per effective period)")}</p>
               {data.salary.length === 0 ? (
-                <p className="text-xs text-stone-400">{t("Belum ada data.", "No data yet.")}</p>
+                <p className="text-xs text-slate-400">{t("Belum ada data.", "No data yet.")}</p>
               ) : (
-                <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-4 dark:border-stone-800">
+                <ol className="relative ml-2 space-y-0 border-l border-slate-200 pl-4 dark:border-slate-800">
                   {data.salary.map((s, i) => (
                     <li key={s.id} className="relative pb-3 last:pb-0">
-                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.salary.length - 1 ? "ov-fill" : "border-2 border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")} />
+                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.salary.length - 1 ? "ov-fill" : "border-2 border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900")} />
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(s.validFrom, s.validTo)}</span>
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{fmtPeriod(s.validFrom, s.validTo)}</span>
                         <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(s.reason)}</Badge>
-                        {s.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{s.sourceDocNo}</span>}
-                        <button onClick={() => setCorr({ kind: "salary", entry: s })} className="ml-auto rounded p-0.5 text-stone-300 hover:text-brand dark:text-stone-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
+                        {s.sourceDocNo && <span className="font-mono text-[10px] text-slate-400">{s.sourceDocNo}</span>}
+                        <button onClick={() => setCorr({ kind: "salary", entry: s })} className="ml-auto rounded p-0.5 text-slate-300 hover:text-brand dark:text-slate-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
                           <Pencil className="h-3 w-3" />
                         </button>
                       </div>
-                      <p className="text-sm font-bold">{fmtIDR(s.baseSalary)}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{s.positionName ?? ""}{s.officeCode ? ` · ${s.officeCode}` : ""}</span></p>
-                      {s.notes && <p className="text-[10px] italic text-stone-400">{s.notes}</p>}
+                      <p className="text-sm font-bold">{fmtIDR(s.baseSalary)}<span className="ml-1.5 text-[10px] font-normal text-slate-400">{s.positionName ?? ""}{s.officeCode ? ` · ${s.officeCode}` : ""}</span></p>
+                      {s.notes && <p className="text-[10px] italic text-slate-400">{s.notes}</p>}
                     </li>
                   ))}
                 </ol>
               )}
             </div>
             <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-stone-400">{t("Riwayat Template Upah (per periode berlaku)", "Wage Template History (per effective period)")}</p>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("Riwayat Template Upah (per periode berlaku)", "Wage Template History (per effective period)")}</p>
               {data.templates.length === 0 ? (
-                <p className="text-xs text-stone-400">{t("Belum ada data.", "No data yet.")}</p>
+                <p className="text-xs text-slate-400">{t("Belum ada data.", "No data yet.")}</p>
               ) : (
-                <ol className="relative ml-2 space-y-0 border-l border-stone-200 pl-4 dark:border-stone-800">
+                <ol className="relative ml-2 space-y-0 border-l border-slate-200 pl-4 dark:border-slate-800">
                   {data.templates.map((h, i) => (
                     <li key={h.id} className="relative pb-3 last:pb-0">
-                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.templates.length - 1 ? "ov-fill" : "border-2 border-stone-300 bg-white dark:border-stone-600 dark:bg-stone-900")} />
+                      <span className={cn("absolute -left-[22px] top-1 h-3 w-3 rounded-full", i === data.templates.length - 1 ? "ov-fill" : "border-2 border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900")} />
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span className="text-[11px] font-bold text-stone-600 dark:text-stone-300">{fmtPeriod(h.validFrom, h.validTo)}</span>
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{fmtPeriod(h.validFrom, h.validTo)}</span>
                         <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold">{reasonLabel(h.reason)}</Badge>
-                        {h.sourceDocNo && <span className="font-mono text-[10px] text-stone-400">{h.sourceDocNo}</span>}
-                        <button onClick={() => setCorr({ kind: "template", entry: h })} className="ml-auto rounded p-0.5 text-stone-300 hover:text-brand dark:text-stone-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
+                        {h.sourceDocNo && <span className="font-mono text-[10px] text-slate-400">{h.sourceDocNo}</span>}
+                        <button onClick={() => setCorr({ kind: "template", entry: h })} className="ml-auto rounded p-0.5 text-slate-300 hover:text-brand dark:text-slate-600 dark:hover:text-brand/90" aria-label={t("Koreksi baris ini", "Correct this row")}>
                           <Pencil className="h-3 w-3" />
                         </button>
                       </div>
-                      <p className="text-sm font-bold">{h.templateName ?? t("(tanpa template)", "(no template)")}<span className="ml-1.5 text-[10px] font-normal text-stone-400">{h.templateCode ?? ""}</span></p>
-                      {h.notes && <p className="text-[10px] italic text-stone-400">{h.notes}</p>}
+                      <p className="text-sm font-bold">{h.templateName ?? t("(tanpa template)", "(no template)")}<span className="ml-1.5 text-[10px] font-normal text-slate-400">{h.templateCode ?? ""}</span></p>
+                      {h.notes && <p className="text-[10px] italic text-slate-400">{h.notes}</p>}
                     </li>
                   ))}
                 </ol>
               )}
             </div>
-            <p className="text-[10px] text-stone-400">{t("Run payroll membaca versi yang berlaku pada periode — perubahan efektif di tengah bulan otomatis membentuk segmen prorate.", "Payroll runs read the version effective for the period — mid-month changes automatically form prorate segments.")}</p>
+            <p className="text-[10px] text-slate-400">{t("Run payroll membaca versi yang berlaku pada periode — perubahan efektif di tengah bulan otomatis membentuk segmen prorate.", "Payroll runs read the version effective for the period — mid-month changes automatically form prorate segments.")}</p>
           </div>
         )}
         <DialogFooter>
@@ -397,7 +397,7 @@ function HistoryRowCorrectDialog({ corr, templates, onClose, onSaved }: {
         </DialogHeader>
         {corr && (
           <div className="grid gap-3">
-            <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900/50">
+            <div className="rounded-xl bg-slate-50 p-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900/50">
               {t(
                 "Koreksi langsung untuk salah ketik — TIDAK mencatat versi baru. Untuk kenaikan/promosi/transfer gunakan Personnel Action atau Profil Payroll.",
                 "Direct fix for typos — does NOT record a new version. For raises/promotions/transfers use Personnel Action or Payroll Profile.",
@@ -429,13 +429,13 @@ function HistoryRowCorrectDialog({ corr, templates, onClose, onSaved }: {
               <div>
                 <Label className="text-xs">{t("Berlaku Sampai", "Valid To")}</Label>
                 {validToOpen ? (
-                  <button type="button" onClick={() => setValidToOpen(false)} className="mt-1.5 h-9 w-full rounded-lg border border-dashed border-stone-300 text-[11px] font-bold text-stone-400 hover:border-stone-400 dark:border-stone-700">
+                  <button type="button" onClick={() => setValidToOpen(false)} className="mt-1.5 h-9 w-full rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-400 hover:border-slate-400 dark:border-slate-700">
                     {t("Masih berlaku (terbuka) — klik untuk batasi", "Still active (open) — click to set an end")}
                   </button>
                 ) : (
                   <div className="mt-1.5 flex items-center gap-1">
                     <Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} className="flex-1" />
-                    <button type="button" onClick={() => { setValidToOpen(true); setValidTo(""); }} className="rounded-lg border border-stone-200 px-2 py-2 text-[10px] font-bold text-stone-400 hover:text-stone-600 dark:border-stone-700" title={t("Buat terbuka kembali", "Reopen (no end date)")}>
+                    <button type="button" onClick={() => { setValidToOpen(true); setValidTo(""); }} className="rounded-lg border border-slate-200 px-2 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:border-slate-700" title={t("Buat terbuka kembali", "Reopen (no end date)")}>
                       {t("Terbuka", "Open")}
                     </button>
                   </div>
@@ -502,12 +502,12 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
           <DialogTitle className="flex items-center gap-2 text-base"><RefreshCw className="h-4 w-4 ov-text-accent" /> {t("Sinkronkan PTKP dari Data Keluarga", "Sync PTKP from Family Data")}</DialogTitle>
         </DialogHeader>
         {busy || !preview ? (
-          <div className="py-8 text-center text-sm text-stone-400">{t("Memuat pratinjau…", "Loading preview…")}</div>
+          <div className="py-8 text-center text-sm text-slate-400">{t("Memuat pratinjau…", "Loading preview…")}</div>
         ) : (
           <div className="grid gap-3">
-            <div className="rounded-xl border border-stone-200 p-3 text-xs dark:border-stone-700">
+            <div className="rounded-xl border border-slate-200 p-3 text-xs dark:border-slate-700">
               <p className="font-bold">{t("Pratinjau perubahan", "Change preview")}</p>
-              <p className="mt-1 text-stone-500">
+              <p className="mt-1 text-slate-500">
                 {t(
                   "{total} karyawan aktif · {changed} akan berubah status PTKP · {auto} dialihkan ke sumber otomatis",
                   "{total} active employees · {changed} will change PTKP status · {auto} switched to automatic source",
@@ -524,14 +524,14 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
               </div>
             )}
             {preview.changes.length > 0 ? (
-              <div className="rounded-xl border border-stone-200 dark:border-stone-700">
-                <p className="border-b border-stone-100 px-3 py-2 text-[11px] font-bold dark:border-stone-800">{t("Karyawan yang berubah", "Employees changing")}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700">
+                <p className="border-b border-slate-100 px-3 py-2 text-[11px] font-bold dark:border-slate-800">{t("Karyawan yang berubah", "Employees changing")}</p>
                 <div className="max-h-48 overflow-y-auto p-2">
                   {preview.changes.map((c) => (
-                    <div key={c.employeeId} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <div key={c.employeeId} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <span className="min-w-0 flex-1 truncate font-semibold">{c.employeeName}</span>
-                      <span className="font-mono text-stone-400">{c.from}</span>
-                      <ArrowRight className="h-3 w-3 text-stone-400" />
+                      <span className="font-mono text-slate-400">{c.from}</span>
+                      <ArrowRight className="h-3 w-3 text-slate-400" />
                       <span className="font-mono font-bold ov-text-accent">{c.to}</span>
                     </div>
                   ))}
@@ -542,7 +542,7 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
                 {t("Semua status PTKP sudah sesuai data keluarga — tidak ada perubahan.", "All PTKP statuses already match family data — no changes.")}
               </div>
             )}
-            <div className="flex items-start gap-2 rounded-xl bg-stone-50 p-3 text-[10px] leading-relaxed text-stone-500 dark:bg-stone-900/50">
+            <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-[10px] leading-relaxed text-slate-500 dark:bg-slate-900/50">
               <Info className="mt-0.5 h-3 w-3 shrink-0" />
               <p>
                 {t(
@@ -635,10 +635,10 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
           <DialogTitle className="flex items-center gap-2 text-base"><IdCard className="h-4 w-4 ov-text-accent" /> {t("Data Payroll — {name}", "Payroll Data — {name}", { name: row.fullName })}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">{t("Punya NPWP", "Has NPWP")}</p>
-              <p className="text-[10px] text-stone-400">{t("Non-NPWP dikenai tarif 20% lebih tinggi", "Non-NPWP is charged a 20% higher rate")}</p>
+              <p className="text-[10px] text-slate-400">{t("Non-NPWP dikenai tarif 20% lebih tinggi", "Non-NPWP is charged a 20% higher rate")}</p>
             </div>
             <Switch checked={hasNpwp} onCheckedChange={setHasNpwp} />
           </div>
@@ -658,12 +658,12 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
                   "rounded-xl border p-2.5 text-left transition-colors",
                   ptkpSource === "auto"
                     ? "border-brand/40 bg-brand/10 dark:border-brand/50 dark:bg-brand/10"
-                    : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
+                    : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600",
                 )}
                 aria-pressed={ptkpSource === "auto"}
               >
                 <p className="flex items-center gap-1 text-[11px] font-bold"><Users className="h-3 w-3" /> {t("Otomatis dari keluarga", "Automatic from family")}</p>
-                <p className="mt-0.5 text-[10px] leading-snug text-stone-500 dark:text-stone-400">{t("Snapshot data keluarga — refresh otomatis 1 Januari", "Family data snapshot — auto-refreshed every Jan 1")}</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-slate-500 dark:text-slate-400">{t("Snapshot data keluarga — refresh otomatis 1 Januari", "Family data snapshot — auto-refreshed every Jan 1")}</p>
               </button>
               <button
                 type="button"
@@ -672,12 +672,12 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
                   "rounded-xl border p-2.5 text-left transition-colors",
                   ptkpSource === "manual"
                     ? "border-brand/40 bg-brand/10 dark:border-brand/50 dark:bg-brand/10"
-                    : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
+                    : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600",
                 )}
                 aria-pressed={ptkpSource === "manual"}
               >
                 <p className="flex items-center gap-1 text-[11px] font-bold"><Pencil className="h-3 w-3" /> {t("Manual", "Manual")}</p>
-                <p className="mt-0.5 text-[10px] leading-snug text-stone-500 dark:text-stone-400">{t("Ditetapkan admin — mis. K/I digabung", "Admin-set — e.g. K/I combined")}</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-slate-500 dark:text-slate-400">{t("Ditetapkan admin — mis. K/I digabung", "Admin-set — e.g. K/I combined")}</p>
               </button>
             </div>
           </div>
@@ -705,7 +705,7 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
                     )}
                   </p>
                 )}
-                <p className="mt-1 text-[10px] text-stone-500 dark:text-stone-400">
+                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
                   {t("Snapshot hasil refresh 1 Januari — penambahan/pengurangan dependen di tengah tahun berlaku tahun berikutnya.", "Snapshot from the January 1st refresh — mid-year dependent additions/reductions take effect next year.")}
                 </p>
               </div>
@@ -746,12 +746,12 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
                 <button
                   type="button"
                   onClick={() => { setTaxStatus(suggestion.taxStatus); setDependents(String(suggestion.dependents)); }}
-                  className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 p-2.5 text-left text-[11px] transition-colors hover:border-stone-300 dark:border-stone-700 dark:bg-stone-900/50 dark:hover:border-stone-600"
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-left text-[11px] transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600"
                 >
-                  <Info className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+                  <Info className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   <span className="flex-1">
                     <span className="font-bold">{t("Saran dari data keluarga: {s}", "Family data suggests: {s}", { s: suggestion.taxStatus })} </span>
-                    <span className="text-stone-500 dark:text-stone-400">
+                    <span className="text-slate-500 dark:text-slate-400">
                       ({t("pasangan {spouse}, tanggungan {n}", "spouse {spouse}, dependents {n}", { spouse: suggestion.spouse ? t("ada", "yes") : "—", n: suggestion.dependents })})
                     </span>
                     <span className="ml-1 font-bold ov-text-accent">{t("Terapkan", "Apply")}</span>
@@ -774,11 +774,11 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
               dari riwayat; pergantian hanya via Personnel Action / koreksi Riwayat. */}
           <div>
             <Label className="text-xs">{t("Template Upah (berlaku hari ini)", "Wage Template (effective today)")}</Label>
-            <div className="mt-1.5 flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 dark:border-stone-700 dark:bg-stone-900/50">
+            <div className="mt-1.5 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50">
               <span className="text-[13px] font-bold">{row.effectiveTemplate?.name ?? row.profile?.wageTemplateName ?? t("— belum ada —", "— none —")}</span>
-              <span className="text-[10px] text-stone-400">{t("read-only", "read-only")}</span>
+              <span className="text-[10px] text-slate-400">{t("read-only", "read-only")}</span>
             </div>
-            <p className="mt-1 text-[10px] leading-snug text-stone-400">
+            <p className="mt-1 text-[10px] leading-snug text-slate-400">
               {t(
                 "Diambil dari riwayat template yang berlaku hari ini. Ganti template via Personnel Action (kenaikan jabatan) atau koreksi baris di Riwayat.",
                 "Taken from the template history effective today. Change it via Personnel Action (promotion) or by correcting the row in History.",

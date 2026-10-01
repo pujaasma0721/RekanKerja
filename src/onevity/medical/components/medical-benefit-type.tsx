@@ -125,7 +125,7 @@ export function MedicalBenefitTypePage() {
         )}
       />
 
-      <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+      <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
         <CardContent className="p-0">
           {api.loading && !api.data ? (
             <div className="p-4"><LoadingRows /></div>
@@ -134,7 +134,7 @@ export function MedicalBenefitTypePage() {
           ) : (
             <div className="max-h-[34rem] overflow-y-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     {sort.head("name", t("Jenis"))}
                     {sort.head("limit", "Limit")}
@@ -151,7 +151,7 @@ export function MedicalBenefitTypePage() {
                     <TableRow key={bt.id} className={cn(!bt.active && "opacity-50")}>
                       <TableCell>
                         <p className="font-semibold">{bt.name}</p>
-                        <p className="text-xs text-stone-500">{bt.code}</p>
+                        <p className="text-xs text-slate-500">{bt.code}</p>
                       </TableCell>
                       <TableCell>
                         {bt.limitRule === "UNLIMITED" ? (
@@ -161,24 +161,24 @@ export function MedicalBenefitTypePage() {
                         ) : (
                           <span className="font-semibold">{fmtIDR(bt.limitValue)}</span>
                         )}
-                        <p className="text-xs text-stone-500">
+                        <p className="text-xs text-slate-500">
                           {bt.pctCompany}% company{bt.pctInsurance > 0 ? ` · ${bt.pctInsurance}% ${t("asuransi", "insurance")}` : ""}
                         </p>
                       </TableCell>
                       <TableCell className="text-sm">
                         {bt.freqUnlimited ? "Unlimited" : `${bt.freqValue}× / ${t(FREQ_PERIOD_LABEL[bt.freqPeriod] ?? bt.freqPeriod, FREQ_PERIOD_LABEL_EN[bt.freqPeriod])}`}
-                        {bt.needReceipt && <span className="block text-xs text-stone-500">{t("perlu kwitansi", "receipt required")}</span>}
+                        {bt.needReceipt && <span className="block text-xs text-slate-500">{t("perlu kwitansi", "receipt required")}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
                         {t(UNUSED_RULE_LABEL[bt.unusedRule] ?? bt.unusedRule, UNUSED_RULE_LABEL_EN[bt.unusedRule])}
-                        {bt.unusedRule === "CASH" && bt.cashWageCode && <span className="block text-xs text-stone-500">via {bt.cashWageCode}</span>}
-                        {bt.unusedRule === "CARRY" && bt.maxCarryOver > 0 && <span className="block text-xs text-stone-500">max {fmtIDR(bt.maxCarryOver)}</span>}
+                        {bt.unusedRule === "CASH" && bt.cashWageCode && <span className="block text-xs text-slate-500">via {bt.cashWageCode}</span>}
+                        {bt.unusedRule === "CARRY" && bt.maxCarryOver > 0 && <span className="block text-xs text-slate-500">max {fmtIDR(bt.maxCarryOver)}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
                         {bt.dependentEnabled ? t("{n} dep. · max {m} th", "{n} dep. · max {m} yrs", { n: bt.maxDependents, m: bt.maxChildAge }) : "—"}
-                        {bt.dependentEnabled && <span className="block text-xs text-stone-500">{t(DEP_LIMIT_LABEL[bt.depLimitRule] ?? bt.depLimitRule, DEP_LIMIT_LABEL_EN[bt.depLimitRule])}</span>}
+                        {bt.dependentEnabled && <span className="block text-xs text-slate-500">{t(DEP_LIMIT_LABEL[bt.depLimitRule] ?? bt.depLimitRule, DEP_LIMIT_LABEL_EN[bt.depLimitRule])}</span>}
                       </TableCell>
-                      <TableCell className="text-right text-sm text-stone-500">
+                      <TableCell className="text-right text-sm text-slate-500">
                         {t("{n} saldo · {m} klaim", "{n} balances · {m} claims", { n: bt.balanceCount, m: bt.claimCount })}
                       </TableCell>
                       <TableCell>
@@ -262,7 +262,7 @@ export function MedicalBenefitTypePage() {
               <Label>{t("Company / Asuransi (%)", "Company / Insurance (%)")}</Label>
               <div className="flex items-center gap-2">
                 <Input type="number" min={0} max={100} value={form.pctCompany} onChange={(e) => setForm({ ...form, pctCompany: e.target.value })} />
-                <span className="text-stone-400">/</span>
+                <span className="text-slate-400">/</span>
                 <Input type="number" min={0} max={100} value={form.pctInsurance} onChange={(e) => setForm({ ...form, pctInsurance: e.target.value })} />
               </div>
               {/* Task 82-b (audit T9): pctCompany/pctInsurance tersimpan tapi belum
@@ -302,9 +302,9 @@ export function MedicalBenefitTypePage() {
               <div className="flex items-center gap-2">
                 <Checkbox checked={form.dependentEnabled} onCheckedChange={(v) => setForm({ ...form, dependentEnabled: Boolean(v) })} />
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxDependents} onChange={(e) => setForm({ ...form, maxDependents: e.target.value })} />
-                <span className="text-xs text-stone-500">{t("anak max", "child max")}</span>
+                <span className="text-xs text-slate-500">{t("anak max", "child max")}</span>
                 <Input type="number" min={0} disabled={!form.dependentEnabled} className="w-20" value={form.maxChildAge} onChange={(e) => setForm({ ...form, maxChildAge: e.target.value })} />
-                <span className="text-xs text-stone-500">{t("th", "yr")}</span>
+                <span className="text-xs text-slate-500">{t("th", "yr")}</span>
               </div>
             </div>
             <div className="space-y-1.5">

@@ -235,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* ============ SIDEBAR (obsidian, always dark) ============ */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col bg-[oklch(0.185_0.008_240)] text-stone-300 transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+            "fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col bg-[oklch(0.185_0.008_240)] text-slate-300 transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
             mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
           )}
           style={{ ["--sidebar" as string]: "oklch(0.185 0.008 240)" }}
@@ -254,9 +254,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-[17px] font-extrabold leading-tight tracking-tight text-white">
                 One<span className="text-emerald-400">Vity</span>
               </p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">HR Suite</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">HR Suite</p>
             </div>
-            <button className="rounded-lg p-1.5 text-stone-500 hover:bg-white/5 hover:text-stone-200 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
+            <button className="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-slate-200 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -271,8 +271,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {(meta.data?.company?.shortName ?? sessionTenant?.name ?? "OneVity").slice(0, 3).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-stone-100">{meta.data?.company?.shortName ?? "—"}</p>
-                <p className="truncate text-[10px] text-stone-500">{meta.data?.company?.name ?? (meta.loading ? "Memuat…" : "Belum ada data perusahaan")}</p>
+                <p className="truncate text-xs font-bold text-slate-100">{meta.data?.company?.shortName ?? "—"}</p>
+                <p className="truncate text-[10px] text-slate-500">{meta.data?.company?.name ?? (meta.loading ? "Memuat…" : "Belum ada data perusahaan")}</p>
               </div>
               <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">Aktif</span>
             </div>
@@ -290,14 +290,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <ActiveModuleIcon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">Modul Aktif</p>
-                    <p className="truncate text-[13px] font-bold text-stone-50">{activeModule.label}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Modul Aktif</p>
+                    <p className="truncate text-[13px] font-bold text-slate-50">{activeModule.label}</p>
                   </div>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="right" className="w-60">
-                <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Modul OneVity</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Modul OneVity</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {MODULES.map((m) => {
                   const Icon = m.icon;
@@ -310,11 +310,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                       <div className={cn(
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                        isActive ? "bg-emerald-600 text-white" : m.ready ? "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300" : "bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500"
+                        isActive ? "bg-emerald-600 text-white" : m.ready ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                       )}>
                         <Icon className="h-3.5 w-3.5" />
                       </div>
-                      <span className={cn("flex-1 text-[13px] font-semibold", isActive ? "text-emerald-700 dark:text-emerald-400" : "text-stone-700 dark:text-stone-200")}>{m.label}</span>
+                      <span className={cn("flex-1 text-[13px] font-semibold", isActive ? "text-emerald-700 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200")}>{m.label}</span>
                       {isActive ? (
                         <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       ) : m.ready ? null : (
@@ -339,7 +339,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <button
                       onClick={() => go(group.section, group.children[0].id)}
                       className={cn(
-                        "flex w-full items-center px-3 pb-1 pt-2.5 text-[11px] font-semibold text-stone-500 transition-colors hover:text-stone-300",
+                        "flex w-full items-center px-3 pb-1 pt-2.5 text-[11px] font-semibold text-slate-500 transition-colors hover:text-slate-300",
                         active && "text-emerald-400 hover:text-emerald-400"
                       )}
                     >
@@ -368,14 +368,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all",
                           isActive
                             ? "bg-emerald-500/[0.14] text-white shadow-inner"
-                            : "text-stone-400 hover:bg-white/[0.05] hover:text-stone-100"
+                            : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-100"
                         )}
                       >
                         {isActive && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-400" />}
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors", isActive ? "text-emerald-400" : "text-stone-500 group-hover:text-stone-300")} />
+                        <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors", isActive ? "text-emerald-400" : "text-slate-500 group-hover:text-slate-300")} />
                         <span className="flex-1 truncate text-left">{item.label}</span>
                         {pending > 0 && (
-                          <Badge className="h-5 min-w-5 rounded-full bg-amber-400/90 px-1.5 text-[10px] font-extrabold text-stone-900 hover:bg-amber-400">
+                          <Badge className="h-5 min-w-5 rounded-full bg-amber-400/90 px-1.5 text-[10px] font-extrabold text-slate-900 hover:bg-amber-400">
                             {pending}
                           </Badge>
                         )}
@@ -395,19 +395,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[oklch(0.185_0.008_240)] bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-stone-100">{sessionUser?.name ?? "—"}</p>
-                <p className="truncate text-[10px] text-stone-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
+                <p className="truncate text-xs font-bold text-slate-100">{sessionUser?.name ?? "—"}</p>
+                <p className="truncate text-[10px] text-slate-500">{sessionTenant ? `${sessionTenant.name} · ${sessionTenant.role}` : "tanpa workspace"}</p>
               </div>
               <button
                 onClick={() => void session.logout()}
-                className="rounded-lg p-1.5 text-stone-500 transition hover:bg-white/5 hover:text-rose-300"
+                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-rose-300"
                 aria-label="Keluar dari sesi"
                 title="Keluar"
               >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-stone-600">OneVity HR Suite v1.0 · {activeModule.label}</p>
+            <p className="mt-2 truncate text-center text-[9px] tracking-wide text-slate-600">OneVity HR Suite v1.0 · {activeModule.label}</p>
           </div>
         </aside>
 
@@ -417,8 +417,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* ============ MAIN COLUMN ============ */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* topbar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-stone-200/80 bg-background/85 px-4 backdrop-blur-xl dark:border-stone-800/80 sm:px-6">
-            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Buka menu">
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-background/85 px-4 backdrop-blur-xl dark:border-slate-800/80 sm:px-6">
+            <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Buka menu">
               <Menu className="h-5 w-5" />
             </button>
 
@@ -427,8 +427,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button onClick={() => navigate(module === "hr" ? "dashboard" : defaultSectionOfModuleFor(module))} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">OneVity</button>
               {crumbs.map((c, i) => (
                 <span key={i} className="flex items-center gap-1.5">
-                  <ChevronRight className="h-3.5 w-3.5 text-stone-300 dark:text-stone-600" />
-                  <span className={cn("truncate", i === crumbs.length - 1 ? "font-semibold text-stone-900 dark:text-stone-100" : "text-stone-500")}>{c}</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+                  <span className={cn("truncate", i === crumbs.length - 1 ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-500")}>{c}</span>
                 </span>
               ))}
             </nav>
@@ -440,15 +440,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {/* search trigger */}
             <button
               onClick={() => setCmdOpen(true)}
-              className="hidden items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-[13px] text-stone-400 transition hover:border-emerald-300 hover:text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:hover:border-emerald-600/50 md:flex"
+              className="hidden items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] text-slate-400 transition hover:border-emerald-300 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-600/50 md:flex"
             >
               <Search className="h-4 w-4" />
               <span>Cari karyawan, dokumen…</span>
-              <kbd className="ml-4 flex items-center gap-0.5 rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-stone-400 dark:border-stone-700 dark:bg-stone-800">
+              <kbd className="ml-4 flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-400 dark:border-slate-700 dark:bg-slate-800">
                 <CommandIcon className="h-2.5 w-2.5" />K
               </kbd>
             </button>
-            <button className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label="Cari">
+            <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden" onClick={() => setCmdOpen(true)} aria-label="Cari">
               <Search className="h-5 w-5" />
             </button>
 
@@ -481,8 +481,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
 
           {/* footer */}
-          <footer className="mt-auto border-t border-stone-200/70 py-4 dark:border-stone-800/70">
-            <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
+          <footer className="mt-auto border-t border-slate-200/70 py-4 dark:border-slate-800/70">
+            <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
               © 2026 <span className="font-bold text-emerald-600 dark:text-emerald-400">OneVity</span> HR Suite · Modul {activeModule.label} · dibangun ulang dari studi OranHR
             </p>
           </footer>
@@ -516,7 +516,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(dark ? "light" : "dark")}
-      className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+      className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
       aria-label="Ganti tema"
     >
       {mounted && dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
@@ -529,15 +529,15 @@ function NotificationBell({ pendingActions }: { pendingActions: number }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200" aria-label="Notifikasi">
+        <button className="relative rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Notifikasi">
           <Bell className="h-[18px] w-[18px]" />
-          {pendingActions > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold text-stone-900">{pendingActions}</span>}
+          {pendingActions > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-extrabold text-slate-900">{pendingActions}</span>}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="border-b border-stone-100 px-4 py-3 dark:border-stone-800">
+        <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           <p className="text-sm font-bold">Notifikasi</p>
-          <p className="text-[11px] text-stone-400">{pendingActions} approval menunggu keputusan Anda</p>
+          <p className="text-[11px] text-slate-400">{pendingActions} approval menunggu keputusan Anda</p>
         </div>
         <div className="max-h-72 overflow-y-auto p-2">
           {pendingActions > 0 ? (
@@ -547,11 +547,11 @@ function NotificationBell({ pendingActions }: { pendingActions: number }) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold">Approval Personnel Action</p>
-                <p className="text-[11px] leading-relaxed text-stone-500">{pendingActions} dokumen menunggu persetujuan Anda</p>
+                <p className="text-[11px] leading-relaxed text-slate-500">{pendingActions} dokumen menunggu persetujuan Anda</p>
               </div>
             </button>
           ) : (
-            <p className="px-3 py-6 text-center text-xs text-stone-400">Tidak ada notifikasi baru</p>
+            <p className="px-3 py-6 text-center text-xs text-slate-400">Tidak ada notifikasi baru</p>
           )}
         </div>
       </DropdownMenuContent>
@@ -575,15 +575,15 @@ function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; 
       <DialogContent className="top-[15%] translate-y-0 gap-0 overflow-hidden p-0 shadow-2xl" aria-describedby={undefined}>
         <DialogTitle className="sr-only">Pencarian global OneVity</DialogTitle>
         <Command shouldFilter={false} className="[&_[cmdk-group-heading]]:px-4">
-          <div className="flex items-center gap-3 border-b border-stone-100 px-4 dark:border-stone-800">
-            <Search className="h-4 w-4 shrink-0 text-stone-400" />
+          <div className="flex items-center gap-3 border-b border-slate-100 px-4 dark:border-slate-800">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
             <CommandInput
               value={q}
               onValueChange={setQ}
               placeholder="Cari karyawan, aksi, atau navigasi…"
               className="h-12 flex-1 border-0 text-sm shadow-none focus:ring-0 dark:bg-transparent"
             />
-            <kbd className="rounded border border-stone-200 px-1.5 py-0.5 font-mono text-[10px] text-stone-400 dark:border-stone-700">ESC</kbd>
+            <kbd className="rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 dark:border-slate-700">ESC</kbd>
           </div>
           <CommandList className="max-h-[420px] overflow-y-auto p-2">
             <CommandGroup heading={`Navigasi · ${MODULE_LABEL[module]}`}>
@@ -591,25 +591,25 @@ function CommandPalette({ open, setOpen, onNavigate, module }: { open: boolean; 
                 const Icon = c.icon;
                 return (
                   <CommandItem key={`${g.section}-${c.id}`} value={`${g.label ?? "Beranda"} ${c.label}`} onSelect={() => runNav(g.section, c.id)} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
-                    <Icon className="h-4 w-4 text-stone-400" />
+                    <Icon className="h-4 w-4 text-slate-400" />
                     <span>{c.label}</span>
-                    <span className="ml-auto text-[10px] uppercase tracking-wider text-stone-300 dark:text-stone-600">{g.label ?? "Beranda"}</span>
+                    <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-300 dark:text-slate-600">{g.label ?? "Beranda"}</span>
                   </CommandItem>
                 );
               })}
             </CommandGroup>
             {q.length >= 2 && (
               <CommandGroup heading="Karyawan">
-                <CommandEmpty className="py-6 text-center text-xs text-stone-400">Tidak ditemukan</CommandEmpty>
-                {results.loading && <p className="px-3 py-4 text-xs text-stone-400">Mencari…</p>}
+                <CommandEmpty className="py-6 text-center text-xs text-slate-400">Tidak ditemukan</CommandEmpty>
+                {results.loading && <p className="px-3 py-4 text-xs text-slate-400">Mencari…</p>}
                 {results.data?.employees?.map((e) => (
                   <CommandItem key={e.id} value={e.employeeNo + e.fullName} onSelect={() => { setOpen(false); setQ(""); useNav.getState().navigate("employee", "detail", { id: e.id }); }} className="gap-3 rounded-lg px-3 py-2.5 text-[13px]">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">{initials(e.fullName)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{e.fullName}</p>
-                      <p className="truncate text-[11px] text-stone-400">{e.employeeNo} · {e.position?.title ?? "—"}</p>
+                      <p className="truncate text-[11px] text-slate-400">{e.employeeNo} · {e.position?.title ?? "—"}</p>
                     </div>
-                    <ChevronRight className="h-3.5 w-3.5 text-stone-300" />
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -643,24 +643,24 @@ function WorkspaceMenu() {
           disabled={switching}
           aria-label={`Ganti workspace — ${tenant.name}`}
           title={tenant.name}
-          className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-stone-700 transition hover:border-emerald-300 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-emerald-600/50"
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-slate-700 transition hover:border-emerald-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-600/50"
         >
           <Building2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span className="hidden max-w-[160px] truncate sm:inline">{tenant.name}</span>
           <Badge className="hidden rounded-full bg-emerald-100 px-1.5 text-[9px] font-extrabold uppercase text-emerald-700 sm:inline-flex dark:bg-emerald-500/15 dark:text-emerald-300">{tenant.plan}</Badge>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="text-xs">Workspace</DropdownMenuLabel>
         {(info?.workspaces ?? []).map((w) => (
           <DropdownMenuItem key={w.id} onClick={() => void switchTo(w.id)}>
-            <Building2 className="h-4 w-4 shrink-0 text-stone-400" />
+            <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
             <span className="flex-1 truncate">{w.name}</span>
             {w.id === tenant.id ? (
               <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <span className="shrink-0 text-[10px] text-stone-400">{w.role}</span>
+              <span className="shrink-0 text-[10px] text-slate-400">{w.role}</span>
             )}
           </DropdownMenuItem>
         ))}

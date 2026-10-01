@@ -24,7 +24,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-900/40">
             <Waypoints className="h-7 w-7" />
           </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-stone-500 dark:text-stone-400">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
             Memuat sesi…
           </div>

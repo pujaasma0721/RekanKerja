@@ -55,25 +55,25 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
           r.status === "Pending" ? "bg-amber-400" : r.status === "Issued" ? "bg-brand" : "bg-rose-500",
         )}
       />
-      <div className="rounded-xl border border-stone-200 p-3.5 dark:border-stone-800">
+      <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[13px] font-bold text-stone-800 dark:text-stone-100">{r.templateName}</p>
-          <span className="font-mono text-[11px] font-semibold text-stone-400">{r.reqNo}</span>
+          <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{r.templateName}</p>
+          <span className="font-mono text-[11px] font-semibold text-slate-400">{r.reqNo}</span>
           <StatusPill status={r.status} />
         </div>
-        <p className="mt-1 text-[11px] text-stone-400">
+        <p className="mt-1 text-[11px] text-slate-400">
           {t("diajukan", "requested")} {fmtDateTime(r.createdAt)}
           {r.purpose ? ` · ${t("keperluan", "for")}: ${r.purpose}` : ""}
         </p>
         {r.notes && (
-          <p className="mt-1 rounded-lg bg-stone-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+          <p className="mt-1 rounded-lg bg-slate-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
             “{r.notes}”
           </p>
         )}
 
         {/* timeline status ringkas */}
         <ol className="mt-2.5 space-y-1.5" aria-label={t("Status permintaan", "Request status")}>
-          <li className="flex items-center gap-2 text-[11.5px] font-semibold text-stone-600 dark:text-stone-300">
+          <li className="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden />
             {t("Permintaan diterima — menunggu keputusan HR", "Request received — awaiting HR decision")}
           </li>
@@ -115,7 +115,7 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
 
 /** titik timeline bulat di kiri baris. */
 function cnDot(color: string): string {
-  return `absolute -left-0.5 top-4 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-stone-950 ${color}`;
+  return `absolute -left-0.5 top-4 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-slate-950 ${color}`;
 }
 
 export function EssLetters() {
@@ -195,7 +195,7 @@ export function EssLetters() {
           {templates.map((tpl) => {
             const pending = pendingByTemplate.get(tpl.key) ?? null;
             return (
-              <Card key={tpl.key} className="flex flex-col rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+              <Card key={tpl.key} className="flex flex-col rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
@@ -203,22 +203,22 @@ export function EssLetters() {
                     </span>
                     {tpl.name}
                   </CardTitle>
-                  <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-stone-400">
+                  <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-slate-400">
                     {tpl.description ?? tpl.subject ?? ""}
                   </p>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col justify-between gap-3 pt-1">
-                  <div className="rounded-xl border border-dashed border-stone-200 p-3 dark:border-stone-800">
-                    <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                  <div className="rounded-xl border border-dashed border-slate-200 p-3 dark:border-slate-800">
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       <History className="h-3 w-3" aria-hidden /> {t("Status Terakhir", "Latest Status")}
                     </p>
                     {pending ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[12px] font-semibold text-stone-600 dark:text-stone-300">{pending.reqNo}</span>
+                        <span className="font-mono text-[12px] font-semibold text-slate-600 dark:text-slate-300">{pending.reqNo}</span>
                         <StatusPill status={pending.status} />
                       </div>
                     ) : (
-                      <p className="text-[12px] text-stone-400">{t("Belum ada permintaan aktif.", "No active request.")}</p>
+                      <p className="text-[12px] text-slate-400">{t("Belum ada permintaan aktif.", "No active request.")}</p>
                     )}
                   </div>
                   <Button
@@ -239,7 +239,7 @@ export function EssLetters() {
       )}
 
       {/* ===== riwayat permintaan ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
@@ -248,7 +248,7 @@ export function EssLetters() {
         </CardHeader>
         <CardContent className="pt-1">
           {api.loading && !api.data ? (
-            <p className="py-4 text-center text-[12px] text-stone-400">{t("Memuat…")}</p>
+            <p className="py-4 text-center text-[12px] text-slate-400">{t("Memuat…")}</p>
           ) : requests.length === 0 ? (
             <EmptyState
               title={t("Belum ada permintaan surat", "No letter requests yet")}
@@ -256,7 +256,7 @@ export function EssLetters() {
               icon={History}
             />
           ) : (
-            <ol className="relative ml-2 space-y-3 border-l border-stone-200 pl-6 dark:border-stone-800">
+            <ol className="relative ml-2 space-y-3 border-l border-slate-200 pl-6 dark:border-slate-800">
               {requests.map((r) => <RequestTimelineItem key={r.id} r={r} />)}
             </ol>
           )}
@@ -318,7 +318,7 @@ export function EssLetters() {
                   aria-label={t("Keperluan lain", "Other purpose")}
                 />
               )}
-              <p className="text-[10px] text-stone-400">
+              <p className="text-[10px] text-slate-400">
                 {t("Dapat dikosongkan — surat akan memuat \"sesuai keperluan\".", "Optional — the letter will print \"as needed\".")}
               </p>
             </div>

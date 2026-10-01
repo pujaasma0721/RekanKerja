@@ -46,9 +46,9 @@ function ActivePill({ active }: { active: boolean }) {
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
       active
         ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
-        : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
+        : "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400",
     )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-stone-400")} />
+      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-slate-400")} />
       {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );
@@ -58,15 +58,15 @@ function MiniStat({ label, value, hint, icon: Icon }: {
   label: string; value: string; hint?: string; icon: React.ElementType;
 }) {
   return (
-    <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex items-center gap-4 p-5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ov-tile shadow-md">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-          <p className="text-2xl font-extrabold text-stone-900 dark:text-stone-50">{value}</p>
-          {hint && <p className="text-[10px] font-semibold text-stone-400">{hint}</p>}
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-50">{value}</p>
+          {hint && <p className="text-[10px] font-semibold text-slate-400">{hint}</p>}
         </div>
       </CardContent>
     </Card>
@@ -123,11 +123,11 @@ export function OfficeLocationView() {
       </div>
 
       <Tabs defaultValue="offices">
-        <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+        <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsTrigger value="offices" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
             <Building2 className="h-3.5 w-3.5" /> {t("Kantor Perusahaan", "Company Offices")}
           </TabsTrigger>
-          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+          <TabsTrigger value="locations" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
             <MapPin className="h-3.5 w-3.5" /> {t("Lokasi Kerja", "Work Locations")}
           </TabsTrigger>
         </TabsList>
@@ -194,12 +194,12 @@ function OfficesTab({ offices, loading, error, refresh }: {
 
   return (
     <>
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div>
               <p className="text-[13px] font-bold">{t("Master Kantor Perusahaan", "Company Office Master")}</p>
-              <p className="text-[11px] text-stone-400">{t("{a} kantor · {b} karyawan terpenempat", "{a} offices · {b} placed employees", { a: offices.length, b: totalEmployees })}</p>
+              <p className="text-[11px] text-slate-400">{t("{a} kantor · {b} karyawan terpenempat", "{a} offices · {b} placed employees", { a: offices.length, b: totalEmployees })}</p>
             </div>
             <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-3.5 w-3.5" /> {t("Tambah Kantor", "Add Office")}
@@ -216,7 +216,7 @@ function OfficesTab({ offices, loading, error, refresh }: {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sort.head("office", t("Kantor", "Office"), "text-[11px] font-bold")}
                     {sort.head("city", t("Kota", "City"), "text-[11px] font-bold")}
                     {sort.head("npwp", "NPWP", "text-[11px] font-bold")}
@@ -229,30 +229,30 @@ function OfficesTab({ offices, loading, error, refresh }: {
                 </TableHeader>
                 <TableBody>
                   {sort.sorted.map((o) => (
-                    <TableRow key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={o.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ov-tile shadow-sm">
                             <Building2 className="h-4 w-4" />
                           </span>
                           <div className="min-w-0">
-                            <p className="font-mono text-[12px] font-extrabold text-stone-800 dark:text-stone-200">{o.code}</p>
-                            <p className="max-w-[220px] truncate text-[11px] text-stone-400">{o.name}</p>
+                            <p className="font-mono text-[12px] font-extrabold text-slate-800 dark:text-slate-200">{o.code}</p>
+                            <p className="max-w-[220px] truncate text-[11px] text-slate-400">{o.name}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-300">{o.city || "—"}</TableCell>
-                      <TableCell className="font-mono text-[11px] text-stone-600 dark:text-stone-300" title={o.npwp ?? undefined}>{o.npwp || "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-300">{o.city || "—"}</TableCell>
+                      <TableCell className="font-mono text-[11px] text-slate-600 dark:text-slate-300" title={o.npwp ?? undefined}>{o.npwp || "—"}</TableCell>
                       <TableCell className="max-w-[240px]">
-                        <p className="truncate text-xs text-stone-500 dark:text-stone-400" title={o.address ?? undefined}>{o.address || "—"}</p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={o.address ?? undefined}>{o.address || "—"}</p>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <Users className="h-3.5 w-3.5 ov-text-accent" /> {o.employeeCount}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <MapPin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> {o.locationCount}
                         </span>
                       </TableCell>
@@ -264,10 +264,10 @@ function OfficesTab({ offices, loading, error, refresh }: {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(o); setFormOpen(true); }} aria-label={t("Ubah kantor {c}", "Edit office {c}", { c: o.code })}>
-                            <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                            <Pencil className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(o); setDeleteOpen(true); }} aria-label={t("Hapus kantor {c}", "Delete office {c}", { c: o.code })}>
-                            <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                            <Trash2 className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                         </div>
                       </TableCell>
@@ -340,12 +340,12 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
 
   return (
     <>
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div>
               <p className="text-[13px] font-bold">{t("Master Lokasi Kerja", "Work Location Master")}</p>
-              <p className="text-[11px] text-stone-400">{t("{a} lokasi · {b} karyawan terpenempat", "{a} locations · {b} placed employees", { a: locations.length, b: totalEmployees })}</p>
+              <p className="text-[11px] text-slate-400">{t("{a} lokasi · {b} karyawan terpenempat", "{a} locations · {b} placed employees", { a: locations.length, b: totalEmployees })}</p>
             </div>
             <Button size="sm" className="gap-1.5 font-bold" onClick={() => { setEditing(null); setFormOpen(true); }}>
               <Plus className="h-3.5 w-3.5" /> {t("Tambah Lokasi", "Add Location")}
@@ -362,7 +362,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sortLoc.head("location", t("Lokasi", "Location"), "text-[11px] font-bold")}
                     {sortLoc.head("parent", t("Kantor Induk", "Parent Office"), "text-[11px] font-bold")}
                     {sortLoc.head("city", t("Kota", "City"), "text-[11px] font-bold")}
@@ -372,7 +372,7 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                 </TableHeader>
                 <TableBody>
                   {sortLoc.sorted.map((l) => (
-                    <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ov-tile shadow-sm">
@@ -380,10 +380,10 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                           </span>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-mono text-[12px] font-extrabold text-stone-800 dark:text-stone-200">{l.code}</p>
-                              {!l.active && <Badge variant="outline" className="text-[9px] font-bold text-stone-400">{t("NONAKTIF", "INACTIVE")}</Badge>}
+                              <p className="font-mono text-[12px] font-extrabold text-slate-800 dark:text-slate-200">{l.code}</p>
+                              {!l.active && <Badge variant="outline" className="text-[9px] font-bold text-slate-400">{t("NONAKTIF", "INACTIVE")}</Badge>}
                             </div>
-                            <p className="max-w-[220px] truncate text-[11px] text-stone-400">{l.name}</p>
+                            <p className="max-w-[220px] truncate text-[11px] text-slate-400">{l.name}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -391,25 +391,25 @@ function LocationsTab({ locations, offices, loading, error, refresh }: {
                         {l.office ? (
                           <div className="min-w-0">
                             <Badge variant="outline" className="font-mono text-[10px] font-semibold">{l.office.code}</Badge>
-                            <p className="mt-0.5 max-w-[180px] truncate text-[10px] text-stone-400">{l.office.name}</p>
+                            <p className="mt-0.5 max-w-[180px] truncate text-[10px] text-slate-400">{l.office.name}</p>
                           </div>
                         ) : (
-                          <span className="text-xs text-stone-400">{t("— Tanpa kantor —", "— No office —")}</span>
+                          <span className="text-xs text-slate-400">{t("— Tanpa kantor —", "— No office —")}</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs text-stone-600 dark:text-stone-300">{l.city || "—"}</TableCell>
+                      <TableCell className="text-xs text-slate-600 dark:text-slate-300">{l.city || "—"}</TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <Users className="h-3.5 w-3.5 ov-text-accent" /> {l.employeeCount}
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={t("Ubah lokasi {c}", "Edit location {c}", { c: l.code })}>
-                            <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                            <Pencil className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={t("Hapus lokasi {c}", "Delete location {c}", { c: l.code })}>
-                            <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                            <Trash2 className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                         </div>
                       </TableCell>
@@ -532,7 +532,7 @@ function OfficeFormDialog({ open, onOpenChange, office, onDone }: {
           <div className="grid gap-1.5">
             <Label htmlFor="o-npwp">{t("NPWP Kantor", "Office NPWP")}</Label>
             <Input id="o-npwp" value={form.npwp} onChange={(e) => setForm((f) => ({ ...f, npwp: e.target.value }))} placeholder="01.234.567.8-090.000" className="font-mono text-xs" />
-            <p className="text-[10px] text-stone-400">{t("Tiap kantor bisa berbeda NPWP untuk pelaporan pajak (mis. Jakarta vs Surabaya).", "Each office may have a different NPWP for tax reporting (e.g. Jakarta vs Surabaya).")}</p>
+            <p className="text-[10px] text-slate-400">{t("Tiap kantor bisa berbeda NPWP untuk pelaporan pajak (mis. Jakarta vs Surabaya).", "Each office may have a different NPWP for tax reporting (e.g. Jakarta vs Surabaya).")}</p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="o-address">{t("Alamat")}</Label>
@@ -660,7 +660,7 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-stone-400">{t("Lokasi tanpa kantor induk tetap valid sebagai penempatan mandiri.", "A location without a parent office is still valid as a standalone placement.")}</p>
+            <p className="text-[10px] text-slate-400">{t("Lokasi tanpa kantor induk tetap valid sebagai penempatan mandiri.", "A location without a parent office is still valid as a standalone placement.")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
@@ -673,12 +673,12 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
             </div>
           </div>
           {/* 27-a: koordinat geofencing presensi */}
-          <div className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
+          <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <p className="flex items-center gap-1.5 text-xs font-bold">
               <MapPin className="h-3.5 w-3.5 ov-text-accent" aria-hidden />
               {t("Koordinat Geofencing Presensi (opsional)", "Attendance Geofencing Coordinates (optional)")}
             </p>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-stone-400">
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">
               {t("Digunakan validasi radius clock ESS (mode Warn/Strict di Pengaturan Absensi). Kosongkan bila lokasi tanpa geofence.", "Used for ESS clock radius validation (Warn/Strict mode in Attendance Settings). Leave empty for locations without geofence.")}
             </p>
             <div className="mt-2.5 grid grid-cols-3 gap-3">
@@ -695,13 +695,13 @@ function LocationFormDialog({ open, onOpenChange, location, offices, onDone }: {
                 <Input id="l-radius" type="number" min={1} value={form.radiusMeters} onChange={(e) => setForm((f) => ({ ...f, radiusMeters: e.target.value }))} placeholder="200" className="font-mono text-xs" />
               </div>
             </div>
-            <p className="mt-1.5 text-[10px] text-stone-400">{t("radius meter, kosong = 200", "radius in meters, empty = 200")}</p>
+            <p className="mt-1.5 text-[10px] text-slate-400">{t("radius meter, kosong = 200", "radius in meters, empty = 200")}</p>
           </div>
           {location && (
-            <div className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
               <div>
                 <Label className="text-xs font-bold">{t("Status Aktif", "Active Status")}</Label>
-                <p className="text-[11px] text-stone-400">{t("Lokasi nonaktif tidak disarankan untuk penempatan baru", "Inactive locations are not recommended for new placements")}</p>
+                <p className="text-[11px] text-slate-400">{t("Lokasi nonaktif tidak disarankan untuk penempatan baru", "Inactive locations are not recommended for new placements")}</p>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} />
             </div>

@@ -55,15 +55,15 @@ export function MedicalReportsPage() {
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-stone-500">{t("Dari", "From")}</label>
+          <label className="text-xs font-semibold text-slate-500">{t("Dari", "From")}</label>
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-stone-500">{t("Sampai", "To")}</label>
+          <label className="text-xs font-semibold text-slate-500">{t("Sampai", "To")}</label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-stone-500">{t("Karyawan")}</label>
+          <label className="text-xs font-semibold text-slate-500">{t("Karyawan")}</label>
           <Select value={employeeId} onValueChange={setEmployeeId}>
             <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -78,7 +78,7 @@ export function MedicalReportsPage() {
             mengikuti money-vault (masked → dikosongkan oleh server). */}
         <a
           href={`/api/onevity/medical/reports?from=${from}&to=${to}&year=${currentYear}${employeeId !== "all" ? `&employeeId=${employeeId}` : ""}&export=csv`}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-stone-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
           aria-label={t("Unduh daftar klaim medis sebagai CSV", "Download the medical claim list as CSV")}
         >
           <Download className="h-4 w-4" /> {t("Export CSV")}
@@ -86,34 +86,34 @@ export function MedicalReportsPage() {
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Jumlah Klaim", "Claim Count")}</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{totals.count}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Jumlah Klaim", "Claim Count")}</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{totals.count}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Total Tagihan", "Total Bills")}</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(totals.bill)}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Total Tagihan", "Total Bills")}</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(totals.bill)}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Approved</p>
-            <p className="mt-1 text-2xl font-black text-stone-900 dark:text-stone-100">{fmtIDRShort(totals.approved)}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Approved</p>
+            <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(totals.approved)}</p>
           </CardContent>
         </Card>
-        <Card className="border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80">
+        <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">{t("Settled (Dibayar)", "Settled (Paid)")}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Settled (Dibayar)", "Settled (Paid)")}</p>
             <p className="mt-1 text-2xl font-black ov-text-accent">{fmtIDRShort(totals.settled)}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="min-w-0 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-2">
+        <Card className="min-w-0 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
               <BarChart3 className="h-4 w-4 ov-text-accent" /> {t("Rekap per Jenis (Settled)", "Recap by Type (Settled)")}
@@ -121,14 +121,14 @@ export function MedicalReportsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {byType.length === 0 ? (
-              <p className="text-sm text-stone-500">{t("Belum ada klaim settled tahun ini.", "No settled claims this year.")}</p>
+              <p className="text-sm text-slate-500">{t("Belum ada klaim settled tahun ini.", "No settled claims this year.")}</p>
             ) : byType.map((k) => (
               <div key={k.typeCode}>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-stone-700 dark:text-stone-300">{k.typeName}</span>
-                  <span className="text-stone-500">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{k.typeName}</span>
+                  <span className="text-slate-500">{fmtIDRShort(k.approvedAmount)} · {k.claimCount}×</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <div className="h-full rounded-full ov-chart" style={{ width: `${(k.approvedAmount / maxType) * 100}%` }} />
                 </div>
               </div>
@@ -136,7 +136,7 @@ export function MedicalReportsPage() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 border-stone-200 bg-white/80 shadow-sm dark:border-stone-800 dark:bg-stone-900/80 lg:col-span-3">
+        <Card className="min-w-0 border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
               <FileText className="h-4 w-4 ov-text-accent" /> {t("Klaim dalam Rentang", "Claims in Range")}
@@ -150,7 +150,7 @@ export function MedicalReportsPage() {
             ) : (
               <div className="max-h-[28rem] overflow-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-stone-50/95 backdrop-blur dark:bg-stone-900/95">
+                  <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                     <TableRow>
                       <TableHead>No.</TableHead>
                       <TableHead>{t("Karyawan")}</TableHead>
@@ -167,7 +167,7 @@ export function MedicalReportsPage() {
                         <TableCell className="font-semibold">{r.docNo}</TableCell>
                         <TableCell>
                           <p className="font-medium">{r.fullName}</p>
-                          <p className="text-xs text-stone-500">{r.employeeNo}</p>
+                          <p className="text-xs text-slate-500">{r.employeeNo}</p>
                         </TableCell>
                         <TableCell>
                           {r.typeName}

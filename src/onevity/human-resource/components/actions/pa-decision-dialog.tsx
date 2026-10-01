@@ -85,7 +85,7 @@ export function DecisionDialog({
           </DialogTitle>
           <DialogDescription>
             {t("Keputusan layer", "Layer decision")} {currentLayer ? `${currentLayer} ` : ""}{t("untuk", "for")}{" "}
-            <span className="font-semibold text-stone-700 dark:text-stone-300">{docNo}</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{docNo}</span>
             {employeeName ? ` — ${employeeName}` : ""}.
           </DialogDescription>
         </DialogHeader>

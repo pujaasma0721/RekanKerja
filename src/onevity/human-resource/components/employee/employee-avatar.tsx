@@ -13,7 +13,7 @@ const GRADIENTS = [
   "from-lime-200 to-brand/25 text-lime-900",
   "from-orange-200 to-amber-100 text-orange-900",
   "from-fuchsia-200 to-rose-100 text-fuchsia-900",
-  "from-stone-200 to-stone-100 text-stone-700",
+  "from-slate-200 to-slate-100 text-slate-700",
 ];
 
 function hashName(name: string) {
@@ -44,7 +44,7 @@ const SIZE_CLS: Record<Size, { box: string; text: string; dot: string; dotRing: 
 /** Status akun → warna titik status pada avatar. */
 const STATUS_DOT: Record<string, string> = {
   Active: "bg-brand",
-  Resigned: "bg-stone-400",
+  Resigned: "bg-slate-400",
   Terminated: "bg-rose-400",
   Blacklisted: "bg-rose-500",
 };
@@ -71,7 +71,7 @@ export function EmployeeAvatar({
   const s = SIZE_CLS[size];
   const grad = GRADIENTS[hashName(name) % GRADIENTS.length];
   const hasPhoto = !!photoUrl && !broken;
-  const dot = STATUS_DOT[status ?? ""] ?? "bg-stone-400";
+  const dot = STATUS_DOT[status ?? ""] ?? "bg-slate-400";
 
   return (
     <span className={cn("relative inline-flex shrink-0", className)}>
@@ -81,7 +81,7 @@ export function EmployeeAvatar({
           src={photoUrl!}
           alt={t("Foto {name}", "Photo of {name}", { name })}
           onError={() => setBroken(true)}
-          className={cn(s.box, "rounded-full bg-stone-100 object-cover", ringClassName ?? "ring-1 ring-stone-200/80 dark:ring-stone-700")}
+          className={cn(s.box, "rounded-full bg-slate-100 object-cover", ringClassName ?? "ring-1 ring-slate-200/80 dark:ring-slate-700")}
           loading="lazy"
         />
       ) : (
@@ -98,7 +98,7 @@ export function EmployeeAvatar({
       {showStatus && (
         <span
           aria-hidden="true"
-          className={cn("absolute bottom-0 right-0 rounded-full ring-white dark:ring-stone-900", s.dot, dot, s.dotRing)}
+          className={cn("absolute bottom-0 right-0 rounded-full ring-white dark:ring-slate-900", s.dot, dot, s.dotRing)}
         />
       )}
       <span className="sr-only">{hasPhoto ? t("Foto {name}", "Photo of {name}", { name }) : t("Inisial {name}", "Initials of {name}", { name })}</span>

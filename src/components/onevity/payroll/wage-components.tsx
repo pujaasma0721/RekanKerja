@@ -66,16 +66,16 @@ export function WageComponentsPage() {
         <TypeCard label="Informational" value={counts.Informational ?? 0} icon={Info} tone="stone" active={typeFilter === "Informational"} onClick={() => setTypeFilter(typeFilter === "Informational" ? "all" : "Informational")} />
       </div>
 
-      <Card className="mb-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-3.5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari komponen upah…" className="pl-9" />
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
           {loading && !data ? (
             <div className="p-4"><LoadingRows rows={6} /></div>
@@ -83,7 +83,7 @@ export function WageComponentsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[11px] font-bold">Kode</TableHead>
                     <TableHead className="text-[11px] font-bold">Nama Komponen</TableHead>
                     <TableHead className="text-[11px] font-bold">Klasifikasi</TableHead>
@@ -96,8 +96,8 @@ export function WageComponentsPage() {
                 </TableHeader>
                 <TableBody>
                   {data.components.map((c) => (
-                    <TableRow key={c.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
-                      <TableCell className="font-mono text-[11px] font-bold text-stone-500">{c.code}</TableCell>
+                    <TableRow key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                      <TableCell className="font-mono text-[11px] font-bold text-slate-500">{c.code}</TableCell>
                       <TableCell className="text-[13px] font-bold">{c.name}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-1">
@@ -108,27 +108,27 @@ export function WageComponentsPage() {
                       <TableCell className="max-w-52">
                         {c.calcMethod === "Fixed" && c.amount > 0 && <span className="text-xs font-semibold">{fmtIDR(c.amount)}</span>}
                         {c.calcMethod === "Formula" && c.formula && (
-                          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:bg-stone-800 dark:text-emerald-400">{c.formula}</code>
+                          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:bg-slate-800 dark:text-emerald-400">{c.formula}</code>
                         )}
                         {c.calcMethod === "Tax" && <Badge variant="outline" className="text-[9px]">dihitung engine</Badge>}
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", c.incomeTaxMethod === "Regular" ? "text-amber-600 dark:text-amber-400" : "text-stone-400")}>
+                        <span className={cn("text-[11px] font-bold", c.incomeTaxMethod === "Regular" ? "text-amber-600 dark:text-amber-400" : "text-slate-400")}>
                           {TAX_METHOD_LABEL[c.incomeTaxMethod] ?? c.incomeTaxMethod}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className={cn("text-[11px] font-bold", c.includeInTHP ? "text-emerald-600 dark:text-emerald-400" : "text-stone-300")}>{c.includeInTHP ? "Ya" : "Tidak"}</span>
+                        <span className={cn("text-[11px] font-bold", c.includeInTHP ? "text-emerald-600 dark:text-emerald-400" : "text-slate-300")}>{c.includeInTHP ? "Ya" : "Tidak"}</span>
                       </TableCell>
                       <TableCell>
                         <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} aria-label={`Toggle ${c.name}`} />
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <button onClick={() => setDialog({ open: true, comp: c })} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800" aria-label="Edit">
+                          <button onClick={() => setDialog({ open: true, comp: c })} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => remove(c)} className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
+                          <button onClick={() => remove(c)} className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10" aria-label="Hapus">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -153,17 +153,17 @@ function TypeCard({ label, value, icon: Icon, tone, active, onClick }: { label: 
   const tones: Record<string, string> = {
     emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
     rose: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
-    stone: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400",
+    stone: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
   };
   return (
     <button onClick={onClick} className={cn(
       "flex items-center gap-3 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
-      active ? "border-emerald-400 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-stone-200/80 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
+      active ? "border-emerald-400 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10" : "border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
     )}>
       <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}><Icon className="h-5 w-5" /></div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</p>
-        <p className="text-xl font-extrabold text-stone-900 dark:text-stone-50">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+        <p className="text-xl font-extrabold text-slate-900 dark:text-slate-50">{value}</p>
       </div>
     </button>
   );
@@ -286,18 +286,18 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
             <div className="sm:col-span-2">
               <Label className="text-xs">Jumlah (Rp)</Label>
               <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1.5 font-mono" />
-              {Number(amount) > 0 && <p className="mt-1 text-[11px] font-bold text-stone-500">{fmtIDR(Number(amount))}</p>}
+              {Number(amount) > 0 && <p className="mt-1 text-[11px] font-bold text-slate-500">{fmtIDR(Number(amount))}</p>}
             </div>
           )}
           {calcMethod === "Formula" && (
             <div className="sm:col-span-2">
               <Label className="text-xs">Formula *</Label>
               <Input value={formula} onChange={(e) => setFormula(e.target.value)} placeholder="cth: BASE_SALARY*0.1" className="mt-1.5 font-mono uppercase" />
-              <div className="mt-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-900/60">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">Variabel tersedia</p>
+              <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Variabel tersedia</p>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {FORMULA_VARIABLES.map((v) => (
-                    <p key={v.name} className="text-[10px] leading-relaxed text-stone-500 dark:text-stone-400">
+                    <p key={v.name} className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
                       <code className="font-bold text-emerald-700 dark:text-emerald-400">{v.name}</code> — {v.desc}
                     </p>
                   ))}
@@ -317,24 +317,24 @@ function WageDialog({ open, comp, onClose }: { open: boolean; comp: WageCompFull
               <Input value={accountCreditCode} onChange={(e) => setAccountCreditCode(e.target.value)} placeholder="default 2102/2103/2104" className="mt-1.5 font-mono" />
             </div>
           )}
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">Prorata</p>
-              <p className="text-[10px] text-stone-400">Proporsional masa kerja period</p>
+              <p className="text-[10px] text-slate-400">Proporsional masa kerja period</p>
             </div>
             <Switch checked={prorated} onCheckedChange={setProrated} />
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">Masuk THP</p>
-              <p className="text-[10px] text-stone-400">Iuran perusahaan = non-THP</p>
+              <p className="text-[10px] text-slate-400">Iuran perusahaan = non-THP</p>
             </div>
             <Switch checked={includeInTHP} onCheckedChange={setIncludeInTHP} />
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 p-3 sm:col-span-2 dark:border-stone-700">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 sm:col-span-2 dark:border-slate-700">
             <div>
               <p className="text-xs font-bold">Tampilkan di Payslip</p>
-              <p className="text-[10px] text-stone-400">Komponen muncul pada slip gaji karyawan</p>
+              <p className="text-[10px] text-slate-400">Komponen muncul pada slip gaji karyawan</p>
             </div>
             <Switch checked={displayInPaySlip} onCheckedChange={setDisplayInPaySlip} />
           </div>

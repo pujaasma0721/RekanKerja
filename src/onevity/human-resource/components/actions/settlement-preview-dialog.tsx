@@ -124,18 +124,18 @@ export function SettlementPreviewDialog({
               </SelectContent>
             </Select>
           </div>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
             <Checkbox checked={uangPisah} onCheckedChange={(v) => setUangPisah(v === true)} className="mt-0.5 h-4 w-4" />
             <span className="text-xs leading-relaxed">
               <span className="font-bold">{t("Uang pisah (15%)", "Separation pay (15%)")}</span>
-              <span className="block text-[10px] text-stone-400">{t("PHK efisiensi — Pasal 156(4)", "Efficiency termination — Art. 156(4)")}</span>
+              <span className="block text-[10px] text-slate-400">{t("PHK efisiensi — Pasal 156(4)", "Efficiency termination — Art. 156(4)")}</span>
             </span>
           </label>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-800">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
             <Checkbox checked={bonusProRata} onCheckedChange={(v) => setBonusProRata(v === true)} className="mt-0.5 h-4 w-4" />
             <span className="text-xs leading-relaxed">
               <span className="font-bold">{t("Bonus pro-rata", "Pro-rata bonus")}</span>
-              <span className="block text-[10px] text-stone-400">{t("penggantian hak — bulan kerja/12 × upah", "replacement entitlement — months/12 × wage")}</span>
+              <span className="block text-[10px] text-slate-400">{t("penggantian hak — bulan kerja/12 × upah", "replacement entitlement — months/12 × wage")}</span>
             </span>
           </label>
         </div>
@@ -148,29 +148,29 @@ export function SettlementPreviewDialog({
         {result && (
           <div className="space-y-3">
             {/* ringkasan masa kerja + upah */}
-            <div className="grid gap-2 rounded-xl border border-stone-200/80 bg-stone-50/60 p-3.5 text-xs dark:border-stone-800 dark:bg-stone-900/40 sm:grid-cols-3">
+            <div className="grid gap-2 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-xs dark:border-slate-800 dark:bg-slate-900/40 sm:grid-cols-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Masa Kerja", "Tenure")}</p>
-                <p className="mt-0.5 font-bold text-stone-800 dark:text-stone-100">{result.masaKerja.label}</p>
-                <p className="text-[10px] text-stone-400">{t("bergabung {d}", "joined {d}", { d: fmtDate(result.employee.joinDate) })}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Masa Kerja", "Tenure")}</p>
+                <p className="mt-0.5 font-bold text-slate-800 dark:text-slate-100">{result.masaKerja.label}</p>
+                <p className="text-[10px] text-slate-400">{t("bergabung {d}", "joined {d}", { d: fmtDate(result.employee.joinDate) })}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("Upah PHK", "Termination Wage")}</p>
-                <p className="mt-0.5 font-bold text-stone-800 dark:text-stone-100">{fmtIDR(result.upah.total)}</p>
-                <p className="text-[10px] leading-snug text-stone-400">{result.upah.note}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Upah PHK", "Termination Wage")}</p>
+                <p className="mt-0.5 font-bold text-slate-800 dark:text-slate-100">{fmtIDR(result.upah.total)}</p>
+                <p className="text-[10px] leading-snug text-slate-400">{result.upah.note}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{t("PPh21 Final", "Final Income Tax")}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("PPh21 Final", "Final Income Tax")}</p>
                 <p className="mt-0.5 font-bold text-amber-600 dark:text-amber-400">{fmtIDR(result.tax)}</p>
-                <p className="text-[10px] text-stone-400">{t("atas kelompok pesangon", "on severance group")}</p>
+                <p className="text-[10px] text-slate-400">{t("atas kelompok pesangon", "on severance group")}</p>
               </div>
             </div>
 
             {/* breakdown */}
-            <div className="overflow-hidden rounded-xl border border-stone-200/80 dark:border-stone-800">
+            <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="text-[10px] font-bold">{t("Komponen", "Component")}</TableHead>
                     <TableHead className="text-[10px] font-bold">{t("Dasar Perhitungan", "Computation Basis")}</TableHead>
                     <TableHead className="text-right text-[10px] font-bold">{t("Jumlah", "Amount")}</TableHead>
@@ -184,7 +184,7 @@ export function SettlementPreviewDialog({
                           <Plus className="h-3 w-3 text-brand" /> {r.label}
                         </span>
                       </TableCell>
-                      <TableCell className="py-2 text-[11px] leading-snug text-stone-500">{r.note}</TableCell>
+                      <TableCell className="py-2 text-[11px] leading-snug text-slate-500">{r.note}</TableCell>
                       <TableCell className="py-2 text-right text-xs font-bold tabular-nums text-brand dark:text-brand/85">{fmtIDR(r.amount)}</TableCell>
                     </TableRow>
                   ))}
@@ -195,31 +195,31 @@ export function SettlementPreviewDialog({
                           <Minus className="h-3 w-3 text-rose-500" /> {r.label}
                         </span>
                       </TableCell>
-                      <TableCell className="py-2 text-[11px] leading-snug text-stone-500">{r.note}</TableCell>
+                      <TableCell className="py-2 text-[11px] leading-snug text-slate-500">{r.note}</TableCell>
                       <TableCell className="py-2 text-right text-xs font-bold tabular-nums text-rose-600 dark:text-rose-400">−{fmtIDR(r.amount)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableCell className="py-2.5 text-xs font-extrabold" colSpan={2}>{t("Bruto (sebelum potongan)", "Gross (before deductions)")}</TableCell>
                     <TableCell className="py-2.5 text-right text-xs font-extrabold tabular-nums">{fmtIDR(result.gross)}</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="py-2.5 text-sm font-extrabold dark:bg-stone-900/60" colSpan={2}>
+                    <TableCell className="py-2.5 text-sm font-extrabold dark:bg-slate-900/60" colSpan={2}>
                       {t("NET DITERIMA KARYAWAN", "NET PAYABLE TO EMPLOYEE")}
                     </TableCell>
-                    <TableCell className="py-2.5 text-right text-base font-extrabold tabular-nums ov-text-accent dark:bg-stone-900/60">{fmtIDR(result.net)}</TableCell>
+                    <TableCell className="py-2.5 text-right text-base font-extrabold tabular-nums ov-text-accent dark:bg-slate-900/60">{fmtIDR(result.net)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </div>
 
             {/* detail pajak final */}
-            <details className="rounded-xl border border-stone-200/80 px-3.5 py-2.5 text-[11px] dark:border-stone-800">
-              <summary className="cursor-pointer font-bold text-stone-500">
+            <details className="rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-[11px] dark:border-slate-800">
+              <summary className="cursor-pointer font-bold text-slate-500">
                 <Receipt className="mr-1.5 inline h-3.5 w-3.5" />
                 {t("PPh21 final atas {base} — 0-50jt 0% · 50-100jt 10% · 100-500jt 20% · >500jt 25%", "Final income tax on {base} — 0-50M 0% · 50-100M 10% · 100-500M 20% · >500M 25%", { base: fmtIDR(result.taxBase) })}
               </summary>
-              <ul className="mt-2 space-y-1 pl-1 text-stone-500">
+              <ul className="mt-2 space-y-1 pl-1 text-slate-500">
                 {result.taxBrackets.map((b, i) => (
                   <li key={i} className={cn("flex justify-between tabular-nums", b.taxable === 0 && "opacity-50")}>
                     <span>{fmtIDR(b.lowerLimit)} – {b.upperLimit ? fmtIDR(b.upperLimit) : "∞"} · {(b.rate * 100).toFixed(0)}%</span>
@@ -230,13 +230,13 @@ export function SettlementPreviewDialog({
             </details>
 
             {result.notes.length > 0 && (
-              <ul className="space-y-1 rounded-xl border border-dashed border-stone-300 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-400 dark:border-stone-700">
+              <ul className="space-y-1 rounded-xl border border-dashed border-slate-300 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-400 dark:border-slate-700">
                 {result.notes.map((n, i) => <li key={i}>· {n}</li>)}
               </ul>
             )}
 
-            <p className="flex items-start gap-2 text-[10px] leading-relaxed text-stone-400">
-              <Badge variant="outline" className="h-4 shrink-0 rounded px-1.5 text-[9px] font-bold text-stone-400">i18n · UU 13/2003</Badge>
+            <p className="flex items-start gap-2 text-[10px] leading-relaxed text-slate-400">
+              <Badge variant="outline" className="h-4 shrink-0 rounded px-1.5 text-[9px] font-bold text-slate-400">i18n · UU 13/2003</Badge>
               {t(
                 "Pesangon UPMK: <1th 1 bln · 1-2th 2 · 2-3th 3 · 3-6th 4 · 6-9th 6 · 9-12th 8 · ≥12th 9 bln upah. Uang pengganti cuti = hari × upah/25. Pajak final PP 68/2009 atas kelompok pesangon (tanpa PTKP). Angka final mengikuti data saat PA diproses.",
                 "UPMK severance: <1y 1 mo · 1-2y 2 · 2-3y 3 · 3-6y 4 · 6-9y 6 · 9-12y 8 · ≥12y 9 months' wage. Unused leave pay = days × wage/25. Final tax per PP 68/2009 on the severance group (no PTKP). Final figures follow the data at the time the PA is processed.",

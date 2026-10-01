@@ -33,15 +33,15 @@ const STATUS_META: Record<string, { id: string; en: string; cell: string; dot: s
   Present: { id: "Hadir", en: "Present", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
   Late: { id: "Telat", en: "Late", cell: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/25 dark:text-amber-400", dot: "bg-amber-500" },
   Absent: { id: "Absen", en: "Absent", cell: "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/25 dark:text-rose-400", dot: "bg-rose-500" },
-  Off: { id: "Libur", en: "Off", cell: "bg-stone-50 border-stone-200 text-stone-400 dark:bg-stone-800/60 dark:border-stone-700 dark:text-stone-500", dot: "bg-stone-300" },
+  Off: { id: "Libur", en: "Off", cell: "bg-slate-50 border-slate-200 text-slate-400 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-500", dot: "bg-slate-300" },
   OnLeave: { id: "Cuti", en: "Leave", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
   WorkOff: { id: "Izin", en: "Permit", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
   Holiday: { id: "Hari Libur", en: "Holiday", cell: "bg-brand/10 border-brand/25 text-brand-deep dark:bg-brand/10 dark:border-brand/25 dark:text-brand/85", dot: "bg-brand" },
-  "Non-clocking": { id: "Non-clocking", en: "Non-clocking", cell: "bg-stone-50 border-stone-200 text-stone-500 dark:bg-stone-800/60 dark:border-stone-700 dark:text-stone-400", dot: "bg-stone-400" },
+  "Non-clocking": { id: "Non-clocking", en: "Non-clocking", cell: "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-400", dot: "bg-slate-400" },
 };
 
 function statusMeta(status: string) {
-  return STATUS_META[status] ?? { id: status, en: status, cell: "bg-stone-50 border-stone-200 text-stone-500 dark:bg-stone-800/60 dark:border-stone-700 dark:text-stone-400", dot: "bg-stone-400" };
+  return STATUS_META[status] ?? { id: status, en: status, cell: "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-400", dot: "bg-slate-400" };
 }
 
 const fmtMin = (m: number | null | undefined, t: (id: string, en: string) => string) => {
@@ -109,11 +109,11 @@ export function EssAttendance() {
         title={t("Presensi Saya", "My Attendance")}
         description={t("Kalender kehadiran, jam kerja, dan lembur per bulan.", "Attendance calendar, work hours, and overtime per month.")}
         actions={
-          <div className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white p-1 dark:border-stone-700 dark:bg-stone-900">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setMonth(shiftMonth(month, -1)); setSelected(null); }} aria-label={t("Bulan sebelumnya", "Previous month")}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="min-w-[130px] text-center text-[13px] font-bold capitalize text-stone-700 dark:text-stone-200">{monthLabel}</span>
+            <span className="min-w-[130px] text-center text-[13px] font-bold capitalize text-slate-700 dark:text-slate-200">{monthLabel}</span>
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={month >= currentMonth} onClick={() => { setMonth(shiftMonth(month, 1)); setSelected(null); }} aria-label={t("Bulan berikutnya", "Next month")}>
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -137,9 +137,9 @@ export function EssAttendance() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="rounded-xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900/60"
+              className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60"
             >
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <span className={s.accent}>{s.icon}</span> {s.label}
               </p>
               <p className={cn("mt-1 text-lg font-extrabold tabular-nums", s.accent)}>{s.value}</p>
@@ -149,21 +149,21 @@ export function EssAttendance() {
       )}
 
       {/* ===== kalender bulanan ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <Fingerprint className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Kalender Kehadiran — {m}", "Attendance Calendar — {m}", { m: monthLabel })}
           </CardTitle>
-          <p className="mt-0.5 text-[11px] text-stone-400">{t("Klik hari berwarna untuk detail clock in/out & lembur.", "Click a colored day for clock in/out & overtime details.")}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">{t("Klik hari berwarna untuk detail clock in/out & lembur.", "Click a colored day for clock in/out & overtime details.")}</p>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-5">
           {api.loading && !api.data ? (
             <LoadingRows rows={5} />
           ) : api.error && !api.data ? (
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 px-6 py-10 text-center dark:border-stone-700 dark:bg-stone-900/30">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
               <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
-              <p className="text-[13px] font-semibold text-stone-700 dark:text-stone-300">{t("Gagal memuat data presensi", "Failed to load attendance data")}</p>
+              <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat data presensi", "Failed to load attendance data")}</p>
               <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
                 <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
               </Button>
@@ -173,7 +173,7 @@ export function EssAttendance() {
               {/* header hari */}
               <div className="mb-2 grid grid-cols-7 gap-1.5 sm:gap-2">
                 {dayHeaders.map((d) => (
-                  <p key={d} className="text-center text-[10px] font-bold uppercase tracking-wide text-stone-400">{d}</p>
+                  <p key={d} className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{d}</p>
                 ))}
               </div>
               {/* grid hari */}
@@ -192,13 +192,13 @@ export function EssAttendance() {
                       disabled={!rec}
                       className={cn(
                         "relative flex aspect-square flex-col items-center justify-center rounded-xl border text-center transition-all",
-                        isSel && "ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-stone-950",
+                        isSel && "ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-950",
                         isToday && "border-amber-400 font-extrabold dark:border-amber-500/50",
                         rec
                           ? cn(meta!.cell, "cursor-pointer hover:scale-[1.04] hover:shadow-md")
                           : future
-                            ? "border-dashed border-stone-200 text-stone-300 dark:border-stone-700 dark:text-stone-600"
-                            : "border-stone-200/70 bg-stone-50/40 text-stone-400 dark:border-stone-800 dark:bg-stone-900/30 dark:text-stone-600",
+                            ? "border-dashed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
+                            : "border-slate-200/70 bg-slate-50/40 text-slate-400 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-600",
                       )}
                       title={rec ? `${meta?.id ?? rec.status}${rec.clockIn ? ` · in ${rec.clockIn}` : ""}` : undefined}
                     >
@@ -215,11 +215,11 @@ export function EssAttendance() {
               </div>
 
               {/* legenda */}
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-stone-100 pt-3 dark:border-stone-800/70">
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800/70">
                 {["Present", "Late", "Absent", "OnLeave", "WorkOff", "Off"].map((s) => {
                   const m = statusMeta(s);
                   return (
-                    <span key={s} className="flex items-center gap-1.5 text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    <span key={s} className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       <span className={cn("h-2 w-2 rounded-full", m.dot)} aria-hidden /> {t(m.id, m.en)}
                     </span>
                   );
@@ -243,10 +243,10 @@ export function EssAttendance() {
               <CardContent className="p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-extrabold text-stone-900 dark:text-stone-50">
+                    <p className="text-sm font-extrabold text-slate-900 dark:text-slate-50">
                       {selectedDay.date ? new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${String(selectedDay.date).slice(0, 10)}T00:00:00`)) : "—"}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-stone-400">
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-400">
                       {t("Kategori hari", "Day category")}: {String(selectedDay.category ?? selectedDay.dayTypeCode ?? "—")}
                     </p>
                   </div>
@@ -264,9 +264,9 @@ export function EssAttendance() {
                     { l: t("Telat", "Late"), v: (selectedDay.lateMinutes as number | undefined) ? `+${fmtMin(selectedDay.lateMinutes as number, t)}` : "—", icon: <Timer className="h-3 w-3" /> },
                     { l: t("Pulang Cepat", "Early Out"), v: (selectedDay.earlyMinutes as number | undefined) ? `−${fmtMin(selectedDay.earlyMinutes as number, t)}` : "—", icon: <Clock3 className="h-3 w-3" /> },
                   ].map((x) => (
-                    <div key={x.l} className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900/50">
-                      <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">{x.icon} {x.l}</p>
-                      <p className="mt-0.5 font-mono text-[13px] font-extrabold tabular-nums text-stone-800 dark:text-stone-100">{x.v}</p>
+                    <div key={x.l} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/50">
+                      <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{x.icon} {x.l}</p>
+                      <p className="mt-0.5 font-mono text-[13px] font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{x.v}</p>
                     </div>
                   ))}
                 </div>
@@ -277,7 +277,7 @@ export function EssAttendance() {
       </AnimatePresence>
 
       {/* ===== riwayat harian (daftar ringkas — ramah mobile) ===== */}
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <CalendarDays className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
@@ -294,8 +294,8 @@ export function EssAttendance() {
               icon={CalendarDays}
             />
           ) : (
-            <div className="max-h-[380px] overflow-y-auto pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700 [&::-webkit-scrollbar]:w-1.5">
-              <ul className="divide-y divide-stone-100 dark:divide-stone-800/70">
+            <div className="max-h-[380px] overflow-y-auto pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar]:w-1.5">
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {[...days].reverse().map((d, i) => {
                   const dateStr = String(d.date ?? "");
                   const isToday = dateStr.slice(0, 10) === todayISO();
@@ -310,22 +310,22 @@ export function EssAttendance() {
                       <button
                         onClick={() => setSelected(selected === dateStr ? null : dateStr)}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/60",
+                          "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
                           selected === dateStr && "bg-amber-50/70 dark:bg-amber-500/10",
                           isToday && "font-bold",
                         )}
                       >
                         <div className="w-20 shrink-0 sm:w-24">
-                          <p className={cn("text-[12.5px] font-bold", isToday ? "text-amber-800 dark:text-amber-300" : "text-stone-700 dark:text-stone-300")}>
+                          <p className={cn("text-[12.5px] font-bold", isToday ? "text-amber-800 dark:text-amber-300" : "text-slate-700 dark:text-slate-300")}>
                             {dateStr ? fmtDate(dateStr) : "—"}
                           </p>
                           {isToday && <span className="rounded-full bg-amber-500 px-1.5 text-[8px] font-extrabold uppercase text-white">{t("ini", "now")}</span>}
                         </div>
                         <span className="hidden min-w-0 flex-1 gap-4 sm:flex">
-                          <span className="font-mono text-[11.5px] tabular-nums text-stone-500 dark:text-stone-400">
+                          <span className="font-mono text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
                             {inTime ?? "—:—"} → {outTime ?? "—:—"}
                           </span>
-                          <span className="text-[11px] text-stone-400">
+                          <span className="text-[11px] text-slate-400">
                             {(d.workMinutes as number | undefined) ? fmtMin(d.workMinutes as number, t) : "—"}
                           </span>
                         </span>

@@ -68,7 +68,7 @@ const STATUS_FILTERS_EN: Record<string, string> = {
   Pending: "Pending", Approved: "Approved", Rejected: "Rejected", Cancelled: "Cancelled", all: "All",
 };
 
-const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-thumb]:bg-stone-700";
+const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
 
 function PersonCell({ p, t, size = "sm" }: { p: SwapPerson; t: (a: string, b: string, v?: Record<string, string | number>) => string; size?: "sm" | "md" }) {
   const dim = size === "md" ? "h-10 w-10 rounded-xl" : "h-8 w-8 rounded-lg";
@@ -79,8 +79,8 @@ function PersonCell({ p, t, size = "sm" }: { p: SwapPerson; t: (a: string, b: st
         <AvatarFallback className={cn(dim, "text-[10px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{p.fullName}</p>
-        <p className="truncate font-mono text-[10px] text-stone-400">{p.employeeNo}</p>
+        <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{p.fullName}</p>
+        <p className="truncate font-mono text-[10px] text-slate-400">{p.employeeNo}</p>
       </div>
     </div>
   );
@@ -157,7 +157,7 @@ export function AttendanceShiftSwapPage() {
     { key: "pending", label: t("Menunggu Keputusan", "Awaiting Decision"), value: stats?.pending ?? 0, cls: "text-amber-600 dark:text-amber-400", icon: Clock3 },
     { key: "approved", label: t("Disetujui", "Approved"), value: stats?.approved ?? 0, cls: "text-brand dark:text-brand/85", icon: CheckCircle2 },
     { key: "rejected", label: t("Ditolak", "Rejected"), value: stats?.rejected ?? 0, cls: "text-rose-600 dark:text-rose-400", icon: XCircle },
-    { key: "total", label: t("Total Permintaan", "Total Requests"), value: stats?.total ?? 0, cls: "text-stone-500", icon: ArrowLeftRight },
+    { key: "total", label: t("Total Permintaan", "Total Requests"), value: stats?.total ?? 0, cls: "text-slate-500", icon: ArrowLeftRight },
   ];
 
   return (
@@ -175,22 +175,22 @@ export function AttendanceShiftSwapPage() {
         {statChips.map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.key} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-              <div className="flex items-center gap-2"><Icon className="h-4 w-4 text-stone-400" aria-hidden /><p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{c.label}</p></div>
+            <div key={c.key} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-2"><Icon className="h-4 w-4 text-slate-400" aria-hidden /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{c.label}</p></div>
               <p className={cn("text-lg font-extrabold", c.cls)}>{c.value}</p>
             </div>
           );
         })}
       </div>
 
-      <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               {STATUS_FILTERS.map((f) => (
                 <button key={f.key} onClick={() => setStatusFilter(f.key)} className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold transition",
-                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800",
+                  statusFilter === f.key ? "ov-fill shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
                 )}>
                   {t(f.label, STATUS_FILTERS_EN[f.key] ?? f.label)}
                 </button>
@@ -206,7 +206,7 @@ export function AttendanceShiftSwapPage() {
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px] font-bold" onClick={() => setDateFilter("")}>{t("Hapus", "Clear")}</Button>
               )}
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari kode / nama…", "Search code / name…")} className="h-8 w-52 pl-8 text-xs" />
               </div>
             </div>
@@ -233,7 +233,7 @@ export function AttendanceShiftSwapPage() {
               <div className={cn("hidden overflow-x-auto md:block", SCROLL_CLS)}>
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                       <TableHead className="text-[11px] font-bold">{t("Kode", "Code")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Tanggal Tukar", "Swap Date")}</TableHead>
                       <TableHead className="text-[11px] font-bold">{t("Pemohon", "Requester")}</TableHead>
@@ -246,14 +246,14 @@ export function AttendanceShiftSwapPage() {
                   </TableHeader>
                   <TableBody>
                     {rows.map((r) => (
-                      <TableRow key={r.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                      <TableRow key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                         <TableCell>
-                          <p className="font-mono text-[11px] font-bold text-stone-500">{r.code}</p>
-                          <p className="text-[9px] text-stone-400">{fmtDateTime(r.createdAt)}</p>
+                          <p className="font-mono text-[11px] font-bold text-slate-500">{r.code}</p>
+                          <p className="text-[9px] text-slate-400">{fmtDateTime(r.createdAt)}</p>
                         </TableCell>
                         <TableCell>
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-700 dark:text-stone-300">
-                            <CalendarRange className="h-3.5 w-3.5 text-stone-400" aria-hidden /> {fmtDate(r.swapDate)}
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <CalendarRange className="h-3.5 w-3.5 text-slate-400" aria-hidden /> {fmtDate(r.swapDate)}
                           </span>
                         </TableCell>
                         <TableCell><PersonCell p={r.requester} t={t} /></TableCell>
@@ -261,28 +261,28 @@ export function AttendanceShiftSwapPage() {
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <Badge variant="outline" className="max-w-36 truncate text-[10px] font-bold">{r.requesterScheduleName}</Badge>
-                            <ArrowRight className="h-3 w-3 shrink-0 text-stone-400" aria-hidden />
+                            <ArrowRight className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />
                             <Badge variant="outline" className="max-w-36 truncate border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{r.targetScheduleName}</Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           {r.reason
-                            ? <p className="max-w-44 truncate text-[11px] italic text-stone-500 dark:text-stone-400" title={r.reason}>“{r.reason}”</p>
-                            : <span className="text-[11px] text-stone-300 dark:text-stone-600">—</span>}
+                            ? <p className="max-w-44 truncate text-[11px] italic text-slate-500 dark:text-slate-400" title={r.reason}>“{r.reason}”</p>
+                            : <span className="text-[11px] text-slate-300 dark:text-slate-600">—</span>}
                         </TableCell>
                         <TableCell>
                           <StatusPill status={r.status} />
                           {r.decidedAt && (
-                            <p className="mt-1 text-[9px] text-stone-400" title={`${r.decidedByName ?? "-"} · ${r.decisionNote ?? ""}`}>
+                            <p className="mt-1 text-[9px] text-slate-400" title={`${r.decidedByName ?? "-"} · ${r.decisionNote ?? ""}`}>
                               {fmtDateTime(r.decidedAt)}{r.decidedByName ? ` · ${r.decidedByName}` : ""}
                             </p>
                           )}
-                          {r.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-stone-400" title={r.decisionNote}>{r.decisionNote}</p>}
+                          {r.decisionNote && <p className="max-w-36 truncate text-[9px] italic text-slate-400" title={r.decisionNote}>{r.decisionNote}</p>}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Detail", "Detail")} onClick={() => setDetail(r)} aria-label={t("Lihat detail {code}", "View detail {code}", { code: r.code })}>
-                              <Eye className="h-4 w-4 text-stone-400" />
+                              <Eye className="h-4 w-4 text-slate-400" />
                             </Button>
                             {r.status === "Pending" && canApprove && (
                               <>
@@ -305,27 +305,27 @@ export function AttendanceShiftSwapPage() {
               {/* ===== kartu (< md) ===== */}
               <div className={cn("space-y-3 p-4 md:hidden", SCROLL_CLS)}>
                 {rows.map((r) => (
-                  <div key={r.id} className="rounded-2xl border border-stone-200/80 bg-white p-3.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+                  <div key={r.id} className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-mono text-[11px] font-bold text-stone-500">{r.code}</p>
-                        <p className="text-[13px] font-extrabold text-stone-800 dark:text-stone-200">{fmtDate(r.swapDate)}</p>
+                        <p className="font-mono text-[11px] font-bold text-slate-500">{r.code}</p>
+                        <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200">{fmtDate(r.swapDate)}</p>
                       </div>
                       <StatusPill status={r.status} />
                     </div>
                     <div className="mt-2.5 flex items-center gap-2">
                       <PersonCell p={r.requester} t={t} />
-                      <ArrowRight className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" aria-hidden />
+                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />
                       <PersonCell p={r.target} t={t} />
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
                       <Badge variant="outline" className="max-w-[38%] truncate text-[10px] font-bold">{r.requesterScheduleName}</Badge>
-                      <ArrowRight className="h-3 w-3 shrink-0 text-stone-400" aria-hidden />
+                      <ArrowRight className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />
                       <Badge variant="outline" className="max-w-[38%] truncate border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">{r.targetScheduleName}</Badge>
                     </div>
-                    {r.reason && <p className="mt-2 line-clamp-2 text-[11px] italic text-stone-500 dark:text-stone-400">“{r.reason}”</p>}
+                    {r.reason && <p className="mt-2 line-clamp-2 text-[11px] italic text-slate-500 dark:text-slate-400">“{r.reason}”</p>}
                     {r.decisionNote && (
-                      <p className="mt-1.5 rounded-lg bg-stone-100/70 px-2.5 py-1 text-[10px] text-stone-500 dark:bg-stone-800/60 dark:text-stone-400">
+                      <p className="mt-1.5 rounded-lg bg-slate-100/70 px-2.5 py-1 text-[10px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                         {t("Keputusan", "Decision")}: {r.decisionNote}
                       </p>
                     )}
@@ -366,22 +366,22 @@ export function AttendanceShiftSwapPage() {
           </DialogHeader>
           {detail && (
             <div className="space-y-3.5">
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Tanggal Tukar", "Swap Date")}</p>
-                  <p className="text-sm font-extrabold text-stone-800 dark:text-stone-200">{fmtDate(detail.swapDate)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Tanggal Tukar", "Swap Date")}</p>
+                  <p className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{fmtDate(detail.swapDate)}</p>
                 </div>
                 <StatusPill status={detail.status} />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {([["requester", detail.requester, detail.requesterScheduleName], ["target", detail.target, detail.targetScheduleName]] as const).map(([side, p, sched]) => (
-                  <div key={side} className="rounded-xl border border-stone-200 p-3 dark:border-stone-800">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-stone-400">
+                  <div key={side} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                       {side === "requester" ? t("Pemohon", "Requester") : t("Ditukar Dengan", "Swapped With")}
                     </p>
                     <PersonCell p={p} t={t} size="md" />
-                    <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
+                    <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
                       {t("Jadwal saat mengajukan", "Schedule when submitted")}: <b>{sched}</b>
                     </p>
                   </div>
@@ -389,19 +389,19 @@ export function AttendanceShiftSwapPage() {
               </div>
 
               {detail.reason && (
-                <div className="rounded-xl bg-stone-100/70 px-3.5 py-2.5 dark:bg-stone-800/60">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Alasan", "Reason")}</p>
-                  <p className="mt-0.5 text-[12px] italic leading-relaxed text-stone-600 dark:text-stone-300">“{detail.reason}”</p>
+                <div className="rounded-xl bg-slate-100/70 px-3.5 py-2.5 dark:bg-slate-800/60">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Alasan", "Reason")}</p>
+                  <p className="mt-0.5 text-[12px] italic leading-relaxed text-slate-600 dark:text-slate-300">“{detail.reason}”</p>
                 </div>
               )}
 
               {detail.decidedAt && (
-                <div className="rounded-xl border border-stone-200 px-3.5 py-2.5 dark:border-stone-800">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Keputusan", "Decision")}</p>
-                  <p className="mt-0.5 text-[12px] text-stone-600 dark:text-stone-300">
+                <div className="rounded-xl border border-slate-200 px-3.5 py-2.5 dark:border-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Keputusan", "Decision")}</p>
+                  <p className="mt-0.5 text-[12px] text-slate-600 dark:text-slate-300">
                     {fmtDateTime(detail.decidedAt)}{detail.decidedByName ? ` · ${detail.decidedByName}` : ""}
                   </p>
-                  {detail.decisionNote && <p className="mt-1 text-[11px] italic text-stone-500 dark:text-stone-400">“{detail.decisionNote}”</p>}
+                  {detail.decisionNote && <p className="mt-1 text-[11px] italic text-slate-500 dark:text-slate-400">“{detail.decisionNote}”</p>}
                 </div>
               )}
 
@@ -435,19 +435,19 @@ export function AttendanceShiftSwapPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {approveTarget && (
-            <div className="rounded-xl border border-stone-200 px-3.5 py-3 text-[12px] dark:border-stone-800">
+            <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-bold text-stone-800 dark:text-stone-200">{approveTarget.requester.fullName}</p>
-                  <p className="truncate text-[11px] text-stone-400">{approveTarget.requesterScheduleName}</p>
+                  <p className="truncate font-bold text-slate-800 dark:text-slate-200">{approveTarget.requester.fullName}</p>
+                  <p className="truncate text-[11px] text-slate-400">{approveTarget.requesterScheduleName}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-brand" aria-hidden />
                 <div className="min-w-0 text-right">
-                  <p className="truncate font-bold text-stone-800 dark:text-stone-200">{approveTarget.targetScheduleName}</p>
-                  <p className="truncate text-[11px] text-stone-400">{approveTarget.target.fullName}</p>
+                  <p className="truncate font-bold text-slate-800 dark:text-slate-200">{approveTarget.targetScheduleName}</p>
+                  <p className="truncate text-[11px] text-slate-400">{approveTarget.target.fullName}</p>
                 </div>
               </div>
-              <p className="mt-2 text-center text-[11px] font-bold text-stone-500">
+              <p className="mt-2 text-center text-[11px] font-bold text-slate-500">
                 {fmtDate(approveTarget.swapDate)}
               </p>
             </div>

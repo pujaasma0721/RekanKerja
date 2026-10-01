@@ -32,9 +32,9 @@ function ActivePill({ active }: { active: boolean }) {
       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
       active
         ? "border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85"
-        : "border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-500/25 dark:bg-stone-500/10 dark:text-stone-400",
+        : "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400",
     )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-stone-400")} />
+      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-slate-400")} />
       {active ? t("Aktif") : t("Nonaktif")}
     </span>
   );
@@ -104,7 +104,7 @@ function LevelFormDialog({ open, onOpenChange, level, nextOrder, onDone }: {
             <Label htmlFor="pl-name">{t("Nama Level", "Level Name")}</Label>
             <Input id="pl-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Senior Manager" />
           </div>
-          <p className="text-[10px] text-stone-400">{t("Urutan kecil = jenjang bawah (mis. PL1 operator, PL8 direktur). Dipakai pencocokan struktur approval berjenjang.", "A smaller order means a lower tier (e.g. PL1 operator, PL8 director). Used for tiered approval matching.")}</p>
+          <p className="text-[10px] text-slate-400">{t("Urutan kecil = jenjang bawah (mis. PL1 operator, PL8 direktur). Dipakai pencocokan struktur approval berjenjang.", "A smaller order means a lower tier (e.g. PL1 operator, PL8 director). Used for tiered approval matching.")}</p>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("Batal")}</Button>
@@ -185,18 +185,18 @@ export function PositionLevelView() {
       ) : levels.length === 0 ? (
         <EmptyState title={t("Belum ada level jabatan", "No job levels yet")} description={t("Buat level pertama dengan tombol Level Baru.", "Create the first level with the New Level button.")} icon={<TrendingUp className="h-6 w-6" />} />
       ) : (
-        <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-0">
-            <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5 dark:border-stone-800">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
               <div>
                 <p className="text-[13px] font-bold">{t("Master Level Jabatan", "Job Level Master")}</p>
-                <p className="text-[11px] text-stone-400">{t("Diurutkan dari jenjang terbawah — dimensi pencocokan approval berjenjang", "Sorted from the lowest tier — tiered approval matching dimension")}</p>
+                <p className="text-[11px] text-slate-400">{t("Diurutkan dari jenjang terbawah — dimensi pencocokan approval berjenjang", "Sorted from the lowest tier — tiered approval matching dimension")}</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     {sort.head("level", t("Level"), "text-[11px] font-bold")}
                     {sort.head("order", t("Urutan", "Order"), "text-[11px] font-bold")}
                     {sort.head("positions", t("Posisi"), "text-[11px] font-bold")}
@@ -207,30 +207,30 @@ export function PositionLevelView() {
                 </TableHeader>
                 <TableBody>
                   {sort.sorted.map((l) => (
-                    <TableRow key={l.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                    <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <TableCell>
                         <div className="flex items-center gap-2.5">
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ov-tile font-mono text-[11px] font-extrabold shadow-md">
                             {l.code}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-[13px] font-bold text-stone-800 dark:text-stone-200">{l.name}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{l.code}</p>
+                            <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-200">{l.name}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{l.code}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="gap-1 text-[10px] font-bold text-stone-500">
+                        <Badge variant="outline" className="gap-1 text-[10px] font-bold text-slate-500">
                           <Layers className="h-3 w-3" /> {t("urutan {n}", "order {n}", { n: l.sortOrder })}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <BriefcaseBusiness className="h-3.5 w-3.5 text-brand dark:text-brand/85" /> {l.positionCount}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <Users className="h-3.5 w-3.5 ov-text-accent" /> {l.employeeCount}
                         </span>
                       </TableCell>
@@ -242,10 +242,10 @@ export function PositionLevelView() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(l); setFormOpen(true); }} aria-label={t("Ubah level {code}", "Edit level {code}", { code: l.code })}>
-                            <Pencil className="h-3.5 w-3.5 text-stone-400" />
+                            <Pencil className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-600" onClick={() => { setEditing(l); setDeleteOpen(true); }} aria-label={t("Hapus level {code}", "Delete level {code}", { code: l.code })}>
-                            <Trash2 className="h-3.5 w-3.5 text-stone-400" />
+                            <Trash2 className="h-3.5 w-3.5 text-slate-400" />
                           </Button>
                         </div>
                       </TableCell>
@@ -289,15 +289,15 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
   const totalEmp = levels.reduce((a, l) => a + l.employeeCount, 0);
   const top = levels.filter((l) => l.employeeCount > 0).sort((a, b) => b.employeeCount - a.employeeCount)[0];
   return (
-    <Card className="mt-4 rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+    <Card className="mt-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85">
             <TrendingUp className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Level Terpadat", "Densest Level")}</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{top ? t("{code} — {n} karyawan", "{code} — {n} employees", { code: top.code, n: top.employeeCount }) : "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Level Terpadat", "Densest Level")}</p>
+            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{top ? t("{code} — {n} karyawan", "{code} — {n} employees", { code: top.code, n: top.employeeCount }) : "—"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -305,8 +305,8 @@ function LevelStats({ levels }: { levels: LevelRow[] }) {
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Total Karyawan Terpetakan", "Total Employees Mapped")}</p>
-            <p className="text-sm font-extrabold text-stone-900 dark:text-stone-100">{t("{n} karyawan pada {m} level", "{n} employees across {m} levels", { n: totalEmp, m: levels.length })}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Total Karyawan Terpetakan", "Total Employees Mapped")}</p>
+            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{t("{n} karyawan pada {m} level", "{n} employees across {m} levels", { n: totalEmp, m: levels.length })}</p>
           </div>
         </div>
       </CardContent>

@@ -56,27 +56,27 @@ export function PayrollTransactionsPage() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 h-auto rounded-2xl bg-stone-100 p-1.5 dark:bg-stone-900">
-          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+        <TabsList className="mb-4 h-auto rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900">
+          <TabsTrigger value="loans" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
             <Landmark className="h-3.5 w-3.5" /> {t("Pinjaman", "Loans")} ({loansApi.data?.loans.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+          <TabsTrigger value="components" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
             <Coins className="h-3.5 w-3.5" /> {t("Komponen Khusus & Periodik", "Special & Periodic Components")} ({compsApi.data?.assignments.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-stone-800">
+          <TabsTrigger value="rapel" className="gap-1.5 rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:ov-text-accent data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800">
             <History className="h-3.5 w-3.5" /> {t("Rapel / Back-Pay", "Retro Pay / Back-Pay")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="loans">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {loansApi.loading && !loansApi.data ? (
                 <div className="p-4"><LoadingRows rows={4} /></div>
               ) : (loansApi.data?.loans.length ?? 0) === 0 ? (
                 <div className="p-5"><EmptyState title={t("Belum ada pinjaman", "No loans yet")} description={t("Ajukan pinjaman karyawan — cicilan otomatis dipotong payroll.", "Submit an employee loan — installments are automatically deducted from payroll.")} icon={<Landmark className="h-6 w-6" />} /></div>
               ) : (
-                <div className="divide-y divide-stone-100 dark:divide-stone-800">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {(loansApi.data?.loans ?? []).map((l) => <LoanCard key={l.id} loan={l} onChanged={loansApi.refresh} />)}
                 </div>
               )}
@@ -85,7 +85,7 @@ export function PayrollTransactionsPage() {
         </TabsContent>
 
         <TabsContent value="components">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-0">
               {compsApi.loading && !compsApi.data ? (
                 <div className="p-4"><LoadingRows rows={4} /></div>
@@ -95,7 +95,7 @@ export function PayrollTransactionsPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         {compSort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
                         {compSort.head("component", t("Komponen"), "text-[11px] font-bold")}
                         {compSort.head("kind", t("Jenis"), "text-[11px] font-bold")}
@@ -106,23 +106,23 @@ export function PayrollTransactionsPage() {
                     </TableHeader>
                     <TableBody>
                       {compSort.sorted.map((a) => (
-                        <TableRow key={a.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                        <TableRow key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                           <TableCell>
                             <p className="text-[13px] font-bold">{a.employee.fullName}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{a.employee.employeeNo}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{a.employee.employeeNo}</p>
                           </TableCell>
                           <TableCell>
                             <p className="text-[13px] font-semibold">{a.wageComponent.name}</p>
-                            <p className="font-mono text-[10px] text-stone-400">{a.wageComponent.code}</p>
+                            <p className="font-mono text-[10px] text-slate-400">{a.wageComponent.code}</p>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn("text-[9px] font-bold", a.kind === "Specific" ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" : "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85")}>
                               {a.kind === "Specific" ? t("Khusus (sekali)", "Specific (one-time)") : t("Periodik (tiap period)", "Periodic (every period)")}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs text-stone-500">
+                          <TableCell className="text-xs text-slate-500">
                             {a.kind === "Specific" ? `${loc(a.period?.name) || "—"} · ${a.processType?.name ?? "—"}` : t("Seluruh period aktif", "All active periods")}
-                            {a.notes && <p className="text-[10px] italic text-stone-400">{a.notes}</p>}
+                            {a.notes && <p className="text-[10px] italic text-slate-400">{a.notes}</p>}
                           </TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(a.amount)}</TableCell>
                           <TableCell>
@@ -135,7 +135,7 @@ export function PayrollTransactionsPage() {
                                   compsApi.refresh();
                                 } catch (e) { toast.error((e as Error).message); }
                               }}
-                              className="rounded-lg p-1.5 text-stone-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
+                              className="rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
                               aria-label={t("Hapus")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -152,7 +152,7 @@ export function PayrollTransactionsPage() {
         </TabsContent>
 
         <TabsContent value="rapel">
-          <Card className="rounded-2xl border-stone-200/80 shadow-sm dark:border-stone-800">
+          <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
             <CardContent className="p-5">
               <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl ov-fill shadow-md">
@@ -160,7 +160,7 @@ export function PayrollTransactionsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-bold">{t("Rapel / Back-Pay retroaktif", "Retroactive Retro Pay / Back-Pay")}</p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-stone-500 dark:text-stone-400">
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
                     {t("Nilai komponen naik di tengah tahun? Hitung selisih ", "Component value increased mid-year? Calculate the difference ")}
                     <b>{t("dari period s.d. period", "from period to period")}</b>
                     {t(" terhadap run gaji yang sudah dibayarkan, lalu bayarkan selisihnya sekali sebagai komponen Back Pay pada period target — pola ", " against already-paid salary runs, then pay the difference once as a Back Pay component on the target period — the ")}
@@ -173,17 +173,17 @@ export function PayrollTransactionsPage() {
                 </Button>
               </div>
               <div className="mt-4 grid gap-2 text-[11px] sm:grid-cols-3">
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("1 · Pilih rentang", "1 · Pick a range")}</p>
-                  <p className="text-stone-500">{t("Karyawan + komponen (cth. gaji pokok) + nilai baru + dari–sampai period", "Employee + component (e.g. base salary) + new value + from–to period")}</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("1 · Pilih rentang", "1 · Pick a range")}</p>
+                  <p className="text-slate-500">{t("Karyawan + komponen (cth. gaji pokok) + nilai baru + dari–sampai period", "Employee + component (e.g. base salary) + new value + from–to period")}</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("2 · Preview selisih", "2 · Preview the difference")}</p>
-                  <p className="text-stone-500">{t("Per period: dibayar vs seharusnya → total selisih (harus > 0)", "Per period: paid vs expected → total difference (must be > 0)")}</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("2 · Preview selisih", "2 · Preview the difference")}</p>
+                  <p className="text-slate-500">{t("Per period: dibayar vs seharusnya → total selisih (harus > 0)", "Per period: paid vs expected → total difference (must be > 0)")}</p>
                 </div>
-                <div className="rounded-xl bg-stone-50 p-3 dark:bg-stone-900">
-                  <p className="font-bold text-stone-700 dark:text-stone-300">{t("3 · Run rapel", "3 · Retro Pay run")}</p>
-                  <p className="text-stone-500">{t("Komponen RAPEL dibuat di period target, run dihitung (pajak irreguler)", "RAPEL component created on the target period, run calculated (irregular tax)")}</p>
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+                  <p className="font-bold text-slate-700 dark:text-slate-300">{t("3 · Run rapel", "3 · Retro Pay run")}</p>
+                  <p className="text-slate-500">{t("Komponen RAPEL dibuat di period target, run dihitung (pajak irreguler)", "RAPEL component created on the target period, run calculated (irregular tax)")}</p>
                 </div>
               </div>
             </CardContent>
@@ -250,7 +250,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[11px] text-stone-400">
+          <p className="mt-0.5 text-[11px] text-slate-400">
             {t("Pokok {p} · {n}× cicilan {i}", "Principal {p} · {n}× installments of {i}", { p: fmtIDR(loan.amount), n: loan.installmentCount, i: fmtIDR(loan.installmentAmount) })}{loan.interestRate > 0 ? t(" · bunga {r}%/thn flat", " · interest {r}%/yr flat", { r: loan.interestRate }) : t(" · tanpa bunga", " · interest-free")}
             {loan.purpose && ` · ${loan.purpose}`}
           </p>
@@ -261,18 +261,18 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
           )}
           {loan.status !== "Submitted" && (
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+              <div className="h-1.5 w-full max-w-56 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div className="h-full rounded-full ov-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
               </div>
-              <span className="text-[10px] font-bold text-stone-400">{t("{n}% lunas", "{n}% settled", { n: Math.round(progress * 100) })}</span>
+              <span className="text-[10px] font-bold text-slate-400">{t("{n}% lunas", "{n}% settled", { n: Math.round(progress * 100) })}</span>
             </div>
           )}
         </div>
         <div className="hidden shrink-0 text-right sm:block">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">{t("Outstanding")}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Outstanding")}</p>
           <p className="text-sm font-extrabold text-rose-600 dark:text-rose-400">{fmtIDR(loan.outstanding)}</p>
         </div>
-        {expanded ? <ChevronUp className="h-4 w-4 shrink-0 text-stone-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />}
+        {expanded ? <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />}
       </button>
 
       {expanded && loan.status === "Submitted" && (
@@ -290,15 +290,15 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
       )}
 
       {expanded && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 dark:border-stone-800">
+        <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
           {loan.installments.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-stone-500">
+            <p className="px-4 py-3 text-xs text-slate-500">
               {t("Cicilan belum dibuat — skedul dibuat otomatis setelah seluruh jenjang approval disetujui.", "Installments not created yet — the schedule is created automatically after all approval levels approve.")}
             </p>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="bg-stone-50/80 dark:bg-stone-900/50">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                   <TableHead className="text-[10px] font-bold">{t("Cicilan", "Installment")}</TableHead>
                   <TableHead className="text-[10px] font-bold">{t("Jatuh Tempo", "Due Date")}</TableHead>
                   <TableHead className="text-right text-[10px] font-bold">{t("Nilai", "Value")}</TableHead>
@@ -308,19 +308,19 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
               </TableHeader>
               <TableBody>
                 {loan.installments.map((i) => (
-                  <TableRow key={i.id} className="hover:bg-stone-50 dark:hover:bg-stone-900/60">
+                  <TableRow key={i.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
                     <TableCell className="text-xs font-bold">#{i.sequence}</TableCell>
-                    <TableCell className="text-xs text-stone-500">{fmtDate(i.dueDate)}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{fmtDate(i.dueDate)}</TableCell>
                     <TableCell className="text-right text-xs font-semibold">{fmtIDR(i.amount)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("text-[9px] font-bold",
                         i.status === "Deducted" ? "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" :
-                        i.status === "Skipped" ? "border-stone-300 bg-stone-50 text-stone-500 dark:border-stone-600" :
+                        i.status === "Skipped" ? "border-slate-300 bg-slate-50 text-slate-500 dark:border-slate-600" :
                         "border-brand/40 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85")}>
                         {i.status === "Deducted" ? t("Terpotong", "Deducted") : i.status === "Skipped" ? t("Dilewati", "Skipped") : t("Menunggu")}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-[10px] text-stone-400">{i.deductedRunNo ?? (i.periodCode ?? "—")}</TableCell>
+                    <TableCell className="font-mono text-[10px] text-slate-400">{i.deductedRunNo ?? (i.periodCode ?? "—")}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -644,7 +644,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 placeholder={emp ? String(emp.baseSalary) : t("cth: 6500000", "e.g. 6500000")}
                 className="mt-1.5 font-mono"
               />
-              {emp && <p className="mt-1 text-[10px] text-stone-400">{t("Nilai sekarang: {v}/bln", "Current value: {v}/mo", { v: fmtIDR(emp.baseSalary) })}</p>}
+              {emp && <p className="mt-1 text-[10px] text-slate-400">{t("Nilai sekarang: {v}/bln", "Current value: {v}/mo", { v: fmtIDR(emp.baseSalary) })}</p>}
             </div>
             <div>
               <Label className="text-xs">{t("Dibayar di *", "Paid in *")}</Label>
@@ -693,7 +693,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
               </div>
               <div className="max-h-44 overflow-y-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-stone-50 dark:bg-stone-900">
+                  <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-900">
                     <TableRow>
                       <TableHead className="text-[10px] font-bold">{t("Period")}</TableHead>
                       <TableHead className="text-right text-[10px] font-bold">{t("Dibayar", "Paid")}</TableHead>
@@ -705,7 +705,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                     {preview.breakdown.map((b) => (
                       <TableRow key={b.periodCode}>
                         <TableCell className="text-[11px] font-semibold">{loc(b.periodName)}</TableCell>
-                        <TableCell className="text-right text-[11px] text-stone-500">{fmtIDR(b.paid)}</TableCell>
+                        <TableCell className="text-right text-[11px] text-slate-500">{fmtIDR(b.paid)}</TableCell>
                         <TableCell className="text-right text-[11px]">{fmtIDR(b.expected)}</TableCell>
                         <TableCell className="text-right text-[11px] font-bold ov-text-accent">+{fmtIDR(b.diff)}</TableCell>
                       </TableRow>
@@ -716,7 +716,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
             </div>
           )}
 
-          <p className="rounded-xl bg-stone-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-stone-500 dark:bg-stone-900">
+          <p className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-900">
             {t("Selisih dibayarkan sekali sebagai komponen", "The difference is paid once as a")} <b>{t("RAPEL (Back Pay)", "RAPEL (Back Pay)")}</b> {t("pada period target dengan pajak", "component on the target period with")} <b>{t("irreguler", "irregular")}</b> {t(". Prorata per period diabaikan — hanya period yang run gajinya sudah final yang dihitung.", " tax. Per-period prorating is ignored — only periods whose salary run is already final are counted.")}
           </p>
         </div>
