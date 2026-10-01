@@ -2161,6 +2161,7 @@ model MedicalBalance {
   depAdjustment    String   @default("0") // M-8
   depUsed          String   @default("0") // M-8
   carriedOver      String   @default("0") // sisa tahun lalu (kebijakan CARRY) (M-8)
+  prorateFactor    Float?   // W1-8 — snapshot faktor prorata masa kerja saat saldo digenerate (null = 1.0)
   generatedAt      DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

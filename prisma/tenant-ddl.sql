@@ -1690,6 +1690,7 @@ CREATE TABLE "MedicalBalance" (
     "depAdjustment" TEXT NOT NULL DEFAULT '0',
     "depUsed" TEXT NOT NULL DEFAULT '0',
     "carriedOver" TEXT NOT NULL DEFAULT '0',
+    "prorateFactor" DOUBLE PRECISION,
     "generatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

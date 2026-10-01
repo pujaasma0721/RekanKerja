@@ -1713,7 +1713,10 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       forDependent: claim.forDependent, excludeClaimId: claim.id,
     });
     poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
-    if (!input.allowOverLimit && claimTotalApproved > avail.available) {
+    // W1-1: jenis UNLIMITED → guard plafon dilewati (fix E2E — dulu hanya settle
+    // & submit yang bypass; approve kaki menolak klaim UNLIMITED bila ada
+    // reservasi klaim lain menunggu di pool yang sama).
+    if (!avail.unlimited && !input.allowOverLimit && claimTotalApproved > avail.available) {
       throw new Error(
         `Approve ditolak: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
         ` — saldo berubah sejak pengajuan (snapshot sisa saat ajukan Rp ${fmtRp(round2(claimMaxBenefitAt - claimUsedAt))}` +

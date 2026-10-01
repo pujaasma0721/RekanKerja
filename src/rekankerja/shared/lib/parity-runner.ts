@@ -216,6 +216,10 @@ const STEPS: Step[] = [
   // demouser0229 cacat permanen (dibuat pra-Task 33 tanpa tabel policy).
   { key: "tenant-schema-integrity", label: "Task 64l — heal tabel kritis hilang (Employee/PayrollRun/PasswordPolicy/WorkSchedule)", run: (s) => import("../../../../scripts/migrate-tenant-schema-integrity").then((m) => m.main(s)) },
   { key: "checklist-tables", label: "Task 65 — tabel Onboarding/OnboardingTask + OffboardingTask.completedVia", run: (s) => import("../../../../scripts/migrate-checklist-tables").then((m) => m.main(s)) },
+  // fix 89 (wave 1 medical): kolom MedicalClaim.prorateFactor + reversalOfId
+  // (unique, storno) + MedicalClaimLine.providerId (master provider) + 2 FK.
+  // Skip schema tanpa tabel medical (dibuat ensureMedicalReference).
+  { key: "medical-wave1", label: "Fix 89 — wave 1 medical: prorateFactor/reversalOfId/providerId + FK", run: (s) => import("../../../../scripts/migrate-medical-wave1").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -357,7 +361,20 @@ export async function checkParityGap(): Promise<ParityGap> {
       );
       if (have < schemas.length) reasons.push(`${schemas.length - have} tenant tanpa tabel ${t} (Task 64l)`);
     }
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk) };
+    // fix 89 — wave 1 medical: penyebut = schema yang PUNYA tabel MedicalClaim
+    // (instalasi pra-medical tidak pernah punya kolomnya → jangan gap permanen;
+    // ensureMedicalReference membuat tabel lengkap saat modul dipakai).
+    const medClaimTables = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'MedicalClaim' AND table_schema = ANY($1::text[])`,
+    );
+    const medWave1Ok = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'MedicalClaim' AND column_name = 'prorateFactor' AND table_schema = ANY($1::text[])`,
+    );
+    if (medWave1Ok < medClaimTables)
+      reasons.push(`${medClaimTables - medWave1Ok} tenant tanpa kolom wave1 medical: prorateFactor/reversalOfId/providerId (fix 89)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk, medWave1Ok) };
   } finally {
     await c.end();
   }
