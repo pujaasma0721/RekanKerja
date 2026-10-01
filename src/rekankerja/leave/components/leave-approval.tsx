@@ -227,7 +227,7 @@ export function LeaveApprovalPage() {
                 <p className="mt-0.5 text-slate-400">{t("Alasan:", "Reason:")} {target.reason}</p>
               </div>
               {action === "approve" && (
-                <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
+                <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/30 dark:text-brand/85">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <p>{t("Saat disetujui: saldo (g· terpakai mendatang) diperbarui, dan rekap absensi rentang cuti dihitung ulang menjadi ", "When approved: the balance (g· upcoming taken) is updated, and the attendance recap for the leave range is recalculated as ")}<b>OnLeave</b>{t(" (dibayar bila jenis cuti dibayar).", " (paid if the leave type is paid).")}</p>
                 </div>

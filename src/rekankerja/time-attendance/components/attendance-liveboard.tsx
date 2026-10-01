@@ -183,7 +183,7 @@ export function AttendanceLiveboardPage() {
       />
 
       {/* strip LIVE — indikator denyut + timestamp pembaruan terakhir */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/25/70 bg-brand/10/60 px-4 py-3 dark:border-brand/20 dark:bg-brand/10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/25 bg-brand/10 px-4 py-3 dark:border-brand/20 dark:bg-brand/10">
         <div className="flex items-center gap-2.5">
           <Radar className="h-4 w-4 text-brand dark:text-brand/85" aria-hidden />
           {isHistory ? (
@@ -359,7 +359,7 @@ function EmployeeCard({
             <LogOut className="h-3 w-3" aria-hidden /> {fmtTime(r.checkOut, locale)}
           </span>
         ) : section === "inOffice" ? (
-          <span className="text-[10px] font-bold text-brand/80 dark:text-brand/85/70">{t("masih di kantor", "still in office")}</span>
+          <span className="text-[10px] font-bold text-brand/80 dark:text-brand/85">{t("masih di kantor", "still in office")}</span>
         ) : (
           <span className="font-mono text-[11px] text-slate-300 dark:text-slate-600">—</span>
         )}

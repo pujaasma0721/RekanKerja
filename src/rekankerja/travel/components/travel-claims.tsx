@@ -385,7 +385,7 @@ export function TravelClaimsPage() {
                                 </div>
                                 {c.remark && <p className="mt-2 text-[11px] text-slate-500">{c.remark}</p>}
                                 {c.status === "Paid" && c.paidRunNo && (
-                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-brand/10 px-3 py-1.5 text-[11px] font-bold text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
+                                  <p className="mt-2 flex items-center gap-1 rounded-lg bg-brand/10 px-3 py-1.5 text-[11px] font-bold text-brand-deep dark:bg-brand/30 dark:text-brand/85">
                                     <Landmark className="h-3 w-3" /> {t("Dibayar via payroll run {no} (period {p})", "Paid via payroll run {no} (period {p})", { no: c.paidRunNo, p: c.periodCode ?? "-" })}
                                   </p>
                                 )}

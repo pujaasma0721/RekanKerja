@@ -722,7 +722,7 @@ export function UserAccessView({ focusUserId, onFocusConsumed }: { focusUserId?:
                         "flex items-center gap-3 rounded-2xl border px-4 py-3",
                         preview.all
                           ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10"
-                          : "border-brand/25 bg-brand/10/70 dark:border-brand/25 dark:bg-brand/10",
+                          : "border-brand/25 bg-brand/10 dark:border-brand/25 dark:bg-brand/10",
                       )}>
                         {preview.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-brand" />}
                         <div>

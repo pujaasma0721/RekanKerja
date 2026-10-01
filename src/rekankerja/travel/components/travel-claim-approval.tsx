@@ -136,7 +136,7 @@ export function TravelClaimApprovalPage() {
             <Inbox className="h-7 w-7 text-amber-600" />
           </CardContent>
         </Card>
-        <Card className="border-brand/25 bg-brand/10/60 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
+        <Card className="border-brand/25 bg-brand/10 shadow-sm dark:border-brand/70 dark:bg-brand/20">
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("Siap Transfer (Approved)", "Ready to Transfer (Approved)")}</p>
@@ -204,7 +204,7 @@ export function TravelClaimApprovalPage() {
                     <p className="text-[9px] font-bold text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p>
                     <p className="text-xs font-black text-slate-800 dark:text-slate-200">{fmtIDR(c.exchangeLoss - c.otherCompanyExp)}</p>
                   </div>
-                  <div className="rounded-lg bg-brand/10 py-1.5 dark:bg-brand/90/30">
+                  <div className="rounded-lg bg-brand/10 py-1.5 dark:bg-brand/30">
                     <p className="text-[9px] font-bold text-brand-deep dark:text-brand/85">{t("(b) karyawan", "(b) employee")}</p>
                     <p className="text-xs font-black text-brand-deep dark:text-brand/85">{fmtIDR(c.payableEmployee)}</p>
                   </div>
@@ -255,7 +255,7 @@ export function TravelClaimApprovalPage() {
           <h2 className="mb-3 mt-6 text-sm font-black uppercase tracking-wide text-slate-500">
             {t("Siap Transfer ke Payroll ({n})", "Ready to Transfer to Payroll ({n})", { n: approvedClaims.length })}
           </h2>
-          <Card className="border-brand/25 bg-brand/10/40 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
+          <Card className="border-brand/25 bg-brand/10 shadow-sm dark:border-brand/70 dark:bg-brand/20">
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm">
@@ -336,7 +336,7 @@ export function TravelClaimApprovalPage() {
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder={t("Mis. Disetujui — dokumen lengkap", "e.g. Approved — documents complete")} className="text-sm" />
               </div>
               {decide.action === "approve" && (
-                <p className="rounded-lg bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
+                <p className="rounded-lg bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/30 dark:text-brand/85">
                   {t("Jurnal otomatis dibuat: tiap baris biaya + rugi kurs → Debit akun beban; (a) biaya pihak lain → baris kontra (bukan kas/karyawan); porsi payroll (b)/(c) → Kredit 2101 Hutang Gaji, sisa tunai → Kas & Bank. Klaim bisa langsung ditransfer ke payroll setelah ini.", "A journal is created automatically: each expense line + exchange loss → Debit expense account; (a) third-party costs → a contra line (not cash/employee); the payroll portion (b)/(c) → Credit 2101 Salary Payable, the cash remainder → Cash & Bank. The claim can be transferred to payroll right after this.")}
                 </p>
               )}

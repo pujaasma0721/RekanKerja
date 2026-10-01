@@ -102,7 +102,7 @@ export function PayrollParametersPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="mb-4 flex items-center justify-between rounded-xl border border-brand/25 bg-brand/10/60 p-3.5 dark:border-brand/30 dark:bg-brand/10">
+                  <div className="mb-4 flex items-center justify-between rounded-xl border border-brand/25 bg-brand/10 p-3.5 dark:border-brand/30 dark:bg-brand/10">
                     <div>
                       <p className="text-xs font-bold">{t("Gunakan Metode TER", "Use TER Method")}</p>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">{t("Tarif efektif bulanan (PP 58/2023) sebagai pengganti progresif annualized — khusus WNI ber-NPWP", "Monthly effective rate (PP 58/2023) replacing annualized progressive — for Indonesian citizens with NPWP")}</p>

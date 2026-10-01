@@ -270,7 +270,7 @@ export function PayrollRunDetailPage() {
 
       {/* 26-b P0 — banner warning UMP/UMK (amber, edukatif non-bloking) */}
       {run.status !== "Draft" && umkWarnings.length > 0 && (
-        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 shadow-sm dark:border-brand/25 dark:bg-brand/10">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10 shadow-sm dark:border-brand/25 dark:bg-brand/10">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -285,7 +285,7 @@ export function PayrollRunDetailPage() {
                       { n: String(umkWarnings.length) },
                     )}
                   </p>
-                  <p className="text-[11px] text-brand-deep/80 dark:text-brand/85/80">
+                  <p className="text-[11px] text-brand-deep/80 dark:text-brand/85">
                     {t("Warning edukatif — hitungan payroll tetap sah. Tinjau gaji pokok atau ubah penempatan sebelum konfirmasi.", "Educational warning — the payroll calculation remains valid. Review base salaries or placements before confirming.")}
                   </p>
                 </div>
@@ -299,20 +299,20 @@ export function PayrollRunDetailPage() {
               </Button>
             </div>
             {umkOpen && (
-              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-brand/25/70 bg-white/80 [scrollbar-width:thin] dark:border-brand/20 dark:bg-slate-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand/35 dark:[&::-webkit-scrollbar-thumb]:bg-brand/40">
+              <div className="mt-3 max-h-96 overflow-y-auto rounded-xl border border-brand/25 bg-white/80 [scrollbar-width:thin] dark:border-brand/20 dark:bg-slate-900/60 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand/35 dark:[&::-webkit-scrollbar-thumb]:bg-brand/40">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-brand/10/95 backdrop-blur dark:bg-slate-900/95">
+                  <TableHeader className="sticky top-0 z-10 bg-brand/10 backdrop-blur dark:bg-slate-900/95">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Karyawan")}</TableHead>
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Kantor", "Office")}</TableHead>
-                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Gaji Pokok", "Base Salary")}</TableHead>
-                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("UMP/UMK")}</TableHead>
-                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85/80">{t("Selisih", "Gap")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85">{t("Karyawan")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85">{t("Kantor", "Office")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85">{t("Gaji Pokok", "Base Salary")}</TableHead>
+                      <TableHead className="h-10 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85">{t("UMP/UMK")}</TableHead>
+                      <TableHead className="h-10 text-right text-[10.5px] font-bold uppercase tracking-wider text-brand-deep/80 dark:text-brand/85">{t("Selisih", "Gap")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {umkWarnings.map((w) => (
-                      <TableRow key={w.employeeNo} className="hover:bg-brand/10/60 dark:hover:bg-brand/5">
+                      <TableRow key={w.employeeNo} className="hover:bg-brand/10 dark:hover:bg-brand/5">
                         <TableCell>
                           <p className="text-[12.5px] font-bold text-slate-800 dark:text-slate-100">{w.employeeName}</p>
                           <p className="font-mono text-[10.5px] text-slate-400">{w.employeeNo}</p>
@@ -335,7 +335,7 @@ export function PayrollRunDetailPage() {
       )}
 
       {run.status === "Draft" && (
-        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 dark:border-brand/30 dark:bg-brand/10">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10 dark:border-brand/30 dark:bg-brand/10">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
             <Calculator className="h-5 w-5 text-brand dark:text-brand/85" />
             <p className="flex-1 text-[13px] font-semibold text-brand-deep dark:text-brand/75">
@@ -462,7 +462,7 @@ export function PayrollRunDetailPage() {
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-brand dark:text-brand/85">{t("Penghasilan & Iuran Perusahaan", "Earnings & Company Contributions")}</p>
               <div className="space-y-1.5">
                 {earnings.map((c) => (
-                  <div key={c.code} className="flex items-center justify-between rounded-xl bg-brand/10/50 px-3 py-1.5 dark:bg-brand/5">
+                  <div key={c.code} className="flex items-center justify-between rounded-xl bg-brand/10 px-3 py-1.5 dark:bg-brand/5">
                     <span className="text-xs font-semibold">{c.name}</span>
                     <span className="font-mono text-xs font-bold text-brand-deep dark:text-brand/85">{fmtIDR(c.total)}</span>
                   </div>
@@ -666,13 +666,13 @@ function PaySlipDialog({ line, onClose, context }: { line: RunLine | null; onClo
             </div>
           )}
 
-          <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10/60 p-3.5 dark:border-brand/30 dark:bg-brand/10">
+          <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10 p-3.5 dark:border-brand/30 dark:bg-brand/10">
             <SlipRow label={t("Total Bruto", "Total Gross")} value={fmtIDR(line.bruto)} strong />
             <SlipRow label={t("Total Potongan", "Total Deductions")} value={`- ${fmtIDR(line.deduction)}`} tone="text-rose-600 dark:text-rose-400" />
             {line.taxRegular + line.taxIrregular > 0 && (
               <SlipRow label={t("PPh21 (termasuk dalam potongan)", "PPh21 (included in deductions)")} value={fmtIDR(line.taxRegular + line.taxIrregular)} tone="text-brand dark:text-brand/85" />
             )}
-            <div className="mt-1 flex items-center justify-between border-t border-brand/40/50 pt-2 dark:border-brand/30">
+            <div className="mt-1 flex items-center justify-between border-t border-brand/40 pt-2 dark:border-brand/30">
               <span className="text-xs font-extrabold uppercase tracking-wide text-brand-deep dark:text-brand/75">{t("Take Home Pay")}</span>
               <span className="font-mono text-lg font-extrabold text-brand-deep dark:text-brand/75">{fmtIDR(line.net)}</span>
             </div>

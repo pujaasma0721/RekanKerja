@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja Attendance — Ringkasan: KPI hari ini + bulan berjalan + approval menunggu
-import { useApi, fmtIDRShort } from "@/rekankerja/shared/lib/api";
+import { useApi } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -191,7 +191,10 @@ export function AttendanceOverview() {
                 <FlowStep no="1" title={t("Setup Master", "Master Setup")} desc={t("Tipe hari, jadwal cycle, aturan toleransi & pembulatan", "Day types, cycle schedules, tolerance & rounding rules")} onClick={() => navigate("attendance", "templates-schedule")} />
                 <FlowStep no="2" title={t("Assign Jadwal")} desc={t("Penugasan jadwal per karyawan + anchor Senin", "Per-employee schedule assignment + Monday anchor")} onClick={() => navigate("attendance", "assignment-schedule")} />
                 <FlowStep no="3" title={t("Presensi Harian", "Daily Presence")} desc={t("Clock in/out, refresh rekap, koreksi manual", "Clock in/out, refresh recap, manual corrections")} onClick={() => navigate("attendance", "clocking")} />
-                <FlowStep no="4" title={t("Transfer Payroll", "Payroll Transfer")} desc={`${t("Rekap period → komponen LEMBUR/TLATE/TABS", "Period recap → LEMBUR/TLATE/TABS components")}${data ? t(" · estimasi {v}", " · est. {v}", { v: fmtIDRShort((month?.overtimeMinutes ?? 0) > 0 ? 0 : 0) }) : ""}`} onClick={() => navigate("attendance", "absence")} />
+                {/* Task 88: dulu menampilkan "estimasi Rp 0" permanen (ternary mati
+                    kedua cabang 0) — diganti jam lembur riil bulan ini, jujur
+                    dan bisa ditindaklanjuti tanpa asumsi tarif per jam. */}
+                <FlowStep no="4" title={t("Transfer Payroll", "Payroll Transfer")} desc={`${t("Rekap period → komponen LEMBUR/TLATE/TABS", "Period recap → LEMBUR/TLATE/TABS components")}${month ? t(" · {n} jam lembur bulan ini", " · {n} overtime hours this month", { n: Math.round(month.overtimeMinutes / 60) }) : ""}`} onClick={() => navigate("attendance", "absence")} />
               </div>
             </CardContent>
           </Card>
@@ -226,7 +229,7 @@ function CoverageAlert({ cov, onOpenClocking }: { cov: CoverageData; onOpenClock
   const warn = !good && pct >= 90;
   const Icon = good ? ShieldCheck : warn ? TriangleAlert : ShieldAlert;
   const box = good
-    ? "border-brand/25 bg-brand/10/70 dark:border-brand/25 dark:bg-brand/10"
+    ? "border-brand/25 bg-brand/10 dark:border-brand/25 dark:bg-brand/10"
     : warn
       ? "border-amber-200 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10"
       : "border-rose-200 bg-rose-50/70 dark:border-rose-500/25 dark:bg-rose-500/10";

@@ -258,7 +258,7 @@ function GlassField({
         className={cn(
           "relative flex items-center rounded-xl border bg-white/[0.04] backdrop-blur-md transition-all duration-300",
           focus
-            ? "border-brand/40/60 shadow-[0_0_0_4px_rgba(16,185,129,0.10),0_10px_26px_-14px_rgba(16,185,129,0.45)]"
+            ? "border-brand/40 shadow-[0_0_0_4px_rgba(16,185,129,0.10),0_10px_26px_-14px_rgba(16,185,129,0.45)]"
             : invalid
               ? "border-rose-500/60"
               : "border-white/10 hover:border-white/25",
@@ -485,18 +485,18 @@ function FloatPayroll() {
 
 function FloatApprovals() {
   const items: { icon: typeof Palmtree; label: string; tint: string }[] = [
-    { icon: Palmtree, label: "Cuti", tint: "text-brand/75 bg-brand/55/10" },
-    { icon: Plane, label: "Travel", tint: "text-brand/75 bg-brand/55/10" },
+    { icon: Palmtree, label: "Cuti", tint: "text-brand/75 bg-brand/55" },
+    { icon: Plane, label: "Travel", tint: "text-brand/75 bg-brand/55" },
     { icon: HeartPulse, label: "Medis", tint: "text-rose-300 bg-rose-400/10" },
   ];
   return (
     <FloatCard className="w-[212px]" delay={0.55} rotate={-2}>
       <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/55/15 text-brand/75">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/55 text-brand/75">
           <CalendarCheck2 className="h-4 w-4" />
         </span>
         <p className="text-[11px] font-bold text-slate-200">Menunggu persetujuan</p>
-        <span className="ml-auto rounded-full bg-brand/55/20 px-1.5 py-0.5 text-[10px] font-extrabold text-brand/75">3</span>
+        <span className="ml-auto rounded-full bg-brand/55 px-1.5 py-0.5 text-[10px] font-extrabold text-brand/75">3</span>
       </div>
       <div className="mt-3 flex items-center gap-1.5">
         {["SW", "BS", "AR"].map((n, i) => (
@@ -1031,7 +1031,7 @@ function ShowcaseLogin({ variant }: { variant: "desktop" | "mobile" }) {
       <div aria-hidden className="absolute inset-x-10 top-0 z-10 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
       <AnimatePresence>{sim.phase === "done" && <SuccessOverlay label={tt("done", lang)} />}</AnimatePresence>
       <div className="text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand/75/70">{tab === "login" ? "Masuk" : "Registrasi"}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand/75">{tab === "login" ? "Masuk" : "Registrasi"}</p>
         <h2 className="mt-2 text-[22px] font-bold tracking-tight text-slate-50">{tab === "login" ? tt("welcome", lang) : tt("buatTitle", lang)}</h2>
         <p className="mt-1 text-[12.5px] text-slate-400">{tab === "login" ? tt("welcomeDesc", lang) : tt("buatDesc", lang)}</p>
       </div>
@@ -1482,7 +1482,7 @@ function BrowserFrame({ children }: { children: ReactNode }) {
       <div className="flex items-center gap-2 border-b border-white/[0.07] bg-slate-900 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-brand/55/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-brand/55" />
         <div className="ml-3 flex-1 truncate rounded-md bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-slate-500">
           onevity.sayone.my.id · pratinjau desain halaman masuk
         </div>
@@ -1523,7 +1523,7 @@ export function AuthDesignLab() {
         {/* header */}
         <header className="flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/85/40">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/40">
               <Waypoints className="h-4 w-4 text-white" />
             </div>
             <div>

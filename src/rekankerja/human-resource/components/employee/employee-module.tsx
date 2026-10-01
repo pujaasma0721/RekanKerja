@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
@@ -804,6 +805,10 @@ function ListSection({ title, addLabel, items, renderAdd }: {
   const { t } = useI18n();
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Task 88: hapus kini via dialog konfirmasi (dulu satu klik langsung DELETE —
+  // menghapus anggota keluarga berdampak PTKP, pendidikan & pengalaman juga
+  // data historis penting; selaras dengan pola AlertDialog modul lain).
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
   return (
     <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
@@ -824,10 +829,10 @@ function ListSection({ title, addLabel, items, renderAdd }: {
             </div>
             {perms.can("hr", "directory", "delete") && (
               <button
-                onClick={async () => { setBusyId(it.id); try { await it.onDelete(); } catch (e) { toast.error((e as Error).message); } finally { setBusyId(null); } }}
+                onClick={() => setConfirmDel(it.id)}
                 disabled={busyId === it.id}
-                className="rounded-lg p-2 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-rose-500/10"
-                aria-label={t("Hapus")}
+                className="rounded-lg p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 focus:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-rose-500/10"
+                aria-label={t("Hapus {title}", "Delete {title}", { title: it.title })}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -838,6 +843,32 @@ function ListSection({ title, addLabel, items, renderAdd }: {
         )}
       </CardContent>
       {addOpen && renderAdd(() => setAddOpen(false))}
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(v) => { if (!v) setConfirmDel(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Hapus data ini?", "Delete this data?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("\"{title}\" akan dihapus permanen dari profil karyawan. Menghapus anggota keluarga dapat memengaruhi perhitungan PTKP tahun depan.", "\"{title}\" will be permanently removed from the employee profile. Removing a family member may affect next year's PTKP calculation.", { title: items.find((i) => i.id === confirmDel)?.title ?? "" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Batal")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={() => {
+                const target = items.find((i) => i.id === confirmDel);
+                setConfirmDel(null);
+                if (!target) return;
+                setBusyId(target.id);
+                void target.onDelete().catch((e: unknown) => toast.error((e as Error).message)).finally(() => setBusyId(null));
+              }}
+            >
+              {t("Hapus", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

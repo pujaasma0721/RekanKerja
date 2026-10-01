@@ -2817,3 +2817,25 @@ P1 TOP (dipilih untuk fix batch ini):
 TEMUAN POSITIF (dipertahankan): i18n disiplin tinggi di modul modern, Aturan Emas DialogContent sm:max-w-* 100% di 88-c/88-d, ESS mobile-first matang (safe-area, aria-current, splash→retry→403), whistleblowing sangat patuh UU 12/2022 (anonimitas Ps.23 eksplisit, non-blaming, nomor tiket), format Rupiah konsisten, busy-guard luas, dark mode konsisten, direktori karyawan a11y terbaik (button cards + filter count + server sort/pagination)
 
 RENCANA: fix P0 #1-2 + P1 quick-win #3,10,11,12,13 (+4 bila ringan) → verifikasi browser → push; sisanya jadi backlog terstruktur
+
+---
+Task ID: 88-fix
+Agent: main (Z.ai Code)
+Task: Perbaiki temuan prioritas audit 88 (2 P0 + 7 P1 quick-win) + verifikasi browser end-to-end
+
+Work Log:
+- P0-1 position edit: positions.ts GET kini mengirim jobId/gradeId/reportsToId mentah; PositionDialog prefill asosiasi saat edit (sebelumnya PATCH diam-diam null-kan relasi); VERIFIKASI: dialog Ubah Posisi "Accountant" menampilkan Job/Unit/Grade/Atasan terisi, Simpan → toast sukses, baris tabel tetap membawa asosiasi
+- P0-1b JobDialog: JobOpt + description, prefill saat edit (sebelumnya menimpa description jadi kosong)
+- P0-2 eSign chain: esign-view.tsx URL dibangun via useMemo dari chainOffset/chainQApplied/chainDocType → useApi refetch otomatis; tombol Cari + Enter reset offset; VERIFIKASI network: ?view=chain&limit=50&offset=0&q=Yusuf → 200
+- P1 topbar mobile: brand text hidden <sm, AccentSwitcher hidden <sm, gap-1.5 — VERIFIKASI 375px: scrollWidth=375 (dulu 433, overflow 58px)
+- P1 offline.html: tema ivory→biru SayOne (#2563eb/slate/Inter), link CTA kini class="retry" (dulu polos tanpa styling), subtitle diperbaiki
+- P1 banner PWA: amber-600 → bg-brand/bg-brand-deep (ikut aksen global); ikon + CTA + shadow
+- P1 semantik medical: ACTION_META.reject tone rose-600; tombol Tolak outline-rose (dulu biru identik Setujui); toast state → label ID via STATE_LABEL; medical-adjustment: ikon Setujui CheckCircle2 (dulu XCircle rotate-45), Tolak rose, ternary identik ×2 diperbaiki (amount negatif rose, tombol dialog reject rose); VERIFIKASI: tombol Tolak computed color rose, tanpa brand
+- P1 ternary attendance: FlowStep-4 "estimasi Rp 0" (ternary mati) → "N jam lembur bulan ini" (data jujur); VERIFIKASI UI menampilkan "0 jam lembur bulan ini"
+- P1 kelas invalid sweep: 33 file, semua brand/N/M dipangkas — dark:bg-brand/90/C → dark:bg-brand/C, lainnya ambil nilai pertama; pill ESS dashboard → bg-brand/30 text-white ring-white/25 (kaca biru terbaca di hero); VERIFIKASI rg "brand/N/M" = 0 hasil
+- P1 hapus ListSection (keluarga/pendidikan/pengalaman): kini AlertDialog konfirmasi + warning PTKP (dulu one-click DELETE); tambah focus-visible:opacity-100
+- Verifikasi lint: 0 error (2 warning pre-existing scripts/e2e); dev.log bersih; smoke test lintas modul via agent-browser (mobile+desktop)
+
+Stage Summary:
+- 9 temuan prioritas (2 P0 + 7 P1) diperbaiki & diverifikasi browser; 38 file berubah
+- Backlog tersisa dari rapor 88: i18n onboarding-checklist, window.confirm payroll (8 lokasi), error-state kosong di ±30 layar, focus-trap bottom sheet, kontras badge amber, widget sidebar era panel gelap, destructive confirm travel/settings/api — lihat 88-summary untuk daftar lengkap

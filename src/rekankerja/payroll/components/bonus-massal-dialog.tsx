@@ -481,7 +481,7 @@ export function BonusMassalDialog({
 
         {/* konfirmasi komit */}
         {confirming && (
-          <div className="rounded-xl border border-brand/40 bg-brand/10/80 p-4 dark:border-brand/40 dark:bg-brand/10">
+          <div className="rounded-xl border border-brand/40 bg-brand/10 p-4 dark:border-brand/40 dark:bg-brand/10">
             <p className="text-sm font-bold text-brand-deep dark:text-brand/75">
               {t("Komit bonus massal untuk {n} karyawan?", "Commit mass bonus for {n} employees?", { n: preview?.count ?? 0 })}
             </p>

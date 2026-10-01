@@ -261,7 +261,7 @@ export function LeaveEncashmentPage() {
               <Label className="text-xs font-bold">{t("Catatan")}</Label>
               <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder={t("Opsional", "Optional")} className="h-8 text-xs" />
             </div>
-            <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
+            <div className="flex items-start gap-2 rounded-lg bg-brand/10 p-2.5 text-[11px] leading-relaxed text-brand-deep dark:bg-brand/30 dark:text-brand/85">
               <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>{t("Estimasi upah = hari × gaji pokok ÷ 25. Setelah disetujui, saldo ", "Estimated wage = days × base salary ÷ 25. Once approved, the ")}<b>{t("e · diuangkan", "e · cashed out")}</b>{t(" bertambah dan siap ditransfer sebagai komponen ", " increases and is ready to be transferred as the ")}<b>UCT</b>{t(" ke payroll period.", " component to the payroll period.")}</p>
             </div>

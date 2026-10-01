@@ -83,7 +83,7 @@ const SAMPLE_EMPLOYEES = ["MII00001", "MII00002", "MII00003", "MII00004", "MII00
 type Phase = "idle" | "checking" | "preview" | "committing" | "done";
 
 const STATUS_META: Record<RowStatus, { id: string; en: string; icon: React.ElementType; cls: string; rowCls: string }> = {
-  ok: { id: "OK — baru", en: "OK — new", icon: CheckCircle2, cls: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85", rowCls: "bg-brand/10/40 dark:bg-brand/5" },
+  ok: { id: "OK — baru", en: "OK — new", icon: CheckCircle2, cls: "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85", rowCls: "bg-brand/10 dark:bg-brand/5" },
   duplicate: { id: "Duplikat", en: "Duplicate", icon: Copy, cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400", rowCls: "bg-amber-50/40 dark:bg-amber-500/5" },
   unknown: { id: "Tidak dikenal", en: "Unknown", icon: UserX, cls: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400", rowCls: "bg-orange-50/40 dark:bg-orange-500/5" },
   invalid: { id: "Tidak valid", en: "Invalid", icon: FileX2, cls: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400", rowCls: "bg-rose-50/40 dark:bg-rose-500/5" },
@@ -435,7 +435,7 @@ export function AttendanceMachineImportPage() {
       {/* ===== hasil komit ===== */}
       {phase === "done" && result && summary && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="rounded-2xl border-brand/25/80 shadow-sm dark:border-brand/25">
+          <Card className="rounded-2xl border-brand/25 shadow-sm dark:border-brand/25">
             <CardContent className="p-5">
               <div className={cn("flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-semibold", result.summary.ok > 0 ? "bg-brand/10 text-brand-deep dark:bg-brand/10 dark:text-brand/75" : "bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>
                 {result.summary.ok > 0 ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Copy className="mt-0.5 h-4 w-4 shrink-0" />}

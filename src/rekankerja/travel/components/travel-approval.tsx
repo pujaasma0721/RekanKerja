@@ -86,7 +86,7 @@ export function TravelApprovalPage() {
             <Inbox className="h-7 w-7 text-amber-600" />
           </CardContent>
         </Card>
-        <Card className="border-brand/25 bg-brand/10/60 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
+        <Card className="border-brand/25 bg-brand/10 shadow-sm dark:border-brand/70 dark:bg-brand/20">
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("Uang Muka Menunggu", "Pending Advances")}</p>
@@ -255,7 +255,7 @@ export function TravelApprovalPage() {
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder={t("Mis. Disetujui — sertakan laporan audit", "e.g. Approved — attach the audit report")} className="text-sm" />
               </div>
               {dialog.action === "approve" && (
-                <p className="rounded-lg bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/90/30 dark:text-brand/85">
+                <p className="rounded-lg bg-brand/10 px-3 py-2 text-xs leading-relaxed text-brand-deep dark:bg-brand/30 dark:text-brand/85">
                   {t("Setelah disetujui: karyawan berangkat → klaim settlement dibuat dari permintaan ini (jatuh tempo {due}).", "After approval: the employee departs → a settlement claim is created from this request (due {due}).", { due: dialog.request.settlementDue ? fmtDateID(dialog.request.settlementDue) : t("14 hari setelah kembali", "14 days after return") })}
                 </p>
               )}

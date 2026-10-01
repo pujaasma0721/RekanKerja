@@ -47,6 +47,10 @@ export async function GET(req: NextRequest) {
         directReportCount: p._count.directReports,
         employees: p.assignments.map((a) => a.employee),
         unitId: p.orgUnitId,
+        // Task 88 (P0): ID relasi mentah — dipakai dialog Ubah Posisi untuk
+        // PREFILL asosiasi saat ini; tanpa ini edit diam-diam mengirim null
+        // dan menghapus job/unit/grade/atasan posisi.
+        jobId: p.jobId, gradeId: p.gradeId, reportsToId: p.reportsToId,
       })),
       total: positions.length,
     });

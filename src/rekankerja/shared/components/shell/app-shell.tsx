@@ -872,15 +872,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ============ MAIN COLUMN ============ */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* topbar — gap/padding dirapatkan di layar sempit agar seluruh tombol
-              ikon (cari/brankas/notifikasi/bahasa/tema) muat tanpa overflow */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/80 bg-background/85 px-3 backdrop-blur-xl dark:border-slate-800/80 sm:gap-3 sm:px-6">
-            {/* brand mobile — di desktop identitas sudah dibawa rail+panel */}
+          {/* topbar — Task 88: gap/padding dirapatkan & kontrol disusun agar
+              TIDAK overflow horizontal di layar 320–375px (audit menemukan
+              tombol bahasa/tema terdorong keluar viewport 58px di iPhone SE). */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-1.5 border-b border-slate-200/80 bg-background/85 px-3 backdrop-blur-xl dark:border-slate-800/80 sm:gap-3 sm:px-6">
+            {/* brand mobile — di desktop identitas sudah dibawa rail+panel.
+                Task 88: nama app disembunyikan < sm agar kontrol topbar muat. */}
             <div className="flex items-center gap-2.5 lg:hidden">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow" style={{ background: grad(accent) }}>
                 <LogoMark className="h-4 w-4 text-white" />
               </div>
-              <div className="min-w-0">
+              <div className="hidden min-w-0 sm:block">
                 <p className="text-[13px] font-extrabold leading-none tracking-tight text-slate-900 dark:text-slate-50">
                   Rekan<span style={{ color: accent }}>Kerja</span>
                 </p>
@@ -932,8 +934,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {/* money vault — kata sandi enkripsi uang (Task 45-c) */}
             <MoneyVaultButton />
 
-            {/* tema warna — satu aksen untuk semua modul & halaman (Task 64f) */}
-            <AccentSwitcher />
+            {/* tema warna — satu aksen untuk semua modul & halaman (Task 64f).
+                Task 88: disembunyikan < sm agar topbar muat di layar sempit —
+                personalisasi warna tetap tersedia di tablet/desktop. */}
+            <AccentSwitcher className="hidden sm:flex" />
 
             {/* notifications — feed nyata per AppUser (T11-NOTIF) */}
             <NotificationBell />

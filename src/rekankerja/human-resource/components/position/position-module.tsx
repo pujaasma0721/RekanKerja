@@ -42,9 +42,13 @@ interface Position {
   directReportCount: number;
   employees: { id: string; fullName: string; employeeNo: string }[];
   unitId: string | null;
+  // Task 88 (P0): ID relasi mentah dari API — wajib untuk prefill dialog Ubah.
+  jobId: string | null;
+  gradeId: string | null;
+  reportsToId: string | null;
 }
 interface UnitOpt { id: string; name: string; level: number }
-interface JobOpt { id: string; code: string; title: string; category: string | null; active: boolean; positionCount: number }
+interface JobOpt { id: string; code: string; title: string; category: string | null; active: boolean; positionCount: number; description: string | null }
 interface GradeOpt { id: string; code: string; name: string; minSalary: number; maxSalary: number; employeeCount: number; positionCount: number; active: boolean }
 
 // ================= POSITION LIST =================
@@ -347,15 +351,18 @@ function PositionDialog({ open, setOpen, position, units, jobs, grades, position
   const [busy, setBusy] = useState(false);
 
   // sinkronkan form saat dialog dibuka (mode baru / mode ubah)
+  // Task 88 (P0): PREFILL asosiasi saat ini saat mode ubah — dulu selalu ""
+  // sehingga PATCH mengirim null dan MENGHAPUS job/unit/grade/atasan
+  // posisi tanpa sepengetahuan pengguna.
   useEffect(() => {
     if (!open) return;
     setCode(position?.code ?? "");
     setTitle(position?.title ?? "");
-    setJobId("");
-    setOrgUnitId("");
-    setGradeId("");
+    setJobId(position?.jobId ?? "");
+    setOrgUnitId(position?.unitId ?? "");
+    setGradeId(position?.gradeId ?? "");
     setHeadcount(String(position?.headcount ?? 1));
-    setReportsToId("");
+    setReportsToId(position?.reportsToId ?? "");
   }, [open, position]);
 
   const submit = async () => {
@@ -527,11 +534,12 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState("");
 
-  // sync when job changes
+  // sync when job changes — Task 88: prefill description dari data (dulu
+  // selalu "" sehingga PATCH menimpa deskripsi job menjadi kosong).
   const jobKey = job?.id ?? "new";
   if (key !== jobKey) {
     setKey(jobKey);
-    setCode(job?.code ?? ""); setTitle(job?.title ?? ""); setCategory(job?.category ?? "Staff"); setDescription("");
+    setCode(job?.code ?? ""); setTitle(job?.title ?? ""); setCategory(job?.category ?? "Staff"); setDescription(job?.description ?? "");
   }
 
   const submit = async () => {
@@ -552,7 +560,7 @@ function JobDialog({ open, setOpen, job }: { open: boolean; setOpen: (v: boolean
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle className="text-base">{job ? "Edit Job" : t("Job Baru", "New Job")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="text-base">{job ? t("Ubah Job", "Edit Job") : t("Job Baru", "New Job")}</DialogTitle></DialogHeader>
         <div className="space-y-3.5">
           {!job && (
             <div>

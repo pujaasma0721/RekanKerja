@@ -268,7 +268,7 @@ function TriagePage() {
                 </div>
 
                 {(selected.followUpNote || selected.resolutionNote) && (
-                  <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10/50 p-3 text-[11px] dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
+                  <div className="space-y-1 rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11px] dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
                     {selected.followUpNote && <p><b>{t("Catatan tindak lanjut:", "Follow-up note:")}</b> {selected.followUpNote}</p>}
                     {selected.resolutionNote && <p><b>{t("Hasil:", "Resolution:")}</b> {selected.resolutionNote}</p>}
                   </div>
@@ -343,7 +343,7 @@ function TriagePage() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-brand/25 bg-brand/10/60 p-3 text-[11px] text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
+                  <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11px] text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
                     {t("Laporan telah selesai ditangani/ditutup — dokumen hanya-baca.", "This report has been resolved/closed — read-only record.")}
                   </div>
                 )}

@@ -26,12 +26,20 @@ import { cn } from "@/lib/utils";
 
 type Action = "approve" | "reject" | "cancel" | "settle" | "return";
 
+// Task 88: semantik warna aksi — Tolak kini ROSE (dulu identik biru dengan
+// Setujui — pengguna tidak bisa membedakan aksi positif/negatif sekilas).
 const ACTION_META: Record<Action, { title: string; label: string; tone: string; icon: typeof CheckCircle2 }> = {
   approve: { title: "Setujui Klaim", label: "Setujui", tone: "bg-brand hover:bg-brand/70", icon: CheckCircle2 },
   settle: { title: "Settle Klaim", label: "Settle", tone: "bg-brand hover:bg-brand/70", icon: Landmark },
-  reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-brand hover:bg-brand/70", icon: XCircle },
+  reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-rose-600 hover:bg-rose-700", icon: XCircle },
   cancel: { title: "Batalkan Klaim", label: "Batalkan", tone: "bg-slate-600 hover:bg-slate-700", icon: Ban },
   return: { title: "Kembalikan ke Pemohon", label: "Kembalikan", tone: "bg-amber-600 hover:bg-amber-700", icon: History },
+};
+
+// Task 88: label state ramah utk toast (dulu menampilkan enum mentah "MC-… → Approved").
+const STATE_LABEL: Record<string, string> = {
+  Draft: "Draft", Submitted: "Menunggu", Approved: "Disetujui",
+  Settled: "Settled", Rejected: "Ditolak", Returned: "Dikembalikan", Cancelled: "Dibatalkan",
 };
 
 // peta EN paralel — render: t(META[a].title, ACTION_META_EN[a].title)
@@ -97,7 +105,7 @@ export function MedicalApprovalPage() {
           + (res.journalNo ? " · " + t("jurnal {n} ({m} baris)", "journal {n} ({m} rows)", { n: res.journalNo, m: res.journalLines }) : ""),
         );
       } else {
-        toast.success(`${res.docNo} → ${res.state}`);
+        toast.success(t("{d} → {s}", "{d} → {s}", { d: res.docNo, s: t(STATE_LABEL[res.state] ?? res.state, res.state) }));
       }
       setDialog(false);
       api.refresh();
@@ -191,7 +199,7 @@ export function MedicalApprovalPage() {
               className={cn(
                 "flex flex-wrap items-center gap-3 rounded-xl border p-3",
                 c.state === "Approved"
-                  ? "border-brand/25 bg-brand/10/50 dark:border-brand/70 dark:bg-brand/90/20"
+                  ? "border-brand/25 bg-brand/10 dark:border-brand/70 dark:bg-brand/20"
                   : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
               )}
             >
@@ -210,7 +218,7 @@ export function MedicalApprovalPage() {
                   {c.fullName} · {c.typeName} · {fmtDateID(c.claimDate)}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {t("tagihan", "bill")} {fmtIDR(c.totalBill)} → approved <span className="font-semibold text-slate-700 dark:text-slate-300">{fmtIDR(c.totalApproved)}</span>
+                  {t("tagihan", "bill")}{" "}{fmtIDR(c.totalBill)} → {t("disetujui", "approved")} <span className="font-semibold text-slate-700 dark:text-slate-300">{fmtIDR(c.totalApproved)}</span>
                   {t(" · snapshot sisa saat ajukan: ", " · remaining snapshot at submission: ")}{fmtIDR(Math.max(0, c.maxBenefitAt - c.usedAt))}
                 </p>
                 {c.approval?.status === "InProgress" && (
@@ -230,7 +238,7 @@ export function MedicalApprovalPage() {
                         <Button size="sm" variant="outline" onClick={() => openDialog("return", c)} className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400">
                           <History className="mr-1 h-3.5 w-3.5" /> {t("Kembalikan", "Return")}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-brand/40 text-brand-deep hover:bg-brand/10 dark:border-brand/70 dark:text-brand/85">
+                        <Button size="sm" variant="outline" onClick={() => openDialog("reject", c)} className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-500/10">
                           <XCircle className="mr-1 h-3.5 w-3.5" /> {t("Tolak", "Reject")}
                         </Button>
                       </>
@@ -301,7 +309,7 @@ export function MedicalApprovalPage() {
                 </p>
               )}
               {action === "settle" && (
-                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/90/30 dark:text-brand/75">
+                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/30 dark:text-brand/75">
                   {t("Settle akan: (1) membuat jurnal otomatis Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas, (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal Debit 5106 Medical Welfare Expense / Credit 1101 Cash, (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
                 </p>
               )}

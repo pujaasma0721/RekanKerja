@@ -748,7 +748,7 @@ function ActionDetail() {
                 <ActionButton icon={Undo2} label={t("Kembalikan ke Draft", "Return to Draft")} tone="stone" onClick={() => setConfirmAct("return")} desc={t("Reset semua layer & status menjadi Draft", "Reset all layers & status to Draft")} />
               )}
               {a.status === "Processed" && (
-                <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
+                <div className="rounded-xl border border-brand/25 bg-brand/10 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
                   <CheckCircle2 className="mx-auto h-8 w-8 text-brand dark:text-brand/85" />
                   <p className="mt-1.5 text-sm font-bold text-brand-deep dark:text-brand/75">{t("Dokumen Selesai", "Document Completed")}</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">{t("Efek sudah diterapkan {date}", "Effects applied on {date}", { date: fmtDate(a.processedAt) })}</p>

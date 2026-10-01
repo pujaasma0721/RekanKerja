@@ -518,7 +518,7 @@ function SyncPtkpDialog({ open, onClose }: { open: boolean; onClose: () => void 
             {preview.preservedKi.length > 0 && (
               <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11px] dark:border-brand/30 dark:bg-brand/10">
                 <p className="font-bold text-brand-deep dark:text-brand/85">{t("K/I dibiarkan manual ({n} karyawan)", "K/I kept manual ({n} employees)", { n: preview.preservedKi.length })}</p>
-                <p className="mt-0.5 text-brand-deep/80 dark:text-brand/85/80">
+                <p className="mt-0.5 text-brand-deep/80 dark:text-brand/85">
                   {t("Status K/I (penghasilan pasangan digabung) tidak dapat diturunkan dari data keluarga — diatur manual per karyawan.", "K/I status (spouse income combined) cannot be derived from family data — set manually per employee.")}
                 </p>
               </div>
@@ -683,7 +683,7 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
           </div>
           {ptkpSource === "auto" ? (
             <div className="grid gap-2">
-              <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-3 dark:border-brand/30 dark:bg-brand/10">
+              <div className="rounded-xl border border-brand/25 bg-brand/10 p-3 dark:border-brand/30 dark:bg-brand/10">
                 <p className="text-[11px] font-bold text-brand-deep dark:text-brand/85">{t("PTKP efektif — dipakai payroll tahun ini", "Effective PTKP — used by this year's payroll")}</p>
                 <p className="mt-1 text-[13px] font-bold ov-text-accent">
                   {t("Status: {s}", "Status: {s}", { s: frozenStatus })} — {fmtIDR(frozenPtkp?.ptkp ?? 0)}/{t("thn", "yr")}
@@ -697,7 +697,7 @@ function ProfileDialog({ row, onClose }: { row: ProfileRow | null; onClose: () =
                     )}
                   </p>
                 ) : (
-                  <p className="mt-1.5 text-[10px] leading-snug text-brand-deep/80 dark:text-brand/85/80">
+                  <p className="mt-1.5 text-[10px] leading-snug text-brand-deep/80 dark:text-brand/85">
                     {t(
                       "Sesuai data keluarga (pasangan {spouse}, tanggungan {n}) — tidak ada perubahan tertunda.",
                       "Matches family data (spouse {spouse}, dependents {n}) — no pending changes.",

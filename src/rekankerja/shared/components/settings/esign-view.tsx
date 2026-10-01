@@ -10,7 +10,7 @@
 //     Manipulasi historis = link rantai putus → badge merah per record + banner.
 // Guard server: menu settings:esign (view) + op:reset-pin / op:revoke.
 // ============================================================================
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -80,10 +80,21 @@ export function EsignAdminView() {
   const { t } = useI18n();
   const perms = useMenuPerms();
   const keysApi = useApi<KeysResp>("/api/rekankerja/esign-admin");
-  const chainApi = useApi<ChainResp>(`/api/rekankerja/esign-admin?view=chain&limit=${PAGE}`);
+  // Task 88 (P0): URL chain kini MEMASUKKAN offset/q/docType — dulu statis
+  // (?view=chain&limit=50) sehingga tombol prev/next dan pencarian tidak
+  // pernah memengaruhi data yang dimuat (fitur kepatuhan mati).
   const [chainOffset, setChainOffset] = useState(0);
   const [chainQ, setChainQ] = useState("");
+  const [chainQApplied, setChainQApplied] = useState("");
   const [chainDocType, setChainDocType] = useState("");
+  const chainUrl = useMemo(() => {
+    const p = new URLSearchParams({ view: "chain", limit: String(PAGE), offset: String(chainOffset) });
+    const q = chainQApplied.trim();
+    if (q) p.set("q", q);
+    if (chainDocType) p.set("docType", chainDocType);
+    return `/api/rekankerja/esign-admin?${p.toString()}`;
+  }, [chainOffset, chainQApplied, chainDocType]);
+  const chainApi = useApi<ChainResp>(chainUrl);
   const [confirm, setConfirm] = useState<{ kind: "reset-pin" | "revoke-key"; row: KeyRow } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -91,6 +102,8 @@ export function EsignAdminView() {
   const canRevoke = perms.canOp("settings", "esign", "revoke");
 
   const reloadAll = () => { keysApi.refresh(); chainApi.refresh(); };
+
+  const applySearch = () => { setChainOffset(0); setChainQApplied(chainQ.trim()); };
 
   const doAction = async () => {
     if (!confirm) return;
@@ -110,8 +123,7 @@ export function EsignAdminView() {
   const chain = chainApi.data;
   const chainPage = (delta: number) => {
     const next = Math.max(0, (chain?.offset ?? 0) + delta * PAGE);
-    setChainOffset(next);
-    chainApi.refresh();
+    setChainOffset(next); // perubahan URL memicu refetch otomatis via useApi
   };
 
   return (
@@ -212,9 +224,15 @@ export function EsignAdminView() {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={chainQ} onChange={(e) => { setChainQ(e.target.value); }} placeholder={t("Cari no. dokumen / penandatangan…", "Search doc ref / signer…")} className="w-64 pl-9" />
+              <Input
+                value={chainQ}
+                onChange={(e) => { setChainQ(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === "Enter") applySearch(); }}
+                placeholder={t("Cari no. dokumen / penandatangan…", "Search doc ref / signer…")}
+                className="w-64 pl-9"
+              />
             </div>
-            <Button variant="outline" className="h-9" onClick={() => { setChainOffset(0); reloadAll(); }}>
+            <Button variant="outline" className="h-9" onClick={applySearch}>
               {t("Cari", "Search")}
             </Button>
             <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">

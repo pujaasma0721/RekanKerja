@@ -74,7 +74,7 @@ export function WhistleblowForm({ compact = false }: { compact?: boolean }) {
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-brand/25 bg-brand/10/70 p-5 dark:border-brand/30 dark:bg-brand/10">
+      <div className="rounded-2xl border border-brand/25 bg-brand/10 p-5 dark:border-brand/30 dark:bg-brand/10">
         <div className="flex items-start gap-3">
           <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand dark:text-brand/85" aria-hidden />
           <div className="space-y-1">

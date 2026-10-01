@@ -145,7 +145,7 @@ export function PwaRegister() {
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
             <div className="flex items-start gap-3 pr-8">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-lg shadow-amber-900/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-lg shadow-blue-900/30">
                 <Waypoints className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
@@ -162,7 +162,7 @@ export function PwaRegister() {
               <button
                 type="button"
                 onClick={install}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white transition-colors hover:bg-amber-500 active:scale-[0.98]"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-bold text-white transition-colors hover:bg-brand-deep active:scale-[0.98]"
               >
                 <Download className="h-3.5 w-3.5" aria-hidden />
                 {t("Instal Aplikasi", "Install App")}

@@ -389,7 +389,7 @@ function WorkflowBar({
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-2xl border p-4 shadow-sm sm:p-5",
         pa.status === "Submitted" ? "border-amber-300/70 bg-gradient-to-r from-amber-50/80 to-slate-50/50 dark:border-amber-500/30 dark:from-amber-500/[0.07] dark:to-slate-900/40"
-        : pa.status === "Approved" ? "border-brand/40/70 bg-gradient-to-r from-brand/20/80 to-slate-50/50 dark:border-brand/30 dark:from-brand/[0.07] dark:to-slate-900/40"
+        : pa.status === "Approved" ? "border-brand/40 bg-gradient-to-r from-brand/20 to-slate-50/50 dark:border-brand/30 dark:from-brand/[0.07] dark:to-slate-900/40"
         : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/60"
       )}
       aria-label={t("Aksi dokumen", "Document actions")}

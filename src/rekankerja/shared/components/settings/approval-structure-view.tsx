@@ -342,7 +342,7 @@ function StructureCard({ s, onEdit, onDelete }: { s: Structure; onEdit: () => vo
               <div className={cn(
                 "flex max-w-64 flex-col gap-0.5 rounded-xl border px-3 py-2",
                 l.minAmount != null || l.maxAmount != null
-                  ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
+                  ? "border-brand/25 bg-brand/10 dark:border-brand/70 dark:bg-brand/40"
                   : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60",
               )}>
                 <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Jenjang {n}", "Tier {n}", { n: l.levelNo })}</span>
@@ -776,7 +776,7 @@ function SimulateDialog({ employees, onClose }: { employees: { id: string; fullN
                 <div key={i} className={cn(
                   "flex items-center gap-3 rounded-xl border px-3 py-2",
                   st.minAmount != null || st.maxAmount != null
-                    ? "border-brand/25 bg-brand/10/60 dark:border-brand/70 dark:bg-brand/90/40"
+                    ? "border-brand/25 bg-brand/10 dark:border-brand/70 dark:bg-brand/40"
                     : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60",
                 )}>
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-[11px] font-bold text-white dark:bg-slate-200 dark:text-slate-900">{st.levelNo}</span>

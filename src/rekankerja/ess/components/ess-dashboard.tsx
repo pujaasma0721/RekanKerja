@@ -209,7 +209,9 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 </div>
                 <span className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold ring-1",
-                  doneForToday ? "bg-brand/55/20 text-brand/75 ring-brand/40/30"
+                  // Task 88: kaca biru + teks putih agar terbaca di hero gradient
+                  // biru (dulu bg-brand/55/20 — kelas invalid, tak pernah render).
+                  doneForToday ? "bg-brand/30 text-white ring-white/25"
                   : clocked ? "bg-white/15 text-white ring-white/25"
                   : "bg-white/15 text-white/90 ring-white/25",
                 )}>

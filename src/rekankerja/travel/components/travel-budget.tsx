@@ -114,7 +114,7 @@ export function TravelBudgetPage() {
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Total Budget</p>
                       <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(b.totalBudget)}</p>
                     </div>
-                    <div className={cn("rounded-lg py-2", over ? "bg-rose-50 dark:bg-rose-950/30" : "bg-brand/10 dark:bg-brand/90/30")}>
+                    <div className={cn("rounded-lg py-2", over ? "bg-rose-50 dark:bg-rose-950/30" : "bg-brand/10 dark:bg-brand/30")}>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("Terpakai", "Used")}</p>
                       <p className={cn("text-sm font-black", over ? "text-rose-700 dark:text-rose-400" : "text-brand-deep dark:text-brand/85")}>{fmtIDRShort(b.used)}</p>
                     </div>
@@ -139,7 +139,7 @@ export function TravelBudgetPage() {
                     </p>
                   )}
                   {!over && b.totalBudget > 0 && b.claimCount > 0 && (
-                    <p className="flex items-center gap-1.5 rounded-lg bg-brand/10 px-3 py-2 text-xs font-semibold text-brand-deep dark:bg-brand/90/40 dark:text-brand/85">
+                    <p className="flex items-center gap-1.5 rounded-lg bg-brand/10 px-3 py-2 text-xs font-semibold text-brand-deep dark:bg-brand/40 dark:text-brand/85">
                       <CheckCircle2 className="h-3.5 w-3.5" /> {t("Pemakaian masih dalam budget", "Usage is still within budget")}
                     </p>
                   )}

@@ -910,7 +910,7 @@ export function MenuDesignLab() {
         {/* header */}
         <header className="flex items-center justify-between gap-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/85/40">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand/60 to-brand shadow-lg shadow-brand/40">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="5" r="2.6" /><circle cx="5" cy="17" r="2.6" /><circle cx="19" cy="17" r="2.6" />
                 <path d="M12 7.6 6.6 14.6M12 7.6l5.4 7M7.6 17h8.8" />

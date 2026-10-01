@@ -276,7 +276,7 @@ function LoanCard({ loan, onChanged }: { loan: LoanRow; onChanged: () => void })
       </button>
 
       {expanded && loan.status === "Submitted" && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand/25 bg-brand/10/60 p-3 dark:border-brand/25 dark:bg-brand/5">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand/25 bg-brand/10 p-3 dark:border-brand/25 dark:bg-brand/5">
           <p className="min-w-40 flex-1 text-[11px] leading-relaxed text-brand-deep dark:text-brand/85">
             {t("Pengajuan menunggu persetujuan", "Request awaiting approval")}{loan.approval?.status === "InProgress" ? t(" berjenjang (jenjang {l}/{n})", " tiered (level {l}/{n})", { l: loan.approval.currentLevel, n: loan.approval.totalLevels }) : ""}{t(" — skedul cicilan dibuat otomatis setelah seluruh jenjang disetujui.", " — the installment schedule is created automatically after every level approves.")}
           </p>

@@ -276,7 +276,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                       {report.rows.slice(0, MAX_PREVIEW_ROWS).map((r) => {
                         const invalid = r.errors.length > 0;
                         return (
-                          <tr key={r.row} className={cn("border-t border-slate-100 dark:border-slate-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-brand/10/50 dark:bg-brand/5")}>
+                          <tr key={r.row} className={cn("border-t border-slate-100 dark:border-slate-800", invalid ? "bg-rose-50/60 dark:bg-rose-500/5" : "bg-brand/10 dark:bg-brand/5")}>
                             <td className="px-3 py-1.5 tabular-nums text-slate-500">{r.row}</td>
                             <td className="px-3 py-1.5 font-mono text-[11.5px]">{r.nik || "—"}</td>
                             <td className="max-w-40 truncate px-3 py-1.5 font-medium">{r.fullName || "—"}</td>

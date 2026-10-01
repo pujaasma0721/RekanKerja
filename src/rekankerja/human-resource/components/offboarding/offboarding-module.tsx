@@ -527,7 +527,7 @@ function OffboardingDetail({ id }: { id: string }) {
         </Card>
       )}
       {ob.status === "Completed" && (
-        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10/70 shadow-sm dark:border-brand/25 dark:bg-brand/5">
+        <Card className="mb-4 rounded-2xl border-brand/25 bg-brand/10 shadow-sm dark:border-brand/25 dark:bg-brand/5">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
             <CheckCircle2 className="h-5 w-5 shrink-0 text-brand dark:text-brand/85" />
             <p className="flex-1 text-[13px] font-bold text-brand-deep dark:text-brand/75">
@@ -572,7 +572,7 @@ function OffboardingDetail({ id }: { id: string }) {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
-                    task.status === "Done" ? "border-brand/25 bg-brand/10/50 dark:border-brand/25 dark:bg-brand/5" :
+                    task.status === "Done" ? "border-brand/25 bg-brand/10 dark:border-brand/25 dark:bg-brand/5" :
                     task.status === "Na" ? "border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40" :
                     "border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900",
                   )}
@@ -696,7 +696,7 @@ function OffboardingDetail({ id }: { id: string }) {
             </CardHeader>
             <CardContent className="space-y-1.5 pt-0">
               {(ob.outstandingAssets?.length ?? 0) === 0 ? (
-                <div className="flex items-center gap-2.5 rounded-xl border border-brand/25 bg-brand/10/70 p-3.5 dark:border-brand/25 dark:bg-brand/5">
+                <div className="flex items-center gap-2.5 rounded-xl border border-brand/25 bg-brand/10 p-3.5 dark:border-brand/25 dark:bg-brand/5">
                   <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-brand dark:text-brand/85" aria-hidden />
                   <p className="text-[12px] font-bold text-brand-deep dark:text-brand/75">
                     {t("Tidak ada aset tertunda — clearance aset tuntas", "No pending assets — asset clearance is clear")}
@@ -864,7 +864,7 @@ function OffboardingDetail({ id }: { id: string }) {
               )}
 
               {ob.status === "Completed" && (
-                <div className="rounded-xl border border-brand/25 bg-brand/10/70 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
+                <div className="rounded-xl border border-brand/25 bg-brand/10 p-4 text-center dark:border-brand/25 dark:bg-brand/5">
                   <CheckCircle2 className="mx-auto h-7 w-7 text-brand dark:text-brand/85" />
                   <p className="mt-1 text-[13px] font-bold text-brand-deep dark:text-brand/75">{t("Proses Selesai", "Process Completed")}</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">{t("Ditutup {date}", "Closed {date}", { date: fmtDateTime(ob.completedAt) })}</p>

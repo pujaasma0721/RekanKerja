@@ -115,7 +115,7 @@ export function TravelReportsPage() {
               <p className="text-[11px] text-slate-500">{t("rincian bruto — settlement = rincian + rugi kurs − (a)", "gross expenses — settlement = expenses + exchange loss − (a)")}</p>
             </CardContent>
           </Card>
-          <Card className="border-brand/25 bg-brand/10/50 shadow-sm dark:border-brand/70 dark:bg-brand/90/20">
+          <Card className="border-brand/25 bg-brand/10 shadow-sm dark:border-brand/70 dark:bg-brand/20">
             <CardContent className="p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-deep dark:text-brand/85">{t("(b) Dibayar Karyawan", "(b) Paid to Employee")}</p>
               <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.payableEmployee)}</p>

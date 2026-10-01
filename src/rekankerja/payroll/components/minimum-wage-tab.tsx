@@ -104,7 +104,7 @@ export function MinimumWageTab() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-brand/25 bg-brand/10/60 p-3 text-[11.5px] leading-relaxed text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
+        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-brand/25 bg-brand/10 p-3 text-[11.5px] leading-relaxed text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/75">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           <p>
             {t(

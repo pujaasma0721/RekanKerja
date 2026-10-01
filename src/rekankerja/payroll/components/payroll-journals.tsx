@@ -88,7 +88,7 @@ export function PayrollJournalsPage() {
         <div className="space-y-4">
           {/* Backfill */}
           {missing.length > 0 && (
-            <Card className="rounded-2xl border-brand/25 bg-brand/10/60 shadow-sm dark:border-brand/30 dark:bg-brand/5">
+            <Card className="rounded-2xl border-brand/25 bg-brand/10 shadow-sm dark:border-brand/30 dark:bg-brand/5">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-brand" />
@@ -102,7 +102,7 @@ export function PayrollJournalsPage() {
                       key={r.id}
                       onClick={() => generate(r)}
                       disabled={busyId === r.id}
-                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-brand/40 bg-white px-3 text-[11px] font-bold text-brand-deep transition hover:border-brand/40 hover:bg-brand/15/60 disabled:opacity-50 dark:border-brand/40 dark:bg-slate-900 dark:text-brand/75"
+                      className="inline-flex h-8 items-center gap-2 rounded-xl border border-brand/40 bg-white px-3 text-[11px] font-bold text-brand-deep transition hover:border-brand/40 hover:bg-brand/15 disabled:opacity-50 dark:border-brand/40 dark:bg-slate-900 dark:text-brand/75"
                     >
                       <BookOpen className="h-3 w-3" />
                       {busyId === r.id ? t("Memposting…", "Posting…") : t("Post {no}", "Post {no}", { no: r.runNo })}

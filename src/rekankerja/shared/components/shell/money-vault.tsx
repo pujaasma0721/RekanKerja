@@ -515,7 +515,7 @@ export function MoneyVaultButton() {
                     </AlertDescription>
                   </Alert>
                 ) : st.open ? (
-                  <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                  <Alert className="border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
                     <LockKeyholeOpen className="text-brand dark:text-brand/85" aria-hidden />
                     <AlertTitle>{t("Brankas uang TERBUKA", "Money vault OPEN")}</AlertTitle>
                     <AlertDescription className="text-brand-deep dark:text-brand/85">
@@ -640,7 +640,7 @@ export function MoneyVaultButton() {
                       onSubmit={(e) => { e.preventDefault(); void submitSetup(); }}
                     >
                       <p className="text-xs font-bold">{t("Atur Kata Sandi Enkripsi", "Set Encryption Password")}</p>
-                      <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                      <Alert className="border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
                         <KeyRound className="text-brand dark:text-brand/85" aria-hidden />
                         <AlertDescription>
                           {t(
@@ -667,7 +667,7 @@ export function MoneyVaultButton() {
                   </>
                 ) : (
                   <>
-                    <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                    <Alert className="border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
                       <KeyRound className="text-brand dark:text-brand/85" aria-hidden />
                       <AlertDescription>
                         {t(
@@ -722,7 +722,7 @@ export function MoneyVaultButton() {
                   </>
                 ) : (
                   <>
-                    <Alert className="border-brand/25 bg-brand/10/70 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
+                    <Alert className="border-brand/25 bg-brand/10 text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/75">
                       <Users className="text-brand dark:text-brand/85" aria-hidden />
                       <AlertTitle>{t("Bagikan hak lihat uang", "Share money view rights")}</AlertTitle>
                       <AlertDescription>

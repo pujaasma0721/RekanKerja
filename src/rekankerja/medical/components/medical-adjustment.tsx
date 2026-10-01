@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   AdjustmentUI, BenefitTypeUI, EmployeeOption, fmtIDR, fmtDateID, todayISO,
 } from "./medical-types";
-import { Activity, Plus, XCircle, Ban, TrendingUp } from "lucide-react";
+import { Activity, Plus, XCircle, Ban, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -207,7 +207,8 @@ export function MedicalAdjustmentPage() {
                           {a.forDependent ? "Dependent" : t("Karyawan")}
                         </span>
                       </TableCell>
-                      <TableCell className={cn("text-right font-bold", a.amount > 0 ? "text-brand dark:text-brand/85" : "text-brand dark:text-brand/85")}>
+                      {/* Task 88: penyesuaian negatif kini rose, positif tetap biru (dulu kedua cabang identik). */}
+                      <TableCell className={cn("text-right font-bold", a.amount > 0 ? "text-brand dark:text-brand/85" : "text-rose-600 dark:text-rose-400")}>
                         {a.amount > 0 ? "+" : ""}{fmtIDR(a.amount)}
                       </TableCell>
                       <TableCell className="text-sm">{fmtDateID(a.adjustmentDate)}</TableCell>
@@ -215,11 +216,12 @@ export function MedicalAdjustmentPage() {
                       <TableCell>
                         {a.state === "Submitted" && (
                           <div className="flex gap-1">
+                            {/* Task 88: ikon Setujui kini CheckCircle2 (dulu XCircle diputar 45° — terlihat seperti aksi tolak). */}
                             <Button size="sm" className="h-7 bg-brand hover:bg-brand/70" onClick={() => { setDecideDialog({ adj: a, action: "approve" }); setReason(""); }}>
-                              <XCircle className="mr-0.5 h-3 w-3 rotate-45" /> {t("Setujui", "Approve")}
+                              <CheckCircle2 className="mr-0.5 h-3 w-3" /> {t("Setujui", "Approve")}
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7" onClick={() => { setDecideDialog({ adj: a, action: "reject" }); setReason(""); }}>
-                              {t("Tolak", "Reject")}
+                            <Button size="sm" variant="outline" className="h-7 border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-500/10" onClick={() => { setDecideDialog({ adj: a, action: "reject" }); setReason(""); }}>
+                              <XCircle className="mr-0.5 h-3 w-3" /> {t("Tolak", "Reject")}
                             </Button>
                           </div>
                         )}
@@ -298,7 +300,7 @@ export function MedicalAdjustmentPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {decideDialog?.action === "approve" ? <XCircle className="h-5 w-5 rotate-45 text-brand" /> : <Ban className="h-5 w-5 text-brand" />}
+              {decideDialog?.action === "approve" ? <CheckCircle2 className="h-5 w-5 text-brand" /> : <Ban className="h-5 w-5 text-rose-500" />}
               {decideDialog?.action === "approve" ? t("Setujui Penyesuaian", "Approve Adjustment") : t("Tolak Penyesuaian", "Reject Adjustment")}
             </DialogTitle>
           </DialogHeader>
@@ -315,7 +317,7 @@ export function MedicalAdjustmentPage() {
                 {decideDialog.adj.note && <p className="text-xs text-slate-500">{decideDialog.adj.note}</p>}
               </div>
               {decideDialog.action === "approve" && (
-                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs text-brand-deep dark:border-brand/70 dark:bg-brand/90/30 dark:text-brand/75">
+                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs text-brand-deep dark:border-brand/70 dark:bg-brand/30 dark:text-brand/75">
                   {t("Approve akan langsung mengubah saldo:", "Approve will immediately change the balance:")} {decideDialog.adj.forDependent ? "depAdjustment" : "adjustmentAmount"} {decideDialog.adj.amount > 0 ? t("bertambah", "increases") : t("berkurang", "decreases")} {fmtIDR(Math.abs(decideDialog.adj.amount))}.
                 </p>
               )}
@@ -327,7 +329,7 @@ export function MedicalAdjustmentPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDecideDialog(null)}>{t("Batal")}</Button>
-            <Button onClick={decide} disabled={busy} className={decideDialog?.action === "approve" ? "bg-brand hover:bg-brand/70" : "bg-brand hover:bg-brand/70"}>
+            <Button onClick={decide} disabled={busy} className={decideDialog?.action === "approve" ? "bg-brand hover:bg-brand/70" : "bg-rose-600 hover:bg-rose-700"}>
               {busy ? t("Memproses…", "Processing…") : decideDialog?.action === "approve" ? t("Setujui", "Approve") : t("Tolak", "Reject")}
             </Button>
           </DialogFooter>
