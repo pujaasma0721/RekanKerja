@@ -36,6 +36,8 @@ export interface BalanceUI {
 export interface ClaimLineUI {
   treatedName: string; treatment: string | null; treatmentDate: string | null;
   receiptNo: string | null; physician: string | null; hospital: string | null;
+  /** W1-6 — relasi master MedicalProvider (null = klaim lama tanpa relasi). */
+  providerId?: string | null;
   occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
   approvedAmount: number; nonReAmount: number; note: string | null;
 }
@@ -83,6 +85,13 @@ export interface ClaimPreviewUI {
   remainingForClaim?: number;
   pendingReserved?: number;
   poolNote?: string | null;
+  // ---- tambahan Wave 1 (additive, opsional) ----
+  /** W1-1 — jenis UNLIMITED: tampil "∞" & guard plafon dilewati. */
+  unlimited?: boolean;
+  /** W1-3 — rencana split company/asuransi (estimasi UI). */
+  insurancePlan?: { pctCompany: number; pctInsurance: number; insuranceCompany: string | null };
+  /** W1-8 — faktor prorata masa kerja (null/undefined = penuh). */
+  prorateFactor?: number | null;
 }
 
 export interface AdjustmentUI {
@@ -136,6 +145,7 @@ export const FREQ_PERIOD_LABEL: Record<string, string> = {
   MEDICAL: "period medis",
   WORK: "masa kerja",
   YEAR: "tahun",
+  EVERY_X_YEARS: "setiap X tahun",
 };
 
 // ---- peta label EN (paralel — render: t(MAP[k], MAP_EN[k])) ----
@@ -172,6 +182,7 @@ export const FREQ_PERIOD_LABEL_EN: Record<string, string> = {
   MEDICAL: "medical period",
   WORK: "length of service",
   YEAR: "year",
+  EVERY_X_YEARS: "every X years",
 };
 
 // ---- formatters ikut bahasa aktif (state i18n-core tersinkron dgn useI18n) ----

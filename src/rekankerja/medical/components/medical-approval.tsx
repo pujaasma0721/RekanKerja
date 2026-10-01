@@ -19,12 +19,12 @@ import {
   fmtIDR, fmtIDRShort, fmtDateID,
 } from "./medical-types";
 import {
-  CheckCircle2, XCircle, Ban, Landmark, Wallet, FileText, Inbox, History,
+  CheckCircle2, XCircle, Ban, Landmark, Wallet, FileText, Inbox, History, Undo2,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
-type Action = "approve" | "reject" | "cancel" | "settle" | "return";
+type Action = "approve" | "reject" | "cancel" | "settle" | "return" | "storno";
 
 // Task 88: semantik warna aksi — Tolak kini ROSE (dulu identik biru dengan
 // Setujui — pengguna tidak bisa membedakan aksi positif/negatif sekilas).
@@ -34,6 +34,8 @@ const ACTION_META: Record<Action, { title: string; label: string; tone: string; 
   reject: { title: "Tolak Klaim", label: "Tolak", tone: "bg-rose-600 hover:bg-rose-700", icon: XCircle },
   cancel: { title: "Batalkan Klaim", label: "Batalkan", tone: "bg-slate-600 hover:bg-slate-700", icon: Ban },
   return: { title: "Kembalikan ke Pemohon", label: "Kembalikan", tone: "bg-amber-600 hover:bg-amber-700", icon: History },
+  // W1-4 — storno klaim settled: dokumen pembalik + jurnal pembalik + restore saldo
+  storno: { title: "Storno Klaim Settled", label: "Storno", tone: "bg-rose-700 hover:bg-rose-800", icon: Undo2 },
 };
 
 // Task 88: label state ramah utk toast (dulu menampilkan enum mentah "MC-… → Approved").
@@ -49,6 +51,7 @@ const ACTION_META_EN: Record<Action, { title: string; label: string }> = {
   reject: { title: "Reject Claim", label: "Reject" },
   cancel: { title: "Cancel Claim", label: "Cancel" },
   return: { title: "Return to Requester", label: "Return" },
+  storno: { title: "Reverse Settled Claim (Storno)", label: "Storno" },
 };
 
 export function MedicalApprovalPage() {
@@ -92,11 +95,16 @@ export function MedicalApprovalPage() {
     if (!claim) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>(
+      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null }; reversalOf?: string }>(
         "/api/rekankerja/medical/claims", "PATCH",
         { id: claim.id, action, note: reason || undefined },
       );
-      if (res.approval) {
+      if (action === "storno") {
+        toast.success(
+          t("STORNO {d} — dokumen pembalik {r}, saldo dipulihkan {u}", "STORNO {d} — reversal doc {r}, balance restored {u}", { d: res.docNo, r: res.reversalOf ?? "—", u: fmtIDR(Math.abs(res.usedAdded)) }),
+          { duration: 8000 },
+        );
+      } else if (res.approval) {
         // approval parsial — jenjang menengah disetujui, klaim tetap menunggu jenjang berikutnya
         toast.success(t("Jenjang {l} disetujui — menunggu {w}", "Tier {l} approved — awaiting {w}", { l: `${res.approval.currentLevel - 1}/${res.approval.totalLevels}`, w: res.approval.currentApprover ?? t("jenjang berikutnya", "next tier") }));
       } else if (action === "settle") {
@@ -259,6 +267,12 @@ export function MedicalApprovalPage() {
                     )}
                   </>
                 )}
+                {/* W1-4 — storno klaim settled (dulu terminal tanpa jalur koreksi) */}
+                {c.state === "Settled" && perms.canOp("medical", "medical-approval", "settle") && (
+                  <Button size="sm" variant="outline" onClick={() => openDialog("storno", c)} className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-500/10">
+                    <Undo2 className="mr-1 h-3.5 w-3.5" /> {t("Storno", "Storno")}
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -310,7 +324,12 @@ export function MedicalApprovalPage() {
               )}
               {action === "settle" && (
                 <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/30 dark:text-brand/75">
-                  {t("Settle akan: (1) membuat jurnal otomatis Debit 5106 Beban Kesejahteraan Medis / Credit 1101 Kas, (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal Debit 5106 Medical Welfare Expense / Credit 1101 Cash, (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
+                  {t("Settle akan: (1) membuat jurnal otomatis (beban medis × kebijakan company/asuransi jenis, kas), (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal (medical expense × type's company/insurance policy, cash), (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
+                </p>
+              )}
+              {action === "storno" && (
+                <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-relaxed text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400">
+                  {t("STORNO akan: (1) membatalkan klaim settled ini, (2) membuat dokumen pembalik & jurnal pembalik (Credit beban / Debit kas), (3) memulihkan saldo medis karyawan sebesar approved ({a}). Alasan wajib diisi — tindakan tercatat permanen di Status Log.", "STORNO will: (1) cancel this settled claim, (2) create a reversal document & reversal journal (Credit expense / Debit cash), (3) restore the employee's medical balance by the approved amount ({a}). Reason is required — the action is permanently logged in the Status Log.", { a: fmtIDR(claim.totalApproved) })}
                 </p>
               )}
               <div className="space-y-1.5">
@@ -321,7 +340,7 @@ export function MedicalApprovalPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
-            {(action === "settle"
+            {(action === "settle" || action === "storno"
               ? perms.canOp("medical", "medical-approval", "settle")
               : action === "cancel"
                 ? perms.canOp("medical", "medical-claim", "cancel")

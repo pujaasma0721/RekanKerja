@@ -126,6 +126,7 @@ export async function POST(req: Request) {
             treatment: l.treatment ? String(l.treatment) : undefined,
             treatmentDate: l.treatmentDate ? String(l.treatmentDate) : undefined,
             receiptNo: l.receiptNo ? String(l.receiptNo) : undefined,
+            providerId: l.providerId ? String(l.providerId) : undefined, // W1-6 — passthrough ESS
             physician: l.physician ? String(l.physician) : undefined,
             hospital: l.hospital ? String(l.hospital) : undefined,
             note: l.note ? String(l.note) : undefined,

@@ -209,11 +209,13 @@ export async function GET(req: NextRequest) {
       // nilai dasar domain per karyawan (medical FACTOR/WAGE_COMPONENT butuh gaji)
       let empBase: number | null = baseValue;
       if (domain === "medical") {
-        const ent = entity as { limitRule: string; limitValue: number };
+        const ent = entity as { limitRule: string; limitValue: number; wageCode?: string | null };
         if (ent.limitRule === "UNLIMITED") empBase = null;
         else {
           const salary = mv.dec0(assignment.baseSalary);
-          empBase = benefitLimitFor({ limitRule: ent.limitRule, limitValue: ent.limitValue }, salary);
+          // W1-2 — simulasi rule pakai fallback komponen upah (null → gaji pokok
+          // utk WAGE_COMPONENT; nilai komponen riil dihitung di medical-service).
+          empBase = benefitLimitFor({ limitRule: ent.limitRule, limitValue: ent.limitValue, wageCode: ent.wageCode ?? null }, salary, null);
         }
       }
 

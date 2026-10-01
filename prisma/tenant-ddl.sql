@@ -1707,6 +1707,7 @@ CREATE TABLE "MedicalClaim" (
     "letterNo" TEXT,
     "state" TEXT NOT NULL DEFAULT 'Draft',
     "forDependent" BOOLEAN NOT NULL DEFAULT false,
+    "prorateFactor" DOUBLE PRECISION,
     "maxBenefitAt" TEXT NOT NULL DEFAULT '0',
     "usedAt" TEXT NOT NULL DEFAULT '0',
     "totalBill" TEXT NOT NULL DEFAULT '0',
@@ -1725,6 +1726,7 @@ CREATE TABLE "MedicalClaim" (
     "settledById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "reversalOfId" TEXT,
 
     CONSTRAINT "MedicalClaim_pkey" PRIMARY KEY ("id")
 );
@@ -1746,6 +1748,7 @@ CREATE TABLE "MedicalClaimLine" (
     "approvedAmount" TEXT NOT NULL DEFAULT '0',
     "nonReAmount" TEXT NOT NULL DEFAULT '0',
     "currency" TEXT NOT NULL DEFAULT 'IDR',
+    "providerId" TEXT,
 
     CONSTRAINT "MedicalClaimLine_pkey" PRIMARY KEY ("id")
 );
@@ -2474,6 +2477,9 @@ CREATE UNIQUE INDEX "MedicalBalance_employeeId_typeId_year_key" ON "MedicalBalan
 CREATE UNIQUE INDEX "MedicalClaim_docNo_key" ON "MedicalClaim"("docNo");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MedicalClaim_reversalOfId_key" ON "MedicalClaim"("reversalOfId");
+
+-- CreateIndex
 CREATE INDEX "MedicalClaim_state_idx" ON "MedicalClaim"("state");
 
 -- CreateIndex
@@ -2481,6 +2487,9 @@ CREATE INDEX "MedicalClaim_year_typeId_idx" ON "MedicalClaim"("year", "typeId");
 
 -- CreateIndex
 CREATE INDEX "MedicalClaim_employeeId_idx" ON "MedicalClaim"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "MedicalClaimLine_providerId_idx" ON "MedicalClaimLine"("providerId");
 
 -- CreateIndex
 CREATE INDEX "MedicalClaimLine_receiptNo_idx" ON "MedicalClaimLine"("receiptNo");
@@ -3002,7 +3011,13 @@ ALTER TABLE "MedicalClaim" ADD CONSTRAINT "MedicalClaim_employeeId_fkey" FOREIGN
 ALTER TABLE "MedicalClaim" ADD CONSTRAINT "MedicalClaim_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MedicalBenefitType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "MedicalClaim" ADD CONSTRAINT "MedicalClaim_reversalOfId_fkey" FOREIGN KEY ("reversalOfId") REFERENCES "MedicalClaim"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "MedicalClaimLine" ADD CONSTRAINT "MedicalClaimLine_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "MedicalClaim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MedicalClaimLine" ADD CONSTRAINT "MedicalClaimLine_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "MedicalProvider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MedicalAdjustment" ADD CONSTRAINT "MedicalAdjustment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;

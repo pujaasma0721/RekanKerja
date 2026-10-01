@@ -40,13 +40,13 @@ const STATUS_FILTERS = [
 
 interface LineForm {
   treatedName: string; treatment: string; treatmentDate: string;
-  receiptNo: string; physician: string; hospital: string;
+  receiptNo: string; providerId: string; physician: string; hospital: string;
   occupationalInjury: boolean; billAmount: string; reimburseAmount: string; approvedAmount: string;
 }
 
 const newLine = (treatedName = ""): LineForm => ({
   treatedName: "", treatment: "", treatmentDate: todayISO(),
-  receiptNo: "", physician: "", hospital: "",
+  receiptNo: "", providerId: "", physician: "", hospital: "",
   occupationalInjury: false, billAmount: "", reimburseAmount: "", approvedAmount: "",
 });
 
@@ -88,6 +88,14 @@ export function MedicalClaimsPage() {
   const detailApi = useApi<{ claims: ClaimUI[] }>(`/api/rekankerja/medical/claims?state=all&includeLines=1`, [statusFilter]);
   const master = useApi<{ types: BenefitTypeUI[] }>("/api/rekankerja/medical/types");
   const balanceMeta = useApi<{ employees: EmployeeOption[] }>("/api/rekankerja/medical/balances?year=" + new Date().getFullYear());
+  // W1-6 — master provider aktif utk dropdown Rumah Sakit/Klinik.
+  const providersMeta = useApi<{ providers: { id: string; name: string; kind: string; city: string | null; active: boolean }[] }>("/api/rekankerja/medical/providers");
+  // W1-7 — daftar anggota keluarga karyawan terpilih (dropdown dependent).
+  const familyMeta = useApi<{ family: { id: string; name: string; relation: string; birthDate: string | null; isDependent: boolean }[] }>(
+    dialog && forDependent && employeeId ? `/api/rekankerja/medical/providers?familyFor=${employeeId}` : null,
+  );
+  const hospitals = (providersMeta.data?.providers ?? []).filter((p) => p.kind === "HOSPITAL" && p.active);
+  const familyMembers = familyMeta.data?.family ?? [];
 
   const claims = useMemo(() => (api.data?.claims ?? []).filter((c) =>
     !query || c.fullName.toLowerCase().includes(query.toLowerCase()) || c.docNo.toLowerCase().includes(query.toLowerCase()),
@@ -179,6 +187,7 @@ export function MedicalClaimsPage() {
         lines: valid.map((l) => ({
           treatedName: l.treatedName, treatment: l.treatment || undefined,
           treatmentDate: l.treatmentDate || undefined, receiptNo: l.receiptNo || undefined,
+          providerId: l.providerId || undefined, // W1-6 — relasi master provider
           physician: l.physician || undefined, hospital: l.hospital || undefined,
           occupationalInjury: l.occupationalInjury,
           billAmount: Number(l.billAmount) || 0,
@@ -448,7 +457,12 @@ export function MedicalClaimsPage() {
             <div className="grid gap-2 rounded-xl border ov-border-accent ov-soft p-3 text-sm sm:grid-cols-4">
               <div>
                 <p className="text-[11px] font-bold uppercase ov-text-accent">Limit</p>
-                <p className="font-black text-slate-900 dark:text-slate-50">{preview.limitRule === "UNLIMITED" ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
+                <p className="font-black text-slate-900 dark:text-slate-50">{preview.limitRule === "UNLIMITED" || preview.unlimited ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
+                {preview.prorateFactor != null && preview.prorateFactor < 1 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {t("prorata masa kerja {p}%", "tenure proration {p}%", { p: Math.round((preview.prorateFactor ?? 1) * 100) })}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase ov-text-accent">{t("Sudah Terpakai", "Used So Far")}</p>
@@ -458,7 +472,7 @@ export function MedicalClaimsPage() {
                 <p className="text-[11px] font-bold uppercase ov-text-accent">
                   {t("Sisa Saldo", "Remaining Balance")}{preview.claimPool === "dependent" ? " (Dependent)" : forDependent && preview.claimPool === "employee" ? t(" (Bersama)", " (Shared)") : ""}
                 </p>
-                <p className="font-black text-slate-900 dark:text-slate-50">{preview.limitRule === "UNLIMITED" ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
+                <p className="font-black text-slate-900 dark:text-slate-50">{preview.limitRule === "UNLIMITED" || preview.unlimited ? "∞" : fmtIDR(preview.remainingForClaim ?? preview.remaining)}</p>
                 {preview.poolNote && <p className="text-xs text-slate-500">{preview.poolNote}</p>}
                 {(preview.pendingReserved ?? 0) > 0 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">{t("menunggu klaim lain: {v}", "reserved by other pending claims: {v}", { v: fmtIDR(preview.pendingReserved ?? 0) })}</p>
@@ -487,7 +501,24 @@ export function MedicalClaimsPage() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Nama yang Dirawat *", "Treated Person Name *")}</Label>
-                      <Input value={l.treatedName} onChange={(e) => setLine(i, { treatedName: e.target.value })} placeholder={t("karyawan / anggota keluarga", "employee / family member")} />
+                      {forDependent && familyMembers.length > 0 ? (
+                        <Select
+                          value={familyMembers.some((f) => f.name === l.treatedName) ? l.treatedName : "__manual"}
+                          onValueChange={(v) => setLine(i, { treatedName: v === "__manual" ? "" : v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder={t("Pilih dependent terdaftar", "Select registered dependent")} /></SelectTrigger>
+                          <SelectContent>
+                            {familyMembers.map((f) => (
+                              <SelectItem key={f.id} value={f.name}>
+                                {f.name}{f.relation === "Child" ? t(" (anak)", " (child)") : f.relation === "Spouse" ? t(" (pasangan)", " (spouse)") : ` (${f.relation})`}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__manual">{t("— Ketik manual —", "— Type manually —")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={l.treatedName} onChange={(e) => setLine(i, { treatedName: e.target.value })} placeholder={t("karyawan / anggota keluarga", "employee / family member")} />
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Perawatan / Diagnosa", "Treatment / Diagnosis")}</Label>
@@ -507,7 +538,30 @@ export function MedicalClaimsPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Rumah Sakit / Klinik", "Hospital / Clinic")}</Label>
-                      <Input value={l.hospital} onChange={(e) => setLine(i, { hospital: e.target.value })} placeholder={t("mis. RS Siloam Surabaya", "e.g. Siloam Hospital Surabaya")} />
+                      {hospitals.length > 0 ? (
+                        <Select
+                          value={hospitals.some((p) => p.id === l.providerId) ? l.providerId : "__manual"}
+                          onValueChange={(v) => {
+                            if (v === "__manual") {
+                              setLine(i, { providerId: "", hospital: "" });
+                            } else {
+                              const p = hospitals.find((x) => x.id === v);
+                              setLine(i, { providerId: v, hospital: p?.name ?? "" });
+                            }
+                          }}
+                        >
+                          <SelectTrigger><SelectValue placeholder={t("Pilih dari master", "Select from master")} /></SelectTrigger>
+                          <SelectContent>
+                            {hospitals.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}{p.city ? ` — ${p.city}` : ""}</SelectItem>
+                            ))}
+                            <SelectItem value="__manual">{t("— Ketik manual —", "— Type manually —")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={l.hospital} onChange={(e) => setLine(i, { hospital: e.target.value })} placeholder={t("mis. RS Siloam Surabaya", "e.g. Siloam Hospital Surabaya")} />
+                      )}
+                      {l.hospital && !l.providerId && <Input value={l.hospital} onChange={(e) => setLine(i, { hospital: e.target.value })} placeholder={t("nama RS manual", "manual hospital name")} className="mt-1" />}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("Tagihan (Bill) *", "Bill *")}</Label>

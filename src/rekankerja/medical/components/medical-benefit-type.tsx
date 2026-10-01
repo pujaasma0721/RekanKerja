@@ -79,8 +79,16 @@ export function MedicalBenefitTypePage() {
 
   const save = async () => {
     if (!form.name.trim() || (!form.id && !form.code.trim())) { toast.error(t("Kode & nama wajib", "Code & name are required")); return; }
-    if (form.limitRule !== "UNLIMITED" && !(Number(form.limitValue) > 0)) {
+    if (form.limitRule !== "UNLIMITED" && form.limitRule !== "WAGE_COMPONENT" && !(Number(form.limitValue) > 0)) {
       toast.error(t("Nominal / faktor harus > 0", "Nominal / factor must be > 0"));
+      return;
+    }
+    if (form.limitRule === "WAGE_COMPONENT" && !form.wageCode.trim()) {
+      toast.error(t("Kode komponen upah wajib diisi", "Wage component code is required"));
+      return;
+    }
+    if (form.freqPeriod === "EVERY_X_YEARS" && Number(form.freqValue) < 2) {
+      toast.error(t("Frekuensi setiap-X-tahun minimal 2 (untuk 1×/tahun pilih per tahun)", "Every-X-years frequency must be at least 2 (use per year for 1×/year)"));
       return;
     }
     setBusy(true);
@@ -231,13 +239,22 @@ export function MedicalBenefitTypePage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>{form.limitRule === "FACTOR" ? t("Faktor × gaji *", "Factor × salary *") : form.limitRule === "NOMINAL" ? "Nominal (Rp) *" : "—"}</Label>
-              <Input
-                type="number" min={0} disabled={form.limitRule === "UNLIMITED"}
-                value={form.limitValue}
-                onChange={(e) => setForm({ ...form, limitValue: e.target.value })}
-                placeholder={form.limitRule === "FACTOR" ? t("mis. 1", "e.g. 1") : t("mis. 5000000", "e.g. 5000000")}
-              />
+              <Label>
+                {form.limitRule === "FACTOR" ? t("Faktor × gaji *", "Factor × salary *")
+                  : form.limitRule === "NOMINAL" ? "Nominal (Rp) *"
+                  : form.limitRule === "WAGE_COMPONENT" ? t("Kode Komponen Upah *", "Wage Component Code *")
+                  : "—"}
+              </Label>
+              {form.limitRule === "WAGE_COMPONENT" ? (
+                <Input value={form.wageCode} onChange={(e) => setForm({ ...form, wageCode: e.target.value })} placeholder={t("mis. MEDICAL_KL", "e.g. MEDICAL_KL")} />
+              ) : (
+                <Input
+                  type="number" min={0} disabled={form.limitRule === "UNLIMITED"}
+                  value={form.limitValue}
+                  onChange={(e) => setForm({ ...form, limitValue: e.target.value })}
+                  placeholder={form.limitRule === "FACTOR" ? t("mis. 1", "e.g. 1") : t("mis. 5000000", "e.g. 5000000")}
+                />
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -252,6 +269,9 @@ export function MedicalBenefitTypePage() {
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="YEAR">{t("per tahun", "per year")}</SelectItem>
+                    {/* W1-8 — frekuensi multi-tahun (pad oranHR Year Period):
+                        nilai freqValue = jarak tahun antar klaim (mis. 1× / 2 tahun) */}
+                    <SelectItem value="EVERY_X_YEARS">{t("setiap X tahun", "every X years")}</SelectItem>
                     <SelectItem value="MEDICAL">{t("per period medis", "per medical period")}</SelectItem>
                     <SelectItem value="WORK">{t("per masa kerja", "per length of service")}</SelectItem>
                   </SelectContent>
@@ -265,14 +285,17 @@ export function MedicalBenefitTypePage() {
                 <span className="text-slate-400">/</span>
                 <Input type="number" min={0} max={100} value={form.pctInsurance} onChange={(e) => setForm({ ...form, pctInsurance: e.target.value })} />
               </div>
-              {/* Task 82-b (audit T9): pctCompany/pctInsurance tersimpan tapi belum
-                  dieksekusi — settlement & jurnal memakai 100% beban perusahaan. */}
-              <p className="text-[10px] leading-snug text-amber-600 dark:text-amber-400">
-                {t(
-                  "Saat ini informatif — settlement & jurnal memakai 100% beban perusahaan",
-                  "Currently informative — settlement & journal use 100% company expense",
-                )}
-              </p>
+              {Number(form.pctInsurance) > 0 && (
+                <Input value={form.insuranceCompany} onChange={(e) => setForm({ ...form, insuranceCompany: e.target.value })} placeholder={t("Nama perusahaan asuransi *", "Insurance company name *")} className="mt-1" />
+              )}
+              {/* W1-3 (fix M-7): pctCompany/pctInsurance kini DIEKSEKUSI saat
+                  settle — beban perusahaan hanya proporsi company; bagian
+                  asuransi menjadi piutang (akun 13xx pertama). */}
+              {Number(form.pctInsurance) > 0 && Number(form.pctCompany) + Number(form.pctInsurance) !== 100 && (
+                <p className="text-[10px] leading-snug text-amber-600 dark:text-amber-400">
+                  {t("Total company + asuransi ≠ 100% — sisa dianggap beban perusahaan", "Company + insurance ≠ 100% — remainder counts as company expense")}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

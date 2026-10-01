@@ -5,8 +5,24 @@ import { listProviders, upsertProvider } from "@/rekankerja/medical/services/med
 
 // GET /api/rekankerja/medical/providers — master rumah sakit & asuransi
 // (padanan Hospital.jsp + InsuranceCompany.jsp → 1 view 2 tab).
+// ?familyFor=<employeeId> — W1-7: daftar dependent terdaftar (EmployeeFamily)
+// utk dropdown klaim dependent — guard menu klaim (bukan master provider).
 export async function GET(req: NextRequest) {
   try {
+    const sp = req.nextUrl.searchParams;
+    const familyFor = sp.get("familyFor");
+    if (familyFor) {
+      // W1-7 — daftar anggota keluarga karyawan (registry ANGKEL HR) untuk
+      // dropdown "nama yang dirawat" pada klaim dependent.
+      const m = await requireMenuViewAny(req, ["medical:medical-claim", "medical:medical-approval"]);
+      if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      const family = await m.db.employeeFamily.findMany({
+        where: { employeeId: familyFor },
+        select: { id: true, name: true, relation: true, birthDate: true, isDependent: true },
+        orderBy: [{ isDependent: "desc" }, { name: "asc" }],
+      });
+      return NextResponse.json({ family });
+    }
     // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
     // modul terkait tidak lagi bisa membaca endpoint ini).
     const m = await requireMenuViewAny(req, ["medical:medical-providers"]);

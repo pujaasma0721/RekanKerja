@@ -2078,10 +2078,12 @@ model MedicalBenefitType {
   limitRule        String   @default("NOMINAL") // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
   limitValue       Float    @default(0) // nominal (NOMINAL) atau faktor gaji (FACTOR)
   wageCode         String? // komponen upah dasar hitungan (WAGE_COMPONENT / info)
-  // frekuensi klaim per period
+  // frekuensi klaim per period — W1-8 (fix M-5): EVERY_X_YEARS = freqValue tahun
+  // berjalan (klaim diterima hanya bila tidak ada klaim dalam X tahun terakhir;
+  // pad oranHR "Max Claim sekali dalam setiap X tahun" — Year Period).
   freqUnlimited    Boolean  @default(false)
   freqValue        Int      @default(0)
-  freqPeriod       String   @default("YEAR") // MEDICAL|WORK|YEAR
+  freqPeriod       String   @default("YEAR") // MEDICAL|WORK|YEAR|EVERY_X_YEARS
   // pembayaran: company vs asuransi
   pctCompany       Int      @default(100)
   pctInsurance     Int      @default(0)
@@ -2137,6 +2139,8 @@ model MedicalProvider {
   phone     String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  claimLines MedicalClaimLine[]
 }
 
 // Saldo medis karyawan per tahun × jenis — padanan "Employee Medical Information"
@@ -2181,6 +2185,9 @@ model MedicalClaim {
   letterNo       String? // surat rujukan dokter
   state          String    @default("Draft") // Draft|Submitted|Approved|Rejected|Cancelled|Settled
   forDependent   Boolean   @default(false) // klaim untuk anggota keluarga
+  // W1-8 — faktor prorata masa kerja yang dipakai menghitung plafon klaim ini
+  // (1.0 = penuh; < 1 = prorata hari aktif/th — jejak audit kalkulasi plafon).
+  prorateFactor  Float?
   maxBenefitAt   String    @default("0") // snapshot limit saat ajukan (M-8)
   usedAt         String    @default("0") // snapshot used saat ajukan (M-8)
   totalBill      String    @default("0") // Total Amount on Bill (M-8)
@@ -2203,6 +2210,11 @@ model MedicalClaim {
   employee Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   type     MedicalBenefitType @relation(fields: [typeId], references: [id])
   lines    MedicalClaimLine[]
+  // W1-4 — storno: klaim pembalik menunjuk klaim aslinya (1:1 — klaim settled
+  // hanya boleh di-storno sekali; klaim pembalik snapshot −totalApproved).
+  reversalOf    MedicalClaim?  @relation("MedicalStorno", fields: [reversalOfId], references: [id])
+  reversalOfId  String?  @unique
+  reversedBy    MedicalClaim?  @relation("MedicalStorno")
 
   @@index([state])
   @@index([year, typeId])
@@ -2230,8 +2242,14 @@ model MedicalClaimLine {
   approvedAmount     String    @default("0") // M-8
   nonReAmount        String    @default("0") // M-8
   currency           String    @default("IDR")
+  // W1-6 (fix M-3) — rumah sakit/klinik dari master MedicalProvider (kind
+  // HOSPITAL) — validasi aktif saat submit; `hospital` tetap snapshot nama.
+  providerId         String?
 
-  claim MedicalClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  claim   MedicalClaim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  provider MedicalProvider? @relation(fields: [providerId], references: [id])
+
+  @@index([providerId])
 
   // M-15 (audit 42): dedupe kwitansi lintas klaim saat submit klaim medis
   // (medical-service.ts: findMany receiptNo IN [...] + claim.employeeId) —

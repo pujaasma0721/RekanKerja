@@ -70,6 +70,73 @@ export function salaryOfAssignment(tc: FieldCrypto, stored: string | null): numb
   return tc.decryptMoney(stored) ?? 0;
 }
 
+/** W1-2 (fix m-6): nilai aktif komponen upah karyawan — presedensi
+ *  assignment spesifik (Specific berjalan > Periodic) > besaran dasar komponen.
+ *  Mencakup kasus target oranHR: komponen upah MEDICAL_KL sebagai basis plafon. */
+async function activeWageComponentValue(db: TenantDb, employeeId: string, wageCode: string | null): Promise<number> {
+  if (!wageCode) return 0;
+  const comp = await db.wageComponent.findUnique({ where: { code: wageCode }, select: { id: true, amount: true } });
+  if (!comp) return 0;
+  const today = new Date();
+  const specific = await db.employeeComponentAssignment.findFirst({
+    where: {
+      employeeId, wageComponentId: comp.id, active: true,
+      OR: [{ period: { startDate: { lte: today }, endDate: { gte: today } } }, { periodId: null }],
+    },
+    orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
+  });
+  if (specific) {
+    const tc = tenantCryptoForDb(db);
+    return specific.amount != null ? tc.decryptMoney(specific.amount) ?? 0 : comp.amount;
+  }
+  return comp.amount;
+}
+
+/** W1-8: faktor prorata masa kerja — pembagian proporsional hari aktif / hari
+ *  dalam tahun kalender (365/366), nilai 1.0 bila fitur nonaktif, karyawan sudah
+ *  bergabung sebelum awal tahun, atau hasil di luar rentang (0–1]. */
+export function prorateFactorFor(enabled: boolean, joinDate: Date | null | undefined, year: number): number {
+  if (!enabled || !joinDate) return 1;
+  const start = dayStart(joinDate).getTime();
+  const yStart = new Date(year, 0, 1).getTime();
+  const yEnd = new Date(year + 1, 0, 1).getTime();
+  if (start <= yStart) return 1;
+  if (start >= yEnd) return 0;
+  const factor = (yEnd - start) / (yEnd - yStart);
+  return factor > 0 && factor < 1 ? Math.round(factor * 10000) / 10000 : 1;
+}
+
+/** W1-8 (fix M-5): jumlah klaim dalam window frekuensi — pad oranHR
+ *  "Max Claim sekali dalam setiap X tahun" (Year Period): hitung klaim aktif
+ *  (Submitted/Approved/Settled) X tahun terakhir; YEAR → tahun kalender berjalan. */
+async function freqClaimCount(db: TenantDb, input: { employeeId: string; typeId: string; claimDate: string; freqPeriod: string; freqValue: number }): Promise<number> {
+  if (input.freqPeriod === "EVERY_X_YEARS" && input.freqValue > 0) {
+    const from = dayStart(new Date(input.claimDate));
+    from.setFullYear(from.getFullYear() - input.freqValue);
+    return db.medicalClaim.count({
+      where: {
+        employeeId: input.employeeId, typeId: input.typeId,
+        state: { in: ["Submitted", "Approved", "Settled"] },
+        claimDate: { gte: from },
+      },
+    });
+  }
+  return db.medicalClaim.count({
+    where: {
+      employeeId: input.employeeId, typeId: input.typeId, year: new Date(input.claimDate).getFullYear(),
+      state: { in: ["Submitted", "Approved", "Settled"] },
+    },
+  });
+}
+
+/** W1-7 (fix G-1): nama dependent dicocokkan ke registry EmployeeFamily —
+ *  case-insensitive, cocok bila equality ATAU saling mengandung. */
+function familyNameMatch(familyNames: string[], treatedName: string): boolean {
+  const x = treatedName.trim().toLowerCase();
+  if (!x) return false;
+  return familyNames.some((f) => f === x || f.includes(x) || x.includes(f));
+}
+
 async function activeSalary(db: TenantDb, employeeId: string): Promise<number> {
   const emp = await db.employee.findUnique({
     where: { id: employeeId },
@@ -120,6 +187,9 @@ function depPoolSeparate(t: { dependentEnabled: boolean; depLimitRule: string })
 
 export interface PoolAvailability {
   pool: "employee" | "dependent";
+  /** W1-1 — true bila jenis UNLIMITED: guard plafon submit/approve/settle
+   *  dilewati (sisa 0 bukan berarti plafon habis — limit memang tak berhingga). */
+  unlimited: boolean;
   /** sisa plafon pool saat ini (SHARED-dependent → pool utama karyawan). */
   poolRemaining: number;
   /** Σ klaim lain (Submitted/Returned/Approved) yang menahan pool ini. */
@@ -143,7 +213,7 @@ async function claimPoolAvailability(
 ): Promise<PoolAvailability> {
   const t = await db.medicalBenefitType.findUnique({
     where: { id: input.typeId },
-    select: { dependentEnabled: true, depLimitRule: true, limitRule: true, limitValue: true },
+    select: { dependentEnabled: true, depLimitRule: true, limitRule: true, limitValue: true, wageCode: true },
   });
   if (!t) throw new Error("Jenis benefit tidak ditemukan");
   const [bal, emp] = await Promise.all([
@@ -165,7 +235,9 @@ async function claimPoolAvailability(
   // Task 33 — fallback plafon on-the-fly ikut rule parameter karyawan.
   const poolRules = await medicalTypeRules(db, [input.typeId]);
   const poolCtx = emp ? buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date()) : null;
-  const fallbackLimit = limitWithRules(benefitLimitFor(t, salary), poolRules.get(input.typeId), poolCtx);
+  // W1-2 — fallback plafon WAGE_COMPONENT dari komponen upah karyawan.
+  const wageVal = t.limitRule === "WAGE_COMPONENT" ? await activeWageComponentValue(db, input.employeeId, t.wageCode) : 0;
+  const fallbackLimit = limitWithRules(benefitLimitFor(t, salary, wageVal), poolRules.get(input.typeId), poolCtx);
   const limit = bal ? decMoney(tc, bal.benefitAmount) : fallbackLimit;
   const empRemaining = bal
     ? round2(decMoney(tc, bal.benefitAmount) + decMoney(tc, bal.adjustmentAmount) + decMoney(tc, bal.carriedOver) - decMoney(tc, bal.usedAmount) - decMoney(tc, bal.initialUsed))
@@ -197,7 +269,7 @@ async function claimPoolAvailability(
     }
   }
   return {
-    pool, poolRemaining, pendingOthers, otherClaims,
+    pool, unlimited: t.limitRule === "UNLIMITED", poolRemaining, pendingOthers, otherClaims,
     available: round2(poolRemaining - pendingOthers),
     empRemaining, depRemaining,
     poolBenefit: pool === "dependent"
@@ -278,6 +350,12 @@ export async function upsertBenefitType(db: TenantDb, input: UpsertTypeInput): P
   if (rule === "FACTOR" && !(input.limitValue && input.limitValue > 0)) {
     throw new Error("Faktor gaji harus > 0");
   }
+  // W1-8 (fix M-5): frekuensi multi-tahun — window X tahun butuh X ≥ 2
+  // (X = 1 identik dengan YEAR; tetap diterima tapi dinormalisasi).
+  if (input.freqPeriod === "EVERY_X_YEARS") {
+    if (Math.round(input.freqValue ?? 0) < 2) throw new Error("Frekuensi setiap-X-tahun harus ≥ 2 tahun (untuk 1×/tahun gunakan freqPeriod YEAR)");
+    if (input.freqUnlimited) throw new Error("freqUnlimited tidak boleh aktif bersama EVERY_X_YEARS");
+  }
   const data = {
     name: input.name.trim(),
     description: input.description?.trim() || null,
@@ -346,15 +424,23 @@ export async function upsertProvider(
 
 // ============ saldo (padanan Employee Medical Information + Generate) ============
 
-/** Limit benefit karyawan dari kebijakan jenis + gaji aktif. */
+/** Limit benefit karyawan dari kebijakan jenis + gaji/komponen upah aktif.
+ *  W1-1 (fix m-1): UNLIMITED = 0 + flag limitRule (BUKAN angka raksasa — dulu
+ *  MAX_SAFE_INTEGER/1000 tersimpan sebagai data & tampil "9 triliun" di snapshot).
+ *  W1-2 (fix m-6): WAGE_COMPONENT kini membaca nilai komponen upah karyawan
+ *  (wageCode) — dulu fallback gaji pokok dan wageCode diabaikan. */
 export function benefitLimitFor(
-  t: { limitRule: string; limitValue: number },
+  t: { limitRule: string; limitValue: number; wageCode: string | null },
   baseSalary: number,
+  wageComponentValue: number | null,
 ): number {
   switch (t.limitRule) {
-    case "UNLIMITED": return Number.MAX_SAFE_INTEGER / 1000; // tampil sebagai "∞" di UI
+    case "UNLIMITED": return 0; // ∞ — UI membaca limitRule, bukan nominal
     case "FACTOR": return round2(t.limitValue * baseSalary);
-    case "WAGE_COMPONENT": return round2(baseSalary); // fallback: gaji pokok
+    case "WAGE_COMPONENT": {
+      const v = wageComponentValue != null && wageComponentValue > 0 ? wageComponentValue : baseSalary;
+      return round2(v);
+    }
     default: return round2(t.limitValue);
   }
 }
@@ -396,6 +482,19 @@ export async function generateBalances(
   // Task 33 — rule plafon per jenis (dievaluasi per parameter karyawan).
   const medRules = await medicalTypeRules(db, types.map((t) => t.id));
   const asOfYear = new Date(year, 0, 1);
+  // W1-2 — komponen upah dasar plafon (per karyawan, sekali — bukan per jenis).
+  const wageCodes = [...new Set(types.filter((t) => t.limitRule === "WAGE_COMPONENT" && t.wageCode).map((t) => t.wageCode as string))];
+  const wageValueByEmp = new Map<string, number>();
+  if (wageCodes.length > 0) {
+    for (const emp of employees) {
+      let v = 0;
+      for (const code of wageCodes) {
+        if (v > 0) break;
+        v = await activeWageComponentValue(db, emp.id, code);
+      }
+      wageValueByEmp.set(emp.id, v);
+    }
+  }
 
   const prevBalances = await db.medicalBalance.findMany({ where: { year: year - 1 } });
   const prevByKey = new Map(prevBalances.map((b) => [`${b.employeeId}:${b.typeId}`, b]));
@@ -420,8 +519,13 @@ export async function generateBalances(
   for (const emp of employees) {
     const salary = emp.assignments[0] ? salaryOfAssignment(tcGen, emp.assignments[0].baseSalary) : 0;
     const empCtx = buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, asOfYear);
+    // W1-8 — prorata masa kerja tahun ke-bergabung (joinDate karyawan tersedia
+    // via EMPLOYEE_RULE_INCLUDE — EmployeeRuleRecord.joinDate).
+    const prorate = prorateFactorFor(true, emp.joinDate ?? null, year);
     for (const t of types) {
-      const limit = limitWithRules(benefitLimitFor(t, salary), medRules.get(t.id), empCtx);
+      const limit = round2(prorate * limitWithRules(
+        benefitLimitFor(t, salary, wageValueByEmp.get(emp.id) ?? 0), medRules.get(t.id), empCtx,
+      ));
       const prev = prevByKey.get(`${emp.id}:${t.id}`);
       // carry-over: kebijakan CARRY → sisa tahun lalu (max maxCarryOver) dibawa
       // 44-c (M-8): kolom saldo tahun lalu TERENKRIPSI — dekripsi sebelum
@@ -462,6 +566,8 @@ export async function generateBalances(
             initialUsed: encMoney(tcGen, initialUsed), usedAmount: encMoney(tcGen, 0),
             depBenefitAmount: encMoney(tcGen, depBenefit), depAdjustment: encMoney(tcGen, 0),
             depUsed: encMoney(tcGen, 0), carriedOver: encMoney(tcGen, carried),
+            // W1-8: snapshot faktor prorata (jejak audit kalkulasi plafon).
+            ...(prorate < 1 ? { prorateFactor: prorate } : {}),
           },
         });
         created++;
@@ -581,6 +687,8 @@ export interface ClaimLineInput {
   treatment?: string;
   treatmentDate?: string;
   receiptNo?: string;
+  /** W1-6 (fix M-3) — rumah sakit/klinik dari master MedicalProvider (aktif). */
+  providerId?: string;
   physician?: string;
   hospital?: string;
   note?: string;
@@ -633,6 +741,13 @@ export interface ClaimPreview {
   remainingForClaim: number | null;
   pendingReserved: number | null;
   poolNote: string | null;
+  // ---- tambahan Wave 1 (additive) ----
+  /** W1-1 — jenis UNLIMITED: UI tampil "∞"; guard plafon dilewati. */
+  unlimited: boolean;
+  /** W1-3 — rencana split company/asuransi (estimasi UI + jurnal settle). */
+  insurancePlan: { pctCompany: number; pctInsurance: number; insuranceCompany: string | null };
+  /** W1-8 — faktor prorata masa kerja yang dipakai plafon (null = 1.0). */
+  prorateFactor: number | null;
 }
 
 export async function previewClaim(
@@ -666,20 +781,27 @@ export async function previewClaim(
   const wizCtx = buildEmployeeRuleContext(emp as unknown as EmployeeRuleRecord, new Date());
   // 44-c (M-8): kolom saldo TERENKRIPSI — dekripsi utk preview (angka).
   const tcWiz = tenantCryptoForDb(db);
-  const limit = bal ? decMoney(tcWiz, bal.benefitAmount) : limitWithRules(benefitLimitFor(t, salary), wizRules.get(input.typeId), wizCtx);
+  // W1-2 — fallback plafon WAGE_COMPONENT kini dari komponen upah karyawan.
+  const wageVal = t.limitRule === "WAGE_COMPONENT" ? await activeWageComponentValue(db, input.employeeId, t.wageCode) : 0;
+  const limit = bal ? decMoney(tcWiz, bal.benefitAmount) : limitWithRules(benefitLimitFor(t, salary, wageVal), wizRules.get(input.typeId), wizCtx);
   const balAdj = bal ? decMoney(tcWiz, bal.adjustmentAmount) : 0;
   const balCarry = bal ? decMoney(tcWiz, bal.carriedOver) : 0;
   const balInitialUsed = bal ? decMoney(tcWiz, bal.initialUsed) : 0;
   const used = (bal ? decMoney(tcWiz, bal.usedAmount) : 0) + balInitialUsed;
-  const claimCountYear = await db.medicalClaim.count({
-    where: {
-      employeeId: input.employeeId, typeId: input.typeId, year: input.year,
-      state: { in: ["Submitted", "Approved", "Settled"] },
-    },
+  // W1-8 — hitungan frekuensi ikut freqPeriod (EVERY_X_YEARS → X tahun terakhir).
+  const claimCountYear = await freqClaimCount(db, {
+    employeeId: input.employeeId, typeId: input.typeId, claimDate: new Date().toISOString(),
+    freqPeriod: t.freqPeriod, freqValue: t.freqValue,
   });
   const providers = await db.medicalProvider.findMany({
     where: { active: true }, select: { id: true, name: true, kind: true }, orderBy: { name: "asc" }, take: 200,
   });
+  // W1-3 — rencana split company/asuransi (untuk estimasi UI + jurnal settle).
+  const insurancePlan = {
+    pctCompany: t.pctCompany,
+    pctInsurance: t.pctInsurance,
+    insuranceCompany: t.insuranceCompany,
+  };
   // pool yang benar utk klaim (fix K-3) + reservasi klaim menunggu (fix K-1/K-2)
   const avail = await claimPoolAvailability(db, {
     employeeId: input.employeeId, typeId: input.typeId, year: input.year,
@@ -709,6 +831,14 @@ export async function previewClaim(
     remainingForClaim: avail.available,
     pendingReserved: avail.pendingOthers,
     poolNote,
+    // ---- Wave 1 (additive) ----
+    unlimited: avail.unlimited,
+    insurancePlan,
+    // W1-8 — faktor prorata dihitung live dari joinDate (informasi; nilai final
+    // ter-capture pada klaim saat submit).
+    prorateFactor: prorateFactorFor(true, emp.joinDate ?? null, input.year) < 1
+      ? prorateFactorFor(true, emp.joinDate ?? null, input.year)
+      : null,
   };
 }
 
@@ -734,6 +864,166 @@ export interface SubmitClaimResult {
 export interface MedActorRef {
   appUserId?: string | null;
   employeeId?: string | null;
+}
+
+/** W1-7 — validasi dependent KUAT terhadap registry EmployeeFamily.
+ *  Dipakai submitClaim & updateClaim (edit klaim) — aturan sama persis:
+ *  (a) nama tak terdaftar → TOLAK; (b) anak melewati maxChildAge → TOLAK
+ *  (birthDate kosong → warning); (c) jumlah dependent berbeda dalam setahun
+ *  melewati maxDependents → TOLAK. Registry keluarga kosong → warning lembut
+ *  (klaim sah tidak terblokir, HR diminta melengkapi data). */
+async function validateDependentLines(
+  db: TenantDb,
+  input: { employeeId: string; typeId: string; year: number },
+  lines: { treatedName: string }[],
+  warnings: string[],
+): Promise<void> {
+  const [family, bt] = await Promise.all([
+    db.employeeFamily.findMany({
+      where: { employeeId: input.employeeId },
+      select: { name: true, relation: true, birthDate: true },
+    }),
+    db.medicalBenefitType.findUnique({
+      where: { id: input.typeId },
+      select: { code: true, maxDependents: true, maxChildAge: true },
+    }),
+  ]);
+  const famNames = family.map((f) => f.name.trim().toLowerCase()).filter((n) => n.length > 0);
+  if (family.length === 0) {
+    for (const l of lines) {
+      warnings.push(`Nama yang dirawat '${l.treatedName}' tidak dapat diverifikasi — data keluarga karyawan kosong pada registry HR`);
+    }
+    return;
+  }
+  for (const l of lines) {
+    if (!familyNameMatch(famNames, l.treatedName)) {
+      throw new Error(
+        `Nama yang dirawat '${l.treatedName}' tidak terdaftar pada data keluarga karyawan — pilih dependent terdaftar atau perbarui data keluarga (registry ANGKEL HR)`,
+      );
+    }
+    const member = family.find((f) => familyNameMatch([f.name.trim().toLowerCase()], l.treatedName));
+    if (member?.relation === "Child" && (bt?.maxChildAge ?? 0) > 0) {
+      if (!member.birthDate) {
+        warnings.push(`Tanggal lahir '${member.name}' belum diisi pada data keluarga — batas umur anak (${bt?.maxChildAge} th) tidak dapat diverifikasi`);
+      } else {
+        const age = Math.floor((Date.now() - dayStart(member.birthDate).getTime()) / (365.25 * 86_400_000));
+        if (age > (bt?.maxChildAge ?? 0)) {
+          throw new Error(`Anak '${member.name}' berusia ${age} tahun — melebihi batas umur klaim ${bt?.code} (${bt?.maxChildAge} th)`);
+        }
+      }
+    }
+  }
+  const maxDeps = bt?.maxDependents ?? 0;
+  if (maxDeps > 0) {
+    const prevLines = await db.medicalClaimLine.findMany({
+      where: {
+        claim: {
+          employeeId: input.employeeId, year: input.year, forDependent: true,
+          state: { in: ACTIVE_CLAIM_STATES },
+        },
+      },
+      select: { treatedName: true },
+    });
+    const distinctNames = new Set<string>();
+    for (const p of prevLines) distinctNames.add(p.treatedName.trim().toLowerCase());
+    for (const l of lines) distinctNames.add(l.treatedName.trim().toLowerCase());
+    if (distinctNames.size > maxDeps) {
+      throw new Error(
+        `Jumlah anggota keluarga berbeda yang diklaim tahun ini (${distinctNames.size}) melebihi batas dependent ${bt?.code} (${maxDeps})`,
+      );
+    }
+  }
+}
+
+/** W1-5/W1-6 — normalisasi & validasi baris perawatan klaim (BERSAMA
+ *  submitClaim & updateClaim): nama wajib, nominal non-negatif, approved ≤ bill,
+ *  tanggal perawatan valid (≤ hari ini, tahun = tahun saldo, ≥ joinDate),
+ *  provider wajib terdaftar & aktif pada master (W1-6, fix M-3), kwitansi unik
+ *  dalam satu pengajuan (M-8). Mengembalikan totals + baris siap simpan. */
+export interface NormalizedClaimLine {
+  treatedName: string; treatment: string | null; treatmentDate: Date | null;
+  receiptNo: string | null; providerId: string | null; physician: string | null; hospital: string | null; note: string | null;
+  occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
+  approvedAmount: number; nonReAmount: number;
+}
+
+async function normalizeClaimLines(
+  db: TenantDb,
+  raw: ClaimLineInput[],
+  ctx: { year: number; joinDate: Date | null },
+): Promise<{ totals: { bill: number; re: number; approved: number }; lines: NormalizedClaimLine[]; receiptNos: string[] }> {
+  const today = dayStart(new Date());
+  const fmtD = (d: Date) => d.toISOString().slice(0, 10);
+  const joinDate = ctx.joinDate ? dayStart(ctx.joinDate) : null;
+  // W1-6 (fix M-3) — cache validasi provider (master MedicalProvider aktif).
+  const providerCache = new Map<string, { id: string; name: string; active: boolean }>();
+  const resolveProvider = async (providerId?: string): Promise<{ id: string; name: string } | null> => {
+    if (!providerId?.trim()) return null;
+    const pid = providerId.trim();
+    if (!providerCache.has(pid)) {
+      const p = await db.medicalProvider.findUnique({ where: { id: pid }, select: { id: true, name: true, active: true } });
+      if (!p) throw new Error("Rumah sakit/klinik tidak ditemukan pada master provider");
+      if (!p.active) throw new Error(`Provider ${p.name} tidak aktif — pilih provider aktif dari daftar`);
+      providerCache.set(pid, p);
+    }
+    return providerCache.get(pid) ?? null;
+  };
+  const lines: NormalizedClaimLine[] = [];
+  const seenReceipts = new Set<string>();
+  let totalBill = 0;
+  let totalRe = 0;
+  let totalApproved = 0;
+  for (const l of raw) {
+    if (!l.treatedName.trim()) throw new Error("Nama yang dirawat wajib diisi");
+    if (l.billAmount < 0 || l.approvedAmount < 0) throw new Error("Jumlah tidak boleh negatif");
+    if (l.approvedAmount > l.billAmount) throw new Error("Approved tidak boleh melebihi tagihan");
+    // M-2: tanggal perawatan ≤ hari ini, tahun sama dengan tahun klaim/saldo,
+    // ≥ tanggal bergabung.
+    if (l.treatmentDate) {
+      const td = dayStart(l.treatmentDate);
+      if (Number.isNaN(td.getTime())) throw new Error(`Tanggal perawatan tidak valid: ${l.treatmentDate}`);
+      if (td > today) {
+        throw new Error(`Tanggal perawatan tidak boleh di masa depan (${fmtD(td)} — hari ini ${fmtD(today)})`);
+      }
+      if (td.getFullYear() !== ctx.year) {
+        throw new Error(`Tahun tanggal perawatan (${td.getFullYear()}) harus sama dengan tahun klaim/saldo (${ctx.year}) — pilih tahun saldo yang sesuai`);
+      }
+      if (joinDate && td < joinDate) {
+        throw new Error(`Tanggal perawatan ${fmtD(td)} mendahului tanggal bergabung karyawan (${fmtD(joinDate)})`);
+      }
+    }
+    // W1-6 (fix M-3): providerId wajib ada di master MedicalProvider & aktif.
+    await resolveProvider(l.providerId);
+    // M-8: no. kwitansi unik dalam satu pengajuan
+    const rn = l.receiptNo?.trim() ?? "";
+    if (rn) {
+      if (seenReceipts.has(rn)) {
+        throw new Error(`No. kwitansi ${rn} dipakai lebih dari satu baris pada pengajuan ini — kwitansi ganda ditolak`);
+      }
+      seenReceipts.add(rn);
+    }
+    const nonRe = round2(l.billAmount - l.approvedAmount);
+    totalBill = round2(totalBill + l.billAmount);
+    totalRe = round2(totalRe + l.reimburseAmount);
+    totalApproved = round2(totalApproved + l.approvedAmount);
+    const prov = await resolveProvider(l.providerId);
+    lines.push({
+      treatedName: l.treatedName.trim(),
+      treatment: l.treatment?.trim() || null,
+      treatmentDate: l.treatmentDate ? dayStart(l.treatmentDate) : null,
+      receiptNo: rn || null,
+      providerId: prov?.id ?? null, // W1-6 — relasi master provider
+      hospital: prov?.name ?? (l.hospital?.trim() || null), // snapshot nama
+      physician: l.physician?.trim() || null,
+      note: l.note?.trim() || null,
+      occupationalInjury: Boolean(l.occupationalInjury),
+      billAmount: round2(l.billAmount),
+      reimburseAmount: round2(l.reimburseAmount),
+      approvedAmount: round2(l.approvedAmount),
+      nonReAmount: nonRe,
+    });
+  }
+  return { totals: { bill: totalBill, re: totalRe, approved: totalApproved }, lines, receiptNos: [...seenReceipts] };
 }
 
 export async function submitClaim(
@@ -766,76 +1056,35 @@ export async function submitClaim(
     throw new Error(`Tanggal klaim ${fmtD(claimDate)} mendahului tanggal bergabung karyawan (${fmtD(joinDate)})`);
   }
 
-  // validasi frekuensi (padanan Max Claim in X period)
-  if (!preview.freqUnlimited && preview.freqValue > 0 && preview.claimCountYear >= preview.freqValue) {
-    throw new Error(
-      `Frekuensi klaim ${preview.typeCode} maksimal ${preview.freqValue}× per ${preview.freqPeriod === "YEAR" ? "tahun" : "period"} — sudah ${preview.claimCountYear} klaim`,
-    );
-  }
-
-  let totalBill = 0;
-  let totalRe = 0;
-  let totalApproved = 0;
-  const lines: {
-    treatedName: string; treatment: string | null; treatmentDate: Date | null;
-    receiptNo: string | null; physician: string | null; hospital: string | null; note: string | null;
-    occupationalInjury: boolean; billAmount: number; reimburseAmount: number;
-    approvedAmount: number; nonReAmount: number;
-  }[] = [];
-  const seenReceipts = new Set<string>();
-
-  for (const l of input.lines) {
-    if (!l.treatedName.trim()) throw new Error("Nama yang dirawat wajib diisi");
-    if (l.billAmount < 0 || l.approvedAmount < 0) throw new Error("Jumlah tidak boleh negatif");
-    if (l.approvedAmount > l.billAmount) throw new Error("Approved tidak boleh melebihi tagihan");
-    // M-2: tanggal perawatan ≤ hari ini, tahun sama dengan tahun klaim/saldo,
-    // ≥ tanggal bergabung.
-    if (l.treatmentDate) {
-      const td = dayStart(l.treatmentDate);
-      if (Number.isNaN(td.getTime())) throw new Error(`Tanggal perawatan tidak valid: ${l.treatmentDate}`);
-      if (td > today) {
-        throw new Error(`Tanggal perawatan tidak boleh di masa depan (${fmtD(td)} — hari ini ${fmtD(today)})`);
-      }
-      if (td.getFullYear() !== year) {
-        throw new Error(`Tahun tanggal perawatan (${td.getFullYear()}) harus sama dengan tahun klaim/saldo (${year}) — pilih tahun saldo yang sesuai`);
-      }
-      if (joinDate && td < joinDate) {
-        throw new Error(`Tanggal perawatan ${fmtD(td)} mendahului tanggal bergabung karyawan (${fmtD(joinDate)})`);
-      }
-    }
-    // M-8: no. kwitansi unik dalam satu pengajuan
-    const rn = l.receiptNo?.trim() ?? "";
-    if (rn) {
-      if (seenReceipts.has(rn)) {
-        throw new Error(`No. kwitansi ${rn} dipakai lebih dari satu baris pada pengajuan ini — kwitansi ganda ditolak`);
-      }
-      seenReceipts.add(rn);
-    }
-    const nonRe = round2(l.billAmount - l.approvedAmount);
-    totalBill = round2(totalBill + l.billAmount);
-    totalRe = round2(totalRe + l.reimburseAmount);
-    totalApproved = round2(totalApproved + l.approvedAmount);
-    lines.push({
-      treatedName: l.treatedName.trim(),
-      treatment: l.treatment?.trim() || null,
-      treatmentDate: l.treatmentDate ? dayStart(l.treatmentDate) : null,
-      receiptNo: rn || null,
-      physician: l.physician?.trim() || null,
-      hospital: l.hospital?.trim() || null,
-      note: l.note?.trim() || null,
-      occupationalInjury: Boolean(l.occupationalInjury),
-      billAmount: round2(l.billAmount),
-      reimburseAmount: round2(l.reimburseAmount),
-      approvedAmount: round2(l.approvedAmount),
-      nonReAmount: nonRe,
+  // validasi frekuensi (padanan Max Claim in X period) — W1-8: EVERY_X_YEARS
+  // menghitung klaim aktif X tahun terakhir (Year Period oranHR), bukan tahun kalender.
+  if (!preview.freqUnlimited && preview.freqValue > 0) {
+    const freqCount = await freqClaimCount(db, {
+      employeeId: input.employeeId, typeId: input.typeId, claimDate: input.claimDate,
+      freqPeriod: preview.freqPeriod, freqValue: preview.freqValue,
     });
+    if (freqCount >= preview.freqValue) {
+      const periodLabel = preview.freqPeriod === "EVERY_X_YEARS"
+        ? `setiap ${preview.freqValue} tahun`
+        : preview.freqPeriod === "YEAR" ? "tahun" : "period";
+      throw new Error(
+        `Frekuensi klaim ${preview.typeCode} maksimal ${preview.freqValue}× per ${periodLabel} — sudah ${freqCount} klaim dalam window frekuensi`,
+      );
+    }
   }
+
+  // W1-5 — validasi & normalisasi baris kini helper BERSAMA (dipakai updateClaim
+  // juga) — guard M-2 tanggal + W1-6 provider + M-8 kwitansi dalam-pengajuan.
+  const { totals, lines, receiptNos } = await normalizeClaimLines(db, input.lines, { year, joinDate });
+  const totalBill = totals.bill;
+  const totalRe = totals.re;
+  const totalApproved = totals.approved;
 
   // ---- M-8 (fix audit): dedupe kwitansi LINTAS klaim (status aktif) ----
-  if (seenReceipts.size > 0) {
+  if (receiptNos.length > 0) {
     const dup = await db.medicalClaimLine.findMany({
       where: {
-        receiptNo: { in: [...seenReceipts] },
+        receiptNo: { in: receiptNos },
         claim: { employeeId: input.employeeId, state: { in: ACTIVE_CLAIM_STATES } },
       },
       select: { receiptNo: true, claim: { select: { docNo: true } } },
@@ -858,7 +1107,9 @@ export async function submitClaim(
     forDependent: Boolean(input.forDependent),
   });
   const poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
-  if (!input.allowOverLimit && totalApproved > avail.available) {
+  // W1-1: jenis UNLIMITED → guard plafon dilewati (limit tak berhingga —
+  // sisa 0 bukan berarti plafon habis).
+  if (!avail.unlimited && !input.allowOverLimit && totalApproved > avail.available) {
     throw new Error(
       `Total approved Rp ${fmtRp(totalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
       (avail.pendingOthers > 0 ? ` (termasuk reservasi klaim menunggu lain Rp ${fmtRp(avail.pendingOthers)})` : "") +
@@ -873,52 +1124,12 @@ export async function submitClaim(
   //     diklaim tahun ini melebihi maxDependents jenis benefit. ----
   const warnings: string[] = [];
   if (input.forDependent) {
-    const family = await db.employeeFamily.findMany({
-      where: { employeeId: input.employeeId },
-      select: { name: true },
-    });
-    if (family.length > 0) {
-      // case-insensitive; cocok bila equality ATAU salah satu mengandung lain
-      const famNames = family
-        .map((f) => f.name.trim().toLowerCase())
-        .filter((n) => n.length > 0);
-      const nameKnown = (n: string) => {
-        const x = n.trim().toLowerCase();
-        return famNames.some((f) => f === x || f.includes(x) || x.includes(f));
-      };
-      for (const l of lines) {
-        if (!nameKnown(l.treatedName)) {
-          warnings.push(
-            `Nama yang dirawat '${l.treatedName}' tidak ditemukan pada data keluarga karyawan — mohon verifikasi`,
-          );
-        }
-      }
-    }
-    const bt = await db.medicalBenefitType.findUnique({
-      where: { id: input.typeId },
-      select: { maxDependents: true },
-    });
-    const maxDeps = bt?.maxDependents ?? 0;
-    if (maxDeps > 0) {
-      // klaim dependent karyawan ini tahun yang sama (state aktif) + klaim ini
-      const prevLines = await db.medicalClaimLine.findMany({
-        where: {
-          claim: {
-            employeeId: input.employeeId, year, forDependent: true,
-            state: { in: ACTIVE_CLAIM_STATES },
-          },
-        },
-        select: { treatedName: true },
-      });
-      const distinctNames = new Set<string>();
-      for (const p of prevLines) distinctNames.add(p.treatedName.trim().toLowerCase());
-      for (const l of lines) distinctNames.add(l.treatedName.trim().toLowerCase());
-      if (distinctNames.size > maxDeps) {
-        warnings.push(
-          `Jumlah anggota keluarga berbeda yang diklaim tahun ini (${distinctNames.size}) melebihi batas dependent (${maxDeps})`,
-        );
-      }
-    }
+    // W1-7 (fix G-1 — penguatan validasi Task 82-b): klaim dependent kini
+    // tervalidasi KUAT terhadap registry EmployeeFamily — nama tak dikenal,
+    // anak melewati batas umur jenis, dan jumlah dependent melebihi
+    // maxDependents MENOLAK klaim. Registry kosong (HR belum input keluarga)
+    // → fallback warning lembut agar klaim sah tidak terblokir.
+    await validateDependentLines(db, { employeeId: input.employeeId, typeId: input.typeId, year }, lines, warnings);
   }
 
   const docNo = await nextDocNo(db, "MC");
@@ -933,6 +1144,8 @@ export async function submitClaim(
       claimDate: dayStart(input.claimDate),
       letterNo: input.letterNo?.trim() || null,
       forDependent: Boolean(input.forDependent),
+      // W1-8 — snapshot faktor prorata masa kerja yang dipakai plafon (jejak audit).
+      prorateFactor: preview.prorateFactor ?? undefined,
       state,
       // snapshot pool yang BENAR (K-3): dep pool terpisah → depBenefit/depUsed;
       // SHARED-dependent & klaim karyawan → pool utama (benefit+adj+carry/used).
@@ -943,16 +1156,16 @@ export async function submitClaim(
       totalApproved: encMoney(tcSub, totalApproved),
       totalNonRe: encMoney(tcSub, round2(totalBill - totalApproved)),
       // statusLog ditulis sebagai array Json (bukan string — riwayat utuh)
-      statusLog: log as unknown as Prisma.InputJsonValue,
-      lines: {
-        create: lines.map((l) => ({
-          treatedName: l.treatedName,
-          // Task 52-d — diagnosis/perawatan = PII kesehatan: TERENKRIPSI (enc:t).
-          treatment: l.treatment != null ? tcSub.encryptText(l.treatment) : null,
-          treatmentDate: l.treatmentDate,
-          receiptNo: l.receiptNo,
-          physician: l.physician,
-          hospital: l.hospital,
+      statusLog: log as unknown as Prisma.InputJsonValue,        lines: {
+          create: lines.map((l) => ({
+            treatedName: l.treatedName,
+            // Task 52-d — diagnosis/perawatan = PII kesehatan: TERENKRIPSI (enc:t).
+            treatment: l.treatment != null ? tcSub.encryptText(l.treatment) : null,
+            treatmentDate: l.treatmentDate,
+            receiptNo: l.receiptNo,
+            providerId: l.providerId, // W1-6 — relasi master MedicalProvider
+            physician: l.physician,
+            hospital: l.hospital,
           note: l.note,
           occupationalInjury: l.occupationalInjury,
           billAmount: encMoney(tcSub, l.billAmount),
@@ -992,6 +1205,152 @@ export async function submitClaim(
     remainingAfter: avail.available,
     approvalLevels, firstApprover,
     warnings,
+  };
+}
+
+// ============ W1-5: edit klaim Draft/Returned (padanan Return To Requester →
+// requester memperbaiki data) — ganti tanggal klaim, surat rujukan, catatan, dan
+// seluruh baris perawatan; klaim Submitted/Approved/Settled TIDAK bisa diedit.
+// Guard dedupe kwitansi mengecualikan klaim ini sendiri (mengganti kwitansi lama
+// dengan nomor sama tidak boleh dianggap ganda).
+export interface UpdateClaimInput {
+  claimId: string;
+  claimDate?: string;
+  letterNo?: string;
+  note?: string;
+  lines?: ClaimLineInput[];
+}
+
+export async function updateClaim(
+  db: TenantDb,
+  input: UpdateClaimInput,
+  actorId: string,
+  actor?: MedActorRef,
+): Promise<{ id: string; docNo: string; state: string; totalBill: number; totalApproved: number; warnings: string[] }> {
+  const claim = await db.medicalClaim.findUnique({
+    where: { id: input.claimId },
+    include: { type: { select: { code: true, needReceipt: true } } },
+  });
+  if (!claim) throw new Error("Klaim tidak ditemukan");
+  if (!["Draft", "Returned"].includes(claim.state)) {
+    throw new Error(`Klaim status ${claim.state} tidak bisa diedit — hanya Draft atau Returned`);
+  }
+  if (input.lines && input.lines.length === 0) throw new Error("Minimal satu baris perawatan");
+
+  const claimDateStr = input.claimDate ?? claim.claimDate.toISOString();
+  const year = new Date(claimDateStr).getFullYear();
+  // guard tanggal klaim (mirror submitClaim — M-2)
+  const today = dayStart(new Date());
+  const claimDate = dayStart(claimDateStr);
+  if (Number.isNaN(claimDate.getTime())) throw new Error("Tanggal klaim tidak valid");
+  if (claimDate > today) throw new Error("Tanggal klaim tidak boleh di masa depan");
+
+  const emp = await db.employee.findUnique({
+    where: { id: claim.employeeId }, select: { status: true, joinDate: true, fullName: true },
+  });
+  if (!emp || emp.status !== "Active") throw new Error("Karyawan tidak aktif");
+  const joinDate = emp.joinDate ?? null;
+  if (joinDate && claimDate < dayStart(joinDate)) {
+    throw new Error("Tanggal klaim mendahului tanggal bergabung karyawan");
+  }
+  if (year !== claim.year) {
+    throw new Error(`Tahun klaim baru (${year}) harus sama dengan tahun saldo klaim (${claim.year}) — edit lintas tahun tidak didukung`);
+  }
+
+  const warnings: string[] = [];
+  let newTotals = { bill: 0, re: 0, approved: 0 };
+  let newLines: NormalizedClaimLine[] = [];
+  let receiptNos: string[] = [];
+  if (input.lines) {
+    const norm = await normalizeClaimLines(db, input.lines, { year, joinDate });
+    newTotals = norm.totals;
+    newLines = norm.lines;
+    receiptNos = norm.receiptNos;
+    // M-8 dedupe lintas klaim — KECUALIKAN klaim ini sendiri
+    if (receiptNos.length > 0) {
+      const dup = await db.medicalClaimLine.findMany({
+        where: {
+          receiptNo: { in: receiptNos },
+          claim: {
+            employeeId: claim.employeeId, state: { in: ACTIVE_CLAIM_STATES },
+            id: { not: claim.id },
+          },
+        },
+        select: { receiptNo: true, claim: { select: { docNo: true } } },
+        take: 5,
+      });
+      if (dup.length > 0) {
+        throw new Error(
+          `Kwitansi sudah pernah diklaim: ${dup.map((d) => `${d.receiptNo} (${d.claim.docNo})`).join("; ")} — klaim ganda ditolak`,
+        );
+      }
+    }
+    // guard plafon K-1 (UNLIMITED dilewati — W1-1)
+    const avail = await claimPoolAvailability(db, {
+      employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year,
+      forDependent: claim.forDependent, excludeClaimId: claim.id,
+    });
+    if (!avail.unlimited && newTotals.approved > avail.available) {
+      const poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
+      throw new Error(
+        `Total approved Rp ${fmtRp(newTotals.approved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)} — kurangi nilai approved atau ajukan penyesuaian saldo`,
+      );
+    }
+    // validasi dependent KUAT (W1-7)
+    if (claim.forDependent) {
+      await validateDependentLines(db, { employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year }, newLines, warnings);
+    }
+  }
+
+  const tcUpd = tenantCryptoForDb(db);
+  const log: StatusEntry[] = [
+    ...parseStatusLog(claim.statusLog),
+    logEntry(claim.state, actorId, `Klaim diedit${input.note ? ` — ${input.note}` : ""}`),
+  ];
+  await db.$transaction(async (tx) => {
+    await tx.medicalClaim.update({
+      where: { id: claim.id },
+      data: {
+        ...(input.claimDate ? { claimDate: dayStart(input.claimDate) } : {}),
+        ...(input.letterNo !== undefined ? { letterNo: input.letterNo.trim() || null } : {}),
+        ...(input.lines
+          ? {
+              totalBill: encMoney(tcUpd, newTotals.bill),
+              totalReimburse: encMoney(tcUpd, newTotals.re),
+              totalApproved: encMoney(tcUpd, newTotals.approved),
+              totalNonRe: encMoney(tcUpd, round2(newTotals.bill - newTotals.approved)),
+              lines: { deleteMany: {}, create: newLines.map((l) => ({
+                treatedName: l.treatedName,
+                treatment: l.treatment != null ? tcUpd.encryptText(l.treatment) : null,
+                treatmentDate: l.treatmentDate,
+                receiptNo: l.receiptNo,
+                providerId: l.providerId,
+                physician: l.physician,
+                hospital: l.hospital,
+                note: l.note,
+                occupationalInjury: l.occupationalInjury,
+                billAmount: encMoney(tcUpd, l.billAmount),
+                reimburseAmount: encMoney(tcUpd, l.reimburseAmount),
+                approvedAmount: encMoney(tcUpd, l.approvedAmount),
+                nonReAmount: encMoney(tcUpd, l.nonReAmount),
+              })) },
+            }
+          : {}),
+        statusLog: log as unknown as Prisma.InputJsonValue,
+      },
+    });
+    await tx.activityLog.create({
+      data: {
+        action: "Updated", entity: "MedicalClaim", entityId: claim.id,
+        appUserId: actor?.appUserId ?? undefined,
+        employeeId: actor?.employeeId ?? undefined,
+        detail: `Klaim ${claim.docNo} diedit oleh pemohon${input.lines ? ` — ${newLines.length} baris perawatan diganti (approved ${newTotals.approved.toLocaleString("id-ID")})` : ""}`,
+      },
+    });
+  });
+  return {
+    id: claim.id, docNo: claim.docNo, state: claim.state,
+    totalBill: newTotals.bill, totalApproved: newTotals.approved, warnings,
   };
 }
 
@@ -1135,7 +1494,7 @@ async function generateSettleJournal(
 ): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
   const claim = await tx.medicalClaim.findUnique({
     where: { id: claimId },
-    include: { lines: true, employee: { select: { fullName: true } }, type: { select: { code: true, name: true } } },
+    include: { lines: true, employee: { select: { fullName: true } }, type: { select: { code: true, name: true, pctCompany: true, pctInsurance: true, insuranceCompany: true } } },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (claim.journalNo) {
@@ -1144,18 +1503,53 @@ async function generateSettleJournal(
   const drafts: JournalLineDraft[] = [];
   const acc = await tx.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code } });
   const accName = acc?.name ?? MEDICAL_EXPENSE_ACC.name;
+  // W1-3 (fix M-7): kebijakan company/asuransi kini DIEKSEKUSI — bagian
+  // asuransi menjadi PIUTANG (akun aset 13xx pertama), beban perusahaan hanya
+  // proporsinya. Dulu pctCompany/pctInsurance diabaikan (jurnal 100% beban).
+  const insAcc = claim.type.pctInsurance > 0
+    ? await tx.account.findFirst({
+        where: { code: { startsWith: "13" } },
+        select: { code: true, name: true },
+        orderBy: { code: "asc" },
+      })
+    : null;
+  const insLabel = claim.type.insuranceCompany ?? "Asuransi";
   // 44-c (M-8): approvedAmount baris TERENKRIPSI — dekripsi utk draft jurnal
   // (jurnal tetap ditulis terenkripsi wave-1 via tcJ di bawah — tidak dobel).
   for (const l of claim.lines) {
     const approved = decMoney(tc, l.approvedAmount);
     if (approved <= 0) continue;
-    drafts.push({
-      accountCode: MEDICAL_EXPENSE_ACC.code,
-      accountName: accName,
-      position: "Debit",
-      amount: approved,
-      memo: `${claim.docNo} — ${claim.type.name}${l.treatedName !== claim.employee.fullName ? ` (${l.treatedName})` : ""}`,
-    });
+    const treatedSuffix = l.treatedName !== claim.employee.fullName ? ` (${l.treatedName})` : "";
+    if (insAcc) {
+      const insPart = round2((approved * claim.type.pctInsurance) / 100);
+      const compPart = round2(approved - insPart);
+      if (compPart > 0) {
+        drafts.push({
+          accountCode: MEDICAL_EXPENSE_ACC.code,
+          accountName: accName,
+          position: "Debit",
+          amount: compPart,
+          memo: `${claim.docNo} — ${claim.type.name} (${insLabel} ${claim.type.pctInsurance}%)${treatedSuffix}`,
+        });
+      }
+      if (insPart > 0) {
+        drafts.push({
+          accountCode: insAcc.code,
+          accountName: insAcc.name,
+          position: "Debit",
+          amount: insPart,
+          memo: `${claim.docNo} — piutang ${insLabel} ${claim.type.pctInsurance}% ${claim.type.name}${treatedSuffix}`,
+        });
+      }
+    } else {
+      drafts.push({
+        accountCode: MEDICAL_EXPENSE_ACC.code,
+        accountName: accName,
+        position: "Debit",
+        amount: approved,
+        memo: `${claim.docNo} — ${claim.type.name}${treatedSuffix}`,
+      });
+    }
   }
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
   if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
@@ -1190,7 +1584,7 @@ async function generateSettleJournal(
 
 export interface DecideClaimInput {
   claimId: string;
-  action: "submit" | "return" | "approve" | "reject" | "cancel" | "settle";
+  action: "submit" | "return" | "approve" | "reject" | "cancel" | "settle" | "storno";
   note?: string;
   /** Khusus seeder/migrasi demo: izinkan approve/settle klaim over-limit melewati
    *  guard re-check K-1/K-2 (API TIDAK memetakan flag ini — operasi bisnis normal
@@ -1211,6 +1605,8 @@ export interface DecideClaimResult {
   usedPool?: "employee" | "dependent";
   /** info jenjang berjenjang — ada bila masih ada jenjang berikutnya (Task 25) */
   approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
+  /** W1-4 — no. dokumen pembalik bila action storno. */
+  reversalOf?: string;
 }
 
 /** Operasi klaim — padanan Operation: Submit | Return To Requester |
@@ -1226,6 +1622,7 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     include: {
       type: { select: { code: true, name: true, dependentEnabled: true, depLimitRule: true } },
       employee: { select: { fullName: true } },
+      lines: true, // W1-4 — mirror baris utk dokumen pembalik storno
     },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
@@ -1254,6 +1651,7 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     reject: ["Submitted", "Returned"],
     cancel: ["Draft", "Submitted", "Approved"],
     settle: ["Approved"],
+    storno: ["Settled"], // W1-4 — pembalikan klaim settled
   };
   if (!allowed[input.action]?.includes(claim.state)) {
     throw new Error(`Operasi ${input.action} tidak valid untuk status ${claim.state}`);
@@ -1343,7 +1741,8 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       forDependent: claim.forDependent, excludeClaimId: claim.id,
     });
     poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
-    if (!input.allowOverLimit && claimTotalApproved > avail.available) {
+    // W1-1: jenis UNLIMITED → guard plafon dilewati.
+    if (!avail.unlimited && !input.allowOverLimit && claimTotalApproved > avail.available) {
       throw new Error(
         `Settle ditolak — jurnal TIDAK dibuat: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
         (avail.pendingOthers > 0 ? ` (klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)})` : "") +
@@ -1403,6 +1802,123 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
         },
       });
     });
+  }
+
+  // ---- W1-4: STORNO klaim Settled — dokumen pembalik + jurnal pembalik +
+  // restore saldo. State machine: Settled → (storno) → Cancelled dengan klaim
+  // mirror (state Cancelled, reversalOfId → klaim asal, total −approved).
+  // Alasan WAJIB (padanan "Enter Reason" oranHR). Idempoten via reversalOfId
+  // @unique — klaim settled hanya bisa di-storno sekali.
+  if (input.action === "storno") {
+    if (!input.note?.trim()) {
+      throw new Error("Storno wajib menyertakan alasan (padanan Enter Reason oranHR)");
+    }
+    const dup = await db.medicalClaim.findUnique({ where: { reversalOfId: claim.id }, select: { docNo: true } });
+    if (dup) {
+      throw new Error(`Klaim ${claim.docNo} sudah di-storno via ${dup.docNo} — storno ganda ditolak`);
+    }
+    useDepPool = claim.forDependent && depPoolSeparate(claim.type);
+    const bal = await db.medicalBalance.findUnique({
+      where: { employeeId_typeId_year: { employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year } },
+    });
+    if (!bal) {
+      throw new Error(`Storno ditolak: saldo medis tahun ${claim.year} tidak ditemukan — restore saldo tidak dapat dilakukan`);
+    }
+    const revDocNo = `${claim.docNo}/REV`;
+    const revLog = [logEntry("Cancelled", actorId, `Storno ${claim.docNo} — ${input.note}`)];
+    newState = "Cancelled";
+    await db.$transaction(async (tx) => {
+      // 1) jurnal pembalik (Credit beban 5106 / Debit kas — mirror generateSettleJournal;
+      //    jika jurnal asli masih ada & belum dipakai run, buang — pola storno travel)
+      if (claim.journalNo) {
+        await tx.payrollJournal.deleteMany({ where: { journalNo: claim.journalNo, runId: null } });
+      }
+      const reversalDrafts: JournalLineDraft[] = [];
+      for (const l of claim.lines ?? []) {
+        const approved = decMoney(tc, l.approvedAmount);
+        if (approved <= 0) continue;
+        reversalDrafts.push({
+          accountCode: MEDICAL_EXPENSE_ACC.code,
+          accountName: (await tx.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code }, select: { name: true } }))?.name ?? MEDICAL_EXPENSE_ACC.name,
+          position: "Credit",
+          amount: approved,
+          memo: `STORNO ${claim.docNo} — ${claim.type.name}${l.treatedName !== claim.employee.fullName ? ` (${l.treatedName})` : ""}`,
+        });
+      }
+      const revTotal = round2(reversalDrafts.reduce((s, d) => s + d.amount, 0));
+      let revJournalNo: string | null = null;
+      if (revTotal > 0) {
+        reversalDrafts.push({
+          accountCode: CASH_ACC.code,
+          accountName: CASH_ACC.name,
+          position: "Debit",
+          amount: revTotal,
+          memo: `STORNO ${claim.docNo} — pembalikan reimbursement medis ${claim.employee.fullName}`,
+        });
+        revJournalNo = await nextJournalNoInTx(tx);
+        await tx.payrollJournal.create({
+          data: {
+            journalNo: revJournalNo, journalDate: new Date(), runId: null, runNo: revDocNo,
+            description: `STORNO klaim medis ${claim.docNo} — ${claim.employee.fullName} (${claim.type.name})`,
+            totalDebit: tc.encryptMoney(revTotal), totalCredit: tc.encryptMoney(revTotal), status: "Posted",
+            lines: {
+              create: reversalDrafts.map((d, i) => ({
+                sequence: i + 1, accountCode: d.accountCode, accountName: d.accountName,
+                position: d.position, amount: tc.encryptMoney(d.amount), memo: d.memo,
+              })),
+            },
+          },
+        });
+      }
+      // 2) restore saldo — used dikembalikan sebesar approved (pool yang benar, K-3)
+      await tx.medicalBalance.update({
+        where: { id: bal.id },
+        data: useDepPool
+          ? { depUsed: encMoney(tc, round2(decMoney(tc, bal.depUsed) - claimTotalApproved)) }
+          : { usedAmount: encMoney(tc, round2(decMoney(tc, bal.usedAmount) - claimTotalApproved)) },
+      });
+      // 3) dokumen pembalik (mirror −approved, reversalOfId unik — idempoten)
+      await tx.medicalClaim.create({
+        data: {
+          docNo: revDocNo, employeeId: claim.employeeId, typeId: claim.typeId, year: claim.year,
+          claimDate: new Date(), forDependent: claim.forDependent,
+          prorateFactor: claim.prorateFactor,
+          state: "Cancelled",
+          maxBenefitAt: claim.maxBenefitAt,
+          usedAt: claim.usedAt,
+          totalBill: encMoney(tc, -claimTotalBill),
+          totalReimburse: claim.totalReimburse,
+          totalApproved: encMoney(tc, -claimTotalApproved),
+          totalNonRe: encMoney(tc, 0),
+          statusLog: revLog as unknown as Prisma.InputJsonValue,
+          reversalOfId: claim.id,
+          decisionNote: input.note ?? null,
+        },
+      });
+      // 4) klaim asal → Cancelled + jejak jurnal pembalik
+      await tx.medicalClaim.update({
+        where: { id: claim.id },
+        data: {
+          state: newState,
+          statusLog: log as unknown as Prisma.InputJsonValue,
+          decisionNote: input.note ?? claim.decisionNote,
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          action: "Processed", entity: "MedicalClaim", entityId: claim.id,
+          appUserId: input.actor?.appUserId ?? undefined,
+          employeeId: input.actor?.employeeId ?? undefined,
+          detail: `STORNO klaim ${claim.docNo} → dokumen pembalik ${revDocNo}${revJournalNo ? ` — jurnal pembalik ${revJournalNo}` : ""} — saldo dipulihkan Rp ${fmtRp(claimTotalApproved)}${input.note ? ` (${input.note})` : ""}`,
+        },
+      });
+    });
+    return {
+      docNo: claim.docNo, state: newState,
+      journalNo: null, journalLines: 0, usedAdded: -claimTotalApproved,
+      remaining: 0, usedPool: useDepPool ? "dependent" : "employee",
+      reversalOf: revDocNo,
+    };
   }
 
   if (input.action !== "settle") {

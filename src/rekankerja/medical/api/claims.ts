@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { getMoneyView, type MoneyView } from "@/rekankerja/shared/lib/money-view";
-import { listClaims, submitClaim, decideClaim, previewClaim, type ClaimPreview } from "@/rekankerja/medical/services/medical-service";
+import { listClaims, submitClaim, updateClaim, decideClaim, previewClaim, type ClaimPreview } from "@/rekankerja/medical/services/medical-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
         treatment: l.treatment ? String(l.treatment) : undefined,
         treatmentDate: l.treatmentDate ? String(l.treatmentDate) : undefined,
         receiptNo: l.receiptNo ? String(l.receiptNo) : undefined,
+        providerId: l.providerId ? String(l.providerId) : undefined, // W1-6
         physician: l.physician ? String(l.physician) : undefined,
         hospital: l.hospital ? String(l.hospital) : undefined,
         note: l.note ? String(l.note) : undefined,
@@ -231,23 +232,54 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH — Operation: submit | return | approve | reject | cancel | settle.
+// PATCH — Operation: submit | return | approve | reject | cancel | settle |
+// storno (W1-4) | edit (W1-5).
 // Settle = jurnal otomatis + saldo used bertambah. Guard re-check sisa plafon
 // (K-1/K-2) + guard VIEWER 403 (decidedBy/settledBy = aktor sesi).
-// Task 32-d: guard hak AKSI menu per pengguna — submit → op:submit & cancel →
-// op:cancel pada medical:medical-claim; approve/reject/return → op:approve &
-// settle → op:settle pada medical:medical-approval. Body dibaca SEKALI sebelum
-// guard (aksi menentukan menu yang dicek).
+// Task 32-d: guard hak AKSI menu per pengguna — submit/edit → op:submit &
+// cancel → op:cancel pada medical:medical-claim; approve/reject/return →
+// op:approve & settle/storno → op:settle pada medical:medical-approval.
+// Body dibaca SEKALI sebelum guard (aksi menentukan menu yang dicek).
 export async function PATCH(req: NextRequest) {
   try {
     const b = await req.json();
-    const actions = ["submit", "return", "approve", "reject", "cancel", "settle"];
+    const actions = ["submit", "return", "approve", "reject", "cancel", "settle", "storno", "edit"];
     if (!b.id || !actions.includes(b.action)) {
       return NextResponse.json({ error: `id & action (${actions.join("|")}) wajib` }, { status: 400 });
     }
+    // ---- W1-5: edit klaim Draft/Returned — pemohon memperbaiki data ----
+    if (b.action === "edit") {
+      const m = await requireMenuAction(req, "medical:medical-claim", "op:submit");
+      if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      if (b.lines !== undefined && !Array.isArray(b.lines)) {
+        return NextResponse.json({ error: "lines harus array" }, { status: 400 });
+      }
+      const res = await updateClaim(m.db, {
+        claimId: String(b.id),
+        claimDate: b.claimDate ? String(b.claimDate) : undefined,
+        letterNo: b.letterNo !== undefined ? String(b.letterNo) : undefined,
+        note: b.note ? String(b.note) : undefined,
+        lines: Array.isArray(b.lines)
+          ? (b.lines as Record<string, unknown>[]).map((l) => ({
+              treatedName: String(l.treatedName ?? ""),
+              treatment: l.treatment ? String(l.treatment) : undefined,
+              treatmentDate: l.treatmentDate ? String(l.treatmentDate) : undefined,
+              receiptNo: l.receiptNo ? String(l.receiptNo) : undefined,
+              providerId: l.providerId ? String(l.providerId) : undefined, // W1-6
+              physician: l.physician ? String(l.physician) : undefined,
+              hospital: l.hospital ? String(l.hospital) : undefined,
+              occupationalInjury: Boolean(l.occupationalInjury),
+              billAmount: Number(l.billAmount ?? 0),
+              reimburseAmount: Number(l.reimburseAmount ?? 0),
+              approvedAmount: Number(l.approvedAmount ?? 0),
+            }))
+          : undefined,
+      }, m.actor.appUserId ?? m.actor.userId, { appUserId: m.actor.appUserId, employeeId: m.actor.employeeId });
+      return NextResponse.json(res);
+    }
     const m = b.action === "submit" || b.action === "cancel"
       ? await requireMenuAction(req, "medical:medical-claim", b.action === "submit" ? "op:submit" : "op:cancel")
-      : await requireMenuAction(req, "medical:medical-approval", b.action === "settle" ? "op:settle" : "op:approve");
+      : await requireMenuAction(req, "medical:medical-approval", b.action === "settle" || b.action === "storno" ? "op:settle" : "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const actorId = m.actor.appUserId ?? m.actor.userId;
 
