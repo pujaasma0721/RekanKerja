@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // Task 87 — panel preview platform memuat halaman dari domain
+  // preview-chat-<sessionId>.space-z.ai yang di-proxy ke port 3000; tanpa ini
+  // Next 16 menolak resource /_next/* dari origin asing (warning kini,
+  // blokir 403 di versi mayor berikutnya). Wildcard mencakup semua sesi chat.
+  allowedDevOrigins: ["*.space-z.ai"],
   // nodemailer dimuat saat RUNTIME dari node_modules (tidak dibundel saat build)
   // → bila paket belum terpasang, app tetap jalan; kirim email didegradasi jadi
   // pesan jelas di log/tes kirim, BUKAN build error mematikan seluruh aplikasi.

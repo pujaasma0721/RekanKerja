@@ -29,6 +29,27 @@ export function PwaRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     let cancelled = false;
+
+    // Task 87 — saat SW BARU mengambil alih halaman (pasca deploy sw.js baru,
+    // mis. rebrand/theme change), muat ulang SEKALI agar chunk JS yang berjalan
+    // selalu berasal dari SW terbaru. Hanya dipasang bila sudah ada SW lama
+    // yang mengontrol halaman (controller != null) — kunjungan pertama tidak
+    // pernah reload, dan flag `refreshing` mencegah loop.
+    let refreshing = false;
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    const onControllerChange = () => {
+      if (refreshing || cancelled) return;
+      refreshing = true;
+      try {
+        window.location.reload();
+      } catch {
+        /* non-fatal */
+      }
+    };
+    if (hadController) {
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    }
+
     const register = () => {
       navigator.serviceWorker
         .register("/sw.js")
@@ -44,6 +65,9 @@ export function PwaRegister() {
     return () => {
       cancelled = true;
       window.removeEventListener("load", register);
+      if (hadController) {
+        navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      }
     };
   }, []);
 

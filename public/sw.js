@@ -1,15 +1,15 @@
 /* RekanKerja HRIS — service worker (Task 27-d, P1: PWA installable)
  * Vanilla JS tanpa bundler — disajikan apa adanya dari public/sw.js.
  *
- * Strategi (DEV-SAFE — server dev Next.js + hot reload tetap hidup):
+ * Strategi (DEV-SAFE — Task 87: chunk basi TIDAK PERNAH disajikan):
  *  · /api/*      → SELALU network (tidak di-respondWith sama sekali).
  *  · non-GET     → dilewati.
  *  · cross-origin→ dilewati (browser yang mengurus).
- *  · /_next/static/* → stale-while-revalidate: jawab instan dari cache bila
- *    ada, lalu segarkan cache di belakang layar. Di PROD aset ini
- *    content-hashed, tapi di DEV sebagian nama chunk TIDAK di-hash
- *    (mis. _buildManifest.js) — cache-first murni akan melayani chunk basi
- *    dan merusak hot reload; SWR menjaga keduanya.
+ *  · /_next/static/* → NETWORK-FIRST: selalu ambil dari server; cache hanya
+ *    fallback saat offline. Di DEV sebagian nama chunk TIDAK di-hash (mis.
+ *    _buildManifest.js) — strategi stale-while-revalidate lama terbukti
+ *    menyajikan chunk basi pasca rebrand/theme change (preview "tidak jalan"),
+ *    maka sejak v2 chunk basi tidak pernah lagi disajikan saat online.
  *  · /icons/*, /logo.svg, /manifest.webmanifest → cache-first murni
  *    (aset publik statis; ganti isi = ganti nama file).
  *  · navigasi (request.mode === "navigate") → network-first dan HTML
@@ -18,7 +18,7 @@
  *  · sisanya → passthrough network.
  * Semua dibungkus defensif: SW gagal = aplikasi tetap jalan normal.
  */
-const CACHE = "rekankerja-w27-v1";
+const CACHE = "rekankerja-sw-v2";
 
 const PRECACHE = [
   "/manifest.webmanifest",
@@ -64,6 +64,16 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  // Pola standar Workbox — memungkinkan halaman meminta SW baru langsung
+  // aktif (dipakai alur pembaruan di pwa-register.tsx).
+  if (event.data === "SKIP_WAITING") {
+    try {
+      self.skipWaiting();
+    } catch (_err) { /* non-fatal */ }
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
@@ -79,30 +89,29 @@ self.addEventListener("fetch", (event) => {
 
   const p = url.pathname;
 
-  // ---- /_next/static/* → stale-while-revalidate (dev-safe) ----
+  // ---- /_next/static/* → network-first (Task 87: chunk basi tak pernah disajikan) ----
   if (p.startsWith("/_next/static/")) {
     event.respondWith(
       (async () => {
-        const cache = await caches.open(CACHE);
-        const cached = await cache.match(req);
-        const refresh = fetch(req)
-          .then((res) => {
-            if (res && res.ok) {
-              try {
-                cache.put(req, res.clone()).catch(() => {});
-              } catch (_err) { /* body sudah dipakai — abaikan */ }
-            }
-            return res;
-          })
-          .catch(() => undefined);
-        if (cached) {
+        try {
+          const res = await fetch(req);
+          if (res && res.ok) {
+            try {
+              const cache = await caches.open(CACHE);
+              cache.put(req, res.clone()).catch(() => {});
+            } catch (_err) { /* body sudah dipakai — abaikan */ }
+          }
+          return res;
+        } catch (_err) {
+          // Offline → coba cache (di PROD chunk content-hashed = versi benar;
+          // di DEV koneksi sudah putus, halaman HTML pun tak akan termuat).
           try {
-            event.waitUntil(refresh); // segarkan cache tanpa memblok respons
-          } catch (_err) { /* event sudah selesai — abaikan */ }
-          return cached;
+            const cache = await caches.open(CACHE);
+            const cached = await cache.match(req);
+            if (cached) return cached;
+          } catch (_err2) { /* cache tak tersedia */ }
+          return new Response("", { status: 504, statusText: "Offline" });
         }
-        const fresh = await refresh;
-        return fresh || new Response("", { status: 504, statusText: "Offline" });
       })()
     );
     return;
