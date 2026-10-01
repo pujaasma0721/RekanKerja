@@ -2622,3 +2622,20 @@ Stage Summary:
 - Konfirmasi: commit 7cb2b19 (17 temuan audit ditindaklanjuti: T1-T5, T9, T10, T11, T14 + penomoran + 4 fitur pelengkap) SUDAH ADA di origin/main GitHub.
 - Lingkungan sandbox dipulihkan penuh (PG + 3 tenant demo + eSign + ESS + watchdog); koreksi penting: PLATFORM_DB_URL TANPA ?schema=platform (registry wajib schema public).
 - scripts/watch-dev.sh kini masuk repo (tahan sandbox reset berikutnya).
+
+---
+Task ID: 84
+Agent: Z.ai (orkestrator utama)
+Task: Copy repo OneVity → github.com/pujaasma0721/RekanKerja (akses GitHub via PAT baru) + pemulihan sandbox reset ke-4
+
+Work Log:
+- Target diverifikasi: repo RekanKerja sudah ada di GitHub (public, kosong, size 0) — tinggal diisi.
+- PAT lama (embedded di .git/config origin) DITOLAK GitHub ("Bad credentials" untuk API & push, termasuk push ke OneVity) → user memberi PAT baru ghp_… ; diverifikasi via API: login=pujaasma0721, permissions push/admin ke RekanKerja ✓. Kedua remote (origin OneVity + rekan RekanKerja) diupdate ke PAT baru.
+- COPY REPO: git push rekan --all → branch main + ess-rebuild-design terkirim; git push rekan --tags (0 tag). Ternyata local main tertinggal 7cb2b19 (sandbox reset ke-4 terjadi antar sesi — git dir ter-restore ke snapshot pra-d59bfb0) padahal origin/main di GitHub = d59bfb0 → fetch + merge --ff-only origin/main → push rekan main → 7cb2b19..d59bfb0. VERIFIKASI AKHIR: refs/heads/main OneVity = RekanKerja = d59bfb0 ✓ identik; ess-rebuild-design (branch lokal yang tidak pernah ada di OneVity) ikut tersimpan di RekanKerja sebagai bonus.
+- PEMULIHAN SANDBOX RESET KE-4 (urut sama dengan Task 83-restore): (1) .env ditulis ulang (PLATFORM_DB_URL + TENANT_DB_BASE_URL tanpa ?schema=platform, registry=public; DATABASE_URL legacy; SESSION_SECRET); (2) PG initdb fresh via double-fork → 127.0.0.1:5432; (3) db:push + db:generate (BOTH clients — src/generated/ terhapus saat reset, restore-demo gagal "Cannot find module @/generated/tenant" sampai db:generate dijalankan); (4) restore-demo.ts → 3 tenant (MII 44 karyawan, Cahaya, Sentra) + konfigurasi email; (5) migrasi idempoten sukses semua + eSign 2/2 × 3 schema; (6) seed-ess-demo-user (yusuf@mii.co.id); (7) BUGFIX watch-dev.sh: git menyimpan mode 100644 (bukan 755) → `exec script.sh` gagal Permission denied → chmod +x + git update-index --chmod=+x (mode 100755 kini ter-commit) → watchdog double-fork hidup, dev server up, /api/health 200, parity pipeline exit 0.
+- E2E browser pasca-pulih: halaman login render ✓ → login hrd@mii.co.id → workspace picker MII + Cahaya tampil ✓ → 0 page error.
+
+Stage Summary:
+- RekanKerja kini berisi salinan lengkap OneVity: main d59bfb0 (identik, terverifikasi ls-remote) + ess-rebuild-design 6314a8e; PAT baru terpasang di kedua remote.
+- Sandbox dipulihkan ke-4 kali; root-cause kegagalan watchdog sebelumnya = git file mode 644 — kini fixed permanen di repo (100755).
+- Catatan untuk reset berikutnya: cukup .env + db:generate + PG + restore-demo + migrasi + seed-ess + watch-dev.sh (lihat langkah Work Log di atas).
