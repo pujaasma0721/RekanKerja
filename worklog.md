@@ -2684,3 +2684,21 @@ Stage Summary:
 - Struktur direktori ikut rapi: src/rekankerja, src/lib/rekankerja, src/components/rekankerja, src/app/api/rekankerja.
 - DIPERTAHANKAN (keputusan sadar, bukan brand tampilan): kredensial DB PG (user/db onevity), password demo onevity123, label kripto v1/vault, env ONEVITY_ENCRYPTION_KEY, hostname produksi onevity.sayone.id — lihat Work Log poin analisis kripto.
 - Login demo TIDAK berubah: hrd@mii.co.id/onevity123 · yusuf@mii.co.id/EssDemo123!.
+
+---
+Task ID: 87
+Agent: main (Z.ai Code)
+Task: Perbaiki "preview side tidak jalan" — diagnosis akar masalah + fix permanen
+
+Work Log:
+- Diagnosis: dev server sehat (health 200), gateway Caddy OK (HTML 200 59KB via preview host), asset CSS 200 417KB — jalur server penuh berfungsi
+- Bukti akar masalah di dev.log: request ke /api/onevity/meta → 404 (chunk JS lama pra-rebrand disajikan dari cache SW stale-while-revalidate) + warning cross-origin dari preview-chat-*.space-z.ai
+- Fix 1: public/sw.js — strategi /_next/static/* diubah dari stale-while-revalidate → NETWORK-FIRST (chunk basi tak pernah disajikan saat online; cache hanya fallback offline); bump CACHE rekankerja-w27-v1 → rekankerja-sw-v2; tambah listener message SKIP_WAITING
+- Fix 2: pwa-register.tsx — auto-reload terkontrol saat controllerchange (SW baru aktif); hanya bila sudah ada SW lama (controller != null), flag refreshing mencegah loop
+- Fix 3: next.config.ts — allowedDevOrigins: ["*.space-z.ai"] untuk domain preview panel (validasi wildcard via isCsrfOriginAllowed → matchWildcardDomain terkonfirmasi)
+- Verifikasi: lint 0 error (2 warning pre-existing di scripts/e2e), sw.js v2 tersaji (network-first + SKIP_WAITING + v2 terdeteksi), browser smoke test: login hrd@mii.co.id → pilih workspace MII → dashboard HR penuh termuat; 20/20 request terakhir 200
+
+Stage Summary:
+- Preview panel kini tahan deploy ulang: SW baru otomatis aktif + reload sekali, chunk dev selalu fresh dari network
+- CATATAN AUDIT UX (temuan awal): banner instal PWA sempat MENUTUPI tombol "MASUK KE WORKSPACE" di halaman login — masuk daftar audit Task 88
+- Commit 601a2a7 berisi ketiga fix (auto-commit platform); siap di-push bersama Task 88
