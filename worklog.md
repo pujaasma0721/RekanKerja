@@ -2702,3 +2702,118 @@ Stage Summary:
 - Preview panel kini tahan deploy ulang: SW baru otomatis aktif + reload sekali, chunk dev selalu fresh dari network
 - CATATAN AUDIT UX (temuan awal): banner instal PWA sempat MENUTUPI tombol "MASUK KE WORKSPACE" di halaman login — masuk daftar audit Task 88
 - Commit 601a2a7 berisi ketiga fix (auto-commit platform); siap di-push bersama Task 88
+
+---
+Task ID: 88-a
+Agent: Explore (UX audit shared+auth)
+Task: Audit UX read-only komponen SHARED + AUTH (auth/, shell/, i18n.tsx, offline.html, layout.tsx, globals.css) pasca rebrand Task 85/86 — 14 file dibaca penuh.
+
+Work Log:
+- Baca worklog (Task 85: ganti tema SayOne-Learning biru #2563EB; Task 86: rebrand OneVity→RekanKerja; Task 87: catatan banner PWA menutupi CTA login) utk konteks.
+- Baca penuh: auth-gate.tsx, auth-screen.tsx (724 ln), editorial.tsx, tenant-select.tsx, app-shell.tsx (1399 ln), notification-bell.tsx, language-switcher.tsx, accent-switcher.tsx, change-password-dialog.tsx, money-vault.tsx (801 ln), i18n.tsx, offline.html, layout.tsx, globals.css; plus pendukung: password-ui.tsx, accent-theme.ts, pwa-register.tsx, i18n-core.ts (verifikasi BASE_EN), ui/dialog.tsx (Aturan Emas sm:max-w).
+- Audit per kriteria: konsistensi visual (stone/slate/biru, radius, ikon, spacing), state lengkap, a11y (ARIA, kontras WCAG AA via perhitungan luminance, focus, touch target 44px), responsivitas, i18n, interaksi, layout, copy, dark mode.
+- Verifikasi silang: grep sisa stone/#faf8f3 (hanya design-lab dev mockup), BASE_EN coverage utk t() satu-argumen (lengkap), tidak ada forgot-password self-service di layar auth, PwaRegister ter-mount di page.tsx (banner muncul di atas layar login).
+
+Stage Summary:
+TEMUAN: P0=0 · P1=4 · P2=11 · P3=21.
+- P1: (1) offline.html masih tema lama Ivory+amber DAN link "Muat ulang" kehilangan class="retry" (CTA polos); (2) banner PWA amber (bukan biru) + posisi fixed menutupi CTA "Masuk ke Workspace" (temuan Task 87 belum ditindak); (3) badge unread notifikasi putih-di-amber-500 kontras 2.15:1 (WCAG AA gagal); (4) bottom sheet mobile role="dialog" tanpa focus-trap/inisial fokus (WCAG 2.4.3).
+- P2 utama: widget live sidebar memakai warna era panel gelap (PANEL_BG #232228, track ring rgba putih) di atas sidebar putih baru; text-white hardcoded di badge aksen (amber→2.15:1); helper text slate-400 3.0:1 di ~10 lokasi; tab Masuk/Dftar role="tab" tanpa arrow-key/aria-controls; EditorialError biru utk semua error (severitas tidak terkomunikasi); touch target <44px di topbar/footer panel/eye-toggle; label kata sandi tidak terasosiasi programatik (money-vault + change-password); CommandEmpty tidak pernah tampil (shouldFilter=false); ChangePasswordDialog bukan <form> (Enter tidak submit); tidak ada skip-link; tidak ada "Lupa kata sandi?".
+- P3: komentar basi era Ivory (auth-gate/auth-screen), UnderlineField kini pill, hex modul mati (incl. stone #a8a29e), color-scheme light di dark mode, themeColor viewport tanpa varian dark, enum OWNER/TRIAL ditampilkan mentah, "Ganti Sandi" vs "Ganti Kata Sandi", dll.
+- 5 prioritas teratas: re-theme offline.html + class retry; reposition/re-brand banner PWA; kontras badge unread+rail (pakai --accent-live-fg); focus-trap bottom sheet; bersihkan styling era panel gelap di widget sidebar.
+- Kode TIDAK diubah (audit read-only). Laporan lengkap diserahkan ke orkestrator utk eksekusi perbaikan (Task 88).
+---
+Task ID: 88-d
+Agent: Explore (UX audit travel/medical/whistleblow/ess/settings)
+Task: Audit UI/UX read-only modul Travel (9 file), Medical (9), Whistleblow (2), ESS portal (13), Settings (12) — konsistensi visual tema SayOne-Learning biru, state lengkap, aksesibilitas, responsivitas ESS mobile-first, i18n ID/EN, interaksi/destructive confirm, sensitivitas TPKS, keamanan ESS, kualitas form & copy, dark mode.
+
+Work Log:
+- Baca worklog (Task 85 tema biru & 86 rebrand) + verifikasi globals.css: data-module=payroll kini BIRU → ESS yang set data-module="payroll" tapi mempertahankan ratusan kelas amber-* hardcoded kini CAMPUR biru+amber.
+- Baca penuh 9 file travel/components, 9 file medical/components, 2 file whistleblow/components, 6 file inti ESS (shell/dashboard/payslips/profile/attendance/claims) + grep status/confirm/busy pada 7 file ESS lain, 8 file settings (module/esign/user-security/api-view penuh; sisanya grep konfirmasi/busy/aria/i18n), money-vault (brankas uang) spot-check, session-lifecycle (idle lock ✓ via auth-gate).
+- Verifikasi bukti kripto visual: grep CSS terkompilasi .next — kelas opasitas-ganda (bg-brand/10/60, dark:bg-brand/90/20, dsb.) TIDAK di-generate Tailwind → dead class, tint biru lembut tidak pernah render (≈45 lokasi).
+- Re-produksi logika: esign-view offset/search state tidak pernah masuk URL useApi → pagination & pencarian Audit Rantai mati; medical-claims hitungan chip Draft = total−submitted−approved−settled (ikut menghitung Rejected/Returned); travel-claims mode standalone memaksa employees[0] tanpa picker.
+- Susun laporan per severity dengan file:baris (lihat pesan akhir task ini untuk laporan lengkap).
+
+Stage Summary:
+- P0 (1): esign-view.tsx:83-115,215-219 — tombol prev/next & kotak cari tab "Audit Rantai" murni dekoratif (state chainOffset/chainQ/chainDocType tidak pernah dikirim ke API) → audit eSign >50 record tak dapat diakses/dicari.
+- P1 (7): (1) kelas Tailwind opasitas-ganda invalid sistemik (~45 lokasi lintas travel/medical/whistleblow/ess/settings/money-vault — tint bg hilang diam-diam); (2) aksi destruktif tanpa konfirmasi: cancel permintaan travel (travel-requests:116), hapus lookup (settings-module:68), revoke API key (api-view:124), hapus webhook (api-view:411); (3) medical-approval "Tolak" berwarna BIRU sama dengan "Setujui" (ACTION_META.reject tone bg-brand) + medical-adjustment pakai XCircle rotate-45 sebagai ikon centang & tombol approve/reject identik; (4) travel-claims standalone klaim disimpan ke karyawan pertama daftar tanpa pilihan; (5) error API tampil sebagai empty state (travel/medical/settings + ess-requests/letters/assets/announcements/swap + triage 403 → "Kanal bersih" menyesatkan); (6) ESS identitas terbelah amber vs biru pasca-Task 85; (7) label EN campur di UI ID default medical ("Approved *", "Reimbursement", "Process", toast state mentah).
+- P2 (13) terutama: chip filter tanpa terjemahan EN, baris tabel expandable tanpa keyboard/aria, touch target h-7/h-8 (28-32px), badge amber-500+putih gagal kontras WCAG AA, hitungan chip Draft salah, tombol submit ESS warna tak konsisten (rose vs sky), anonim+kontak kontradiktif di whistleblow, ikon-only tanpa aria-label, transfer UMC tanpa gating perms, LookupDialog tanpa busy guard.
+- P3 (12): shadowing variabel t, field name mentah ke user ("depAdjustment"), toLocaleDateString id-ID hardcode, saran masking NPWP/BPJS di profil, saran tautan dukungan psikolog/layanan TPKS di form whistleblow, native select/checkbox tidak shadcn, focus-trap bottom sheet.
+- Positif: ESS mobile-first solid (safe-area, tab bar ~46px, aria-current, retry di dashboard/payslips/attendance/claims); whistleblowing sangat baik (jaminan anonimitas eksplisit, anonim default, bahasa suportif, tiket, rate-limit, KPI hero biru ov-*); DialogContent sm:max-w-* dipatuhi di semua modul (Aturan Emas task 39); dark mode konsisten; busy guard double-submit hampir merata.
+- Prioritas fix: (1) esign offset&q → URL; (2) konfirmasi destructive 4 lokasi; (3) sapu bersih kelas /N/M ganda → /N; (4) rose utk Reject medical + CheckCircle2; (5) picker karyawan mode standalone klaim travel.
+
+---
+Task ID: 88-b
+Agent: Explore (UX audit HR core)
+Task: Audit UI/UX modul HR inti (READ-ONLY) — dashboard, org, position, employee, actions, hr-reports + custom-reports (+ onboarding/offboarding/assets yang di-render lewat employee-module).
+
+Work Log:
+- Baca worklog Task 85 (tema SayOne-Learning: biru #2563EB + slate + Inter) & 86 (rebrand) sebagai baseline; catat Aturan Emas (DialogContent sm:max-w-*, i18n BASE_EN + t()).
+- Peta pemakaian komponen via Grep: temukan 12 file .tsx mati di scope (company-view, unit-tree-view, job-view, grade-view, position-list-view, employee-detail, disciplinary-view, detail-dialogs, pa-detail, pa-create-dialog, pa-decision-dialog, settlement-preview-dialog ≈ 5.000 baris) — semua view live ada di org-module/position-module/employee-module/actions-module.
+- Baca penuh file live: dashboard-module, org-module (+company/office/org-map), position-module (+level-view), employee-module (+directory/wizard/documents), actions-module, hr-reports-view, custom-reports-view, onboarding-checklist-module, offboarding-module, assets-module (skim), employee-avatar, letter-preview-dialog; verifikasi perilaku API PATCH positions.ts & jobs.ts utk membuktikan 2 bug kehilangan data.
+- Grep silang: stone- (0 sisa class), useI18n per file (onboarding-checklist = 0), window.confirm/alert (1), DialogContent tanpa sm:max-w (1), TableRow onClick tanpa keyboard (6), h-7 w-7 (≈35), text-[9px] (≈30), sisa hex stone di org-map dot-grid.
+- Susun laporan severity P0–P3 + rekomendasi per temuan.
+
+Stage Summary:
+- P0 (1): Edit posisi di PositionDialog TIDAK prefill job/unit/grade/atasan dan mengirim null → PATCH menghapus semua asosiasi posisi secara diam-diam (position-module.tsx:350-369 + positions.ts:100).
+- P1 (5): JobDialog edit menghapus description (jobs.ts:47 + dialog tak load); ListSection hapus keluarga/pendidikan/pengalaman TANPA konfirmasi (employee-module.tsx:826); onboarding-checklist-module 0% i18n (477 baris tanpa t(), melanggar Aturan Emas); dashboard tanpa state error (skeleton selamanya); tombol edit Job/hapus ListSection opacity-0 hover-only → tak terlihat di touch device.
+- P2 (9): dead code ≈5.000 baris (12 file), DialogContent max-w-2xl tanpa sm: (golden rule task 39), Batalkan/Tandai Selesai tanpa busy-guard/konfirmasi, window.confirm di employee-documents, employee-documents tanpa error state, avatar amber gradient di CompanyProfile live (sisa pra-Task-85), dot-grid kanvas peta org pakai hex stone #d6d3d1/#292524, 6 tabel baris-klik tanpa akses keyboard, skeleton selamanya saat error di onboarding-checklist.
+- P3 (≈13 kelompok): greeting selalu "Selamat pagi", 5 string hardcoded tanpa t(), target sentuh 28px (h-7 w-7 ≈35 lokasi), teks 9px, opsi relasi EN-only, field bebas utk agama/status darah di Edit, EmptyState kosong utk Job/Grade, kelas invalid bg-brand/10/70, dsb.
+- Yang sudah BAIK (patut dijadikan standar): employee-directory (sort server + paginasi + aria-live), custom-reports-view (aria-label menyeluruh + AlertDialog + role=alert), wizard onboarding (draft autosave + error inline per-field), org-map (keyboard + versi mobile terpisah), level/office view (loading/error/empty lengkap).
+- Prioritas perbaikan: (1) prefill/patch posisi, (2) prefill description job, (3) konfirmasi hapus ListSection, (4) i18n onboarding-checklist, (5) state error dashboard + kontrol hover-only.
+- Tidak ada file kode diubah (audit murni baca).
+---
+Task ID: 88-c
+Agent: Explore (UX audit payroll/attendance/leave)
+Task: audit modul payroll, attendance, leave
+Work Log:
+- LS 3 folder scope (45 file: payroll 20, time-attendance 14, leave 10) lalu jalankan ~14 pola Grep (confirm(, amber, stone-, max-w, opacity ganda, text-[9px]/h-7 w-7, fmtIDR/toLocaleString, disabled-busy, api.error, t() satu-argumen, onClick destruktif) dengan glob **/{payroll,time-attendance,leave}/components/*.
+- Read hanya region bermasalah: decide/cancelRequest (overtime, workoff, leave-requests, leave-encashment), attendance-overview FlowStep 4, payroll-run-detail submitRecalc, bank-export-menu, shared/lib/api.ts (useApi + fmtIDR), i18n.tsx (t fallback EN).
+- Verifikasi: AlertDialog dipakai di shift-swap & machine-import; DialogContent semuanya sm:max-w-*; tanpa stone-, tanpa kelas opasitas ganda.
+Stage Summary:
+- P0: 0. P1: 3 — (1) 8x window.confirm di payroll (wage-components:59, component-rules-dialog:81, payroll-templates:27, payroll-transactions:131, payroll-benefits:388, payroll-run-detail:52+135, payroll-runs:57) harusnya AlertDialog; (2) attendance-overview.tsx:194 ternary mati `(x>0 ? 0 : 0)` selalu tampil "est. Rp 0"; (3) aksi cancel/approve one-click tanpa dialog & tanpa busy-guard (attendance-overtime:235-250, attendance-workoff:233-244, leave-requests:233, leave-encashment:209).
+- P2: 6 — api.error hanya dirender 2/32 file (sisanya gagal fetch tampil empty-state menyesatkan); 59 aksen amber di 19 file termasuk CTA "Terapkan" bg-amber-600 (leave-balances:274) off-brand; text-[9px] 58x/21 file (di bawah ambang keterbacaan); tombol ikon h-7 w-7 28px 21x (target sentuh <44px); 245 panggilan t("...") satu-argumen tanpa fallback EN (locale EN bocor teks Indonesia); busyId guard hilang di aksi baris (risiko double-submit).
+- P3: 5 — fmtIDRLite duplikat fmtIDR (accounting:177); text-orange-500 outlier (machine-import:537); "Bank" literal (bank-export-menu:28, proper-noun OK); skala tipografi mikro 9/10/11/12.5px perlu token; pesan confirm panjang perlu format saat migrasi AlertDialog.
+- Positif: Aturan Emas dialog 100% (46 DialogContent sm:max-w-*), fmtIDR konsisten ~60 call-site, skeleton loading + EmptyState luas, disabled={busy} di ~50 tombol submit, dark mode konsisten, aria-label/title di tombol ikon.
+
+---
+Task ID: 88-summary
+Agent: main (Z.ai Code)
+Task: Audit ulang keseluruhan UI/UX RekanKerja — kompilasi rapor eksekutif (sub-audit 88-a/b/c/d + walkthrough browser 88-e)
+
+Work Log:
+- 4 subagent audit kode paralel: 88-a shared+auth, 88-b HR core, 88-c payroll/att/leave, 88-d travel/medical/WB/ESS/settings (laporan penuh di section 88-a/b/c/d di atas)
+- Walkthrough browser: login HR → MII → dashboard → direktori karyawan → payroll (desktop 1440px), dark mode toggle, mobile 375px (admin shell + auth), ESS login yusuf → dashboard → payslip
+- Verifikasi penyebab overflow horizontal 58px di mobile admin: topbar sticky (7 kontrol: workspace/cari/brankas/tema-warna/notifikasi/bahasa/tema) tidak muat 375px — tombol "Ganti bahasa" & "Ganti tema" right=391/433
+- ESS mobile: TANPA overflow, safe-area iOS, tab bar nav aria lengkap, Clock In tersedia — solid
+- Temuan visual tambahan: payroll overview "PAYROLL TERAKHIR DIBAYAR Rp 0 · 42 karyawan" (nilai 0 menyesatkan — cek apakah data demo atau bug agregasi)
+
+Stage Summary — RAPOR AUDIT UI/UX REKANKERJA:
+TOTAL TEMUAN: P0=2 · P1=20 · P2=42 · P3≈51 (termasuk temuan browser)
+
+P0 (BLOKKER — WAJIB FIX):
+1. position-module.tsx:350-369 — Edit posisi MENGHAPUS asosiasi job/unit/grade/atasan (tidak prefill, PATCH null)
+2. esign-view.tsx:83-115 — Pagination & pencarian tab "Audit Rantai" eSign mati (offset/q tak pernah masuk URL)
+
+P1 TOP (dipilih untuk fix batch ini):
+3. Topbar admin mobile overflow 58px (browser-verified)
+4. edit Job menghapus description (position-module.tsx:534)
+5. Hapus ListSection tanpa konfirmasi (employee-module.tsx:826)
+6. onboarding-checklist 477 baris nol i18n
+7. Dashboard tanpa state error (skeleton selamanya)
+8. 8x window.confirm native di payroll
+9. ±45 kelas opasitas-ganda invalid (bg-brand/10/60 dst) lintas travel/medical/WB/ESS/settings
+10. Semantik medical approval rusak (Tolak biru, ikon approve = X rotate-45, ternary identik)
+11. ternary "Rp 0" attendance-overview:194
+12. Banner PWA amber off-brand + menutupi CTA login (kontras 3:1)
+13. offline.html tema lama ivory + CTA tanpa class retry
+14. Aksi destruktif tanpa konfirmasi: cancel travel, hapus lookup, revoke API key, hapus webhook
+15. Klaim travel standalone salah atribusi ke karyawan pertama
+16. Error API tampil sebagai empty state (menyesatkan) di ±30 layar
+17. Kontras badge amber 2.15:1 (notification bell, ESS)
+18. Bottom sheet mobile tanpa focus-trap
+19. Widget sidebar sisa era panel gelap (PANEL_BG #232228, ring avatar, track payroll ring)
+20. Bahasa campur EN di modul Medical (ID-first app)
+
+TEMUAN POSITIF (dipertahankan): i18n disiplin tinggi di modul modern, Aturan Emas DialogContent sm:max-w-* 100% di 88-c/88-d, ESS mobile-first matang (safe-area, aria-current, splash→retry→403), whistleblowing sangat patuh UU 12/2022 (anonimitas Ps.23 eksplisit, non-blaming, nomor tiket), format Rupiah konsisten, busy-guard luas, dark mode konsisten, direktori karyawan a11y terbaik (button cards + filter count + server sort/pagination)
+
+RENCANA: fix P0 #1-2 + P1 quick-win #3,10,11,12,13 (+4 bila ringan) → verifikasi browser → push; sisanya jadi backlog terstruktur
