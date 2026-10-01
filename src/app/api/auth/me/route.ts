@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   SESSION_COOKIE, buildSessionInfo, currentSessionVersion, effectiveTenantIdOf, freshSessionToken,
   idleTimeoutOfSession, readVerifiedSession, sessionCookieOptions, SESSION_MAX_AGE,
-} from "@/onevity/shared/lib/auth";
-import { passwordStatusOfSession } from "@/onevity/shared/services/password-security";
+} from "@/rekankerja/shared/lib/auth";
+import { passwordStatusOfSession } from "@/rekankerja/shared/services/password-security";
 
 // GET /api/auth/me — session saat ini (user + tenant terpilih + daftar workspace)
 // Task 33: + status umur kata sandi (best-effort) utk toast peringatan shell.

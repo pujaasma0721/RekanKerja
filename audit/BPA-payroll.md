@@ -1,8 +1,8 @@
-# AUDIT BISNIS PROSES — MODUL PAYROLL (OneVity HRIS)
+# AUDIT BISNIS PROSES — MODUL PAYROLL (RekanKerja HRIS)
 
 - Task ID: **24-b** · Tanggal: 22 Januari 2026 · Mode: **READ-ONLY** (kode tidak diubah, runtime GET-only, DB query read-only).
 - Lingkup: siklus period → run → engine kalkulasi → rapel → jurnal → bank export → integrasi agregator (TA/Leave/Travel/Medical/Benefit) → loan → SPT.
-- Sumber: `src/onevity/payroll/**` (5 services + 16 api + 13 komponen), `prisma/schema-tenant.prisma` (18 model payroll), `prisma/seed.ts`, `ANALISA-PAYROLL.md`, worklog Task 17–23, + probing runtime (login hrd@mii.co.id → tenant MII) dan query PostgreSQL read-only.
+- Sumber: `src/rekankerja/payroll/**` (5 services + 16 api + 13 komponen), `prisma/schema-tenant.prisma` (18 model payroll), `prisma/seed.ts`, `ANALISA-PAYROLL.md`, worklog Task 17–23, + probing runtime (login hrd@mii.co.id → tenant MII) dan query PostgreSQL read-only.
 - Tumpang-tindih dihindari: AUDIT-MODULES.md F-01..F-12 (sudah diperbaiki) tidak dilaporkan ulang; temuan lintas-modul BPA-cross-module (C-01..C-04, M-02/M-03/M-05..M-08, m-06/m-08) hanya dirujuk, tidak diduplikasi.
 
 ---

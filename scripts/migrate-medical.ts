@@ -8,9 +8,9 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { ensureMedicalReference } from "@/onevity/shared/lib/provisioning";
-import { seedMedicalDemoData } from "@/onevity/medical/services/medical-seed";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { ensureMedicalReference } from "@/rekankerja/shared/lib/provisioning";
+import { seedMedicalDemoData } from "@/rekankerja/medical/services/medical-seed";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

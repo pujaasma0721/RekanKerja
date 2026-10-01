@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * OneVity — shadcn Select dengan KOLOM PENCARIAN global.
+ * RekanKerja — shadcn Select dengan KOLOM PENCARIAN global.
  *
  * Semua <Select> di aplikasi otomatis mendapat search bar di atas daftar opsi
  * (bisa dimatikan per-pemakaian dengan <Select searchable={false}>):
@@ -30,7 +30,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon, XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useI18n } from "@/onevity/shared/lib/i18n"
+import { useI18n } from "@/rekankerja/shared/lib/i18n"
 
 // ---------------------------------------------------------------------------
 // Task 68 — injeksi runtime rule ::highlight(select-match).

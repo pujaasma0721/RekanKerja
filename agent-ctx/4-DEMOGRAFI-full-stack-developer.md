@@ -4,8 +4,8 @@
 Lengkapi Laporan HR tab Demografi (user complaint: "Laporan HR-demografi tidak lengkap"): tambah 7 dimensi baru di API + XLSX export + UI (chart pendidikan, 8 kartu distribusi, cross-tab gender×status, section headers).
 
 ## Files edited
-- `src/onevity/human-resource/api/reports.ts` (API — BUILD 1)
-- `src/onevity/human-resource/components/hr-reports-view.tsx` (UI — BUILD 2)
+- `src/rekankerja/human-resource/api/reports.ts` (API — BUILD 1)
+- `src/rekankerja/human-resource/components/hr-reports-view.tsx` (UI — BUILD 2)
 
 Tidak menyentuh file milik agent paralel (letters*, employee-wizard, actions-module, pa-detail, offboarding*, employee-module, personnel-actions*, app-shell, i18n-core, prisma schemas).
 
@@ -37,7 +37,7 @@ Tidak menyentuh file milik agent paralel (letters*, employee-wizard, actions-mod
 - Sheet name "Gender x Status" (hindari char non-ASCII di nama sheet).
 
 ## Verifikasi (curl + agent-browser + VLM)
-- login hrd@mii.co.id → select-tenant MII → GET /api/onevity/hr/reports 200: education [S3:0,S2:3,S1:6,Diploma:1,SMA:5,Tanpa data:27], orgUnits 16 unit (Assembly Line 17 …), grades "G1 — Officer" 24 …, bloodTypes Gol. A 12 …, genderByStatus L=23+2 / P=12+5 = 42 = headcount = gender dist (25/17) ✓.
+- login hrd@mii.co.id → select-tenant MII → GET /api/rekankerja/hr/reports 200: education [S3:0,S2:3,S1:6,Diploma:1,SMA:5,Tanpa data:27], orgUnits 16 unit (Assembly Line 17 …), grades "G1 — Officer" 24 …, bloodTypes Gol. A 12 …, genderByStatus L=23+2 / P=12+5 = 42 = headcount = gender dist (25/17) ✓.
 - Export XLSX 200 (16.8KB, 12 sheet benar urutan; sheet Gender x Status berisi 2 baris + TOTAL 35/2/5/0/0/42).
 - Browser E2E: Demografi tab render penuh; VLM desktop 1440px: EXCELLENT 9/10 (semua elemen ada, axis pendidikan terbaca, tanpa overlap); EN locale: "EMPLOYEE PROFILE"/"ORGANIZATIONAL COMPOSITION"/"Highest Education"/"No data"/"4 more categories · 4 employees" ✓; mobile 390px: single column, A-grade, no breakage; 0 error console/page; dev.log bersih (GET / 200, reports 200).
 

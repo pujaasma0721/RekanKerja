@@ -38,7 +38,7 @@ if (!ljson?.tenant && Array.isArray(ljson?.workspaces) && ljson.workspaces.lengt
 }
 
 // 2) daftar run → pilih Confirmed/Paid pertama
-const runsRes = await api("GET", "/api/onevity/payroll-runs");
+const runsRes = await api("GET", "/api/rekankerja/payroll-runs");
 const runs = (await runsRes.json()).runs as { id: string; runNo: string; status: string; employeeCount: number }[];
 ok("GET payroll-runs", runsRes.status === 200 && runs.length > 0, `${runs.length} run`);
 const run = runs.find((r) => r.status === "Confirmed" || r.status === "Paid");
@@ -49,18 +49,18 @@ if (!run) {
 console.log(`→ run uji: ${run.runNo} (${run.status}, ${run.employeeCount} karyawan)`);
 
 // 3) Money Vault: bila terkonfigurasi → buka utk nilai riil; bila legacy → nilai langsung riil
-const vst = await api("GET", "/api/onevity/money-vault");
+const vst = await api("GET", "/api/rekankerja/money-vault");
 const vjson = await vst.json().catch(() => ({}));
 let vaultUnlocked = false;
 if (vjson?.configured) {
-  const unlock = await api("POST", "/api/onevity/money-vault", { action: "unlock", password: "asmaree.007" });
+  const unlock = await api("POST", "/api/rekankerja/money-vault", { action: "unlock", password: "asmaree.007" });
   const unlockJson = await unlock.json().catch(() => ({}));
   vaultUnlocked = unlock.status === 200;
   ok("buka Money Vault", unlock.status === 200, `status=${unlock.status} ${JSON.stringify(unlockJson).slice(0, 80)}`);
 } else {
   console.log("  vault: legacy (tak terkonfigurasi) — nilai uang langsung riil");
 }
-const prevRes = await api("GET", `/api/onevity/payroll-reports/monthly?runId=${run.id}`);
+const prevRes = await api("GET", `/api/rekankerja/payroll-reports/monthly?runId=${run.id}`);
 const prev = await prevRes.json();
 ok("preview JSON", prevRes.status === 200, `status=${prevRes.status}`);
 console.log(`  meta: ${JSON.stringify(prev.meta)}`);
@@ -68,15 +68,15 @@ console.log(`  totals: ${JSON.stringify(prev.totals)}`);
 console.log(`  components: ${prev.components?.length ?? 0} komponen`);
 
 // 4) guard: run salah → 404 (dgn sesi); tanpa sesi → 401
-const nf = await api("GET", "/api/onevity/payroll-reports/monthly?runId=nope&export=xlsx");
+const nf = await api("GET", "/api/rekankerja/payroll-reports/monthly?runId=nope&export=xlsx");
 ok("guard 404 run tak dikenal", nf.status === 404, `status=${nf.status}`);
-const anon = await fetch(`${BASE}/api/onevity/payroll-reports/monthly?runId=${run.id}&export=xlsx`);
+const anon = await fetch(`${BASE}/api/rekankerja/payroll-reports/monthly?runId=${run.id}&export=xlsx`);
 ok("guard 401 tanpa sesi", anon.status === 401, `status=${anon.status}`);
 
 // 5) unduh XLSX
-const dl = await api("GET", `/api/onevity/payroll-reports/monthly?runId=${run.id}&export=xlsx`);
+const dl = await api("GET", `/api/rekankerja/payroll-reports/monthly?runId=${run.id}&export=xlsx`);
 ok("GET monthly export=xlsx", dl.status === 200, `status=${dl.status} type=${dl.headers.get("content-type")}`);
-ok("header Content-Disposition", (dl.headers.get("content-disposition") ?? "").includes("onevity-payroll-bulanan"));
+ok("header Content-Disposition", (dl.headers.get("content-disposition") ?? "").includes("rekankerja-payroll-bulanan"));
 const buf = Buffer.from(await dl.arrayBuffer());
 ok("file XLSX tak kosong", buf.length > 2000, `${buf.length} byte`);
 await Bun.write("/tmp/t64-monthly.xlsx", buf);
@@ -137,7 +137,7 @@ ok("nilai uang riil tampil (vault terbuka)", Number(netGaji) > 0 && prev.totals.
 ok("tidak ada ciphertext enc: bocor", !buf.toString("latin1").includes("enc:v1:") && !buf.toString("latin1").includes("enc:v2:"));
 
 // 7) kunci kembali vault bila tadi dibuka (pulihkan state pra-tes) — best effort
-if (vaultUnlocked) await api("POST", "/api/onevity/money-vault", { action: "lock" }).catch(() => {});
+if (vaultUnlocked) await api("POST", "/api/rekankerja/money-vault", { action: "lock" }).catch(() => {});
 
 console.log(failures.length === 0 ? "\nSEMUA TES LULUS ✔" : `\nGAGAL: ${failures.join(", ")}`);
 process.exit(failures.length === 0 ? 0 : 1);

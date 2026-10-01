@@ -1,4 +1,4 @@
-// OneVity — TENANT schema (PostgreSQL, per-schema multi-tenant)
+// RekanKerja — TENANT schema (PostgreSQL, per-schema multi-tenant)
 // Semua model domain HRIS. Tiap tenant = 1 PostgreSQL schema (tenant_<slug>).
 // DDL di-generate ke prisma/tenant-ddl.sql lalu dieksekusi provisioning per tenant.
 
@@ -1171,7 +1171,7 @@ model AppUser {
 }
 
 // Pusat notifikasi per AppUser (T7-ESS) — diisi lintas modul via helper
-// pushNotification() (src/onevity/shared/services/notification-service.ts,
+// pushNotification() (src/rekankerja/shared/services/notification-service.ts,
 // fire-and-forget). kind = kategori emisi (mis. leave/travel/payroll),
 // link = tujuan navigasi UI bila dibuka (opsional).
 model Notification {
@@ -1259,7 +1259,7 @@ model EmailConfig {
   smtpUser     String  @default("")
   smtpPassword String  @default("") // TIDAK pernah dikirim ke klien (masked)
   fromEmail    String  @default("")
-  fromName     String  @default("OneVity HRIS")
+  fromName     String  @default("RekanKerja HRIS")
 
   // status tes terakhir (tombol "Tes Kirim")
   lastTestOk      Boolean?
@@ -1671,7 +1671,7 @@ model HolidayDate {
 // ============ LEAVE (Modul Cuti — padanan Leave Administration) ============
 
 // Master jenis cuti — padanan "Leave Type" (LeaveTypeDetail.jsp, 40+ atribut
-// diringkas ke atribut inti yang dipakai kalkulasi OneVity).
+// diringkas ke atribut inti yang dipakai kalkulasi RekanKerja).
 model LeaveType {
   id             String   @id @default(cuid())
   code           String   @unique // CT-THN, CT-NIKAH, CT-BESAR...
@@ -2282,7 +2282,7 @@ model ApiKey {
 
 // Endpoint webhook per tenant — POST otomatis saat event HRIS terjadi
 // (leave/payroll/workoff). Tanda tangan HMAC-SHA256(secret, body) dikirim
-// pada header X-OneVity-Signature supaya penerima bisa memverifikasi asal.
+// pada header X-RekanKerja-Signature supaya penerima bisa memverifikasi asal.
 model Webhook {
   id        String   @id @default(cuid())
   url       String // endpoint https://… penerima
@@ -2609,7 +2609,7 @@ model WaConfig {
   provider String @default("Fonnte") // Fonnte|Wablas|Custom
   endpoint String @default("") // URL kirim (Custom / override default provider)
   token    String @default("") // API token provider — TIDAK pernah dikirim ke klien (masked)
-  sender   String @default("") // label pengirim / nomor sender (mis. "OneVity HRIS")
+  sender   String @default("") // label pengirim / nomor sender (mis. "RekanKerja HRIS")
 
   lastTestOk      Boolean?
   lastTestAt      DateTime?

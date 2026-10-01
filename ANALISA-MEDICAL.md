@@ -1,8 +1,8 @@
-# ANALISA-MEDICAL — Modul Medical Benefit oranHR → OneVity
+# ANALISA-MEDICAL — Modul Medical Benefit oranHR → RekanKerja
 
 > Task 21 · Sumber: eksplorasi live `https://demo.oranhr.com/` (login MII000001/MII1,
 > presenter ExtJS dibaca langsung dari `var APPJSON` tiap halaman + data grid nyata).
-> Modul terakhir dari 6 modul OneVity (HR · Payroll · Attendance · Leave · Travel · **Medical**).
+> Modul terakhir dari 6 modul RekanKerja (HR · Payroll · Attendance · Leave · Travel · **Medical**).
 
 ---
 
@@ -81,9 +81,9 @@ bagian ditolak). Saldo karyawan berkurang sebesar approved saat Settled (used be
 
 ---
 
-## 4. Keputusan Desain OneVity (12 halaman → 8 view)
+## 4. Keputusan Desain RekanKerja (12 halaman → 8 view)
 
-| View OneVity | Padanan oranHR |
+| View RekanKerja | Padanan oranHR |
 |---|---|
 | `medical-overview` (Ringkasan) | dashboard modul + KPI |
 | `medical-info` (Saldo Medis Karyawan) | Employee Medical Information + Generate Employee Medical Info + Initial + My Medical Information |

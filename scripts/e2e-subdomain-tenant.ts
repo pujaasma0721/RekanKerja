@@ -24,7 +24,7 @@ interface MeResp {
 
 function cookieOf(res: Response): string | null {
   const setCookie = res.headers.get("set-cookie") ?? "";
-  const m = setCookie.match(/onevity_session=[^;]+/);
+  const m = setCookie.match(/rekankerja_session=[^;]+/);
   return m ? m[0] : null;
 }
 

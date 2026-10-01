@@ -24,7 +24,7 @@ class HrisApp extends StatelessWidget {
                         ? AppTheme.dark()
                         : AppTheme.light()),
             child: MaterialApp(
-              title: 'OneVity HRIS',
+              title: 'RekanKerja HRIS',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),

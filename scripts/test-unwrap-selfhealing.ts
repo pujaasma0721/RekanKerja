@@ -9,7 +9,7 @@ import "./lib/env";
 import { Client } from "pg";
 import {
   tenantCrypto, primeTenantCrypto, encryptWithKey,
-} from "../src/onevity/shared/lib/field-crypto";
+} from "../src/rekankerja/shared/lib/field-crypto";
 
 const SCHEMA = "tenant_pt_mitra_industri_internasional";
 
@@ -22,7 +22,7 @@ const r = await c.query<{ dataKey: string | null }>(
 await c.end();
 if (r.rows[0]?.dataKey) {
   // set manual — primeTenantCrypto menandai primed; di sini cukup set langsung
-  const { setVaultDataKey } = await import("../src/onevity/shared/lib/field-crypto");
+  const { setVaultDataKey } = await import("../src/rekankerja/shared/lib/field-crypto");
   setVaultDataKey(SCHEMA, Buffer.from(r.rows[0].dataKey, "hex"));
   console.log("dataKey vault MII termuat (enc:v2 aktif)");
 } else {

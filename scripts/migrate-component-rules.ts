@@ -11,7 +11,7 @@
 //        · TJAB    — manajemen senior PL6+ → ×2
 //        · BEN_GEN — benefit keagamaan berbeda per agama (demo parameter
 //                    personal religion)
-// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// Dapat diimpor IN-PROCESS oleh src/rekankerja/shared/lib/parity-runner.ts
 // ATAU dijalankan CLI: bun run scripts/migrate-component-rules.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";

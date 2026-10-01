@@ -6,11 +6,11 @@
 //   C. 3 pola transaksional paralel (nextJournalNoInTx + insert dalam tx) →
 //      semua sukses & unik (varian atomik penuh).
 // Jalankan: bun scripts/t2-journal-race.ts
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { nextJournalNo, nextJournalNoInTx } from "@/onevity/shared/lib/journal-no";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { nextJournalNo, nextJournalNoInTx } from "@/rekankerja/shared/lib/journal-no";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 const tcE = (n: number) => tenantCrypto(MII_SCHEMA).encryptMoney(n);
 const RUN_NO = "T2-RACE";
 

@@ -1,4 +1,4 @@
-// OneVity — LEGACY schema (SQLite) — HANYA untuk membaca data lama saat migrasi ke PostgreSQL multi-tenant
+// RekanKerja — LEGACY schema (SQLite) — HANYA untuk membaca data lama saat migrasi ke PostgreSQL multi-tenant
 
 generator client {
   provider = "prisma-client-js"

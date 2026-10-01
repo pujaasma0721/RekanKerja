@@ -28,10 +28,10 @@
 // SMTP sandbox mati → EmailLog berstatus "Failed" (ECONNREFUSED) — bukti
 // dispatch tetap tercatat (pola sama payslip T10).
 // =========================================================================
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { initScheduler, runAllJobs, schedulerStatus } from "@/onevity/shared/services/scheduler-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { initScheduler, runAllJobs, schedulerStatus } from "@/rekankerja/shared/services/scheduler-service";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
 const DAY_MS = 86_400_000;

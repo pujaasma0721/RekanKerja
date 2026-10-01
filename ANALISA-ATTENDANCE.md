@@ -1,10 +1,10 @@
-# ANALISA DEEP-DIVE: Modul Time Attendance oranHR → Rencana Implementasi Attendance OneVity
+# ANALISA DEEP-DIVE: Modul Time Attendance oranHR → Rencana Implementasi Attendance RekanKerja
 
 > Dokumen analisa murni. Basis: eksplorasi langsung demo.oranhr.com (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 28 halaman modul
 > Time Attendance dipetakan via navigasi tree & data nyata dibaca via endpoint OrangeWS
 > (JSONP), ditambah halaman fitur oranhr.com. Tanggal: sesi analisa attendance.
-> Penulis: agent OneVity.
+> Penulis: agent RekanKerja.
 
 ---
 
@@ -207,11 +207,11 @@ ditentukan operator saat transfer, period hanya target penulisan.
 
 ---
 
-## 4. GAP & KEPUTUSAN DESAIN ONEVITY
+## 4. GAP & KEPUTUSAN DESAIN REKANKERJA
 
-| Aspek oranHR | Keputusan OneVity | Alasan |
+| Aspek oranHR | Keputusan RekanKerja | Alasan |
 |---|---|---|
-| 28 halaman terpisah, ExtJS | 8 view dalam 1 modul attendance (nav sudah tersedia) | UX modern, nav OneVity sudah ada: Ringkasan, Template Jadwal, Assign Jadwal, Matriks Jadwal, Data Clocking, Absensi & Izin, Lembur, Work Off |
+| 28 halaman terpisah, ExtJS | 8 view dalam 1 modul attendance (nav sudah tersedia) | UX modern, nav RekanKerja sudah ada: Ringkasan, Template Jadwal, Assign Jadwal, Matriks Jadwal, Data Clocking, Absensi & Izin, Lembur, Work Off |
 | Day Type 40+ atribut | `WorkDayType` dipangkas: in/out/nextDay, break menit + paid, normal menit, toleransi late/early, flexible, needOvertimeOrder, pembulatan OT | Menyimpan esensi (hour bucket + toleransi); wage mapping dipindah ke `AttendanceRule` global (lebih sederhana daripada per-day-type, tetap bisa dikembang) |
 | Work Schedule + cycle grid | `WorkSchedule` + `WorkScheduleDay[]` (seq 1..cycle) | Identik |
 | first_monday_seq anchor | `ScheduleAssignment.anchorMonday` (tanggal Senin pertama cycle) + `anchorSequence` | Setara, lebih mudah dihitung |
@@ -228,7 +228,7 @@ ditentukan operator saat transfer, period hanya target penulisan.
 **Perhitungan upah lembur (regulasi Indonesia, PP 35/2021 + KEP-102):**
 upah sejam = 1/173 × upah bulanan; hari kerja 1,5× (jam ke-1) lalu 2×; hari istirahat
 mingguan 2× (8 jam pertama) lalu 3×; hari libur nasional 2×/3×/4× bertingkat. oranHR
-menyimpan konfigurasi multiplier implisit di komponen; OneVity menghitung di service
+menyimpan konfigurasi multiplier implisit di komponen; RekanKerja menghitung di service
 `overtimePayFor()` berdasarkan kategori hari (weekday/weekend/holiday dari day type + hari
 libur), tetap divisualisasikan transparan di UI.
 

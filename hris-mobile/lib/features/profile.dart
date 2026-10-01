@@ -187,7 +187,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 20),
             Center(
               child: Text(
-                'OneVity HRIS Mobile v1.0.0\nDibuat dengan ❤️ untuk pekerja Indonesia',
+                'RekanKerja HRIS Mobile v1.0.0\nDibuat dengan ❤️ untuk pekerja Indonesia',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 10.5, color: Theme.of(context).hintColor, height: 1.6),
               ),
@@ -674,7 +674,7 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           shrinkWrap: true,
           children: [
-            const SheetHeader('Dokumen Saya', subtitle: 'Tersimpan aman di server OneVity'),
+            const SheetHeader('Dokumen Saya', subtitle: 'Tersimpan aman di server RekanKerja'),
             ...docs.map<Widget>((d) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),

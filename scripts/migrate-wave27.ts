@@ -12,7 +12,7 @@
 //        + 1 riwayat pengembalian; koordinat kantor OFF-HO (Jakarta Timur)
 //        untuk uji geofencing.
 //      · Cahaya & Sentra: 4 aset ringkas + 2 penugasan.
-// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// Dapat diimpor IN-PROCESS oleh src/rekankerja/shared/lib/parity-runner.ts
 // (main() tanpa efek samping modul) ATAU dijalankan CLI:
 //   bun run scripts/migrate-wave27.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)

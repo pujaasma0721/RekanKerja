@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySignature } from "@/onevity/shared/services/esign-service";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { verifySignature } from "@/rekankerja/shared/services/esign-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { db as platformDb } from "@/lib/db";
-import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
+import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 
 // ============ E-SIGN VERIFIKASI PUBLIK (Task 80) ============================
 // GET /api/public/esign-verify?id=…[&t=slug]
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       tenant = await platformDb.tenant.findUnique({ where: { slug: tParam }, select: { slug: true, schemaName: true } });
     }
     if (!tenant) {
-      const { resolveTenantByHost } = await import("@/onevity/shared/lib/tenant-host-server");
+      const { resolveTenantByHost } = await import("@/rekankerja/shared/lib/tenant-host-server");
       const byHost = await resolveTenantByHost(req).catch(() => null);
       if (byHost?.tenant) {
         // TenantHostRecord tak membawa schemaName — resolve ulang via registry

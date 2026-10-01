@@ -1,5 +1,5 @@
 import "../lib/env";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 import { db as platform } from "@/lib/db";
 
 async function main() {

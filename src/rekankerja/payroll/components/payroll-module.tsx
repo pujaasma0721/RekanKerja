@@ -1,0 +1,34 @@
+"use client";
+// RekanKerja — Modul Payroll: router view (Ringkasan, Periode, Proses & Hasil, Master,
+// Transaksi, Benefit, Laporan Tahunan, Parameter/Jurnal)
+import { PayrollOverview } from "@/rekankerja/payroll/components/payroll-overview";
+import { PayrollPeriodsPage } from "@/rekankerja/payroll/components/payroll-periods";
+import { PayrollRunsPage } from "@/rekankerja/payroll/components/payroll-runs";
+import { PayrollRunDetailPage } from "@/rekankerja/payroll/components/payroll-run-detail";
+import { WageComponentsPage } from "@/rekankerja/payroll/components/wage-components";
+import { PayrollTemplatesPage } from "@/rekankerja/payroll/components/payroll-templates";
+import { PayrollProfilesPage } from "@/rekankerja/payroll/components/payroll-profiles";
+import { PayrollTransactionsPage } from "@/rekankerja/payroll/components/payroll-transactions";
+import { PayrollParametersPage } from "@/rekankerja/payroll/components/payroll-parameters";
+import { AccountingPage } from "@/rekankerja/payroll/components/accounting";
+import { PayrollSptPage } from "@/rekankerja/payroll/components/payroll-spt";
+import { PayrollJournalsPage } from "@/rekankerja/payroll/components/payroll-journals";
+import { PayrollBenefitsPage } from "@/rekankerja/payroll/components/payroll-benefits";
+
+export function PayrollModule({ view }: { view: string }) {
+  switch (view) {
+    case "periods": return <PayrollPeriodsPage />;
+    case "runs": return <PayrollRunsPage />;
+    case "run": return <PayrollRunDetailPage />;
+    case "components": return <WageComponentsPage />;
+    case "templates": return <PayrollTemplatesPage />;
+    case "profiles": return <PayrollProfilesPage />;
+    case "transactions": return <PayrollTransactionsPage />;
+    case "benefits": return <PayrollBenefitsPage />;
+    case "parameters": return <PayrollParametersPage />;
+    case "accounting": return <AccountingPage />;
+    case "spt": return <PayrollSptPage />;
+    case "journals": return <PayrollJournalsPage />;
+    default: return <PayrollOverview />;
+  }
+}

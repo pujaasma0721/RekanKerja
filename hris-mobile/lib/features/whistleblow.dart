@@ -5,7 +5,7 @@ import '../core/format.dart';
 import '../core/widgets.dart';
 import '../data/app_state.dart';
 import '../data/models.dart';
-import '../data/onevity_api.dart';
+import '../data/rekankerja_api.dart';
 
 /// Kanal pelaporan pelanggaran — jaminan anonimitas & keberanian bicara.
 class WhistleblowPage extends StatefulWidget {
@@ -227,7 +227,7 @@ class _ReportSheetState extends State<_ReportSheet> {
 
   Future<void> _submit() async {
     final code = _catCode;
-    final label = code == null ? '' : (OneVityApi.wbCategories[code] ?? code);
+    final label = code == null ? '' : (RekanKerjaApi.wbCategories[code] ?? code);
     final desc = _desc.text.trim();
     if (code == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -285,8 +285,8 @@ class _ReportSheetState extends State<_ReportSheet> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                // 7 kategori resmi OneVity (kode ↔ label Indonesia).
-                for (final e in OneVityApi.wbCategories.entries)
+                // 7 kategori resmi RekanKerja (kode ↔ label Indonesia).
+                for (final e in RekanKerjaApi.wbCategories.entries)
                   ChoiceChip(
                     label: Text(e.value),
                     selected: _catCode == e.key,

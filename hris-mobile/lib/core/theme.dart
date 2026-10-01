@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// OneVity HRIS Mobile — Design System
+/// RekanKerja HRIS Mobile — Design System
 /// Employee-centric: hangat, hidup, dan modern (nuansa fintech).
-/// - Seed emerald (identitas OneVity) + aksen amber utk aksi utama
+/// - Seed emerald (identitas RekanKerja) + aksen amber utk aksi utama
 /// - Kartu membulat 20-24, soft shadow, latar warm-stone
 /// - Tipografi angka besar & tebal utk nominal (gaya dompet digital)
 class AppTheme {

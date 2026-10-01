@@ -16,8 +16,8 @@
 // ============================================================================
 import { createHash, createHmac } from "node:crypto";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { listBalances } from "@/onevity/leave/services/leave-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { listBalances } from "@/rekankerja/leave/services/leave-service";
 
 const BASE = "http://localhost:3000";
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
@@ -51,8 +51,8 @@ async function startListener(): Promise<void> {
     port: 3999,
     fetch: async (req) => {
       const body = await req.text();
-      const sig = req.headers.get("x-onevity-signature");
-      const event = req.headers.get("x-onevity-event");
+      const sig = req.headers.get("x-rekankerja-signature");
+      const event = req.headers.get("x-rekankerja-event");
       let signatureValid: boolean | null = null;
       if (sig && listenerSecret) {
         const expect = createHmac("sha256", listenerSecret).update(body, "utf8").digest("hex");
@@ -105,10 +105,10 @@ async function main(): Promise<void> {
 
   // ===== (a) API key via REST =====
   console.log("== (a) API key & guard public ==");
-  const created = await api("POST", "/api/onevity/api-keys", {
+  const created = await api("POST", "/api/rekankerja/api-keys", {
     name: "T18 E2E Full", scopes: ["employees", "leave", "payroll"],
   });
-  check("POST /api/onevity/api-keys 201", created.status === 201, `HTTP ${created.status} ${JSON.stringify(created.json).slice(0, 120)}`);
+  check("POST /api/rekankerja/api-keys 201", created.status === 201, `HTTP ${created.status} ${JSON.stringify(created.json).slice(0, 120)}`);
   const fullKey: string = created.json.key ?? "";
   check("kunci format ov_ + 32 hex", /^ov_[0-9a-f]{32}$/.test(fullKey), fullKey.slice(0, 16) + "…");
   check("response membawa prefix & scope", created.json.record?.prefix === fullKey.slice(0, 12) && created.json.record?.scopes?.length === 3);
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   check("key tak dikenal → 401", badKey.status === 401, `HTTP ${badKey.status}`);
 
   // scope salah: kunci employees-only
-  const createdLimited = await api("POST", "/api/onevity/api-keys", { name: "T18 E2E EmpOnly", scopes: ["employees"] });
+  const createdLimited = await api("POST", "/api/rekankerja/api-keys", { name: "T18 E2E EmpOnly", scopes: ["employees"] });
   const limitedKey: string = createdLimited.json.key ?? "";
   check("kunci scope tunggal dibuat 201", createdLimited.status === 201);
   const scopeLeave = await api("GET", "/api/public/leave-balances", undefined, { "x-api-key": limitedKey });
@@ -209,11 +209,11 @@ async function main(): Promise<void> {
   // ===== (c) webhook + listener HMAC =====
   console.log("== (c) webhook → listener lokal 3999 (verifikasi HMAC) ==");
   await startListener();
-  const wh = await api("POST", "/api/onevity/webhooks", {
+  const wh = await api("POST", "/api/rekankerja/webhooks", {
     url: "http://127.0.0.1:3999/t18-hook",
     events: ["leave.submitted", "leave.approved", "leave.rejected"],
   });
-  check("POST /api/onevity/webhooks 201", wh.status === 201, `HTTP ${wh.status} ${JSON.stringify(wh.json).slice(0, 120)}`);
+  check("POST /api/rekankerja/webhooks 201", wh.status === 201, `HTTP ${wh.status} ${JSON.stringify(wh.json).slice(0, 120)}`);
   const webhookId: string = wh.json?.webhook?.id ?? "";
   listenerSecret = wh.json?.webhook?.secret ?? null;
   check("secret webhook auto-generate (whsec_…)", /^whsec_[0-9a-f]{32}$/.test(listenerSecret ?? ""), (listenerSecret ?? "").slice(0, 12) + "…");
@@ -240,7 +240,7 @@ async function main(): Promise<void> {
   const req2Id = (await db.leaveRequest.findUnique({ where: { docNo: docNo2 } }))?.id ?? "";
   let finalStatus = "";
   for (let i = 0; i < 5; i++) {
-    const dec = await api("PATCH", "/api/onevity/leave/requests", { id: req2Id, action: "approve", note: "T18 E2E approve" });
+    const dec = await api("PATCH", "/api/rekankerja/leave/requests", { id: req2Id, action: "approve", note: "T18 E2E approve" });
     if (dec.status !== 200) { check(`approve jenjang ${i + 1} 200`, false, `HTTP ${dec.status} ${JSON.stringify(dec.json).slice(0, 120)}`); break; }
     if (!dec.json?.approval) { finalStatus = dec.json?.status ?? ""; break; }
   }
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
 
   // ===== key revoked → 401 =====
   console.log("== (a2) revoke → 401 ==");
-  const rev = await api("PATCH", "/api/onevity/api-keys", { id: created.json.record.id, action: "revoke" });
+  const rev = await api("PATCH", "/api/rekankerja/api-keys", { id: created.json.record.id, action: "revoke" });
   check("PATCH revoke 200", rev.status === 200, `HTTP ${rev.status}`);
   await sleep(300);
   const afterRevoke = await api("GET", "/api/public/employees", undefined, { "x-api-key": fullKey });
@@ -288,7 +288,7 @@ async function main(): Promise<void> {
   // ===== (e) CLEANUP =====
   console.log("== (e) cleanup ==");
   // hapus webhook (+ log cascade)
-  const delWh = await api("DELETE", `/api/onevity/webhooks?id=${webhookId}`);
+  const delWh = await api("DELETE", `/api/rekankerja/webhooks?id=${webhookId}`);
   check("webhook uji dihapus", delWh.status === 200, `HTTP ${delWh.status}`);
   // hapus kunci uji (hard delete)
   await pg.query(`DELETE FROM "${MII_SCHEMA}"."ApiKey" WHERE id = ANY($1)`, [[created.json.record.id, createdLimited.json.record.id].filter(Boolean)]);
@@ -314,8 +314,8 @@ async function main(): Promise<void> {
   if (subHit) {
     console.log("\n===== BUKTI WEBHOOK =====");
     console.log("POST http://127.0.0.1:3999/t18-hook");
-    console.log("X-OneVity-Event: leave.submitted");
-    console.log(`X-OneVity-Signature: ${subHit.signature}`);
+    console.log("X-RekanKerja-Event: leave.submitted");
+    console.log(`X-RekanKerja-Signature: ${subHit.signature}`);
     console.log(`Body: ${subHit.body.slice(0, 220)}…`);
     console.log(`HMAC-SHA256(secret=${listenerSecret?.slice(0, 14)}…, body) === signature → ${subHit.signatureValid}`);
   }

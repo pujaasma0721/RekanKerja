@@ -15,7 +15,7 @@
 //   bun run scripts/migrate-unwrap-double-enc.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
-import { tenantCrypto, isEncrypted } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto, isEncrypted } from "../src/rekankerja/shared/lib/field-crypto";
 import { ENCRYPTED_COLUMNS } from "./lib/encrypted-columns";
 
 const SCHEMAS = [

@@ -8,7 +8,7 @@ import '../data/models.dart';
 /// Splash + Login — pintu masuk aplikasi.
 /// Nuansa fintech: gradasi emerald, monogram besar, form mengambang.
 ///
-/// Menghadapi backend OneVity asli (https://onevity.sayone.my.id):
+/// Menghadapi backend RekanKerja asli (https://onevity.sayone.my.id):
 ///  1. email + kata sandi  →  POST /api/auth/login
 ///  2. (opsional) kode MFA 6 digit — bila akun mengaktifkan TOTP
 ///  3. (opsional) pilih workspace — bila akun multi-perusahaan
@@ -97,7 +97,7 @@ class _SplashView extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
                 const Text(
-                  'OneVity',
+                  'RekanKerja',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -231,7 +231,7 @@ class _LoginView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dctx) => AlertDialog(
-        title: const Text('Server OneVity'),
+        title: const Text('Server RekanKerja'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -244,7 +244,7 @@ class _LoginView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Default: produksi OneVity. Ubah hanya untuk development.',
+              'Default: produksi RekanKerja. Ubah hanya untuk development.',
               style: TextStyle(fontSize: 11.5, color: Colors.black54),
             ),
           ],

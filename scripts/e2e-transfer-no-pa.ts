@@ -1,6 +1,6 @@
 /**
  * Task 70 — E2E PROD: ubah penempatan SAYONE TANPA Personnel Action
- * (PATCH /api/onevity/employee-detail jalur "Ubah Penempatan" → ManualEdit),
+ * (PATCH /api/rekankerja/employee-detail jalur "Ubah Penempatan" → ManualEdit),
  * lalu buktikan di run payroll September (run Confirmed → recalcEmployees parsial):
  *   1. Timeline riwayat bertambah 1 langkah "Perubahan Manual".
  *   2. BASIC = penuh gaji versi AKHIR period (tidak diprorata) — aturan period end.
@@ -56,17 +56,17 @@ async function main(): Promise<void> {
   const login = await post("/api/auth/login", { email: EMAIL, password: PASSWORD });
   if (login.status !== 200) die(`login ${login.status}: ${JSON.stringify(login.body).slice(0, 200)}`);
   console.log("LOGIN OK");
-  const vault = await post("/api/onevity/money-vault", { action: "unlock", password: VAULT_PASSWORD });
+  const vault = await post("/api/rekankerja/money-vault", { action: "unlock", password: VAULT_PASSWORD });
   if (vault.status !== 200) die(`vault unlock ${vault.status}`);
   console.log("VAULT UNLOCKED");
 
   // 2) Karyawan uji + baseline
-  const emps = await get("/api/onevity/payroll-profiles");
+  const emps = await get("/api/rekankerja/payroll-profiles");
   if (emps.status !== 200) die(`profiles ${emps.status}`);
   const emp = (emps.body.employees as any[]).find((e) => e.employeeNo === EMP_NO);
   if (!emp) die(`karyawan ${EMP_NO} tidak ditemukan`);
 
-  const det0 = await get(`/api/onevity/employee-detail?id=${emp.employeeId}`);
+  const det0 = await get(`/api/rekankerja/employee-detail?id=${emp.employeeId}`);
   if (det0.status !== 200) die(`detail ${det0.status}`);
   let rows0 = det0.body.employee.assignments as any[];
   let cur = rows0.find((a) => a.validTo == null) ?? rows0[rows0.length - 1];
@@ -75,14 +75,14 @@ async function main(): Promise<void> {
   const isE2eOrgRow = (a: any) => (a.orgUnit?.code ?? "").includes("E2E-NO-PA") || (a.orgUnit?.name ?? "").includes("Org Uji E2E");
   if (isE2eOrgRow(cur)) {
     const orig = rows0.find((a) => !isE2eOrgRow(a)) ?? rows0[0];
-    const fix = await patch(`/api/onevity/employee-detail?id=${emp.employeeId}`, {
+    const fix = await patch(`/api/rekankerja/employee-detail?id=${emp.employeeId}`, {
       orgUnitId: orig.orgUnitId, baseSalary: Number(orig.baseSalary ?? 0) || undefined,
       effectiveDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
       changeNote: "E2E — pembersihan sisa uji (kembali ke org asli)",
     });
     if (fix.status !== 200) die(`cleanup ${fix.status}: ${JSON.stringify(fix.body).slice(0, 200)}`);
     console.log("CLEANUP: sisa uji lama dipulihkan ke org asli");
-    const det0b = await get(`/api/onevity/employee-detail?id=${emp.employeeId}`);
+    const det0b = await get(`/api/rekankerja/employee-detail?id=${emp.employeeId}`);
     rows0 = det0b.body.employee.assignments as any[];
     cur = rows0.find((a) => a.validTo == null) ?? rows0[rows0.length - 1];
   }
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
   console.log(`EMP ${emp.employeeNo} ${emp.fullName} — baseline: gaji ${curSalary}, org ${cur.orgUnit?.name ?? "-"}, rows=${rows0.length}`);
 
   // 3) Target org = org uji E2E bila ada & ≠ aktif; selain itu org nyata lain
-  const orgs = await get("/api/onevity/org-units");
+  const orgs = await get("/api/rekankerja/org-units");
   if (orgs.status !== 200) die(`org-units ${orgs.status}`);
   const units = (orgs.body.units ?? []) as any[];
   const prevRow = rows0.filter((a) => a.validTo != null).slice(-1)[0];
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
   console.log(`PARAM: org→${targetOrg.code}, gaji→${newSalary}, eff ${eff} (segmen ${d1}+${d2} hari)`);
 
   // 5) UBAH PENEMPATAN tanpa PA (org + gaji sekaligus, satu langkah riwayat)
-  const ch = await patch(`/api/onevity/employee-detail?id=${emp.employeeId}`, {
+  const ch = await patch(`/api/rekankerja/employee-detail?id=${emp.employeeId}`, {
     orgUnitId: targetOrg.id,
     baseSalary: newSalary,
     effectiveDate: eff,
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
   console.log("PATCH OK (ManualEdit tercatat)");
 
   // 6) Timeline bertambah 1 langkah ManualEdit
-  const det1 = await get(`/api/onevity/employee-detail?id=${emp.employeeId}`);
+  const det1 = await get(`/api/rekankerja/employee-detail?id=${emp.employeeId}`);
   if (det1.status !== 200) die(`detail2 ${det1.status}`);
   const rows1 = det1.body.employee.assignments as any[];
   const manual = rows1.filter((a) => a.changeReason === "ManualEdit");
@@ -133,14 +133,14 @@ async function main(): Promise<void> {
   console.log(`TIMELINE OK — +1 langkah "Perubahan Manual" (total ${rows1.length} versi)`);
 
   // 7) Run payroll Sep (Confirmed) → hitung ulang PARSIAL karyawan uji
-  const periods = await get("/api/onevity/payroll-periods");
+  const periods = await get("/api/rekankerja/payroll-periods");
   const sep = (periods.body.periods ?? periods.body ?? []).find((p: any) =>
     p.name?.toLowerCase().includes("sep") && new Date(p.startDate).getFullYear() === 2026);
   if (!sep) die("periode September 2026 tidak ditemukan");
-  const runs = await get(`/api/onevity/payroll-runs?periodId=${sep.id}`);
+  const runs = await get(`/api/rekankerja/payroll-runs?periodId=${sep.id}`);
   const run = ((runs.body.runs ?? []) as any[]).find((r) => r.processType?.code === "SALARY") ?? (runs.body.runs ?? [])[0];
   if (!run) die("run payroll Sep tidak ditemukan");
-  const rec = await patch("/api/onevity/payroll-runs",
+  const rec = await patch("/api/rekankerja/payroll-runs",
     run.status === "Confirmed"
       ? { id: run.id, action: "recalcEmployees", employeeIds: [emp.employeeId] }
       : { id: run.id, action: "calculate" });
@@ -148,7 +148,7 @@ async function main(): Promise<void> {
   console.log(`RECALC OK (${run.runNo}, status ${run.status})`);
 
   // 8) Baca hasil: BASIC (period end) + JHT company (wavg 2 segmen)
-  const detRun = await get(`/api/onevity/payroll-run?id=${run.id}`);
+  const detRun = await get(`/api/rekankerja/payroll-run?id=${run.id}`);
   if (detRun.status !== 200) die(`run detail ${detRun.status}`);
   const line = ((detRun.body.run?.lines ?? []) as any[]).find((l) => l.employeeNo === EMP_NO);
   if (!line) die("line karyawan uji tidak ada di run");
@@ -195,14 +195,14 @@ async function main(): Promise<void> {
   // 9) ROLLBACK — kembali ke org ASLI (baris ter awal) + gaji baseline + recalc final
   const origRow = rows0.find((a) => !isE2eOrgRow(a)) ?? rows0[0];
   const backEff = new Date(Math.max(Date.now() + 86400000, actFrom.getTime() + 2 * 86400000)).toISOString().slice(0, 10);
-  const rb = await patch(`/api/onevity/employee-detail?id=${emp.employeeId}`, {
+  const rb = await patch(`/api/rekankerja/employee-detail?id=${emp.employeeId}`, {
     orgUnitId: origRow.orgUnitId,
     baseSalary: curSalary,
     effectiveDate: backEff,
     changeNote: "E2E — rollback uji prorate",
   });
   if (rb.status !== 200) die(`rollback ${rb.status}: ${JSON.stringify(rb.body).slice(0, 200)}`);
-  const rec2 = await patch("/api/onevity/payroll-runs",
+  const rec2 = await patch("/api/rekankerja/payroll-runs",
     run.status === "Confirmed"
       ? { id: run.id, action: "recalcEmployees", employeeIds: [emp.employeeId] }
       : { id: run.id, action: "calculate" });

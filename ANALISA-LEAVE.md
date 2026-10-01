@@ -1,10 +1,10 @@
-# ANALISA DEEP-DIVE: Modul Leave Administration oranHR → Rencana Implementasi Cuti OneVity
+# ANALISA DEEP-DIVE: Modul Leave Administration oranHR → Rencana Implementasi Cuti RekanKerja
 
 > Dokumen analisa murni. Basis: eksplorasi langsung demo.oranhr.com (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 14 halaman modul
 > Leave Administration dipetakan via navigasi tree (ExtJS) & data nyata dibaca dari
 > grid + form + handler JS, ditambah interface payroll (Employee Leave Cashable) dan
-> halaman ESS terkait leave. Tanggal: sesi analisa leave. Penulis: agent OneVity.
+> halaman ESS terkait leave. Tanggal: sesi analisa leave. Penulis: agent RekanKerja.
 
 ---
 
@@ -224,11 +224,11 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
   menikah anak 2 hari; istri keguguran 2 hari untuk suami.
 - SKB 3 Menteri: cuti bersama (Idulfitri dll) — perusahaan boleh memotong cuti tahunan
   atau memperlakukan sebagai cuti bersama dibayar — MII memakai saldo Cuti Besar via Mass Leave.
-- OneVity: nilai default mengikuti tabel 2.1; admin bebas ubah (Leave Type fleksibel).
+- RekanKerja: nilai default mengikuti tabel 2.1; admin bebas ubah (Leave Type fleksibel).
 
 ---
 
-## 5. REKAYASA ONEVITY (fase L1–L5)
+## 5. REKAYASA REKANKERJA (fase L1–L5)
 
 ### L1 — Master & saldo (prasyarat)
 - `LeaveType`: kode, nama, satuan (DAY/MONTH), hak, max/request, dibayar, cashable,
@@ -270,14 +270,14 @@ Filter: From/To + employee + leave type + working date → siapa cuti pada renta
 
 ### Backlog (tidak dikerjakan fase ini)
 - ESS mobile + geofence request, lampiran file storage nyata, partially-approved per hari,
-  15 dimensi rule parameter penuh (OneVity: hak seragam per jenis + adjustment manual),
+  15 dimensi rule parameter penuh (RekanKerja: hak seragam per jenis + adjustment manual),
   cuti bersama otomatis dari kalender pemerintah, UTJ long-service otomatis.
 
 ---
 
-## 6. PEMETAAN VIEW UI ONEVITY (8 VIEW, BAHASA INDONESIA)
+## 6. PEMETAAN VIEW UI REKANKERJA (8 VIEW, BAHASA INDONESIA)
 
-| View oranHR | View OneVity | Isi |
+| View oranHR | View RekanKerja | Isi |
 |---|---|---|
 | Employee Leave Information | **Saldo Cuti** | grid a–g + saldo + dialog generate & adjust |
 | Leave Type (+Query) | **Jenis Cuti** | master CRUD + seed Indonesia |

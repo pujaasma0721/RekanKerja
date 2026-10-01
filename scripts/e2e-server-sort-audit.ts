@@ -87,73 +87,73 @@ async function main(): Promise<void> {
   if (login.status !== 200) throw new Error(`login gagal: ${login.status}`);
 
   // 1) Activity Log — waktu desc & actor asc
-  const al = await api("/api/onevity/activity-logs?sortBy=time&sortDir=desc&limit=500");
+  const al = await api("/api/rekankerja/activity-logs?sortBy=time&sortDir=desc&limit=500");
   check("ActivityLog createdAt desc", al.body?.logs ?? [], "createdAt", "desc");
-  const al2 = await api("/api/onevity/activity-logs?sortBy=action&sortDir=asc&limit=500");
+  const al2 = await api("/api/rekankerja/activity-logs?sortBy=action&sortDir=asc&limit=500");
   check("ActivityLog action asc", al2.body?.logs ?? [], "action", "asc");
 
   // 2) Email Log — toEmail asc & subject desc
-  const el = await api("/api/onevity/email-logs?sortBy=toEmail&sortDir=asc&limit=500");
+  const el = await api("/api/rekankerja/email-logs?sortBy=toEmail&sortDir=asc&limit=500");
   check("EmailLog toEmail asc", el.body?.logs ?? [], "toEmail", "asc");
-  const el2 = await api("/api/onevity/email-logs?sortBy=subject&sortDir=desc&limit=500");
+  const el2 = await api("/api/rekankerja/email-logs?sortBy=subject&sortDir=desc&limit=500");
   check("EmailLog subject desc", el2.body?.logs ?? [], "subject", "desc");
 
   // 3) WA Log — toPhone asc
-  const wl = await api("/api/onevity/wa-logs?sortBy=toPhone&sortDir=asc&limit=500");
+  const wl = await api("/api/rekankerja/wa-logs?sortBy=toPhone&sortDir=asc&limit=500");
   check("WaLog toPhone asc", wl.body?.logs ?? [], "toPhone", "asc");
 
   // 4) Leave requests — employee asc & workingDays desc (numeric)
-  const lv = await api("/api/onevity/leave/requests?status=all&sortBy=employee&sortDir=asc");
+  const lv = await api("/api/rekankerja/leave/requests?status=all&sortBy=employee&sortDir=asc");
   check("Leave employee asc", lv.body?.requests ?? [], "fullName", "asc");
-  const lv2 = await api("/api/onevity/leave/requests?status=all&sortBy=workingDays&sortDir=desc");
+  const lv2 = await api("/api/rekankerja/leave/requests?status=all&sortBy=workingDays&sortDir=desc");
   check("Leave workingDays desc", lv2.body?.requests ?? [], "workingDays", "desc", true);
 
   // 5) TA Overtime — employee asc & planMinutes desc
-  const ot = await api("/api/onevity/attendance/overtime?sortBy=employee&sortDir=asc");
+  const ot = await api("/api/rekankerja/attendance/overtime?sortBy=employee&sortDir=asc");
   check("Overtime employee asc", ot.body?.orders ?? [], "fullName", "asc");
-  const ot2 = await api("/api/onevity/attendance/overtime?sortBy=plan&sortDir=desc");
+  const ot2 = await api("/api/rekankerja/attendance/overtime?sortBy=plan&sortDir=desc");
   check("Overtime planMinutes desc", ot2.body?.orders ?? [], "planMinutes", "desc", true);
 
   // 6) TA Workoffs — employee asc & date desc
-  const wo = await api("/api/onevity/attendance/workoffs?sortBy=employee&sortDir=asc");
+  const wo = await api("/api/rekankerja/attendance/workoffs?sortBy=employee&sortDir=asc");
   check("WorkOff employee asc", wo.body?.permits ?? [], "fullName", "asc");
-  const wo2 = await api("/api/onevity/attendance/workoffs?sortBy=date&sortDir=desc");
+  const wo2 = await api("/api/rekankerja/attendance/workoffs?sortBy=date&sortDir=desc");
   check("WorkOff dateFrom desc", wo2.body?.permits ?? [], "dateFrom", "desc");
 
   // 7) Medical claims — employee asc & date desc
-  const mc = await api("/api/onevity/medical/claims?sortBy=employee&sortDir=asc");
+  const mc = await api("/api/rekankerja/medical/claims?sortBy=employee&sortDir=asc");
   check("MedicalClaim employee asc", mc.body?.claims ?? [], "fullName", "asc");
-  const mc2 = await api("/api/onevity/medical/claims?sortBy=date&sortDir=desc");
+  const mc2 = await api("/api/rekankerja/medical/claims?sortBy=date&sortDir=desc");
   check("MedicalClaim claimDate desc", mc2.body?.claims ?? [], "claimDate", "desc");
 
   // 8) Travel requests — doc desc & employee asc
-  const tr = await api("/api/onevity/travel/requests?status=all&sortBy=doc&sortDir=desc");
+  const tr = await api("/api/rekankerja/travel/requests?status=all&sortBy=doc&sortDir=desc");
   check("TravelReq docNo desc", tr.body?.requests ?? [], "docNo", "desc");
-  const tr2 = await api("/api/onevity/travel/requests?status=all&sortBy=employee&sortDir=asc");
+  const tr2 = await api("/api/rekankerja/travel/requests?status=all&sortBy=employee&sortDir=asc");
   check("TravelReq employee asc", tr2.body?.requests ?? [], "fullName", "asc");
 
   // 9) Travel claims — doc desc & total settlement desc (numeric, terenkripsi)
-  const tc = await api("/api/onevity/travel/claims?status=all&sortBy=doc&sortDir=desc");
+  const tc = await api("/api/rekankerja/travel/claims?status=all&sortBy=doc&sortDir=desc");
   check("TravelClaim docNo desc", tc.body?.claims ?? [], "docNo", "desc");
-  const tc2 = await api("/api/onevity/travel/claims?status=all&sortBy=total&sortDir=desc");
+  const tc2 = await api("/api/rekankerja/travel/claims?status=all&sortBy=total&sortDir=desc");
   check("TravelClaim totalSettlement desc", tc2.body?.claims ?? [], "totalSettlement", "desc", true);
 
   // 10) Payroll journals — journalNo desc & runNo asc
-  const pj = await api("/api/onevity/payroll-journals?sortBy=journal&sortDir=desc");
+  const pj = await api("/api/rekankerja/payroll-journals?sortBy=journal&sortDir=desc");
   check("PayrollJournal journalNo desc", pj.body?.journals ?? [], "journalNo", "desc");
-  const pj2 = await api("/api/onevity/payroll-journals?sortBy=run&sortDir=asc");
+  const pj2 = await api("/api/rekankerja/payroll-journals?sortBy=run&sortDir=asc");
   check("PayrollJournal runNo asc", pj2.body?.journals ?? [], "runNo", "asc");
 
   // 11) Personnel actions — doc desc & employee asc
-  const pa = await api("/api/onevity/personnel-actions?sortBy=doc&sortDir=desc");
+  const pa = await api("/api/rekankerja/personnel-actions?sortBy=doc&sortDir=desc");
   check("PA docNo desc", pa.body?.actions ?? [], "docNo", "desc");
-  const pa2 = await api("/api/onevity/personnel-actions?sortBy=employee&sortDir=asc");
+  const pa2 = await api("/api/rekankerja/personnel-actions?sortBy=employee&sortDir=asc");
   check("PA employee asc", pa2.body?.actions ?? [], "employee.fullName", "asc");
 
   // 12) Offboarding — employee asc & lastDay desc
-  const ob = await api("/api/onevity/offboarding?sortBy=employee&sortDir=asc");
+  const ob = await api("/api/rekankerja/offboarding?sortBy=employee&sortDir=asc");
   check("Offboarding employee asc", ob.body?.offboardings ?? [], "employee.fullName", "asc");
-  const ob2 = await api("/api/onevity/offboarding?sortBy=lastDay&sortDir=desc");
+  const ob2 = await api("/api/rekankerja/offboarding?sortBy=lastDay&sortDir=desc");
   check("Offboarding lastDay desc", ob2.body?.offboardings ?? [], "lastDay", "desc");
 
   if (fail > 0) throw new Error(`${fail} pengujian gagal`);

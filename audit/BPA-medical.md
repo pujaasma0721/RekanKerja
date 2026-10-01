@@ -1,6 +1,6 @@
-# BPA-AUDIT · Modul Medical Benefit (OneVity HRIS) — Task 24-f
+# BPA-AUDIT · Modul Medical Benefit (RekanKerja HRIS) — Task 24-f
 
-**Auditor**: sub-agent BPA · **Metode**: baca penuh `src/onevity/medical/` (8 api + medical-service.ts 1.091 baris + medical-seed.ts + 10 komponen), `prisma/schema-tenant.prisma` (6 model, L1349–1515), `ANALISA-MEDICAL.md`, worklog Task 21–23; probing runtime **GET-only** (login hrd@mii.co.id → tenant MII) terhadap 7 endpoint + payroll-journals/component-assignments untuk konsistensi. **0 mutasi**.
+**Auditor**: sub-agent BPA · **Metode**: baca penuh `src/rekankerja/medical/` (8 api + medical-service.ts 1.091 baris + medical-seed.ts + 10 komponen), `prisma/schema-tenant.prisma` (6 model, L1349–1515), `ANALISA-MEDICAL.md`, worklog Task 21–23; probing runtime **GET-only** (login hrd@mii.co.id → tenant MII) terhadap 7 endpoint + payroll-journals/component-assignments untuk konsistensi. **0 mutasi**.
 
 ---
 

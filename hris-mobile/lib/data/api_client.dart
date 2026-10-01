@@ -3,18 +3,18 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-/// Client HTTP tipis untuk backend OneVity.
+/// Client HTTP tipis untuk backend RekanKerja.
 ///
-/// Autentikasi memakai cookie sesi `onevity_session` (sama seperti web):
+/// Autentikasi memakai cookie sesi `rekankerja_session` (sama seperti web):
 ///  - login / verify MFA / select-tenant / auth-me merespon `Set-Cookie` —
 ///    nilai cookie terbaru otomatis ditangkap di sini;
 ///  - setiap request berikutnya mengirim kembali cookie tersebut.
 class ApiClient {
-  /// Base URL backend. Default: produksi OneVity.
-  /// Bisa dioverride lewat --dart-define=ONEVITY_API=... atau
+  /// Base URL backend. Default: produksi RekanKerja.
+  /// Bisa dioverride lewat --dart-define=REKANKERJA_API=... atau
   /// dialog pengaturan server (long-press logo di halaman login).
   static const String prodBaseUrl = String.fromEnvironment(
-    'ONEVITY_API',
+    'REKANKERJA_API',
     defaultValue: 'https://onevity.sayone.my.id',
   );
 
@@ -37,7 +37,7 @@ class ApiClient {
       if (eq <= 0) continue;
       final name = first.substring(0, eq).trim();
       final value = first.substring(eq + 1).trim();
-      if (name == 'onevity_session' && value.isNotEmpty) {
+      if (name == 'rekankerja_session' && value.isNotEmpty) {
         sessionCookie = value;
       }
     }
@@ -45,7 +45,7 @@ class ApiClient {
 
   Map<String, String> get _headers => {
         'accept': 'application/json',
-        if (sessionCookie != null) 'cookie': 'onevity_session=$sessionCookie',
+        if (sessionCookie != null) 'cookie': 'rekankerja_session=$sessionCookie',
       };
 
   Uri _uri(String path, [Map<String, String>? query]) {

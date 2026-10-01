@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   SESSION_COOKIE, freshSessionToken, sessionCookieOptions, hashPassword, buildSessionInfo, currentSessionVersion,
-} from "@/onevity/shared/lib/auth";
-import { provisionTenantSchema, seedTenantReference, schemaNameForSlug, dropTenantSchema } from "@/onevity/shared/lib/provisioning";
-import { hostTenantOf, requestHostOf } from "@/onevity/shared/lib/tenant-host";
-import { invalidateTenantHost } from "@/onevity/shared/lib/tenant-host-server";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { validatePassword } from "@/onevity/shared/lib/password-policy";
-import { hitRateLimit } from "@/onevity/shared/lib/rate-limit";
+} from "@/rekankerja/shared/lib/auth";
+import { provisionTenantSchema, seedTenantReference, schemaNameForSlug, dropTenantSchema } from "@/rekankerja/shared/lib/provisioning";
+import { hostTenantOf, requestHostOf } from "@/rekankerja/shared/lib/tenant-host";
+import { invalidateTenantHost } from "@/rekankerja/shared/lib/tenant-host-server";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { validatePassword } from "@/rekankerja/shared/lib/password-policy";
+import { hitRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 
 // M-3 (audit 42) — rate limit pendaftaran self-service (anti spam tenant):
 // 5 percobaan / 15 menit per IP klien + 3 / jam per email. In-memory per

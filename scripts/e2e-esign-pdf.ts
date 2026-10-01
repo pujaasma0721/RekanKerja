@@ -2,7 +2,7 @@
  * Task 80b — E2E stempel e-Sign pada PDF surat:
  *  1. login owner
  *  2. pilih surat terbit pertama → pastikan tertandatangani (PIN faktor)
- *  3. GET /api/onevity/letters/<id>/pdf → PDF harus memuat:
+ *  3. GET /api/rekankerja/letters/<id>/pdf → PDF harus memuat:
  *     - objek gambar (QR) → "/Image" di raw bytes
  *     - teks "DITANDATANGANI SECARA ELEKTRONIK" + URL /v/<id> (setelah inflate stream)
  *  4. surat TANPA ttd → PDF TIDAK boleh memuat blok e-Sign (negatif).
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   const cookie = jar(rL);
   check("login", rL.status === 200 && !!cookie, `status ${rL.status}`);
 
-  const rLs = await fetch(`${BASE}/api/onevity/letters`, { headers: { cookie } });
+  const rLs = await fetch(`${BASE}/api/rekankerja/letters`, { headers: { cookie } });
   const ls = (await rLs.json()) as { letters?: { id: string; refNo: string; subject?: string | null }[] };
   const letters = ls.letters ?? [];
   check("daftar surat", rLs.status === 200 && letters.length > 0, `${letters.length} surat`);
@@ -76,22 +76,22 @@ async function main(): Promise<void> {
 
   // pastikan surat target tertandatangani (PIN faktor — deterministik)
   const PIN = "471029";
-  await fetch(`${BASE}/api/onevity/esign`, {
+  await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "set-pin", pin: PIN }),
   });
-  await fetch(`${BASE}/api/onevity/esign`, {
+  await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "challenge", docType: "LetterDocument", docId: target.id }),
   });
-  const rSign = await fetch(`${BASE}/api/onevity/esign`, {
+  const rSign = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType: "LetterDocument", docId: target.id, code: PIN }),
   });
   check("surat tertandatangani", rSign.status === 201, `${target.refNo} status ${rSign.status}`);
 
   // unduh PDF surat yang SUDAH ditandatangani
-  const rPdf = await fetch(`${BASE}/api/onevity/letters/${target.id}/pdf`, { headers: { cookie } });
+  const rPdf = await fetch(`${BASE}/api/rekankerja/letters/${target.id}/pdf`, { headers: { cookie } });
   const pdfBuf = Buffer.from(await rPdf.arrayBuffer());
   check("PDF terbit (200, application/pdf)", rPdf.status === 200 && (rPdf.headers.get("content-type") ?? "").includes("pdf"), `${pdfBuf.length} bytes`);
   const hasImage = pdfBuf.includes("/Image");
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   // (cari surat kedua; jika semuanya sudah ditandatangani, uji dilewati)
   const unsigned = letters.find((l) => l.id !== target.id);
   if (unsigned) {
-    const rPdf2 = await fetch(`${BASE}/api/onevity/letters/${unsigned.id}/pdf`, { headers: { cookie } });
+    const rPdf2 = await fetch(`${BASE}/api/rekankerja/letters/${unsigned.id}/pdf`, { headers: { cookie } });
     const buf2 = Buffer.from(await rPdf2.arrayBuffer());
     const text2 = pdfText(buf2);
     const clean = !text2.includes("DITANDATANGANI SECARA ELEKTRONIK") && !buf2.includes("/Image");

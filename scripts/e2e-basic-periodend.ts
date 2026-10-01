@@ -56,19 +56,19 @@ async function main(): Promise<void> {
   console.log("LOGIN OK");
 
   // 2) Money Vault unlock (nilai uang nyata terbaca + engine pakai data asli)
-  const vault = await post("/api/onevity/money-vault", { action: "unlock", password: VAULT_PASSWORD });
+  const vault = await post("/api/rekankerja/money-vault", { action: "unlock", password: VAULT_PASSWORD });
   if (vault.status !== 200) die(`vault unlock ${vault.status}: ${JSON.stringify(vault.body).slice(0, 200)}`);
   console.log("VAULT UNLOCKED");
 
   // 3) Cari karyawan + periode September
-  const emps = await get("/api/onevity/payroll-profiles");
+  const emps = await get("/api/rekankerja/payroll-profiles");
   if (emps.status !== 200) die(`profiles ${emps.status}`);
   const emp = (emps.body.employees as any[]).find((e) => e.employeeNo === EMP_NO);
   if (!emp) die(`karyawan ${EMP_NO} tidak ditemukan`);
   const curSalary = emp.baseSalary as number;
   console.log(`EMP ${emp.employeeNo} ${emp.fullName} — gaji berlaku sekarang: ${curSalary}`);
 
-  const periods = await get("/api/onevity/payroll-periods");
+  const periods = await get("/api/rekankerja/payroll-periods");
   if (periods.status !== 200) die(`periods ${periods.status}`);
   const sep = (periods.body.periods ?? periods.body ?? []).find((p: any) =>
     p.name?.toLowerCase().includes("sep") && new Date(p.startDate).getFullYear() === 2026);
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
 
   // 4) PA SalaryAdjustment eff 16 Sep (mid-month) — gaji baru = sekarang + 500.000
   // Idempoten: pakai PA uji sebelumnya yang belum diproses bila ada.
-  const existing = await get(`/api/onevity/personnel-actions?employeeId=${emp.employeeId}`);
+  const existing = await get(`/api/rekankerja/personnel-actions?employeeId=${emp.employeeId}`);
   const prev = ((existing.body.actions ?? existing.body ?? []) as any[]).find(
     (a) => a.type === "SalaryAdjustment" && a.status !== "Processed" && String(a.reason ?? "").includes("E2E 64h"));
   let paId: string; let paDoc: string; const newSalary = curSalary + 500_000;
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     paId = prev.id; paDoc = prev.docNo;
     console.log(`PA REUSED ${paDoc} (status ${prev.status})`);
   } else {
-    const pa = await post("/api/onevity/personnel-actions", {
+    const pa = await post("/api/rekankerja/personnel-actions", {
       employeeId: emp.employeeId,
       type: "SalaryAdjustment",
       effectiveDate: "2026-09-16",
@@ -99,44 +99,44 @@ async function main(): Promise<void> {
   }
 
   // 5) submit → approve semua layer → process
-  let sub = await patch(`/api/onevity/personnel-actions/${paId}`, { action: "submit" });
+  let sub = await patch(`/api/rekankerja/personnel-actions/${paId}`, { action: "submit" });
   if (sub.status !== 200) die(`submit ${sub.status}: ${JSON.stringify(sub.body).slice(0, 200)}`);
   for (let i = 0; i < 5; i++) {
-    const ap = await patch(`/api/onevity/personnel-actions/${paId}`, { action: "approve" });
+    const ap = await patch(`/api/rekankerja/personnel-actions/${paId}`, { action: "approve" });
     if (ap.status !== 200) die(`approve ${ap.status}: ${JSON.stringify(ap.body).slice(0, 200)}`);
     if (ap.body.status === "Approved") break;
   }
-  const proc = await patch(`/api/onevity/personnel-actions/${paId}`, { action: "process" });
+  const proc = await patch(`/api/rekankerja/personnel-actions/${paId}`, { action: "process" });
   if (proc.status !== 200) die(`process ${proc.status}: ${JSON.stringify(proc.body).slice(0, 200)}`);
   console.log("PA PROCESSED (chain updated, eff 16 Sep)");
 
   // 6) Run payroll September (SALARY) — pakai run yang ada (recalculate) atau buat baru
-  const pts = await get("/api/onevity/process-types");
+  const pts = await get("/api/rekankerja/process-types");
   if (pts.status !== 200) die(`process-types ${pts.status}`);
   const pt = (pts.body.processTypes as any[]).find((x) => x.code === "SALARY");
   if (!pt) die("processType SALARY tidak ditemukan");
 
-  const runs = await get(`/api/onevity/payroll-runs?periodId=${sep.id}`);
+  const runs = await get(`/api/rekankerja/payroll-runs?periodId=${sep.id}`);
   if (runs.status !== 200) die(`runs ${runs.status}`);
   const runList = (runs.body.runs ?? []) as any[];
   let run = runList.find((r) => r.processType?.code === "SALARY") ?? runList[0];
   if (run) {
     console.log(`RUN EXISTS ${run.runNo} (status ${run.status}) → recalculate`);
-    const rec = await patch("/api/onevity/payroll-runs", { id: run.id, action: "calculate" });
+    const rec = await patch("/api/rekankerja/payroll-runs", { id: run.id, action: "calculate" });
     if (rec.status !== 200) die(`recalculate ${rec.status}: ${JSON.stringify(rec.body).slice(0, 200)}`);
     console.log(`RECALCULATED: ${JSON.stringify(rec.body.summary ?? {}).slice(0, 160)}`);
   } else {
-    const st = await post("/api/onevity/payroll-runs", { periodId: sep.id, processTypeId: pt.id });
+    const st = await post("/api/rekankerja/payroll-runs", { periodId: sep.id, processTypeId: pt.id });
     if (st.status !== 200 && st.status !== 201) die(`run create ${st.status}: ${JSON.stringify(st.body).slice(0, 200)}`);
     run = st.body.run;
     console.log(`RUN CREATED ${run.runNo}`);
-    const calc = await patch("/api/onevity/payroll-runs", { id: run.id, action: "calculate" });
+    const calc = await patch("/api/rekankerja/payroll-runs", { id: run.id, action: "calculate" });
     if (calc.status !== 200) die(`calculate ${calc.status}: ${JSON.stringify(calc.body).slice(0, 200)}`);
     console.log(`CALCULATED: ${JSON.stringify(calc.body.summary ?? {}).slice(0, 160)}`);
   }
 
   // 7) Baca BASIC milik karyawan uji dari run detail
-  const det = await get(`/api/onevity/payroll-run?id=${run.id}`);
+  const det = await get(`/api/rekankerja/payroll-run?id=${run.id}`);
   if (det.status !== 200) die(`run detail ${det.status}`);
   const lines = (det.body.run?.lines ?? []) as any[];
   const line = lines.find((l) => l.employeeNo === EMP_NO);

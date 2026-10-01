@@ -8,9 +8,9 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { LETTER_TEMPLATE_DEFAULTS } from "@/rekankerja/shared/lib/letter-defaults";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

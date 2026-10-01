@@ -19,7 +19,7 @@ class NotificationsPage extends StatelessWidget {
     'letter': (Icons.description_rounded, Color(0xFF0369A1)),
     'whistleblow': (Icons.shield_rounded, Color(0xFFDC2626)),
     'gamification': (Icons.emoji_events_rounded, Color(0xFFF59E0B)),
-    // Item dari backend live (ES OneVity).
+    // Item dari backend live (ES RekanKerja).
     'system': (Icons.notifications_active_rounded, Color(0xFF0891B2)),
   };
 

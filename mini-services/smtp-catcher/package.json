@@ -1,1 +1,1 @@
-{"name":"onevity-smtp-catcher","private":true,"version":"1.0.0","description":"SMTP catch-all lokal untuk uji notifikasi email OneVity (Task 34) — port 2525","scripts":{"dev":"bun --hot run index.ts"},"dependencies":{}}
+{"name":"rekankerja-smtp-catcher","private":true,"version":"1.0.0","description":"SMTP catch-all lokal untuk uji notifikasi email RekanKerja (Task 34) — port 2525","scripts":{"dev":"bun --hot run index.ts"},"dependencies":{}}

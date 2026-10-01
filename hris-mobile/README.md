@@ -1,22 +1,22 @@
-# OneVity HRIS Mobile 📱
+# RekanKerja HRIS Mobile 📱
 
-Aplikasi mobile **Employee-Centric Self-Service** untuk OneVity HR Suite — didesain agar pengalaman HR terasa menyenangkan dan personal layaknya aplikasi fintech/media sosial, bukan software kantor yang kaku.
+Aplikasi mobile **Employee-Centric Self-Service** untuk RekanKerja HR Suite — didesain agar pengalaman HR terasa menyenangkan dan personal layaknya aplikasi fintech/media sosial, bukan software kantor yang kaku.
 
-> **Status:** ✅ **Terhubung ke backend OneVity** (default: `https://onevity.sayone.my.id`) — mode **Demo** tetap tersedia untuk mencoba tanpa server.
+> **Status:** ✅ **Terhubung ke backend RekanKerja** (default: `https://onevity.sayone.my.id`) — mode **Demo** tetap tersedia untuk mencoba tanpa server.
 
 ## Dua Mode Aplikasi
 
 | | Mode **Live** | Mode **Demo** |
 |---|---|---|
-| Sumber data | REST API OneVity (`/api/onevity/ess/*`) | Seed lokal realistis |
+| Sumber data | REST API RekanKerja (`/api/rekankerja/ess/*`) | Seed lokal realistis |
 | Login | Email + sandi akun kantor → (MFA 6 digit bila aktif) → pilih workspace bila multi-perusahaan | Tombol *Coba Mode Demo* |
 | Presensi, cuti, lembur, workoff, tukar shift, surat, whistleblow | Nyata — tersimpan ke database perusahaan | Simulasi lokal |
 | Slip gaji, klaim, aset, pengumuman, notifikasi, profil | Nyata — dari server (hanya-baca) | Simulasi lokal |
-| Sesi | Cookie `onevity_session` (7 hari, tersimpan di perangkat) | — |
+| Sesi | Cookie `rekankerja_session` (7 hari, tersimpan di perangkat) | — |
 
-Ganti server (dev ⇄ produksi): **tekan-lama logo "1V"** di halaman login → dialog Base URL. Bisa juga lewat build: `--dart-define=ONEVITY_API=https://...`.
+Ganti server (dev ⇄ produksi): **tekan-lama logo "1V"** di halaman login → dialog Base URL. Bisa juga lewat build: `--dart-define=REKANKERJA_API=https://...`.
 
-## Fitur (dari modul OneVity)
+## Fitur (dari modul RekanKerja)
 
 | Modul | Isi | Sumber live |
 |---|---|---|
@@ -38,7 +38,7 @@ Ganti server (dev ⇄ produksi): **tekan-lama logo "1V"** di halaman login → d
 
 ## Stack & Arsitektur
 
-- **Flutter 3.32** + Material 3, tema emerald + aksen amber (identitas OneVity)
+- **Flutter 3.32** + Material 3, tema emerald + aksen amber (identitas RekanKerja)
 - **provider** untuk state; **http** + cookie sesi manual; **shared_preferences** (sesi & server), **path_provider + share_plus** (PDF surat)
 - Struktur:
   ```
@@ -46,8 +46,8 @@ Ganti server (dev ⇄ produksi): **tekan-lama logo "1V"** di halaman login → d
   ├── app.dart / main.dart
   ├── core/                     # design system: theme, format ID, widgets reusable
   ├── data/
-  │   ├── api_client.dart       # HTTP + cookie onevity_session + error ramah
-  │   ├── onevity_api.dart       # gateway bertipe + mapper JSON→model seluruh ESS
+  │   ├── api_client.dart       # HTTP + cookie rekankerja_session + error ramah
+  │   ├── rekankerja_api.dart       # gateway bertipe + mapper JSON→model seluruh ESS
   │   ├── app_state.dart        # AppState dua-mode (demo|live) + restore sesi
   │   ├── models.dart           # model lintas modul (field live opsional)
   │   └── mock_data.dart        # seed demo
@@ -62,7 +62,7 @@ flutter pub get
 flutter run          # pilih emulator / device
 ```
 
-- **Mode Live:** masuk dengan akun kantor OneVity (mis. demo lokal: `hrd@mii.co.id` / `onevity123`).
+- **Mode Live:** masuk dengan akun kantor RekanKerja (mis. demo lokal: `hrd@mii.co.id` / `onevity123`).
 - **Mode Demo:** tombol *Coba Mode Demo* di halaman login.
 
 ## Testing

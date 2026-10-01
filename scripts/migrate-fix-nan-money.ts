@@ -11,7 +11,7 @@
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-fix-nan-money.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

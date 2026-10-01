@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE, readSessionCookie, bumpSessionVersion, sessionCookieOptions } from "@/onevity/shared/lib/auth";
+import { SESSION_COOKIE, readSessionCookie, bumpSessionVersion, sessionCookieOptions } from "@/rekankerja/shared/lib/auth";
 
 // POST /api/auth/logout — hapus cookie session.
 // T1-SECURITY — revokasi server-side: User.sessionVersion dinaikkan sehingga

@@ -2,7 +2,7 @@
  * Task 80e — E2E eSign pada PayrollRun:
  *  1. login owner
  *  2. pilih run Confirmed/Paid terbaru → pastikan tertandatangani (PIN faktor)
- *  3. GET /api/onevity/payslip/<lineId>?download=1 → PDF harus memuat:
+ *  3. GET /api/rekankerja/payslip/<lineId>?download=1 → PDF harus memuat:
  *     - objek gambar (QR) → "/Image" di raw bytes
  *     - teks "DITANDATANGANI SECARA ELEKTRONIK" + URL /v/<id> + hash (inflate stream)
  *  4. buka URL /v/<id> → status VALID (ttd PayrollRun, chainIntact).
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   check("login", rL.status === 200 && !!cookie, `status ${rL.status}`);
 
   // 2. pilih run Confirmed/Paid terbaru
-  const rRuns = await fetch(`${BASE}/api/onevity/payroll-runs`, { headers: { cookie } });
+  const rRuns = await fetch(`${BASE}/api/rekankerja/payroll-runs`, { headers: { cookie } });
   const runsJ = (await rRuns.json()) as { runs?: RunItem[] };
   const runs = runsJ.runs ?? [];
   const target = runs.find((r) => r.status === "Confirmed" || r.status === "Paid");
@@ -76,15 +76,15 @@ async function main(): Promise<void> {
 
   // pastikan tertandatangani (PIN faktor — deterministik)
   const PIN = "471029";
-  await fetch(`${BASE}/api/onevity/esign`, {
+  await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "set-pin", pin: PIN }),
   });
-  await fetch(`${BASE}/api/onevity/esign`, {
+  await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "challenge", docType: "PayrollRun", docId: target.id }),
   });
-  const rSign = await fetch(`${BASE}/api/onevity/esign`, {
+  const rSign = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType: "PayrollRun", docId: target.id, code: PIN }),
   });
@@ -93,12 +93,12 @@ async function main(): Promise<void> {
   const sigId = signJ.signatureId;
 
   // 3. detail run → line pertama → unduh PDF slip
-  const rDet = await fetch(`${BASE}/api/onevity/payroll-run?id=${target.id}`, { headers: { cookie } });
+  const rDet = await fetch(`${BASE}/api/rekankerja/payroll-run?id=${target.id}`, { headers: { cookie } });
   const detJ = (await rDet.json()) as RunDetailShape;
   const line = detJ.run?.lines?.[0];
   check("detail run + line tersedia", !!line, line ? `${line.employeeName}` : "tidak ada line");
 
-  const rPdf = await fetch(`${BASE}/api/onevity/payslip/${line.id}?download=1`, { headers: { cookie } });
+  const rPdf = await fetch(`${BASE}/api/rekankerja/payslip/${line.id}?download=1`, { headers: { cookie } });
   const pdfBuf = Buffer.from(await rPdf.arrayBuffer());
   check("PDF slip (200, application/pdf)", rPdf.status === 200 && (rPdf.headers.get("content-type") ?? "").includes("pdf"), `${pdfBuf.length} bytes`);
   const hasImage = pdfBuf.includes("/Image");

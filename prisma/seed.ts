@@ -1,12 +1,12 @@
-// OneVity seed — realistic Indonesian company "MII - Mitra Industri Internasional"
+// RekanKerja seed — realistic Indonesian company "MII - Mitra Industri Internasional"
 import { PrismaClient } from "@/generated/tenant";
 
-import { calculateAndSaveRun, confirmRun } from "../src/onevity/payroll/services/payroll-service";
+import { calculateAndSaveRun, confirmRun } from "../src/rekankerja/payroll/services/payroll-service";
 // F-02 BPA-AUDIT-53 — tabel TER resmi Lampiran PMK 168/2023 (sumber tunggal).
-import { TER_OFFICIAL } from "../src/onevity/payroll/services/ter-official";
+import { TER_OFFICIAL } from "../src/rekankerja/payroll/services/ter-official";
 import {
   submitClaim, scheduleClaim, approveClaim, rejectClaim, markClaimPaidCash, nextClaimNo,
-} from "../src/onevity/payroll/services/benefit-service";
+} from "../src/rekankerja/payroll/services/benefit-service";
 
 // Client tenant: 1 schema PostgreSQL per tenant — seed menarget schema SEED_TENANT_SCHEMA
 // (default tenant_seed) di atas TENANT_DB_BASE_URL. Jalankan: bun prisma/seed.ts
@@ -15,7 +15,7 @@ const db = new PrismaClient({
 });
 // 28-c: nilai uang payroll (baseSalary/amount komponen) dienkripsi saat seed —
 // kunci per-tenant schema (SEED_TENANT_SCHEMA, fallback tenant_seed).
-import { tenantCrypto, TENANT_SCHEMA_BRAND } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto, TENANT_SCHEMA_BRAND } from "../src/rekankerja/shared/lib/field-crypto";
 const SEED_SCHEMA = process.env.SEED_TENANT_SCHEMA ?? "tenant_seed";
 const tc = tenantCrypto(SEED_SCHEMA);
 // M-8 (44): wrapper non-null utk kolom uang NOT-NULL String (input selalu number).
@@ -48,7 +48,7 @@ const LAST = ["Santoso", "Wijaya", "Kusuma", "Pratama", "Saputra", "Hidayat", "N
 const CITIES = ["Jakarta", "Bandung", "Surabaya", "Bekasi", "Tangerang", "Depok", "Semarang", "Bogor"];
 
 async function main() {
-  console.log("🌱 Seeding OneVity HR Base...");
+  console.log("🌱 Seeding RekanKerja HR Base...");
 
   // ============ COMPANY ============
   const company = await db.company.create({
@@ -1118,7 +1118,7 @@ async function main() {
 
   // ============ LEAVE (ref: ANALISA-LEAVE.md) ============
   console.log(" seeding leave…");
-  const { seedLeaveDemoData } = await import("../src/onevity/leave/services/leave-seed");
+  const { seedLeaveDemoData } = await import("../src/rekankerja/leave/services/leave-seed");
   const leaveRes = await seedLeaveDemoData(db);
   if (leaveRes.skipped) {
     console.log("   → saldo leave 2026 sudah ada — skip");
@@ -1128,7 +1128,7 @@ async function main() {
 
   // ============ TRAVEL (ref: ANALISA-TRAVEL.md) ============
   console.log(" seeding travel…");
-  const { seedTravelDemoData } = await import("../src/onevity/travel/services/travel-seed");
+  const { seedTravelDemoData } = await import("../src/rekankerja/travel/services/travel-seed");
   const travelRes = await seedTravelDemoData(db);
   if (travelRes.skipped) {
     console.log("   → data travel sudah ada — skip");
@@ -1138,7 +1138,7 @@ async function main() {
 
   // ============ MEDICAL (ref: ANALISA-MEDICAL.md) ============
   console.log(" seeding medical…");
-  const { seedMedicalDemoData } = await import("../src/onevity/medical/services/medical-seed");
+  const { seedMedicalDemoData } = await import("../src/rekankerja/medical/services/medical-seed");
   const medRes = await seedMedicalDemoData(db);
   if (medRes.skipped) {
     console.log("   → data medical sudah ada / tanpa karyawan — skip");
@@ -1147,7 +1147,7 @@ async function main() {
   }
 
   // -- rekap harian (padanan "Refresh Clocking" — engine attendance-service)
-  const { regenerateRange } = await import("../src/onevity/time-attendance/services/attendance-service");
+  const { regenerateRange } = await import("../src/rekankerja/time-attendance/services/attendance-service");
   const days = await regenerateRange(db, from, to);
   console.log(`   → ${days} rekap harian dihitung (1 Agu – 30 Sep 2026)`);
 

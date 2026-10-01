@@ -4,8 +4,8 @@
 // → canAdminApp=false → login mendarat langsung di Portal Karyawan (?area=ess).
 // Jalankan: bun run scripts/seed-ess-demo-user.ts
 import { db as platform } from "@/lib/db";
-import { hashPassword } from "@/onevity/shared/lib/auth";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { hashPassword } from "@/rekankerja/shared/lib/auth";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 
 const SCHEMA = "tenant_pt_mitra_industri_internasional";
 const EMAIL = "yusuf@mii.co.id";

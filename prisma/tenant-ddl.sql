@@ -948,7 +948,7 @@ CREATE TABLE "EmailConfig" (
     "smtpUser" TEXT NOT NULL DEFAULT '',
     "smtpPassword" TEXT NOT NULL DEFAULT '',
     "fromEmail" TEXT NOT NULL DEFAULT '',
-    "fromName" TEXT NOT NULL DEFAULT 'OneVity HRIS',
+    "fromName" TEXT NOT NULL DEFAULT 'RekanKerja HRIS',
     "lastTestOk" BOOLEAN,
     "lastTestAt" TIMESTAMP(3),
     "lastTestMessage" TEXT,

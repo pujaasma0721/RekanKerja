@@ -1,0 +1,2 @@
+// Thin route — logika handler ada di src/rekankerja/payroll/api/benefit-claims.ts
+export { GET, PATCH, POST } from "@/rekankerja/payroll/api/benefit-claims";

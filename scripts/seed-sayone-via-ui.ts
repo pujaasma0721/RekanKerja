@@ -138,7 +138,7 @@ async function main(): Promise<void> {
   console.log("✓ login owner OK");
 
   // 2) Lengkapi profil perusahaan (PATCH /companies — sama dgn form Profil Perusahaan)
-  await api("PATCH", "/api/onevity/companies", {
+  await api("PATCH", "/api/rekankerja/companies", {
     name: "PT Sayone Integrasi Solusi",
     shortName: "Sayone",
     taxId: npwp15(),
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
   // 3) Kantor (20) — POST /company-offices
   const officeIds: string[] = [];
   for (let i = 1; i <= 20; i++) {
-    const r = await post<{ office: { id: string } }>("/api/onevity/company-offices", {
+    const r = await post<{ office: { id: string } }>("/api/rekankerja/company-offices", {
       code: `OF-${String(i).padStart(2, "0")}`,
       name: i === 1 ? "Kantor Pusat — Jakarta" : `Cabang ${i}`,
       address: `Jl. ${pick(["Gatot Subroto", "Thamrin", "Sudirman", "Asia Afrika", "Pahlawan", "Diponegoro", "Asia Raya"])} No. ${pickInt(1, 120)}`,
@@ -168,7 +168,7 @@ async function main(): Promise<void> {
   // 4) Work location (30) — POST /work-locations
   const locIds: string[] = [];
   for (let i = 1; i <= 30; i++) {
-    const r = await post<{ location: { id: string } }>("/api/onevity/work-locations", {
+    const r = await post<{ location: { id: string } }>("/api/rekankerja/work-locations", {
       code: `WL-${String(i).padStart(2, "0")}`,
       name: i <= 10 ? `Kantor Pusat Lantai ${i}` : `Site Operasional ${i - 10}`,
       officeId: officeIds.length ? officeIds[(i - 1) % officeIds.length] : undefined,
@@ -186,7 +186,7 @@ async function main(): Promise<void> {
   const orgIds: string[] = [];
   const topOrgs = ["Direksi", "Keuangan & Akuntansi", "Sumber Daya Manusia", "Teknologi Informasi", "Operasional", "Pemasaran", "Penjualan", "Pengadaan", "Legal & Kepatuhan", "Layanan Pelanggan"];
   for (let i = 0; i < topOrgs.length; i++) {
-    const r = await post<{ unit: { id: string } }>("/api/onevity/org-units", {
+    const r = await post<{ unit: { id: string } }>("/api/rekankerja/org-units", {
       code: `ORG-${String(i + 1).padStart(2, "0")}`,
       name: topOrgs[i],
       headcountBudget: pickInt(15, 80),
@@ -195,7 +195,7 @@ async function main(): Promise<void> {
   }
   const subNames = ["Divisi Perencanaan", "Divisi Pelaksanaan", "Divisi Pengendalian", "Tim Administrasi", "Tim Pengembangan", "Tim Dukungan"];
   for (let i = 0; i < 30 - topOrgs.length; i++) {
-    const r = await post<{ unit: { id: string } }>("/api/onevity/org-units", {
+    const r = await post<{ unit: { id: string } }>("/api/rekankerja/org-units", {
       code: `ORG-S${String(i + 1).padStart(2, "0")}`,
       name: subNames[i % subNames.length],
       parentId: orgIds.length ? orgIds[(i + 1) % orgIds.length] : undefined,
@@ -216,12 +216,12 @@ async function main(): Promise<void> {
     ["JOB-PM", "Project Management", "Staff"], ["JOB-EXE", "Executive", "Executive"],
   ];
   for (const [code, title, category] of jobs) {
-    const r = await post<{ job: { id: string } }>("/api/onevity/jobs", { code, title, category, description: `Kelompok kerja ${title}` });
+    const r = await post<{ job: { id: string } }>("/api/rekankerja/jobs", { code, title, category, description: `Kelompok kerja ${title}` });
     if (r?.job?.id) jobIds.push(r.job.id);
   }
   const gradeIds: { id: string; g: number }[] = [];
   for (let g = 1; g <= 8; g++) {
-    const r = await post<{ grade: { id: string } }>("/api/onevity/grades", {
+    const r = await post<{ grade: { id: string } }>("/api/rekankerja/grades", {
       code: `G${g}`,
       name: `Grade ${g}`,
       minSalary: rupiahGrade(g - 1),
@@ -237,7 +237,7 @@ async function main(): Promise<void> {
   const titles = ["Manager", "Supervisor", "Senior Officer", "Officer", "Junior Officer", "Spesialis", "Koordinator", "Analis", "Admin", "Staff", "Asisten", "Teknisi", "Praktisi", "Pelaksana", "Kepala Seksi", "Kepala Divisi", "Direktur Utama", "Direktur", "General Manager", "Sekretaris"];
   for (let i = 1; i <= 50; i++) {
     const g = gradeIds[(i - 1) % gradeIds.length];
-    const r = await post<{ position: { id: string } }>("/api/onevity/positions", {
+    const r = await post<{ position: { id: string } }>("/api/rekankerja/positions", {
       code: `POS-${String(i).padStart(2, "0")}`,
       title: `${titles[(i - 1) % titles.length]} ${pick(["Operasional", "Keuangan", "SDM", "IT", "Pemasaran", "Penjualan", "Logistik", "Kepatuhan", "Layanan", "Pengadaan"])}`,
       jobId: jobIds.length ? jobIds[(i - 1) % jobIds.length] : undefined,
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
     usedEmail.add(email);
     const employmentStatus = pick(EMP_STATUS);
     const jd = joinDate();
-    const r = await post<{ employee: { id: string } }>("/api/onevity/employees", {
+    const r = await post<{ employee: { id: string } }>("/api/rekankerja/employees", {
       fullName,
       gender,
       birthPlace: pick(KOTA),

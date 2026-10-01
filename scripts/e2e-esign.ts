@@ -36,13 +36,13 @@ async function main(): Promise<void> {
   check("login", rL.status === 200 && !!cookie, `status ${rL.status}`);
 
   // 2. status e-sign sesi
-  const rS = await fetch(`${BASE}/api/onevity/esign`, { headers: { cookie } });
+  const rS = await fetch(`${BASE}/api/rekankerja/esign`, { headers: { cookie } });
   const st = (await rS.json()) as { hasPin: boolean; hasKey: boolean };
   check("GET status e-sign", rS.status === 200 && typeof st.hasPin === "boolean", JSON.stringify(st));
 
   // 3. cari dokumen: surat terbit pertama, fallback PA
   let docType = "LetterDocument"; let docId = ""; let label = "";
-  const rLs = await fetch(`${BASE}/api/onevity/letters`, { headers: { cookie } });
+  const rLs = await fetch(`${BASE}/api/rekankerja/letters`, { headers: { cookie } });
   if (rLs.ok) {
     const j = (await rLs.json()) as { letters?: { id: string; refNo: string }[] };
     const first = (j.letters ?? [])[0];
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   }
   if (!docId) {
     docType = "PersonnelAction";
-    const rP = await fetch(`${BASE}/api/onevity/personnel-actions?pageSize=1`, { headers: { cookie } });
+    const rP = await fetch(`${BASE}/api/rekankerja/personnel-actions?pageSize=1`, { headers: { cookie } });
     const j = (await rP.json()) as { actions?: { id: string; docNo: string }[]; items?: { id: string; docNo: string }[] };
     const first = (j.actions ?? j.items ?? [])[0];
     if (first) { docId = first.id; label = first.docNo; }
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   check("dokumen sumber tersedia", !!docId, `${docType} ${label}`);
 
   // 4. challenge → OTP ke email
-  const rC = await fetch(`${BASE}/api/onevity/esign`, {
+  const rC = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "challenge", docType, docId }),
   });
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   // 4. Faktor PIN (deterministik): set PIN khusus uji lalu sign dengan PIN itu.
   //    EmailLog sengaja menyamarkan OTP (redactEmailBody) — jalur email tak bisa dipakai E2E.
   const PIN = "471029";
-  const rSet = await fetch(`${BASE}/api/onevity/esign`, {
+  const rSet = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "set-pin", pin: PIN }),
   });
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   const code = PIN;
 
   // 6. sign (PIN sebagai faktor)
-  const rSign = await fetch(`${BASE}/api/onevity/esign`, {
+  const rSign = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType, docId, code }),
   });
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
   // 9. PIN = faktor statis: re-sign dengan PIN sama sah (by design) —
   //    one-time code hanya berlaku di jalur OTP (usedAt di SignatureChallenge).
   //    Nilai uji di sini: chain bertambah dan tetap utuh setelah ttd kedua.
-  const rSign2 = await fetch(`${BASE}/api/onevity/esign`, {
+  const rSign2 = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ action: "sign", docType, docId, code }),
   });

@@ -16,8 +16,8 @@ import "./lib/env";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { tenantSchemas } from "../src/onevity/shared/lib/parity-runner";
-import { CRITICAL_TENANT_TABLES } from "../src/onevity/shared/lib/provisioning";
+import { tenantSchemas } from "../src/rekankerja/shared/lib/parity-runner";
+import { CRITICAL_TENANT_TABLES } from "../src/rekankerja/shared/lib/provisioning";
 
 const TENANT_URL = () =>
   process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";

@@ -1,7 +1,7 @@
-# AUDIT BISNIS PROSES — MODUL TRAVEL (PERJALANAN DINAS) OneVity HRIS
+# AUDIT BISNIS PROSES — MODUL TRAVEL (PERJALANAN DINAS) RekanKerja HRIS
 
 Task ID: **24-e** · Jenis: audit READ-ONLY (tanpa mutasi, tanpa commit) · Tanggal: 2026-09-02 (jam sistem sandbox)
-Cakupan: `src/onevity/travel/**` (7 api + travel-service.ts + travel-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (10 model Travel), integrasi payroll (`payroll-service.ts`, `provisioning.ts`), referensi `ANALISA-TRAVEL.md` (oranHR), probing runtime GET tenant MII + verifikasi data PostgreSQL read-only.
+Cakupan: `src/rekankerja/travel/**` (7 api + travel-service.ts + travel-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (10 model Travel), integrasi payroll (`payroll-service.ts`, `provisioning.ts`), referensi `ANALISA-TRAVEL.md` (oranHR), probing runtime GET tenant MII + verifikasi data PostgreSQL read-only.
 Data MII diverifikasi: 7 request, 6 claim, 17 baris biaya, 4 zona, 5 template, 14 jenis biaya, budget 2026 Rp 250jt (4 CC), 10 jurnal (4 klaim + 6 payroll), 1 assignment UTRP.
 Temuan audit modul sebelumnya (AUDIT-MODULES.md F-04/F-11) sudah diperbaiki dan TIDAK dilaporkan ulang.
 
@@ -151,7 +151,7 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 ### KRITIS
 
 **K-1 · Transfer payroll kedua ke period sama menghapus komponen klaim sebelumnya → klaim ditandai Paid tanpa dibayar**
-- Lokasi: `src/onevity/travel/services/travel-service.ts:739-742` (deleteMany semua assignment Specific UTRP/TRVSTLIN period×processType) vs `:733-737` (klaim yang ditulis ulang hanya status Approved).
+- Lokasi: `src/rekankerja/travel/services/travel-service.ts:739-742` (deleteMany semua assignment Specific UTRP/TRVSTLIN period×processType) vs `:733-737` (klaim yang ditulis ulang hanya status Approved).
 - Skenario: transfer batch 1 (klaim A,B) ke period P → A,B Transferred + assignment dibuat. Klaim C disetujui; transfer batch 2 ke period P → deleteMany **menghapus assignment A,B** (mereka kini Transferred, tidak ikut ditulis ulang), hanya assignment C dibuat. Saat run P dikonfirmasi → markTravelPaidForRun menandai A,B,C **Paid** — A,B tidak pernah dibayar. Kebalikan dari idempotensi yang dimaksud; uang hilang diam-diam (tidak ada error).
 - Dampak: underpayment karyawan dengan jejak "Dibayar via run X" palsu; rekonsiliasi payroll vs klaim tidak akan balance.
 - Saran fix: tulis ulang assignment dari **klaim status ∈ {Approved, Transferred(period ini)}** (bukan hanya Approved), atau hapus deleteMany dan jadikan per-klaim upsert dengan guard klaim belum punya assignment period lain; tambah assertions Σ assignment = Σ klaim period.
@@ -172,7 +172,7 @@ Tidak punya state machine sama sekali: satu baris (amount, note, givenAt) dibuat
 
 **M-2 · createClaim tidak memvalidasi status request Approved (guard hanya di previewClaim)**
 - Lokasi: `travel-service.ts:440-445` vs `:367` (previewClaim melempar error bila status ≠ Approved; createClaim tidak).
-- Dampak: POST langsung ke `/api/onevity/travel/claims` dengan `requestId` request Rejected/Cancelled → klaim sah dibuat, bisa diapprove & ditransfer → dibayar untuk perjalanan yang ditolak/dibatalkan. Juga: reject/cancel request setelah klaim Approved/Transferred tidak menghentikan klaim (hanya klaim Submitted yang dibatalkan, `:319-324`).
+- Dampak: POST langsung ke `/api/rekankerja/travel/claims` dengan `requestId` request Rejected/Cancelled → klaim sah dibuat, bisa diapprove & ditransfer → dibayar untuk perjalanan yang ditolak/dibatalkan. Juga: reject/cancel request setelah klaim Approved/Transferred tidak menghentikan klaim (hanya klaim Submitted yang dibatalkan, `:319-324`).
 - Saran fix: pindahkan cek status ke createClaim; saat reject/cancel request, blokir bila ada klaim Approved/Transferred (atau batalkan berantai + hapus jurnal + assignment).
 
 **M-3 · Siklus hidup advance (kasbon) tidak ada — tercatat terbayar sebelum approval, tak pernah lunas**

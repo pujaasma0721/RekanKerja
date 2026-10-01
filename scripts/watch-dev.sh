@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# watch-dev.sh — watchdog dev server OneVity (sandbox)
+# watch-dev.sh — watchdog dev server RekanKerja (sandbox)
 # Menjaga `bun run dev` tetap hidup: start bila mati, log ke dev.log (root project).
 cd /home/z/my-project || exit 1
 while true; do

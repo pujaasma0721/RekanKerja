@@ -31,21 +31,21 @@ dokumen yang sama (hlm. 28, 29, 31, 40, 50) — 9/9 cocok.
 
 ## File yang berubah
 
-- `src/onevity/payroll/services/ter-official.ts` **(baru)** — tabel TER resmi (sumber tunggal)
-- `src/onevity/payroll/services/payroll-engine.ts` — F-03 mapping, F-04 true-up + catatan PPh21
-- `src/onevity/payroll/services/payroll-service.ts` — F-04 konteks YTD (bruto/iuran/dipotong) + deteksi Desember/leaver
-- `src/onevity/payroll/services/settlement-service.ts` — F-05/F-06 + non-NPWP ×120% + PKWT_TAX
-- `src/onevity/leave/services/leave-service.ts` — F-07 gerbang surat dokter (bulan kalender)
-- `src/onevity/time-attendance/api/schedules.ts` — F-09 istirahat mingguan
-- `src/onevity/payroll/services/ptkp-auto.ts` — F-08 kutipan PTKP
-- `src/onevity/shared/lib/provisioning.ts` — F-01/F-02/F-07/F-08 (tenant baru)
+- `src/rekankerja/payroll/services/ter-official.ts` **(baru)** — tabel TER resmi (sumber tunggal)
+- `src/rekankerja/payroll/services/payroll-engine.ts` — F-03 mapping, F-04 true-up + catatan PPh21
+- `src/rekankerja/payroll/services/payroll-service.ts` — F-04 konteks YTD (bruto/iuran/dipotong) + deteksi Desember/leaver
+- `src/rekankerja/payroll/services/settlement-service.ts` — F-05/F-06 + non-NPWP ×120% + PKWT_TAX
+- `src/rekankerja/leave/services/leave-service.ts` — F-07 gerbang surat dokter (bulan kalender)
+- `src/rekankerja/time-attendance/api/schedules.ts` — F-09 istirahat mingguan
+- `src/rekankerja/payroll/services/ptkp-auto.ts` — F-08 kutipan PTKP
+- `src/rekankerja/shared/lib/provisioning.ts` — F-01/F-02/F-07/F-08 (tenant baru)
 - `prisma/seed.ts` + `prisma/schema-tenant.prisma` — F-02 tabel resmi + default JKP 0/0.0014
-- `src/onevity/payroll/components/payroll-parameters.tsx` — F-01 teks & label UI
-- `src/onevity/payroll/api/wage-component-rules.ts` — F-01 default preview
-- `src/onevity/payroll/api/reports-bpjs.ts` — F-01 header + catatan jkpNote
+- `src/rekankerja/payroll/components/payroll-parameters.tsx` — F-01 teks & label UI
+- `src/rekankerja/payroll/api/wage-component-rules.ts` — F-01 default preview
+- `src/rekankerja/payroll/api/reports-bpjs.ts` — F-01 header + catatan jkpNote
 - `scripts/migrate-jkp.ts` — F-01 revisi perilaku (perbaiki instalasi lama)
 - `scripts/migrate-audit53.ts` **(baru)** — F-02/F-06/F-07/F-08 migrasi data
-- `src/onevity/shared/lib/parity-runner.ts` — step `audit53` + 5 marker gap baru
+- `src/rekankerja/shared/lib/parity-runner.ts` — step `audit53` + 5 marker gap baru
 
 ## Verifikasi
 

@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   await login();
 
   // 2) Bulk create
-  const bulk = await api("/api/onevity/payroll-periods", {
+  const bulk = await api("/api/rekankerja/payroll-periods", {
     method: "POST",
     body: JSON.stringify({
       bulk: true, year: YEAR, startDay: 1, payType: "Monthly",
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   if (bulk.status !== 201 || created.length !== 12) throw new Error(`bulk create gagal (status ${bulk.status}, dibuat ${created.length})`);
 
   // 3) Verifikasi via GET
-  const list = await api("/api/onevity/payroll-periods");
+  const list = await api("/api/rekankerja/payroll-periods");
   const periods: any[] = (list.body?.periods ?? []).filter((p: any) => p.sptYear === YEAR);
   console.log(`GET → period ${YEAR}: ${periods.length}`);
   let fail = 0;
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
 
   // 4) TA window user-defined per period — urutan salah harus ditolak, benar diterima
   const jan = periods.find((p) => p.sptMonth === 1)!;
-  const bad = await api("/api/onevity/payroll-periods", {
+  const bad = await api("/api/rekankerja/payroll-periods", {
     method: "PATCH",
     body: JSON.stringify({ id: jan.id, taStartDate: iso(YEAR, 2, 1), taEndDate: iso(YEAR, 1, 28) }),
   });
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
   if (bad.status !== 400) throw new Error("validasi urutan TA tidak bekerja");
 
   // TA user-defined lintas bulan: 5 Jan → 4 Feb (TA period ≠ payroll period)
-  const good = await api("/api/onevity/payroll-periods", {
+  const good = await api("/api/rekankerja/payroll-periods", {
     method: "PATCH",
     body: JSON.stringify({ id: jan.id, taStartDate: iso(YEAR, 1, 5), taEndDate: iso(YEAR, 2, 4) }),
   });
@@ -115,21 +115,21 @@ async function main(): Promise<void> {
   if (good.body?.period?.taEndDate?.slice(0, 10) !== iso(YEAR, 2, 4)) throw new Error("TA end tidak tersimpan");
 
   // 5) Hapus jendela TA (null) lalu kembalikan pola awal
-  const cleared = await api("/api/onevity/payroll-periods", {
+  const cleared = await api("/api/rekankerja/payroll-periods", {
     method: "PATCH",
     body: JSON.stringify({ id: jan.id, taStartDate: null, taEndDate: null }),
   });
   console.log(`PATCH TA null (hapus window) → ${cleared.status} · taStartDate=${cleared.body?.period?.taStartDate}`);
   if (cleared.status !== 200 || cleared.body?.period?.taStartDate !== null) throw new Error("hapus TA window gagal");
 
-  const restore = await api("/api/onevity/payroll-periods", {
+  const restore = await api("/api/rekankerja/payroll-periods", {
     method: "PATCH",
     body: JSON.stringify({ id: jan.id, taStartDate: iso(YEAR, 0, 26), taEndDate: iso(YEAR, 1, 25) }),
   });
   if (restore.status !== 200) throw new Error("restore TA window gagal");
 
   // 6) Idempoten: bulk ulang → 0 dibuat, 12 dilewati
-  const again = await api("/api/onevity/payroll-periods", {
+  const again = await api("/api/rekankerja/payroll-periods", {
     method: "POST",
     body: JSON.stringify({ bulk: true, year: YEAR, startDay: 1, useTa: true, taStartDay: 26, taStartMonthOffset: -1, taEndDay: 25, taEndMonthOffset: 0 }),
   });
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   if (againCreated !== 0 || againSkipped !== 12) throw new Error("idempotensi bulk gagal");
 
   // 7) Cleanup — hapus 12 period uji (pasti tanpa run karena baru dibuat)
-  const del = await api("/api/onevity/payroll-periods", { method: "DELETE", body: JSON.stringify({ ids: periods.map((p) => p.id) }) });
+  const del = await api("/api/rekankerja/payroll-periods", { method: "DELETE", body: JSON.stringify({ ids: periods.map((p) => p.id) }) });
   console.log(`DELETE period uji → ${del.status} ${JSON.stringify(del.body ?? {})}`);
 
   console.log(fail === 0 ? "\nPASS" : "\nFAIL");

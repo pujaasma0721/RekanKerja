@@ -66,7 +66,7 @@ async function main(): Promise<void> {
   const H = { "content-type": "application/json", cookie };
 
   // 2. karyawan Active pertama
-  const rEmp = await fetch(`${BASE}/api/onevity/employees?pageSize=5`, { headers: { cookie } });
+  const rEmp = await fetch(`${BASE}/api/rekankerja/employees?pageSize=5`, { headers: { cookie } });
   const empJ = (await rEmp.json()) as { employees?: { id: string; employeeNo: string; fullName: string; status?: string }[]; items?: { id: string; employeeNo: string; fullName: string }[] };
   interface EmpRow { status?: string; employeeNo?: string; fullName?: string; id?: string }
   const emp = (empJ.employees ?? empJ.items ?? []).find((e) => (e as EmpRow).status !== undefined ? (e as EmpRow).status === "Active" : true);
@@ -74,7 +74,7 @@ async function main(): Promise<void> {
   if (!emp) process.exit(1);
 
   // 3. buat PA Promotion (draft)
-  const rPA = await fetch(`${BASE}/api/onevity/personnel-actions`, {
+  const rPA = await fetch(`${BASE}/api/rekankerja/personnel-actions`, {
     method: "POST", headers: H,
     body: JSON.stringify({ employeeId: emp.id, type: "Promotion", effectiveDate: new Date().toISOString().slice(0, 10), reason: "E2E eSign PA — uji tanda tangan elektronik", detail: { newSalary: emp ? undefined : undefined } }),
   });
@@ -84,10 +84,10 @@ async function main(): Promise<void> {
   if (!pa) process.exit(1);
 
   // 4. submit → approve (owner = privileged; loop sampai status Approved)
-  await fetch(`${BASE}/api/onevity/personnel-actions/${pa.id}`, { method: "PATCH", headers: H, body: JSON.stringify({ action: "submit", note: null }) });
+  await fetch(`${BASE}/api/rekankerja/personnel-actions/${pa.id}`, { method: "PATCH", headers: H, body: JSON.stringify({ action: "submit", note: null }) });
   let status = "Prepared";
   for (let i = 0; i < 6; i++) {
-    const rD = await fetch(`${BASE}/api/onevity/personnel-actions/${pa.id}`, {
+    const rD = await fetch(`${BASE}/api/rekankerja/personnel-actions/${pa.id}`, {
       method: "PATCH", headers: H, body: JSON.stringify({ action: "approve", note: "E2E approve" }),
     });
     const dJ = (await rD.json()) as { ok?: boolean; status?: string; action?: { status: string }; error?: string };
@@ -99,8 +99,8 @@ async function main(): Promise<void> {
 
   // 5. set PIN + sign PersonnelAction
   const PIN = "471029";
-  await fetch(`${BASE}/api/onevity/esign`, { method: "POST", headers: H, body: JSON.stringify({ action: "set-pin", pin: PIN }) });
-  const rSign = await fetch(`${BASE}/api/onevity/esign`, {
+  await fetch(`${BASE}/api/rekankerja/esign`, { method: "POST", headers: H, body: JSON.stringify({ action: "set-pin", pin: PIN }) });
+  const rSign = await fetch(`${BASE}/api/rekankerja/esign`, {
     method: "POST", headers: H,
     body: JSON.stringify({ action: "sign", docType: "PersonnelAction", docId: pa.id, code: PIN }),
   });
@@ -114,7 +114,7 @@ async function main(): Promise<void> {
   check("verifikasi publik PA valid", rV.status === 200 && v.found && v.valid && v.chainIntact, `ref=${v.docRef} chainIntact=${v.chainIntact}`);
 
   // 7. terbitkan surat dari PA → PDF harus memuat QR ttd PA (fallback stamp)
-  const rIss = await fetch(`${BASE}/api/onevity/letters/issue`, {
+  const rIss = await fetch(`${BASE}/api/rekankerja/letters/issue`, {
     method: "POST", headers: H, body: JSON.stringify({ category: "PersonnelAction", personnelActionId: pa.id }),
   });
   const issJ = (await rIss.json()) as { letter?: { id: string; refNo: string }; error?: string };
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
   check("surat PA terbit", rIss.status === 201 && !!letter, letter ? letter.refNo : issJ.error ?? `status ${rIss.status}`);
 
   if (letter) {
-    const rPdf = await fetch(`${BASE}/api/onevity/letters/${letter.id}/pdf`, { headers: { cookie } });
+    const rPdf = await fetch(`${BASE}/api/rekankerja/letters/${letter.id}/pdf`, { headers: { cookie } });
     const pdfBuf = Buffer.from(await rPdf.arrayBuffer());
     check("PDF surat PA terbit", rPdf.status === 200 && (rPdf.headers.get("content-type") ?? "").includes("pdf"), `${pdfBuf.length} bytes`);
     check("QR tersemat (ttd PA via fallback)", pdfBuf.includes("/Image"));
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
 
   // 8. cleanup (best-effort): surat → PA layers → PA → signature data uji
   if (letter) {
-    await fetch(`${BASE}/api/onevity/letters/${letter.id}`, { method: "DELETE", headers: H }).catch(() => {});
+    await fetch(`${BASE}/api/rekankerja/letters/${letter.id}`, { method: "DELETE", headers: H }).catch(() => {});
   }
   console.log(failures === 0 ? "\nSEMUA PASS" : `\n${failures} GAGAL`);
   process.exit(failures === 0 ? 0 : 1);

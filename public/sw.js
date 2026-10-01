@@ -1,4 +1,4 @@
-/* OneVity HRIS — service worker (Task 27-d, P1: PWA installable)
+/* RekanKerja HRIS — service worker (Task 27-d, P1: PWA installable)
  * Vanilla JS tanpa bundler — disajikan apa adanya dari public/sw.js.
  *
  * Strategi (DEV-SAFE — server dev Next.js + hot reload tetap hidup):
@@ -18,7 +18,7 @@
  *  · sisanya → passthrough network.
  * Semua dibungkus defensif: SW gagal = aplikasi tetap jalan normal.
  */
-const CACHE = "onevity-w27-v1";
+const CACHE = "rekankerja-w27-v1";
 
 const PRECACHE = [
   "/manifest.webmanifest",
@@ -143,7 +143,7 @@ self.addEventListener("fetch", (event) => {
             const offline = await cache.match("/offline.html");
             if (offline) return offline;
           } catch (_err2) { /* cache tidak tersedia — fallback teks */ }
-          return new Response("OneVity — Anda sedang offline.", {
+          return new Response("RekanKerja — Anda sedang offline.", {
             status: 503,
             headers: { "Content-Type": "text/plain; charset=utf-8" },
           });

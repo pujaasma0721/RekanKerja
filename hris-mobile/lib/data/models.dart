@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../core/format.dart';
 
-/// ============ Model data seluruh modul ESS OneVity ============
+/// ============ Model data seluruh modul ESS RekanKerja ============
 /// Field lama dipertahankan agar seed demo tetap kompatibel;
 /// field opsional (nullable / default) = data dari backend live
-/// (https://onevity.sayone.my.id) — lihat lib/data/onevity_api.dart.
+/// (https://onevity.sayone.my.id) — lihat lib/data/rekankerja_api.dart.
 
 class FamilyMember {
   final String name;
@@ -38,7 +38,7 @@ class Employee {
   final List<FamilyMember> family;
   final List<EmployeeDoc> documents;
 
-  // ---- tambahan dari backend live (/api/onevity/ess/me) ----
+  // ---- tambahan dari backend live (/api/rekankerja/ess/me) ----
   final String? photoUrl;
   final String? companyName;
   final String? levelCode;
@@ -71,7 +71,7 @@ class Employee {
   });
 }
 
-/// Workspace (tenant) SaaS OneVity — pilihan setelah login
+/// Workspace (tenant) SaaS RekanKerja — pilihan setelah login
 /// bila satu akun menjadi anggota lebih dari satu perusahaan.
 class Workspace {
   final String id;

@@ -1,11 +1,11 @@
-# DEPLOY-RUNBOOK — OneVity Production
+# DEPLOY-RUNBOOK — RekanKerja Production
 
-> Dokumen operasional untuk developer/ops yang menangani deploy **OneVity — Human Resource Base**
+> Dokumen operasional untuk developer/ops yang menangani deploy **RekanKerja — Human Resource Base**
 > ke production: **https://onevity.sayone.my.id/**
 >
 | | |
 |---|---|
-| Repo | `github.com/pujaasma0721/OneVity` (branch `main`) |
+| Repo | `github.com/pujaasma0721/RekanKerja` (branch `main`) |
 | Runtime | Next.js 16 (App Router, output `standalone`), TypeScript |
 | Database | PostgreSQL (platform + multi-tenant schema-per-tenant) |
 | Kasus pemicu dokumen | Deploy commit `befb30d` (Task 39 — perbaikan lebar modal dialog) sempat "tidak terlihat perubahannya" di production |
@@ -31,7 +31,7 @@
 ## 1. Arsitektur production
 
 ```
-Internet ──▶ Caddy (:80 / :443, TLS) ──▶ reverse proxy ──▶ PM2 app "onevity" (cluster mode, PORT=3001) ──▶ next-server v16.1.3
+Internet ──▶ Caddy (:80 / :443, TLS) ──▶ reverse proxy ──▶ PM2 app "rekankerja" (cluster mode, PORT=3001) ──▶ next-server v16.1.3
 ```
 
 - **Build dilakukan DI SERVER** (bukan upload artifact): `git pull` → `build` → `pm2 restart`.
@@ -49,7 +49,7 @@ Internet ──▶ Caddy (:80 / :443, TLS) ──▶ reverse proxy ──▶ PM2
 
 ```bash
 # (1) Temukan folder project yang dijalankan PM2 — CATAT cwd & script
-pm2 describe onevity | grep -iE "cwd|script|interpreter"
+pm2 describe rekankerja | grep -iE "cwd|script|interpreter"
 
 # (2) Masuk ke folder project (sesuai output cwd di atas)
 cd <folder-project>
@@ -75,10 +75,10 @@ rm -rf .next
 npm run build         # HARUS selesai tanpa error
 
 # (8) Restart PM2 (pertahankan env, termasuk PORT=3001)
-pm2 restart onevity --update-env
+pm2 restart rekankerja --update-env
 
 # (9) Pantau log — pastikan tidak ada error fatal
-pm2 logs onevity --lines 30
+pm2 logs rekankerja --lines 30
 ```
 
 Lanjutkan ke **§3 Verifikasi post-deploy** — jangan dianggap selesai sebelum lolos verifikasi.
@@ -155,12 +155,12 @@ Aplikasi adalah PWA (`public/sw.js`): HTML = network-first, `/_next/static/*` = 
 
 | Gejala | Kemungkinan penyebab | Solusi |
 |---|---|---|
-| Nama/isi chunk tidak berubah setelah `pm2 restart` | `git pull` gagal / build gagal / build di folder berbeda dari cwd PM2 / instance duplikat | Ulangi §2 langkah 1–8; `pm2 describe onevity` pastikan cwd = folder build; `pm2 ls` cek duplikat; `ss -tlnp \| grep 3001` |
+| Nama/isi chunk tidak berubah setelah `pm2 restart` | `git pull` gagal / build gagal / build di folder berbeda dari cwd PM2 / instance duplikat | Ulangi §2 langkah 1–8; `pm2 describe rekankerja` pastikan cwd = folder build; `pm2 ls` cek duplikat; `ss -tlnp \| grep 3001` |
 | `npm run build` error `Cannot find module '@/generated/platform'` | `src/generated/` belum digenerate (gitignored) | `npm run db:generate` lalu build ulang |
 | `git pull` gagal / conflict | Working tree dirty di server | `git stash`; bila yakin tidak ada perubahan penting: `git reset --hard origin/main` (HATI-HATI — menghapus perubahan lokal) |
 | `npm run build` gagal (selain module di atas) | Node < 20.9, memory tidak cukup saat build | `node -v` (butuh ≥ 20.9); cek log error persisnya; pertimbangkan `NODE_OPTIONS=--max-old-space-size=2048 npm run build` |
 | Hash chunk berubah, verifikasi §3.2 lulus, tapi user komplain "masih sama" | Cache service worker / browser di sisi user | Arahkan user hard refresh 1× (§3.3); bukan masalah server |
-| `pm2 restart` sukses tapi masih menyajikan build lama | Proes PM2 memuat `.next` lama dari folder lain, atau ada 2 instance | `pm2 delete onevity` lalu start ulang dengan konfigurasi yang sama dari `pm2 describe` (catat dulu script/cwd/interpreter/env), `pm2 save` |
+| `pm2 restart` sukses tapi masih menyajikan build lama | Proes PM2 memuat `.next` lama dari folder lain, atau ada 2 instance | `pm2 delete rekankerja` lalu start ulang dengan konfigurasi yang sama dari `pm2 describe` (catat dulu script/cwd/interpreter/env), `pm2 save` |
 | Halaman error / blank setelah restart | Env var hilang saat restart | Pastikan `PLATFORM_DB_URL` & `TENANT_DB_BASE_URL` terdefinisi di env PM2; restart dengan `--update-env` |
 | "Belum ada jurnal payroll" | Bukan bug — jurnal tercreate saat run payroll dikonfirmasi | Konfirmasi run di Payroll → Proses & Hasil |
 | Login demo gagal setelah DB reseed | Seed belum tuntas / migrasi password belum jalan | `bun scripts/restore-demo.ts` lalu `bun scripts/migrate-password-security.ts` |
@@ -195,14 +195,14 @@ Aplikasi adalah PWA (`public/sw.js`): HTML = network-first, `/_next/static/*` = 
 | `PLATFORM_DB_URL` | **WAJIB** | Koneksi DB platform (registry Tenant/User/UserTenant). |
 | `TENANT_DB_BASE_URL` | **WAJIB** | Base URL DB domain HRIS (schema per tenant, client di-append `?schema=tenant_x`). |
 | `ONEVITY_ENCRYPTION_KEY` | **OPSIONAL** (sejak Task 47) | Hanya memperkuat kunci **bootstrap pra-vault** (`enc:v1`) — TIDAK lagi wajib di production. Kunci enkripsi utama kini = **kata sandi brankas perusahaan per tenant** (diatur admin via UI, disimpan di DB tenant, lihat §5.2.2). Instalasi lama yang sudah men-set nilai ini: biarkan agar data `enc:v1` lama tetap terbaca saat migrasi. PERINGATAN: mengganti nilai ini = data `enc:v1` lama tidak terbaca lagi — tapi migrasi setup vault mengubah semuanya ke `enc:v2` sehingga tidak berpengaruh pasca-setup. |
-| `ONEVITY_ALLOW_DEMO_SEED` | opsional (43-c / M-2) | `1`/`true` → izinkan seed **data demo** di production (auto-seed fresh-install + token seed). Default: **ditolak** di production. Jalur parity-only (upgrade migrasi tenant existing) tetap jalan tanpa env ini. |
+| `REKANKERJA_ALLOW_DEMO_SEED` | opsional (43-c / M-2) | `1`/`true` → izinkan seed **data demo** di production (auto-seed fresh-install + token seed). Default: **ditolak** di production. Jalur parity-only (upgrade migrasi tenant existing) tetap jalan tanpa env ini. |
 | `DEMO_SEED_TOKEN` | opsional (43-c / M-2) | Token guard `POST/GET /api/admin/seed-demo`. Di production **tanpa** env ini token default repo NONAKTIF → endpoint selalu 401 sampai env diset. Dev memakai token default repo. |
 
 Catatan perilaku ops (43-c / M-3): `/api/auth/register` dibatasi **5 permintaan/15 menit/IP** + **3/jam/email** (429 + header `Retry-After`). Limiter in-memory per-instance — cukup untuk single node PM2; state reset saat restart; pindah ke store bersama (mis. Redis) bila multi-instance.
 
 Semua skrip CLI `scripts/migrate-*.ts` + `restore-demo.ts` sejak Task 43-e otomatis memuat `.env` dari root project **hanya untuk key yang belum ada di env proses** (env PM2/systemd/`KEY=x bun …` selalu menang) — skrip aman dijalankan dari cron/systemd tanpa env diekspor selama `.env` berisi URL produksi.
 
-### 5.2 Daftar langkah parity (`PARITY_STEPS` — src/onevity/shared/lib/parity-runner.ts)
+### 5.2 Daftar langkah parity (`PARITY_STEPS` — src/rekankerja/shared/lib/parity-runner.ts)
 
 Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau manual via `POST /api/admin/seed-demo`. Urutan append-only kronologis; tiap langkah idempoten dan never-throw. Langkah **BARU (Task 43-e, K-6)** — sebelumnya hanya skrip manual (fresh deploy prod melewatkannya, panel Webhook 500):
 
@@ -252,7 +252,7 @@ Runner in-process dijalankan otomatis saat boot (instrumentation, bila gap) atau
 - **KEBIJAKAN SNAPSHOT TAHUNAN (Task 50 — keputusan pemilik produk)**: PTKP yang **berlaku di payroll** = snapshot hasil **refresh tahunan 1 Januari** (job scheduler `ptkp-tahunan`, marker `ActivityLog` entity `PtkpSync` `annual-<tahun>` — idempoten lintas restart). Penambahan/pengurangan pasangan/tanggungan **di tengah tahun TIDAK mengubah PTKP efektif** — mutasi data keluarga hanya memperbarui *saran* (dihitung on-the-fly saat GET, tanpa tulis DB; respons API `family` mengembalikan `ptkpPending` `{current,next,dependents,nextYear}`) dan hanya diterapkan pada **refresh 1 Januari tahun berikutnya**. UI menandainya: hint amber "→ K3 pada 1 Jan 2027" di tabel, kartu tertunda di dialog edit, toast "PTKP akan menjadi … pada 1 Jan …" saat mutasi keluarga.
 - **PTKP efektif hanya berubah lewat**: (1) refresh tahunan 1 Januari (otomatis); (2) koreksi eksplisit admin — sinkron massal atau PATCH manual; (3) **pengisian awal** saat profil baru dibuat / dialihkan `manual`→`auto` (PATCH profil yang SUDAH `auto` mempertahankan snapshot — payload `taxStatus` diabaikan).
 - **Audit**: setiap perubahan status otomatis menulis `ActivityLog` ("PTKP otomatis dari data keluarga: TK0 → K1 (…)"), entity `EmployeePayrollProfile`; marker tahunan mencatat ringkasan + catatan kebijakan tahun berikutnya.
-- API: `GET /api/onevity/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource` (freeze bila profil sudah auto); API `family` POST/DELETE mengembalikan `ptkpPending` tanpa menulis.
+- API: `GET /api/rekankerja/payroll-profiles` membawa `ptkpSource` + `ptkpSuggestion` per karyawan; `POST` `{action:"sync-ptkp", dryRun?}` sinkron massal; `PATCH` menerima `ptkpSource` (freeze bila profil sudah auto); API `family` POST/DELETE mengembalikan `ptkpPending` tanpa menulis.
 
 ### 5.2.4 Kepatuhan hukum Task 52 (cuti UU KIA · kompensasi PKWT · JKP · PII · audit baca · whistleblowing · 40 jam)
 
@@ -289,7 +289,7 @@ curl -s -w "\n%{http_code}\n" https://onevity.sayone.my.id/api/health   # 200 = 
 cd <folder-project>
 git checkout <commit-sebelumnya>     # mis. 2b1ed6d (task 38)
 rm -rf .next && npm run build
-pm2 restart onevity --update-env
+pm2 restart rekankerja --update-env
 # lalu verifikasi §3 sesuai ekspektasi commit tersebut
 ```
 
@@ -333,11 +333,11 @@ setelah `befb30d`.
 
 ```bash
 # DEPLOY PENUH
-pm2 describe onevity | grep -iE "cwd|script"      # temukan folder
+pm2 describe rekankerja | grep -iE "cwd|script"      # temukan folder
 cd <folder> && git pull origin main && git log --oneline -1
 npm run db:generate                                # bila src/generated belum ada
-rm -rf .next && npm run build && pm2 restart onevity --update-env
-pm2 logs onevity --lines 20
+rm -rf .next && npm run build && pm2 restart rekankerja --update-env
+pm2 logs rekankerja --lines 20
 
 # VERIFIKASI
 curl -s -w "\n%{http_code}\n" https://onevity.sayone.my.id/api/health   # 200 + db:"ok" = app + DB sehat
@@ -358,7 +358,7 @@ Aplikasi menulis log ke file via `tee` (lihat script `dev`/`start` di `package.j
 Tanpa rotasi, file ini tumbuh tanpa batas (log kompilasi + query + modul bisa puluhan MB/hari). Pasang logrotate — **`copytruncate` WAJIB** karena `tee` terus memegang inode file yang sama (rotasi rename saja membuat `tee` terus menulis ke inode lama yang terhapus):
 
 ```bash
-# /etc/logrotate.d/onevity  (ganti <folder-project> dengan cwd PM2 — §2 langkah 1)
+# /etc/logrotate.d/rekankerja  (ganti <folder-project> dengan cwd PM2 — §2 langkah 1)
 <folder-project>/dev.log <folder-project>/server.log {
     daily
     rotate 14
@@ -371,4 +371,4 @@ Tanpa rotasi, file ini tumbuh tanpa batas (log kompilasi + query + modul bisa pu
 ```
 
 Alternatif bila seluruh log lewat PM2: `pm2 install pm2-logrotate` (atur `max_size 50M`).
-Verifikasi: `logrotate -d /etc/logrotate.d/onevity` (dry-run) → `ls -lh dev.log server.log` keesokan hari.
+Verifikasi: `logrotate -d /etc/logrotate.d/rekankerja` (dry-run) → `ls -lh dev.log server.log` keesokan hari.

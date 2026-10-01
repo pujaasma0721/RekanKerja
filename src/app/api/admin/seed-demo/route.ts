@@ -11,7 +11,7 @@
 // scripts/restore-demo.ts fresh-install bila bun tersedia. Poll GET untuk
 // progres; parity.ok = true berarti seluruh tenant paritas penuh.
 import { NextRequest, NextResponse } from "next/server";
-import { demoSeedToken, platformCounts, seedRuntimeStatus, startDemoSeed } from "@/onevity/shared/lib/demo-seed";
+import { demoSeedToken, platformCounts, seedRuntimeStatus, startDemoSeed } from "@/rekankerja/shared/lib/demo-seed";
 
 export const dynamic = "force-dynamic";
 

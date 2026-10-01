@@ -35,12 +35,12 @@
 
 | ID | Temuan | Lokasi | Fix |
 |----|--------|--------|-----|
-| K-1 | IDOR lampiran: GET stream file hanya `requireTenant` (anggota tenant apapun bisa baca lampiran ID manapun). DELETE/PUT di file sama punya guard — hanya GET/list yang bolong. | `src/onevity/shared/api/attachments-id.ts:22-55` + `attachments.ts:112-130` (list) | Guard menu (`ATTACHMENT_ENTITY_MENUS`) ATAU kepemilikan (`actor.employeeId`/pengunggah) — pattern 4-level di DELETE file sama; reference `employee-documents.ts:57` (requireScoped). |
+| K-1 | IDOR lampiran: GET stream file hanya `requireTenant` (anggota tenant apapun bisa baca lampiran ID manapun). DELETE/PUT di file sama punya guard — hanya GET/list yang bolong. | `src/rekankerja/shared/api/attachments-id.ts:22-55` + `attachments.ts:112-130` (list) | Guard menu (`ATTACHMENT_ENTITY_MENUS`) ATAU kepemilikan (`actor.employeeId`/pengunggah) — pattern 4-level di DELETE file sama; reference `employee-documents.ts:57` (requireScoped). |
 | K-2 | Ekspor finansial tanpa guard menu: bank-transfer (rekening terdekripsi), SPT (NPWP), jurnal. | `payroll/api/payroll-run-export.ts:10-15`, `payroll-spt.ts:12-14`, `payroll-journals.ts:9-13` | `requireMenuAction(req,"payroll:runs","view"/"op:export")` — reference `reports-bpjs.ts:210`. |
 | K-3 | PATCH karyawan menyimpan NIK/NPWP/rekening PLAINTEXT (write-path tak ikut 28-c). | `hr/api/employee-detail.ts:152-156,214-242` | Enkripsi via `payroll-profiles.ts:84-96` pattern + flatten return + sanitize import-by-query-id. |
 | K-4 | EmailLog menyimpan body penuh: password plaintext ({{password}}) & THP ({{net}}) → bocor via log DB. | `email-service.ts:139-144,236,309`; template `app-users.ts:119-122`, `email-defaults.ts:93-96` | Redact sebelum persist (mask `{{password}}`→`***`, `{{net}}`→`***`). |
 | K-5 | GET ESS attendance memicu `regenerateRange` SELURUH perusahaan per request karyawan. | `ess/api/attendance.ts:43-47` | Scope per employeeId → queue ke scheduler, batch holidayOn + `in [...]`. |
-| K-6 | `PARITY_STEPS` tidak memuat migrasi 41 (scheduler-race, webhook-retry) → panel Webhook 500 di prod fresh. | `src/onevity/shared/lib/parity-runner.ts` | Tambah step + update DEPLOY-RUNBOOK. |
+| K-6 | `PARITY_STEPS` tidak memuat migrasi 41 (scheduler-race, webhook-retry) → panel Webhook 500 di prod fresh. | `src/rekankerja/shared/lib/parity-runner.ts` | Tambah step + update DEPLOY-RUNBOOK. |
 | K-7 | Skrip migrasi tanpa dotenv → fallback sandbox bila env kosong. | `scripts/migrate-*.ts` (env tanpa fallback aman) | Source .env di entry skrip + runbook. |
 
 ## MAJOR

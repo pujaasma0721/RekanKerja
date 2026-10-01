@@ -1,7 +1,7 @@
 {
   "cookies": [
     {
-      "name": "onevity_session",
+      "name": "rekankerja_session",
       "value": "eyJ1aWQiOiJjbXRyNjQ1bDYwMDAxcWlsaGpnNWFua3c0IiwidGlkIjpudWxsLCJleHAiOjE3ODk0MzI4MzAzNzAsInN2Ijo1fQ.7spNpShYoPhJjKRNrqsz0SQAuuNczYHBgdkBpo9il_A",
       "domain": "localhost",
       "path": "/",
@@ -18,11 +18,11 @@
       "origin": "http://localhost:3000",
       "localStorage": [
         {
-          "name": "onevity:lang",
+          "name": "rekankerja:lang",
           "value": "id"
         },
         {
-          "name": "onevity:pwa-dismissed",
+          "name": "rekankerja:pwa-dismissed",
           "value": "1788828018716"
         }
       ],

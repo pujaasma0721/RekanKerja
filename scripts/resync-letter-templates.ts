@@ -3,8 +3,8 @@
 // diperbarui bila belum pernah diedit lewat UI (updatedAt masih ≈ createdAt
 // sejak seeding). Baris yang sudah diedit admin dibiarkan apa adanya.
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { LETTER_TEMPLATE_DEFAULTS } from "@/onevity/shared/lib/letter-defaults";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { LETTER_TEMPLATE_DEFAULTS } from "@/rekankerja/shared/lib/letter-defaults";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

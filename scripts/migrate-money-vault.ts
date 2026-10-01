@@ -7,7 +7,7 @@
 //      hak lihat uang tanpa sandi; AKTIF saat revokedAt IS NULL.
 // Idempoten — CREATE TABLE/INDEX IF NOT EXISTS, aman di-rerun, TANPA mengubah
 // baris data (setup vault hanya lewat API oleh admin workspace).
-// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// Dapat diimpor IN-PROCESS oleh src/rekankerja/shared/lib/parity-runner.ts
 // (main() tanpa efek samping) ATAU CLI: bun run scripts/migrate-money-vault.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";

@@ -11,10 +11,10 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { tenantCryptoForDb } from "@/onevity/shared/lib/field-crypto";
-import { startApprovalChain } from "@/onevity/shared/services/approval-engine";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { startApprovalChain } from "@/rekankerja/shared/services/approval-engine";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

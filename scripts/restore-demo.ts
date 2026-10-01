@@ -7,9 +7,9 @@
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { spawnSync } from "node:child_process";
 import { db as platform } from "@/lib/db";
-import { hashPassword } from "@/onevity/shared/lib/auth";
-import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug } from "@/onevity/shared/lib/provisioning";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { hashPassword } from "@/rekankerja/shared/lib/auth";
+import { provisionTenantSchema, seedTenantReference, slugify, schemaNameForSlug } from "@/rekankerja/shared/lib/provisioning";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
 
@@ -36,7 +36,7 @@ async function ensureMembership(userId: string, tenantId: string, role: "OWNER" 
 }
 
 async function main() {
-  console.log("== Restore demo multi-tenant OneVity ==");
+  console.log("== Restore demo multi-tenant RekanKerja ==");
 
   // ---------- 1. MII (data penuh dari seed) ----------
   const mii = await ensureTenant("PT Mitra Industri Internasional");

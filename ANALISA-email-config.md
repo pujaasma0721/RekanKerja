@@ -33,10 +33,10 @@ SETELAH operasi utama sukses. Asynchronous, never-await: gagal kirim tidak perna
 mengganggu proses approval; config kosong/nonaktif → log "Skipped" diam-diam.
 
 ### 4. API (thin-route pattern + guard aksi menu `settings:email`)
-- `GET/PUT /api/onevity/email-config` (PUT guard update; GET self-heal seed)
-- `POST /api/onevity/email-config/test` — tes koneksi + email percobaan
-- `GET/PUT /api/onevity/email-templates` (PUT guard update)
-- `GET /api/onevity/email-logs` (view)
+- `GET/PUT /api/rekankerja/email-config` (PUT guard update; GET self-heal seed)
+- `POST /api/rekankerja/email-config/test` — tes koneksi + email percobaan
+- `GET/PUT /api/rekankerja/email-templates` (PUT guard update)
+- `GET /api/rekankerja/email-logs` (view)
 
 ### 5. UI — "Konfigurasi Email" (Pengaturan Sistem)
 3 tab gaya kartu teal/emerald: **Server SMTP** (form + tombol Tes Kirim + badge status),

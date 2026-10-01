@@ -225,7 +225,7 @@ class _LetterTileState extends State<_LetterTile> {
       final f = File('${dir.path}/Surat-$safe.pdf');
       await f.writeAsBytes(res.bodyBytes);
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(f.path)], text: 'Surat resmi OneVity'),
+        ShareParams(files: [XFile(f.path)], text: 'Surat resmi RekanKerja'),
       );
     } on ApiException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Gagal mengunduh PDF: ${e.message}')));

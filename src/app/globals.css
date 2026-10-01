@@ -378,7 +378,7 @@ html.dark[data-module][data-accent="1"] {
    Marquee (layar auth) — strip duplikat 2× konten; -50% = tepat satu
    salinan → mulus. motion-safe: hormati prefers-reduced-motion.
    ============================================================ */
-@keyframes onevity-marquee {
+@keyframes rekankerja-marquee {
   from {
     transform: translateX(0);
   }

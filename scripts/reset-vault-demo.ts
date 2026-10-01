@@ -10,7 +10,7 @@ import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { Client } from "pg";
 import { ENCRYPTED_COLUMNS } from "./lib/encrypted-columns";
-import { legacyTenantKey } from "../src/onevity/shared/lib/field-crypto";
+import { legacyTenantKey } from "../src/rekankerja/shared/lib/field-crypto";
 
 const DEFAULT_SCHEMA = "tenant_pt_mitra_industri_internasional";
 

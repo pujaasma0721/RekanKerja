@@ -1,5 +1,5 @@
 // Platform Prisma client (schema "public") — registry SaaS: Tenant / User / UserTenant.
-// Data domain HRIS TIDAK di sini — lihat src/lib/onevity/tenant-db.ts (client per schema tenant).
+// Data domain HRIS TIDAK di sini — lihat src/lib/rekankerja/tenant-db.ts (client per schema tenant).
 import { PrismaClient } from "@/generated/platform";
 
 const globalForPrisma = globalThis as unknown as {

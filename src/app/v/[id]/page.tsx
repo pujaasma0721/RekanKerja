@@ -61,7 +61,7 @@ export default async function VerifyPage({ params }: {
             <Fingerprint className="h-6 w-6" />
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">OneVity e-Sign</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">RekanKerja e-Sign</p>
             <h1 className="text-lg font-bold leading-tight text-slate-900">Verifikasi Tanda Tangan Elektronik</h1>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default async function VerifyPage({ params }: {
         </p>
         <p className="mt-1 text-[11px] text-slate-400">
           Butuh memeriksa dokumen fisik/digital? Cocokkan nomor dokumen dan penandatangan di atas dengan salinan resmi Anda.{" "}
-          <Link href="/" className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">Beranda OneVity</Link>
+          <Link href="/" className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">Beranda RekanKerja</Link>
         </p>
       </div>
     </main>

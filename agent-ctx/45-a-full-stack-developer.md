@@ -7,21 +7,21 @@
 
 - **BARU**
   - `scripts/migrate-money-vault.ts` — DDL idempoten MoneyVault + MoneyViewGrant per schema (CLI + parity-runner in-process).
-  - `src/onevity/shared/lib/money-vault.ts` — kripto vault (PBKDF2 210k → KEK/verifierKey; verifier `vrf:v1:`; wrappedKey `vlt:v1:iv:tag:ct` = AES-256-GCM(KEK, tenantDataKey)), state memori symbol-keyed (openKeys/configCache 60s/grantCache 60s/fails lockout), VaultError {code,status}.
-  - `src/onevity/shared/lib/money-view.ts` — `getMoneyView(db, {userId, membershipRole})` → `{canSee, reason, dec, dec0, json}`. OPT-IN — belum ada call site.
-  - `src/onevity/shared/api/money-vault.ts` — GET/POST handler + `requireVaultSession` (sesi tanpa menu key) + audit ActivityLog inline.
-  - `src/app/api/onevity/money-vault/route.ts`, `src/app/api/onevity/money-vault/members/route.ts` — route tipis.
+  - `src/rekankerja/shared/lib/money-vault.ts` — kripto vault (PBKDF2 210k → KEK/verifierKey; verifier `vrf:v1:`; wrappedKey `vlt:v1:iv:tag:ct` = AES-256-GCM(KEK, tenantDataKey)), state memori symbol-keyed (openKeys/configCache 60s/grantCache 60s/fails lockout), VaultError {code,status}.
+  - `src/rekankerja/shared/lib/money-view.ts` — `getMoneyView(db, {userId, membershipRole})` → `{canSee, reason, dec, dec0, json}`. OPT-IN — belum ada call site.
+  - `src/rekankerja/shared/api/money-vault.ts` — GET/POST handler + `requireVaultSession` (sesi tanpa menu key) + audit ActivityLog inline.
+  - `src/app/api/rekankerja/money-vault/route.ts`, `src/app/api/rekankerja/money-vault/members/route.ts` — route tipis.
 - **DIUBAH**
   - `prisma/schema-tenant.prisma` (+MoneyVault, +MoneyViewGrant — openUntil/openByUserId informatif; open otoritatif di memori).
-  - `src/onevity/shared/lib/tenant-db.ts` (cache key globalThis `onevityTenantClientsT45A`).
-  - `src/onevity/shared/lib/field-crypto.ts` (+`tenantDataKey`, `decryptTextWithKey`, `decryptMoneyWithKey` — backward compat).
-  - `src/onevity/shared/lib/parity-runner.ts` (langkah `money-vault`, append-only).
+  - `src/rekankerja/shared/lib/tenant-db.ts` (cache key globalThis `rekankerjaTenantClientsT45A`).
+  - `src/rekankerja/shared/lib/field-crypto.ts` (+`tenantDataKey`, `decryptTextWithKey`, `decryptMoneyWithKey` — backward compat).
+  - `src/rekankerja/shared/lib/parity-runner.ts` (langkah `money-vault`, append-only).
 
 ## API contract
 
-- `GET /api/onevity/money-vault` → `{configured, open, openUntil, openBy, canManage, myView: "admin"|"granted"|"none"|"legacy", grantsCount, lockoutUntil, serverNow}`
-- `POST /api/onevity/money-vault` `{action}` → `setup|unlock|lock|change-password|grant|revoke` (canManage OWNER/ADMIN; grant/revoke validasi member → 404)
-- `GET /api/onevity/money-vault/members` (canManage) → `{members:[{userId,name,email,role,granted}]}` urut nama
+- `GET /api/rekankerja/money-vault` → `{configured, open, openUntil, openBy, canManage, myView: "admin"|"granted"|"none"|"legacy", grantsCount, lockoutUntil, serverNow}`
+- `POST /api/rekankerja/money-vault` `{action}` → `setup|unlock|lock|change-password|grant|revoke` (canManage OWNER/ADMIN; grant/revoke validasi member → 404)
+- `GET /api/rekankerja/money-vault/members` (canManage) → `{members:[{userId,name,email,role,granted}]}` urut nama
 - Error: `{error, code}` — 400 WEAK_PASSWORD/UNKNOWN_ACTION, 403 INVALID_PASSWORD/NOT_ADMIN, 404 NOT_MEMBER, 409 ALREADY_CONFIGURED/VAULT_LOCKED/NOT_CONFIGURED, 429 LOCKOUT
 
 ## Deviasi spesifikasi (kecil, terdokumentasi)

@@ -1,11 +1,11 @@
-# ANALISA DEEP-DIVE: Modul Travel Administration oranHR → Rencana Implementasi Perjalanan Dinas OneVity
+# ANALISA DEEP-DIVE: Modul Travel Administration oranHR → Rencana Implementasi Perjalanan Dinas RekanKerja
 
 > Dokumen analisa murni. Basis: eksplorasi langsung demo.oranhr.com (login MII000001,
 > PT Mitra Industri Internasional / "MII", versi 11.08.00) — seluruh 12 halaman modul
 > Travel Administration dipetakan via navigasi tree (ExtJS) & data nyata dibaca dari
 > grid + form + handler JS + source JSP (presenter class), ditambah halaman ESS terkait
 > travel dan interface payroll/jurnal (wage definition + expense COA). Tanggal: sesi
-> analisa travel. Penulis: agent OneVity.
+> analisa travel. Penulis: agent RekanKerja.
 
 ---
 
@@ -208,9 +208,9 @@ Wage for Deduction     → TRVSTLIN (potongan settlement — kelebihan uang muka
 
 ---
 
-## 3. ANALISA KEKUATAN & KEPUTUSAN DESAIN ONEVITY
+## 3. ANALISA KEKUATAN & KEPUTUSAN DESAIN REKANKERJA
 
-| Aspek oranHR | Keputusan OneVity |
+| Aspek oranHR | Keputusan RekanKerja |
 |---|---|
 | 12 halaman ExtJS terpisah | 8 view dalam 1 modul travel (paradigma attendance/leave) |
 | Formula settlement (a)+(b)-(c) | Dipertahankan persis — sumber kebenaran finansial klaim |
@@ -252,7 +252,7 @@ Formula & invarian:
   diterima; settlement = realisasi − advance → payableEmployee/Company.
 - Budget used = SUM(totalSettlement klaim Transferred) per period.
 
-### 3.2 API ROUTE (/api/onevity/travel/*)
+### 3.2 API ROUTE (/api/rekankerja/travel/*)
 
 ```
 GET  /overview                 — KPI + alur + budget berjalan

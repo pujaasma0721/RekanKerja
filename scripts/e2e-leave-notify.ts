@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   if (login.status !== 200) { console.error(login.body); process.exit(1); }
 
   // 2. Jenis cuti + saldo
-  const leave = await api("/api/onevity/ess/leave");
+  const leave = await api("/api/rekankerja/ess/leave");
   console.log(`[2] GET ess/leave: ${leave.status}`);
   if (leave.status !== 200) { console.error(JSON.stringify(leave.body).slice(0, 300)); process.exit(1); }
   const types: any[] = leave.body.balances ?? leave.body.types ?? leave.body.leaveTypes ?? [];
@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   // 3. Submit cuti 1 hari, 14 hari ke depan (hindari tabrakan dgn pengajuan lama)
   const d = new Date(Date.now() + 21 * 864e5);
   const iso = d.toISOString().slice(0, 10);
-  const req = await api("/api/onevity/ess/leave", {
+  const req = await api("/api/rekankerja/ess/leave", {
     method: "POST",
     body: JSON.stringify({ typeId: t.typeId ?? t.id, dateFrom: iso, dateTo: iso, halfDay: false, reason: "E2E tes notifikasi email (mail server .15)" }),
   });

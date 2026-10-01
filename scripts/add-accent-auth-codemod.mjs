@@ -1,5 +1,5 @@
 // One-shot codemod (Task 64f — auth): aksen amber mikro di layar auth
-// (caret, border fokus, logo "Vity", spinner, OTP underline, pill/ring/hover)
+// (caret, border fokus, logo "Kerja", spinner, OTP underline, pill/ring/hover)
 // → kelas brand global yang mengikuti tema topbar.
 // CTA tinta hitam (bg-stone-900) TIDAK disentuh — ciri desain editorial.
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
@@ -31,7 +31,7 @@ function walk(dir, out = []) {
 }
 
 let touched = 0, replaced = 0;
-for (const f of walk("src/onevity/shared/components/auth")) {
+for (const f of walk("src/rekankerja/shared/components/auth")) {
   const src = readFileSync(f, "utf8");
   let count = 0;
   const next = src.replace(RE, (_m, prefix, _fam, shade) => {

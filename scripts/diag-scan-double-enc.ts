@@ -4,7 +4,7 @@
 //   bun run scripts/diag-scan-double-enc.ts
 import "./lib/env";
 import { Client } from "pg";
-import { tenantCrypto, primeTenantCrypto, isEncrypted } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto, primeTenantCrypto, isEncrypted } from "../src/rekankerja/shared/lib/field-crypto";
 import { ENCRYPTED_COLUMNS } from "./lib/encrypted-columns";
 
 const SCHEMAS = [

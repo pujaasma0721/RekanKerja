@@ -6,7 +6,7 @@ import 'api_client.dart';
 import '../core/format.dart';
 import 'mock_data.dart';
 import 'models.dart';
-import 'onevity_api.dart';
+import 'rekankerja_api.dart';
 
 /// Mode sumber data aplikasi.
 enum AppMode { demo, live }
@@ -16,16 +16,16 @@ enum AppMode { demo, live }
 /// DUA MODE:
 ///  - `demo`  : seluruh data dari seed lokal (mock_data.dart) — aksi
 ///              bermutasi state lokal, aplikasi tetap interaktif tanpa server.
-///  - `live`  : terhubung ke backend OneVity (default
+///  - `live`  : terhubung ke backend RekanKerja (default
 ///              https://onevity.sayone.my.id) — data & aksi via REST ESS
-///              (`/api/onevity/ess/*`), sesi cookie `onevity_session`.
+///              (`/api/rekankerja/ess/*`), sesi cookie `rekankerja_session`.
 ///
 /// Kontrak UI tidak berubah: setiap mutasi mengembalikan `Future<String?>`
 /// berisi pesan error (null = sukses) agar halaman bisa menampilkan SnackBar.
 class AppState extends ChangeNotifier {
   // ================= infrastruktur live =================
   late final ApiClient apiClient;
-  late final OneVityApi api;
+  late final RekanKerjaApi api;
 
   AppMode mode = AppMode.demo;
   bool restoring = true;
@@ -86,7 +86,7 @@ class AppState extends ChangeNotifier {
 
   AppState() {
     apiClient = ApiClient();
-    api = OneVityApi(apiClient);
+    api = RekanKerjaApi(apiClient);
     _resetDemo();
     _restoreSession();
   }

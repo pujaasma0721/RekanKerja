@@ -54,10 +54,10 @@ disimpan per tenant schema — diatur admin workspace di menu Keamanan & Akses.
 
 ### 3. API
 
-- `GET/PUT /api/onevity/password-policy` — baca (self-heal singleton) / simpan; guard `requireMenuAction("settings:security", "update")`
-- `POST /api/onevity/app-users` — diperluas: `email` wajib + `password` + `employeeId` opsional; guard `settings:security` **create**; detail error per aturan (array `details`)
-- `PATCH /api/onevity/app-users` — diperluas: `password` (reset; guard **update**; cek riwayat)
-- `DELETE /api/onevity/app-users` — guard **delete** (tetap ≥ 1 user)
+- `GET/PUT /api/rekankerja/password-policy` — baca (self-heal singleton) / simpan; guard `requireMenuAction("settings:security", "update")`
+- `POST /api/rekankerja/app-users` — diperluas: `email` wajib + `password` + `employeeId` opsional; guard `settings:security` **create**; detail error per aturan (array `details`)
+- `PATCH /api/rekankerja/app-users` — diperluas: `password` (reset; guard **update**; cek riwayat)
+- `DELETE /api/rekankerja/app-users` — guard **delete** (tetap ≥ 1 user)
 - `POST /api/auth/change-password` — `{ currentPassword, newPassword }`
 - `POST /api/auth/login` — lockout + kedaluwarsa + lastLogin
 - `GET /api/auth/me` — tambah `password { expired, remainingDays, warn }` (best-effort)

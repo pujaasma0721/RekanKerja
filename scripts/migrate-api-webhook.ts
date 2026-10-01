@@ -2,7 +2,7 @@
 //   1. DDL idempoten tenant: tabel ApiKey + Webhook + WebhookLog
 //      (kunci API per tenant, endpoint webhook, riwayat pengiriman)
 //   2. tanpa seed — kunci & webhook dibuat admin via menu Pengaturan →
-//      API & Integrasi (atau REST /api/onevity/api-keys & /api/onevity/webhooks).
+//      API & Integrasi (atau REST /api/rekankerja/api-keys & /api/rekankerja/webhooks).
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-api-webhook.ts (idempoten)
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";

@@ -1,4 +1,4 @@
-// OneVity — generate demo employee portrait photos (Task 26)
+// RekanKerja — generate demo employee portrait photos (Task 26)
 // For each MII employee: AI headshot → sharp 320×320 JPEG → public/avatars/{employeeNo}.jpg
 // Then seed Employee.photoUrl. Idempotent: skip existing files.
 import ZAI from "z-ai-web-dev-sdk";

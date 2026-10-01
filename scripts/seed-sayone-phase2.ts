@@ -101,7 +101,7 @@ async function main(): Promise<void> {
   console.log("✓ login owner OK");
 
   // ===== 1) Sub-unit organisasi (20) — pakai parentId yang kini sudah berfungsi
-  const orgRes = (await api("GET", "/api/onevity/org-units")) as { units?: { id: string; code: string; name: string }[] } | null;
+  const orgRes = (await api("GET", "/api/rekankerja/org-units")) as { units?: { id: string; code: string; name: string }[] } | null;
   const units = orgRes?.units ?? [];
   const existingCodes = new Set(units.map((u) => u.code));
   const parents = units.filter((u) => !u.code.startsWith("ORG-S"));
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
     const code = `ORG-S${String(i).padStart(2, "0")}`;
     if (existingCodes.has(code)) continue;
     const parent = parents[(i - 1) % parents.length];
-    const r = await api("POST", "/api/onevity/org-units", {
+    const r = await api("POST", "/api/rekankerja/org-units", {
       code, name: `Divisi ${pick(["Perencanaan", "Pelaksanaan", "Pengendalian", "Administrasi", "Pengembangan", "Dukungan", "Kemitraan", "Inovasi"])} ${i}`,
       parentId: parent?.id,
       headcountBudget: pickInt(5, 30),
@@ -120,22 +120,22 @@ async function main(): Promise<void> {
   console.log(`✓ sub-unit organisasi baru: ${createdSub} (total org sekarang: ${units.length + createdSub})`);
 
   // ===== 2) Rentang gaji aktual dari grade
-  const gradeRes = (await api("GET", "/api/onevity/grades")) as { grades?: { id: string; code: string; minSalary: number; maxSalary: number }[] } | null;
+  const gradeRes = (await api("GET", "/api/rekankerja/grades")) as { grades?: { id: string; code: string; minSalary: number; maxSalary: number }[] } | null;
   const grades = gradeRes?.grades ?? [];
   if (!grades.length) { console.error("Tidak ada grade — hentikan."); process.exit(1); }
 
   // ===== 3) Lengkapi karyawan hingga 500
-  const listRes = (await api("GET", "/api/onevity/employees?limit=1")) as { total?: number } | null;
+  const listRes = (await api("GET", "/api/rekankerja/employees?limit=1")) as { total?: number } | null;
   const currentTotal = listRes?.total ?? 0;
   const remaining = Math.max(0, TARGET_EMP - currentTotal);
   console.log(`Karyawan saat ini: ${currentTotal} — akan menambah: ${remaining}`);
 
-  const orgAll = ((await api("GET", "/api/onevity/org-units")) as { units?: { id: string }[] } | null)?.units ?? [];
-  const locRes = (await api("GET", "/api/onevity/work-locations")) as { locations?: { id: string }[] } | null;
+  const orgAll = ((await api("GET", "/api/rekankerja/org-units")) as { units?: { id: string }[] } | null)?.units ?? [];
+  const locRes = (await api("GET", "/api/rekankerja/work-locations")) as { locations?: { id: string }[] } | null;
   const locIds = (locRes?.locations ?? []).map((l) => l.id);
-  const offRes = (await api("GET", "/api/onevity/company-offices")) as { offices?: { id: string }[] } | null;
+  const offRes = (await api("GET", "/api/rekankerja/company-offices")) as { offices?: { id: string }[] } | null;
   const offIds = (offRes?.offices ?? []).map((o) => o.id);
-  const posRes = (await api("GET", "/api/onevity/positions")) as { positions?: { id: string }[] } | null;
+  const posRes = (await api("GET", "/api/rekankerja/positions")) as { positions?: { id: string }[] } | null;
   const posIds = (posRes?.positions ?? []).map((p) => p.id);
 
   const usedEmail = new Set<string>();
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
     let email = `${fullName.toLowerCase().replace(/[^a-z]+/g, ".")}${idx}@sayone.com`;
     while (usedEmail.has(email)) email = `emp${idx}.${email}`;
     usedEmail.add(email);
-    await api("POST", "/api/onevity/employees", {
+    await api("POST", "/api/rekankerja/employees", {
       fullName, gender,
       birthPlace: pick(KOTA), birthDate: tgl(1975, 2003),
       nationalId: nik16(), taxId: npwp15(),
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
   // ===== 4) Keluarga + pendidikan + pengalaman untuk SEMUA karyawan
   const allEmps: { id: string }[] = [];
   for (let offset = 0; ; offset += 200) {
-    const page = (await api("GET", `/api/onevity/employees?limit=200&offset=${offset}`)) as { employees?: { id: string }[] } | null;
+    const page = (await api("GET", `/api/rekankerja/employees?limit=200&offset=${offset}`)) as { employees?: { id: string }[] } | null;
     const rows = page?.employees ?? [];
     allEmps.push(...rows);
     if (rows.length < 200) break;
@@ -190,7 +190,7 @@ async function main(): Promise<void> {
     for (let f = 0; f < famCount; f++) {
       const relation = pick(RELATION);
       const g = rnd() < 0.5 ? "M" : "P";
-      jobs.push(api("POST", "/api/onevity/family", {
+      jobs.push(api("POST", "/api/rekankerja/family", {
         employeeId: empId, relation,
         name: `${g === "M" ? pick(NAMA_DEPAN_L) : pick(NAMA_DEPAN_P)} ${pick(NAMA_BELAKANG)}`,
         gender: g, birthDate: tgl(1950, 2015),
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
     for (let e = 0; e < eduCount; e++) {
       const level = e === 0 ? pick(PENDIDIKAN) : pick(["S1", "S2"]);
       const isHigher = level.startsWith("S") && level !== "SMA";
-      jobs.push(api("POST", "/api/onevity/education", {
+      jobs.push(api("POST", "/api/rekankerja/education", {
         employeeId: empId, level,
         institution: isHigher ? pick(UNIV) : `${pick(SMA)} ${pick(KOTA)}`,
         major: isHigher ? pick(MAJOR) : pick(["IPA", "IPS", "TKJ", "Akuntansi"]),
@@ -215,7 +215,7 @@ async function main(): Promise<void> {
     const expCount = pickInt(0, 2);
     for (let x = 0; x < expCount; x++) {
       const sy = pickInt(2010, 2021);
-      jobs.push(api("POST", "/api/onevity/experiences", {
+      jobs.push(api("POST", "/api/rekankerja/experiences", {
         employeeId: empId, company: pick(EXPCO),
         position: pick(["Staff", "Supervisor", "Officer", "Analis", "Koordinator"]),
         startDate: `${sy}-01-15`, endDate: `${sy + pickInt(1, 3)}-12-20`,

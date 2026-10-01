@@ -1,8 +1,8 @@
 {
-  "name": "onevity-postgres",
+  "name": "rekankerja-postgres",
   "private": true,
   "version": "1.0.0",
-  "description": "Embedded PostgreSQL 17 untuk OneVity multi-tenant (schema-per-tenant) — port 5432",
+  "description": "Embedded PostgreSQL 17 untuk RekanKerja multi-tenant (schema-per-tenant) — port 5432",
   "scripts": {
     "dev": "bun run index.ts",
     "ensure": "bun run index.ts"

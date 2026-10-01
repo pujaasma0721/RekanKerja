@@ -137,7 +137,7 @@ function expandSeed(menus: Record<string, Crud>): string {
   return JSON.stringify(out);
 }
 
-// kunci operasi katalog (selaras src/onevity/shared/lib/menu-perms.ts)
+// kunci operasi katalog (selaras src/rekankerja/shared/lib/menu-perms.ts)
 const MENU_OPS_KEYS: Record<string, string[]> = {
   "hr:inbox": ["approve"],
   "hr:all": ["approve"],

@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   storeCookies(login);
   if (login.status !== 200) throw new Error(`login gagal: ${login.status}`);
   // vault unlock — gaji & THP terbaca
-  await fetch(`${BASE}/api/onevity/money-vault`, {
+  await fetch(`${BASE}/api/rekankerja/money-vault`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: cookieHeader() },
     body: JSON.stringify({ action: "unlock", password: process.env.E2E_VAULT ?? "asmaree.007" }),
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 
   let fail = 0;
   const profiles = async (qs: string) => {
-    const r = await api(`/api/onevity/payroll-profiles${qs}`);
+    const r = await api(`/api/rekankerja/payroll-profiles${qs}`);
     if (r.status !== 200) throw new Error(`profiles ${r.status}`);
     return (r.body.employees ?? []) as { employeeNo: string; fullName: string; baseSalary: number; profile: { taxStatus: string } | null }[];
   };
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
 
   // 5-6) Runs
   const runs = async (qs: string) => {
-    const r = await api(`/api/onevity/payroll-runs${qs}`);
+    const r = await api(`/api/rekankerja/payroll-runs${qs}`);
     if (r.status !== 200) throw new Error(`runs ${r.status}`);
     return (r.body.runs ?? []) as { runNo: string; totalNet: number; period: { startDate: string } }[];
   };

@@ -1,7 +1,7 @@
-# AUDIT MODULES — OneVity HRIS
+# AUDIT MODULES — RekanKerja HRIS
 
 Tanggal: 22 Januari 2026 (sesi audit pasca-restrukturisasi direktori per modul, commit `a8ef2af`)
-Lingkup: seluruh source code `src/onevity/` (6 modul domain + shared), 73 endpoint API, 63 model Prisma tenant, data live 4 tenant PostgreSQL.
+Lingkup: seluruh source code `src/rekankerja/` (6 modul domain + shared), 73 endpoint API, 63 model Prisma tenant, data live 4 tenant PostgreSQL.
 
 ---
 
@@ -13,7 +13,7 @@ Lingkup: seluruh source code `src/onevity/` (6 modul domain + shared), 73 endpoi
 | Kontrak thin route ↔ handler | ✅ 73/73 method & path import valid |
 | Coverage endpoint UI → route | ✅ Semua fetch UI punya route (0 endpoint hilang) |
 | Kode mati (route tak dipakai UI) | 1 minor: `lookup-categories` (dipakai internal provisioning) |
-| Error TypeScript kode aplikasi | ✅ **0** setelah perbaikan (sebelumnya 21; 2 sisanya di `skills/` contoh SDK — bukan kode OneVity) |
+| Error TypeScript kode aplikasi | ✅ **0** setelah perbaikan (sebelumnya 21; 2 sisanya di `skills/` contoh SDK — bukan kode RekanKerja) |
 | Bug runtime ditemukan & diperbaiki | **2 kritis** (crash PA gaji + DELETE posisi selalu 500) |
 | Boundary lintas-modul | ✅ Bersih — hanya via `shared`; payroll = agregator sah (4 integrasi) |
 | Error console/page E2E | 0 di seluruh view yang diuji |
@@ -33,7 +33,7 @@ Lingkup: seluruh source code `src/onevity/` (6 modul domain + shared), 73 endpoi
 | **shared** | 10 | 0 (+6 lib) | 8 | 5.443 | dashboard, meta, app-users, access-groups, approval-templates, temporary-approvers, lookup-categories, lookups |
 | **Total** | **88** | **13** | **73** | **37.803** | 73 route (URL tidak berubah) |
 
-Pola thin route: `src/app/api/onevity/*/route.ts` hanya re-export method dari `src/onevity/<modul>/api/*.ts`. Verifikasi programatik: **73/73** pasangan path-import valid & method identik.
+Pola thin route: `src/app/api/rekankerja/*/route.ts` hanya re-export method dari `src/rekankerja/<modul>/api/*.ts`. Verifikasi programatik: **73/73** pasangan path-import valid & method identik.
 
 ---
 
@@ -42,7 +42,7 @@ Pola thin route: `src/app/api/onevity/*/route.ts` hanya re-export method dari `s
 ### F-01 · HR — Crash detail PA dengan field gaji 🔴
 - **Lokasi**: `human-resource/components/actions/actions-module.tsx:491`
 - **Masalah**: `fmtVal()` memanggil `fmtIDR()` tanpa import. Field PA `newSalary`/`plannedSalary` (Promosi/Mutasi/Hire) mengandung "salary" → **ReferenceError → panel Detail Perubahan crash** setiap kali dibuka. Bug ini telah ada sejak modul HR dibuat (tidak terdeteksi E2E karena detail PA bertipe gaji jarang dibuka).
-- **Perbaikan**: tambah `fmtIDR` ke import dari `@/onevity/shared/lib/api`.
+- **Perbaikan**: tambah `fmtIDR` ke import dari `@/rekankerja/shared/lib/api`.
 - **Verifikasi**: buka detail PA-2026-0001 (Hire) → "Gaji Direncanakan **Rp 5.500.000**" tampil, 0 error page/console.
 
 ### F-02 · HR — DELETE posisi selalu gagal 500 🔴
@@ -57,7 +57,7 @@ Pola thin route: `src/app/api/onevity/*/route.ts` hanya re-export method dari `s
 
 | # | Lokasi | Temuan | Perbaikan |
 |---|---|---|---|
-| F-03 | `shared/components/shell/app-shell.tsx:195` | Tipe `meta` tidak memuat `benefitPendingClaims` — padahal handler `/api/onevity/meta` sudah mengirimnya; badge menu "Benefit Karyawan" bekerja di runtime tapi TS error | Tipe diperluas |
+| F-03 | `shared/components/shell/app-shell.tsx:195` | Tipe `meta` tidak memuat `benefitPendingClaims` — padahal handler `/api/rekankerja/meta` sudah mengirimnya; badge menu "Benefit Karyawan" bekerja di runtime tapi TS error | Tipe diperluas |
 | F-04 | `travel/components/travel-claim-approval.tsx:37` | Tipe `approved` tanpa `stats` — endpoint mengirim `stats` (KPI "bayar karyawan/potongan") berfungsi tapi TS error | Tipe diperluas |
 | F-05 | `human-resource/api/employee-detail.ts:60` | Tipe `manager.position.title` `string`, padahal bisa `null` (manager tanpa posisi aktif) | `string \| null` |
 | F-06 | `payroll/api/payroll-rapel.ts:148` | `let run = null` meng-infer tipe `null` → 6 error narrowing; juga findFirst tanpa `include` membuat `run` kehilangan relasi saat dipakai UI | `RapelRun = Prisma.PayrollRunGetPayload<{include...}>` + guard `run &&` |
@@ -68,7 +68,7 @@ Pola thin route: `src/app/api/onevity/*/route.ts` hanya re-export method dari `s
 | F-11 | `travel/services/travel-service.ts:801` | `run.transferredRunNo` — PayrollRun tidak punya field itu (runtime fallback `?? run.runNo` bekerja, tapi baca properti tidak-ada) | Langsung `run.runNo` |
 | F-12 | `prisma/seed.ts:479` | Tipe lokal `CompDef` belum memuat `accountDebitCode` (model WageComponent memilikinya; seed sudah berjalan sukses) | Tipe diperluas |
 
-**Hasil**: error TS kode aplikasi **21 → 0** (2 sisanya di `skills/` — pustaka contoh environment, di luar scope OneVity).
+**Hasil**: error TS kode aplikasi **21 → 0** (2 sisanya di `skills/` — pustaka contoh environment, di luar scope RekanKerja).
 
 ---
 
@@ -92,7 +92,7 @@ shared         — (tidak mengimpor modul domain mana pun ✓)
 
 ## 5. Coverage Endpoint & Kode Mati
 
-- Semua URL `/api/onevity/*` yang di-fetch UI (79 pattern) memiliki route — **0 endpoint hilang**.
+- Semua URL `/api/rekankerja/*` yang di-fetch UI (79 pattern) memiliki route — **0 endpoint hilang**.
 - Route `personnel-actions/[id]` terpakai via template literal `personnel-actions/${id}` ✓.
 - `lookup-categories`: endpoint sah, dipakai internal/admin data-master — bukan mati.
 - UI payroll-templates memakai `wage-templates` + `wage-components` (bukan `payroll-templates` — memang tidak ada route-nya).

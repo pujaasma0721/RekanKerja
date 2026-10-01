@@ -1,42 +1,42 @@
 #!/usr/bin/env bash
 # ============================================================================
-# OneVity — Deploy otomatis ke production .15
+# RekanKerja — Deploy otomatis ke production .15
 # ============================================================================
 # Alur: preflight → clone fresh → npm ci → db:generate → build → cutover PM2
 #       → healthcheck → (gagal? rollback otomatis) → bereskan rollback lama.
 #
 # Pemakaian (dari .15, user puja):
 #   ~/deploy.sh                          # deploy branch main
-#   ONEVITY_BRANCH=dev ~/deploy.sh       # deploy branch lain
+#   REKANKERJA_BRANCH=dev ~/deploy.sh       # deploy branch lain
 #
 # Konfigurasi lewat env (opsional):
-#   ONEVITY_REPO_URL   URL git (default: baca dari ~/.onevity-deploy.conf,
+#   REKANKERJA_REPO_URL   URL git (default: baca dari ~/.rekankerja-deploy.conf,
 #                      baris "REPO_URL=..." — file 600, TIDAK di-commit)
-#   ONEVITY_APP_DIR    folder app aktif   (default /home/puja/onevity)
-#   ONEVITY_BUILD_ROOT induk folder build (default /home/puja)
-#   ONEVITY_BRANCH     branch             (default main)
-#   PM2_APP            nama proses pm2    (default onevity)
+#   REKANKERJA_APP_DIR    folder app aktif   (default /home/puja/rekankerja)
+#   REKANKERJA_BUILD_ROOT induk folder build (default /home/puja)
+#   REKANKERJA_BRANCH     branch             (default main)
+#   PM2_APP            nama proses pm2    (default rekankerja)
 #   HEALTH_URL         URL healthcheck    (default https://onevity.sayone.my.id/)
 #
-# Log: /home/puja/onevity-deploy.log
+# Log: /home/puja/rekankerja-deploy.log
 # ============================================================================
 set -euo pipefail
 
-APP_DIR="${ONEVITY_APP_DIR:-/home/puja/onevity}"
-BUILD_ROOT="${ONEVITY_BUILD_ROOT:-/home/puja}"
-PM2_APP="${PM2_APP:-onevity}"
+APP_DIR="${REKANKERJA_APP_DIR:-/home/puja/rekankerja}"
+BUILD_ROOT="${REKANKERJA_BUILD_ROOT:-/home/puja}"
+PM2_APP="${PM2_APP:-rekankerja}"
 HEALTH_URL="${HEALTH_URL:-https://onevity.sayone.my.id/}"
-BRANCH="${ONEVITY_BRANCH:-main}"
-CONF_FILE="${ONEVITY_DEPLOY_CONF:-$BUILD_ROOT/.onevity-deploy.conf}"
+BRANCH="${REKANKERJA_BRANCH:-main}"
+CONF_FILE="${REKANKERJA_DEPLOY_CONF:-$BUILD_ROOT/.rekankerja-deploy.conf}"
 KEEP_ROLLBACKS=3
-LOG_FILE="$BUILD_ROOT/onevity-deploy.log"
+LOG_FILE="$BUILD_ROOT/rekankerja-deploy.log"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 log()  { echo "[$(date '+%F %T')] $*"; }
 die()  { log "❌ $*"; exit 1; }
 
 # ---------- lock anti-deploy-bersamaan ----------
-LOCK_DIR="/tmp/onevity-deploy.lock"
+LOCK_DIR="/tmp/rekankerja-deploy.lock"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   die "Deploy lain sedang berjalan (lock: $LOCK_DIR). Hapus folder lock bila yakin tidak ada."
 fi
@@ -44,7 +44,7 @@ trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 # ---------- repo URL (token TIDAK pernah di-commit ke repo) ----------
 repo_url_of() {
-  if [[ -n "${ONEVITY_REPO_URL:-}" ]]; then echo "$ONEVITY_REPO_URL"; return; fi
+  if [[ -n "${REKANKERJA_REPO_URL:-}" ]]; then echo "$REKANKERJA_REPO_URL"; return; fi
   if [[ -f "$CONF_FILE" ]]; then
     local u
     u=$(grep -E '^REPO_URL=' "$CONF_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)
@@ -58,7 +58,7 @@ repo_url_of() {
 }
 
 # ---------- 0. preflight ----------
-log "== OneVity deploy — preflight =="
+log "== RekanKerja deploy — preflight =="
 [[ "$(id -u)" -eq 0 ]] && die "Jalankan sebagai user puja (bukan root)."
 command -v git  >/dev/null || die "git tidak ditemukan"
 command -v npm  >/dev/null || die "npm tidak ditemukan"
@@ -68,23 +68,23 @@ pm2 describe "$PM2_APP" >/dev/null 2>&1 || die "Proses pm2 '$PM2_APP' tidak ada"
 [[ -d "$APP_DIR" ]] || die "Folder app aktif tidak ada: $APP_DIR"
 [[ -f "$APP_DIR/.env.local" ]] || die ".env.local tidak ada di $APP_DIR"
 REPO_URL=$(repo_url_of)
-[[ -z "$REPO_URL" ]] && die "Repo URL tidak ditemukan. Isi $CONF_FILE dengan 'REPO_URL=...' atau set ONEVITY_REPO_URL."
+[[ -z "$REPO_URL" ]] && die "Repo URL tidak ditemukan. Isi $CONF_FILE dengan 'REPO_URL=...' atau set REKANKERJA_REPO_URL."
 cd "$BUILD_ROOT"   # cwd harus di luar APP_DIR — folder akan di-rename saat cutover
 log "repo=${REPO_URL%%@*@}***@… branch=$BRANCH app=$APP_DIR pm2=$PM2_APP"
 
 TS=$(date +%Y%m%d-%H%M%S)
-BUILD_DIR="$BUILD_ROOT/onevity-build-$TS"
-ROLLBACK_DIR="$BUILD_ROOT/onevity-rollback-$TS"
+BUILD_DIR="$BUILD_ROOT/rekankerja-build-$TS"
+ROLLBACK_DIR="$BUILD_ROOT/rekankerja-rollback-$TS"
 
 rollback_now() { # dipakai saat gagal SETELAH folder aktif diswap
   log "↩️  ROLLBACK otomatis…"
   pm2 stop "$PM2_APP" >/dev/null 2>&1 || true
-  [[ -d "$APP_DIR" ]] && mv "$APP_DIR" "$BUILD_ROOT/onevity-failed-$TS"
+  [[ -d "$APP_DIR" ]] && mv "$APP_DIR" "$BUILD_ROOT/rekankerja-failed-$TS"
   mv "$ROLLBACK_DIR" "$APP_DIR"
   pm2 restart "$PM2_APP" --update-env >/dev/null
   sleep 5
   curl -sk -o /dev/null -w "rollback health=%{http_code}\n" "$HEALTH_URL" || true
-  die "Rollback selesai. Versi gagal tersimpan: onevity-failed-$TS (cek $LOG_FILE)"
+  die "Rollback selesai. Versi gagal tersimpan: rekankerja-failed-$TS (cek $LOG_FILE)"
 }
 
 # ---------- 1. clone fresh ----------
@@ -139,10 +139,10 @@ done
 # catatan: glob tanpa match membuat ls exit 2 — amankan dengan || true agar
 # pipefail tidak membunuh skrip di ujung alur (bug exit=2 saat deploy pertama).
 log "Pembersihan: menyisakan $KEEP_ROLLBACKS rollback terbaru"
-ls -1dt "$BUILD_ROOT"/onevity-rollback-* 2>/dev/null | tail -n +$((KEEP_ROLLBACKS + 1)) | while read -r d; do
+ls -1dt "$BUILD_ROOT"/rekankerja-rollback-* 2>/dev/null | tail -n +$((KEEP_ROLLBACKS + 1)) | while read -r d; do
   log "   hapus $(basename "$d")"; rm -rf "$d"
 done || true
-ls -1dt "$BUILD_ROOT"/onevity-failed-* 2>/dev/null | tail -n +3 | while read -r d; do
+ls -1dt "$BUILD_ROOT"/rekankerja-failed-* 2>/dev/null | tail -n +3 | while read -r d; do
   log "   hapus $(basename "$d")"; rm -rf "$d"
 done || true
 

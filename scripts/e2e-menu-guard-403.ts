@@ -44,14 +44,14 @@ async function main(): Promise<void> {
   if (!owner) { console.error("login owner gagal"); process.exit(1); }
 
   // 2. buat AppUser uji
-  const rCreate = await post("/api/onevity/app-users", owner, {
+  const rCreate = await post("/api/rekankerja/app-users", owner, {
     username: "audittask79", fullName: "Audit Task 79", email: EMAIL, password: PASS, role: "HR Staff",
   });
   const created = (await rCreate.json()) as { user?: { id?: string }; id?: string; error?: string };
   const uid = created.user?.id ?? created.id;
   if (rCreate.status !== 201 || !uid) {
     // mungkin sudah ada dari run sebelumnya — cari via GET
-    const rList = await fetch(`${BASE}/api/onevity/app-users`, { headers: { cookie: owner } });
+    const rList = await fetch(`${BASE}/api/rekankerja/app-users`, { headers: { cookie: owner } });
     const list = (await rList.json()) as { users?: { id: string; email: string | null }[] };
     const found = (list.users ?? []).find((u) => u.email === EMAIL);
     if (!found) { check("buat AppUser uji", false, JSON.stringify(created)); process.exit(1); }
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
 async function cleanupAndRun(owner: string, uid: string): Promise<void> {
   try {
     // 3. konfigurasi menu CUSTOM — hanya hr:directory
-    const rCfg = await post("/api/onevity/user-menu-access", owner, {
+    const rCfg = await post("/api/rekankerja/user-menu-access", owner, {
       appUserId: uid, mode: "CUSTOM",
       menus: { "hr:directory": { view: true, create: true, update: true, delete: true, ops: {} } },
     });
@@ -79,14 +79,14 @@ async function cleanupAndRun(owner: string, uid: string): Promise<void> {
 
     // 5. delapan endpoint mutasi → 403
     const targets: [string, string][] = [
-      ["/api/onevity/payroll-periods", "settings payroll:periods (create)"],
-      ["/api/onevity/payroll-rapel", "payroll:transactions (create)"],
-      ["/api/onevity/leave/mass", "leave:leave-mass (create)"],
-      ["/api/onevity/attendance/clocking", "attendance:clocking (create)"],
-      ["/api/onevity/position-levels", "hr:levels (create)"],
-      ["/api/onevity/approval-structures", "settings:approval (create)"],
-      ["/api/onevity/approval-templates", "settings:approval (create)"],
-      ["/api/onevity/temporary-approvers", "settings:approval (create)"],
+      ["/api/rekankerja/payroll-periods", "settings payroll:periods (create)"],
+      ["/api/rekankerja/payroll-rapel", "payroll:transactions (create)"],
+      ["/api/rekankerja/leave/mass", "leave:leave-mass (create)"],
+      ["/api/rekankerja/attendance/clocking", "attendance:clocking (create)"],
+      ["/api/rekankerja/position-levels", "hr:levels (create)"],
+      ["/api/rekankerja/approval-structures", "settings:approval (create)"],
+      ["/api/rekankerja/approval-templates", "settings:approval (create)"],
+      ["/api/rekankerja/temporary-approvers", "settings:approval (create)"],
     ];
     for (const [path, label] of targets) {
       const res = await post(path, ujar, {});
@@ -95,25 +95,25 @@ async function cleanupAndRun(owner: string, uid: string): Promise<void> {
     }
 
     // PATCH & DELETE spot-check (periods PATCH, position-levels DELETE)
-    const rPatch = await fetch(`${BASE}/api/onevity/payroll-periods`, {
+    const rPatch = await fetch(`${BASE}/api/rekankerja/payroll-periods`, {
       method: "PATCH", headers: { "content-type": "application/json", cookie: ujar }, body: JSON.stringify({}),
     });
     check("403 payroll:periods (update)", rPatch.status === 403, `status ${rPatch.status}`);
-    const rDel = await fetch(`${BASE}/api/onevity/position-levels?id=00000000-0000-0000-0000-000000000000`, {
+    const rDel = await fetch(`${BASE}/api/rekankerja/position-levels?id=00000000-0000-0000-0000-000000000000`, {
       method: "DELETE", headers: { cookie: ujar },
     });
     check("403 hr:levels (delete)", rDel.status === 403, `status ${rDel.status}`);
 
     // 6. kontrol positif — read tetap jalan
-    const rRead = await fetch(`${BASE}/api/onevity/position-levels`, { headers: { cookie: ujar } });
+    const rRead = await fetch(`${BASE}/api/rekankerja/position-levels`, { headers: { cookie: ujar } });
     check("200 GET position-levels (read tanpa guard menu)", rRead.status === 200, `status ${rRead.status}`);
-    const rEmp = await fetch(`${BASE}/api/onevity/employees?pageSize=1`, { headers: { cookie: ujar } });
+    const rEmp = await fetch(`${BASE}/api/rekankerja/employees?pageSize=1`, { headers: { cookie: ujar } });
     check("200 GET employees (hr:directory diberikan)", rEmp.status === 200, `status ${rEmp.status}`);
   } finally {
     // 7. cleanup via API
-    const rDelCfg = await fetch(`${BASE}/api/onevity/user-menu-access?userId=${uid}`, { method: "DELETE", headers: { cookie: owner } });
+    const rDelCfg = await fetch(`${BASE}/api/rekankerja/user-menu-access?userId=${uid}`, { method: "DELETE", headers: { cookie: owner } });
     check("cleanup: hapus konfigurasi menu", rDelCfg.status === 200, `status ${rDelCfg.status}`);
-    const rDelUser = await fetch(`${BASE}/api/onevity/app-users?id=${uid}`, { method: "DELETE", headers: { cookie: owner } });
+    const rDelUser = await fetch(`${BASE}/api/rekankerja/app-users?id=${uid}`, { method: "DELETE", headers: { cookie: owner } });
     check("cleanup: hapus AppUser uji", rDelUser.status === 200, `status ${rDelUser.status}`);
     console.log(`NOTE akun platform User (email=${EMAIL}) dihapus terpisah via DB bila perlu.`);
   }

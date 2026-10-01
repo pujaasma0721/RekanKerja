@@ -6,7 +6,7 @@
 //   3. Idempotensi: rerun migrasi tidak mengubah apa pun (dicek manual terpisah).
 // Jalankan: bun run scripts/t28-verify-encryption.ts
 import { Client } from "pg";
-import { tenantCrypto, isEncrypted } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto, isEncrypted } from "../src/rekankerja/shared/lib/field-crypto";
 
 const SCHEMA = "tenant_pt_mitra_industri_internasional";
 const SNAP = { totalNet: 537595241, lineNet: 63111526, bruto: 83203508, nik: "3176363464506", npwp: "091485262345", baseSalary: 54900000 };

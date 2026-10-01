@@ -1,4 +1,4 @@
-// mini-services/smtp-catcher — SMTP catch-all lokal untuk uji notifikasi email OneVity (Task 34).
+// mini-services/smtp-catcher — SMTP catch-all lokal untuk uji notifikasi email RekanKerja (Task 34).
 // Server SMTP minimal (RFC 5321 subset): HELO/EHLO, MAIL FROM, RCPT TO, DATA, QUIT, RSET, NOOP.
 // Semua email DITERIMA dan disimpan ke catch.jsonl (from/to/subject/body + timestamp).
 // Port: 2525. Untuk pengujian sandbox — jangan dipakai produksi.
@@ -18,7 +18,7 @@ const server = net.createServer((socket) => {
   let buffer = "";
 
   const send = (line: string) => socket.write(line + "\r\n");
-  send("220 onevity-smtp-catcher ready");
+  send("220 rekankerja-smtp-catcher ready");
 
   socket.on("data", (chunk) => {
     buffer += chunk.toString("utf-8");
@@ -44,7 +44,7 @@ const server = net.createServer((socket) => {
       buffer = buffer.slice(idx + 2);
       const upper = line.toUpperCase();
       if (upper.startsWith("EHLO") || upper.startsWith("HELO")) {
-        send("250-onevity-smtp-catcher");
+        send("250-rekankerja-smtp-catcher");
         send("250 OK");
       } else if (upper.startsWith("MAIL FROM:")) {
         from = line.slice(10).trim().replace(/^<|>$/g, "");

@@ -53,7 +53,7 @@ server.log
 # Skills directory
 /skills/
 
-# OneVity — sandbox artifacts & local data (not part of the published project)
+# RekanKerja — sandbox artifacts & local data (not part of the published project)
 /tool-results/
 /db/
 /tests/

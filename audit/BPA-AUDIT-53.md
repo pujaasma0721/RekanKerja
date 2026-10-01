@@ -186,7 +186,7 @@ perusahaan dan ganti deskripsi agar tidak menyatakan bersyarat.
   mengizinkan cycle 7 hari kerja × 6 jam (2520 mnt = tepat batas pola 6 hari) — tanpa
   hari libur. Batas 40/42 jam & 8 jam/hari sudah benar (Ps.77).
 - **F-10 — Snapshot tahunan vs UU PPh Ps.7(2):** peraturan menyatakan perubahan status
-  berlaku mulai **bulan berikutnya**; kebijakan OneVity menunda s.d. **1 Jan tahun
+  berlaku mulai **bulan berikutnya**; kebijakan RekanKerja menunda s.d. **1 Jan tahun
   berikutnya**. Ini penyimpangan YANG DISKAHKAN pemilik produk (Task 50) — berdampak
   waktu (timing pemotongan), bukan liabilitas tahunan (SPT Tahunan menghitung ulang).
   UI sudah transparan ("berlaku 1 Jan …"). Pertahankan, catat sebagai keputusan sadar.

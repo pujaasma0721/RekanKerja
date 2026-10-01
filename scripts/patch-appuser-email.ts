@@ -2,7 +2,7 @@
 // dengan akun platform demo (hrd@mii.co.id) agar resolusi aktor sesi
 // (requireMutator → actor.appUsername) menemukan AppUser yang benar.
 // Idempoten: hanya update bila berbeda. Jalankan: bun run scripts/patch-appuser-email.ts
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
 
 const MII_SCHEMA = "tenant_pt_mitra_industri_internasional";
 

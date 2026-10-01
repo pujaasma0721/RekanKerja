@@ -452,7 +452,7 @@ class _PayslipDetailPageState extends State<PayslipDetailPage> {
           OutlinedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Unduh PDF tersedia saat tersambung ke server OneVity 🔒')),
+                const SnackBar(content: Text('Unduh PDF tersedia saat tersambung ke server RekanKerja 🔒')),
               );
             },
             icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),

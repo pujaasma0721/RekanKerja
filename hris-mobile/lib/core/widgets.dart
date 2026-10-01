@@ -389,7 +389,7 @@ class QuickAction extends StatelessWidget {
   }
 }
 
-/// Timeline persetujuan berjenjang (khas OneVity).
+/// Timeline persetujuan berjenjang (khas RekanKerja).
 class ApprovalTimeline extends StatelessWidget {
   final List<ApprovalStepMV> steps;
   const ApprovalTimeline(this.steps, {super.key});

@@ -6,11 +6,11 @@
 //      bankAccount) → enc:v1:t:… — AES-256-GCM per-tenant, kunci SAMA dgn
 //      aplikasi (import tenantCrypto dari field-crypto langsung).
 //   3. Skip baris yang sudah enc:v1 → rerun = 0 perubahan.
-// Dapat diimpor IN-PROCESS oleh src/onevity/shared/lib/parity-runner.ts
+// Dapat diimpor IN-PROCESS oleh src/rekankerja/shared/lib/parity-runner.ts
 // (main() tanpa efek samping) ATAU CLI: bun run scripts/migrate-encrypt.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

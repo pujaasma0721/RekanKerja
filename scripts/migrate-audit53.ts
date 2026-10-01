@@ -18,7 +18,7 @@
 import "./lib/env";
 import { Client } from "pg";
 // F-02 — sumber tunggal tabel TER resmi (pure data, tanpa dependency).
-import { TER_OFFICIAL } from "../src/onevity/payroll/services/ter-official";
+import { TER_OFFICIAL } from "../src/rekankerja/payroll/services/ter-official";
 
 const DEMO_SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

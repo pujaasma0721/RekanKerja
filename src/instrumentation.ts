@@ -1,4 +1,4 @@
-// OneVity instrumentation — hook startup Next.js (dipanggil sekali per proses
+// RekanKerja instrumentation — hook startup Next.js (dipanggil sekali per proses
 // server). Tiga fungsi (rev Task 30 / seed-remote wave):
 // 1. AUTO-SEED demo FRESH: bila database platform masih KOSONG (belum ada
 //    tenant) → seed demo 3 tenant (MII penuh + Cahaya + Sentra) di latar
@@ -24,8 +24,8 @@ export async function register() {
   if (process.env.NEXT_PHASE === "phase-production-build") return;
   try {
     if (process.env.DEMO_AUTOSEED !== "off") {
-      const { platformCounts, startDemoSeed } = await import("./onevity/shared/lib/demo-seed");
-      const { checkParityGap } = await import("./onevity/shared/lib/parity-runner");
+      const { platformCounts, startDemoSeed } = await import("./rekankerja/shared/lib/demo-seed");
+      const { checkParityGap } = await import("./rekankerja/shared/lib/parity-runner");
       const counts = await platformCounts();
       if (counts.tenants === 0) {
         console.log("[demo-seed] database kosong — restore demo 3 tenant dimulai di latar belakang…");
@@ -53,7 +53,7 @@ export async function register() {
     // T14-SCHED: scheduler latar belakang (guard lengkap di initScheduler:
     // nodejs-only, bukan next build, SCHEDULER=off, idempoten per proses).
     try {
-      const { initScheduler } = await import("./onevity/shared/services/scheduler-service");
+      const { initScheduler } = await import("./rekankerja/shared/services/scheduler-service");
       initScheduler();
     } catch (e) {
       console.warn(`[scheduler] gagal diinisialisasi: ${e instanceof Error ? e.message : String(e)}`);
@@ -64,7 +64,7 @@ export async function register() {
   // terenkripsi SEBELUM request pertama (prime per-request hanya menutup
   // jalur HTTP). Best-effort: DB belum siap → request path mengulang prime.
   try {
-    const { primeAllTenantCrypto } = await import("./onevity/shared/lib/field-crypto");
+    const { primeAllTenantCrypto } = await import("./rekankerja/shared/lib/field-crypto");
     const n = await primeAllTenantCrypto();
     if (n > 0) console.log(`[field-crypto] kunci vault ${n} tenant termuat`);
   } catch {

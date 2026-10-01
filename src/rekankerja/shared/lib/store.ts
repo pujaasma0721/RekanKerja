@@ -1,0 +1,212 @@
+"use client";
+// RekanKerja SPA navigation — zustand store + URL query sync
+// Module system: 6 modul besar (dropdown sidebar) — tiap modul punya section & menu sendiri.
+import { create } from "zustand";
+
+export type ModuleId =
+  | "hr"
+  | "payroll"
+  | "attendance"
+  | "leave"
+  | "travel"
+  | "medical"
+  | "whistleblowing";
+
+export type SectionId =
+  | "dashboard"
+  | "org"
+  | "position"
+  | "employee"
+  | "actions"
+  | "reports"
+  | "payroll"
+  | "settings"
+  | "attendance"
+  | "leave"
+  | "travel"
+  | "medical"
+  | "whistleblowing";
+
+export interface NavState {
+  module: ModuleId;
+  section: SectionId;
+  view: string; // sub-view inside section
+  params: Record<string, string>; // e.g. { id, wizard }
+  navigate: (section: SectionId, view?: string, params?: Record<string, string>) => void;
+  setModule: (m: ModuleId) => void;
+  setParams: (params: Record<string, string>) => void;
+  syncFromUrl: () => void;
+}
+
+const VALID_MODULES: ModuleId[] = ["hr", "payroll", "attendance", "leave", "travel", "medical", "whistleblowing"];
+const VALID: SectionId[] = ["dashboard", "org", "position", "employee", "actions", "reports", "payroll", "settings", "attendance", "leave", "travel", "medical", "whistleblowing"];
+
+export const MODULE_LABEL: Record<ModuleId, string> = {
+  hr: "Human Resource Base",
+  payroll: "Payroll",
+  attendance: "Attendance",
+  leave: "Leave",
+  travel: "Travel",
+  medical: "Medical",
+  whistleblowing: "Whistleblowing",
+};
+
+export function moduleOfSection(section: SectionId): ModuleId {
+  switch (section) {
+    case "payroll":
+      return "payroll";
+    case "attendance":
+      return "attendance";
+    case "leave":
+      return "leave";
+    case "travel":
+      return "travel";
+    case "medical":
+      return "medical";
+    case "whistleblowing":
+      return "whistleblowing";
+    default:
+      return "hr"; // dashboard, org, position, employee, actions, settings
+  }
+}
+
+export function defaultSectionOfModule(m: ModuleId): SectionId {
+  switch (m) {
+    case "payroll":
+      return "payroll";
+    case "attendance":
+      return "attendance";
+    case "leave":
+      return "leave";
+    case "travel":
+      return "travel";
+    case "medical":
+      return "medical";
+    case "whistleblowing":
+      return "whistleblowing";
+    default:
+      return "dashboard";
+  }
+}
+
+export function defaultView(section: SectionId): string {
+  switch (section) {
+    case "org": return "companies"; // item pertama grup "Perusahaan & Organisasi"
+    case "position": return "list";
+    case "employee": return "directory";
+    case "actions": return "inbox";
+    case "reports": return "reports";
+    case "payroll": return "overview";
+    case "settings": return "lookups";
+    case "attendance": return "schedules";
+    case "leave": return "balances";
+    case "travel": return "requests";
+    case "medical": return "claims";
+    case "whistleblowing": return "report";
+    default: return "overview";
+  }
+}
+
+function parseUrl(): { module: ModuleId; section: SectionId; view: string; params: Record<string, string> } {
+  if (typeof window === "undefined") return { module: "hr", section: "dashboard", view: "overview", params: {} };
+  const sp = new URLSearchParams(window.location.search);
+  const m = (sp.get("m") ?? "hr") as ModuleId;
+  const mod: ModuleId = VALID_MODULES.includes(m) ? m : "hr";
+  const s = (sp.get("s") ?? defaultSectionOfModule(mod)) as SectionId;
+  let section = VALID.includes(s) ? s : defaultSectionOfModule(mod);
+  // jaga konsistensi section ↔ module (mis. ?m=payroll&s=employee tidak valid)
+  if (moduleOfSection(section) !== mod) section = defaultSectionOfModule(mod);
+  const view = sp.get("v") ?? defaultView(section);
+  const params: Record<string, string> = {};
+  if (sp.get("id")) params.id = sp.get("id")!;
+  if (sp.get("wizard")) params.wizard = sp.get("wizard")!;
+  return { module: mod, section, view, params };
+}
+
+function writeUrl(mod: ModuleId, section: SectionId, view: string, params: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  const sp = new URLSearchParams();
+  if (mod !== "hr") sp.set("m", mod);
+  if (section !== defaultSectionOfModule(mod)) sp.set("s", section);
+  if (view !== defaultView(section)) sp.set("v", view);
+  if (params.id) sp.set("id", params.id);
+  if (params.wizard) sp.set("wizard", params.wizard);
+  const qs = sp.toString();
+  window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
+}
+
+// ============ MODE UI: admin vs ESS (Task T8-ESS-FRONTEND) ============
+// Mode UI global: "admin" (shell admin lengkap) | "ess" (Employee Self-Service —
+// pengalaman halaman terpisah penuh).
+//   · setUiMode(m)   → pilihan EKSPLISIT pengguna (menu "Mode Karyawan"/"Mode Admin")
+//                      — dipersist ke localStorage "rekankerja:mode".
+//   · setAutoMode(m) → deteksi otomatis oleh page.tsx (pengguna tanpa menu admin →
+//                      "ess"); TIDAK menimpa bila pengguna sudah memilih eksplisit.
+//   · hydrate()      → baca localStorage sekali saat mount (sebelum session ready,
+//                      sehingga tidak ada kedip shell yang salah).
+export type UiMode = "admin" | "ess";
+
+const UI_MODE_KEY = "rekankerja:mode";
+
+interface UiModeState {
+  uiMode: UiMode;
+  /** pilihan eksplisit pengguna (persist); null → ikut deteksi otomatis */
+  override: UiMode | null;
+  /** hasil deteksi otomatis (default admin) */
+  auto: UiMode;
+  setUiMode: (m: UiMode) => void;
+  setAutoMode: (m: UiMode) => void;
+  hydrate: () => void;
+}
+
+export const useUiMode = create<UiModeState>((set) => ({
+  uiMode: "admin",
+  override: null,
+  auto: "admin",
+  setUiMode: (m) => {
+    if (typeof window !== "undefined") {
+      try { window.localStorage.setItem(UI_MODE_KEY, m); } catch { /* storage bisa diblokir */ }
+    }
+    set({ override: m, uiMode: m });
+  },
+  setAutoMode: (m) => set((s) => (s.override ? { auto: m } : { auto: m, uiMode: m })),
+  hydrate: () => {
+    if (typeof window === "undefined") return;
+    try {
+      const v = window.localStorage.getItem(UI_MODE_KEY);
+      if (v === "ess" || v === "admin") set({ override: v, uiMode: v });
+    } catch { /* abaikan */ }
+  },
+}));
+
+export const useNav = create<NavState>((set, get) => ({
+  module: "hr",
+  section: "dashboard",
+  view: "overview",
+  params: {},
+  navigate: (section, view, params) => {
+    const mod = moduleOfSection(section);
+    const v = view ?? defaultView(section);
+    const p = params ?? {};
+    writeUrl(mod, section, v, p);
+    set({ module: mod, section, view: v, params: p });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+  },
+  setModule: (m) => {
+    const section = defaultSectionOfModule(m);
+    const view = defaultView(section);
+    writeUrl(m, section, view, {});
+    set({ module: m, section, view, params: {} });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+  },
+  setParams: (params) => {
+    const { module, section, view } = get();
+    writeUrl(module, section, view, params);
+    set({ params });
+  },
+  syncFromUrl: () => {
+    const state = parseUrl();
+    const cur = get();
+    if (state.module !== cur.module || state.section !== cur.section || state.view !== cur.view) set(state);
+  },
+}));

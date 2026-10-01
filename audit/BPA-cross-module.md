@@ -1,8 +1,8 @@
-# AUDIT BISNIS PROSES LINTAS-MODUL — OneVity HRIS
+# AUDIT BISNIS PROSES LINTAS-MODUL — RekanKerja HRIS
 
 - Task ID: **24-g** · Tanggal: 22 Januari 2026 · Mode: **READ-ONLY** (tidak ada perubahan kode/commit/mutasi data).
 - Lingkup: mesin integrasi 6 modul domain + shared (approval engine, payroll aggregator, transfer endpoints, jurnal lintas-sumber, auth/tenant, data flow TA↔payroll, leave↔TA, dashboard/meta, ActivityLog, provisioning).
-- Sumber: pembacaan kode `src/onevity/**` + `prisma/schema-tenant.prisma`, probing runtime GET (login hrd@mii.co.id → tenant MII), dan query DB read-only (SELECT/groupBy via Prisma client) terhadap schema `tenant_pt_mitra_industri_internasional`.
+- Sumber: pembacaan kode `src/rekankerja/**` + `prisma/schema-tenant.prisma`, probing runtime GET (login hrd@mii.co.id → tenant MII), dan query DB read-only (SELECT/groupBy via Prisma client) terhadap schema `tenant_pt_mitra_industri_internasional`.
 - Tumpang-tindih dengan AUDIT-MODULES.md (Task 23, F-01..F-12) dihindari — semua temuan di bawah adalah temuan BARU lintas-modul.
 
 ---

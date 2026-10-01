@@ -1,9 +1,9 @@
 // PRD data untuk module Human Resource Base — hasil studi aplikasi HRIS referensi
 export const meta = {
-  product: "OneVity — Human Resource Base",
+  product: "RekanKerja — Human Resource Base",
   docType: "Product Requirements Document (PRD)",
   purpose: "Blueprint untuk AI Agent membangun ulang aplikasi",
-  source: "PRD internal OneVity",
+  source: "PRD internal RekanKerja",
   version: "11.08.00",
   account: "MII000001 / MII1",
   company: "MII - Mitra Industri Internasional",

@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   if (login.status !== 200) throw new Error(`login gagal: ${login.status}`);
 
   // Unlock Money Vault agar baseSalary terbaca (tanpa ini gaji = null semua)
-  await fetch(`${BASE}/api/onevity/money-vault`, {
+  await fetch(`${BASE}/api/rekankerja/money-vault`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: cookieHeader() },
     body: JSON.stringify({ action: "unlock", password: process.env.E2E_VAULT ?? "asmaree.007" }),
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
 
   let fail = 0;
   const get = async (sortBy: string, sortDir: string, offset: number) => {
-    const r = await api(`/api/onevity/employees?limit=${PAGE}&offset=${offset}&sortBy=${sortBy}&sortDir=${sortDir}`);
+    const r = await api(`/api/rekankerja/employees?limit=${PAGE}&offset=${offset}&sortBy=${sortBy}&sortDir=${sortDir}`);
     if (r.status !== 200) throw new Error(`GET employees ${r.status}`);
     return (r.body.employees ?? []) as { employeeNo: string; fullName: string; baseSalary: number | null }[];
   };

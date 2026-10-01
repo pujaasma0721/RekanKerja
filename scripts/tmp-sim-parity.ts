@@ -1,5 +1,5 @@
 // SIMULASI UPGRADE REMOTE (throwaway — hapus setelah verifikasi).
-// DB onevity_sim = replika kondisi remote (restore-demo@7987fe8: kolom uang
+// DB rekankerja_sim = replika kondisi remote (restore-demo@7987fe8: kolom uang
 // Float, NIK plaintext, tanpa tabel wave-26/27/28). Jalankan pipeline parity
 // IN-PROCESS dari kode TERKINI, lalu verifikasi hasil + bandingkan dengan DB
 // lokal asli (target: "seperti lokal").
@@ -7,8 +7,8 @@ process.env.PLATFORM_DB_URL = "postgresql://onevity:onevity_dev@127.0.0.1:5432/o
 process.env.TENANT_DB_BASE_URL = "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity_sim";
 
 const { Client } = await import("pg");
-const { runParityPipeline, checkParityGap } = await import("../src/onevity/shared/lib/parity-runner");
-const { tenantCrypto } = await import("../src/onevity/shared/lib/field-crypto");
+const { runParityPipeline, checkParityGap } = await import("../src/rekankerja/shared/lib/parity-runner");
+const { tenantCrypto } = await import("../src/rekankerja/shared/lib/field-crypto");
 
 const SIM = "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity_sim";
 const REAL = "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";

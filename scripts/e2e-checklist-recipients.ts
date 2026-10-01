@@ -1,9 +1,9 @@
 /**
  * Task 65 lanjutan — isi penerima email checklist per bagian (SAYONE) via API:
  * 1. Login owner SAYONE
- * 2. PUT /api/onevity/checklist-recipients × 6 bagian → email Gmail test
+ * 2. PUT /api/rekankerja/checklist-recipients × 6 bagian → email Gmail test
  * 3. GET untuk verifikasi
- * 4. PATCH /api/onevity/onboarding/[id] {action:"resendEmail"} → kirim ulang
+ * 4. PATCH /api/rekankerja/onboarding/[id] {action:"resendEmail"} → kirim ulang
  */
 const BASE = process.argv[2] ?? "https://onevity.sayone.my.id";
 const EMAIL = process.argv[3] ?? "puja.asmara@sayone.com";
@@ -43,7 +43,7 @@ async function main() {
 
   // 2. isi penerima per bagian
   for (const dept of DEPTS) {
-    const put = await api("/api/onevity/checklist-recipients", {
+    const put = await api("/api/rekankerja/checklist-recipients", {
       method: "PUT",
       body: JSON.stringify({ dept, emails: [TARGET] }),
     });
@@ -51,18 +51,18 @@ async function main() {
   }
 
   // 3. verifikasi
-  const get = await api("/api/onevity/checklist-recipients");
+  const get = await api("/api/rekankerja/checklist-recipients");
   if (get.status !== 200) throw new Error(`GET recipients gagal: ${get.status}`);
   for (const d of get.body.departments ?? []) {
     console.log(`3. ${d.dept.padEnd(11)} → ${d.emails.length > 0 ? d.emails.join(", ") : "(kosong — fallback Admin/HR)"}`);
   }
 
   // 4. kirim ulang email checklist onboarding (proses Open pertama)
-  const rows = await api("/api/onevity/onboarding");
+  const rows = await api("/api/rekankerja/onboarding");
   const first = (rows.body.onboardings ?? []).find((o: any) => o.status === "Open") ?? rows.body.onboardings?.[0];
   if (!first) throw new Error("tidak ada proses onboarding untuk resend");
   console.log(`4. resend email checklist: ${first.employee.fullName} (${first.id.slice(0, 8)}…)`);
-  const resend = await api(`/api/onevity/onboarding/${first.id}`, {
+  const resend = await api(`/api/rekankerja/onboarding/${first.id}`, {
     method: "PATCH",
     body: JSON.stringify({ action: "resendEmail" }),
   });

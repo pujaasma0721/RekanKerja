@@ -1,7 +1,7 @@
-# BPA — AUDIT BISNIS PROSES MODUL LEAVE (CUTI) — OneVity HRIS
+# BPA — AUDIT BISNIS PROSES MODUL LEAVE (CUTI) — RekanKerja HRIS
 
 **Task ID:** 24-d · **Mode:** READ-ONLY (kode + probe GET runtime; 0 mutasi) · **Tanggal audit:** 2 Sep 2026 (jam server sandbox)
-**Cakupan:** `src/onevity/leave/**` (8 API + leave-service.ts + leave-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (5 model Leave), integrasi `attendance-service.ts` (leaveFor/regenerateDaily/recapPeriod), `provisioning.ts` (LEAVE_TYPE_DEFS), payroll (`transferEncashment`, `markEncashmentPaidForRun`), referensi `ANALISA-LEAVE.md` (oranHR 14 halaman), worklog Task 18/22/23.
+**Cakupan:** `src/rekankerja/leave/**` (8 API + leave-service.ts + leave-seed.ts + 9 komponen), `prisma/schema-tenant.prisma` (5 model Leave), integrasi `attendance-service.ts` (leaveFor/regenerateDaily/recapPeriod), `provisioning.ts` (LEAVE_TYPE_DEFS), payroll (`transferEncashment`, `markEncashmentPaidForRun`), referensi `ANALISA-LEAVE.md` (oranHR 14 halaman), worklog Task 18/22/23.
 **Data MII live (probe):** 546 saldo (42 kar. × 12 jenis 2026 + 42 baris CT-THN 2025), 86 request (3 Submitted / 39 Approved / 1 Rejected / 1 Cancelled / 42 MassLeave), 5 encashment (2 Paid, 2 Approved, 1 Rejected), 1 event massal SKB (42 baris). Endpoint: 8/8 GET → 200.
 
 ---
@@ -127,7 +127,7 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 
 ### 4.3 Perbandingan dengan UU 13/2003 / PP 35/2021 / oranHR
 
-| Aspek | OneVity as-implemented | Seharusnya / referensi | Penilaian |
+| Aspek | RekanKerja as-implemented | Seharusnya / referensi | Penilaian |
 |---|---|---|---|
 | Hak tahunan | 12 hari, prorata bulanan, waiting 6 bulan (oranHR MII) | UU 13/2003 §79: **12 hari kerja setelah 12 bulan kerja berlanjut**; oranHR MII memakai waiting 6 bln + prorate | ⚠️ Mengikuti oranHR; deviasi vs UU (waiting 6 ≠ 12 bln, prorata memungkinkan ambil < 12 bln) — tercatat sadar di ANALISA §5-L2 |
 | Hak per masa kerja | seragam per jenis; hanya adjustment manual (±) | oranHR 15 dimensi rule (service year dsb.) | GAP G-02 (backlog Task 18) |
@@ -148,13 +148,13 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 ### KRITIS (saldo salah terpotong / double / negatif)
 
 **L-01 · Approval permintaan cuti tidak re-validasi saldo — pending tidak direservasi → saldo negatif pada jenis non-advance.**
-- Lokasi: `src/onevity/leave/services/leave-service.ts:600-637` (decideRequest — hanya cek status :606); akar: `listBalances:169-172` + `computeParts` hanya menghitung status `Approved|MassLeave` (Submitted tidak masuk kolom g) sehingga cek saldo saat submit (`:522-527`) selalu melihat saldo penuh.
+- Lokasi: `src/rekankerja/leave/services/leave-service.ts:600-637` (decideRequest — hanya cek status :606); akar: `listBalances:169-172` + `computeParts` hanya menghitung status `Approved|MassLeave` (Submitted tidak masuk kolom g) sehingga cek saldo saat submit (`:522-527`) selalu melihat saldo penuh.
 - Skenario terbukti dari kode: saldo CT-NIKAH 3 hari → submit permintaan A (3 hari) ✓, submit B (3 hari, non-overlap) ✓ (B masih melihat 3 karena A pending) → approve A → 0 → approve B → **remaining −3 pada jenis `allowAdvance=false`** — guard "Saldo tidak cukup" terlewati. Ditambah UI approval menampilkan snapshot `remainingAtRequest` (leave-approval.tsx:152), approver tidak melihat saldo terkini. Operasi juga non-transaksional (findFirst → create tanpa `$transaction`/unique constraint rentang) → race dua submit bersamaan.
 - Dampak: saldo negatif tanpa kebijakan; pemakaian melebihi entitlement; laporan saldo & overview (negative count) tercemar.
 - Saran fix: (1) hitung `applied` termasuk status `Submitted` (padanan "Leave Applied not Taken" yang mencakup pending) ATAU reservasi eksplisit; (2) re-validasi saldo (+ overlap + waiting) di `decideRequest` dalam `$transaction` sebelum set Approved — tolak bila remaining < 0 dan !allowAdvance; (3) tampilkan saldo live di kartu approval.
 
 **L-02 · Approval encashment menambah `cashed` tanpa re-check remaining → cashed melebihi entitlement / saldo negatif & uang kelebihan.**
-- Lokasi: `src/onevity/leave/services/leave-service.ts:844-855` (decideEncashment approve → `cashed += enc.days` tanpa validasi); pintu masuk: `submitEncashment:802-806` cek `days > row.remaining` memakai saldo live yang belum dikurangi encashment Submitted lain.
+- Lokasi: `src/rekankerja/leave/services/leave-service.ts:844-855` (decideEncashment approve → `cashed += enc.days` tanpa validasi); pintu masuk: `submitEncashment:802-806` cek `days > row.remaining` memakai saldo live yang belum dikurangi encashment Submitted lain.
 - Skenario: saldo 10 → ajukan encashment 8 hari ✓ dan permintaan cuti 5 hari (non-overlap) ✓ (cuti melihat 10, pending tidak dihitung) → approve keduanya → cashed 8 + taken/applied 5 → **remaining −3**. Atau dua encashment paralel (8+8 terhadap saldo 10) → cashed 16. UCT dibayar sesuai hari yang di-cash → **kelebihan bayar finansial**.
 - Saran fix: reservasi hari encashment saat Submitted (kolom turunan pending-cash) + re-validasi `cashed + days ≤ entitlement-terpakai` transaksional saat approve; tolak approve bila saldo kini tidak cukup.
 
@@ -172,7 +172,7 @@ remaining  = carriedOver + earned + adjustment − forfeited − cashed − take
 - Saran fix: dalam `regenerateDaily`, bila `date > hari ini` dan tidak ada clock log → jangan tulis "Absent" (biarkan null/tanpa baris); di `decideRequest`, hanya regen bila action=approve (reject/cancel cukup menghapus efek dengan regen yang sama aman); mass leave: regen hanya karyawan target.
 
 **L-05 · Identitas & otoritas approver tidak dicatat — `decidedById` selalu NULL, tanpa layer/otorisasi atasan.**
-- Lokasi: `src/onevity/leave/api/requests.ts:71-75` dan `api/encashment.ts:60-64` (PATCH tidak membaca session → `actorId` tak pernah dikirim; `leave-service.ts:613,840` default null). Bandingkan: modul Medical sudah benar (`medical/api/claims.ts:57-58` membaca `readSessionCookie`). Tidak ada integrasi dengan infrastruktur `approval-templates`/`temporary-approvers` platform — approve bisa dilakukan anggota tenant mana pun tanpa cek peran.
+- Lokasi: `src/rekankerja/leave/api/requests.ts:71-75` dan `api/encashment.ts:60-64` (PATCH tidak membaca session → `actorId` tak pernah dikirim; `leave-service.ts:613,840` default null). Bandingkan: modul Medical sudah benar (`medical/api/claims.ts:57-58` membaca `readSessionCookie`). Tidak ada integrasi dengan infrastruktur `approval-templates`/`temporary-approvers` platform — approve bisa dilakukan anggota tenant mana pun tanpa cek peran.
 - Dampak: jejak audit keputusan kosong (masalah kepatuhan/forensik HR); risiko penyalahgunaan akses.
 - Saran fix: ekstrak `actor?.uid` dari session cookie di kedua PATCH (pola medical) + validasi peran (OWNER/ADMIN HR) sebelum decide; jangka panjang: sambungkan ke approval template layer.
 

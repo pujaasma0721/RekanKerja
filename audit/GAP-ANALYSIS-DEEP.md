@@ -1,4 +1,4 @@
-# GAP-ANALISIS-DEEP — Audit Domain-First OneVity HRIS
+# GAP-ANALISIS-DEEP — Audit Domain-First RekanKerja HRIS
 
 > Tanggal: sesi audit ulang setelah umpan balik pengguna.
 > Status: **Jawaban atas kritik metodologi audit sebelumnya** (audit/BPA-*.md).
@@ -11,14 +11,14 @@ Audit lama (BPA-*.md) menjawab pertanyaan yang salah:
 
 | | Audit lama (BPA) | Audit ini (domain-first) |
 |---|---|---|
-| Pertanyaan | "Seberapa matang modul yang **sudah dibangun**?" | "Apa yang **wajib/akan diharapkan** dimiliki HRIS Indonesia — dan mana yang **belum ada** di OneVity?" |
+| Pertanyaan | "Seberapa matang modul yang **sudah dibangun**?" | "Apa yang **wajib/akan diharapkan** dimiliki HRIS Indonesia — dan mana yang **belum ada** di RekanKerja?" |
 | Metode | Baca kode modul → skor kematangan 1–10 | Checklist domain penuh (lifecycle karyawan × pilar HCM × kepatuhan UU/PP Indonesia × fitur power benchmark Mekari Talenta / CATAPA / Gadjian / SAP SF) → diff terhadap kode |
 | Hasil | Skor ±6.9/10 untuk fitur yang ada | Daftar **fitur yang tidak ada sama sekali** — tidak dapat di-skor |
 | Blind spot | Tidak bisa menemukan fitur yang **tidak ada** karena hanya menilai yang ada | — |
 
 Bukti bahwa metode lama gagal: 6 temuan pengguna (edit posisi, surat disiplin, surat PA, demografi lengkap, NPWP per kantor, offboarding) semuanya adalah **table stakes** yang terlihat dalam 5 menit pemakaian oleh praktisi HR — dan semuanya **tidak muncul** di audit lama karena audit lama tidak pernah "berjalan sebagai pengguna HR". Semua sudah diperbaiki (commit `5eb6ed8`), tapi pola kegagalan analisisnya harus diakui: **analisis hanya seputar apa yang sudah dibuat.**
 
-Audit ini membalik metodenya: mulai dari peta domain lengkap, baru cocokkan dengan kode. Setiap temuan diverifikasi dengan pencarian kode (grep) — "TIDAK ADA" berarti benar-benar nol kecocokan di `src/onevity` + `prisma/schema-tenant.prisma`.
+Audit ini membalik metodenya: mulai dari peta domain lengkap, baru cocokkan dengan kode. Setiap temuan diverifikasi dengan pencarian kode (grep) — "TIDAK ADA" berarti benar-benar nol kecocokan di `src/rekankerja` + `prisma/schema-tenant.prisma`.
 
 ---
 
@@ -72,7 +72,7 @@ Empat sumbu:
 | Gap | Bukti | Dampak | Prioritas |
 |---|---|---|---|
 | **Geofencing** (radius kantor ditegakkan saat clock) | `recordClockLog` menyimpan lat/lng tapi tidak ada `radius\|geofence` di API clock | Clock dari mana saja diterima; data lokasi jadi hiasan | **P0** |
-| **Sinkron mesin absen (sidik jari/face)** — import log mentah, dedupe | nol di `clocking` (G2 roadmap, **tidak pernah dikirim**) | Perusahaan bermesin absen tidak bisa pakai OneVity sebagai sumber kebenaran absensi | **P0** |
+| **Sinkron mesin absen (sidik jari/face)** — import log mentah, dedupe | nol di `clocking` (G2 roadmap, **tidak pernah dikirim**) | Perusahaan bermesin absen tidak bisa pakai RekanKerja sebagai sumber kebenaran absensi | **P0** |
 | **Papan kehadiran real-time** ("siapa di kantor sekarang") | overview = agregat harian, bukan live | Fitur "wow" pertama yang dilihat demo | P1 |
 | **Tukar shift self-service** | nol | Semua perubahan jadwal lewat admin | P1 |
 | **Payslip PDF berpassword** (default NIK/tgl lahir) | nol di `payslip-pdf.ts` | Kirim massal slip tanpa password = risiko kebocoran data sensitif via email | **P0** |
@@ -96,7 +96,7 @@ Empat sumbu:
 
 ## 3. Kesimpulan Prioritas
 
-**OneVity kuat di "administrasi inti + kepatuhan pajak", lemah di "pilar HCM dan lifecycle penuh".** Skor kematangan lama ±6.9 mengukur yang ada; yang TIDAK ada membuat aplikasi ini bukan pesaing penuh produk komersial:
+**RekanKerja kuat di "administrasi inti + kepatuhan pajak", lemah di "pilar HCM dan lifecycle penuh".** Skor kematangan lama ±6.9 mengukur yang ada; yang TIDAK ada membuat aplikasi ini bukan pesaing penuh produk komersial:
 
 - **P0 — table-stakes yang hilang (bangun sekarang, semua infra sudah ada):**
   1. 5 surat layanan karyawan (SK Kerja, SK Gaji, SK Pengalaman Kerja, Referensi, Perjanjian Kerja PKWT) — tinggal tambah kunci ke `letter-defaults` + penerbitan dari profil.

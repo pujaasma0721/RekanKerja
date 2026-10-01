@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   readUserMfa, signMfaToken, verifyPassword,
-} from "@/onevity/shared/lib/auth";
-import { finishLogin } from "@/onevity/shared/api/login-flow";
-import { resolveLoginLockout } from "@/onevity/shared/services/password-security";
-import { hitRateLimit, peekRateLimit } from "@/onevity/shared/lib/rate-limit";
+} from "@/rekankerja/shared/lib/auth";
+import { finishLogin } from "@/rekankerja/shared/api/login-flow";
+import { resolveLoginLockout } from "@/rekankerja/shared/services/password-security";
+import { hitRateLimit, peekRateLimit } from "@/rekankerja/shared/lib/rate-limit";
 
 // POST /api/auth/login { email, password } → session cookie (tid otomatis bila 1 workspace)
 // Task 33: lockout percobaan gagal (policy tenant pertama), reset hitungan saat

@@ -1,5 +1,7 @@
-// mini-services/postgres — Embedded PostgreSQL 17 untuk OneVity (multi-tenant schema-per-tenant)
+// mini-services/postgres — Embedded PostgreSQL 17 untuk RekanKerja (multi-tenant schema-per-tenant)
 // Idempotent: initdb (sekali) → start (jika mati) → pastikan database `onevity` ada.
+// (Nama db/user `onevity` = identifier infrastruktur internal — dipertahankan agar cluster
+// PG existing + .env + prosedur pemulihan sandbox tetap valid; bukan brand tampilan.)
 // Port: 5432 (khusus internal, tidak diekspos gateway).
 import { Client } from "pg";
 import { existsSync, writeFileSync, rmSync } from "node:fs";

@@ -4,11 +4,11 @@
 //   bun run scripts/t17-test-mfa.ts code-at <secretBase32> <epochMs> → kode utk waktu tertentu
 //   bun run scripts/t17-test-mfa.ts expired-token <uid>         → mfaToken HMAC valid tapi exp lampau
 // Dipakai harness E2E curl (kode dihitung murni RFC 6238 dari secret —
-// sama dgn src/onevity/shared/lib/totp.ts, tanpa otplib).
+// sama dgn src/rekankerja/shared/lib/totp.ts, tanpa otplib).
 import { createHmac } from "node:crypto";
 import {
   base32Decode, base32Encode, currentCode, generateSecret, hotp, otpauthUrl, verifyCode,
-} from "@/onevity/shared/lib/totp";
+} from "@/rekankerja/shared/lib/totp";
 
 const arg = process.argv[2];
 
@@ -52,7 +52,7 @@ if (arg === "expired-token") {
   // Replika minimal signMfaToken (auth.ts) — secret dev fallback bila SESSION_SECRET kosong.
   const uid = process.argv[3] ?? "";
   if (!uid) { console.error("pakai: expired-token <uid>"); process.exit(2); }
-  const secret = process.env.SESSION_SECRET || "onevity-dev-secret";
+  const secret = process.env.SESSION_SECRET || "rekankerja-dev-secret";
   const body = Buffer.from(JSON.stringify({ typ: "mfa", uid, exp: Date.now() - 60_000 })).toString("base64url");
   const mac = createHmac("sha256", secret).update(body).digest("base64url");
   console.log(`${body}.${mac}`);
@@ -61,7 +61,7 @@ if (arg === "expired-token") {
 if (arg === "otpauth") {
   const secret = process.argv[3] ?? "";
   const email = process.argv[4] ?? "user@example.com";
-  console.log(otpauthUrl(secret, email, "OneVity"));
+  console.log(otpauthUrl(secret, email, "RekanKerja"));
 }
 
 if (!arg) {

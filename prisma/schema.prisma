@@ -1,4 +1,4 @@
-// OneVity — PLATFORM schema (PostgreSQL, schema "public")
+// RekanKerja — PLATFORM schema (PostgreSQL, schema "public")
 // Registry SaaS multi-tenant: data tenant (domain HRIS) TIDAK di sini —
 // tiap tenant punya PostgreSQL schema sendiri (tenant_<slug>, didefinisikan
 // di prisma/schema-tenant.prisma). File ini hanya data platform:
@@ -46,7 +46,7 @@ model User {
   // naikkan versi (logout / ganti sandi) → semua token lama otomatis invalid.
   sessionVersion Int     @default(0)
   // MFA TOTP (T17-MFA): secret base32 terenkripsi at-rest (AES-256-GCM, kunci
-  // diturunkan dari SESSION_SECRET — lihat src/onevity/shared/lib/auth.ts) +
+  // diturunkan dari SESSION_SECRET — lihat src/rekankerja/shared/lib/auth.ts) +
   // status aktif. Login 2-langkah: bila totpEnabled, password benar → token
   // MFA short-lived 5 menit; cookie hanya di-set setelah kode 6 digit benar.
   totpSecret    String?

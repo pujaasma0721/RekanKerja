@@ -1,5 +1,5 @@
 "use client";
-// OneVity — Halaman checklist publik (Task 65) ==========================
+// RekanKerja — Halaman checklist publik (Task 65) ==========================
 // Dibuka dari link di email checklist per bagian: /checklist/<token>
 // (token HMAC khusus satu proses + satu bagian, diverifikasi server per
 // request). Penerima email melihat daftar tugas bagiannya & mencentang.

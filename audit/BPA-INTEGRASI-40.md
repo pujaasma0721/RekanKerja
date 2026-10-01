@@ -1,4 +1,4 @@
-# AUDIT INTEGRASI LINTAS-MODUL — OneVity HRIS (Task 40)
+# AUDIT INTEGRASI LINTAS-MODUL — RekanKerja HRIS (Task 40)
 
 - Task ID: **40** (+ subtask paralel 40-a s/d 40-f) · Tanggal: **9 September 2026** · Mode: **READ-ONLY** (tidak ada perubahan kode; verifikasi runtime via API browser/curl + query DB read-only).
 - Basis kode: commit `befb30d` (task 39) — sandbox tersinkron penuh, DB demo 3 tenant.
@@ -258,7 +258,7 @@
 ## 11. Lampiran: artefak & cara replikasi verifikasi
 
 ```bash
-# V-1 (leave ↔ jadwal): login → POST /api/onevity/leave/requests {preview:true, ...}
+# V-1 (leave ↔ jadwal): login → POST /api/rekankerja/leave/requests {preview:true, ...}
 #   rentang 2026-12-24..28 → workingDays:1 | 2026-09-14..18 → workingDays:5
 # V-4 (settle medis): klaim Approved → PATCH {action:"settle"}
 #   → 400 {"error":"db.$transaction is not a function"}

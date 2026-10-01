@@ -1,4 +1,4 @@
-// Registry SEMUA kolom terenkripsi OneVity (satu sumber kebenaran).
+// Registry SEMUA kolom terenkripsi RekanKerja (satu sumber kebenaran).
 // Dipakai engine re-enkripsi vault (scripts/migrate-rekey-vault.ts) untuk
 // "ganti kata sandi = decrypt semua data lalu encrypt ulang dengan kunci baru".
 //

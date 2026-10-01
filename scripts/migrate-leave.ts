@@ -5,9 +5,9 @@
 // Idempoten: saldo 2026 sudah ada → skip.
 // Jalankan: bun run scripts/migrate-leave.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { seedLeaveDemoData } from "@/onevity/leave/services/leave-seed";
-import { regenerateRange } from "@/onevity/time-attendance/services/attendance-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { seedLeaveDemoData } from "@/rekankerja/leave/services/leave-seed";
+import { regenerateRange } from "@/rekankerja/time-attendance/services/attendance-service";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

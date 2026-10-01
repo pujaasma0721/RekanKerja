@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models.dart';
 
-/// Seed data demo — realistis mengikuti domain OneVity (tenant MII).
+/// Seed data demo — realistis mengikuti domain RekanKerja (tenant MII).
 /// Semua tanggal relatif terhadap hari ini agar selalu terasa "hidup".
 
 final demoEmployee = Employee(
@@ -226,7 +226,7 @@ List<LetterRequest> seedLetters(DateTime now) => [
 
 List<Announcement> seedAnnouncements(DateTime now) => [
       Announcement(
-        'AN-101', 'Family Day OneVity — Sabtu depan seru banget!',
+        'AN-101', 'Family Day RekanKerja — Sabtu depan seru banget!',
         'Bawa keluargamu ke Family Day tahunan di Kantor Pusat! Ada lomba keluarga, food truck, foto corner, dan door prize utama: 1 unit sepeda listrik. Daftar via menu Pengajuan → Event paling lambat Kamis.',
         'Event', 'People & Culture', now.subtract(const Duration(hours: 5)), true,
       ),
@@ -237,8 +237,8 @@ List<Announcement> seedAnnouncements(DateTime now) => [
       ),
       Announcement(
         'AN-099', 'Kelas belajar: "AI untuk Produktivitas HR"',
-        'Academy OneVity membuka kelas baru! Belajar automation, prompt engineering, dan reporting dengan AI. Kuota 30 orang, prioritas early bird. Link pendaftaran di bio.',
-        'Pengembangan', 'OneVity Academy', now.subtract(const Duration(days: 5)), false,
+        'Academy RekanKerja membuka kelas baru! Belajar automation, prompt engineering, dan reporting dengan AI. Kuota 30 orang, prioritas early bird. Link pendaftaran di bio.',
+        'Pengembangan', 'RekanKerja Academy', now.subtract(const Duration(days: 5)), false,
       ),
       Announcement(
         'AN-098', 'Pembaruan kebijakan kerja fleksibel (hybrid)',

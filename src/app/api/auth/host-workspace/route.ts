@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveTenantByHost } from "@/onevity/shared/lib/tenant-host-server";
+import { resolveTenantByHost } from "@/rekankerja/shared/lib/tenant-host-server";
 
 // GET /api/auth/host-workspace — info workspace untuk SUBDOMAIN saat ini (Task 78).
 // Respons: { isTenantHost, exists, slug } — dipakai layar auth:

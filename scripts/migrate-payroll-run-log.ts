@@ -7,7 +7,7 @@
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI.
 import "./lib/env";
 import { Client } from "pg";
-import { tenantSchemas } from "../src/onevity/shared/lib/parity-runner";
+import { tenantSchemas } from "../src/rekankerja/shared/lib/parity-runner";
 
 const TENANT_URL = () =>
   process.env.TENANT_DB_BASE_URL ?? "postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity";

@@ -2,8 +2,8 @@
 // Usage: bun run scripts/t27g-verify.ts [phase-label]
 // Prints: resolved dayType per employee via the real engine (resolveDayType),
 // 1-day override assignments, and AttendanceDaily recap rows for the date.
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { resolveDayType } from "@/onevity/time-attendance/services/attendance-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { resolveDayType } from "@/rekankerja/time-attendance/services/attendance-service";
 
 const label = process.argv[2] ?? "phase";
 const db = getTenantClient("tenant_pt_mitra_industri_internasional");

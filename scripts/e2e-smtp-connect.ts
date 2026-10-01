@@ -1,5 +1,5 @@
 /**
- * Task 64m — E2E PROD: hubungkan OneVity SAYONE ke SMTP mail.sayone.my.id
+ * Task 64m — E2E PROD: hubungkan RekanKerja SAYONE ke SMTP mail.sayone.my.id
  * Alur: login owner → PUT email-config (SMTP lokal) → POST tes kirim → GET verifikasi.
  * Idempoten: aman dijalankan ulang.
  * Usage: npx tsx scripts/e2e-smtp-connect.ts <base-url>
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   if (login.status !== 200) { console.error(login.body); process.exit(1); }
 
   // 2. Simpan SMTP config SAYONE → mail.sayone.my.id
-  const put = await api("/api/onevity/email-config", {
+  const put = await api("/api/rekankerja/email-config", {
     method: "PUT",
     body: JSON.stringify({
       active: true,
@@ -49,20 +49,20 @@ async function main(): Promise<void> {
       smtpPort: 587,
       smtpSecure: false, // STARTTLS (bukan implicit TLS 465)
       smtpUser: "notifikasi",
-      smtpPassword: "OnevityMail2026!",
+      smtpPassword: "RekanKerjaMail2026!",
       fromEmail: "notifikasi@sayone.my.id",
-      fromName: "OneVity Notifikasi (SAYONE)",
+      fromName: "RekanKerja Notifikasi (SAYONE)",
     }),
   });
   console.log(`[2] PUT email-config: ${put.status}`, put.status !== 200 ? put.body : "");
   if (put.status !== 200) process.exit(1);
 
   // 3. Tes kirim dari aplikasi (jalur notifikasi asli — nodemailer)
-  const test = await api("/api/onevity/email-config", { method: "POST", body: JSON.stringify({ to: TEST_TO }) });
+  const test = await api("/api/rekankerja/email-config", { method: "POST", body: JSON.stringify({ to: TEST_TO }) });
   console.log(`[3] POST test-kirim → ${TEST_TO}: ${test.status}`, JSON.stringify(test.body));
 
   // 4. Verifikasi state tersimpan + status tes terakhir
-  const get = await api("/api/onevity/email-config");
+  const get = await api("/api/rekankerja/email-config");
   const cfg = get.body?.config ?? {};
   console.log(`[4] GET config: host=${cfg.smtpHost}:${cfg.smtpPort} from=${cfg.fromEmail} lastTestOk=${cfg.lastTestOk} msg=${cfg.lastTestMessage}`);
 }

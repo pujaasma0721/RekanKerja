@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "OneVity HRIS",
-  "short_name": "OneVity",
-  "description": "Platform HRIS multi-perusahaan OneVity — data karyawan, penggajian, presensi, cuti, dan self-service karyawan dalam satu aplikasi.",
+  "name": "RekanKerja HRIS",
+  "short_name": "RekanKerja",
+  "description": "Platform HRIS multi-perusahaan RekanKerja — data karyawan, penggajian, presensi, cuti, dan self-service karyawan dalam satu aplikasi.",
   "lang": "id",
   "dir": "ltr",
   "start_url": "/",

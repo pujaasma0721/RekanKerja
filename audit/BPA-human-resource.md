@@ -1,4 +1,4 @@
-# AUDIT BISNIS PROSES — MODUL HUMAN RESOURCE (OneVity HRIS)
+# AUDIT BISNIS PROSES — MODUL HUMAN RESOURCE (RekanKerja HRIS)
 
 **Task ID:** 24-a · **Tanggal:** 2026-02 · **Metode:** statis (16 api + 1 service + komponen HR + prisma/schema-tenant.prisma + PRD-HR-BASE.md) + probing runtime GET-only (tenant MII).
 **Scope:** proses bisnis (bukan gaya kode). Temuan struktur F-01..F-12 (Task 23, commit ec82d9f) sudah diperbaiki dan TIDAK dilaporkan ulang.
@@ -7,7 +7,7 @@
 
 ## 1. RINGKASAN
 
-Modul HR OneVity merekonstruksi 4 proses inti oranHR: (1) onboarding 4-langkah, (2) master organisasi/posisi, (3) Personnel Action multi-layer approval, (4) catatan disiplin. Fondasi data **baik**: seluruh data pekerjaan hidup di `EmployeeAssignment` berperiode (`validTo null` = aktif), perubahan tercatat sebagai riwayat dengan `changeReason` + `sourceDocNo` — pola ini sehat.
+Modul HR RekanKerja merekonstruksi 4 proses inti oranHR: (1) onboarding 4-langkah, (2) master organisasi/posisi, (3) Personnel Action multi-layer approval, (4) catatan disiplin. Fondasi data **baik**: seluruh data pekerjaan hidup di `EmployeeAssignment` berperiode (`validTo null` = aktif), perubahan tercatat sebagai riwayat dengan `changeReason` + `sourceDocNo` — pola ini sehat.
 
 Namun audit proses menemukan **3 temuan KRITIS**:
 
@@ -27,10 +27,10 @@ Dari 12 tipe PA, efek `process` nyata: **3 tipe penuh** (SalaryAdjustment, Chang
 
 | # | Langkah | Aktor | Sistem / file | State hasil |
 |---|---------|-------|---------------|-------------|
-| 1 | Onboarding wizard 4 langkah (Personal → Pekerjaan → Upah&Bank → Review) | HR Staff | `components/employee/employee-wizard.tsx` → POST `/api/onevity/employees` | `Employee` (status **Active**, `employeeNo` auto `MIIxxxxx`) + `EmployeeAssignment` (`changeReason:"Initial"`, `validFrom=joinDate`, `validTo=null`) + ActivityLog. Draft di-localStorage. **3 create tanpa transaksi.** |
+| 1 | Onboarding wizard 4 langkah (Personal → Pekerjaan → Upah&Bank → Review) | HR Staff | `components/employee/employee-wizard.tsx` → POST `/api/rekankerja/employees` | `Employee` (status **Active**, `employeeNo` auto `MIIxxxxx`) + `EmployeeAssignment` (`changeReason:"Initial"`, `validFrom=joinDate`, `validTo=null`) + ActivityLog. Draft di-localStorage. **3 create tanpa transaksi.** |
 | 2 | Status karyawan = `Employee.status` (Active/Resigned/Terminated/Blacklisted) — **bukan** dihitung dari assignment. Tampilan aktif = `status==="Active"`. | — | `api/employees.ts` (filter/statusAgg) | |
 | 3 | Perubahan pekerjaan **jalur A (resmi)**: Personnel Action → approve → process → `applyAssignmentChange` (tutup lama `validTo=eff`, buka baru `validFrom=eff`) / terminasi (set status+endDate, close assignment). | HR + Approver | `api/personnel-actions*.ts`, `services/assignment.ts` | lihat §3 |
-| 4 | Perubahan pekerjaan **jalur B (bypass)**: dialog "Edit Info Pekerjaan" PATCH `/api/onevity/employee-detail` → `applyAssignmentChange` dengan `reason:"ManualEdit"`, `effectiveDate = new Date()` (backdate tidak mungkin). Field `status` yang dikirim dialog **diabaikan server** (tidak ada di `PERSONAL_FIELDS`). | HR | `components/employee/detail-dialogs.tsx:252-263`, `api/employee-detail.ts:128-158` | riwayat baru ManualEdit |
+| 4 | Perubahan pekerjaan **jalur B (bypass)**: dialog "Edit Info Pekerjaan" PATCH `/api/rekankerja/employee-detail` → `applyAssignmentChange` dengan `reason:"ManualEdit"`, `effectiveDate = new Date()` (backdate tidak mungkin). Field `status` yang dikirim dialog **diabaikan server** (tidak ada di `PERSONAL_FIELDS`). | HR | `components/employee/detail-dialogs.tsx:252-263`, `api/employee-detail.ts:128-158` | riwayat baru ManualEdit |
 | 5 | Terminasi hanya via PA Resignation/Termination/Retirement (process). Tidak ada endpoint DELETE employee. | HR + Approver | `api/personnel-actions-detail.ts:174-184` | `status` non-aktif, `endDate=effectiveDate` (**`lastDay` diabaikan**), assignment ditutup |
 | 6 | Probation/kontrak: hanya `employmentStatus` pada assignment; **tidak ada field tanggal berakhir** → expiry tidak terlacak. | — | schema | |
 
@@ -98,7 +98,7 @@ GET menggabungkan personal + assignment aktif (flatten) + riwayat lengkap + fami
 
 ## 4. ATURAN BISNIS vs IMPLEMENTASI
 
-| Aturan (PRD / praktik HRIS) | Implementasi OneVity | Status |
+| Aturan (PRD / praktik HRIS) | Implementasi RekanKerja | Status |
 |------------------------------|----------------------|--------|
 | Perubahan struktural (posisi/unit/grade/gaji) harus lewat PA (PRD §6.3) | EditWorkDialog mengubah semuanya langsung via PATCH (reason ManualEdit) | ✗ MAJOR (M-01) |
 | Approve PA = pemisahan tugas maker/checker | approver semua layer = pembuat; aktor hard-coded | ✗ KRITIS (K-03) |
@@ -122,29 +122,29 @@ GET menggabungkan personal + assignment aktif (flatten) + riwayat lengkap + fami
 ### KRITIS
 
 **K-01 · Efek "Process" PA tidak menerapkan perubahan posisi/grade/unit (mismatch kunci detail code vs id)**
-- Lokasi: `src/onevity/human-resource/components/actions/pa-create-dialog.tsx:40-85` (TYPE_FIELDS menyimpan `toPosition`/`toUnit`/`newGrade` berisi **KODE**) vs `src/onevity/human-resource/api/personnel-actions-detail.ts:141-152` (membaca `detail.positionId`/`orgUnitId`/`gradeId` = **ID**); seed juga memakai kode (`prisma/seed.ts:1226,1232,1246`).
+- Lokasi: `src/rekankerja/human-resource/components/actions/pa-create-dialog.tsx:40-85` (TYPE_FIELDS menyimpan `toPosition`/`toUnit`/`newGrade` berisi **KODE**) vs `src/rekankerja/human-resource/api/personnel-actions-detail.ts:141-152` (membaca `detail.positionId`/`orgUnitId`/`gradeId` = **ID**); seed juga memakai kode (`prisma/seed.ts:1226,1232,1246`).
 - Dampak: Promosi/demosi/rotasi yang sudah **Approved & Processed** tidak memindahkan karyawan — hanya gaji yang berubah (bila diisi); Mutation & Demotion-tanpa-gaji no-op total tanpa jejak. Bukti live: PA-2026-0004 Transfer Processed → Yusuf Rahayu tetap MII-HRD-RC/P-RCT, tanpa riwayat `sourceDocNo=PA-2026-0004`; PA-2026-0009 Demotion Processed {fromPosition,toPosition} → nol efek.
 - Saran fix minimal: di `pa-create-dialog` kirim `{positionId, orgUnitId, gradeId}` (ID, dari endpoint positions/org-units/grades — sekaligus memperbaiki opsi yang kini hanya posisi yang sudah dipegang orang); ATAU di handler process, resolve `toPosition/toUnit/newGrade` (kode → id) sebelum `applyAssignmentChange`. Tambahkan assertion: bila type Promosi/Transfer dan tidak ada perubahan posisi/unit yang diterapkan → tolak dengan error (agar no-op tidak senyap).
 
 **K-02 · Semua efek PA/terminasi non-transaksional (partial write)**
-- Lokasi: `src/onevity/human-resource/services/assignment.ts:100-111` (update validTo lalu create terpisah); `src/onevity/human-resource/api/personnel-actions-detail.ts:135-188` (side effects + update status PA terpisah); 0 penggunaan `$transaction` di seluruh `src/onevity/human-resource/`.
+- Lokasi: `src/rekankerja/human-resource/services/assignment.ts:100-111` (update validTo lalu create terpisah); `src/rekankerja/human-resource/api/personnel-actions-detail.ts:135-188` (side effects + update status PA terpisah); 0 penggunaan `$transaction` di seluruh `src/rekankerja/human-resource/`.
 - Dampak: kegagalan di tengah (koneksi, FK, constraint) → assignment lama tertutup tanpa pengganti / employee non-aktif tapi assignment masih terbuka; PA tetap `Approved` → setelah diperbaiki bisa diproses ulang → efek ganda; proses retry bisa terjalan `changed:false` atau throw "Karyawan tidak memiliki penempatan aktif" (stuck permanen).
 - Saran fix minimal: bungkus tiap side-effect + `personnelAction.update(status:"Processed")` dalam satu `db.$transaction(async (tx) => …)`; pindahkan update status PA ke **dalam** transaksi sebagai komit terakhir.
 
 **K-03 · Maker = checker & identitas aktor hard-coded "MII000001"**
-- Lokasi: `src/onevity/human-resource/api/personnel-actions.ts:102-117` (semua layer `approverId: me?.id` = pembuat); `personnel-actions-detail.ts:71,100-106` (guard memakai `db.appUser.findFirst({username:"MII000001"})` bukan session user; logika cek terbalik: memeriksa role **penunjuk** approver, bukan role aktor); `personnel-actions.ts:25-29,63-71` (inbox `mine=1` hard-coded).
+- Lokasi: `src/rekankerja/human-resource/api/personnel-actions.ts:102-117` (semua layer `approverId: me?.id` = pembuat); `personnel-actions-detail.ts:71,100-106` (guard memakai `db.appUser.findFirst({username:"MII000001"})` bukan session user; logika cek terbalik: memeriksa role **penunjuk** approver, bukan role aktor); `personnel-actions.ts:25-29,63-71` (inbox `mine=1` hard-coded).
 - Dampak: pemegang dokumen dapat menyetujui sendiri seluruh 3 layer (3 klik) — approval berlapis hanya kosmetik; identitas session (uid di cookie) diabaikan → siapa pun yang login di MII bertindak sebagai Tri Handayani (audit trail salah); di tenant tanpa user "MII000001" (terverifikasi Cahaya: 0 AppUser) `me=null` → guard approve **di-skip** dan inbox selalu kosong → PA tidak bisa diputuskan secara sah.
 - Saran fix minimal: resolve aktor dari session (`requireTenant` → uid → mapping AppUser, atau simpan appUserId di session); saat create PA, isi `approverId` per-layer dari resolusi role/struktur (atau biarkan null + guard keputusan berbasis role aktor); tolak approve bila `approverId === createdBy` (kecuali Admin dengan alasan tercatat).
 
 ### MAJOR
 
 **M-01 · Dialog "Edit Info Pekerjaan" bypass PA + field status silent no-op**
-- Lokasi: `src/onevity/human-resource/components/employee/detail-dialogs.tsx:252-263` (mengirim `status`, `joinDate`, `endDate`, unit/posisi/grade/gaji/atasan) vs `api/employee-detail.ts:118-158` (`PERSONAL_FIELDS` tidak memuat `status` → **diabaikan**; JOB_FIELDS + baseSalary → `applyAssignmentChange` reason `ManualEdit`, eff = hari ini).
+- Lokasi: `src/rekankerja/human-resource/components/employee/detail-dialogs.tsx:252-263` (mengirim `status`, `joinDate`, `endDate`, unit/posisi/grade/gaji/atasan) vs `api/employee-detail.ts:118-158` (`PERSONAL_FIELDS` tidak memuat `status` → **diabaikan**; JOB_FIELDS + baseSalary → `applyAssignmentChange` reason `ManualEdit`, eff = hari ini).
 - Dampak: (a) perubahan struktural & gaji tanpa approval — melanggar kontrol PRD §6.3; (b) memilih status "Resigned/Terminated" di dialog tidak berlaku tapi `endDate` tersimpan → karyawan `Active` dengan tanggal keluar (inkonsistensi lifecycle); (c) `joinDate` bisa diubah bebas → tenure & riwayat assignment tidak lagi sinkron.
 - Saran fix: hapus field `status` (dan `joinDate`) dari dialog; arahkan perubahan struktural/gaji ke flow PA; atau tandai PATCH pekerjaan sebagai "emergency edit" yang wajib mencatat alasan.
 
 **M-02 · Terminasi: `lastDay` diabaikan & nonaktif sebelum tanggal efektif**
-- Lokasi: `src/onevity/human-resource/api/personnel-actions-detail.ts:174-184` (`endDate: action.effectiveDate` — `detail.lastDay` tidak pernah dipakai; `employee.status` di-set saat proses, bukan saat eff date).
+- Lokasi: `src/rekankerja/human-resource/api/personnel-actions-detail.ts:174-184` (`endDate: action.effectiveDate` — `detail.lastDay` tidak pernah dipakai; `employee.status` di-set saat proses, bukan saat eff date).
 - Dampak: contoh live PA-2026-0005: `lastDay 2026-06-30` vs `effectiveDate 2026-11-04` → bila diproses, endDate salah 4+ bulan; terminasi ber-eff-date masa depan langsung mengeluarkan karyawan dari direktori aktif/payroll/TA **hari ini**.
 - Saran fix: `endDate = detail.lastDay ?? effectiveDate`; status non-aktif diterapkan terjadwal (job harian sederhana yang menutup assignment & set status saat eff date tercapai), atau minimal warning UI saat eff date > hari ini.
 

@@ -28,17 +28,17 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "OneVity — Human Resource Base",
+  title: "RekanKerja — Human Resource Base",
   description:
-    "OneVity HR Suite: modern Human Resource Base platform — organizational structure, positions, employee master data, personnel action workflow, and approval engine.",
-  keywords: ["OneVity", "HRIS", "Human Resource Base", "Personnel Action", "HR Indonesia"],
+    "RekanKerja HR Suite: modern Human Resource Base platform — organizational structure, positions, employee master data, personnel action workflow, and approval engine.",
+  keywords: ["RekanKerja", "HRIS", "Human Resource Base", "Personnel Action", "HR Indonesia"],
   // PWA (Task 27-d) — manifest + dukungan iOS standalone + ikon brand.
-  applicationName: "OneVity",
+  applicationName: "RekanKerja",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "OneVity",
+    title: "RekanKerja",
   },
   icons: {
     icon: [

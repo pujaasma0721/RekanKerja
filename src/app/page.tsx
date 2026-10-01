@@ -2,37 +2,37 @@
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNav, useUiMode } from "@/onevity/shared/lib/store";
-import { useApi } from "@/onevity/shared/lib/api";
-import { useSession } from "@/onevity/shared/lib/session-store";
-import { AuthGate } from "@/onevity/shared/components/auth/auth-gate";
-import { AppShell } from "@/onevity/shared/components/shell/app-shell";
-import { EssShell } from "@/onevity/ess/components/ess-shell";
-import { I18nProvider, useI18n } from "@/onevity/shared/lib/i18n";
+import { useNav, useUiMode } from "@/rekankerja/shared/lib/store";
+import { useApi } from "@/rekankerja/shared/lib/api";
+import { useSession } from "@/rekankerja/shared/lib/session-store";
+import { AuthGate } from "@/rekankerja/shared/components/auth/auth-gate";
+import { AppShell } from "@/rekankerja/shared/components/shell/app-shell";
+import { EssShell } from "@/rekankerja/ess/components/ess-shell";
+import { I18nProvider, useI18n } from "@/rekankerja/shared/lib/i18n";
 // Design Lab — mockup desain menu (terisolasi, akses ?mockup=menu; bukan produksi)
-import { MenuDesignLab } from "@/onevity/shared/components/design/menu-design-lab";
+import { MenuDesignLab } from "@/rekankerja/shared/components/design/menu-design-lab";
 // Design Lab — mockup desain halaman masuk (terisolasi, akses ?mockup=auth)
-import { AuthDesignLab } from "@/onevity/shared/components/design/auth-design-lab";
-import { DashboardModule } from "@/onevity/shared/components/dashboard/dashboard-module";
+import { AuthDesignLab } from "@/rekankerja/shared/components/design/auth-design-lab";
+import { DashboardModule } from "@/rekankerja/shared/components/dashboard/dashboard-module";
 // PWA (Task 27-d) — registrasi service worker + banner instal aplikasi
-import { PwaRegister } from "@/onevity/shared/components/pwa/pwa-register";
-import { OrgModule } from "@/onevity/human-resource/components/org/org-module";
-import { PositionModule } from "@/onevity/human-resource/components/position/position-module";
-import { EmployeeModule } from "@/onevity/human-resource/components/employee/employee-module";
-import { HrReportsView } from "@/onevity/human-resource/components/hr-reports-view";
+import { PwaRegister } from "@/rekankerja/shared/components/pwa/pwa-register";
+import { OrgModule } from "@/rekankerja/human-resource/components/org/org-module";
+import { PositionModule } from "@/rekankerja/human-resource/components/position/position-module";
+import { EmployeeModule } from "@/rekankerja/human-resource/components/employee/employee-module";
+import { HrReportsView } from "@/rekankerja/human-resource/components/hr-reports-view";
 // wave 28 stub — report builder kustom (Task 28-b)
-import { CustomReportsView } from "@/onevity/human-resource/components/custom-reports/custom-reports-view";
-import { ActionsModule } from "@/onevity/human-resource/components/actions/actions-module";
-import { PayrollModule } from "@/onevity/payroll/components/payroll-module";
-import { AttendanceModule } from "@/onevity/time-attendance/components/attendance-module";
-import { LeaveModule } from "@/onevity/leave/components/leave-module";
-import { TravelModule } from "@/onevity/travel/components/travel-module";
-import { MedicalModule } from "@/onevity/medical/components/medical-module";
+import { CustomReportsView } from "@/rekankerja/human-resource/components/custom-reports/custom-reports-view";
+import { ActionsModule } from "@/rekankerja/human-resource/components/actions/actions-module";
+import { PayrollModule } from "@/rekankerja/payroll/components/payroll-module";
+import { AttendanceModule } from "@/rekankerja/time-attendance/components/attendance-module";
+import { LeaveModule } from "@/rekankerja/leave/components/leave-module";
+import { TravelModule } from "@/rekankerja/travel/components/travel-module";
+import { MedicalModule } from "@/rekankerja/medical/components/medical-module";
 // Task 52-f — modul whistleblowing (TPKS UU 12/2022): kanal laporan anonim
 // + penanganan (triase) oleh tim berwenang.
-import { WhistleblowModule } from "@/onevity/whistleblow/components/whistleblow-module";
-import { SettingsModule } from "@/onevity/shared/components/settings/settings-module";
-import { isPublicMenuKey } from "@/onevity/shared/lib/public-menus";
+import { WhistleblowModule } from "@/rekankerja/whistleblow/components/whistleblow-module";
+import { SettingsModule } from "@/rekankerja/shared/components/settings/settings-module";
+import { isPublicMenuKey } from "@/rekankerja/shared/lib/public-menus";
 import { Loader2, Waypoints } from "lucide-react";
 
 export default function Page() {
@@ -79,7 +79,7 @@ function PageInner() {
   // Hak menu admin pengguna sesi (dipakai untuk auto-deteksi mode default).
   // Hanya di-fetch saat session ready (menghindari 401 sia-sia saat anonim).
   const meMenu = useApi<{ all: boolean; menus: string[]; isSuperAdmin: boolean }>(
-    session.status === "ready" ? "/api/onevity/user-menu-access?action=me" : null,
+    session.status === "ready" ? "/api/rekankerja/user-menu-access?action=me" : null,
     [session.status],
   );
 

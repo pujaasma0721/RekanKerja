@@ -1,8 +1,8 @@
-# BPA — Modul TimeAttendance (Presensi) · OneVity HRIS
+# BPA — Modul TimeAttendance (Presensi) · RekanKerja HRIS
 
 > Audit bisnis proses READ-ONLY · Task ID **24-c** · Auditor: sub-agent BPA
-> Lingkup: `src/onevity/time-attendance/**` (10 api + attendance-service.ts + 10 komponen),
-> `prisma/schema-tenant.prisma` (9 model TA), route thin `src/app/api/onevity/attendance/**`,
+> Lingkup: `src/rekankerja/time-attendance/**` (10 api + attendance-service.ts + 10 komponen),
+> `prisma/schema-tenant.prisma` (9 model TA), route thin `src/app/api/rekankerja/attendance/**`,
 > integrasi Leave (`leave-service.ts`) & Payroll (`payroll-service.ts`), referensi bisnis
 > `ANALISA-ATTENDANCE.md` (28 halaman oranHR). Temuan F-01..F-12 AUDIT-MODULES.md
 > (sudah diperbaiki) TIDAK dilaporkan ulang.
@@ -16,7 +16,7 @@
 
 ## 1. RINGKASAN EKSEKUTIF
 
-Modul TimeAttendance OneVity mengimplementasikan alur inti oranHR secara **berfungsi dan
+Modul TimeAttendance RekanKerja mengimplementasikan alur inti oranHR secara **berfungsi dan
 terverifikasi live**: master (8 tipe hari termasuk shift malam lintas hari, jadwal cycle 5/7
 hari + anchor Senin) → assignment jadwal (auto-close assignment lama) → clock log (IN pertama /
 OUT terakhir) → kalkulasi AttendanceDaily (hour buckets: telat/pulang cepat/kerja/absen) →

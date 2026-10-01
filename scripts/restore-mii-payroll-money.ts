@@ -27,9 +27,9 @@
 // diproses bila status ≠ Paid ATAU totalNet-nya 0; rerun setelah sukses =
 // no-op penuh. Didaftarkan sebagai parity step (self-heal, konvensi K-6).
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
-import { getTenantClient } from "../src/onevity/shared/lib/tenant-db";
-import { primeTenantCrypto, tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
-import { calculateAndSaveRun, confirmRun } from "../src/onevity/payroll/services/payroll-service";
+import { getTenantClient } from "../src/rekankerja/shared/lib/tenant-db";
+import { primeTenantCrypto, tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
+import { calculateAndSaveRun, confirmRun } from "../src/rekankerja/payroll/services/payroll-service";
 
 const MII = "tenant_pt_mitra_industri_internasional";
 

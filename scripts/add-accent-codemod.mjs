@@ -39,13 +39,13 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = walk("src/onevity");
+const files = walk("src/rekankerja");
 let touched = 0, replaced = 0;
 for (const f of files) {
   const families = [...GLOBAL_FAMILIES];
   const norm = f.replace(/\\/g, "/");
   for (const [dir, extra] of Object.entries(DIR_EXTRA)) {
-    if (norm.includes(`/onevity/${dir}/`)) families.push(...extra);
+    if (norm.includes(`/rekankerja/${dir}/`)) families.push(...extra);
   }
   const RE = new RegExp(`\\b(${PREFIXES})-(${families.join("|")})-(${SHADES})\\b`, "g");
   const src = readFileSync(f, "utf8");

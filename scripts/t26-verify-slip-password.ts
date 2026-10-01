@@ -7,7 +7,7 @@
 //   6. letter-service masih berjalan (import @cantoo/pdf-lib drop-in)
 // Jalankan: bun run scripts/t26-verify-slip-password.ts
 import { PDFDocument } from "@cantoo/pdf-lib";
-import { buildPayslipPdf, type PayslipSlip } from "@/onevity/payroll/services/payslip-pdf";
+import { buildPayslipPdf, type PayslipSlip } from "@/rekankerja/payroll/services/payslip-pdf";
 
 const mkSlip = (): PayslipSlip => ({
   lineId: "test", runId: "test", runNo: "PR-2026-09-SAL-01", runStatus: "Confirmed", paidAt: null,

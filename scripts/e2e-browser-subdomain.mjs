@@ -13,7 +13,7 @@ const EMAIL = process.argv[3] ?? "";
 const PASSWORD = process.argv[4] ?? "";
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PORT = 9222;
-const PROFILE = "C:/Users/pujaasmara/AppData/Local/Temp/onevity-e2e-profile";
+const PROFILE = "C:/Users/pujaasmara/AppData/Local/Temp/rekankerja-e2e-profile";
 const SHOT_DIR = "screenshots";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,7 +71,7 @@ async function main() {
   const chrome = spawn(CHROME, [
     "--headless=new", `--remote-debugging-port=${PORT}`, `--user-data-dir=${PROFILE}`,
     "--no-first-run", "--no-default-browser-check", "--disable-gpu", "--window-size=1440,900",
-    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) OneVityE2E/1.0",
+    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) RekanKerjaE2E/1.0",
     "about:blank",
   ], { stdio: "ignore" });
   chrome.unref();
@@ -150,8 +150,8 @@ async function main() {
     check("shell aplikasi tampil (layar login hilang)", shellInfo.loginGone);
 
     const shot1 = await cdp.send("Page.captureScreenshot", { format: "png" });
-    writeFileSync(resolve(SHOT_DIR, "onevity-sayone-dashboard.png"), Buffer.from(shot1.data, "base64"));
-    console.log("      screenshot → screenshots/onevity-sayone-dashboard.png");
+    writeFileSync(resolve(SHOT_DIR, "rekankerja-sayone-dashboard.png"), Buffer.from(shot1.data, "base64"));
+    console.log("      screenshot → screenshots/rekankerja-sayone-dashboard.png");
 
     // tenant konteks benar (dari UI session)
     const meInfo = await evalJs(cdp, `fetch("/api/auth/me").then(r => r.json())`);
@@ -160,29 +160,29 @@ async function main() {
     // ---------- 3. sweep API semua modul (cookie sesi asli browser) ----------
     const sweep = await evalJs(cdp, `(async () => {
       const eps = [
-        "/api/onevity/dashboard", "/api/onevity/hr/reports", "/api/onevity/meta",
-        "/api/onevity/employees?page=1", "/api/onevity/employee-options",
-        "/api/onevity/positions", "/api/onevity/position-levels", "/api/onevity/grades",
-        "/api/onevity/org-units", "/api/onevity/companies", "/api/onevity/company-offices",
-        "/api/onevity/work-locations", "/api/onevity/personnel-actions",
-        "/api/onevity/offboarding", "/api/onevity/onboarding",
-        "/api/onevity/payroll-periods", "/api/onevity/payroll-runs", "/api/onevity/payroll-profiles",
-        "/api/onevity/payroll-journals", "/api/onevity/payroll-spt",
-        "/api/onevity/wage-components", "/api/onevity/wage-templates",
-        "/api/onevity/minimum-wages", "/api/onevity/tax-parameters", "/api/onevity/accounts",
-        "/api/onevity/attendance/overview", "/api/onevity/leave/overview", "/api/onevity/medical/overview",
-        "/api/onevity/medical/claims", "/api/onevity/medical/types", "/api/onevity/travel/overview",
-        "/api/onevity/travel/requests", "/api/onevity/travel/claims", "/api/onevity/leave/requests",
-        "/api/onevity/leave/balances", "/api/onevity/leave/types", "/api/onevity/attendance/overtime",
-        "/api/onevity/attendance/workoffs", "/api/onevity/attendance/assignments", "/api/onevity/attendance/holidays",
-        "/api/onevity/announcements", "/api/onevity/assets", "/api/onevity/letters",
-        "/api/onevity/letter-templates", "/api/onevity/loans", "/api/onevity/disciplinary",
-        "/api/onevity/notifications", "/api/onevity/activity-logs",
-        "/api/onevity/app-users", "/api/onevity/user-menu-access", "/api/onevity/lookups",
-        "/api/onevity/process-types", "/api/onevity/approval-structures",
-        "/api/onevity/ess/me", "/api/onevity/ess/dashboard", "/api/onevity/ess/notifications",
-        "/api/onevity/ess/announcements", "/api/onevity/ess/attendance", "/api/onevity/ess/leave",
-        "/api/onevity/ess/claims", "/api/onevity/ess/assets", "/api/onevity/ess/letters",
+        "/api/rekankerja/dashboard", "/api/rekankerja/hr/reports", "/api/rekankerja/meta",
+        "/api/rekankerja/employees?page=1", "/api/rekankerja/employee-options",
+        "/api/rekankerja/positions", "/api/rekankerja/position-levels", "/api/rekankerja/grades",
+        "/api/rekankerja/org-units", "/api/rekankerja/companies", "/api/rekankerja/company-offices",
+        "/api/rekankerja/work-locations", "/api/rekankerja/personnel-actions",
+        "/api/rekankerja/offboarding", "/api/rekankerja/onboarding",
+        "/api/rekankerja/payroll-periods", "/api/rekankerja/payroll-runs", "/api/rekankerja/payroll-profiles",
+        "/api/rekankerja/payroll-journals", "/api/rekankerja/payroll-spt",
+        "/api/rekankerja/wage-components", "/api/rekankerja/wage-templates",
+        "/api/rekankerja/minimum-wages", "/api/rekankerja/tax-parameters", "/api/rekankerja/accounts",
+        "/api/rekankerja/attendance/overview", "/api/rekankerja/leave/overview", "/api/rekankerja/medical/overview",
+        "/api/rekankerja/medical/claims", "/api/rekankerja/medical/types", "/api/rekankerja/travel/overview",
+        "/api/rekankerja/travel/requests", "/api/rekankerja/travel/claims", "/api/rekankerja/leave/requests",
+        "/api/rekankerja/leave/balances", "/api/rekankerja/leave/types", "/api/rekankerja/attendance/overtime",
+        "/api/rekankerja/attendance/workoffs", "/api/rekankerja/attendance/assignments", "/api/rekankerja/attendance/holidays",
+        "/api/rekankerja/announcements", "/api/rekankerja/assets", "/api/rekankerja/letters",
+        "/api/rekankerja/letter-templates", "/api/rekankerja/loans", "/api/rekankerja/disciplinary",
+        "/api/rekankerja/notifications", "/api/rekankerja/activity-logs",
+        "/api/rekankerja/app-users", "/api/rekankerja/user-menu-access", "/api/rekankerja/lookups",
+        "/api/rekankerja/process-types", "/api/rekankerja/approval-structures",
+        "/api/rekankerja/ess/me", "/api/rekankerja/ess/dashboard", "/api/rekankerja/ess/notifications",
+        "/api/rekankerja/ess/announcements", "/api/rekankerja/ess/attendance", "/api/rekankerja/ess/leave",
+        "/api/rekankerja/ess/claims", "/api/rekankerja/ess/assets", "/api/rekankerja/ess/letters",
       ];
       const out = [];
       for (const e of eps) {
@@ -208,11 +208,11 @@ async function main() {
     // (logout lalu akses employees → harus 401)
     await evalJs(cdp, `fetch("/api/auth/logout", { method: "POST" })`);
     await sleep(800);
-    const afterLogout = await evalJs(cdp, `fetch("/api/onevity/employees?page=1").then(r => r.status)`);
+    const afterLogout = await evalJs(cdp, `fetch("/api/rekankerja/employees?page=1").then(r => r.status)`);
     check("logout → API data terlindungi (401)", afterLogout === 401, `status=${afterLogout}`);
 
     const shot2 = await cdp.send("Page.captureScreenshot", { format: "png" });
-    writeFileSync(resolve(SHOT_DIR, "onevity-sayone-after-logout.png"), Buffer.from(shot2.data, "base64"));
+    writeFileSync(resolve(SHOT_DIR, "rekankerja-sayone-after-logout.png"), Buffer.from(shot2.data, "base64"));
 
     console.log(`\n${fail === 0 ? "✅ SEMUA PASS" : "❌ ADA GAGAL"} — ${pass} pass, ${fail} fail`);
     if (fail > 0) process.exit(1);

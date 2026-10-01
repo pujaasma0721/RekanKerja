@@ -2,7 +2,7 @@
 // ========================================================================
 // Inti permintaan produk: "ganti kata sandi = SEMUA data di-decrypt dahulu
 // lalu di-simpan ulang dengan enkripsi kata sandi baru". Dipanggil IN-PROCESS
-// oleh src/onevity/shared/lib/money-vault.ts saat:
+// oleh src/rekankerja/shared/lib/money-vault.ts saat:
 //   · setupVault        — data legacy (v1 bootstrap / plaintext) → v2 dataKey
 //   · changeVaultPassword — data kunci lama (v2 lama / v1 / plaintext) → v2 baru
 //
@@ -25,7 +25,7 @@ import {
   decryptTextWithKey,
   encryptWithKey,
   legacyTenantKey,
-} from "../src/onevity/shared/lib/field-crypto";
+} from "../src/rekankerja/shared/lib/field-crypto";
 
 export interface RekeyContext {
   schema: string;
@@ -137,7 +137,7 @@ export async function rekeyVaultData(c: Client, ctx: RekeyContext): Promise<Reke
  */
 export async function rekeySchemaWithPassword(schema: string, newPassword: string): Promise<RekeyStats> {
   const { deriveVaultKeys, computeVaultVerifier, wrapDataKey } = await import(
-    "../src/onevity/shared/lib/vault-derive"
+    "../src/rekankerja/shared/lib/vault-derive"
   );
   const c = new Client({
     connectionString:

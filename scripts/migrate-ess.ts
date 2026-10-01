@@ -8,8 +8,8 @@
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun scripts/migrate-ess.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import { pushNotification } from "@/onevity/shared/services/notification-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { pushNotification } from "@/rekankerja/shared/services/notification-service";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",

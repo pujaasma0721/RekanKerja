@@ -1,8 +1,8 @@
-# AUDIT BISNIS PROSES PER MODULE — OneVity HRIS
+# AUDIT BISNIS PROSES PER MODULE — RekanKerja HRIS
 
 Tanggal: 22 Januari 2026 (sesi lanjutan Task 24, pasca audit struktur Task 23 / commit `ec82d9f`)
 Lingkup: **proses bisnis** 6 modul domain + mesin lintas-modul (approval, transfer payroll, jurnal) — bukan gaya kode (sudah dicakup AUDIT-MODULES.md).
-Metode: 7 auditor paralel (1 per modul + 1 lintas-modul) — rekonstruksi proses as-is dari source `src/onevity/**` + schema Prisma, verifikasi runtime read-only (GET API + SQL) atas data demo MII, pembandingan referensi oranHR (`ANALISA-*.md`, `PRD-HR-BASE.md`).
+Metode: 7 auditor paralel (1 per modul + 1 lintas-modul) — rekonstruksi proses as-is dari source `src/rekankerja/**` + schema Prisma, verifikasi runtime read-only (GET API + SQL) atas data demo MII, pembandingan referensi oranHR (`ANALISA-*.md`, `PRD-HR-BASE.md`).
 Laporan detail per modul: `audit/BPA-<modul>.md`.
 
 ---

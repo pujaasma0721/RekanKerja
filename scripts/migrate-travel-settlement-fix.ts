@@ -24,11 +24,11 @@
 //      dienkripsi — TIDAK ADA plaintext number yang ditulis ke kolom String.
 // Dapat diimpor IN-PROCESS oleh parity-runner ATAU CLI: bun run scripts/migrate-travel-settlement-fix.ts
 import "./lib/env"; // K-7: muat .env root bila ada (env proses menang)
-import { tenantCrypto } from "../src/onevity/shared/lib/field-crypto";
+import { tenantCrypto } from "../src/rekankerja/shared/lib/field-crypto";
 import { Client } from "pg";
-import { getTenantClient } from "@/onevity/shared/lib/tenant-db";
-import type { TenantDb } from "@/onevity/shared/lib/tenant-db";
-import { generateClaimJournal } from "@/onevity/travel/services/travel-service";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { generateClaimJournal } from "@/rekankerja/travel/services/travel-service";
 
 const SCHEMAS = [
   "tenant_pt_mitra_industri_internasional",
