@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { DecisionConflictError, DecisionForbiddenError } from "@/rekankerja/shared/services/approval-engine";
 import { listTravelRequests, submitTravelRequest, decideTravelRequest } from "@/rekankerja/travel/services/travel-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
@@ -9,10 +8,16 @@ import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 
 // GET /api/rekankerja/travel/requests?status=&employeeId= — daftar permintaan
 // (padanan TravelRequest.jsp / TravelRequestToApprove.jsp).
+// Audit 97 (Task 97): dulu requireTenant SAJA — anggota tenant tanpa hak menu
+// travel (termasuk sesi ESS) bisa membaca seluruh permintaan + agregat uang
+// muka (stats.advanceTotal). Kini par M-6: cukup salah satu menu yang memakai
+// daftar ini — permintaan, persetujuan, atau klaim (dropdown "Klaim dari
+// Permintaan" di view Klaim & Settlement).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["travel:travel-request", "travel:travel-approval", "travel:travel-claim"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     const requests = await listTravelRequests(db, {
       status: sp.get("status") ?? "all",

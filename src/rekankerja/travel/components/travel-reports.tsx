@@ -228,8 +228,8 @@ export function TravelReportsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(r.totalSettlement)}</p>
-                          {r.payableEmployee > 0 && <p className="text-[10px] font-bold text-brand-deep dark:text-brand/85">(b) {fmtIDRShort(r.payableEmployee)}</p>}
-                          {r.payableCompany > 0 && <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) {fmtIDRShort(r.payableCompany)}</p>}
+                          {(r.payableEmployee ?? 0) > 0 && <p className="text-[10px] font-bold text-brand-deep dark:text-brand/85">(b) {fmtIDRShort(r.payableEmployee)}</p>}
+                          {(r.payableCompany ?? 0) > 0 && <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400">(c) {fmtIDRShort(r.payableCompany)}</p>}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           {r.journalNo ? (

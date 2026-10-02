@@ -65,13 +65,14 @@ export interface TravelClaimRowUI {
   employeeNo: string; fullName: string; orgUnitName: string | null;
   claimDate: string; templateCode: string; templateName: string; costCenter: string | null;
   purpose: string | null; remark: string | null; status: string;
-  otherCompanyExp: number; exchangeLoss: number; payableEmployee: number; payableCompany: number;
-  totalSettlement: number; settlementMethod: string; voucherNo: string | null;
+  // Audit 97: kolom uang nullable — Brankas Uang mem-mask jadi null (45-b).
+  otherCompanyExp: number | null; exchangeLoss: number | null; payableEmployee: number | null; payableCompany: number | null;
+  totalSettlement: number | null; settlementMethod: string; voucherNo: string | null;
   journalNo: string | null; journalDate: string | null; periodCode: string | null;
   transferredRunNo: string | null; paidRunNo: string | null;
   decidedAt: string | null; decisionNote: string | null;
-  advanceAmount: number;
-  totalExpenses: number;
+  advanceAmount: number | null;
+  totalExpenses: number | null;
   expenseLines: number;
   overLimitLines: number;
   expenseKinds: string[];
@@ -141,10 +142,18 @@ export const EXPENSE_KIND_LABEL: Record<string, string> = {
 
 // Formatter angka/tanggal mengikuti bahasa aktif (i18n-core, disinkronkan
 // setLang) — padanan pola fmtIDR/fmtDate di shared/lib/api.ts.
-export const fmtIDR = (n: number) =>
-  new Intl.NumberFormat(currentLocale(), { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+// Audit 97 (Task 97): Brankas Uang mem-mask kolom uang klaim jadi null —
+// formatter kini null-safe (konvensi Task 56: nilai tersembunyi tampil "—").
+// Sebelumnya fmtIDR(null) diam-diam jadi "Rp 0" (menyesatkan) dan
+// fmtIDRShort(null) memanggil null.toLocaleString → CRASH seluruh view
+// Klaim & Settlement saat vault tertutup (kondisi default).
+export const fmtIDR = (n: number | null | undefined) =>
+  n == null
+    ? "—"
+    : new Intl.NumberFormat(currentLocale(), { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
-export const fmtIDRShort = (n: number) => {
+export const fmtIDRShort = (n: number | null | undefined) => {
+  if (n == null) return "—";
   const loc = currentLocale();
   if (getLang() === "en") {
     if (Math.abs(n) >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString(loc, { maximumFractionDigits: 1 })}B`;
@@ -156,6 +165,12 @@ export const fmtIDRShort = (n: number) => {
   if (Math.abs(n) >= 1_000) return `Rp ${(n / 1_000).toLocaleString(loc, { maximumFractionDigits: 0 })} rb`;
   return `Rp ${n.toLocaleString(loc)}`;
 };
+
+/** Audit 97 — pengurangan uang null-propagating untuk Brankas Uang: hasil
+ *  null bila kedua operand ter-mask sehingga fmtIDR menampilkan "—".
+ *  (Sebelumnya `a - b` pada null diam-diam menghasilkan 0 → "Rp 0".) */
+export const subMoney = (a: number | null, b: number | null): number | null =>
+  a == null && b == null ? null : (a ?? 0) - (b ?? 0);
 
 export const fmtDateID = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleDateString(currentLocale(), { day: "2-digit", month: "short", year: "numeric" }) : "—";

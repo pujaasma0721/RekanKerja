@@ -2947,3 +2947,100 @@ Verifikasi browser (agent-browser, admin hrd@mii.co.id + ESS yusuf@mii.co.id):
 Stage Summary:
 - AI chatbot end-to-end dengan disiplin scope sesuai permintaan (menu akses + data pribadi + regulasi pemerintah); provider per-tenant (builtin z-ai / OpenAI-compatible terenkripsi); bubble chat widget di admin+ESS; chat manusia bawahan/atasan + notifikasi; knowledge base RAG terbukti mengubah jawaban AI
 - PENTING utk pull berikutnya: schema-tenant berubah → prisma generate wajib (pola Task 93); DDL tenant lama via parity step ai-chat
+
+---
+Task ID: 2-a
+Agent: Explore (audit kode modul travel)
+Task: Audit teknis menyeluruh modul Travel/Perjalanan Dinas untuk Task 97
+
+Work Log:
+- Baca worklog.md penuh (Task 44 M-8 enkripsi uang travel, Task 88 audit UX — 2 temuan travel, Task 96 AI chatbot) untuk konteks.
+- Baca penuh 19 file modul travel (5.673 baris): travel-service.ts (1.628), travel-seed.ts (307), 7 API routes (transfer/requests/claims/budget/templates/overview/reports), 10 komponen tsx (module/overview/requests/approval/claims/claim-approval/budget/templates/reports/types).
+- Baca sisi ESS: ess/api/claims-travel.ts (184), ess/api/claims.ts (66), bagian travel ess-claims.tsx (dialog + tab), ess-types.ts (tipe travel), ess-api.ts (fetch/submit helper).
+- Baca schema-tenant.prisma: 10 model travel (TravelZone/Template/ExpenseType/ExpenseTypeRule/Budget/BudgetItem/Request/Destination/Advance/Claim/ClaimExpense) + 6 model approval (Structure/StructureLevel/Chain/Step) — verifikasi SEMUA @@index (travel TANPA index sama sekali).
+- Telusuri integrasi: approval-engine.ts (796 — buildApprovalChain/decideApprovalChain/fallback anti-deadlock), parameter-rules.ts + entity-rule-domains.ts (domain "travel"), employee-rule-context.ts, report-builder.ts (entitas travel_claims dgn flag encrypted), attachment-service.ts (T16-ATTACH TravelClaim), notification-service (resolusi Travel/TravelClaim), email-defaults (6 event travel), webhook-service (travel.request.approved + travel.claim.submitted), scheduler-service (SLA reminder 3 hari mencakup chain Travel), payroll-journal.ts (UTRP pass-through) + payroll-service.ts:1104 (markTravelPaidForRun saat confirmRun).
+- Baca provisioning.ts (ensureTravelReference: 4 zona, 5 template, 14 jenis biaya, akun 5105, komponen UTRP/TRVSTLIN, struktur AS-TRAVEL-STD), scripts/migrate-travel.ts, scripts/migrate-approval-structure.ts (AS-TRAVEL-STD MII 3 jenjang: atasan → FIN ≥15jt → HRD ≥50jt).
+- Cek menu: app-shell.tsx TRAVEL_NAV (8 view + overview), menu-perms.ts (ops cancel/approve/transfer), ess-shell (travel hanya di tab "Klaim Saya").
+- Cek mobile hris-mobile: klaim travel live (GET/POST ess/claims/travel), pengajuan dinas mobile belum dibuka (stub pesan "hubungi HR").
+- Bandingkan dengan audit lama audit/BPA-travel.md (244 baris) — petakan status fix 24-FIX-TRAVEL (K-1, K-2, M-1..M-5 fix; M-6 limit per-unit, M-8 filter L-*/O-*, m-2 semantik KPI, m-3 race docNo, m-5/m-6 budget CC masih terbuka; g-2 multi-currency, g-6 TRVLOAN, edit request masih gap).
+- Verifikasi 2 temuan Task 88 masih hidup di kode: (1) travel-requests.tsx:116-124 cancel tanpa konfirmasi; (2) travel-claims.tsx:206 klaim standalone selalu diatribusikan ke karyawan pertama (master.data.employees[0]) — tanpa picker karyawan.
+- Temuan baru: GET /api/rekankerja/travel/requests hanya guard requireTenant (bukan requireMenuViewAny seperti endpoint travel lain); tabel travel tanpa @@index (Seq Scan per employeeId/status); detailApi dobel fetch list penuh di travel-claims.tsx:103; tidak ada pagination di semua list travel.
+
+Stage Summary:
+- 19 file modul travel (5.673 baris) + 5 file ESS; 11 model Prisma travel (5 field uang terenkripsi M-8) + approval generik; 7 endpoint admin + 2 ESS; alur end-to-end lengkap: request multi-destinasi + advance → approval berjenjang (struktur per pemohon, jenjang nominal, fallback anti-deadlock) → klaim settlement (formula T3-TRAVEL dihitung server: b=max(0,R−advance), c=max(0,advance−R)) → jurnal otomatis balanced → transfer payroll UTRP/TRVSTLIN → Paid saat confirmRun (terverifikasi payslip).
+- Fitur kuat: rule diferensiasi limit per parameter karyawan (Task 33), attachment kwitansi + enforcement needDocs (T16), notifikasi email/in-app/webhook, laporan + CSV export (money-vault aware), budget tahunan per cost center (soft-limit by design), ESS klaim self-service dgn guard penuh.
+- BUG TERBUKA paling serius: (1) klaim standalone admin salah atribusi karyawan pertama (UI); (2) cancel request tanpa konfirmasi; (3) GET requests tanpa menu-guard; (4) limit per total baris bukan per unit (qty hari/km diabaikan); (5) jenis biaya L-*/O-* tak difilter per destinasi overseas; (6) tabel travel tanpa index; (7) KPI semantik (bulan ini mencakup masa depan, claimsYtd semua status).
+- GAP besar (pandangan produk): pengajuan dinas dari ESS/mobile belum ada (hanya klaim), tidak ada edit/revisi request, multi-currency (currency field mati), per-diem/tarif otomatis per grade/kota tidak dihitung (hanya limit rule), used per cost center tidak dihitung, TRVLOAN cicilan kasbon tidak ada, analytics terbatas.
+- AI: tidak ada fitur AI di modul travel; snapshot ai-chat-service hanya cuti+presensi → titik integrasi natural: tambah data travel (uang muka beredar, jatuh tempo settlement, status klaim) ke selfDataSnapshot + RAG kebijakan travel per tenant.
+
+---
+Task ID: 2-b
+Agent: general-purpose (riset pasar modul travel)
+Task: Benchmark modul corporate travel advanced di pasaran untuk Task 97
+
+Work Log:
+- Baca worklog.md (Task 96 AI chatbot, Task 2-a audit travel) untuk konteks; riset murni, tidak menyentuh kode aplikasi.
+- 24 query web_search via z-ai (vendor global: Concur/TravelPerk-Perk/Navan/Egencia/Rydoo/ITILITE/Emburse/Expensify/Deem/TravelBank + pricing masing2; topik: policy engine, duty of care, AI trends 2025, fraud detection, virtual card, carbon, per diem; Indonesia: Traveloka/tiket.com/Mekari/HRIS lokal; regulasi: SBI PMK 32/2025 & PMK 54/2026, plafon hotel, uang representasi, e-Faktur).
+- page_reader 10 halaman kunci: concur.com/solutions/artificial-intelligence + blog AI agents GBTA 2026; navan.com/intelligence; perk.com/platform + /platform/policies-approvals (TravelPerk rebrand "Perk"); expense.mekari.com/en/feature/business-trip; itilite.com/features/ai-powered-corporate-travel-analytics; corporates.ctv.traveloka.com/en-id; tiket.com/id-id/corporate/solution; katadata.co.id & kontan.co.id (rincian PMK 32/2025 SBM 2026); klikpajak.id reimbursement. Semua artefak JSON di /tmp/mr/.
+
+Stage Summary:
+- 10 vendor global terprofil (SAP Concur, Perk/TravelPerk, Navan, Egencia/Amex GBT, Rydoo, ITILITE, Emburse, Expensify, Deem/Coupa, TravelBank) + 3 Indonesia (Traveloka for Corporates, tiket.com for Corporate, Mekari Expense) + temuan HRIS lokal (Gadjian/GajiHub/Talenta = payroll-first, TIDAK ADA modul travel khusus → white space produk RekanKerja).
+- Katalog kapabilitas advanced pasar 10 kelompok (A booking, B policy engine, C approval, D advance/settlement+virtual card, E expense capture OCR, F duty of care, G analytics, H AI/agentic+fraud, I integrasi ERP/e-Faktur, J employee experience) — semuanya dengan URL sumber.
+- Harga terkumpul: Perk $0/$99/$299+3-5%/booking; Navan travel gratis + expense $15/user/mo (5 user pertama gratis); ITILITE $10/trip + $6-9/user/mo; Rydoo €10-12/user/mo; Expensify Collect $5/member/mo.
+- Regulasi: PMK 32/2025 (SBM TA 2026): uang harian domestic Rp360-580rb (Jakarta 530rb), LN US$347-792, uang representasi 150-250rb, hotel menteri/wamen/eselon I Rp2,1-9,3jt/malam, tiket domestik PP max Rp22,1jt bisnis; PMK 54/2026 (SBM, 22 Juli 2026, berlaku) sebagai regulasi terbaru — sumber JDIH/Katadata/Kontan.
+- Tren 2025-2026: agentic AI (Joule Concur, Ava Navan, Juno+MCP Perk, Egencia AI + Claude), policy engine real-time market-data (Navan Travel Policy Agent), fraud detection AI (termasuk deteksi struk buatan AI), sustainability/GreenTrip, virtual card, MCP/AI-assistant integration; 90%+ travel manager AS sudah pakai AI (2025).
+- Implikasi utama utk Task 97: RekanKerja sudah punya fondasi approval+settlement+payroll integration yang TIDAK dimiliki vendor travel global; gap terbesar = self-booking/inventori, policy engine real-time per grade/route/kota (SBI-ready), OCR/fraud AI, duty of care, analytics hemat, dan AI assistant scope travel (siap dari Task 96).
+
+---
+Task ID: 3
+Agent: general-purpose (walkthrough UI modul travel)
+Task: Audit UI live modul Travel via agent-browser + VLM untuk Task 97
+
+Work Log:
+- Baca worklog.md (80 baris terakhir) untuk konteks Task 97; viewport 1440x900; login admin hrd@mii.co.id → workspace MII; console bersih di awal (hanya React DevTools/HMR/PWA info).
+- Walkthrough 8 view admin modul Travel + screenshot full-page: Ringkasan, Permintaan Travel, Persetujuan, Klaim & Settlement, Approval Klaim & Transfer, Budget Travel, Master Travel (3 tab), Laporan Travel.
+- TEMUAN RUNTIME KRITIS: view "Klaim & Settlement" (?m=travel&v=travel-claim) CRASH total (client-side exception) — reproduksi 3× (navigasi sidebar, reload, login baru + direct URL). Error overlay: "Runtime TypeError: Cannot read properties of null (reading 'toLocaleString')" di travel-types.ts:157 @fmtIDRShort, dipanggil travel-claims.tsx:335 fmtIDRShort(c.totalSettlement).
+- Root cause (baca kode, tanpa ubah): Brankas Uang tertutup (default) → listTravelClaims via g=(n)=>(mv.canSee?n:null) (travel-service.ts:896) → SEMUA field uang klaim null (diverifikasi fetch API: totalSettlement/advanceAmount/totalExpenses/payableEmployee null utk 5 klaim) → fmtIDRShort tanpa null-guard → TypeError → error boundary mengganti seluruh halaman. Melanggar konvensi platform Task 56 (masked→0 utk UI admin / "—" di dialog vault), bukan null.
+- Coba buka vault utk melanjutkan: "asmaree.007" (e2e scripts) & "vault-demo-123" (worklog Task 45) → sama-sama "Kata sandi saat ini salah"; berhenti di 2/5 percobaan (anti-lockout 15 menit) → view tetap crash.
+- Dialog "Ajukan Perjalanan" (admin): dibuka, tambah destinasi ke-2 (multi-kaki terbukti masing-masing kota+zona+tanggal), isi uang muka Rp 5 jt + tujuan, 3 screenshot, lalu Batal (tidak submit). Dialog PUNYA combobox karyawan (beda dengan dialog klaim).
+- VERIFIKASI #2 (Batal tanpa konfirmasi): klik "Batal" pada SATU baris Menunggu (TR-2026-004, Dedi Mahendra) → TIDAK muncul dialog konfirmasi apa pun; PATCH /api/rekankerja/travel/requests 200 langsung terkirim (bukti network log); status baris berubah jadi "Dibatalkan — Dibatalkan pemberi kuasa"; filter Menunggu (2)→(1). BUG TERKONFIRMASI LIVE.
+- VERIFIKASI #1 (picker karyawan klaim mandiri): DIBLOKIR live — tombol "Ajukan Klaim" tak terjangkau karena view-nya crash duluan. Konfirmasi kode: travel-claims.tsx:206 employeeId mode mandiri = (master.data?.employees ?? [])[0]?.id — SELALU karyawan pertama (MII00001 Hartono Wijaksono), tanpa combobox karyawan di dialog (hanya request/template/jenis-biaya). BUG terkonfirmasi level kode; ESS sebaliknya benar (self-claim utk diri sendiri).
+- Observasi inkonsistensi gating vault antar endpoint travel: overview+budget+laporan menampilkan uang asli walau vault tertutup; claims → null (crash); claim-approval → "Rp 0" (menyesatkan, seharusnya "—").
+- Responsive 375px (Ringkasan + Permintaan Travel): body 375px tanpa overflow horizontal; KPI stack rapi; tabel scroll horizontal di container (1117px dalam 341px) dengan kolom Destinasi disembunyikan; tap target ≥32px (hanya "Ganti workspace" 54x30 di bawah).
+- Sesi ESS yusuf@mii.co.id: "Klaim Saya" → tab "Klaim Travel" → empty state "Belum ada klaim travel"; dialog "Ajukan Klaim Travel": dasar klaim (mandiri), template, baris biaya (jenis/tanggal/nominal/keterangan), penyesuaian "Dibayar pihak lain" + "Rugi kurs", catatan — TIDAK ADA upload kwitansi (hanya teks "serahkan kwitansi asli ke HR"); admin punya upload T16-ATTACH. GAP TERKONFIRMASI (screenshot + kode). Batal tanpa submit.
+- Analisis VLM (4 panggilan, hasil JSON di /tmp/travel-ui/vlm-*.json): dialog ajukan 6/10 (flat, padat, "form terasa seperti lembar kerja Excel yang dipindahkan ke web", tanpa policy hint/estimasi/smart defaults); dialog klaim ESS 7/10 (absennya upload = "CRITICAL ISSUE" — finance audit trail hilang + risiko fraud + re-work); Ringkasan (KPI bagus, hilang sparkline/SLA aging/burn-rate/activity feed/CTA); mobile 375px responsif baik (truncasi kolom Rencana wajar).
+- Total 21 screenshot + 4 hasil VLM di /tmp/travel-ui/ (00-dashboard … 15-ess-tab-setelah, 04b bukti crash, 10 bukti verifikasi #2). Tidak mengubah kode aplikasi; tidak submit form apa pun; 1 aksi destruktif terkendali (cancel 1 seed request) sesuai mandat.
+
+Stage Summary:
+- 8 view admin + ESS berhasil di-walkthrough; 1 view (Klaim & Settlement) DOWN TOTAL: crash client-side fmtIDRShort(null) saat Brankas Uang tertutup (kondisi default) — bug runtime baru yang tidak tercantum di audit kode Task 2-a, berdampak blokade pengelolaan klaim admin + membuat dialog klaim mandiri tak terjangkau.
+- 2 bug dugaan terjawab: #1 atribusi klaim mandiri ke employees[0] TANPA picker — terkonfirmasi di kode (live diblokir crash); #2 tombol Batal langsung PATCH tanpa konfirmasi — TERKONFIRMASI LIVE (TR-2026-004 jadi Dibatalkan tanpa dialog).
+- Gap ESS: tidak ada upload kwitansi (karyawan harus serahkan fisik ke HR) — admin punya; plus pengajuan dinis dari ESS belum ada.
+- Inkonsistensi gating vault antar endpoint (null crash vs Rp 0 vs uang asli) + catatan UX VLM: form panjang manual tanpa policy hint/estimasi, dashboard tanpa tren/SLA aging; kuat di konsistensi shell, KPI, tabel kaya konteks, responsive mobile solid.
+- 21 screenshot di /tmp/travel-ui/ (jalur audit: 04b = bukti crash, 10 = bukti verifikasi #2, 09* = dialog ajukan, 14 = dialog ESS).
+
+---
+Task ID: 97
+Agent: main (Z.ai Code)
+Task: Audit menyeluruh modul travel + benchmark modul travel advanced di pasaran + analisis gap (mandat: "saya ingin module travel ini lebih advance dan smart") — sekaligus perbaikan temuan kritis (pola Task 88: audit → fix P0/P1 → backlog terstruktur)
+
+Metodologi 3 jalur paralel (semua hasil masuk laporan audit/BPA-travel-advance-97.md):
+- 2-a Explore agent: audit kode 19 file modul travel (±5.700 baris) + ESS + integrasi + 11 model Prisma
+- 2-b general-purpose agent: riset pasar 10 vendor global + 3 Indonesia + regulasi SBI PMK 32/2025 & 54/2026 (semua bersumber URL)
+- 3 general-purpose agent: walkthrough UI live 8 view admin + ESS + 21 screenshot + 4 analisis VLM
+
+Work Log — PERBAIKAN TEMUAN KRITIS (7 file, semua terverifikasi browser):
+- P0 B1 crash view Klaim & Settlement saat Brankas Uang tertutup (default): fmtIDRShort(null).toLocaleString → TypeError, reproduksi 3× oleh agent 3 → FIX travel-types.ts: fmtIDR/fmtIDRShort kini null-safe (null → "—" konvensi Task 56) + helper subMoney (pengurangan null-propagating) + 7 field uang TravelClaimRowUI jadi number|null → VERIFIKASI browser baru (fresh): 0 error console, 5 klaim render dengan "—" + "muka tersembunyi"; 3 error lama di daemon browser = jejak historis walkthrough pre-fix (bukti: errors --clear + reload di browser LAMA masih memuat cache, browser BARU bersih total)
+- P1 B2 klaim mandiri salah atribusi ke karyawan pertama (temuan 88 yang belum tutup; live diblokir crash) → FIX travel-claims.tsx: combobox "Karyawan Penerima Klaim" wajib (validasi submit + reset per open) → VERIFIKASI: dialog menampilkan dropdown 44 karyawan (MII00001 Hartono … )
+- P1 B3 tombol Batal PATCH destruktif tanpa konfirmasi (terkonfirmasi live agent 3: TR-2026-004 tercancel sekali klik) → FIX travel-requests.tsx: AlertDialog "Batalkan permintaan TR-xxx?" (deskripsi: advance Requested di-Void, guard klaim aktif, tidak dapat dibatalkan) + cancelBusy guard → VERIFIKASI E2E: buat TR-2026-007 uji (POST 201) → klik Batal → dialog muncul → "Kembali" tidak mengirim PATCH (status tetap Menunggu) → ulang + "Ya, Batalkan Permintaan" → PATCH 200, status Dibatalkan
+- P1 B4 GET /api/rekankerja/travel/requests hanya requireTenant (bocor ke semua anggota tenant termasuk ESS: seluruh permintaan + stats.advanceTotal) → FIX api/requests.ts: requireMenuViewAny([travel:travel-request, travel:travel-approval, travel:travel-claim]) — 3 menu konsumen daftar ini → VERIFIKASI: sesi ESS yusuf fetch → 403 (dulu 200 bocor); endpoint ESS sah /ess/claims/travel tetap 200
+- P1 B5 agregat uang stats misleading saat vault tertutup ("Rp 0") → FIX api/claims.ts: moneyStat() null saat !mv.canSee + tipe stats nullable di claim-approval/claims → VERIFIKASI: KPI "Siap Transfer" kini "—" bukan "Rp 0"; label advance masked "muka tersembunyi" (bukan "tanpa muka")
+- Konsumen tipe nullable disesuaikan: travel-claim-approval.tsx (subMoney utk kurs−pihak lain di kartu & dialog keputusan, (advanceAmount ?? 0) > 0, fmtIDR stats tanpa ?? 0), travel-reports.tsx ((payableEmployee ?? 0) > 0), travel-claims.tsx (guard perbandingan)
+- Kualitas: lint 0 error (2 warning pre-existing e2e), tsc --noEmit 0 error, dev.log bersih (hanya 200/201/403 yang diharapkan)
+- Laporan audit lengkap ditulis: audit/BPA-travel-advance-97.md — skor kematangan 10 dimensi (alur uang 4,5 vs AI 0), 5 gap terbesar, matriks kapabilitas A-J vs pasar, benchmark 13 vendor + SBI, roadmap Fase 0 (stabilisasi) / F1 advance (policy engine v2 + per-diem SBI otomatis + ESS ajukan & upload kwitansi) / F2 smart (AI snapshot travel di chatbot Task 96, OCR via VLM, anomali pre-approval, analytics) / F3 ekosistem (booking, virtual card, duty of care, CO2)
+
+Stage Summary:
+- Audit 3 jalur selesai + 1 P0 & 4 P1 diperbaiki & terverifikasi browser (crash view klaim, picker mandiri, konfirmasi cancel, guard menu API, konsistensi vault "—")
+- Positioning strategis terdokumentasi: moat = mesin uang end-to-end (approval→settlement→jurnal→payroll UTRP/TRVSTLIN) yang TIDAK dimiliki vendor travel global; white space lokal (HRIS lokal tanpa modul travel; pesaing = Mekari Expense & OTA korporat); jalankan F1 policy/per-diem/ESS + F2 AI di atas infra Task 96
+- Backlog terstruktur di BPA-travel-advance-97.md: F0-5 unifikasi vault gating (overview/budget/reports masih tampil uang asli), F0-6 limit per-unit + filter zona, F0-7 @@index + pagination, F1-1..F1-8, F2-1..F2-6, F3-1..F3-5
+- Catatan: folder legacy duplikat src/components/rekankerja/travel/ terdeteksi (dead code, kandidat pembersihan); walkthrough agent 3 membatalkan TR-2026-004 (verifikasi bug B3) dan task ini membuat+membatalkan TR-2026-007 (uji konfirmasi) — data demo MII tetap utuh untuk 5 klaim seed
+

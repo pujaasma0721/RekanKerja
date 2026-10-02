@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
@@ -51,6 +52,11 @@ export function TravelRequestsPage() {
   const [dialog, setDialog] = useState(false);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Audit 97 (Task 97): konfirmasi AlertDialog sebelum cancel — sebelumnya PATCH
+  // destruktif terkirim LANGSUNG sekali klik tanpa konfirmasi (temuan Task 88
+  // yang belum ditutup; dikonfirmasi live oleh walkthrough Task 97).
+  const [confirmCancel, setConfirmCancel] = useState<TravelRequestRowUI | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [dests, setDests] = useState<DestForm[]>([emptyDest(todayISO(), todayISO())]);
   const [form, setForm] = useState({
     employeeId: "", templateCode: "TRAVEL", dateFrom: todayISO(), dateTo: todayISO(),
@@ -114,13 +120,14 @@ export function TravelRequestsPage() {
   };
 
   const cancelRequest = async (r: TravelRequestRowUI) => {
+    setCancelBusy(true);
     try {
       const res = await apiSend<{ docNo: string; status: string }>("/api/rekankerja/travel/requests", "PATCH", { id: r.id, action: "cancel", note: "Dibatalkan pemberi kuasa" });
       toast.success(t("{no} dibatalkan", "{no} cancelled", { no: res.docNo }));
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal membatalkan", "Failed to cancel"));
-    }
+    } finally { setCancelBusy(false); }
   };
 
   const stats = api.data?.stats;
@@ -240,7 +247,7 @@ export function TravelRequestsPage() {
                         <TableCell className="text-right">
                           {r.status === "Submitted" ? (
                             perms.canOp("travel", "travel-request", "cancel") ? (
-                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); cancelRequest(r); }}>
+                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs font-bold text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); setConfirmCancel(r); }}>
                                 <Ban className="h-3 w-3" /> {t("Batal")}
                               </Button>
                             ) : (
@@ -453,6 +460,33 @@ export function TravelRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Audit 97 (Task 97): konfirmasi sebelum aksi destruktif cancel — guard
+          server M-2 tetap menolak bila ada klaim aktif; advance Requested di-Void. */}
+      <AlertDialog open={Boolean(confirmCancel)} onOpenChange={(o) => !o && setConfirmCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Batalkan permintaan {no}?", "Cancel request {no}?", { no: confirmCancel?.docNo ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "Permintaan {no} untuk {name} akan dibatalkan permanen. Uang muka berstatus Requested ikut dibatalkan (Void); server menolak pembatalan bila sudah ada klaim aktif. Tindakan ini tidak dapat dibatalkan.",
+                "The request {no} for {name} will be permanently cancelled. A Requested advance is voided as well; the server rejects cancellation when an active claim exists. This action cannot be undone.",
+                { no: confirmCancel?.docNo ?? "", name: confirmCancel?.fullName ?? "" },
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>{t("Kembali", "Back")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelBusy}
+              onClick={() => { const r = confirmCancel; setConfirmCancel(null); if (r) void cancelRequest(r); }}
+              className="bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-600"
+            >
+              {cancelBusy ? t("Memproses…") : t("Ya, Batalkan Permintaan", "Yes, Cancel Request")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

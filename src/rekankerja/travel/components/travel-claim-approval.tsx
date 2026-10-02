@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { TravelClaimRowUI, PeriodOptionUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID } from "./travel-types";
+import { TravelClaimRowUI, PeriodOptionUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID, subMoney } from "./travel-types";
 import { CheckCircle2, XCircle, Ban, Landmark, Wallet, Inbox, FileText, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -35,10 +35,11 @@ export function TravelClaimApprovalPage() {
   const [periodId, setPeriodId] = useState("");
   const [transferBusy, setTransferBusy] = useState(false);
 
-  const api = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
+  // Audit 97: stats uang nullable (vault tertutup → null → UI "—").
+  const api = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number | null; payableEmployee: number | null; payableCompany: number | null } }>(
     "/api/rekankerja/travel/claims?status=Submitted",
   );
-  const approved = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>("/api/rekankerja/travel/claims?status=Approved");
+  const approved = useApi<{ claims: TravelClaimRowUI[]; stats: { submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number | null; payableEmployee: number | null; payableCompany: number | null } }>("/api/rekankerja/travel/claims?status=Approved");
   const all = useApi<{ claims: TravelClaimRowUI[] }>("/api/rekankerja/travel/claims?status=all");
   const periods = useApi<{ periods: PeriodOptionUI[] }>("/api/rekankerja/payroll-periods");
 
@@ -202,7 +203,7 @@ export function TravelClaimApprovalPage() {
                 <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                   <div className="rounded-lg bg-slate-50 py-1.5 dark:bg-slate-800/60">
                     <p className="text-[9px] font-bold text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p>
-                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">{fmtIDR(c.exchangeLoss - c.otherCompanyExp)}</p>
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">{fmtIDR(subMoney(c.exchangeLoss, c.otherCompanyExp))}</p>
                   </div>
                   <div className="rounded-lg bg-brand/10 py-1.5 dark:bg-brand/30">
                     <p className="text-[9px] font-bold text-brand-deep dark:text-brand/85">{t("(b) karyawan", "(b) employee")}</p>
@@ -220,7 +221,7 @@ export function TravelClaimApprovalPage() {
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                   <span>{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: c.expenseLines, amt: fmtIDR(c.totalExpenses) })}</span>
-                  {c.advanceAmount > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("MUKA {amt}", "ADVANCE {amt}", { amt: fmtIDR(c.advanceAmount) })}</Badge>}
+                  {(c.advanceAmount ?? 0) > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("MUKA {amt}", "ADVANCE {amt}", { amt: fmtIDR(c.advanceAmount) })}</Badge>}
                   {c.overLimitLines > 0 && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("{n} LEBIH LIMIT", "{n} OVER LIMIT", { n: c.overLimitLines })}</Badge>}
                   {c.expenseKinds.map((k) => (
                     <Badge key={k} variant="outline" className="text-[9px] font-bold">{k}</Badge>
@@ -260,7 +261,7 @@ export function TravelClaimApprovalPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm">
                   <p className="font-bold text-slate-800 dark:text-slate-200">
-                    {t("{n} klaim Approved — bayar karyawan {a} + potong perusahaan {b}", "{n} Approved claims — pay employees {a} + company deduction {b}", { n: approvedClaims.length, a: fmtIDR(aStats?.payableEmployee ?? 0), b: fmtIDR(aStats?.payableCompany ?? 0) })}
+                    {t("{n} klaim Approved — bayar karyawan {a} + potong perusahaan {b}", "{n} Approved claims — pay employees {a} + company deduction {b}", { n: approvedClaims.length, a: fmtIDR(aStats?.payableEmployee), b: fmtIDR(aStats?.payableCompany) })}
                   </p>
                   <p className="text-xs text-slate-500">{t("Komponen payroll: UTRP (earning) untuk (b) & TRVSTLIN (deduction) untuk (c) — padanan Travel Wage Definition", "Payroll components: UTRP (earning) for (b) & TRVSTLIN (deduction) for (c) — Travel Wage Definition equivalent")}</p>
                 </div>
@@ -325,7 +326,7 @@ export function TravelClaimApprovalPage() {
                 <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">{decide.claim.fullName}</p>
                 <p className="text-xs text-slate-500">{t("{n} baris biaya · {amt}", "{n} expense lines · {amt}", { n: decide.claim.expenseLines, amt: fmtIDR(decide.claim.totalExpenses) })}</p>
                 <div className="mt-2 grid grid-cols-4 gap-1.5 text-center text-[10px]">
-                  <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(decide.claim.exchangeLoss - decide.claim.otherCompanyExp)}</p></div>
+                  <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-slate-500">{t("(a) kurs − pihak lain", "(a) fx − other")}</p><p className="font-black">{fmtIDR(subMoney(decide.claim.exchangeLoss, decide.claim.otherCompanyExp))}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-brand">(b)</p><p className="font-black text-brand-deep">{fmtIDR(decide.claim.payableEmployee)}</p></div>
                   <div className="rounded bg-white py-1 dark:bg-slate-900"><p className="text-rose-600">(c)</p><p className="font-black text-rose-700">{fmtIDR(decide.claim.payableCompany)}</p></div>
                   <div className="rounded border ov-border-accent ov-soft py-1"><p>TOTAL</p><p className="font-black">{fmtIDR(decide.claim.totalSettlement)}</p></div>

@@ -80,6 +80,9 @@ export function TravelClaimsPage() {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"request" | "standalone">("request");
   const [requestId, setRequestId] = useState("");
+  // Audit 97 (Task 97): klaim mandiri kini memilih karyawan EKSPLISIT — sebelumnya
+  // payload selalu karyawan pertama daftar (misattribution, temuan Task 88 + walkthrough 97).
+  const [standaloneEmployeeId, setStandaloneEmployeeId] = useState("");
   const [previewData, setPreviewData] = useState<ClaimPreviewData | null>(null);
   const [lines, setLines] = useState<ExpenseLine[]>([newLine("")]);
   const [amounts, setAmounts] = useState({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
@@ -96,7 +99,7 @@ export function TravelClaimsPage() {
     setSortDir(n.sortDir);
   };
 
-  const api = useApi<{ claims: TravelClaimRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number; payableEmployee: number; payableCompany: number } }>(
+  const api = useApi<{ claims: TravelClaimRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalSettlement: number | null; payableEmployee: number | null; payableCompany: number | null } }>(
     `/api/rekankerja/travel/claims?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`,
     [statusFilter, sortKey, sortDir],
   );
@@ -159,6 +162,7 @@ export function TravelClaimsPage() {
   const openDialog = (m: "request" | "standalone") => {
     setMode(m);
     setRequestId(m === "request" ? claimableRequests[0]?.id ?? "" : "");
+    setStandaloneEmployeeId("");
     setPreviewData(null);
     setLines([newLine("")]);
     setAmounts({ otherCompanyExp: "", exchangeLoss: "", voucherNo: "", remark: "" });
@@ -185,7 +189,8 @@ export function TravelClaimsPage() {
     const validLines = lines.filter((l) => l.expenseCode && Number(l.amount) > 0);
     if (validLines.length === 0) { toast.error(t("Minimal 1 baris biaya dengan jenis & nominal terisi", "At least 1 expense line with type & amount filled")); return; }
     if (mode === "request" && !requestId) { toast.error(t("Pilih permintaan travel Approved sebagai dasar klaim", "Select an Approved travel request as the claim basis")); return; }
-    if (mode === "standalone" && !master.data?.employees?.length) { toast.error(t("Data karyawan belum tersedia", "Employee data not yet available")); return; }
+    // Audit 97: klaim mandiri wajib pilih karyawan (dulu otomatis karyawan pertama).
+    if (mode === "standalone" && !standaloneEmployeeId) { toast.error(t("Pilih karyawan penerima klaim mandiri", "Select the employee for the standalone claim")); return; }
     // T16-ATTACH — mirror enforcement server: jenis biaya needDocs wajib kwitansi.
     const needDocsNames = validLines
       .map((l) => typeByCode.get(l.expenseCode))
@@ -203,7 +208,7 @@ export function TravelClaimsPage() {
         "/api/rekankerja/travel/claims", "POST",
         {
           requestId: mode === "request" ? requestId : undefined,
-          employeeId: mode === "request" ? previewData?.employee.id : (master.data?.employees ?? [])[0]?.id,
+          employeeId: mode === "request" ? previewData?.employee.id : standaloneEmployeeId,
           templateCode: mode === "request" ? previewData?.templateCode : "TRAVEL",
           voucherNo: amounts.voucherNo || undefined,
           remark: amounts.remark || undefined,
@@ -331,11 +336,11 @@ export function TravelClaimsPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <p className={cn("text-sm font-black", c.totalSettlement < 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-100")}>
+                          <p className={cn("text-sm font-black", (c.totalSettlement ?? 0) < 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-100")}>
                             {fmtIDRShort(c.totalSettlement)}
                           </p>
                           <p className="text-[11px] text-slate-500">
-                            {t("{n} baris · {muka}", "{n} lines · {muka}", { n: c.expenseLines, muka: c.advanceAmount > 0 ? t("muka {amt}", "advance {amt}", { amt: fmtIDRShort(c.advanceAmount) }) : t("tanpa muka", "no advance") })}
+                            {t("{n} baris · {muka}", "{n} lines · {muka}", { n: c.expenseLines, muka: c.advanceAmount == null ? t("muka tersembunyi", "advance hidden") : (c.advanceAmount ?? 0) > 0 ? t("muka {amt}", "advance {amt}", { amt: fmtIDRShort(c.advanceAmount) }) : t("tanpa muka", "no advance") })}
                           </p>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
@@ -457,6 +462,25 @@ export function TravelClaimsPage() {
                 </Select>
                 <p className="text-[11px] text-slate-500">
                   {t("Hanya permintaan Approved tanpa klaim aktif yang ditampilkan — satu permintaan hanya boleh satu klaim aktif.", "Only Approved requests without an active claim are shown — one request may have only one active claim.")}
+                </p>
+              </div>
+            )}
+
+            {mode === "standalone" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">{t("Karyawan Penerima Klaim *", "Claim Employee *")}</Label>
+                <Select value={standaloneEmployeeId} onValueChange={setStandaloneEmployeeId}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder={t("Pilih karyawan", "Select employee")} /></SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {(master.data?.employees ?? []).map((e) => (
+                      <SelectItem key={e.id} value={e.id} className="text-sm">
+                        {e.employeeNo} — {e.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">
+                  {t("Klaim mandiri tidak terhubung permintaan travel — pastikan karyawan penerima klaim dipilih dengan benar.", "Standalone claims are not linked to a travel request — make sure the correct claim recipient is selected.")}
                 </p>
               </div>
             )}

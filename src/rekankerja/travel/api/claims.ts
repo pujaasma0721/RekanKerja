@@ -61,6 +61,14 @@ export async function GET(req: NextRequest) {
       attachments: attachMap.get(c.id) ?? [],
       attachmentCount: attachMap.get(c.id)?.length ?? 0,
     }));
+    // 45-b → Audit 97: kolom uang DTO nullable saat masked; agregat uang stats
+    // kini ikut nullable saat vault tertutup — konvensi Task 56 ("—" di UI),
+    // bukan 0 yang menyesatkan (walkthrough 97: KPI claim-approval menampilkan
+    // "Rp 0" padahal uang tersembunyi).
+    const moneyStat = (
+      f: (c: (typeof claims)[number]) => number | null,
+      only?: (c: (typeof claims)[number]) => boolean,
+    ) => (mv.canSee ? claims.filter(only ?? (() => true)).reduce((s, c) => s + (f(c) ?? 0), 0) : null);
     const stats = {
       total: claims.length,
       submitted: claims.filter((c) => c.status === "Submitted").length,
@@ -69,10 +77,9 @@ export async function GET(req: NextRequest) {
       paid: claims.filter((c) => c.status === "Paid").length,
       rejected: claims.filter((c) => c.status === "Rejected").length,
       cancelled: claims.filter((c) => c.status === "Cancelled").length,
-      // 45-b: kolom uang DTO nullable saat masked — sum ?? 0 (bebas NaN).
-      totalSettlement: claims.reduce((s, c) => s + (c.totalSettlement ?? 0), 0),
-      payableEmployee: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (c.payableEmployee ?? 0), 0),
-      payableCompany: claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (c.payableCompany ?? 0), 0),
+      totalSettlement: moneyStat((c) => c.totalSettlement),
+      payableEmployee: moneyStat((c) => c.payableEmployee, (c) => c.status === "Approved"),
+      payableCompany: moneyStat((c) => c.payableCompany, (c) => c.status === "Approved"),
     };
     return NextResponse.json({ claims: claimsWithAttachments, stats });
   } catch (e) {
