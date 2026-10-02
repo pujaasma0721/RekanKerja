@@ -2860,3 +2860,30 @@ Stage Summary:
 - Repo tersinkron penuh dengan GitHub (9262a39); DB lokal paritas 4/4 tenant (kolom medical wave1+wave3 terpasang semua)
 - Prisma client tenant diregenerasi — pola penting: SETIAP pull yang mengubah prisma/schema-tenant.prisma WAJIB diikuti prisma generate (atau restart dev server yang menjalankan generate di boot), kalau tidak endpoint yang menyentuh kolom baru akan 500
 - Smoke test HR+ESS lulus penuh; tidak ada perubahan kode aplikasi di sesi ini (hanya artefak lokal: DDL DB + generated client yang di-gitignore) — tidak ada file sumber yang berubah, hanya worklog ini yang di-commit
+
+---
+Task ID: 94
+Agent: main (Z.ai Code)
+Task: Perbaiki tab header ESS page — 12 menu horizontal membuat nav sangat memanjang ke kanan & tidak proporsional (laporan user)
+
+Diagnosis:
+- Topnav desktop (ess-shell.tsx) merender SEMUA 12 item ESS_NAV horizontal: Dashboard, Cuti Saya, Presensi Saya, Slip Gaji, Klaim Saya, Pengajuan, Surat, Pengumuman, Tukar Shift, Aset Saya, Laporkan Pelanggaran, Profil Saya
+- Terukur: nav 1670px di viewport 1440 (overflow 230px), 1590px di 1280, 1506px di 1024 — body.scrollWidth > innerWidth di SEMUA lebar desktop → scroll horizontal + terpotong; flex item min-content penuh (span truncate tanpa min-w-0) membuat baris tak pernah menyusut
+- Mobile tidak terdampak (bottom bar 4 tab + sheet Lainnya sudah benar)
+
+Perbaikan (1 file: src/rekankerja/ess/components/ess-shell.tsx):
+- ESS_TABS_DESKTOP = 6 tab frekuensi-tinggi: Dashboard, Cuti Saya, Presensi Saya, Slip Gaji, Klaim Saya, Pengajuan; ESS_OVERFLOW_DESKTOP = 6 sisanya (Surat, Pengumuman, Tukar Shift, Aset Saya, Laporkan Pelanggaran, Profil Saya)
+- Dropdown "Lainnya" (DropdownMenu shadcn, cermin pola sheet mobile): trigger bergaya identik tab nav (py-2.5, ikon MoreHorizontal, ChevronDown), item = ikon dalam kotak + label + Check saat aktif + highlight amber
+- Pill animasi layoutId "ov-ess-active-pill" ikut ke trigger saat view aktif ada di grup Lainnya → glide mulus antar tab ↔ trigger; trigger dapat aria-current=page + focus-visible ring
+- Label responsif: pendek (short/shortEn) di md–lg, penuh di lg+; px-2.5 lg:px-3.5; min-w-0 + truncate sebagai jaring pengaman
+
+Verifikasi browser (agent-browser, sesi yusuf@mii.co.id):
+- bodyW == innerWidth di 768/1024/1280/1440 (dulu overflow 40-310px); nav pas konten max-w-7xl
+- 768: label pendek tampil (Dashboard/Cuti/Presensi/Slip/Klaim/Ajukan/Lainnya); 375: bottom bar 5 tombol tak berubah
+- Dropdown: buka → 6 menuitem; klik Surat → halaman Surat + trigger "Lainnya" aria-current=page (aktif amber); klik balik tab primer → pill glide; Laporkan Pelanggaran (kanal legal) tetap terjangkau
+- VLM screenshot 1440: "proportional and well-balanced... no significant visual defects... clean and professional"
+- 0 error console, dev.log bersih, health 200, lint 0 error (2 warning pre-existing e2e)
+
+Stage Summary:
+- 12-tab horizontal → 6 tab primer + dropdown "Lainnya" (konsisten pola mobile 4+sheet); proporsional di semua lebar desktop
+- Navigasi semua view tetap terjangkau (dropdown + active state jelas); tidak ada perubahan routing/state

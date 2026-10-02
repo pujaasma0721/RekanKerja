@@ -73,6 +73,13 @@ const ESS_NAV: EssNavItem[] = [
 // tab mobile: 4 item pertama + "Lainnya" (bottom sheet sisanya)
 const ESS_TABS: EssView[] = ["dashboard", "leave", "attendance", "payslips"];
 
+// Task 94 — tab desktop (topnav): 6 item frekuensi-tinggi + dropdown "Lainnya"
+// untuk sisanya. Sebelumnya 12 item horizontal (~1670px) → overflow & scroll
+// horizontal di SEMUA lebar desktop (1024/1280/1440) — tidak proporsional dengan
+// konten max-w-7xl. Pola cermin mobile (4 tab + sheet): 6 tab + dropdown.
+const ESS_TABS_DESKTOP: EssView[] = ["dashboard", "leave", "attendance", "payslips", "claims", "requests"];
+const ESS_OVERFLOW_DESKTOP = ESS_NAV.filter((n) => !ESS_TABS_DESKTOP.includes(n.id));
+
 const subscribeNoop = () => () => {};
 
 // ============ LOGO ESS (pola lockup editorial: kotak tinta + aksen brand "Kerja") ============
@@ -466,10 +473,12 @@ export function EssShell() {
           </DropdownMenu>
         </div>
 
-        {/* baris 2 (desktop): menu horizontal — pengganti sidebar */}
+        {/* baris 2 (desktop): menu horizontal — pengganti sidebar.
+            Task 94: 6 tab primer + "Lainnya" dropdown (12 item = overflow di
+            semua lebar desktop). Label pendek di md–lg, penuh di lg+. */}
         <nav className="hidden border-t border-slate-100/80 dark:border-slate-800/60 md:block" aria-label={t("Navigasi utama Self Service", "Self Service main navigation")}>
           <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-4 sm:px-6">
-            {ESS_NAV.map((item) => {
+            {ESS_NAV.filter((n) => ESS_TABS_DESKTOP.includes(n.id)).map((item) => {
               const active = view === item.id;
               const Icon = item.icon;
               return (
@@ -478,7 +487,7 @@ export function EssShell() {
                   onClick={() => go(item.id)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-bold transition-colors",
+                    "relative flex min-w-0 items-center gap-1.5 px-2.5 py-2.5 text-[13px] font-bold transition-colors lg:px-3.5",
                     active
                       ? "text-amber-800 dark:text-amber-400"
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
@@ -492,10 +501,64 @@ export function EssShell() {
                     />
                   )}
                   <Icon className={cn("relative h-[15px] w-[15px] shrink-0", active ? "text-amber-600 dark:text-amber-400" : "text-slate-400")} aria-hidden />
-                  <span className="relative truncate">{t(item.label, item.en)}</span>
+                  <span className="relative truncate lg:hidden">{t(item.short, item.shortEn)}</span>
+                  <span className="relative hidden truncate lg:inline">{t(item.label, item.en)}</span>
                 </button>
               );
             })}
+            {/* Task 94 — "Lainnya": menu sisanya (pola cermin sheet mobile) */}
+            {(() => {
+              const overflowActive = !ESS_TABS_DESKTOP.includes(view);
+              return (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      aria-current={overflowActive ? "page" : undefined}
+                      aria-label={t("Menu lainnya", "More menu")}
+                      className={cn(
+                        "relative flex min-w-0 items-center gap-1.5 rounded-t-xl px-2.5 py-2.5 text-[13px] font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:px-3.5",
+                        overflowActive
+                          ? "text-amber-800 dark:text-amber-400"
+                          : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                      )}
+                    >
+                      {overflowActive && (
+                        <motion.span
+                          layoutId="ov-ess-active-pill"
+                          className="absolute inset-0 rounded-t-xl border-b-2 border-amber-500 bg-amber-50/70 dark:bg-amber-500/10"
+                          transition={{ type: "spring", stiffness: 400, damping: 34 }}
+                        />
+                      )}
+                      <MoreHorizontal className={cn("relative h-[15px] w-[15px] shrink-0", overflowActive ? "text-amber-600 dark:text-amber-400" : "text-slate-400")} aria-hidden />
+                      <span className="relative">{t("Lainnya", "More")}</span>
+                      <ChevronDown className={cn("relative h-3.5 w-3.5 shrink-0 transition-transform", overflowActive ? "text-amber-500" : "text-slate-400")} aria-hidden />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      {t("Menu Lainnya", "More Menu")}
+                    </DropdownMenuLabel>
+                    {ESS_OVERFLOW_DESKTOP.map((item) => {
+                      const active = view === item.id;
+                      const Icon = item.icon;
+                      return (
+                        <DropdownMenuItem
+                          key={item.id}
+                          onClick={() => go(item.id)}
+                          className={cn("gap-2.5 py-2.5", active && "bg-amber-50 font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-400")}
+                        >
+                          <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", active ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>
+                            <Icon className="h-4 w-4" aria-hidden />
+                          </span>
+                          <span className="truncate">{t(item.label, item.en)}</span>
+                          {active && <Check className="ml-auto h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            })()}
             {/* identitas view aktif ringan di ujung kanan */}
             <span className="flex-1" />
             <span className="hidden items-center gap-1.5 text-[11px] font-medium text-slate-400 xl:flex">
