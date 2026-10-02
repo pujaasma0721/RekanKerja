@@ -416,7 +416,7 @@ function RailButton({ label, icon: Icon, hex, active, badge, onClick }: {
           onClick={onClick}
           aria-label={label}
           aria-current={active ? "page" : undefined}
-          className="group relative flex h-11 w-11 items-center justify-center rounded-xl"
+          className="group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-brand/10"
         >
           {active && (
             <motion.span
@@ -426,7 +426,7 @@ function RailButton({ label, icon: Icon, hex, active, badge, onClick }: {
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}
-          <Icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-muted-foreground group-hover:text-foreground")} aria-hidden />
+          <Icon className={cn("relative z-10 h-[18px] w-[18px] transition-all duration-200 group-hover:scale-110", active ? "text-white" : "text-muted-foreground group-hover:text-brand-deep")} aria-hidden />
           {badge != null && badge > 0 && (
             <span className="absolute -right-0.5 -top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-extrabold tabular-nums text-white" style={{ background: hex }}>
               {badge > 9 ? "9+" : badge}
@@ -710,10 +710,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-current={inSettings ? "page" : undefined}
                     className={cn(
                       "group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors",
-                      inSettings ? "bg-accent" : "hover:bg-accent/60",
+                      inSettings ? "bg-brand/15" : "hover:bg-brand/10",
                     )}
                   >
-                    <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground")} aria-hidden />
+                    <Settings2 className={cn("h-[18px] w-[18px] transition-colors", inSettings ? "text-brand-deep" : "text-muted-foreground group-hover:text-brand-deep")} aria-hidden />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">{t("Pengaturan Sistem")}</TooltipContent>
@@ -770,8 +770,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <button
                           onClick={() => go(group.section, group.children[0].id)}
                           className={cn(
-                            "flex w-full items-center px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground",
-                            active && "hover:text-foreground",
+                            "flex w-full items-center px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-brand-deep",
+                            active && "hover:text-brand-deep",
                           )}
                           style={active ? { color: accent } : undefined}
                         >
@@ -794,7 +794,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
                               "group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-colors",
-                              isActive ? "bg-accent" : "hover:bg-accent/60",
+                              isActive ? "bg-brand/15" : "hover:bg-brand/10",
                             )}
                           >
                             {isActive && (
@@ -806,11 +806,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                               />
                             )}
                             <Icon
-                              className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !isActive && "text-muted-foreground group-hover:translate-x-0.5 group-hover:text-foreground")}
+                              className={cn("h-[15px] w-[15px] shrink-0 transition-all duration-200", !isActive && "text-muted-foreground group-hover:translate-x-0.5 group-hover:text-brand-deep")}
                               style={isActive ? { color: accent } : undefined}
                               aria-hidden
                             />
-                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{t(item.label)}</span>
+                            <span className={cn("flex-1 truncate text-[12.5px] font-medium", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-brand-deep")}>{t(item.label)}</span>
                             <ItemWidget mod={isSettingsGroup ? "settings" : module} item={item} meta={meta.data} accent={accent} />
                           </button>
                         );
@@ -1137,13 +1137,13 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
             <motion.button
               key={m.id}
               variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="group flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-brand/10"
               onClick={() => onNavigateModule(m.id)}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: listAccent }}>
                 <m.icon className="h-4 w-4" />
               </span>
-              <span className="flex-1 text-[13px] font-bold text-slate-700 dark:text-slate-200">{m.label}</span>
+              <span className="flex-1 text-[13px] font-bold text-slate-700 transition-colors group-hover:text-brand-deep dark:text-slate-200">{m.label}</span>
               {current ? <Check className="h-4 w-4 shrink-0" style={{ color: listAccent }} /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />}
             </motion.button>
           );
@@ -1151,13 +1151,13 @@ function AllModulesSheet({ allowedModules, settingsGroups, module, inSettings, o
         {settingsGroups.length > 0 && (
           <motion.button
             variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-            className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="group flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-brand/10"
             onClick={onGoSettings}
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-400 text-white">
               <Settings2 className="h-4 w-4" />
             </span>
-            <span className="flex-1 text-[13px] font-bold text-slate-700 dark:text-slate-200">{t("Pengaturan Sistem")}</span>
+            <span className="flex-1 text-[13px] font-bold text-slate-700 transition-colors group-hover:text-brand-deep dark:text-slate-200">{t("Pengaturan Sistem")}</span>
             {inSettings ? <Check className="h-4 w-4 shrink-0 text-slate-400" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />}
           </motion.button>
         )}
@@ -1237,11 +1237,11 @@ function ModuleMenuSheet({ m, groups, onGo, onClose }: {
                 <motion.button
                   key={item.id}
                   variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
-                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-brand/10 group-hover:text-brand-deep"
                   onClick={() => onGo(g.section, item.id)}
                 >
                   <IIcon className="h-4 w-4 shrink-0" style={{ color: c }} aria-hidden />
-                  <span className="flex-1 text-[13px] font-semibold text-slate-700 dark:text-slate-200">{t(item.label)}</span>
+                  <span className="flex-1 text-[13px] font-semibold text-slate-700 transition-colors group-hover:text-brand-deep dark:text-slate-200">{t(item.label)}</span>
                 </motion.button>
               );
             })}

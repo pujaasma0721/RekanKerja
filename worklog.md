@@ -2887,3 +2887,27 @@ Verifikasi browser (agent-browser, sesi yusuf@mii.co.id):
 Stage Summary:
 - 12-tab horizontal → 6 tab primer + dropdown "Lainnya" (konsisten pola mobile 4+sheet); proporsional di semua lebar desktop
 - Navigasi semua view tetap terjangkau (dropdown + active state jelas); tidak ada perubahan routing/state
+
+---
+Task ID: 95
+Agent: main (Z.ai Code)
+Task: Hover menu ADMIN berwarna sesuai tema aksen (klarifikasi user: menu admin, bukan ESS) — sebelumnya hover memakai abu netral shadcn (bg-accent/60, hover:bg-slate-100) yang tidak berubah saat tema diganti
+
+Perbaikan (1 file: src/rekankerja/shared/components/shell/app-shell.tsx, 7 lokasi):
+- Panel menu modul (desktop, nav utama): hover:bg-accent/60 → hover:bg-brand/10 (tint aksen); ikon group-hover:text-foreground → group-hover:text-brand-deep; label group-hover:text-foreground → group-hover:text-brand-deep; state aktif bg-accent (abu) → bg-brand/15 (tint aksen, searah hover) — jadi sistem warna koheren: aktif=bar 3px aksen + ikon aksen + tint 15%, hover=tint 10% + teks aksen
+- Label grup uppercase (PERUSAHAAN & ORGANISASI dsb.): hover:text-foreground → hover:text-brand-deep
+- Rail modul (ikon kiri): tambah hover:bg-brand/10 + ikon group-hover:text-brand-deep (dulu hanya scale tanpa warna)
+- Tombol Pengaturan di rail: bg-accent/hover:bg-accent/60 → bg-brand/15/hover:bg-brand/10 + ikon text-brand-deep
+- ModuleMenuSheet (mobile/tablet) + AllModulesSheet + item Pengaturan: hover:bg-slate-100 → hover:bg-brand/10 + label group-hover:text-brand-deep
+- Semua via utilitas brand (--accent-live/--accent-live-deep CSS var) → otomatis reaktif tanpa JS saat tema diganti, light+dark aman (dark: hexDeep→hexDark)
+
+Verifikasi browser (agent-browser, admin hrd@mii.co.id):
+- Tema Biru (default): hover "Perusahaan" = background tint biru muda + teks biru gelap (VLM konfirmasi); aktif "Dashboard" = tint biru 15% + ikon biru + bar 3px glow
+- Ganti tema → Emerald (--accent-live #10b981): hover = tint mint + teks emerald; aktif = tint emerald + ikon emerald — WARNA IKUT TEMA ✓
+- Dark mode (emerald): hover tint emerald terlihat + teks light-green terbaca; aktif bar emerald jelas; kontras baik (VLM: "no readability issues, contrast excellent")
+- Rail modul: hover ikon Payroll = rounded square tint emerald, ikon lain polos ✓
+- Rule CSS terverifikasi tergenerate (.hover\:bg-brand\/10:hover → color-mix(in oklab, var(--accent-live) 10%, transparent)); 0 error console, health 200, lint 0 error (2 warning pre-existing)
+
+Stage Summary:
+- Hover menu admin kini mengikuti tema aksen global (7 pilihan: Biru/Emerald/Amber/Teal/Cyan/Violet/Rose) di light+dark, konsisten di rail + panel menu + label grup + sheet mobile
+- Bonus koherensi: state aktif ikut tint aksen (dulu abu netral) sehingga hover/aktif membentuk hierarki satu keluarga warna
