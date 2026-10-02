@@ -18,7 +18,7 @@ import {
   BalanceUI, BenefitTypeUI, EmployeeOption, LIMIT_RULE_LABEL, LIMIT_RULE_LABEL_EN,
   fmtIDR, fmtDateID,
 } from "./medical-types";
-import { HeartPulse, RefreshCw, Search, Wallet } from "lucide-react";
+import { HeartPulse, RefreshCw, Search, Wallet, PencilLine } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,12 @@ export function MedicalInfoPage() {
   const [genYear, setGenYear] = useState(String(currentYear + 1));
   const [genType, setGenType] = useState("all");
   const [genCorrection, setGenCorrection] = useState(false);
+  // W3-2 (fix G-10): input migrasi saldo awal eksplisit (pad oranHR
+  // InitialMedicalBenefit.jsp) — initialUsed per baris saldo.
+  const [migOpen, setMigOpen] = useState(false);
+  const [migTarget, setMigTarget] = useState<{ employeeId: string; typeId: string; year: number; label: string; current: number } | null>(null);
+  const [migValue, setMigValue] = useState("");
+  const [migBusy, setMigBusy] = useState(false);
 
   const api = useApi<{ balances: BalanceUI[]; types: BenefitTypeUI[]; employees: EmployeeOption[]; years: number[] }>(
     `/api/rekankerja/medical/balances?year=${year}`,
@@ -56,6 +62,33 @@ export function MedicalInfoPage() {
     }), { limit: 0, used: 0, remaining: 0 });
     return t;
   }, [balances]);
+
+  // W3-2 (fix G-10): buka dialog migrasi utk satu baris saldo.
+  const openMig = (b: BalanceUI) => {
+    const tId = types.find((x) => x.code === b.typeCode)?.id ?? "";
+    setMigTarget({ employeeId: b.employeeId, typeId: tId, year: b.year, label: `${b.fullName} — ${b.typeName} ${b.year}`, current: b.initialUsed });
+    setMigValue(b.initialUsed > 0 ? String(b.initialUsed) : "");
+    setMigOpen(true);
+  };
+
+  const saveMigration = async () => {
+    if (!migTarget) return;
+    if (!migTarget.typeId) { toast.error(t("Jenis benefit tidak dikenali", "Unknown benefit type")); return; }
+    setMigBusy(true);
+    try {
+      const res = await apiSend<{ ok: boolean; remaining: number }>(
+        "/api/rekankerja/medical/balances", "PATCH",
+        { employeeId: migTarget.employeeId, typeId: migTarget.typeId, year: migTarget.year, initialUsed: Number(migValue) || 0 },
+      );
+      toast.success(t("Migrasi saldo awal tersimpan — sisa {r}", "Initial balance migration saved — remaining {r}", { r: fmtIDR(res.remaining) }));
+      setMigOpen(false);
+      api.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menyimpan migrasi", "Failed to save migration"));
+    } finally {
+      setMigBusy(false);
+    }
+  };
 
   const generate = async () => {
     setBusy(true);
@@ -160,6 +193,7 @@ export function MedicalInfoPage() {
                     <TableHead>{t("Karyawan")}</TableHead>
                     <TableHead>{t("Jenis")}</TableHead>
                     <TableHead className="text-right">Limit</TableHead>
+                    <TableHead className="text-right">{t("Saldo Awal (Migrasi)", "Initial (Migration)")}</TableHead>
                     <TableHead className="text-right">{t("Penyesuaian", "Adjustment")}</TableHead>
                     <TableHead className="text-right">{t("Terpakai", "Used")}</TableHead>
                     <TableHead className="text-right">{t("Sisa", "Remaining")}</TableHead>
@@ -180,6 +214,20 @@ export function MedicalInfoPage() {
                         </p>
                       </TableCell>
                       <TableCell className="text-right">{b.limitRule === "UNLIMITED" ? "∞" : fmtIDR(b.benefitAmount)}</TableCell>
+                      {/* W3-2 (fix G-10): nilai migrasi + tombol input eksplisit */}
+                      <TableCell className="text-right">
+                        <span className="inline-flex items-center justify-end gap-1">
+                          {b.initialUsed > 0 ? fmtIDR(b.initialUsed) : "—"}
+                          <button
+                            type="button"
+                            onClick={() => openMig(b)}
+                            title={t("Input migrasi saldo awal", "Enter initial balance migration")}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-brand dark:hover:bg-slate-800"
+                          >
+                            <PencilLine className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      </TableCell>
                       <TableCell className={cn("text-right", b.adjustmentAmount !== 0 && "text-brand dark:text-brand/85")}>
                         {b.adjustmentAmount !== 0 ? `${b.adjustmentAmount > 0 ? "+" : ""}${fmtIDR(b.adjustmentAmount)}` : "—"}
                       </TableCell>
@@ -197,6 +245,39 @@ export function MedicalInfoPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* W3-2 (fix G-10): dialog migrasi saldo awal eksplisit */}
+      <Dialog open={migOpen} onOpenChange={setMigOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PencilLine className="h-5 w-5 ov-text-accent" /> {t("Migrasi Saldo Awal", "Initial Balance Migration")}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {t("Padanan InitialMedicalBenefit.jsp: isi pemakaian medis karyawan SEBELUM sistem berjalan — sisa plafon langsung berkurang. Kosongkan/0 bila tidak ada.", "Equivalent to InitialMedicalBenefit.jsp: enter the employee's pre-system medical usage — remaining balance is reduced immediately. Leave empty/0 if none.")}
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t("Baris Saldo", "Balance Row")}</Label>
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold dark:bg-slate-800/60">{migTarget?.label ?? "—"}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("Terpakai sebelum sistem (Rp)", "Pre-system used (Rp)")}</Label>
+              <Input type="number" min={0} value={migValue} onChange={(e) => setMigValue(e.target.value)} placeholder="0" />
+              {migTarget && migTarget.current > 0 && (
+                <p className="text-xs text-slate-500">{t("Nilai saat ini: {n}", "Current value: {n}", { n: fmtIDR(migTarget.current) })}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMigOpen(false)}>{t("Batal")}</Button>
+            <Button onClick={saveMigration} disabled={migBusy}>
+              {migBusy ? t("Menyimpan…", "Saving…") : t("Simpan Migrasi", "Save Migration")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* dialog generate */}
       <Dialog open={genOpen} onOpenChange={setGenOpen}>

@@ -36,7 +36,7 @@ export async function GET(req: Request) {
       orderBy: { sortOrder: "asc" },
       select: {
         id: true, code: true, name: true, limitRule: true,
-        needReceipt: true, dependentEnabled: true,
+        needReceipt: true, needLetter: true, dependentEnabled: true,
         freqUnlimited: true, freqValue: true, freqPeriod: true,
       },
     });
@@ -55,6 +55,7 @@ export async function GET(req: Request) {
           name: t.name,
           limitRule: t.limitRule,
           needReceipt: t.needReceipt,
+          needLetter: t.needLetter, // W3-1 (fix G-2) — UI ESS menandai input wajib
           dependentEnabled: t.dependentEnabled,
           freqUnlimited: t.freqUnlimited,
           freqValue: t.freqValue,
@@ -100,6 +101,18 @@ export async function POST(req: Request) {
     if (!Array.isArray(b.lines) || b.lines.length === 0) {
       return NextResponse.json({ error: "Klaim wajib memuat minimal satu baris perawatan" }, { status: 400 });
     }
+    // W3-1 (fix G-2): jenis needLetter — nomor surat rujukan wajib dijalur ESS
+    // juga (guard service submitClaim tetap sebagai lapis kedua).
+    const letterType = await db.medicalBenefitType.findUnique({
+      where: { id: typeId }, select: { name: true, needLetter: true },
+    });
+    const letterNo = b.letterNo ? String(b.letterNo).trim() : "";
+    if (letterType?.needLetter && !letterNo) {
+      return NextResponse.json(
+        { error: `Jenis ${letterType.name} mewajibkan nomor surat rujukan dokter/RS — isi No. Surat Rujukan pada klaim` },
+        { status: 400 },
+      );
+    }
     for (const [i, l] of (b.lines as Record<string, unknown>[]).entries()) {
       if (!String(l.treatedName ?? "").trim()) {
         return NextResponse.json({ error: `Baris ${i + 1}: nama yang dirawat wajib diisi` }, { status: 400 });
@@ -116,6 +129,7 @@ export async function POST(req: Request) {
         employeeId,
         typeId,
         claimDate,
+        letterNo: letterNo || undefined, // W3-1 (fix G-2) — passthrough ESS
         forDependent: b.forDependent === true,
         note: b.note ? String(b.note) : "Diajukan via ESS oleh karyawan",
         submit: true,

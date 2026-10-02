@@ -284,6 +284,8 @@ async function claimPoolAvailability(
 export interface BenefitTypeRow {
   id: string; code: string; name: string; description: string | null; active: boolean;
   needReceipt: boolean;
+  /** W3-1 (fix G-2): jenis ini mewajibkan nomor surat rujukan dokter/RS. */
+  needLetter: boolean;
   limitRule: string; limitValue: number; wageCode: string | null;
   freqUnlimited: boolean; freqValue: number; freqPeriod: string;
   pctCompany: number; pctInsurance: number; insuranceCompany: string | null;
@@ -302,7 +304,7 @@ export async function listBenefitTypes(db: TenantDb): Promise<BenefitTypeRow[]> 
   });
   return rows.map((t) => ({
     id: t.id, code: t.code, name: t.name, description: t.description, active: t.active,
-    needReceipt: t.needReceipt,
+    needReceipt: t.needReceipt, needLetter: t.needLetter,
     limitRule: t.limitRule, limitValue: t.limitValue, wageCode: t.wageCode,
     freqUnlimited: t.freqUnlimited, freqValue: t.freqValue, freqPeriod: t.freqPeriod,
     pctCompany: t.pctCompany, pctInsurance: t.pctInsurance, insuranceCompany: t.insuranceCompany,
@@ -320,6 +322,8 @@ export interface UpsertTypeInput {
   name: string;
   description?: string;
   needReceipt?: boolean;
+  /** W3-1 (fix G-2): surat rujukan wajib untuk jenis ini (pad oranHR letter_no). */
+  needLetter?: boolean;
   limitRule: string; // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
   limitValue?: number;
   wageCode?: string;
@@ -360,6 +364,7 @@ export async function upsertBenefitType(db: TenantDb, input: UpsertTypeInput): P
     name: input.name.trim(),
     description: input.description?.trim() || null,
     needReceipt: input.needReceipt ?? true,
+    needLetter: input.needLetter ?? false,
     limitRule: rule,
     limitValue: rule === "UNLIMITED" ? 0 : (input.limitValue ?? 0),
     wageCode: input.wageCode?.trim() || null,
@@ -1045,6 +1050,18 @@ export async function submitClaim(
     throw new Error(`Jenis ${preview.typeCode} tidak mengaktifkan klaim dependent`);
   }
 
+  // W3-1 (fix G-2 BPA-medical): jenis needLetter wajib menyertakan nomor surat
+  // rujukan dokter/RS (pad oranHR letter_no — praktik rawat inap). Enforce di
+  // service agar jalur admin & ESS (keduanya lewat submitClaim) sama-sama tertutup.
+  const typeRec = await db.medicalBenefitType.findUnique({
+    where: { id: input.typeId }, select: { name: true, needLetter: true },
+  });
+  if (typeRec?.needLetter && !input.letterNo?.trim()) {
+    throw new Error(
+      `Jenis ${typeRec.name} mewajibkan nomor surat rujukan dokter/RS — isi No. Surat Rujukan pada klaim`,
+    );
+  }
+
   // ---- M-2 (fix audit): validasi tanggal — sebelumnya hilang total ----
   // klaim & perawatan tidak boleh masa depan, tahun perawatan = tahun saldo,
   // tanggal tidak boleh mendahului tanggal bergabung karyawan.
@@ -1233,11 +1250,19 @@ export async function updateClaim(
 ): Promise<{ id: string; docNo: string; state: string; totalBill: number; totalApproved: number; warnings: string[] }> {
   const claim = await db.medicalClaim.findUnique({
     where: { id: input.claimId },
-    include: { type: { select: { code: true, needReceipt: true } } },
+    include: { type: { select: { code: true, name: true, needReceipt: true, needLetter: true } } },
   });
   if (!claim) throw new Error("Klaim tidak ditemukan");
   if (!["Draft", "Returned"].includes(claim.state)) {
     throw new Error(`Klaim status ${claim.state} tidak bisa diedit — hanya Draft atau Returned`);
+  }
+  // W3-1 (fix G-2): jenis needLetter — edit tidak boleh menghasilkan klaim
+  // tanpa nomor surat rujukan (nilai efektif = yang dikirim atau yang tersimpan).
+  const effLetterNo = input.letterNo !== undefined ? (input.letterNo.trim() || null) : claim.letterNo;
+  if (claim.type.needLetter && !effLetterNo) {
+    throw new Error(
+      `Jenis ${claim.type.name} mewajibkan nomor surat rujukan dokter/RS — isi No. Surat Rujukan pada klaim`,
+    );
   }
   if (input.lines && input.lines.length === 0) throw new Error("Minimal satu baris perawatan");
 
@@ -1586,6 +1611,73 @@ async function generateSettleJournal(
   return { journalNo, journalDate, lines: drafts.length, total };
 }
 
+// ============ W3-3 (fix G-5 BPA-medical) — potong gaji bagian over-limit ======
+// Perusahaan membayar klaim penuh via jurnal settle; bagian yang melebihi sisa
+// plafon dikembalikan karyawan lewat POTONGAN GAJI (komponen Deduction MED_POT,
+// Specific × SALARY pada period payroll terbuka) — praktik reimbursement
+// Indonesia. Semua tulisan dalam transaksi settle (atomic dgn jurnal+saldo).
+
+/** Komponen potongan over-limit medis — find-or-create idempoten (mirror
+ *  ensureSettlementWageComponents settlement-service). NonTaxable: pengembalian
+ *  reimburse berlebih bukan penghasilan — basis PPh21 karyawan tidak berubah. */
+async function ensureOverLimitDeductionComponent(tx: Prisma.TransactionClient) {
+  const existing = await tx.wageComponent.findUnique({ where: { code: "MED_POT" } });
+  if (existing) return existing;
+  return tx.wageComponent.create({
+    data: {
+      code: "MED_POT", name: "Potongan Klaim Medis Over-limit",
+      type: "Deduction", wageType: "Deduction",
+      calcMethod: "Fixed", amount: 0, incomeTaxMethod: "NonTaxable", taxable: false,
+      includeInTHP: true, displayInPaySlip: true, prorated: false,
+      accountCreditCode: "2105",
+    },
+  });
+}
+
+/** Period payroll utk potongan: yang memuat hari ini (non-Locked/Closed),
+ *  fallback period terbuka berikutnya, fallback terakhir non-Locked/Closed
+ *  (mirror currentPeriodFor settlement-service — potongan tidak boleh dijadwalkan
+ *  ke period yang tidak bisa lagi menerima run). */
+async function openPeriodForDeduction(tx: Prisma.TransactionClient) {
+  const today = new Date();
+  const containing = await tx.payrollPeriod.findFirst({
+    where: { startDate: { lte: today }, endDate: { gte: today }, status: { notIn: ["Locked", "Closed"] } },
+    orderBy: { startDate: "desc" }, select: { id: true, name: true },
+  });
+  if (containing) return containing;
+  const upcoming = await tx.payrollPeriod.findFirst({
+    where: { startDate: { gt: today }, status: { notIn: ["Locked", "Closed"] } },
+    orderBy: { startDate: "asc" }, select: { id: true, name: true },
+  });
+  if (upcoming) return upcoming;
+  return tx.payrollPeriod.findFirst({
+    where: { status: { notIn: ["Locked", "Closed"] } },
+    orderBy: { endDate: "desc" }, select: { id: true, name: true },
+  });
+}
+
+/** Tulis assignment potongan MED_POT (Specific × SALARY) untuk satu klaim. */
+async function createOverLimitDeduction(
+  tx: Prisma.TransactionClient,
+  input: { employeeId: string; docNo: string; amount: number; approved: number; available: number; tc: FieldCrypto },
+): Promise<{ periodName: string | null }> {
+  const comp = await ensureOverLimitDeductionComponent(tx);
+  const pt = await tx.processType.findFirst({ where: { code: "SALARY" } });
+  if (!pt) throw new Error("Process type SALARY tidak ditemukan — potongan gaji over-limit tidak dapat dibuat");
+  const period = await openPeriodForDeduction(tx);
+  if (!period) throw new Error("Tidak ada period payroll terbuka — potongan gaji over-limit tidak dapat dibuat");
+  await tx.employeeComponentAssignment.create({
+    data: {
+      employeeId: input.employeeId, wageComponentId: comp.id,
+      kind: "Specific", amount: input.tc.encryptMoney(input.amount),
+      periodId: period.id, processTypeId: pt.id, basedDate: new Date(),
+      notes: `Potongan gaji over-limit klaim medis ${input.docNo} — approved Rp ${fmtRp(input.approved)}, sisa plafon Rp ${fmtRp(input.available)}`,
+      active: true,
+    },
+  });
+  return { periodName: period.name };
+}
+
 export interface DecideClaimInput {
   claimId: string;
   action: "submit" | "return" | "approve" | "reject" | "cancel" | "settle" | "storno";
@@ -1594,6 +1686,11 @@ export interface DecideClaimInput {
    *  guard re-check K-1/K-2 (API TIDAK memetakan flag ini — operasi bisnis normal
    *  tetap ditolak 400). */
   allowOverLimit?: boolean;
+  /** W3-3 (fix G-5 BPA-medical): potong gaji bagian over-limit — bila total
+   *  approved melebihi sisa plafon, kelebihannya DIBUAT sebagai potongan gaji
+   *  (komponen Deduction MED_POT pada period payroll terbuka) dan klaim tetap
+   *  diapprove/di-settle. Bila false dan over → guard K-1/K-2 tetap menolak. */
+  overLimitDeduct?: boolean;
   /** aktor sesi (otorisasi & jejak jenjang approval berjenjang — Task 25) */
   actor?: DecideActor;
 }
@@ -1607,10 +1704,18 @@ export interface DecideClaimResult {
   remaining: number;
   /** (additive, fix K-3) pool yang dipotong saat settle — "employee" | "dependent". */
   usedPool?: "employee" | "dependent";
+  /** W3-3 (fix G-5): bagian over-limit yang dibuat potongan gaji (Rp) — hanya
+   *  pada settle dengan overLimitDeduct dan klaim benar-benar over. */
+  overLimitDeducted?: number;
+  /** W3-3: nama period payroll tempat potongan dijadwalkan. */
+  deductPeriodName?: string | null;
   /** info jenjang berjenjang — ada bila masih ada jenjang berikutnya (Task 25) */
   approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null };
   /** W1-4 — no. dokumen pembalik bila action storno. */
   reversalOf?: string;
+  /** W3-3 (fix G-5): jumlah potongan gaji over-limit terkait yang ikut dihapus
+   *  saat storno (bila period-nya belum dibayar run payroll). */
+  removedDeductions?: number;
 }
 
 /** Operasi klaim — padanan Operation: Submit | Return To Requester |
@@ -1647,6 +1752,11 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
   let usedAdded = 0;
   let useDepPool = false;
   let poolLabel = "plafon karyawan";
+  // W3-3 (fix G-5): potongan gaji over-limit — diisi pada settle bila
+  // overLimitDeduct dan klaim benar-benar melebihi sisa plafon.
+  let overLimitAmount = 0;
+  let deductPeriodName: string | null = null;
+  let removedDeductions = 0;
 
   const allowed: Record<string, string[]> = {
     submit: ["Draft", "Returned"],
@@ -1720,12 +1830,12 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     // W1-1: jenis UNLIMITED → guard plafon dilewati (fix E2E — dulu hanya settle
     // & submit yang bypass; approve kaki menolak klaim UNLIMITED bila ada
     // reservasi klaim lain menunggu di pool yang sama).
-    if (!avail.unlimited && !input.allowOverLimit && claimTotalApproved > avail.available) {
+    if (!avail.unlimited && !input.allowOverLimit && !input.overLimitDeduct && claimTotalApproved > avail.available) {
       throw new Error(
         `Approve ditolak: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
         ` — saldo berubah sejak pengajuan (snapshot sisa saat ajukan Rp ${fmtRp(round2(claimMaxBenefitAt - claimUsedAt))}` +
         (avail.pendingOthers > 0 ? `, klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)}` : "") +
-        "). Selesaikan/putuskan klaim lain atau ajukan penyesuaian saldo terlebih dahulu",
+        "). Selesaikan/putuskan klaim lain, ajukan penyesuaian saldo, atau aktifkan potongan gaji over-limit terlebih dahulu",
       );
     }
     newState = "Approved"; pushLog("Approved");
@@ -1749,11 +1859,11 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     });
     poolLabel = avail.pool === "dependent" ? "plafon dependent" : "plafon karyawan";
     // W1-1: jenis UNLIMITED → guard plafon dilewati.
-    if (!avail.unlimited && !input.allowOverLimit && claimTotalApproved > avail.available) {
+    if (!avail.unlimited && !input.allowOverLimit && !input.overLimitDeduct && claimTotalApproved > avail.available) {
       throw new Error(
         `Settle ditolak — jurnal TIDAK dibuat: total approved Rp ${fmtRp(claimTotalApproved)} melebihi sisa ${poolLabel} Rp ${fmtRp(avail.available)}` +
         (avail.pendingOthers > 0 ? ` (klaim lain menunggu Rp ${fmtRp(avail.pendingOthers)})` : "") +
-        " — saldo berubah sejak pengajuan (dipakai klaim lain / ditransfer ke payroll UMC / adjustment). Sesuaikan klaim atau ajukan penyesuaian saldo",
+        " — saldo berubah sejak pengajuan (dipakai klaim lain / ditransfer ke payroll UMC / adjustment). Sesuaikan klaim, ajukan penyesuaian saldo, atau aktifkan potongan gaji over-limit",
       );
     }
     const bal = await db.medicalBalance.findUnique({
@@ -1771,6 +1881,11 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     useDepPool = claim.forDependent && depPoolSeparate(claim.type);
     usedAdded = claimTotalApproved;
     const settleDate = new Date();
+    // W3-3 (fix G-5): bagian over-limit yang dipotong dari gaji — 0 bila tidak
+    // diminta / UNLIMITED / total tidak melebihi sisa.
+    overLimitAmount = input.overLimitDeduct && !avail.unlimited
+      ? Math.max(0, round2(claimTotalApproved - avail.available))
+      : 0;
     // $transaction (backlog m-7 — murah dibungkus sekalian): jurnal + saldo +
     // klaim + activity log atomik — crash mid-flight tidak lagi meninggalkan
     // jurnal tanpa pemakaian saldo.
@@ -1788,6 +1903,18 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           ? { depUsed: encMoney(tc, round2(decMoney(tc, bal.depUsed) + usedAdded)) }
           : { usedAmount: encMoney(tc, round2(decMoney(tc, bal.usedAmount) + usedAdded)) },
       });
+      // W3-3 (fix G-5): potong gaji bagian over-limit — kelebihan reimburse di
+      // atas sisa plafon dibuat komponen Deduction MED_POT (Specific × SALARY)
+      // pada period payroll terbuka; perusahaan tetap membayar klaim penuh via
+      // jurnal settle, gaji berikutnya memotong kelebihannya (atomic dalam
+      // transaksi settle — tidak ada potongan yatim bila jurnal gagal).
+      if (overLimitAmount > 0) {
+        const ded = await createOverLimitDeduction(tx, {
+          employeeId: claim.employeeId, docNo: claim.docNo, amount: overLimitAmount,
+          approved: claimTotalApproved, available: avail.available, tc,
+        });
+        deductPeriodName = ded.periodName;
+      }
       await tx.medicalClaim.update({
         where: { id: claim.id },
         data: {
@@ -1805,7 +1932,7 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           action: "Processed", entity: "MedicalClaim", entityId: claim.id,
           appUserId: input.actor?.appUserId ?? undefined,
           employeeId: input.actor?.employeeId ?? undefined,
-          detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}`,
+          detail: `Klaim ${claim.docNo} → ${newState}${input.note ? ` (${input.note})` : ""}${journalNo ? ` — jurnal ${journalNo} (${journalLines} baris)` : ""}${overLimitAmount > 0 ? ` — over-limit Rp ${fmtRp(overLimitAmount)} dipotong gaji (${deductPeriodName ?? "period ?"})` : ""}`,
         },
       });
     });
@@ -1884,6 +2011,17 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           ? { depUsed: encMoney(tc, round2(decMoney(tc, bal.depUsed) - claimTotalApproved)) }
           : { usedAmount: encMoney(tc, round2(decMoney(tc, bal.usedAmount) - claimTotalApproved)) },
       });
+      // W3-3 (fix G-5): storno klaim — potongan gaji over-limit terkait
+      // (MED_POT, notes memuat docNo klaim) dihapus bila BELUM dibayar run.
+      // Bila period sudah dibayar, run yang lalu tidak berubah — penyelesaian
+      // uang diluar sistem; jejak notes ActivityLog tetap sebagai bukti.
+      const medPotComp = await tx.wageComponent.findUnique({ where: { code: "MED_POT" } });
+      if (medPotComp) {
+        const del = await tx.employeeComponentAssignment.deleteMany({
+          where: { wageComponentId: medPotComp.id, kind: "Specific", active: true, notes: { contains: `klaim medis ${claim.docNo}` } },
+        });
+        removedDeductions = del.count;
+      }
       // 3) dokumen pembalik (mirror −approved, reversalOfId unik — idempoten)
       await tx.medicalClaim.create({
         data: {
@@ -1916,7 +2054,7 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           action: "Processed", entity: "MedicalClaim", entityId: claim.id,
           appUserId: input.actor?.appUserId ?? undefined,
           employeeId: input.actor?.employeeId ?? undefined,
-          detail: `STORNO klaim ${claim.docNo} → dokumen pembalik ${revDocNo}${revJournalNo ? ` — jurnal pembalik ${revJournalNo}` : ""} — saldo dipulihkan Rp ${fmtRp(claimTotalApproved)}${input.note ? ` (${input.note})` : ""}`,
+          detail: `STORNO klaim ${claim.docNo} → dokumen pembalik ${revDocNo}${revJournalNo ? ` — jurnal pembalik ${revJournalNo}` : ""} — saldo dipulihkan Rp ${fmtRp(claimTotalApproved)}${removedDeductions > 0 ? ` — ${removedDeductions} potongan gaji over-limit terkait dibatalkan` : ""}${input.note ? ` (${input.note})` : ""}`,
         },
       });
     });
@@ -1925,6 +2063,8 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
       journalNo: null, journalLines: 0, usedAdded: -claimTotalApproved,
       remaining: 0, usedPool: useDepPool ? "dependent" : "employee",
       reversalOf: revDocNo,
+      // W3-3 (fix G-5): jumlah potongan gaji over-limit terkait yang ikut dihapus.
+      removedDeductions,
     };
   }
 
@@ -1963,7 +2103,13 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
         ? round2(decMoney(tc, balAfter.depBenefitAmount) + decMoney(tc, balAfter.depAdjustment) - decMoney(tc, balAfter.depUsed))
         : round2(decMoney(tc, balAfter.benefitAmount) + decMoney(tc, balAfter.adjustmentAmount) + decMoney(tc, balAfter.carriedOver) - decMoney(tc, balAfter.usedAmount) - decMoney(tc, balAfter.initialUsed)))
     : 0;
-  return { docNo: claim.docNo, state: newState, journalNo, journalLines, usedAdded, remaining, usedPool: useDepPool ? "dependent" : "employee" };
+  return {
+    docNo: claim.docNo, state: newState, journalNo, journalLines, usedAdded, remaining,
+    usedPool: useDepPool ? "dependent" : "employee",
+    // W3-3 (fix G-5): info potongan gaji over-limit (settle dengan overLimitDeduct).
+    overLimitDeducted: overLimitAmount > 0 ? overLimitAmount : undefined,
+    deductPeriodName: overLimitAmount > 0 ? deductPeriodName : undefined,
+  };
 }
 
 // ============ penyesuaian saldo (padanan MedicalBenefitAdjustment) ============

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox"; // W3-3 (fix G-5) — potong gaji over-limit
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -62,6 +63,9 @@ export function MedicalApprovalPage() {
   const [action, setAction] = useState<Action>("approve");
   const [claim, setClaim] = useState<ClaimUI | null>(null);
   const [reason, setReason] = useState("");
+  // W3-3 (fix G-5): potong gaji bagian over-limit saat settle — default nonaktif
+  // (settle over-limit tanpa potongan tetap ditolak server).
+  const [overLimitDeduct, setOverLimitDeduct] = useState(false);
 
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferYear, setTransferYear] = useState(String(new Date().getFullYear()));
@@ -88,6 +92,7 @@ export function MedicalApprovalPage() {
     setAction(a);
     setClaim(c);
     setReason("");
+    setOverLimitDeduct(false);
     setDialog(true);
   };
 
@@ -95,9 +100,9 @@ export function MedicalApprovalPage() {
     if (!claim) return;
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null }; reversalOf?: string }>(
+      const res = await apiSend<{ docNo: string; state: string; journalNo: string | null; journalLines: number; usedAdded: number; remaining: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null }; reversalOf?: string; overLimitDeducted?: number; deductPeriodName?: string | null }>(
         "/api/rekankerja/medical/claims", "PATCH",
-        { id: claim.id, action, note: reason || undefined },
+        { id: claim.id, action, note: reason || undefined, overLimitDeduct: action === "settle" && overLimitDeduct || undefined },
       );
       if (action === "storno") {
         toast.success(
@@ -110,7 +115,9 @@ export function MedicalApprovalPage() {
       } else if (action === "settle") {
         toast.success(
           t("{d} settled — used +{u}, sisa {r}", "{d} settled — used +{u}, remaining {r}", { d: res.docNo, u: fmtIDR(res.usedAdded), r: fmtIDR(res.remaining) })
-          + (res.journalNo ? " · " + t("jurnal {n} ({m} baris)", "journal {n} ({m} rows)", { n: res.journalNo, m: res.journalLines }) : ""),
+          + (res.journalNo ? " · " + t("jurnal {n} ({m} baris)", "journal {n} ({m} rows)", { n: res.journalNo, m: res.journalLines }) : "")
+          // W3-3 (fix G-5): umpan balik potongan gaji over-limit
+          + (res.overLimitDeducted ? " · " + t("over-limit {a} dipotong gaji ({p})", "over-limit {a} deducted from payroll ({p})", { a: fmtIDR(res.overLimitDeducted), p: res.deductPeriodName ?? "—" }) : ""),
         );
       } else {
         toast.success(t("{d} → {s}", "{d} → {s}", { d: res.docNo, s: t(STATE_LABEL[res.state] ?? res.state, res.state) }));
@@ -323,9 +330,21 @@ export function MedicalApprovalPage() {
                 </p>
               )}
               {action === "settle" && (
-                <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/30 dark:text-brand/75">
-                  {t("Settle akan: (1) membuat jurnal otomatis (beban medis × kebijakan company/asuransi jenis, kas), (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal (medical expense × type's company/insurance policy, cash), (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
-                </p>
+                <>
+                  <p className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-xs leading-relaxed text-brand-deep dark:border-brand/70 dark:bg-brand/30 dark:text-brand/75">
+                    {t("Settle akan: (1) membuat jurnal otomatis (beban medis × kebijakan company/asuransi jenis, kas), (2) menambah saldo terpakai sebesar approved ({a}).", "Settle will: (1) create an automatic journal (medical expense × type's company/insurance policy, cash), (2) increase the used balance by the approved amount ({a}).", { a: fmtIDR(claim.totalApproved) })}
+                  </p>
+                  {/* W3-3 (fix G-5): potong gaji bagian over-limit */}
+                  <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs leading-relaxed dark:border-slate-700">
+                    <Checkbox checked={overLimitDeduct} onCheckedChange={(v) => setOverLimitDeduct(v === true)} className="mt-0.5" />
+                    <span>
+                      <span className="font-semibold">{t("Potong gaji bagian over-limit", "Deduct the over-limit portion from payroll")}</span>
+                      <span className="block text-slate-500">
+                        {t("Bila total approved melebihi sisa plafon, kelebihannya dibuat potongan gaji (komponen MED_POT) pada period payroll terbuka — klaim tetap dibayar penuh.", "If the approved total exceeds the remaining balance, the excess becomes a payroll deduction (MED_POT component) in the open payroll period — the claim is still paid in full.")}
+                      </span>
+                    </span>
+                  </label>
+                </>
               )}
               {action === "storno" && (
                 <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-relaxed text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400">

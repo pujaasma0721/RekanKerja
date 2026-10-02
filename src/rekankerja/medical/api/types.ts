@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
       name: String(b.name ?? ""),
       description: b.description ? String(b.description) : undefined,
       needReceipt: b.needReceipt !== false,
+      // W3-1 (fix G-2): surat rujukan wajib — default false (opt-in per jenis).
+      needLetter: b.needLetter === true,
       limitRule: String(b.limitRule ?? "NOMINAL"),
       limitValue: Number(b.limitValue ?? 0),
       wageCode: b.wageCode ? String(b.wageCode) : undefined,

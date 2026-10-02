@@ -113,6 +113,7 @@ function MedicalClaimDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [typeId, setTypeId] = useState("");
   const [claimDate, setClaimDate] = useState(todayISO());
+  const [letterNo, setLetterNo] = useState(""); // W3-1 (fix G-2) — surat rujukan
   const [forDependent, setForDependent] = useState(false);
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<MedLine[]>([emptyMedLine()]);
@@ -123,6 +124,7 @@ function MedicalClaimDialog({
     setLoadError(null);
     setFormError(null);
     setLines([emptyMedLine()]);
+    setLetterNo("");
     setForDependent(false);
     fetchMedicalClaimForm()
       .then((d) => {
@@ -144,6 +146,11 @@ function MedicalClaimDialog({
     if (busy) return;
     if (!typeId) { setFormError(t("Pilih jenis benefit terlebih dahulu.", "Please choose a benefit type first.")); return; }
     if (!claimDate) { setFormError(t("Tanggal klaim wajib diisi.", "The claim date is required.")); return; }
+    // W3-1 (fix G-2) — mirror enforcement server: jenis needLetter wajib surat rujukan.
+    if (selected?.needLetter && !letterNo.trim()) {
+      setFormError(t("Jenis {x} mewajibkan nomor surat rujukan dokter/RS.", "Benefit type {x} requires a doctor/hospital referral letter no.", { x: selected.name }));
+      return;
+    }
     const clean = lines.filter((l) => l.treatedName.trim() || l.billAmount);
     if (clean.length === 0 || clean.some((l) => !l.treatedName.trim() || !(Number(l.billAmount) > 0))) {
       setFormError(t("Setiap baris perawatan wajib memuat nama yang dirawat & nilai tagihan > 0.", "Each treatment line needs the treated name and a billed amount > 0."));
@@ -155,6 +162,7 @@ function MedicalClaimDialog({
       const res = await submitMedicalClaim({
         typeId,
         claimDate,
+        letterNo: letterNo.trim() || undefined, // W3-1 (fix G-2) — passthrough ESS
         forDependent: forDependent || undefined,
         note: note.trim() || undefined,
         lines: clean.map((l) => ({
@@ -238,6 +246,24 @@ function MedicalClaimDialog({
                   <Input type="date" max={todayISO()} value={claimDate} onChange={(e) => setClaimDate(e.target.value)} className="rounded-xl" />
                 </div>
               </div>
+
+              {/* W3-1 (fix G-2): nomor surat rujukan — wajib utk jenis needLetter */}
+              {selected?.needLetter && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold">
+                    {t("No. surat rujukan dokter/RS", "Referral letter no.")} <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    value={letterNo}
+                    onChange={(e) => setLetterNo(e.target.value)}
+                    placeholder={t("mis. RS-2026-0042", "e.g. RS-2026-0042")}
+                    className="rounded-lg"
+                  />
+                  <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                    {t("Jenis {x} mewajibkan nomor surat rujukan dokter/RS — isi sesuai surat rujukan.", "Benefit type {x} requires a referral letter no. — fill it in as stated on the letter.", { x: selected.name })}
+                  </p>
+                </div>
+              )}
 
               {/* kartu saldo jenis terpilih */}
               {selected && (

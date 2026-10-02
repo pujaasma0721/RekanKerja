@@ -2074,6 +2074,9 @@ model MedicalBenefitType {
   description      String?
   active           Boolean  @default(true)
   needReceipt      Boolean  @default(true)
+  // W3-1 (fix G-2 BPA-medical): nomor surat rujukan dokter/RS wajib pada
+  // pengajuan klaim jenis ini (pad oranHR letter_no — praktik rawat inap).
+  needLetter       Boolean  @default(false)
   // limit benefit karyawan
   limitRule        String   @default("NOMINAL") // UNLIMITED|NOMINAL|FACTOR|WAGE_COMPONENT
   limitValue       Float    @default(0) // nominal (NOMINAL) atau faktor gaji (FACTOR)

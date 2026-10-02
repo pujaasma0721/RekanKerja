@@ -9,6 +9,8 @@ export interface EmployeeOption {
 export interface BenefitTypeUI {
   id: string; code: string; name: string; description: string | null; active: boolean;
   needReceipt: boolean;
+  /** W3-1 (fix G-2): jenis mewajibkan nomor surat rujukan dokter/RS. */
+  needLetter: boolean;
   limitRule: string; limitValue: number; wageCode: string | null;
   freqUnlimited: boolean; freqValue: number; freqPeriod: string;
   pctCompany: number; pctInsurance: number; insuranceCompany: string | null;
@@ -75,7 +77,7 @@ export interface ClaimPreviewUI {
   initialUsed: number; usedAmount: number; remaining: number;
   claimCountYear: number;
   freqUnlimited: boolean; freqValue: number; freqPeriod: string;
-  needReceipt: boolean; dependentEnabled: boolean;
+  needReceipt: boolean; needLetter: boolean; dependentEnabled: boolean;
   providers: { id: string; name: string; kind: string }[];
   // ---- tambahan (fix audit K-1/K-2/K-3 — additive, opsional utk kompatibilitas) ----
   joinDate?: string | null;

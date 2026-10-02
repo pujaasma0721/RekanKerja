@@ -1620,6 +1620,7 @@ CREATE TABLE "MedicalBenefitType" (
     "description" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "needReceipt" BOOLEAN NOT NULL DEFAULT true,
+    "needLetter" BOOLEAN NOT NULL DEFAULT false,
     "limitRule" TEXT NOT NULL DEFAULT 'NOMINAL',
     "limitValue" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "wageCode" TEXT,

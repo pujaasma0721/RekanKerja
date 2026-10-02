@@ -151,6 +151,9 @@ export function MedicalClaimsPage() {
 
   // T16-ATTACH — jenis benefit terpilih butuh kwitansi? (enforcement server).
   const selectedType = useMemo(() => types.find((t) => t.id === typeId), [types, typeId]);
+  // W3-1 (fix G-2): jenis terpilih mewajibkan nomor surat rujukan — label input
+  // wajib & submit diblok client-side (server tetap guard).
+  const needLetter = selectedType?.needLetter === true;
 
   // T16-ATTACH — unggah file sebagai draf (entityId draft:{uuid}); server
   // me-rebind ke klaim saat POST klaim sukses; gagal submit → draf disapu.
@@ -178,6 +181,11 @@ export function MedicalClaimsPage() {
     // T16-ATTACH — mirror enforcement server: jenis benefit needReceipt wajib kwitansi.
     if (selectedType?.needReceipt && files.length === 0) {
       toast.error(t("Jenis benefit {x} mewajibkan lampiran kwitansi", "Benefit type {x} requires receipt attachments", { x: selectedType.name }));
+      return;
+    }
+    // W3-1 (fix G-2) — mirror enforcement server: jenis needLetter wajib surat rujukan.
+    if (needLetter && !letterNo.trim()) {
+      toast.error(t("Jenis benefit {x} mewajibkan nomor surat rujukan dokter/RS", "Benefit type {x} requires a doctor/hospital referral letter no.", { x: selectedType?.name }));
       return;
     }
     setBusy(true);
@@ -445,8 +453,17 @@ export function MedicalClaimsPage() {
               <Input type="date" value={claimDate} onChange={(e) => setClaimDate(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>{t("No. Surat Rujukan", "Referral Letter No.")}</Label>
-              <Input value={letterNo} onChange={(e) => setLetterNo(e.target.value)} placeholder={t("opsional", "optional")} />
+              <Label>
+                {t("No. Surat Rujukan", "Referral Letter No.")}
+                {/* W3-1 (fix G-2): wajib utk jenis needLetter */}
+                {needLetter && <span className="text-rose-500"> *</span>}
+              </Label>
+              <Input value={letterNo} onChange={(e) => setLetterNo(e.target.value)} placeholder={needLetter ? t("wajib", "required") : t("opsional", "optional")} />
+              {needLetter && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t("Jenis {x} mewajibkan nomor surat rujukan dokter/RS", "Benefit type {x} requires a referral letter no.", { x: selectedType?.name })}
+                </p>
+              )}
             </div>
           </div>
 

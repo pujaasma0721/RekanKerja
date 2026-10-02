@@ -309,6 +309,9 @@ export async function PATCH(req: NextRequest) {
       claimId: String(b.id),
       action: b.action,
       note: b.note ? String(b.note) : undefined,
+      // W3-3 (fix G-5 BPA-medical): potong gaji bagian over-limit — settle dengan
+      // potongan MED_POT pada period payroll terbuka (default false → guard tetap).
+      overLimitDeduct: b.overLimitDeduct === true,
       // Fix audit 40 M-05: appUserId aktor sesi ikut — dipakai ActivityLog keputusan.
       actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name, appUserId: m.actor.appUserId },
     }, actorId);

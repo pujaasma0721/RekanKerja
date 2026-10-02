@@ -31,7 +31,7 @@ interface FormState {
   pctCompany: string; pctInsurance: string; insuranceCompany: string;
   unusedRule: string; cashWageCode: string; maxCarryOver: string;
   dependentEnabled: boolean; maxDependents: string; maxChildAge: string; depLimitRule: string;
-  needReceipt: boolean; active: boolean;
+  needReceipt: boolean; needLetter: boolean; active: boolean;
 }
 
 const emptyForm: FormState = {
@@ -41,7 +41,7 @@ const emptyForm: FormState = {
   pctCompany: "100", pctInsurance: "0", insuranceCompany: "",
   unusedRule: "FORFEITED", cashWageCode: "", maxCarryOver: "",
   dependentEnabled: true, maxDependents: "2", maxChildAge: "21", depLimitRule: "SHARED",
-  needReceipt: true, active: true,
+  needReceipt: true, needLetter: false, active: true,
 };
 
 export function MedicalBenefitTypePage() {
@@ -72,7 +72,7 @@ export function MedicalBenefitTypePage() {
       pctCompany: String(t.pctCompany), pctInsurance: String(t.pctInsurance), insuranceCompany: t.insuranceCompany ?? "",
       unusedRule: t.unusedRule, cashWageCode: t.cashWageCode ?? "", maxCarryOver: t.maxCarryOver ? String(t.maxCarryOver) : "",
       dependentEnabled: t.dependentEnabled, maxDependents: String(t.maxDependents), maxChildAge: String(t.maxChildAge), depLimitRule: t.depLimitRule,
-      needReceipt: t.needReceipt, active: t.active,
+      needReceipt: t.needReceipt, needLetter: t.needLetter, active: t.active,
     });
     setDialog(true);
   };
@@ -108,7 +108,7 @@ export function MedicalBenefitTypePage() {
         maxDependents: Number(form.maxDependents) || 0,
         maxChildAge: Number(form.maxChildAge) || 0,
         depLimitRule: form.depLimitRule,
-        needReceipt: form.needReceipt, active: form.active,
+        needReceipt: form.needReceipt, needLetter: form.needLetter, active: form.active,
       });
       toast.success(form.id ? t("Jenis benefit diperbarui", "Benefit type updated") : t("Jenis benefit ditambahkan", "Benefit type added"));
       setDialog(false);
@@ -176,6 +176,7 @@ export function MedicalBenefitTypePage() {
                       <TableCell className="text-sm">
                         {bt.freqUnlimited ? "Unlimited" : `${bt.freqValue}× / ${t(FREQ_PERIOD_LABEL[bt.freqPeriod] ?? bt.freqPeriod, FREQ_PERIOD_LABEL_EN[bt.freqPeriod])}`}
                         {bt.needReceipt && <span className="block text-xs text-slate-500">{t("perlu kwitansi", "receipt required")}</span>}
+                        {bt.needLetter && <span className="block text-xs text-slate-500">{t("perlu surat rujukan", "referral required")}</span>}
                       </TableCell>
                       <TableCell className="text-sm">
                         {t(UNUSED_RULE_LABEL[bt.unusedRule] ?? bt.unusedRule, UNUSED_RULE_LABEL_EN[bt.unusedRule])}
@@ -347,6 +348,11 @@ export function MedicalBenefitTypePage() {
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={form.needReceipt} onCheckedChange={(v) => setForm({ ...form, needReceipt: Boolean(v) })} />
               {t("Wajib kwitansi", "Receipt required")}
+            </label>
+            {/* W3-1 (fix G-2): nomor surat rujukan wajib per jenis */}
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={form.needLetter} onCheckedChange={(v) => setForm({ ...form, needLetter: Boolean(v) })} />
+              {t("Wajib surat rujukan", "Referral letter required")}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: Boolean(v) })} />

@@ -220,6 +220,9 @@ const STEPS: Step[] = [
   // (unique, storno) + MedicalClaimLine.providerId (master provider) + 2 FK.
   // Skip schema tanpa tabel medical (dibuat ensureMedicalReference).
   { key: "medical-wave1", label: "Fix 89 — wave 1 medical: prorateFactor/reversalOfId/providerId + FK", run: (s) => import("../../../../scripts/migrate-medical-wave1").then((m) => m.main(s)) },
+  // fix 92 (wave 3 medical): kolom MedicalBenefitType.needLetter — G-2 surat
+  // rujukan wajib per jenis benefit. Skip schema tanpa tabel medical.
+  { key: "medical-wave3", label: "Fix 92 — wave 3 medical: MedicalBenefitType.needLetter (G-2 surat rujukan)", run: (s) => import("../../../../scripts/migrate-medical-wave3").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -374,7 +377,19 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (medWave1Ok < medClaimTables)
       reasons.push(`${medClaimTables - medWave1Ok} tenant tanpa kolom wave1 medical: prorateFactor/reversalOfId/providerId (fix 89)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk, medWave1Ok) };
+    // fix 92 — wave 3 medical: MedicalBenefitType.needLetter (G-2). Penyebut =
+    // schema yang punya tabel MedicalBenefitType (mirror pola wave1).
+    const medTypeTables = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'MedicalBenefitType' AND table_schema = ANY($1::text[])`,
+    );
+    const medWave3Ok = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'MedicalBenefitType' AND column_name = 'needLetter' AND table_schema = ANY($1::text[])`,
+    );
+    if (medWave3Ok < medTypeTables)
+      reasons.push(`${medTypeTables - medWave3Ok} tenant tanpa kolom wave3 medical: MedicalBenefitType.needLetter (fix 92)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok) };
   } finally {
     await c.end();
   }

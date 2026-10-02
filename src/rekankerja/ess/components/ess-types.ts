@@ -279,6 +279,8 @@ export interface EssMedicalClaimType {
   name: string;
   limitRule: string; // UNLIMITED | NOMINAL | FACTOR | WAGE_COMPONENT
   needReceipt: boolean;
+  /** W3-1 (fix G-2): jenis mewajibkan nomor surat rujukan dokter/RS. */
+  needLetter: boolean;
   dependentEnabled: boolean;
   freqUnlimited: boolean;
   freqValue: number;
@@ -312,6 +314,8 @@ export interface EssMedicalClaimLineInput {
 export interface EssMedicalClaimSubmitInput {
   typeId: string;
   claimDate: string;
+  /** W3-1 (fix G-2): nomor surat rujukan — wajib utk jenis needLetter. */
+  letterNo?: string;
   forDependent?: boolean;
   note?: string;
   lines: EssMedicalClaimLineInput[];
