@@ -735,6 +735,54 @@ export const TRAVEL_EXPENSE_DEFS: {
   { code: "E-GIFT", name: "Entertainment — Hadiah", kind: "ENTERTAINMENT", limitAmount: 800_000, needDocs: true },
 ];
 
+// Task 98 (F1-1/F1-2) — tarif kota acuan SBI PMK 32/2025 (uang harian
+// Rp 360–580 rb/hari domestik; Jakarta Rp 530 rb, Papua Rp 580 rb; plafon
+// hotel per kelas jabatan Rp 2,14–9,3 jt — di sini dipakai nilai menengah
+// sbg default kebijakan, tenant bisa ubah). Luar negeri = konversi kurs
+// ±Rp16.000 dari US$347–792/hari (note kurs tercantum per baris).
+export const TRAVEL_CITY_RATES: {
+  city: string; country?: string; overseas?: boolean; zoneCode?: string;
+  uangHarian: number; plafonHotel: number; note?: string;
+}[] = [
+  // Domestik — acuan uang harian PMK 32/2025 per provinsi
+  { city: "Jakarta", uangHarian: 530_000, plafonHotel: 2_500_000, note: "SBM 2026: uang harian DKI Rp 530 rb/hari" },
+  { city: "Bandung", zoneCode: "JABAR", uangHarian: 460_000, plafonHotel: 2_000_000 },
+  { city: "Surabaya", uangHarian: 450_000, plafonHotel: 2_000_000 },
+  { city: "Semarang", uangHarian: 440_000, plafonHotel: 1_800_000 },
+  { city: "Yogyakarta", uangHarian: 420_000, plafonHotel: 1_600_000 },
+  { city: "Medan", uangHarian: 470_000, plafonHotel: 2_000_000 },
+  { city: "Palembang", uangHarian: 440_000, plafonHotel: 1_800_000 },
+  { city: "Denpasar", uangHarian: 470_000, plafonHotel: 2_200_000 },
+  { city: "Makassar", uangHarian: 460_000, plafonHotel: 2_000_000 },
+  { city: "Balikpapan", uangHarian: 450_000, plafonHotel: 2_000_000 },
+  { city: "Pontianak", uangHarian: 440_000, plafonHotel: 1_800_000 },
+  { city: "Jayapura", uangHarian: 580_000, plafonHotel: 2_800_000, note: "SBM 2026: Papua Rp 580 rb/hari (tertinggi domestik)" },
+  { city: "Karawang", zoneCode: "LOCAL", uangHarian: 400_000, plafonHotel: 1_500_000 },
+  { city: "Bekasi", zoneCode: "LOCAL", uangHarian: 400_000, plafonHotel: 1_500_000 },
+  // Luar negeri — konversi kurs ±Rp16.000 (US$347–792/hari PMK 32/2025)
+  { city: "Singapura", country: "Singapura", overseas: true, zoneCode: "ASIA", uangHarian: 5_600_000, plafonHotel: 4_800_000, note: "±US$350/hari, kurs Rp16.000" },
+  { city: "Kuala Lumpur", country: "Malaysia", overseas: true, zoneCode: "ASIA", uangHarian: 4_200_000, plafonHotel: 3_200_000, note: "±US$260/hari, kurs Rp16.000" },
+  { city: "Bangkok", country: "Thailand", overseas: true, zoneCode: "ASIA", uangHarian: 4_400_000, plafonHotel: 3_400_000, note: "±US$275/hari, kurs Rp16.000" },
+  { city: "Osaka", country: "Jepang", overseas: true, zoneCode: "OTHERS", uangHarian: 6_400_000, plafonHotel: 5_600_000, note: "±US$400/hari, kurs Rp16.000" },
+  { city: "Tokyo", country: "Jepang", overseas: true, zoneCode: "OTHERS", uangHarian: 6_600_000, plafonHotel: 6_000_000, note: "±US$410/hari, kurs Rp16.000" },
+  { city: "Hong Kong", country: "Hong Kong", overseas: true, zoneCode: "ASIA", uangHarian: 5_400_000, plafonHotel: 4_500_000, note: "±US$340/hari, kurs Rp16.000" },
+];
+
+/** Seed idempoten tarif kota (upsert create-only — nilai tenant tidak ditimpa). */
+export async function ensureTravelCityRates(db: TenantDb): Promise<void> {
+  for (const r of TRAVEL_CITY_RATES) {
+    await db.travelCityRate.upsert({
+      where: { city: r.city },
+      create: {
+        city: r.city, country: r.country ?? "Indonesia", overseas: Boolean(r.overseas),
+        zoneCode: r.zoneCode ?? null, uangHarian: r.uangHarian, plafonHotel: r.plafonHotel,
+        note: r.note ?? null,
+      },
+      update: {}, // jangan timpuk kustomisasi tenant
+    });
+  }
+}
+
 export async function ensureTravelReference(db: TenantDb): Promise<void> {
   for (const z of TRAVEL_ZONE_DEFS) {
     await db.travelZone.upsert({
@@ -743,6 +791,9 @@ export async function ensureTravelReference(db: TenantDb): Promise<void> {
       update: {},
     });
   }
+
+  // Task 98 (F1-1) — tarif kota acuan SBI PMK 32/2025 (estimasi + per-diem).
+  await ensureTravelCityRates(db);
 
   for (const t of TRAVEL_TEMPLATE_DEFS) {
     await db.travelTemplate.upsert({

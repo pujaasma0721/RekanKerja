@@ -1432,6 +1432,23 @@ CREATE TABLE "TravelZone" (
 );
 
 -- CreateTable
+CREATE TABLE "TravelCityRate" (
+    "id" TEXT NOT NULL,
+    "city" TEXT NOT NULL,
+    "country" TEXT NOT NULL DEFAULT 'Indonesia',
+    "overseas" BOOLEAN NOT NULL DEFAULT false,
+    "zoneCode" TEXT,
+    "uangHarian" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "plafonHotel" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "note" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TravelCityRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "TravelTemplate" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -2499,19 +2516,70 @@ CREATE UNIQUE INDEX "MassLeave_docNo_key" ON "MassLeave"("docNo");
 CREATE UNIQUE INDEX "TravelZone_code_key" ON "TravelZone"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "TravelCityRate_city_key" ON "TravelCityRate"("city");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TravelTemplate_code_key" ON "TravelTemplate"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TravelExpenseType_code_key" ON "TravelExpenseType"("code");
 
 -- CreateIndex
+CREATE INDEX "TravelExpenseTypeRule_travelExpenseTypeId_active_idx" ON "TravelExpenseTypeRule"("travelExpenseTypeId", "active");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TravelBudget_year_key" ON "TravelBudget"("year");
+
+-- CreateIndex
+CREATE INDEX "TravelBudgetItem_budgetId_idx" ON "TravelBudgetItem"("budgetId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TravelRequest_docNo_key" ON "TravelRequest"("docNo");
 
 -- CreateIndex
+CREATE INDEX "TravelRequest_employeeId_idx" ON "TravelRequest"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "TravelRequest_status_idx" ON "TravelRequest"("status");
+
+-- CreateIndex
+CREATE INDEX "TravelRequest_requestDate_idx" ON "TravelRequest"("requestDate");
+
+-- CreateIndex
+CREATE INDEX "TravelRequest_status_employeeId_idx" ON "TravelRequest"("status", "employeeId");
+
+-- CreateIndex
+CREATE INDEX "TravelDestination_requestId_idx" ON "TravelDestination"("requestId");
+
+-- CreateIndex
+CREATE INDEX "TravelAdvance_requestId_idx" ON "TravelAdvance"("requestId");
+
+-- CreateIndex
+CREATE INDEX "TravelAdvance_status_idx" ON "TravelAdvance"("status");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TravelClaim_docNo_key" ON "TravelClaim"("docNo");
+
+-- CreateIndex
+CREATE INDEX "TravelClaim_employeeId_idx" ON "TravelClaim"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "TravelClaim_status_idx" ON "TravelClaim"("status");
+
+-- CreateIndex
+CREATE INDEX "TravelClaim_requestId_idx" ON "TravelClaim"("requestId");
+
+-- CreateIndex
+CREATE INDEX "TravelClaim_periodCode_idx" ON "TravelClaim"("periodCode");
+
+-- CreateIndex
+CREATE INDEX "TravelClaim_status_periodCode_idx" ON "TravelClaim"("status", "periodCode");
+
+-- CreateIndex
+CREATE INDEX "TravelClaimExpense_claimId_idx" ON "TravelClaimExpense"("claimId");
+
+-- CreateIndex
+CREATE INDEX "TravelClaimExpense_expenseCode_idx" ON "TravelClaimExpense"("expenseCode");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MedicalBenefitType_code_key" ON "MedicalBenefitType"("code");

@@ -102,17 +102,31 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Task 98 (F0-5/B10): gerbang vault utk JSON juga — dulu HANYA export CSV
+    // yang di-gate; JSON menampilkan uang asli walau Brankas Uang tertutup.
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    const g = (n: number) => (mv.canSee ? n : null);
+    const gatedRows = rows.map((r) => ({
+      ...r,
+      totalExpenses: g(r.totalExpenses),
+      otherCompanyExp: g(r.otherCompanyExp),
+      exchangeLoss: g(r.exchangeLoss),
+      payableEmployee: g(r.payableEmployee),
+      payableCompany: g(r.payableCompany),
+      totalSettlement: g(r.totalSettlement),
+      expenses: r.expenses.map((e) => ({ ...e, amount: g(e.amount) })),
+    }));
     return NextResponse.json({
       range: { from: from.toISOString(), to: to.toISOString() },
-      rows,
+      rows: gatedRows,
       summary: {
-        claims: rows.length,
-        totalSettlement: rows.reduce((s, r) => s + r.totalSettlement, 0),
-        totalExpenses: Math.round(totalExpenses),
-        payableEmployee: rows.reduce((s, r) => s + r.payableEmployee, 0),
-        payableCompany: rows.reduce((s, r) => s + r.payableCompany, 0),
-        byKind: [...byKind.entries()].map(([kind, v]) => ({ kind, ...v })).sort((a, b) => b.amount - a.amount),
-        byExpense: [...byExpense.entries()].map(([code, v]) => ({ code, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 12),
+        claims: gatedRows.length,
+        totalSettlement: mv.canSee ? gatedRows.reduce((s, r) => s + (r.totalSettlement ?? 0), 0) : null,
+        totalExpenses: mv.canSee ? Math.round(gatedRows.reduce((s, r) => s + (r.totalExpenses ?? 0), 0)) : null,
+        payableEmployee: mv.canSee ? gatedRows.reduce((s, r) => s + (r.payableEmployee ?? 0), 0) : null,
+        payableCompany: mv.canSee ? gatedRows.reduce((s, r) => s + (r.payableCompany ?? 0), 0) : null,
+        byKind: [...byKind.entries()].map(([kind, v]) => ({ kind, amount: g(v.amount), lines: v.lines })).sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0)),
+        byExpense: [...byExpense.entries()].map(([code, v]) => ({ code, amount: g(v.amount), lines: v.lines })).sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0)).slice(0, 12),
       },
     });
   } catch (e) {

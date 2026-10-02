@@ -38,10 +38,10 @@ export function TravelBudgetPage() {
     setEditId(b?.id ?? null);
     setForm({
       year: String(b?.year ?? new Date().getFullYear()),
-      totalBudget: b ? String(b.totalBudget) : "",
+      totalBudget: b && b.totalBudget != null ? String(b.totalBudget) : "",
       note: b?.note ?? "",
     });
-    setItems(b && b.items.length > 0 ? b.items.map((i) => ({ costCenter: i.costCenter, amount: String(i.amount), note: i.note ?? "" })) : [{ costCenter: "", amount: "", note: "" }]);
+    setItems(b && b.items.length > 0 ? b.items.map((i) => ({ costCenter: i.costCenter, amount: i.amount != null ? String(i.amount) : "", note: i.note ?? "" })) : [{ costCenter: "", amount: "", note: "" }]);
     setDialog(true);
   };
 
@@ -93,9 +93,12 @@ export function TravelBudgetPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {budgets.map((b) => {
-            const pct = b.totalBudget > 0 ? Math.min(100, (b.used / b.totalBudget) * 100) : 0;
-            const over = b.totalBudget > 0 && b.used > b.totalBudget;
-            const itemTotal = b.items.reduce((s, i) => s + i.amount, 0);
+            // Task 98 (F0-5): kolom uang nullable saat Brankas Uang tertutup.
+            const masked = b.totalBudget == null || b.used == null;
+            const pct = !masked && b.totalBudget! > 0 ? Math.min(100, (b.used! / b.totalBudget!) * 100) : 0;
+            const over = !masked && b.totalBudget! > 0 && b.used! > b.totalBudget!;
+            const itemTotal = b.items.reduce((s, i) => s + (i.amount ?? 0), 0);
+            const total = b.totalBudget ?? 0;
             return (
               <Card key={b.id} className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                 <CardHeader className="pb-3">
@@ -120,7 +123,7 @@ export function TravelBudgetPage() {
                     </div>
                     <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-800/60">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("Sisa", "Remaining")}</p>
-                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(Math.max(0, b.remaining))}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{b.remaining != null ? fmtIDRShort(Math.max(0, b.remaining)) : "—"}</p>
                     </div>
                   </div>
 
@@ -135,23 +138,38 @@ export function TravelBudgetPage() {
                   {over && (
                     <p className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      {t("Terpakai {amt} melebihi budget — padanan: klaim tetap diproses, budget alat monitoring", "Usage of {amt} exceeds budget — equivalent: claims are still processed, budget is a monitoring tool", { amt: fmtIDR(b.used - b.totalBudget) })}
+                      {t("Terpakai {amt} melebihi budget — padanan: klaim tetap diproses, budget alat monitoring", "Usage of {amt} exceeds budget — equivalent: claims are still processed, budget is a monitoring tool", { amt: fmtIDR(b.used! - b.totalBudget!) })}
                     </p>
                   )}
-                  {!over && b.totalBudget > 0 && b.claimCount > 0 && (
+                  {!over && !masked && b.totalBudget! > 0 && b.claimCount > 0 && (
                     <p className="flex items-center gap-1.5 rounded-lg bg-brand/10 px-3 py-2 text-xs font-semibold text-brand-deep dark:bg-brand/40 dark:text-brand/85">
                       <CheckCircle2 className="h-3.5 w-3.5" /> {t("Pemakaian masih dalam budget", "Usage is still within budget")}
+                    </p>
+                  )}
+                  {masked && (
+                    <p className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                      <AlertTriangle className="h-3.5 w-3.5" /> {t("Nilai uang disembunyikan — buka Brankas Uang (Pengaturan) untuk melihat angka", "Money values are hidden — open the Money Vault (Settings) to see the numbers")}
+                    </p>
+                  )}
+                  {b.committed != null && b.committed > 0 && (
+                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                      {t("+ komitmen klaim disetujui belum transfer: {amt}", "+ committed approved claims not yet transferred: {amt}", { amt: fmtIDR(b.committed) })}
                     </p>
                   )}
 
                   {b.items.length > 0 && (
                     <div>
                       <p className="mb-1.5 flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                        <TrendingUp className="h-3 w-3" /> {t("Rincian per Cost Center", "Breakdown per Cost Center")} {itemTotal !== b.totalBudget && b.totalBudget > 0 ? t("(jumlah ≠ total)", "(sum ≠ total)") : ""}
+                        <TrendingUp className="h-3 w-3" /> {t("Rincian per Cost Center", "Breakdown per Cost Center")} {!masked && itemTotal !== total && total > 0 ? t("(jumlah ≠ total)", "(sum ≠ total)") : ""}
                       </p>
                       <div className="space-y-1.5">
                         {b.items.map((i, x) => {
-                          const iPct = b.totalBudget > 0 ? (i.amount / b.totalBudget) * 100 : 0;
+                          // Task 98 (F1-3/m-6) — pemakaian per CC + sisa (dulu: hanya alokasi).
+                          const usedCc = b.usedByCc?.[i.costCenter];
+                          const amt = i.amount ?? 0;
+                          const iPct = total > 0 ? (amt / total) * 100 : 0;
+                          const sisaCc = i.amount != null && usedCc != null ? amt - usedCc : null;
+                          const overCc = sisaCc != null && sisaCc < 0;
                           return (
                             <div key={x} className="rounded-lg bg-slate-50 px-3 py-1.5 dark:bg-slate-800/60">
                               <div className="flex items-center justify-between text-xs">
@@ -162,8 +180,15 @@ export function TravelBudgetPage() {
                                 <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDR(i.amount)}</span>
                               </div>
                               <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                                <div className="h-full ov-bar" style={{ width: `${Math.min(100, iPct)}%` }} />
+                                <div className={cn("h-full", overCc ? "bg-rose-500" : "ov-bar")} style={{ width: `${Math.min(100, iPct)}%` }} />
                               </div>
+                              {usedCc != null && (
+                                <p className={cn("mt-1 text-[10px] font-semibold", overCc ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
+                                  {overCc
+                                    ? t("terpakai {used} — melebihi alokasi {over}", "used {used} — exceeds the allocation by {over}", { used: fmtIDR(usedCc), over: fmtIDR(-sisaCc!) })
+                                    : t("terpakai {used} · sisa {sisa}", "used {used} · remaining {sisa}", { used: fmtIDR(usedCc), sisa: fmtIDR(sisaCc ?? 0) })}
+                                </p>
+                              )}
                             </div>
                           );
                         })}

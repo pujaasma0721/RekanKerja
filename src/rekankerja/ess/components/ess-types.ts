@@ -345,6 +345,8 @@ export interface EssTravelClaimRequestOption {
   days: number;
   purpose: string | null;
   destinations: string[];
+  /** Task 98 (F0-6/B7): trip punya kaki luar negeri → jenis O-* diizinkan. */
+  overseas?: boolean;
   templateCode: string;
   templateName: string;
   costCenter: string | null;
@@ -377,6 +379,9 @@ export interface EssTravelExpenseInput {
   expenseDate?: string;
   description?: string;
   amount: number;
+  /** Task 98 (F0-6): unit (hari utk allowance, km utk mileage) — limit per unit. */
+  qty?: number;
+  guestName?: string;
 }
 
 export interface EssTravelClaimSubmitInput {
@@ -386,6 +391,8 @@ export interface EssTravelClaimSubmitInput {
   expenses: EssTravelExpenseInput[];
   otherCompanyExp?: number;
   exchangeLoss?: number;
+  /** Task 98 (F1-5) — id draf lampiran kwitansi (di-rebind server ke klaim). */
+  attachmentIds?: string[];
 }
 
 export interface EssTravelClaimSubmitResult {
@@ -398,4 +405,6 @@ export interface EssTravelClaimSubmitResult {
   approvalLevels: number;
   firstApprover: string | null;
   receiptNote: string;
+  /** Task 98 (F1-5): jumlah kwitansi digital yang terikat ke klaim. */
+  attachmentCount?: number;
 }

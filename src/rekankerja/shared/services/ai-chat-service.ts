@@ -188,15 +188,76 @@ async function selfDataSnapshot(db: TenantDb, employeeId: string | null): Promis
     }, {});
     const attLine = Object.entries(attCount).map(([s, n]) => `${s}: ${n} hari`).join(", ") || "belum ada data bulan ini";
 
+    // Task 98 (F2-1) — snapshot perjalanan dinas: uang muka beredar + jatuh tempo
+    // settlement terdekat + status klaim terakhir → karyawan bisa tanya "berapa
+    // uang muka saya yang belum settle?" dan dijawab data nyata.
+    const travelLine = await travelSelfLine(db, employeeId).catch(() => "");
+
     return [
       `Nama: ${emp.fullName} (NIK ${emp.employeeNo}) — status ${emp.status}`,
       `Posisi: ${emp.position?.title ?? "-"} · Unit: ${emp.orgUnit?.name ?? "-"} · Mulai kerja: ${emp.joinDate.toISOString().slice(0, 10)}`,
       `Saldo cuti ${year}:\n${leaveLines || "- belum ada baris saldo (jenis event dibuat otomatis saat pengajuan)"}`,
       `Presensi bulan berjalan: ${attLine}`,
+      ...(travelLine ? [travelLine] : []),
     ].join("\n");
   } catch {
     return "(snapshot data pribadi gagal dibaca)";
   }
+}
+
+/** Task 98 (F2-1) — baris data travel milik karyawan utk snapshot chatbot:
+ *  uang muka beredar (advance Given tanpa klaim Paid), jatuh tempo settlement
+ *  terdeakt (overdue ditandai), dan klaim terakhir. Terenkripsi (M-8) → dekripsi. */
+async function travelSelfLine(db: TenantDb, employeeId: string): Promise<string> {
+  const { tenantCryptoForDb } = await import("@/rekankerja/shared/lib/field-crypto");
+  const tc = tenantCryptoForDb(db);
+  const fmtD = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  const fmtR = (n: number) => `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+  const reqs = await db.travelRequest.findMany({
+    where: { employeeId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    include: {
+      advances: true,
+      destinations: { orderBy: { seq: "asc" }, take: 1, select: { city: true } },
+      template: { select: { settlementDay: true } },
+      claims: { orderBy: { createdAt: "desc" }, take: 1, select: { docNo: true, status: true, totalSettlement: true } },
+    },
+  });
+  if (reqs.length === 0) return "";
+  const open = reqs.filter((r) => r.status === "Approved");
+  let advancesOutstanding = 0;
+  const dueLines: string[] = [];
+  for (const r of open) {
+    const adv = r.advances
+      .filter((x) => (x.status ?? "Given") !== "Void")
+      .reduce((s, x) => s + (tc.decryptMoney(x.amount) ?? 0), 0);
+    const settled = r.claims[0]?.status === "Paid";
+    if (adv > 0 && !settled) advancesOutstanding += adv;
+    if (r.template.settlementDay > 0 && !r.claimRequestedAt) {
+      const due = new Date(r.dateTo);
+      due.setDate(due.getDate() + r.template.settlementDay);
+      if (r.claims[0]?.status !== "Paid") {
+        dueLines.push(
+          `${r.docNo} (${r.destinations[0]?.city ?? "-"}, kembali ${fmtD(new Date(r.dateTo))}): jatuh tempo klaim ${fmtD(due)}${due.getTime() < Date.now() ? " — SUDAH LEWAT" : ""}`,
+        );
+      }
+    }
+  }
+  const lastClaim = reqs.flatMap((r) => r.claims)[0] ?? null;
+  const parts: string[] = [];
+  if (advancesOutstanding > 0) {
+    parts.push(`Uang muka perjalanan belum settle: ${fmtR(advancesOutstanding)}`);
+  }
+  if (dueLines.length > 0) {
+    parts.push(`Jatuh tempo settlement:\n- ${dueLines.slice(0, 3).join("\n- ")}`);
+  }
+  if (lastClaim) {
+    parts.push(`Klaim travel terakhir: ${lastClaim.docNo} — status ${lastClaim.status}${lastClaim.totalSettlement ? ` (settlement ${fmtR(tc.decryptMoney(lastClaim.totalSettlement) ?? 0)})` : ""}`);
+  }
+  return parts.length > 0
+    ? `Perjalanan dinas:\n- ${parts.join("\n- ")}`
+    : `Perjalanan dinas: ${reqs.length} pengajuan tercatat, tidak ada uang muka beredar`;
 }
 
 // ============ RAG KNOWLEDGE BASE (skor kata-kunci sederhana) ============
@@ -239,7 +300,7 @@ const SCOPE_RULES = `
 ATURAN SCOPE (WAJIB — pelanggaran = jawaban salah):
 1. HANYA bahas hal seputar APLIKASI RekanKerja (HRIS: karyawan, presensi, cuti, payroll, travel, medical, whistleblowing, ESS, pengaturan).
 2. MENU: hanya bahas menu yang TERDAFTAR di "MENU YANG BISA DIAKSES PENGGUNA" di bawah. Pertanyaan tentang menu lain → tolak sopan: "Menu itu di luar akses Anda — silakan hubungi admin/HR". JANGAN pernah membocorkan isi/cara pakai menu yang tidak ada di daftar.
-3. PENGECUALIAN DATA PRIBADI: pertanyaan tentang data DIRI SENDIRI pengguna selalu boleh dijawab dari "DATA PRIBADI PENGGUNA" di bawah (sisa jatah cuti, presensi, profil).
+3. PENGECUALIAN DATA PRIBADI: pertanyaan tentang data DIRI SENDIRI pengguna selalu boleh dijawab dari "DATA PRIBADI PENGGUNA" di bawah (sisa jatah cuti, presensi, profil, uang muka & klaim perjalanan dinas).
 4. PENGECUALIAN PERATURAN: pertanyaan PERATURAN PEMERINTAH RI bidang ketenagakerjaan yang relevan dengan aplikasi BOLEH dijawab (UU 13/2003 Ketenagakerjaan, PP 35/2021 PKWT, UU 12/2022 TPKS, BPJS Kesehatan/Ketenagakerjaan, PPh 21 & TER PMK 168/2023, UMP/UMK, cuti melahirkan, SKB 3 menteri hari libur). Selalu sarankan verifikasi ke aturan resmi/HR.
 5. TOPIK LAIN (cuaca, resep, kode umum, matematika acak, gosip, politik, dll) → tolak satu kalimat singkat + arahkan kembali ke topik RekanKerja.
 6. Bahasa: ikuti bahasa pengguna (utamanya Bahasa Indonesia). Jawaban ringkas, terstruktur, berani menyebut angka dari data.

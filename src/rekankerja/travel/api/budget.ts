@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { listBudgets, upsertBudget } from "@/rekankerja/travel/services/travel-service";
 
 // GET /api/rekankerja/travel/budget — daftar budget tahunan + terpakai
 // (padanan TravelPeriod.jsp: Total Budget | Used | Unused + Budget Per Cost Center).
+// Task 98 (F0-5/B10): gerbang vault uang — kolom uang → null saat masked.
 export async function GET(req: NextRequest) {
   try {
     // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
@@ -12,7 +14,8 @@ export async function GET(req: NextRequest) {
     const m = await requireMenuViewAny(req, ["travel:travel-budget"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
-    const budgets = await listBudgets(db);
+    const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
+    const budgets = await listBudgets(db, mv);
     return NextResponse.json({ budgets });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });

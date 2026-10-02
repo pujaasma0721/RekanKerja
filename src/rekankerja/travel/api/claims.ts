@@ -3,7 +3,7 @@ import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/servi
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
 import { DecisionConflictError, DecisionForbiddenError } from "@/rekankerja/shared/services/approval-engine";
-import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail } from "@/rekankerja/travel/services/travel-service";
+import { listTravelClaims, createClaim, decideClaim, previewClaim, getClaimDetail, detectClaimAnomalies } from "@/rekankerja/travel/services/travel-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 // T16-ATTACH — lampiran kwitansi klaim (draft-upload → rebind saat submit;
@@ -61,6 +61,15 @@ export async function GET(req: NextRequest) {
       attachments: attachMap.get(c.id) ?? [],
       attachmentCount: attachMap.get(c.id)?.length ?? 0,
     }));
+    // Task 98 (F2-4) — deteksi anomali pre-approval utk klaim menunggu keputusan
+    // (ala Concur Approval Management Agent): bendera bantuan approver — duplikasi,
+    // over-limit per unit, nominal bulat, weekend, di atas rata-rata kota,
+    // kwitansi wajib belum terlampir. Best-effort (never-throw).
+    const pendingIds = claimsWithAttachments.filter((c) => c.status === "Submitted").map((c) => c.id);
+    const anomalyMap = pendingIds.length > 0
+      ? await detectClaimAnomalies(db, pendingIds).catch(() => new Map<string, { kind: string; label: string }>())
+      : new Map<string, { kind: string; label: string }>();
+    const claimsFinal = claimsWithAttachments.map((c) => ({ ...c, anomalies: anomalyMap.get(c.id) ?? [] }));
     // 45-b → Audit 97: kolom uang DTO nullable saat masked; agregat uang stats
     // kini ikut nullable saat vault tertutup — konvensi Task 56 ("—" di UI),
     // bukan 0 yang menyesatkan (walkthrough 97: KPI claim-approval menampilkan
@@ -81,7 +90,7 @@ export async function GET(req: NextRequest) {
       payableEmployee: moneyStat((c) => c.payableEmployee, (c) => c.status === "Approved"),
       payableCompany: moneyStat((c) => c.payableCompany, (c) => c.status === "Approved"),
     };
-    return NextResponse.json({ claims: claimsWithAttachments, stats });
+    return NextResponse.json({ claims: claimsFinal, stats });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

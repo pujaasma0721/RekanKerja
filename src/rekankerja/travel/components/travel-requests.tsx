@@ -18,12 +18,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  TravelRequestRowUI, TemplateRowUI, ZoneRowUI, EmployeeOption,
+  TravelRequestRowUI, TemplateRowUI, ZoneRowUI, EmployeeOption, CityRateRowUI, estimateTripClient,
   TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID, fmtIDRShort,
 } from "./travel-types";
 import {
   Plane, Plus, Search, MapPin, Wallet, Send, Ban, ChevronDown, ChevronRight, Globe2,
-  FileText, Clock, AlertTriangle,
+  FileText, Clock, AlertTriangle, Calculator, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -76,7 +76,7 @@ export function TravelRequestsPage() {
     `/api/rekankerja/travel/requests?status=${statusFilter}&sortBy=${sortKey}&sortDir=${sortDir}`,
     [statusFilter, sortKey, sortDir],
   );
-  const master = useApi<{ templates: TemplateRowUI[]; zones: ZoneRowUI[]; employees: EmployeeOption[] }>("/api/rekankerja/travel/templates");
+  const master = useApi<{ templates: TemplateRowUI[]; zones: ZoneRowUI[]; employees: EmployeeOption[]; cityRates?: CityRateRowUI[] }>("/api/rekankerja/travel/templates");
 
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase()) || r.purpose.toLowerCase().includes(query.toLowerCase()),
@@ -84,6 +84,19 @@ export function TravelRequestsPage() {
 
   const zones = master.data?.zones ?? [];
   const templates = (master.data?.templates ?? []).filter((t) => t.active);
+  const cityRates = master.data?.cityRates ?? [];
+
+  // Task 98 (F1-2) — estimasi SBI live dari destinasi (uang harian × hari +
+  // plafon hotel × malam per kaki; server menghitung ulang saat submit).
+  const estimate = useMemo(
+    () => (dialog && dests.some((d) => d.city.trim())
+      ? estimateTripClient(cityRates, dests.map((d) => ({
+          city: d.city, dateFrom: d.dateFrom, dateTo: d.dateTo,
+          overseas: Boolean(zones.find((z) => z.code === d.zoneCode)?.overseas),
+        })))
+      : null),
+    [dialog, dests, cityRates, zones],
+  );
 
   const submit = async () => {
     if (!form.employeeId) { toast.error(t("Karyawan wajib dipilih", "Employee is required")); return; }
@@ -112,6 +125,12 @@ export function TravelRequestsPage() {
         "{no} submitted — {n} destinations, {d} days{adv}",
         { no: res.docNo, n: res.destinations, d: res.days, adv: res.advanceAmount > 0 ? t(", uang muka {amt}", ", advance {amt}", { amt: fmtIDRShort(res.advanceAmount) }) : "" },
       ));
+      // Task 98 (F1-3) — peringatan budget CC pengaju (server; warning, bukan blokir).
+      if (res.budgetWarning) {
+        toast.warning(res.budgetWarning, { duration: 9000 });
+      } else if (res.budget && res.budget.remaining != null) {
+        toast.info(t("Sisa budget CC {cc} tahun ini: {amt}", "Remaining budget of CC {cc} this year: {amt}", { cc: res.budget.costCenter ?? "-", amt: fmtIDRShort(res.budget.remaining) }));
+      }
       setDialog(false);
       api.refresh();
     } catch (e) {
@@ -419,6 +438,53 @@ export function TravelRequestsPage() {
                 ))}
               </div>
             </div>
+
+            {/* Task 98 (F1-2) — estimasi biaya otomatis dari tarif kota SBI (PMK 32/2025):
+                uang harian × hari + plafon hotel × malam per kaki. */}
+            {estimate && estimate.legs.length > 0 && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/20">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-sky-800 dark:text-sky-300">
+                  <Calculator className="h-3.5 w-3.5" /> {t("Estimasi Biaya — tarif SBI PMK 32/2025", "Cost Estimate — SBI rates (PMK 32/2025)")}
+                </p>
+                <div className="space-y-1.5">
+                  {estimate.legs.map((l, i) => (
+                    <div key={i} className="rounded-lg bg-white px-3 py-1.5 text-[11px] dark:bg-slate-900">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {l.city} · {l.days} {t("hari", "days")} / {l.nights} {t("malam", "nights")}
+                          {l.overseas && <Globe2 className="ml-1 inline h-3 w-3 text-brand" />}
+                        </span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{fmtIDRShort(l.perDiem + l.hotelEstimate)}</span>
+                      </div>
+                      {l.rateFound ? (
+                        <p className="text-slate-500 dark:text-slate-400">
+                          {t("uang harian {d} × {n} hari = {p}", "daily allowance {d} × {n} days = {p}", { d: fmtIDRShort(l.uangHarian), n: l.days, p: fmtIDRShort(l.perDiem) })}
+                          {" · "}
+                          {t("hotel ≤ {h} × {m} malam = {he}", "hotel ≤ {h} × {m} nights = {he}", { h: fmtIDRShort(l.plafonHotel), m: l.nights, he: fmtIDRShort(l.hotelEstimate) })}
+                        </p>
+                      ) : (
+                        <p className="text-amber-600 dark:text-amber-400">
+                          {t("kota belum ada di master tarif — hubungi HR agar tarif ditambahkan (estimasi Rp 0)", "city not in the rate master — ask HR to add the rate (estimate Rp 0)")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black text-sky-800 dark:text-sky-300">
+                    {t("Total estimasi: {amt}", "Estimated total: {amt}", { amt: fmtIDR(estimate.estimateTotal) })}
+                    <span className="ml-2 font-normal text-sky-700/70 dark:text-sky-400/70">{t("(belum termasuk transport riil)", "(excludes actual transport)")}</span>
+                  </p>
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 gap-1 border-sky-300 text-[11px] font-bold text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                    onClick={() => setForm({ ...form, advanceAmount: String(estimate!.estimateTotal) })}
+                  >
+                    <Sparkles className="h-3 w-3" /> {t("Gunakan sebagai uang muka", "Use as the advance")}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/20">
               <Label className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-400">

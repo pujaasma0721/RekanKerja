@@ -21,12 +21,13 @@ interface ReportData {
   rows: (TravelClaimRowUI & { expenses: ClaimExpenseUI[] })[];
   summary: {
     claims: number;
-    totalSettlement: number;
-    totalExpenses: number;
-    payableEmployee: number;
-    payableCompany: number;
-    byKind: { kind: string; amount: number; lines: number }[];
-    byExpense: { code: string; amount: number; lines: number }[];
+    // Task 98 (F0-5): kolom uang nullable saat Brankas Uang tertutup.
+    totalSettlement: number | null;
+    totalExpenses: number | null;
+    payableEmployee: number | null;
+    payableCompany: number | null;
+    byKind: { kind: string; amount: number | null; lines: number }[];
+    byExpense: { code: string; amount: number | null; lines: number }[];
   };
 }
 
@@ -50,7 +51,6 @@ export function TravelReportsPage() {
   const summary = api.data?.summary;
 
   const maxKind = summary?.byKind[0]?.amount || 1;
-
   return (
     <div>
       <PageHeader
@@ -153,7 +153,7 @@ export function TravelReportsPage() {
                     <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDRShort(k.amount)}</span>
                   </div>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                    <div className="h-full rounded-full ov-bar" style={{ width: `${(k.amount / maxKind) * 100}%` }} />
+                    <div className="h-full rounded-full ov-bar" style={{ width: `${((k.amount ?? 0) / maxKind) * 100}%` }} />
                   </div>
                 </div>
               ))

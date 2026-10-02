@@ -20,6 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ESS_BASE, submitWorkoff, submitOvertime, essDocTypeLabel, essDocTypeLabelEn } from "./ess-api";
 import type { EssDashboard } from "./ess-types";
+// Task 98 (F1-4) — pengajuan dinis self-service (kartu + dialog + daftar).
+import { EssTravelRequest } from "./ess-travel-request";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -161,7 +163,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
       <PageHeader
         eyebrow={t("Employee Self Service", "Employee Self Service")}
         title={t("Pengajuan", "Requests")}
-        description={t("Izin tidak masuk (work off) dan rencana lembur — keduanya mengikuti approval atasan.", "Work off permits and overtime plans — both follow manager approval.")}
+        description={t("Izin tidak masuk (work off), rencana lembur, dan perjalanan dinas — semuanya mengikuti approval atasan.", "Work off permits, overtime plans, and business trips — all follow manager approval.")}
       />
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
@@ -182,6 +184,10 @@ export function EssRequests({ intent }: EssRequestsProps) {
           latest={latestOvertime}
         />
       </div>
+
+      {/* Task 98 (F1-4) — pengajuan dinis self-service: kartu + dialog multi-destinasi
+          + estimasi SBI + daftar permintaan dinis SAYA (status approval berjenjang). */}
+      <EssTravelRequest />
 
       {/* riwayat ringkas gabungan */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">

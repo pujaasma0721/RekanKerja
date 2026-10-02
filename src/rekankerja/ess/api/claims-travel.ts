@@ -8,10 +8,10 @@
 //        aktif per request K-2, tanggal biaya dalam rentang trip M-5,
 //        formula settlement server B1/B2, approval berjenjang "TravelClaim").
 //
-// Lampiran kwitansi jenis biaya needDocs: ESS tidak menegakkan upload
-// (endpoint /api/rekankerja/attachments ter-guard menu travel:travel-claim
-// milik HR) — notifikasi approver menyebut verifikasi kwitansi fisik;
-// approver dapat menolak/return bila tidak diserahkan.
+// Lampiran kwitansi (Task 98 F1-5): ESS kini BOLEH mengunggah kwitansi via
+// /api/rekankerja/attachments (guard requireEss + kepemilikan klaim) — draf
+// di-rebind ke klaim saat POST (mirror jalur admin claims.ts); enforcement
+// jenis biaya needDocs sama dgn admin.
 import { NextResponse } from "next/server";
 import { requireEss } from "@/rekankerja/ess/api/ess-auth";
 import { getMoneyView } from "@/rekankerja/shared/lib/money-view";
@@ -19,6 +19,9 @@ import { listTravelRequests, listTemplates, listExpenseTypes, createClaim } from
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
+import {
+  bindDraftAttachments, countDraftAttachmentsByIds, deleteDraftAttachmentsByIds,
+} from "@/rekankerja/shared/services/attachment-service";
 
 // GET — form data klaim travel milik saya.
 export async function GET(req: Request) {
@@ -45,6 +48,8 @@ export async function GET(req: Request) {
         days: r.days,
         purpose: r.purpose,
         destinations: r.destinations.map((d) => d.city),
+        // Task 98 (F0-6/B7) — trip punya kaki luar negeri → jenis O-* diizinkan.
+        overseas: r.destinations.some((d) => d.overseas),
         templateCode: r.templateCode,
         templateName: r.templateName,
         costCenter: r.costCenter,
@@ -96,6 +101,36 @@ export async function POST(req: Request) {
       }
     }
 
+    // Task 98 (F1-5) — draf lampiran kwitansi pra-submit (mirror admin claims.ts):
+    // enforcement jenis needDocs wajib minimal 1 file; rebind setelah create.
+    const attachmentIds: string[] = Array.isArray(b.attachmentIds)
+      ? (b.attachmentIds as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
+    if (attachmentIds.length > 0) {
+      const draftCount = await countDraftAttachmentsByIds(db, "TravelClaim", attachmentIds);
+      if (draftCount === 0) {
+        return NextResponse.json(
+          { error: "Lampiran tidak ditemukan/d sudah terpakai — unggah ulang kwitansi" },
+          { status: 400 },
+        );
+      }
+    } else {
+      const needDocsTypes = await db.travelExpenseType.findMany({
+        where: { code: { in: (b.expenses as { expenseCode?: string }[]).map((e) => String(e.expenseCode ?? "")) }, needDocs: true },
+        select: { name: true },
+      });
+      if (needDocsTypes.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              `Jenis biaya ${needDocsTypes.map((t) => t.name).join(", ")} mewajibkan lampiran kwitansi — ` +
+              "foto struk dari ponsel Anda lalu unggah (JPG/PNG/WEBP/PDF, maks 5 MB)",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const requestId = b.requestId ? String(b.requestId) : undefined;
     let templateCode = b.templateCode ? String(b.templateCode) : "";
 
@@ -142,7 +177,20 @@ export async function POST(req: Request) {
       payableEmployee: 0,
       payableCompany: 0,
       actorName: fullName,
+    }).catch(async (e: unknown) => {
+      // gagal membuat klaim → sapu draf lampiran yang dikirim (best-effort)
+      if (attachmentIds.length > 0) await deleteDraftAttachmentsByIds(db, attachmentIds);
+      throw e;
     });
+
+    // Task 98 (F1-5) — rebind draf lampiran ESS ke klaim yang baru dibuat.
+    let boundAttachments = 0;
+    if (attachmentIds.length > 0) {
+      const claimRow = await db.travelClaim.findUnique({ where: { docNo: res.docNo }, select: { id: true } });
+      if (claimRow) {
+        boundAttachments = await bindDraftAttachments(db, "TravelClaim", attachmentIds, claimRow.id);
+      }
+    }
 
     // ===== Notifikasi (mirror jalur admin travel/api/claims.ts POST) =====
     void (async () => {
@@ -172,7 +220,10 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         ...res,
-        receiptNote: "Kwitansi asli tiap biaya tetap diserahkan ke HR/Finance untuk verifikasi sebelum klaim disetujui.",
+        attachmentCount: boundAttachments,
+        receiptNote: boundAttachments > 0
+          ? `${boundAttachments} kwitansi terlampir digital pada klaim ini.`
+          : "Kwitansi asli tiap biaya tetap diserahkan ke HR/Finance untuk verifikasi sebelum klaim disetujui.",
       },
       { status: 201 },
     );

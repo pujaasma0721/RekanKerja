@@ -130,6 +130,23 @@ async function seedSwapDemo(schemas: string[]): Promise<void> {
 
 // ============ definisi langkah (urutan dependensi) ============
 
+/** Task 98 — seed tarif kota SBI per tenant (upsert create-only via
+ *  provisioning ensureTravelCityRates; nilai kustom tenant tidak ditimpa). */
+async function seedTravelCityRates(schemas: string[]): Promise<void> {
+  const { ensureTravelCityRates } = await import("../../../../src/rekankerja/shared/lib/provisioning");
+  for (const schema of schemas) {
+    const db = getTenantClient(schema);
+    try {
+      await ensureTravelCityRates(db);
+      console.log(`[${schema}] tarif kota SBI (TravelCityRate): terpasang/terverifikasi`);
+    } catch (e) {
+      console.warn(`[${schema}] tarif kota SBI: skip — ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      await db.$disconnect();
+    }
+  }
+}
+
 const STEPS: Step[] = [
   // Urutan: DDL kolom Employee (contractStart/End, renewalCount) HARUS lebih
   // dulu — Prisma update/findUnique full-row pada Employee membutuhkan SEMUA
@@ -226,6 +243,16 @@ const STEPS: Step[] = [
   // fix 92 (wave 3 medical): kolom MedicalBenefitType.needLetter — G-2 surat
   // rujukan wajib per jenis benefit. Skip schema tanpa tabel medical.
   { key: "medical-wave3", label: "Fix 92 — wave 3 medical: MedicalBenefitType.needLetter (G-2 surat rujukan)", run: (s) => import("../../../../scripts/migrate-medical-wave3").then((m) => m.main(s)) },
+  // Task 98 (F0-7 + F1-1): index-sweep tabel travel (B11) + tabel tarif kota
+  // SBI TravelCityRate (PMK 32/2025) + seed idempoten create-only.
+  {
+    key: "travel-advance",
+    label: "Task 98 — index tabel travel + TravelCityRate (tarif kota SBI)",
+    run: async (s) => {
+      await import("../../../../scripts/migrate-travel-advance").then((m) => m.main(s));
+      await seedTravelCityRates(s);
+    },
+  },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -386,6 +413,17 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (medWave1Ok < medClaimTables)
       reasons.push(`${medClaimTables - medWave1Ok} tenant tanpa kolom wave1 medical: prorateFactor/reversalOfId/providerId (fix 89)`);
+    // Task 98 — index travel + tabel tarif kota SBI belum ada = gap.
+    const travelCityRateOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'TravelCityRate' AND table_schema = ANY($1::text[])`,
+    );
+    if (travelCityRateOk < schemas.length) reasons.push(`${schemas.length - travelCityRateOk} tenant tanpa tabel TravelCityRate (Task 98 — tarif kota SBI)`);
+    const travelIdxOk = await q(
+      `SELECT COUNT(DISTINCT schemaname)::int AS n FROM pg_indexes
+       WHERE indexname = 'TravelClaimExpense_claimId_idx' AND schemaname = ANY($1::text[])`,
+    );
+    if (travelIdxOk < schemas.length) reasons.push(`${schemas.length - travelIdxOk} tenant tanpa @@index tabel travel (Task 98 — F0-7/B11)`);
     // fix 92 — wave 3 medical: MedicalBenefitType.needLetter (G-2). Penyebut =
     // schema yang punya tabel MedicalBenefitType (mirror pola wave1).
     const medTypeTables = await q(

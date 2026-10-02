@@ -26,7 +26,7 @@ import {
 } from "./travel-types";
 import {
   FileText, Plus, Search, Calculator, Wallet, ChevronDown, ChevronRight,
-  Landmark, AlertTriangle, Trash2, Users, Paperclip,
+  Landmark, AlertTriangle, Trash2, Users, Paperclip, ScanLine, Loader2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -64,6 +64,13 @@ interface ClaimPreviewData {
   costCenter: string | null; purpose: string | null;
   advanceAmount: number;
   destinations: { city: string; country: string; dateFrom: string; dateTo: string; overseas: boolean }[];
+  /** Task 98 (F0-6/F1-1): jenis biaya berlaku utk trip ini + trip luar negeri. */
+  tripOverseas?: boolean;
+  applicableExpenseTypes?: ExpenseTypeRowUI[];
+  /** Task 98 (F1-2): saran baris uang harian per kota (tarif SBI). */
+  suggestedAllowance?: { city: string; days: number; uangHarian: number; perDiem: number; expenseCode: string }[];
+  /** Task 98 (F1-3): status budget CC request ini. */
+  budget?: { costCenter: string | null; total: number | null; used: number | null; committed: number | null; remaining: number | null } | null;
 }
 
 const newLine = (defaultCode: string): ExpenseLine => ({
@@ -113,6 +120,12 @@ export function TravelClaimsPage() {
 
   const expenseTypes = master.data?.expenseTypes ?? [];
   const typeByCode = useMemo(() => new Map(expenseTypes.map((t) => [t.code, t])), [expenseTypes]);
+  // Task 98 (F0-6/B7) — dropdown jenis biaya: trip domestik → TANPA jenis O-*
+  // (previewClaim memfilter; fallback utk mode mandiri = semua).
+  const selectableTypes = useMemo(
+    () => (mode === "request" && previewData?.applicableExpenseTypes ? previewData.applicableExpenseTypes : expenseTypes),
+    [mode, previewData, expenseTypes],
+  );
 
   // K-2 (24-FIX-TRAVEL): dropdown hanya memuat permintaan Approved TANPA klaim aktif —
   // satu permintaan hanya boleh satu klaim aktif (server juga menolak / guard 400).
@@ -243,6 +256,45 @@ export function TravelClaimsPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal membuat klaim", "Failed to create the claim"));
     } finally { setBusy(false); }
+  };
+
+  // OCR kwitansi (Task 98 F2-3) — pindai foto struk → VLM ekstraksi →
+  // pre-fill baris terakhir kosong + peringatan duplikasi.
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const scanReceipt = async (file: File) => {
+    setOcrBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const employeeId = mode === "request" ? previewData?.employee.id : standaloneEmployeeId;
+      if (employeeId) form.append("employeeId", employeeId);
+      const res = await apiUpload<{ merchant: string | null; date: string | null; amount: number; note: string | null; duplicateOf: string | null }>("/api/rekankerja/travel/ocr", form);
+      if (!res.amount || res.amount <= 0) {
+        toast.error(t("Nominal tidak terbaca dari kwitansi — isi manual", "Amount could not be read from the receipt — fill it in manually"));
+        return;
+      }
+      setLines((prev) => {
+        const next = [...prev];
+        const idx = next.findIndex((l) => !l.expenseCode && !l.amount);
+        const lineNo = idx >= 0 ? idx : next.length;
+        if (idx < 0) next.push(newLine(""));
+        next[lineNo] = {
+          ...next[lineNo],
+          expenseDate: res.date ?? next[lineNo].expenseDate,
+          amount: String(res.amount),
+          description: [res.merchant, res.note].filter(Boolean).join(" — ") || next[lineNo].description,
+        };
+        return next;
+      });
+      toast.success(t("Kwitansi terbaca: {amt}{m}", "Receipt read: {amt}{m}", { amt: fmtIDR(res.amount), m: res.merchant ? ` · ${res.merchant}` : "" }));
+      if (res.duplicateOf) {
+        toast.warning(t("Baris ini identik dgn klaim {no} ≤90 hari — cek double-claim", "This line is identical to claim {no} within 90 days — check for double-claiming", { no: res.duplicateOf }), { duration: 9000 });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal memindai kwitansi", "Failed to scan the receipt"));
+    } finally {
+      setOcrBusy(false);
+    }
   };
 
   const stats = api.data?.stats;
@@ -498,20 +550,76 @@ export function TravelClaimsPage() {
                   </div>
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-500">{previewData.purpose}</p>
+                {/* Task 98 (F1-3) — status budget CC request ini (sisa = alokasi −
+                    terpakai − komitmen klaim Approved). */}
+                {previewData.budget && previewData.budget.remaining != null && (
+                  <p className={cn(
+                    "mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold",
+                    previewData.budget.remaining < 0
+                      ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
+                  )}>
+                    {previewData.budget.remaining < 0
+                      ? t("Budget CC {cc} TERLALUI (sisa {amt} termasuk komitmen) — approver akan melihat peringatan", "CC {cc} budget EXCEEDED ({amt} remaining incl. commitments) — the approver will see a warning", { cc: previewData.budget.costCenter ?? "-", amt: fmtIDR(previewData.budget.remaining) })
+                      : t("Sisa budget CC {cc}: {amt} (termasuk komitmen klaim Approved)", "Remaining budget of CC {cc}: {amt} (incl. approved-claim commitments)", { cc: previewData.budget.costCenter ?? "-", amt: fmtIDR(previewData.budget.remaining) })}
+                  </p>
+                )}
               </div>
             )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold">{t("Rincian Biaya *", "Expense Details *")}</Label>
-                <Button variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => setLines([...lines, newLine("")])}>
-                  <Plus className="h-3 w-3" /> {t("Tambah Baris", "Add Line")}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Task 98 (F2-3) — pindai kwitansi via AI (OCR) */}
+                  <label className={cn("inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-sky-300 px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40", ocrBusy && "pointer-events-none opacity-60")}>
+                    <input
+                      type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
+                      disabled={ocrBusy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void scanReceipt(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    {ocrBusy ? <><Loader2 className="h-3 w-3 animate-spin" /> {t("Memindai…", "Scanning…")}</> : <><ScanLine className="h-3 w-3" /> {t("Pindai Kwitansi (AI)", "Scan Receipt (AI)")}</>}
+                  </label>
+                  {previewData && (previewData.suggestedAllowance?.length ?? 0) > 0 && (
+                    <Button
+                      variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold"
+                      onClick={() => {
+                        // Task 98 (F1-2) — baris uang harian otomatis dari tarif SBI.
+                        const sug = previewData!.suggestedAllowance!;
+                        setLines([
+                          ...lines.filter((l) => l.expenseCode || l.amount),
+                          ...sug.map((s) => ({
+                            expenseCode: s.expenseCode,
+                            expenseDate: previewData!.destinations[0]?.dateFrom?.slice(0, 10) ?? todayISO(),
+                            description: `Uang harian ${s.city} — tarif SBI ${fmtIDR(s.uangHarian)}/hari × ${s.days} hari`,
+                            amount: String(s.perDiem),
+                            qty: String(s.days),
+                            guestName: "",
+                          })),
+                        ]);
+                        toast.success(t("{n} baris uang harian ditambahkan (tarif SBI PMK 32/2025) — sesuaikan bila perlu", "{n} daily-allowance lines added (SBI rates PMK 32/2025) — adjust as needed", { n: sug.length }));
+                      }}
+                    >
+                      <Sparkles className="h-3 w-3" /> {t("Sarankan Uang Harian", "Suggest Per Diem")}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="h-7 gap-1 text-xs font-bold" onClick={() => setLines([...lines, newLine("")])}>
+                    <Plus className="h-3 w-3" /> {t("Tambah Baris", "Add Line")}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 {lines.map((l, i) => {
                   const et = l.expenseCode ? typeByCode.get(l.expenseCode) : undefined;
-                  const overLimit = et && !et.unlimited && et.limitAmount > 0 && (Number(l.amount) || 0) > et.limitAmount;
+                  // Task 98 (F0-6/B6) — limit PER UNIT (nominal ÷ qty hari/km/malam):
+                  // hotel 2 malam Rp 1,4 jt vs limit 2 jt/malam = SESUAI kebijakan.
+                  const unitQty = Math.max(1, Number(l.qty) || 1);
+                  const unitAmount = (Number(l.amount) || 0) / unitQty;
+                  const overLimit = Boolean(et && !et.unlimited && et.limitAmount > 0 && unitAmount > et.limitAmount);
                   return (
                     <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                       <div className="mb-2 flex items-center justify-between">
@@ -528,7 +636,7 @@ export function TravelClaimsPage() {
                           <Select value={l.expenseCode} onValueChange={(v) => setLines(lines.map((x, xi) => xi === i ? { ...x, expenseCode: v } : x))}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={t("Pilih jenis", "Select type")} /></SelectTrigger>
                             <SelectContent className="max-h-56">
-                              {expenseTypes.map((t2) => (
+                              {selectableTypes.map((t2) => (
                                 <SelectItem key={t2.id} value={t2.code} className="text-xs">
                                   {t2.code} — {t2.name} ({EXPENSE_KIND_LABEL[t2.kind] ?? t2.kind})
                                 </SelectItem>
@@ -569,7 +677,9 @@ export function TravelClaimsPage() {
                           {et.needDocs && <Badge variant="secondary" className="text-[9px] font-bold">{t("Perlu dokumen", "Docs required")}</Badge>}
                           {et.limitAmount > 0 && !et.unlimited && (
                             <span className={cn("font-semibold", overLimit ? "text-rose-600" : "text-slate-500")}>
-                              {overLimit ? <><AlertTriangle className="mr-1 inline h-3 w-3" />{t("Melebihi limit {amt} — tetap bisa diajukan (warning)", "Exceeds limit {amt} — can still be submitted (warning)", { amt: fmtIDR(et.limitAmount) })}</> : t("Limit {amt}", "Limit {amt}", { amt: fmtIDR(et.limitAmount) })}
+                              {overLimit
+                                ? <><AlertTriangle className="mr-1 inline h-3 w-3" />{t("Melebihi plafon per unit {amt} (nominal ÷ {q} = {per}) — tetap bisa diajukan", "Exceeds the per-unit limit of {amt} (amount ÷ {q} = {per}) — can still be submitted", { amt: fmtIDR(et.limitAmount), q: unitQty, per: fmtIDR(unitAmount) })}</>
+                                : t("Plafon per unit {amt} (nominal ÷ {q} = {per})", "Per-unit limit {amt} (amount ÷ {q} = {per})", { amt: fmtIDR(et.limitAmount), q: unitQty, per: fmtIDR(unitAmount) })}
                             </span>
                           )}
                         </div>

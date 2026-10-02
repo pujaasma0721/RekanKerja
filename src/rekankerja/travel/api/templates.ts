@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
-import { listTemplates, listExpenseTypes, listZones, upsertTemplate, upsertExpenseType } from "@/rekankerja/travel/services/travel-service";
+import { listTemplates, listExpenseTypes, listZones, listCityRates, upsertTemplate, upsertExpenseType } from "@/rekankerja/travel/services/travel-service";
 
 // GET /api/rekankerja/travel/templates — master: template + jenis biaya + zona
 // + karyawan aktif (padanan General Setting: ClaimTmpl + ExpenseDefinition +
-// DomesticZone; employees utk picker form).
+// DomesticZone; employees utk picker form) + tarif kota SBI (Task 98 F1-1 —
+// estimasi form pengajuan + badge in-policy).
 export async function GET(req: NextRequest) {
   try {
     // Task 82-T5: guard view menu (dulu requireTenant — anggota tenant tanpa hak
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const m = await requireMenuViewAny(req, ["travel:travel-templates", "travel:travel-request", "travel:travel-claim", "travel:travel-reports"]);
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
     const db = m.db;
-    const [templates, expenseTypes, zones, employees] = await Promise.all([
+    const [templates, expenseTypes, zones, employees, cityRates] = await Promise.all([
       listTemplates(db),
       listExpenseTypes(db),
       listZones(db),
@@ -22,8 +23,9 @@ export async function GET(req: NextRequest) {
         select: { id: true, employeeNo: true, fullName: true },
         orderBy: { employeeNo: "asc" },
       }),
+      listCityRates(db).catch(() => []),
     ]);
-    return NextResponse.json({ templates, expenseTypes, zones, employees });
+    return NextResponse.json({ templates, expenseTypes, zones, employees, cityRates });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

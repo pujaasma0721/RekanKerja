@@ -79,19 +79,25 @@ export interface TravelClaimRowUI {
   /** T16-ATTACH — metadata lampiran kwitansi (badge "lampiran n" + preview). */
   attachments?: import("@/rekankerja/shared/components/attachment-upload").AttachmentMetaUI[];
   attachmentCount?: number;
+  /** Task 98 (F2-4): bendera anomali pre-approval (bantuan approver). */
+  anomalies?: { kind: string; label: string }[];
   /** T15-CHAIN-EXT: ringkasan jalur approval berjenjang (jenjang aktif + approver menunggu). */
   approval?: TravelApprovalUI | null;
 }
 
 export interface BudgetItemUI {
-  costCenter: string; amount: number; note: string | null;
+  costCenter: string; amount: number | null; note: string | null;
 }
 
 export interface BudgetRowUI {
   id: string; year: number; startDate: string; endDate: string; currency: string;
-  totalBudget: number; note: string | null;
+  /** Task 98 (F0-5): null = vault uang masked. */
+  totalBudget: number | null; note: string | null;
   items: BudgetItemUI[];
-  used: number; remaining: number; claimCount: number;
+  used: number | null; remaining: number | null; claimCount: number;
+  /** Task 98 (F1-3): terpakai per cost center + komitmen klaim Approved. */
+  usedByCc?: Record<string, number>;
+  committed?: number | null;
 }
 
 export interface TravelStatsUI {
@@ -100,14 +106,98 @@ export interface TravelStatsUI {
   pendingRequestApprovals: number;
   pendingClaimApprovals: number;
   claimsYtd: number;
-  claimsYtdAmount: number;
+  claimsYtdAmount: number | null;
   transferredCount: number;
   paidCount: number;
   budgetYear: number | null;
-  budgetTotal: number;
-  budgetUsed: number;
-  advanceOutstanding: number;
-  topExpenseKinds: { kind: string; amount: number }[];
+  budgetTotal: number | null;
+  budgetUsed: number | null;
+  advanceOutstanding: number | null;
+  topExpenseKinds: { kind: string; amount: number | null }[];
+}
+
+/** Task 98 (F2-5) — analytics pintar view Ringkasan. */
+export interface TravelAnalyticsUI {
+  monthly: { month: string; label: string; amount: number; claims: number }[];
+  complianceRate: number | null;
+  overLimitLines: number;
+  totalLines: number;
+  agingPendingClaims: { docNo: string; fullName: string; days: number; totalSettlement: number | null }[];
+  topTravelers: { employeeNo: string; fullName: string; claims: number; amount: number }[];
+  burnRate: { year: number | null; budgetTotal: number | null; used: number | null; usedPct: number | null; elapsedPct: number | null };
+  avgSettlement: number | null;
+}
+
+/** Task 98 (F1-1) — tarif kota acuan SBI (PMK 32/2025). */
+export interface CityRateRowUI {
+  id: string; city: string; country: string; overseas: boolean; zoneCode: string | null;
+  uangHarian: number; plafonHotel: number; note: string | null;
+}
+
+/** Task 98 (F1-2) — estimasi trip client-side (mirror service estimateTrip). */
+export interface TripEstimateUI {
+  legs: {
+    city: string; rateFound: boolean; overseas: boolean;
+    days: number; nights: number;
+    uangHarian: number; perDiem: number;
+    plafonHotel: number; hotelEstimate: number;
+  }[];
+  days: number;
+  perDiemTotal: number;
+  hotelTotal: number;
+  estimateTotal: number;
+}
+
+/** Estimasi client-side dari tarif kota (mirror aturan SBI service —
+ *  uang harian × hari + plafon hotel × malam; 60% utk multi-kaki kota sama
+ *  domestik). Dipakai sebagai PREVIEW — server tetap otoritatif saat submit. */
+export function estimateTripClient(
+  cityRates: CityRateRowUI[],
+  legs: { city: string; dateFrom: string; dateTo: string; overseas?: boolean }[],
+): TripEstimateUI {
+  const find = (city: string) => {
+    const c = city.trim().toLowerCase();
+    if (!c) return null;
+    let best: CityRateRowUI | null = null;
+    for (const r of cityRates) {
+      const rc = r.city.trim().toLowerCase();
+      if (!rc) continue;
+      if (c === rc || c.includes(rc) || rc.includes(c)) {
+        if (!best || rc.length > best.city.trim().toLowerCase().length) best = r;
+      }
+    }
+    return best;
+  };
+  const dayDiff = (a: string, b: string) => {
+    const t1 = new Date(a).getTime();
+    const t2 = new Date(b).getTime();
+    return Number.isFinite(t1) && Number.isFinite(t2) ? Math.round((t2 - t1) / 86_400_000) : 0;
+  };
+  const out: TripEstimateUI["legs"] = [];
+  let perDiemTotal = 0;
+  let hotelTotal = 0;
+  const sameCity = legs.length > 0 && legs.every((x) => x.city.trim().toLowerCase() === legs[0].city.trim().toLowerCase());
+  for (const l of legs) {
+    if (!l.city.trim()) continue;
+    const rate = find(l.city);
+    const days = Math.max(1, dayDiff(l.dateFrom, l.dateTo) + 1);
+    const nights = Math.max(0, dayDiff(l.dateFrom, l.dateTo));
+    const overseas = Boolean(l.overseas) || rate?.overseas || false;
+    const uangHarian = rate ? (!overseas && sameCity && legs.length > 1 ? rate.uangHarian * 0.6 : rate.uangHarian) : 0;
+    const perDiem = Math.round(uangHarian * days);
+    const plafonHotel = rate?.plafonHotel ?? 0;
+    const hotelEstimate = Math.round(plafonHotel * nights);
+    perDiemTotal += perDiem;
+    hotelTotal += hotelEstimate;
+    out.push({ city: l.city.trim(), rateFound: rate !== null, overseas, days, nights, uangHarian, perDiem, plafonHotel, hotelEstimate });
+  }
+  return {
+    legs: out,
+    days: out.length > 0 ? Math.max(...out.map((x) => x.days)) : 0,
+    perDiemTotal,
+    hotelTotal,
+    estimateTotal: perDiemTotal + hotelTotal,
+  };
 }
 
 export interface PeriodOptionUI {

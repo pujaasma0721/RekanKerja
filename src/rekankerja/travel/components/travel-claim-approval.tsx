@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { TravelClaimRowUI, PeriodOptionUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID, subMoney } from "./travel-types";
-import { CheckCircle2, XCircle, Ban, Landmark, Wallet, Inbox, FileText, ArrowRight } from "lucide-react";
+import { CheckCircle2, XCircle, Ban, Landmark, Wallet, Inbox, FileText, ArrowRight, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
@@ -227,6 +227,25 @@ export function TravelClaimApprovalPage() {
                     <Badge key={k} variant="outline" className="text-[9px] font-bold">{k}</Badge>
                   ))}
                 </div>
+
+                {/* Task 98 (F2-4) — bendera anomali pre-approval (bantuan approver,
+                    ala Concur Approval Management Agent): duplikasi, nominal bulat,
+                    weekend, di atas rata-rata kota, kwitansi kurang. */}
+                {(c.anomalies?.length ?? 0) > 0 && (
+                  <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 dark:border-amber-800 dark:bg-amber-950/20">
+                    <p className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                      <ShieldAlert className="h-3 w-3" /> {t("Anomali terdeteksi — periksa sebelum menyetujui ({n})", "Anomalies detected — review before approving ({n})", { n: c.anomalies!.length })}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {c.anomalies!.slice(0, 4).map((a, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                          <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden />
+                          {a.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {perms.canOp("travel", "travel-claim-approval", "approve") && (

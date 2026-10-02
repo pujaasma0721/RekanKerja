@@ -12,11 +12,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  HeartPulse, Plane, Loader2, AlertTriangle, Plus, Trash2, Send, Info,
+  HeartPulse, Plane, Loader2, AlertTriangle, Plus, Trash2, Send, Info, Paperclip, ScanLine, Sparkles,
 } from "lucide-react";
-import { useApi, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, apiUpload, fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
+import {
+  AttachmentUploadArea,
+} from "@/rekankerja/shared/components/attachment-upload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +35,7 @@ import {
   fetchMedicalClaimForm, submitMedicalClaim,
   fetchTravelClaimForm, submitTravelClaim,
 } from "./ess-api";
+import { cn } from "@/lib/utils";
 import type {
   EssClaimsData, EssRecord,
   EssMedicalClaimType,
@@ -422,6 +426,9 @@ interface TrLine {
   expenseDate: string;
   description: string;
   amount: string;
+  /** Task 98 (F0-6): unit (hari/km) — limit per unit & pre-fill OCR. */
+  qty: string;
+  guestName: string;
 }
 
 function TravelClaimDialog({
@@ -443,14 +450,19 @@ function TravelClaimDialog({
   const [remark, setRemark] = useState("");
   const [otherCompanyExp, setOtherCompanyExp] = useState("0");
   const [exchangeLoss, setExchangeLoss] = useState("0");
-  const [lines, setLines] = useState<TrLine[]>([{ expenseCode: "", expenseDate: todayISO(), description: "", amount: "" }]);
+  const [lines, setLines] = useState<TrLine[]>([{ expenseCode: "", expenseDate: todayISO(), description: "", amount: "", qty: "1", guestName: "" }]);
+  // Task 98 (F1-5) — foto kwitansi pra-submit (upload draf → rebind server).
+  const [files, setFiles] = useState<File[]>([]);
+  // Task 98 (F2-3) — OCR kwitansi via AI.
+  const [ocrBusy, setOcrBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setRequests(null);
     setLoadError(null);
     setFormError(null);
-    setLines([{ expenseCode: "", expenseDate: todayISO(), description: "", amount: "" }]);
+    setLines([{ expenseCode: "", expenseDate: todayISO(), description: "", amount: "", qty: "1", guestName: "" }]);
+    setFiles([]);
     fetchTravelClaimForm()
       .then((d) => {
         setRequests(d.requests);
@@ -463,11 +475,82 @@ function TravelClaimDialog({
   }, [open]);
 
   const selectedReq = useMemo(() => requests?.find((r) => r.requestId === basis) ?? null, [requests, basis]);
+  // Task 98 (F0-6/B7) — trip domestik: jenis O-* disembunyikan (server menolak).
+  const selectableTypes = useMemo(
+    () => (selectedReq?.overseas === false ? expenseTypes.filter((x) => !x.code.startsWith("O-")) : expenseTypes),
+    [selectedReq, expenseTypes],
+  );
   const total = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  // hint jenis biaya needDocs pada dialog (mirror admin).
+  const needDocsHint = useMemo(() => {
+    const names = [
+      ...new Set(
+        lines
+          .filter((l) => l.expenseCode && Number(l.amount) > 0)
+          .map((l) => expenseTypes.find((x) => x.code === l.expenseCode))
+          .filter((et) => et?.needDocs)
+          .map((et) => et!.name),
+      ),
+    ];
+    return names.length > 0
+      ? t("Jenis {x} mewajibkan kwitansi — unggah minimal 1 foto struk", "Type {x} requires receipts — upload at least 1 receipt photo", { x: names.join(", ") })
+      : undefined;
+  }, [lines, expenseTypes, t]);
 
   const setLine = (i: number, patch: Partial<TrLine>) => {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   };
+
+  // Task 98 (F2-3) — pindai kwitansi via AI (VLM): pre-fill baris kosong +
+  // peringatan bila identik dgn klaim ≤90 hari.
+  const scanReceipt = async (file: File) => {
+    setOcrBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await apiUpload<{ merchant: string | null; date: string | null; amount: number; note: string | null; duplicateOf: string | null }>("/api/rekankerja/travel/ocr", fd);
+      if (!res.amount || res.amount <= 0) {
+        toast.error(t("Nominal tidak terbaca dari kwitansi — isi manual", "Amount could not be read from the receipt — fill it in manually"));
+        return;
+      }
+      setLines((prev) => {
+        const next = [...prev];
+        const idx = next.findIndex((l) => !l.expenseCode && !l.amount);
+        const at = idx >= 0 ? idx : next.length;
+        if (idx < 0) next.push({ expenseCode: "", expenseDate: todayISO(), description: "", amount: "", qty: "1", guestName: "" });
+        next[at] = {
+          ...next[at],
+          expenseDate: res.date ?? next[at].expenseDate,
+          amount: String(res.amount),
+          description: [res.merchant, res.note].filter(Boolean).join(" — ") || next[at].description,
+        };
+        return next;
+      });
+      toast.success(t("Kwitansi terbaca: {amt}{m}", "Receipt read: {amt}{m}", { amt: fmtIDR(res.amount), m: res.merchant ? ` · ${res.merchant}` : "" }));
+      if (res.duplicateOf) {
+        toast.warning(t("Baris ini identik dgn klaim {no} ≤90 hari — cek double-claim", "This line is identical to claim {no} within 90 days — check for double-claiming", { no: res.duplicateOf }), { duration: 9000 });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal memindai kwitansi", "Failed to scan the receipt"));
+    } finally {
+      setOcrBusy(false);
+    }
+  };
+
+  // Task 98 (F1-5) — unggah foto kwitansi sbg draf (entityId draft:uuid);
+  // klaim POST mengirim id → server rebind ke klaim yang dibuat.
+  async function uploadDraftFiles(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const f of files) {
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("entityType", "TravelClaim");
+      fd.append("entityId", `draft:${crypto.randomUUID()}`);
+      const res = await apiUpload<{ id: string }>("/api/rekankerja/attachments", fd);
+      ids.push(res.id);
+    }
+    return ids;
+  }
 
   const submit = async () => {
     if (busy) return;
@@ -480,18 +563,32 @@ function TravelClaimDialog({
       setFormError(t("Klaim mandiri wajib memilih template perjalanan.", "A standalone claim needs a travel template."));
       return;
     }
+    // mirror enforcement server: jenis needDocs wajib kwitansi (Task 98 F1-5).
+    const needDocsNames = clean
+      .map((l) => expenseTypes.find((x) => x.code === l.expenseCode))
+      .filter((et) => et?.needDocs)
+      .map((et) => et!.name);
+    if (needDocsNames.length > 0 && files.length === 0) {
+      setFormError(t("Jenis biaya {x} mewajibkan kwitansi — foto struk lalu unggah di bawah.", "Expense type {x} requires receipts — photograph the receipt and upload it below.", { x: [...new Set(needDocsNames)].join(", ") }));
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
+      // 1) unggah draf kwitansi dulu → 2) submit dgn attachmentIds.
+      const attachmentIds = await uploadDraftFiles();
       const res = await submitTravelClaim({
         requestId: basis || undefined,
         templateCode: basis ? undefined : templateCode,
         remark: remark.trim() || undefined,
+        attachmentIds,
         expenses: clean.map((l) => ({
           expenseCode: l.expenseCode,
           expenseDate: l.expenseDate || undefined,
           description: l.description.trim() || undefined,
           amount: Number(l.amount) || 0,
+          qty: Number(l.qty) > 0 ? Number(l.qty) : undefined,
+          guestName: l.guestName.trim() || undefined,
         })),
         otherCompanyExp: Math.max(0, Number(otherCompanyExp) || 0),
         exchangeLoss: Math.max(0, Number(exchangeLoss) || 0),
@@ -600,10 +697,10 @@ function TravelClaimDialog({
                           <Select value={l.expenseCode} onValueChange={(v) => setLine(i, { expenseCode: v })}>
                             <SelectTrigger className="rounded-lg"><SelectValue placeholder={t("Pilih jenis…", "Pick a type…")} /></SelectTrigger>
                             <SelectContent>
-                              {expenseTypes.map((x) => (
+                              {selectableTypes.map((x) => (
                                 <SelectItem key={x.code} value={x.code}>
                                   {x.name}
-                                  {!x.unlimited && x.limitAmount > 0 ? ` · ≤ ${fmtIDR(x.limitAmount)}` : ""}
+                                  {!x.unlimited && x.limitAmount > 0 ? ` · ≤ ${fmtIDR(x.limitAmount)}/${t("unit", "unit")}` : ""}
                                   {x.needDocs ? ` · ${t("perlu kwitansi", "receipt req.")}` : ""}
                                 </SelectItem>
                               ))}
@@ -625,6 +722,15 @@ function TravelClaimDialog({
                           <Label className="text-[11px] font-semibold text-slate-500">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
                           <Input type="number" min={0} step="any" inputMode="numeric" value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} placeholder="350000" className="rounded-lg tabular-nums" />
                         </div>
+                        <div className="space-y-1">
+                          {/* Task 98 (F0-6) — qty: limit berlaku per unit (hari/km). */}
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Unit (hari / km / malam)", "Units (days / km / nights)")}</Label>
+                          <Input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} className="rounded-lg tabular-nums" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold text-slate-500">{t("Tamu (opsional)", "Guest (optional)")}</Label>
+                          <Input value={l.guestName} onChange={(e) => setLine(i, { guestName: e.target.value })} placeholder={t("untuk entertainment", "for entertainment")} className="rounded-lg" />
+                        </div>
                         <div className="space-y-1 sm:col-span-2">
                           <Label className="text-[11px] font-semibold text-slate-500">{t("Keterangan", "Description")}</Label>
                           <Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder={t("mis. Hotel 2 malam", "e.g. Hotel, 2 nights")} className="rounded-lg" />
@@ -633,19 +739,34 @@ function TravelClaimDialog({
                       {et && et.needDocs && (
                         <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
                           <Info className="h-3 w-3 shrink-0" aria-hidden />
-                          {t("Jenis biaya ini mewajibkan kwitansi — serahkan ke Finance saat verifikasi.", "This expense type requires receipts — hand them to Finance during verification.")}
+                          {t("Jenis biaya ini mewajibkan kwitansi — foto struk dari ponsel lalu unggah di bagian Lampiran Kwitansi.", "This expense type requires receipts — photograph the receipt and upload it under Receipt Attachments.")}
                         </p>
                       )}
                     </div>
                   );
                 })}
-                <Button
-                  type="button" variant="outline" size="sm"
-                  className="gap-1.5 rounded-xl font-bold"
-                  onClick={() => setLines((prev) => [...prev, { expenseCode: "", expenseDate: todayISO(), description: "", amount: "" }])}
-                >
-                  <Plus className="h-3.5 w-3.5" /> {t("Tambah biaya", "Add expense")}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Task 98 (F2-3) — pindai kwitansi via AI (OCR). */}
+                  <label className={cn("inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-sky-300 px-3 text-[12px] font-bold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40", ocrBusy && "pointer-events-none opacity-60")}>
+                    <input
+                      type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
+                      disabled={ocrBusy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void scanReceipt(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    {ocrBusy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("Memindai…", "Scanning…")}</> : <><ScanLine className="h-3.5 w-3.5" /> {t("Pindai Kwitansi (AI)", "Scan Receipt (AI)")}</>}
+                  </label>
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    className="gap-1.5 rounded-xl font-bold"
+                    onClick={() => setLines((prev) => [...prev, { expenseCode: "", expenseDate: todayISO(), description: "", amount: "", qty: "1", guestName: "" }])}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> {t("Tambah biaya", "Add expense")}
+                  </Button>
+                </div>
               </div>
 
               {/* penyesuaian lanjutan */}
@@ -663,6 +784,20 @@ function TravelClaimDialog({
               <div className="space-y-1">
                 <Label className="text-xs font-bold">{t("Catatan (opsional)", "Note (optional)")}</Label>
                 <Textarea rows={2} value={remark} onChange={(e) => setRemark(e.target.value)} placeholder={t("Info tambahan utk approver…", "Extra info for the approver…")} className="rounded-xl" />
+              </div>
+
+              {/* Task 98 (F1-5) — upload kwitansi digital (dulu: serahkan fisik ke
+                  HR — temuan VLM "critical issue": audit trail hilang + re-work). */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-xs font-bold">
+                  <Paperclip className="h-3.5 w-3.5" aria-hidden />
+                  {t("Lampiran Kwitansi (foto dari ponsel)", "Receipt Attachments (phone photos)")}
+                </Label>
+                <AttachmentUploadArea
+                  files={files}
+                  onChange={setFiles}
+                  hint={needDocsHint}
+                />
               </div>
 
               <FormError message={formError} />

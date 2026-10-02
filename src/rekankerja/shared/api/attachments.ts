@@ -18,6 +18,8 @@ import { db as platformDb } from "@/lib/db";
 import {
   saveAttachment, listAttachmentsByEntity, sweepDraftAttachments, DRAFT_ENTITY_PREFIX,
 } from "@/rekankerja/shared/services/attachment-service";
+// Task 98 (F1-5) — ESS upload kwitansi klaim travel milik sendiri.
+import { requireEss } from "@/rekankerja/ess/api/ess-auth";
 
 /** entityType yang diizinkan + menu pemiliknya (guard upload = aksi create menu itu). */
 export const ATTACHMENT_ENTITY_MENUS: Record<string, string> = {
@@ -155,8 +157,42 @@ export async function POST(req: NextRequest) {
     }
 
     // Guard ringan: aksi create menu terkait entityType (per pengguna).
+    // Task 98 (F1-5) — ESS boleh mengunggah kwitansi TravelClaim MILIK SENDIRI
+    // (draft pra-submit, atau klaim final miliknya) tanpa menu admin travel:
+    // menutup temuan VLM walkthrough 97 "critical issue" — karyawan menyimpan
+    // struk di ponsel tapi harus menyerahkan fisik ke HR (audit trail hilang).
+    let dbRef: TenantDb | null = null;
+    let uploaderId: string | null = null;
     const m = await requireMenuAction(req, ATTACHMENT_ENTITY_MENUS[entityType]!, "create");
-    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    if (m.ok) {
+      dbRef = m.db;
+      uploaderId = m.actor.appUserId ?? m.actor.userId;
+    } else if (entityType === "TravelClaim") {
+      const ess = await requireEss(req);
+      if (!ess.ok) {
+        return NextResponse.json({ error: ess.error }, { status: ess.status });
+      }
+      const { db: essDb, employeeId, appUserId, platformUserId } = ess.actor;
+      // draf pra-submit bebas (klaim akan dibuat karyawan sendiri via POST ESS
+      // yang me-rebind); id final = klaim harus milik karyawan aktor.
+      if (!entityId.startsWith(DRAFT_ENTITY_PREFIX)) {
+        const claim = await essDb.travelClaim.findUnique({
+          where: { id: entityId },
+          select: { employeeId: true },
+        });
+        if (!claim || claim.employeeId !== employeeId) {
+          return NextResponse.json(
+            { error: "Kwitansi hanya bisa diunggah untuk klaim travel milik Anda" },
+            { status: 403 },
+          );
+        }
+      }
+      dbRef = essDb;
+      uploaderId = appUserId ?? platformUserId;
+    } else {
+      return NextResponse.json({ error: m.error }, { status: m.status });
+    }
+    const db = dbRef;
 
     const slug = await tenantSlugOfSession(req);
     if (!slug) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
@@ -167,15 +203,15 @@ export async function POST(req: NextRequest) {
     }
 
     // sapu draf yatim >24 jam (best-effort — tidak boleh menggagalkan upload)
-    await sweepDraftAttachments(m.db);
+    await sweepDraftAttachments(db);
 
-    const row = await saveAttachment(m.db, slug, {
+    const row = await saveAttachment(db, slug, {
       file: Buffer.from(await file.arrayBuffer()),
       fileName: file.name,
       mimeType: mime,
       entityType,
       entityId: entityId.trim(),
-      uploadedBy: m.actor.appUserId ?? m.actor.userId,
+      uploadedBy: uploaderId,
     });
     return NextResponse.json(
       { id: row.id, fileName: row.fileName, sizeBytes: row.sizeBytes, mimeType: row.mimeType },

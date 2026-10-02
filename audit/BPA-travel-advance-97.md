@@ -174,10 +174,10 @@ Skala: ✅ ada & kuat · 🟡 parsial/lemah · ❌ tidak ada. Prioritas: dampak�
 - [x] **F0-2** Picker karyawan klaim mandiri (B2) ✅
 - [x] **F0-3** AlertDialog konfirmasi cancel + busy-guard (B3) ✅
 - [x] **F0-4** Menu-guard GET /travel/requests (B4) ✅
-- [ ] **F0-5** Unifikasi gating vault: terapkan money-view pada overview/budget/reports (B10) — *effort S*
-- [ ] **F0-6** Limit per-unit (qty×nominal vs limit) + filter jenis L-\*/O-\* per zona destinasi (B6, B7) — *S/M*
-- [ ] **F0-7** `@@index` tabel travel + pagination list + hapus `detailApi` dobel-fetch (B11, B12) — *S (perlu DDL parity 4 tenant, pola Task 96)*
-- [ ] **F0-8** KPI semantik (requestsThisMonth bounded; claimsYtd hanya realisasi) + nextDocNo retry-on-unique (B8, B9) — *S*
+- [x] **F0-5** Unifikasi gating vault: terapkan money-view pada overview/budget/reports (B10) — *effort S*
+- [x] **F0-6** Limit per-unit (qty×nominal vs limit) + filter jenis L-\*/O-\* per zona destinasi (B6, B7) — *S/M*
+- [x] **F0-7** `@@index` tabel travel + pagination list + hapus `detailApi` dobel-fetch (B11, B12) — *S (perlu DDL parity 4 tenant, pola Task 96)*
+- [x] **F0-8** KPI semantik (requestsThisMonth bounded; claimsYtd hanya realisasi) + nextDocNo retry-on-unique (B8, B9) — *S*
 
 ### Fase 1 — Fondasi "Advance" (policy & self-service; estimasi 2-4 sprint)
 - [ ] **F1-1 Policy engine v2**: upgrade TravelExpenseTypeRule → plafon per **kategori × grade × zona/kota × durasi** dengan satuan per-unit (hari/malam/km); **seed default tarif SBI PMK 32/2025 per kota Indonesia** (uang harian + plafon hotel per kelas jabatan); badge in/out-of-policy REAL-TIME di form (tampil limit efektif pengaju saat memilih jenis — data `effectiveExpenseLimits` sudah ada).
@@ -205,6 +205,8 @@ Skala: ✅ ada & kuat · 🟡 parsial/lemah · ❌ tidak ada. Prioritas: dampak�
 - [ ] **F3-5 Aksi travel via asisten AI (agentic/MCP-style)**: ajukan dinis lewat chat widget Task 96.
 
 **Urutan eksekusi yang disarankan:** F0-5→F0-8 (1 sprint) → **F1-1/F1-2/F1-4/F1-5** (jantung "advance") → **F2-1/F2-3/F2-4** (jantung "smart", memanfaatkan infra AI yang sudah dibayar) → sisanya mengikuti prioritas bisnis tenant.
+
+> **STATUS Task 98 (2 Okt 2026):** F0-5 s.d. F0-8 ✅ · F1-1 s.d. F1-5 ✅ · F2-1, F2-3, F2-4, F2-5 ✅ (F2-2 tersedia via badge+estimasi F1-1/F1-2 + KB RAG Task 96). Sisa backlog: F1-6 (edit/return-to-prepare), F1-7 (multi-currency), F1-8 (flag PPN/e-Faktur), F2-6 (nudge WA), F3 (partnership).
 
 ---
 

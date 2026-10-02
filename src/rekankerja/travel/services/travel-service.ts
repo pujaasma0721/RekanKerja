@@ -91,19 +91,92 @@ const parseDay = (v: string | Date, label: string): Date => {
   return x;
 };
 
-/** Nomor dokumen per prefix (TR/CL) — max-suffix per model (aman terhadap baris terhapus). */
-async function nextDocNo(db: TenantDb, prefix: "TR" | "CL"): Promise<string> {
-  const year = new Date().getFullYear();
+/** Nomor dokumen per prefix (TR/CL) — max-suffix per model (aman terhadap baris terhapus).
+ *  Task 98 (F0-8/B9): RACE-SAFE 3 lapis (pola journal-no.ts) — dua POST
+ *  paralel dulu bisa menghitung suffix sama → unique docNo → P2002 500:
+ *  1. advisory xact lock per (kelas, tahun) saat hitung max-suffix;
+ *  2. reservasi in-flight per client (WeakMap) — alokasi concurrent di proses
+ *     ini tidak pernah memilih nomor sama;
+ *  3. pre-flight findUnique + retry (maks 3) bila nomor ternyata dipakai
+ *     proses lain yang menang race commit. */
+const DOCNO_LOCK_CLASS: Record<"TR" | "CL", number> = { TR: 9418701, CL: 9418702 };
+const DOCNO_INFLIGHT_TTL_MS = 60_000;
+const inflightDocNo = new WeakMap<TenantDb, Map<string, number>>();
+
+function inflightDocNoOf(db: TenantDb): Map<string, number> {
+  let m = inflightDocNo.get(db);
+  if (!m) {
+    m = new Map();
+    inflightDocNo.set(db, m);
+  }
+  return m;
+}
+
+async function computeNextDocNoLocked(
+  tx: Parameters<Parameters<TenantDb["$transaction"]>[0]>[0],
+  prefix: "TR" | "CL",
+  year: number,
+): Promise<string> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${DOCNO_LOCK_CLASS[prefix]}::int, ${year}::int)`;
   const start = `${prefix}-${year}-`;
   let max = 0;
   const rows = prefix === "TR"
-    ? await db.travelRequest.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true } })
-    : await db.travelClaim.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true } });
+    ? await tx.travelRequest.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true } })
+    : await tx.travelClaim.findMany({ where: { docNo: { startsWith: start } }, select: { docNo: true } });
   for (const r of rows) {
     const n = parseInt(r.docNo.slice(start.length), 10);
     if (Number.isFinite(n) && n > max) max = n;
   }
-  return `${prefix}-${year}-${String(max + 1).padStart(3, "0")}`;
+  return `${start}${String(max + 1).padStart(3, "0")}`;
+}
+
+async function nextDocNo(db: TenantDb, prefix: "TR" | "CL"): Promise<string> {
+  const year = new Date().getFullYear();
+  const start = `${prefix}-${year}-`;
+  const inflight = inflightDocNoOf(db);
+  const now = Date.now();
+  for (const [no, at] of inflight) {
+    if (now - at > DOCNO_INFLIGHT_TTL_MS) inflight.delete(no);
+  }
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const base = await db.$transaction((tx) => computeNextDocNoLocked(tx, prefix, year));
+    let candidate = base;
+    while (inflight.has(candidate)) {
+      const n = parseInt(candidate.slice(start.length), 10);
+      candidate = `${start}${String((Number.isFinite(n) ? n : 0) + 1).padStart(3, "0")}`;
+    }
+    inflight.set(candidate, Date.now());
+    const clash = prefix === "TR"
+      ? await db.travelRequest.findUnique({ where: { docNo: candidate }, select: { id: true } })
+      : await db.travelClaim.findUnique({ where: { docNo: candidate }, select: { id: true } });
+    if (!clash) return candidate;
+    inflight.delete(candidate);
+  }
+  throw new Error(`Nomor dokumen ${prefix} unik tidak berhasil dialokasikan setelah 3 percobaan — coba ulang sesaat lagi`);
+}
+
+/** Lapis terakhir anti-race nomor dokumen: insert pemanggil dibungkus retry
+ *  bila unique docNo tetap kalah race (P2002) — hitung ulang + ulang insert. */
+async function createWithDocNoRetry<T>(
+  db: TenantDb,
+  prefix: "TR" | "CL",
+  fn: (docNo: string) => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    const docNo = await nextDocNo(db, prefix);
+    try {
+      return await fn(docNo);
+    } catch (e) {
+      if ((e as { code?: string })?.code === "P2002") {
+        lastErr = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
 // ============ master (padanan General Setting) ============
@@ -212,6 +285,349 @@ export async function listZones(db: TenantDb) {
   return db.travelZone.findMany({ orderBy: { code: "asc" } });
 }
 
+// ============ Task 98 — tarif kota SBI + estimasi + budget check + analytics ============
+
+export interface CityRateRow {
+  id: string; city: string; country: string; overseas: boolean; zoneCode: string | null;
+  uangHarian: number; plafonHotel: number; note: string | null;
+}
+
+export async function listCityRates(db: TenantDb): Promise<CityRateRow[]> {
+  const rows = await db.travelCityRate.findMany({ where: { active: true }, orderBy: [{ overseas: "asc" }, { city: "asc" }] });
+  return rows.map((r) => ({
+    id: r.id, city: r.city, country: r.country, overseas: r.overseas, zoneCode: r.zoneCode,
+    uangHarian: r.uangHarian, plafonHotel: r.plafonHotel, note: r.note,
+  }));
+}
+
+/** Cari tarif kota — kebal-insensitive + cocok dua arah ("Jakarta Selatan"
+ *  → "Jakarta"; "Kota Bandung" → "Bandung"). Prioritas kecocokan terpanjang. */
+export function matchCityRate<T extends { city: string }>(rates: T[], city: string): T | null {
+  const c = city.trim().toLowerCase();
+  if (!c) return null;
+  let best: T | null = null;
+  for (const r of rates) {
+    const rc = r.city.trim().toLowerCase();
+    if (!rc) continue;
+    if (c === rc || c.includes(rc) || rc.includes(c)) {
+      if (!best || rc.length > best.city.trim().toLowerCase().length) best = r;
+    }
+  }
+  return best;
+}
+
+export interface TripEstimateLeg {
+  city: string;
+  country?: string;
+  overseas?: boolean;
+  dateFrom: string | Date;
+  dateTo: string | Date;
+}
+
+export interface TripEstimate {
+  legs: {
+    city: string; rateFound: boolean; overseas: boolean;
+    days: number; nights: number;
+    uangHarian: number; perDiem: number;
+    plafonHotel: number; hotelEstimate: number;
+  }[];
+  days: number;
+  perDiemTotal: number;
+  hotelTotal: number;
+  estimateTotal: number;
+  /** saran uang muka = uang harian + hotel (transport riil ditambah pengaju). */
+  suggestedAdvance: number;
+}
+
+const nightsOf = (from: Date, to: Date) => Math.max(0, Math.round((dayStart(to).getTime() - dayStart(from).getTime()) / 86_400_000));
+const daysOf = (from: Date, to: Date) => Math.max(1, Math.round((dayStart(to).getTime() - dayStart(from).getTime()) / 86_400_000) + 1);
+
+/** F1-2 — estimasi biaya trip dari tarif kota SBI (PMK 32/2025):
+ *  uang harian × hari per kaki + plafon hotel × malam per kaki.
+ *  Aturan 60% satu-kota SBI: trip multi-tujuan domestik 1 kota → uang harian 60%
+ *  + transport lokal riil (SBI PMK 32/2025 Ps.5) — diterapkan bila SEMUA kaki
+ *  kota SAMA (domestik). */
+export async function estimateTrip(db: TenantDb, legs: TripEstimateLeg[]): Promise<TripEstimate> {
+  const rates = await db.travelCityRate.findMany({ where: { active: true } });
+  const out: TripEstimate["legs"] = [];
+  let perDiemTotal = 0;
+  let hotelTotal = 0;
+  for (const l of legs) {
+    const rate = matchCityRate(rates, l.city);
+    const days = daysOf(l.dateFrom, l.dateTo);
+    const nights = nightsOf(l.dateFrom, l.dateTo);
+    const overseas = Boolean(l.overseas) || rate?.overseas || false;
+    // SBI 60%: seluruh kaki kota sama (domestik) → uang harian 60%
+    const sameCityDomestic =
+      !overseas && legs.length > 1 && legs.every((x) => x.city.trim().toLowerCase() === l.city.trim().toLowerCase());
+    const uangHarian = rate ? (sameCityDomestic ? rate.uangHarian * 0.6 : rate.uangHarian) : 0;
+    const perDiem = round2(uangHarian * days);
+    const plafonHotel = rate?.plafonHotel ?? 0;
+    const hotelEstimate = round2(plafonHotel * nights);
+    perDiemTotal += perDiem;
+    hotelTotal += hotelEstimate;
+    out.push({
+      city: l.city, rateFound: rate !== null, overseas,
+      days, nights, uangHarian, perDiem, plafonHotel, hotelEstimate,
+    });
+  }
+  const estimateTotal = round2(perDiemTotal + hotelTotal);
+  return {
+    legs: out,
+    days: legs.length > 0 ? Math.max(...out.map((x) => x.days)) : 0,
+    perDiemTotal: round2(perDiemTotal),
+    hotelTotal: round2(hotelTotal),
+    estimateTotal,
+    suggestedAdvance: estimateTotal,
+  };
+}
+
+export interface BudgetStatusLite {
+  year: number | null;
+  costCenter: string | null;
+  total: number | null;
+  used: number | null;
+  /** F1-3/m-6: komitmen = klaim Approved belum transfer (belum masuk `used`). */
+  committed: number | null;
+  remaining: number | null;
+  itemAmount: number | null;
+}
+
+/** F1-3 — sisa budget cost center tahun berjalan (uang muka/estimasi vs sisa).
+ *  used = klaim Transferred/Paid di jendela tahun; committed = klaim Approved.
+ *  null saat vault mem-mask (mv.canSee false). */
+export async function budgetStatusFor(
+  db: TenantDb,
+  costCenter: string | null | undefined,
+  mv: { canSee: boolean },
+  year = new Date().getFullYear(),
+): Promise<BudgetStatusLite> {
+  if (!costCenter) {
+    return { year, costCenter: null, total: null, used: null, committed: null, remaining: null, itemAmount: null };
+  }
+  const budget = await db.travelBudget.findFirst({
+    where: { year },
+    include: { items: { where: { costCenter } } },
+  });
+  if (!budget) {
+    return { year, costCenter, total: null, used: null, committed: null, remaining: null, itemAmount: null };
+  }
+  const claims = await db.travelClaim.findMany({
+    where: {
+      claimDate: { gte: budget.startDate, lte: budget.endDate },
+      costCenter,
+      status: { in: ["Approved", "Transferred", "Paid"] },
+    },
+    select: { status: true, totalSettlement: true },
+  });
+  const tc = tenantCryptoForDb(db);
+  const used = round2(claims.filter((c) => c.status !== "Approved").reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
+  const committed = round2(claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
+  const itemAmount = budget.items[0] ? tc.decryptMoney(budget.items[0].amount) ?? 0 : null;
+  const base = itemAmount ?? tc.decryptMoney(budget.totalBudget) ?? 0;
+  const g = (n: number) => (mv.canSee ? n : null);
+  return {
+    year: budget.year,
+    costCenter,
+    total: g(base),
+    used: g(used),
+    committed: g(committed),
+    remaining: g(round2(base - used - committed)),
+    itemAmount: g(itemAmount),
+  };
+}
+
+export interface TravelAnalytics {
+  /** F2-5 — tren settlement 6 bulan terakhir (realisasi Approved+). */
+  monthly: { month: string; label: string; amount: number; claims: number }[];
+  /** compliance rate baris biaya in-policy (YTD realisasi). */
+  complianceRate: number | null;
+  overLimitLines: number;
+  totalLines: number;
+  /** aging klaim menunggu persetujuan > 3 hari. */
+  agingPendingClaims: { docNo: string; fullName: string; days: number; totalSettlement: number | null }[];
+  /** top traveler YTD (realisasi). */
+  topTravelers: { employeeNo: string; fullName: string; claims: number; amount: number }[];
+  /** burn-rate budget tahun berjalan: % waktu vs % terpakai. */
+  burnRate: { year: number | null; budgetTotal: number | null; used: number | null; usedPct: number | null; elapsedPct: number | null };
+  /** rata-rata settlement per trip (benchmark hemat). */
+  avgSettlement: number | null;
+}
+
+/** F2-5 — analytics pintar utk view Ringkasan (server-side, in-memory dekripsi). */
+export async function travelAnalytics(db: TenantDb, mv: { canSee: boolean }): Promise<TravelAnalytics> {
+  const now = new Date();
+  const year = now.getFullYear();
+  const months: { from: Date; to: Date; label: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const from = new Date(year, now.getMonth() - i, 1);
+    const to = new Date(year, now.getMonth() - i + 1, 1);
+    months.push({ from, to, label: from.toLocaleDateString("id-ID", { month: "short" }) });
+  }
+  const windowFrom = months[0].from;
+  const [realized, lines, pending, ytd, budget] = await Promise.all([
+    db.travelClaim.findMany({
+      where: { claimDate: { gte: windowFrom }, status: { in: ["Approved", "Transferred", "Paid"] } },
+      select: { claimDate: true, totalSettlement: true, employeeId: true },
+    }),
+    db.travelClaimExpense.findMany({
+      where: { claim: { claimDate: { gte: new Date(year, 0, 1) }, status: { in: ["Approved", "Transferred", "Paid"] } } },
+      select: { overLimit: true },
+    }),
+    db.travelClaim.findMany({
+      where: { status: "Submitted" },
+      select: { docNo: true, createdAt: true, totalSettlement: true, employee: { select: { fullName: true } } },
+    }),
+    db.travelClaim.findMany({
+      where: { claimDate: { gte: new Date(year, 0, 1), lte: now }, status: { in: ["Approved", "Transferred", "Paid"] } },
+      select: { totalSettlement: true, employeeId: true, employee: { select: { employeeNo: true, fullName: true } } },
+    }),
+    db.travelBudget.findFirst({ where: { year } }),
+  ]);
+  const tc = tenantCryptoForDb(db);
+  const monthly = months.map((m) => {
+    const inM = realized.filter((c) => c.claimDate >= m.from && c.claimDate < m.to);
+    return {
+      month: m.from.toISOString().slice(0, 7),
+      label: m.label,
+      amount: mv.canSee ? round2(inM.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0)) : 0,
+      claims: inM.length,
+    };
+  });
+  const totalLines = lines.length;
+  const overLimitLines = lines.filter((l) => l.overLimit).length;
+  const complianceRate = totalLines > 0 ? round2(((totalLines - overLimitLines) / totalLines) * 100) : null;
+  const agingPendingClaims = pending
+    .map((c) => ({
+      docNo: c.docNo,
+      fullName: c.employee.fullName,
+      days: Math.max(0, Math.round((now.getTime() - new Date(c.createdAt).getTime()) / 86_400_000)),
+      totalSettlement: mv.canSee ? tc.decryptMoney(c.totalSettlement) ?? 0 : null,
+    }))
+    .filter((c) => c.days > 3)
+    .sort((a, b) => b.days - a.days)
+    .slice(0, 5);
+  const byEmp = new Map<string, { employeeNo: string; fullName: string; claims: number; amount: number }>();
+  for (const c of ytd) {
+    const cur = byEmp.get(c.employeeId) ?? { employeeNo: c.employee.employeeNo, fullName: c.employee.fullName, claims: 0, amount: 0 };
+    cur.claims++;
+    cur.amount = round2(cur.amount + (tc.decryptMoney(c.totalSettlement) ?? 0));
+    byEmp.set(c.employeeId, cur);
+  }
+  const topTravelers = [...byEmp.values()].sort((a, b) => b.amount - a.amount).slice(0, 5);
+  const budgetTotal = budget ? tc.decryptMoney(budget.totalBudget) ?? 0 : null;
+  const used = ytd.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0);
+  const elapsed = Math.max(0, Math.min(1, (now.getTime() - new Date(year, 0, 1).getTime()) / (new Date(year + 1, 0, 1).getTime() - new Date(year, 0, 1).getTime())));
+  return {
+    monthly,
+    complianceRate,
+    overLimitLines,
+    totalLines,
+    agingPendingClaims,
+    topTravelers: mv.canSee ? topTravelers : [],
+    burnRate: {
+      year: budget?.year ?? null,
+      budgetTotal: mv.canSee ? budgetTotal : null,
+      used: mv.canSee ? round2(used) : null,
+      usedPct: mv.canSee && budgetTotal ? round2((used / budgetTotal) * 100) : null,
+      elapsedPct: round2(elapsed * 100),
+    },
+    avgSettlement: mv.canSee && ytd.length > 0 ? round2(used / ytd.length) : null,
+  };
+}
+
+export interface ClaimAnomaly {
+  kind: "duplicate" | "over_limit" | "round_amount" | "weekend" | "above_avg" | "missing_receipts";
+  label: string;
+}
+
+/** F2-4 — deteksi anomali pre-approval (ala Concur Approval Management Agent):
+ *  bendera ringan utk MEMBANTU approver (bukan penghakiman) — dipasang pada
+ *  klaim Submitted di view Approval Klaim & Transfer.
+ *  Cek: baris duplikat (nominal+tanggal sama pada klaim lain karyawan ≤90 hari),
+ *  baris over-limit, nominal bulat mencurigakan (≥1 jt & %500rb == 0), tanggal
+ *  Minggu/libur, total > 1,8× rata-rata kota sama (≥3 sampel), kwitansi
+ *  needDocs tanpa lampiran. */
+export async function detectClaimAnomalies(
+  db: TenantDb,
+  claimIds: string[],
+): Promise<Map<string, ClaimAnomaly[]>> {
+  const out = new Map<string, ClaimAnomaly[]>();
+  if (claimIds.length === 0) return out;
+  const tc = tenantCryptoForDb(db);
+  const rows = await db.travelClaim.findMany({
+    where: { id: { in: claimIds } },
+    include: {
+      expenses: { select: { amount: true, expenseDate: true, overLimit: true, expenseCode: true } },
+      request: { select: { destinations: { orderBy: { seq: "asc" }, take: 1, select: { city: true } } } },
+    },
+  });
+  if (rows.length === 0) return out;
+  // konteks: histori 90 hari karyawan (duplikasi), jumlah lampiran, jenis needDocs,
+  // rata-rata settlement per kota (12 bulan realisasi).
+  const empIds = [...new Set(rows.map((c) => c.employeeId))];
+  const since = new Date(Date.now() - 90 * 86_400_000);
+  const [hist, attachCounts, needDocsTypes, avgBase] = await Promise.all([
+    db.travelClaim.findMany({
+      where: { employeeId: { in: empIds }, claimDate: { gte: since } },
+      select: { id: true, employeeId: true, expenses: { select: { amount: true, expenseDate: true } } },
+    }),
+    db.attachment.groupBy({ by: ["entityId"], where: { entityType: "TravelClaim" }, _count: { id: true } })
+      .then((cs) => new Map(cs.map((x) => [x.entityId, x._count.id])))
+      .catch(() => new Map<string, number>()),
+    db.travelExpenseType.findMany({ where: { needDocs: true }, select: { code: true } }),
+    db.travelClaim.findMany({
+      where: { status: { in: ["Approved", "Transferred", "Paid"] }, claimDate: { gte: new Date(Date.now() - 365 * 86_400_000) } },
+      select: { totalSettlement: true, request: { select: { destinations: { orderBy: { seq: "asc" }, take: 1, select: { city: true } } } } },
+    }),
+  ]);
+  const needDocsCodes = new Set(needDocsTypes.map((t) => t.code));
+  const avgByCity = new Map<string, { sum: number; n: number }>();
+  for (const h of avgBase) {
+    const city = h.request?.destinations?.[0]?.city?.trim().toLowerCase();
+    const total = tc.decryptMoney(h.totalSettlement) ?? 0;
+    if (!city || total <= 0) continue;
+    const cur = avgByCity.get(city) ?? { sum: 0, n: 0 };
+    cur.sum = round2(cur.sum + total);
+    cur.n++;
+    avgByCity.set(city, cur);
+  }
+  for (const c of rows) {
+    const flags: ClaimAnomaly[] = [];
+    const totalSettlement = tc.decryptMoney(c.totalSettlement) ?? 0;
+    // duplikasi: nominal+tanggal sama pada klaim LAIN karyawan sama (≤90 hari)
+    const histLines = hist.filter((h) => h.employeeId === c.employeeId && h.id !== c.id).flatMap((h) => h.expenses);
+    const dupFound = c.expenses.some((e) => {
+      if (!e.expenseDate) return false;
+      const amt = tc.decryptMoney(e.amount) ?? 0;
+      return histLines.some((h) => h.expenseDate && dayStart(h.expenseDate).getTime() === dayStart(e.expenseDate).getTime() && (tc.decryptMoney(h.amount) ?? 0) === amt);
+    });
+    if (dupFound) flags.push({ kind: "duplicate", label: "Ada baris nominal+tanggal identik dengan klaim lain karyawan ini ≤90 hari — cek double-claim" });
+    // over-limit per unit
+    if (c.expenses.some((e) => e.overLimit)) flags.push({ kind: "over_limit", label: "Ada baris melebihi plafon per unit — perlu perhatian approver" });
+    // nominal bulat besar
+    if (c.expenses.some((e) => { const a = tc.decryptMoney(e.amount) ?? 0; return a >= 1_000_000 && a % 500_000 === 0; })) {
+      flags.push({ kind: "round_amount", label: "Ada baris ≥ Rp 1 jt dengan nominal bulat 500 ribuan — pastikan kwitansi rinci" });
+    }
+    // tanggal Minggu
+    if (c.expenses.some((e) => e.expenseDate && new Date(e.expenseDate).getDay() === 0)) {
+      flags.push({ kind: "weekend", label: "Ada biaya bertanggal hari Minggu — biaya weekend biasanya perlu justifikasi" });
+    }
+    // di atas rata-rata kota serupa
+    const city = c.request?.destinations?.[0]?.city?.trim().toLowerCase();
+    const avg = city ? avgByCity.get(city) : undefined;
+    if (avg && avg.n >= 3 && totalSettlement > (avg.sum / avg.n) * 1.8) {
+      flags.push({ kind: "above_avg", label: `Total ${Math.round((totalSettlement / (avg.sum / avg.n) - 1) * 100)}% di atas rata-rata klaim rute/kota serupa` });
+    }
+    // kwitansi kurang (jenis needDocs ikut klaim tapi tanpa lampiran)
+    if ((attachCounts.get(c.id) ?? 0) === 0 && c.expenses.some((e) => needDocsCodes.has(e.expenseCode))) {
+      flags.push({ kind: "missing_receipts", label: "Jenis biaya wajib kwitansi belum memiliki lampiran" });
+    }
+    if (flags.length > 0) out.set(c.id, flags);
+  }
+  return out;
+}
+
 // ============ travel request (padanan TravelRequest.jsp + Destination + Cash Advance) ============
 
 export interface DestinationInput {
@@ -246,6 +662,11 @@ export interface SubmitTravelRequestResult {
   settlementDue: string | null;
   approvalLevels: number;
   firstApprover: string | null;
+  /** Task 98 (F1-2) — estimasi biaya SBI saat submit (bila tarif kota ada). */
+  estimate?: TripEstimate | null;
+  /** Task 98 (F1-3) — status budget CC pengaju + peringatan over-budget. */
+  budget?: BudgetStatusLite | null;
+  budgetWarning?: string | null;
 }
 
 export async function submitTravelRequest(db: TenantDb, input: SubmitTravelRequestInput): Promise<SubmitTravelRequestResult> {
@@ -290,29 +711,29 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
     costCenter = assign?.orgUnit?.name ?? null;
   }
 
-  const docNo = await nextDocNo(db, "TR");
-  const req = await db.travelRequest.create({
-    data: {
-      docNo, employeeId: emp.id, requestDate: new Date(),
-      dateFrom: from, dateTo: to, templateId: template.id,
-      costCenter, purpose: input.purpose.trim(), remark: input.remark?.trim() || null,
-      status: "Submitted",
-      destinations: {
-        create: input.destinations.map((d, i) => {
-          const df = parseDay(d.dateFrom, `Tanggal berangkat destinasi kaki ${i + 1}`);
-          const dt = parseDay(d.dateTo, `Tanggal datang destinasi kaki ${i + 1}`);
-          const zone = d.zoneCode ? zoneByCode.get(d.zoneCode) : undefined;
-          return {
-            seq: i + 1, dateFrom: df, dateTo: dt,
-            city: d.city.trim(), country: d.country?.trim() || "Indonesia",
-            zoneId: zone?.id ?? null,
-            overseas: d.overseas ?? zone?.overseas ?? false,
-            note: d.note?.trim() || null,
-          };
-        }),
+  const req = await createWithDocNoRetry(db, "TR", (docNo) =>
+    db.travelRequest.create({
+      data: {
+        docNo, employeeId: emp.id, requestDate: new Date(),
+        dateFrom: from, dateTo: to, templateId: template.id,
+        costCenter, purpose: input.purpose.trim(), remark: input.remark?.trim() || null,
+        status: "Submitted",
+        destinations: {
+          create: input.destinations.map((d, i) => {
+            const df = parseDay(d.dateFrom, `Tanggal berangkat destinasi kaki ${i + 1}`);
+            const dt = parseDay(d.dateTo, `Tanggal datang destinasi kaki ${i + 1}`);
+            const zone = d.zoneCode ? zoneByCode.get(d.zoneCode) : undefined;
+            return {
+              seq: i + 1, dateFrom: df, dateTo: dt,
+              city: d.city.trim(), country: d.country?.trim() || "Indonesia",
+              zoneId: zone?.id ?? null,
+              overseas: d.overseas ?? zone?.overseas ?? false,
+              note: d.note?.trim() || null,
+            };
+          }),
+        },
       },
-    },
-  });
+    }));
 
   const advanceAmount = Math.max(0, input.advanceAmount ?? 0);
   if (advanceAmount > 0) {
@@ -337,17 +758,37 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
   const dueDate = new Date(to);
   dueDate.setDate(dueDate.getDate() + template.settlementDay);
 
+  // Task 98 (F1-2/F1-3) — estimasi SBI + status budget CC pengaju (best-effort,
+  // tidak boleh menggagalkan submit bila master tarif/budget kosong).
+  let estimate: TripEstimate | null = null;
+  let budget: BudgetStatusLite | null = null;
+  let budgetWarning: string | null = null;
+  try {
+    estimate = await estimateTrip(db, input.destinations);
+  } catch { estimate = null; }
+  try {
+    budget = await budgetStatusFor(db, costCenter, { canSee: true });
+    if (budget && budget.remaining != null && input.advanceAmount > 0 && input.advanceAmount > budget.remaining) {
+      budgetWarning =
+        `Uang muka ${fmtIDRLog(input.advanceAmount)} melebihi sisa budget CC ${costCenter} ` +
+        `(${fmtIDRLog(Math.max(0, budget.remaining ?? 0))} tersisa). Pengajuan tetap diproses — approver akan melihat peringatan ini.`;
+    }
+  } catch { budget = null; }
+
   await db.activityLog.create({
     data: {
-      action: "Submitted", entity: "TravelRequest", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${template.name} ${fmtDate(from)} → ${fmtDate(to)} (${input.destinations.length} destinasi${advanceAmount > 0 ? `, advance ${advanceAmount}` : ""}) — approval berjenjang ${chain.totalLevels} level`,
+      action: "Submitted", entity: "TravelRequest", entityId: req.docNo,
+      detail: `${req.docNo}: ${emp.fullName} — ${template.name} ${fmtDate(from)} → ${fmtDate(to)} (${input.destinations.length} destinasi${advanceAmount > 0 ? `, advance ${advanceAmount}` : ""}) — approval berjenjang ${chain.totalLevels} level`,
     },
   });
   return {
-    docNo, destinations: input.destinations.length, days,
+    docNo: req.docNo, destinations: input.destinations.length, days,
     advanceAmount, settlementDue: template.settlementDay > 0 ? dueDate.toISOString() : null,
     approvalLevels: chain.totalLevels,
     firstApprover: chain.steps[0]?.approverLabel ?? null,
+    estimate,
+    budget,
+    budgetWarning,
   };
 }
 
@@ -586,6 +1027,15 @@ export interface ClaimPreview {
   advanceAmount: number;
   expenseTypes: ExpenseTypeRow[];
   suggested: { totalExpenses: number; payableEmployee: number; payableCompany: number };
+  /** Task 98 (F0-6/B7): trip punya kaki luar negeri → jenis O-* diizinkan;
+   *  domestik murni → O-* disembunyikan/ditolak. */
+  tripOverseas: boolean;
+  /** Task 98 (F1-1): jenis biaya yang berlaku utk trip ini (L- vs O- sesuai zona). */
+  applicableExpenseTypes: ExpenseTypeRow[];
+  /** Task 98 (F1-2): saran baris uang harian otomatis per kota (tarif SBI). */
+  suggestedAllowance: { city: string; days: number; uangHarian: number; perDiem: number; expenseCode: string }[];
+  /** Task 98 (F1-3): status budget CC request ini. */
+  budget: BudgetStatusLite | null;
 }
 
 /** Preview klaim untuk sebuah request Approved — sumber data form klaim. */
@@ -606,6 +1056,23 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
   }
   const expenseTypes = await listExpenseTypes(db);
   const advanceAmount = sumActiveAdvances(tenantCryptoForDb(db), req.advances);
+  // Task 98 (F0-6/B7) — trip luar negeri bila ADA kaki overseas.
+  const tripOverseas = req.destinations.some((d) => d.overseas);
+  const applicableExpenseTypes = expenseTypes.filter((t) => tripOverseas || !t.code.startsWith("O-"));
+  // Task 98 (F1-2) — saran baris uang harian per kota (tarif SBI, kind ALLOWANCE).
+  const allowanceType = applicableExpenseTypes.find((t) => t.kind === "ALLOWANCE" && (tripOverseas ? t.code.startsWith("O-") || t.code === "L-POCKET" : t.code.startsWith("L-")));
+  let suggestedAllowance: ClaimPreview["suggestedAllowance"] = [];
+  let budget: BudgetStatusLite | null = null;
+  try {
+    const est = await estimateTrip(db, req.destinations);
+    suggestedAllowance = est.legs
+      .filter((l) => l.rateFound && l.uangHarian > 0 && allowanceType)
+      .map((l) => ({
+        city: l.city, days: l.days, uangHarian: l.uangHarian,
+        perDiem: l.perDiem, expenseCode: allowanceType!.code,
+      }));
+    budget = await budgetStatusFor(db, req.costCenter, { canSee: true });
+  } catch { /* best-effort */ }
   return {
     requestId: req.id,
     docNo: req.docNo,
@@ -617,10 +1084,14 @@ export async function previewClaim(db: TenantDb, requestId: string): Promise<Cla
     purpose: req.purpose,
     destinations: req.destinations.map((d) => ({ city: d.city, country: d.country, dateFrom: d.dateFrom, dateTo: d.dateTo, overseas: d.overseas })),
     advanceAmount,
-    expenseTypes,
+    expenseTypes: applicableExpenseTypes,
     // T3-TRAVEL: saran (b)/(c) mengikuti formula baru — belum ada baris biaya →
     // R = 0 → b = 0, c = seluruh uang muka (kasbon penuh kembali ke perusahaan).
     suggested: { totalExpenses: 0, payableEmployee: 0, payableCompany: advanceAmount },
+    tripOverseas,
+    applicableExpenseTypes,
+    suggestedAllowance,
+    budget,
   };
 }
 
@@ -677,29 +1148,14 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
   // create claim/expense di bawah, semua tulisan uang terenkripsi).
   const tc = tenantCryptoForDb(db);
 
-  // validasi jenis biaya + limit (padanan Expense Definition Rules — warning, tetap boleh)
-  const types = await db.travelExpenseType.findMany();
-  const typeByCode = new Map(types.map((t) => [t.code, t]));
-  // Task 33 — limit jenis biaya efektif per parameter karyawan (rule).
-  const effLimits = await effectiveExpenseLimits(db, types, input.employeeId);
-  let overLimitLines = 0;
-  let totalExpenses = 0;
-  for (const e of input.expenses) {
-    const t = typeByCode.get(e.expenseCode);
-    if (!t || !t.active) throw new Error(`Jenis biaya ${e.expenseCode} tidak ditemukan / tidak aktif`);
-    if (e.amount <= 0) throw new Error(`Baris biaya ${e.expenseCode}: nominal harus > 0`);
-    const effLimit = effLimits.get(e.expenseCode) ?? t.limitAmount;
-    if (!t.unlimited && effLimit > 0 && e.amount > effLimit) overLimitLines++;
-    totalExpenses += Math.max(0, e.amount);
-  }
-
   // request opsional — klaim mandiri diperbolehkan (padanan: claim tanpa request)
   let req = null as Awaited<ReturnType<typeof db.travelRequest.findUnique>>;
   let advanceAmount = 0;
+  let tripOverseas = false;
   if (input.requestId) {
     const reqRow = await db.travelRequest.findUnique({
       where: { id: input.requestId },
-      include: { advances: true },
+      include: { advances: true, destinations: true },
     });
     if (!reqRow) throw new Error("Permintaan travel tidak ditemukan");
     if (reqRow.employeeId !== input.employeeId) throw new Error("Permintaan travel milik karyawan lain");
@@ -719,6 +1175,7 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
       throw new Error(`Permintaan ${reqRow.docNo} sudah memiliki klaim aktif ${activeClaim.docNo} — batalkan/tolak klaim lama sebelum mengajukan klaim baru`);
     }
     advanceAmount = sumActiveAdvances(tc, reqRow.advances);
+    tripOverseas = reqRow.destinations.some((d) => d.overseas);
 
     // M-5 (24-FIX-TRAVEL): tanggal baris biaya harus dalam rentang trip;
     // claimDate tidak boleh sebelum tanggal kembali.
@@ -746,6 +1203,29 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
     req = reqRow;
   }
 
+  // validasi jenis biaya + limit (padanan Expense Definition Rules — warning, tetap boleh)
+  const types = await db.travelExpenseType.findMany();
+  const typeByCode = new Map(types.map((t) => [t.code, t]));
+  // Task 33 — limit jenis biaya efektif per parameter karyawan (rule).
+  const effLimits = await effectiveExpenseLimits(db, types, input.employeeId);
+  let overLimitLines = 0;
+  let totalExpenses = 0;
+  for (const e of input.expenses) {
+    const t = typeByCode.get(e.expenseCode);
+    if (!t || !t.active) throw new Error(`Jenis biaya ${e.expenseCode} tidak ditemukan / tidak aktif`);
+    if (e.amount <= 0) throw new Error(`Baris biaya ${e.expenseCode}: nominal harus > 0`);
+    // Task 98 (F0-6/B7) — jenis O-* khusus luar negeri: tolak utk trip domestik.
+    if (!tripOverseas && e.expenseCode.startsWith("O-")) {
+      throw new Error(`Jenis biaya ${e.expenseCode} (${t.name}) khusus perjalanan luar negeri — perjalanan ini domestik; gunakan jenis L-*`);
+    }
+    // Task 98 (F0-6/B6) — limit berlaku PER UNIT (qty hari/km/malam):
+    // nominal baris dibagi qty → dibandingkan limit. (Dulu: total baris
+    // dibandingkan limit → hotel 2 malam Rp 1,4 jt salah flag vs limit 2 jt.)
+    const effLimit = effLimits.get(e.expenseCode) ?? t.limitAmount;
+    if (!t.unlimited && effLimit > 0 && e.amount / Math.max(1, e.qty ?? 1) > effLimit) overLimitLines++;
+    totalExpenses += Math.max(0, e.amount);
+  }
+
   // B1/B2 (T3-TRAVEL): settlement dihitung SERVER dari realisasi vs uang muka:
   //   totalReimbursement (R) = Σ baris biaya + rugi kurs − (a) biaya pihak lain
   //   b (UTRP) = max(0, R − advance); c (TRVSTLIN) = max(0, advance − R)
@@ -765,40 +1245,42 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
   const c = Math.max(0, round2(advanceAmount - totalReimbursement));
   const totalSettlement = totalReimbursement;
 
-  const docNo = await nextDocNo(db, "CL");
-  const claim = await db.travelClaim.create({
-    data: {
-      docNo,
-      requestId: req?.id ?? null,
-      employeeId: emp.id,
-      claimDate: input.claimDate ? dayStart(input.claimDate) : new Date(),
-      templateId: template.id,
-      costCenter: input.costCenter?.trim() || req?.costCenter || null,
-      purpose: input.purpose?.trim() || req?.purpose || null,
-      remark: input.remark?.trim() || null,
-      status: "Submitted",
-      // 44-d (M-8): lima nilai uang klaim disimpan TERENKRIPSI (enc:v1:n:…);
-      // input selalu angka → ?? "0" hanya menetralkan tipe (tak pernah null).
-      otherCompanyExp: tc.encryptMoney(a) ?? "0", exchangeLoss: tc.encryptMoney(loss) ?? "0",
-      payableEmployee: tc.encryptMoney(b) ?? "0", payableCompany: tc.encryptMoney(c) ?? "0",
-      totalSettlement: tc.encryptMoney(totalSettlement) ?? "0",
-      settlementMethod: input.settlementMethod || template.settlementMethod,
-      voucherNo: input.voucherNo?.trim() || null,
-    },
-  });
+  const claim = await createWithDocNoRetry(db, "CL", async (docNoRetry) =>
+    db.travelClaim.create({
+      data: {
+        docNo: docNoRetry,
+        requestId: req?.id ?? null,
+        employeeId: emp.id,
+        claimDate: input.claimDate ? dayStart(input.claimDate) : new Date(),
+        templateId: template.id,
+        costCenter: input.costCenter?.trim() || req?.costCenter || null,
+        purpose: input.purpose?.trim() || req?.purpose || null,
+        remark: input.remark?.trim() || null,
+        status: "Submitted",
+        // 44-d (M-8): lima nilai uang klaim disimpan TERENKRIPSI (enc:v1:n:…);
+        // input selalu angka → ?? "0" hanya menetralkan tipe (tak pernah null).
+        otherCompanyExp: tc.encryptMoney(a) ?? "0", exchangeLoss: tc.encryptMoney(loss) ?? "0",
+        payableEmployee: tc.encryptMoney(b) ?? "0", payableCompany: tc.encryptMoney(c) ?? "0",
+        totalSettlement: tc.encryptMoney(totalSettlement) ?? "0",
+        settlementMethod: input.settlementMethod || template.settlementMethod,
+        voucherNo: input.voucherNo?.trim() || null,
+      },
+    }));
   await db.travelClaimExpense.createMany({
     data: input.expenses.map((e) => {
       const t = typeByCode.get(e.expenseCode)!;
       const amount = Math.max(0, e.amount);
-      // Task 33 — overLimit dievaluasi thd limit efektif rule karyawan.
+      const qty = e.qty && e.qty > 0 ? e.qty : 1;
+      // Task 33 — overLimit dievaluasi thd limit efektif rule karyawan;
+      // Task 98 (F0-6/B6) — PER UNIT (nominal ÷ qty hari/km/malam).
       const effLimit = effLimits.get(e.expenseCode) ?? t.limitAmount;
       return {
         claimId: claim.id, expenseCode: e.expenseCode, kind: t.kind,
         expenseDate: e.expenseDate ? dayStart(e.expenseDate) : null,
         description: e.description?.trim() || null,
-        amount: tc.encryptMoney(amount) ?? "0", qty: e.qty && e.qty > 0 ? e.qty : 1,
+        amount: tc.encryptMoney(amount) ?? "0", qty,
         guestName: e.guestName?.trim() || null,
-        overLimit: !t.unlimited && effLimit > 0 && amount > effLimit,
+        overLimit: !t.unlimited && effLimit > 0 && amount / Math.max(1, qty) > effLimit,
       };
     }),
   });
@@ -819,12 +1301,12 @@ export async function createClaim(db: TenantDb, input: CreateClaimInput): Promis
 
   await db.activityLog.create({
     data: {
-      action: "Submitted", entity: "TravelClaim", entityId: docNo,
-      detail: `${docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""} — approval berjenjang ${chain.totalLevels} level`,
+      action: "Submitted", entity: "TravelClaim", entityId: claim.docNo,
+      detail: `${claim.docNo}: ${emp.fullName} — ${input.expenses.length} baris biaya, total settlement ${totalSettlement}${req ? ` (request ${req.docNo})` : ""} — approval berjenjang ${chain.totalLevels} level`,
     },
   });
   return {
-    docNo, totalSettlement, totalExpenses: expensesTotal, overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount,
+    docNo: claim.docNo, totalSettlement, totalExpenses: expensesTotal, overLimitLines, payableEmployee: b, payableCompany: c, advanceAmount,
     approvalLevels: chain.totalLevels,
     firstApprover: chain.steps[0]?.approverLabel ?? null,
   };
@@ -1434,29 +1916,46 @@ export async function markTravelPaidForRun(db: TenantDb, runId: string): Promise
 
 export interface BudgetRow {
   id: string; year: number; startDate: Date; endDate: Date; currency: string;
-  totalBudget: number; note: string | null;
-  items: { costCenter: string; amount: number; note: string | null }[];
-  used: number; remaining: number; claimCount: number;
+  /** Task 98 (F0-5/B10): null = vault uang masked (frontend render "—"). */
+  totalBudget: number | null; note: string | null;
+  items: { costCenter: string; amount: number | null; note: string | null }[];
+  used: number | null; remaining: number | null; claimCount: number;
+  /** Task 98 (F1-3/m-6): terpakai per cost center (klaim realisasi) — key CC. */
+  usedByCc: Record<string, number>;
+  /** Task 98 (F1-3): komitmen klaim Approved belum transfer. */
+  committed: number | null;
 }
 
-export async function listBudgets(db: TenantDb): Promise<BudgetRow[]> {
+export async function listBudgets(db: TenantDb, mv: { canSee: boolean } = { canSee: true }): Promise<BudgetRow[]> {
   const budgets = await db.travelBudget.findMany({ orderBy: { year: "desc" }, include: { items: true } });
   const claims = await db.travelClaim.findMany({
-    where: { status: { in: ["Transferred", "Paid"] } },
-    select: { claimDate: true, totalSettlement: true },
+    where: { status: { in: ["Approved", "Transferred", "Paid"] } },
+    select: { claimDate: true, totalSettlement: true, costCenter: true, status: true },
   });
   // 44-d (M-8): budget/item/totalSettlement terenkripsi — dekripsi (reduce
   // in-memory atas nilai terdekripsi; totalSettlement dipakai sbg angka).
   const tc = tenantCryptoForDb(db);
+  const g = (n: number) => (mv.canSee ? n : null);
   return budgets.map((b) => {
     const inWindow = claims.filter((c) => c.claimDate >= b.startDate && c.claimDate <= b.endDate);
-    const used = round2(inWindow.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
+    const settled = inWindow.filter((c) => c.status === "Transferred" || c.status === "Paid");
+    const committedRows = inWindow.filter((c) => c.status === "Approved");
+    const used = round2(settled.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
+    const committed = round2(committedRows.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
     const totalBudget = tc.decryptMoney(b.totalBudget) ?? 0;
+    // Task 98 (F1-3/m-6) — terpakai per cost center (settled + committed).
+    const usedByCc: Record<string, number> = {};
+    for (const c of inWindow) {
+      if (!c.costCenter) continue;
+      usedByCc[c.costCenter] = round2((usedByCc[c.costCenter] ?? 0) + (tc.decryptMoney(c.totalSettlement) ?? 0));
+    }
     return {
       id: b.id, year: b.year, startDate: b.startDate, endDate: b.endDate, currency: b.currency,
-      totalBudget, note: b.note,
-      items: b.items.map((i) => ({ costCenter: i.costCenter, amount: tc.decryptMoney(i.amount) ?? 0, note: i.note })),
-      used, remaining: round2(totalBudget - used), claimCount: inWindow.length,
+      totalBudget: g(totalBudget), note: b.note,
+      items: b.items.map((i) => ({ costCenter: i.costCenter, amount: g(tc.decryptMoney(i.amount) ?? 0), note: i.note })),
+      used: g(used), remaining: g(round2(totalBudget - used)), claimCount: inWindow.length,
+      usedByCc: mv.canSee ? usedByCc : {},
+      committed: g(committed),
     };
   });
 }
@@ -1511,28 +2010,34 @@ export interface TravelStats {
   requestsApprovedYtd: number;
   pendingRequestApprovals: number;
   pendingClaimApprovals: number;
+  /** Task 98 (F0-8): claimsYtd kini HANYA realisasi (Approved/Transferred/Paid)
+   *  dan dibatasi s.d. hari ini — dulu semua status + masa depan. */
   claimsYtd: number;
-  claimsYtdAmount: number;
+  claimsYtdAmount: number | null;
   transferredCount: number;
   paidCount: number;
   budgetYear: number | null;
-  budgetTotal: number;
-  budgetUsed: number;
-  advanceOutstanding: number;
-  topExpenseKinds: { kind: string; amount: number }[];
+  /** Task 98 (F0-5): kolom uang nullable saat vault mem-mask. */
+  budgetTotal: number | null;
+  budgetUsed: number | null;
+  advanceOutstanding: number | null;
+  topExpenseKinds: { kind: string; amount: number | null }[];
 }
 
-export async function travelStats(db: TenantDb): Promise<TravelStats> {
+export async function travelStats(db: TenantDb, mv: { canSee: boolean } = { canSee: true }): Promise<TravelStats> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
   const [requests, claims, budgets, claimsYtdRaw, expenseRows, advanceRows, requestsApprovedYtd] = await Promise.all([
-    db.travelRequest.findMany({ where: { requestDate: { gte: monthStart } }, select: { status: true } }),
+    // Task 98 (F0-8) — requestsThisMonth dibatasi s.d. HARI INI (dulu tanpa batas
+    // atas → baris masa depan ikut terhitung).
+    db.travelRequest.findMany({ where: { requestDate: { gte: monthStart, lt: endOfToday } }, select: { status: true } }),
     db.travelClaim.findMany({ where: { status: "Submitted" }, select: { id: true } }),
     db.travelBudget.findFirst({ where: { year: now.getFullYear() } }),
     db.travelClaim.findMany({
-      where: { claimDate: { gte: yearStart } },
+      where: { claimDate: { gte: yearStart, lt: endOfToday }, status: { in: ["Approved", "Transferred", "Paid"] } },
       select: { status: true, totalSettlement: true, payableEmployee: true, payableCompany: true },
     }),
     // 44-d (M-8): groupBy/_sum.amount DILARANG (amount terenkripsi, ciphertext
@@ -1548,15 +2053,13 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
       where: { status: "Given" },
       include: { request: { select: { claims: { where: { status: "Paid" }, select: { id: true } } } } },
     }),
-    db.travelRequest.count({ where: { status: "Approved", requestDate: { gte: yearStart } } }),
+    db.travelRequest.count({ where: { status: "Approved", requestDate: { gte: yearStart, lt: endOfToday } } }),
   ]);
 
   const requestsSubmitted = await db.travelRequest.count({ where: { status: "Submitted" } });
   // 44-d (M-8): nilai uang terenkripsi — dekripsi semua reduce in-memory.
   const tc = tenantCryptoForDb(db);
-  const used = claimsYtdRaw
-    .filter((c) => c.status === "Transferred" || c.status === "Paid")
-    .reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0);
+  const g = (n: number) => (mv.canSee ? n : null);
 
   const kindLabel: Record<string, string> = {
     GENERAL: "General Expense", ALLOWANCE: "Allowance (Uang Saku)", MILEAGE: "Mileage (BBM/Jarak)", ENTERTAINMENT: "Entertainment",
@@ -1566,8 +2069,8 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
     kindAgg.set(e.kind, round2((kindAgg.get(e.kind) ?? 0) + (tc.decryptMoney(e.amount) ?? 0)));
   }
   const topExpenseKinds = [...kindAgg.entries()]
-    .map(([kind, amount]) => ({ kind: kindLabel[kind] ?? kind, amount }))
-    .sort((x, y) => y.amount - x.amount);
+    .map(([kind, amount]) => ({ kind: kindLabel[kind] ?? kind, amount: g(amount) }))
+    .sort((x, y) => (y.amount ?? 0) - (x.amount ?? 0));
 
   return {
     requestsThisMonth: requests.length,
@@ -1575,13 +2078,13 @@ export async function travelStats(db: TenantDb): Promise<TravelStats> {
     pendingRequestApprovals: requestsSubmitted,
     pendingClaimApprovals: claims.length,
     claimsYtd: claimsYtdRaw.length,
-    claimsYtdAmount: round2(claimsYtdRaw.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0)),
+    claimsYtdAmount: g(round2(claimsYtdRaw.reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0))),
     transferredCount: claimsYtdRaw.filter((c) => c.status === "Transferred").length,
     paidCount: claimsYtdRaw.filter((c) => c.status === "Paid").length,
     budgetYear: budgets?.year ?? null,
-    budgetTotal: budgets ? tc.decryptMoney(budgets.totalBudget) ?? 0 : 0,
-    budgetUsed: round2(used),
-    advanceOutstanding: round2(advanceRows.filter((x) => x.request.claims.length === 0).reduce((s, x) => s + (tc.decryptMoney(x.amount) ?? 0), 0)),
+    budgetTotal: budgets ? g(tc.decryptMoney(budgets.totalBudget) ?? 0) : null,
+    budgetUsed: g(round2(claimsYtdRaw.filter((c) => c.status === "Transferred" || c.status === "Paid").reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0))),
+    advanceOutstanding: g(round2(advanceRows.filter((x) => x.request.claims.length === 0).reduce((s, x) => s + (tc.decryptMoney(x.amount) ?? 0), 0))),
     topExpenseKinds,
   };
 }
