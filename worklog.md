@@ -3072,3 +3072,83 @@ Stage Summary:
 - Moat uang tetap utuh: seluruh fitur baru berjalan DI ATAS mesin settlement/jurnal/payroll yang ada (tak ada perubahan formula T3-TRAVEL); guard M-2/K-2/M-5 + approval berjenjang berlaku identik utk jalur ESS baru.
 - Data demo: TR-2026-008 (Hartono, estimasi-driven advance) + TR-2026-009 (Yusuf via ESS, menunggu approval Tri) tersisa sbg demo fitur baru; klaim uji CL-2026-006 dibatalkan + kwitansi disapu.
 - File: 28 (3 route baru + 2 komponen baru + 1 migrasi baru; sisanya edit) — detail di atas.
+---
+Task ID: 99-b
+Agent: Explore (frontend leave audit)
+Task: Audit menyeluruh UI FRONTEND modul Leave (admin web + ESS web + Flutter mobile) — bagian Task 99. Research-only, tanpa perubahan kode.
+
+Work Log:
+- Baca lengkap 10 file aktif src/onevity/leave/components/* (module/overview/requests/approval/balances/templates(jenis)/mass/encashment/reports/types) + ess-leave.tsx + ess-api/ess-types + ess/api/leave.ts + leave/api/reports.ts & overview.ts.
+- Verifikasi registrasi menu: LEAVE_NAV di app-shell.tsx (8 view), ESS_NAV "Cuti Saya", menu-perms ops (cancel/approve), entity-rule-domains leave, approval docType "Leave" di settings, notif link leave:leave-approval.
+- Verifikasi dead-code: src/components/onevity/leave/ (10 file, 2.082 baris) hanya self-import — bukan kode aktif.
+- Baca Flutter hris-mobile/lib/features/leave.dart + app_state.dart + onevity_api.dart (jalur ESS live) untuk paritas mobile vs web.
+- Inventarisasi lengkap: KPI overview (8 metrik, tanpa filter periode/chart), kolom & filter tiap tabel, dialog & aksi (preview auto-compute 350ms, tier badge, transfer payroll), formula a–g, UX ESS (kartu saldo animasi, estimasi hari kalender, half-day checkbox, inline error 400).
+- Temukan 24 celah UI — terpenting: (1) API reports ?export=csv ADA (T12) tapi TIDAK ada tombol export di leave-reports.tsx (Travel/Medical sudah punya via Task 82-b — inkonsisten); (2) ESS tidak bisa batalkan pengajuan sendiri; (3) alasan penolakan (decisionNote) tidak pernah tampil ke karyawan di ESS/mobile; (4) tanpa kalender tim/siapa-cuti (tabel saja), tanpa bulk approve; (5) needDocs tanpa upload lampiran (hanya catatan amber); (6) org picker cuti massal free-text bukan tree; (7) encashment hardcode jenis cashable pertama (CT-THN); (8) KPI "Dokumen Wajib" pakai heuristik prefix kode (CT-MATI*/CT-NIKAH/CT-KHITAN*) bukan flag needDocs; (9) YEAR_OPTIONS hardcode 2024–2027 di 3 file; (10) mobile: param halfDay didukung API tapi tak ada toggle di form.
+- Paritas mobile vs web ESS terdokumentasi (ring progress, timeline approval demo-only, firstDate=today no backdate, reason max 120 vs 300 di web).
+
+Stage Summary:
+- Laporan terstruktur A–G diserahkan ke orkestrator Task 99: struktur 8 halaman admin + fitur/interaksi per halaman, UX ESS web, KPI overview, dimensi laporan + celah export UI, 24 gap UI terprioritas, kemampuan mobile vs web, dan peta key menu leave. Basis siap pakai untuk gap analysis & rekomendasi perbaikan UI (quick win: tombol Export CSV leave reports + alasan penolakan di ESS).
+
+---
+Task ID: 99-a
+Agent: Explore (backend leave audit)
+Task: Audit lengkap BACKEND modul Leave (Cuti) — Task 98 scope business logic. READ-ONLY, tanpa perubahan kode.
+
+Work Log:
+- Baca worklog konteks (Task 82 audit & fix guard T4 leave sudah masuk).
+- Baca penuh leave-service.ts (1.669 baris), entitlement.ts, leave-seed.ts, parameter-rules.ts (422).
+- Baca seluruh API route: types, requests, balances, encashment, mass, transfer, overview, reports (+ thin routes) + ess/api/leave.ts + public/api/{leave-requests,leave-balances}.ts + shared/api/entity-rules.ts (domain=leave).
+- Baca schema-tenant.prisma model Leave (HolidayDate..MassLeave, baris 1659-1836) + approval-engine.ts penuh (chain, struktur, delegasi TemporaryApprover, race-safe decide) + provisioning LEAVE_TYPE_DEFS (14 jenis) + scheduler-service (job a-g) + attendance resolveDayType/regenerateDaily/workoff deductLeave + settlement-service CUTI_CASH.
+- Verifikasi menu guard per endpoint (requireMenuAction vs requireTenant/requireMutator) + menu-perms MENU_OPS leave + grep TODO/stub (nol).
+
+Stage Summary:
+- Formula saldo a-g dinamis (earned prorate, taken/applied split tanggal, forfeit 31-12) solid; race-safe serializable revalidation L-01/L-02; reservasi pending submit & encashment paralel.
+- Approval multi-jenjang via approval-structures (ATASAN_LANGSUNG/BERJENJANG/POSISI/KARYAWAN/HR_ADMIN + fallback + delegasi + SLA reminder scheduler job d).
+- Encashment full: submit→approve (snapshot amount terenkripsi, re-check serializable, cashed++) → transfer ke payroll UCT (idempoten, guard run Confirmed/Paid) → markPaidForRun (periodCode match).
+- Gap utama: tidak ada cancel approved leave (dan ESS tidak bisa cancel sendiri), GET endpoint tanpa menu guard, transfer route hanya requireMutator (bukan menu), tidak ada lampiran file (needDocs hanya flag), tanpa automation tahunan (generate/carry manual), tanpa blackout date/quota transfer/buy-sell/accrual per periode, includeSubOrg massal = prefix nama bukan pohon org, LeaveTypeRule.validFrom/To kolom dorman, encashment tanpa notifikasi, tidak ada amendment/edit request.
+- Detail lengkap diserahkan ke orkestrator untuk gap analysis Task 98.
+
+---
+Task ID: 99-d
+Agent: general-purpose (market research leave)
+Task: Riset pasar fitur Leave/Absence Management advanced (RESEARCH ONLY — tidak ada perubahan kode proyek).
+
+Work Log:
+- Jalankan 34 kueri web search via z-ai CLI (z-ai function -n web_search, num=8): Workday (time off plans, accrual, balance projection, carryover/negatif), SAP SuccessFactors (time account, accrual rule, payout, counting rule, proration hire/FTE, recalculation, LOA), Darwinbox, BambooHR, Zoho People, Rippling/Deel (+Tilt), Keka/greytHR (comp-off, carry forward, lapse, expiry), TOIL, PTO buy/sell, blackout dates, return-to-work interview, konflik kalender tim, Bradford factor, negative balance, ICS feed, bot Slack/Teams, geofencing mobile, AI (prediksi absensi, anomaly detection, chatbot saldo, burnout), HRIS lokal (Mekari Talenta block leave), statutori Indonesia (UU 13/2003 P79/81/82/93, UU KIA 4/2024, PP 35/2021, SKB 3 Menteri 2025/2026).
+- Ekstraksi detail konkret per platform (frekuensi accrual, prorasi, validity period, payout, comp-off expiry 4-8 minggu, aturan cuti bersama, uang pengganti cuti 1/25 × upah, dsb.) dengan URL sumber.
+- Susun laporan terstruktur: (A) matriks fitur 6 platform x ~22 kapabilitas, (B) 18 kapabilitas "advanced & smart" (apa/siapa/kenapa), (C) checklist statutori Indonesia, (D) tren AI 2024-2025 — dikirim penuh ke orkestrator sebagai deliverable task ini.
+- Catatan verifikasi: rumus cuti haid UU KIA (3 hari siklus-1 + 4 hari siklus-2, keterangan dokter) dilaporkan media saat pengesahan, namun snippet pencarian hanya mengonfirmasi basis UU 13/2003 (2 hari, P81, dibayar P93(2)b) — tandai "verifikasi teks pasal di PDF resmi sebelum implementasi engine".
+
+Stage Summary:
+- Bahan gap analysis modul Leave RekanKerja siap: benchmark Workday/SAP SF/Darwinbox/BambooHR/Zoho/Rippling-Deel + Keka/greytHR/Mekari, peta 18 kapabilitas lanjutan (accrual engine fleksibel, negative balance, half-day/hour, blackout + min-staffing, TOIL/comp-off expiry, buy/sell, encashment, konflik kalender, AI forecast/anomaly/chatbot, integrasi Slack/Teams/ICS, geofencing) dan checklist kepatuhan statutori Indonesia (12 hari tahunan, istirahat panjang, haid, melahirkan 3-6 bulan bertingkat, izin menikah/duka, cuti bersama, encashment resign/PHK 1/25 x upah). Tidak ada file proyek yang diubah.
+
+---
+Task ID: 99-c
+Agent: Explore (leave integration audit)
+Task: Audit CROSS-MODULE INTEGRATION & AUTOMASI modul Leave (bagian Task 99). Research-only, tanpa perubahan kode.
+
+Work Log:
+- Attendance: attendance-service.ts — overlay cuti Approved/MassLeave → status OnLeave + paidFlag (L571-583), recap leavePaid/Unpaid (L843-870), potongan TABS = (absen+izin+cutiUnpaid)×perDay via transferToPayroll (L994-1059); WorkOff deductLeave → auto-LeaveRequest 1:1 docNo WO source "WorkOff" (L1602-1940) + refund saat reject; decideRequest & createMassLeave memicu regenerateDaily (L1008-1021, 1164-1181).
+- Payroll: TABS (default code) satu-satunya jalur potongan cuti tanpa upah; encashment → komponen UCT via transferEncashment (snapshot amount approve, guard period Confirmed, periodCode/transferredRunNo → markEncashmentPaidForRun di confirmRun payroll-service L1095-1100 + reversal recalcRun L1268); settlement CUTI_CASH/PHK_POT_CUTI pakai effectiveEntitlement bersama (entitlement.ts); engine TIDAK punya logika leave/HALF_MONTH; UCT terklasifikasi bruto e-SPT (payroll-spt L267-291) & payslip item; rapel generik per komponen — tanpa hook leave.
+- Scheduler 9 job (scheduler-service L978-1077): templates, resign-terjadwal, kontrak-probation, dokumen-kedaluwarsa, sla-approval (mencakup chain Leave >3 hr), payroll-d3, webhook-retry, housekeeping, ptkp-tahunan — TIDAK ada job carry-over/forfeit/auto-expire cuti.
+- Notifikasi 4 kanal di leave/api/requests.ts + ess/api/leave.ts (email leave.submitted/approved/rejected, WA approve-only, in-app nextApprover/employee link leave:leave-approval, webhook) — ESS tanpa WA; public API leave-requests webhook saja (approver bisu).
+- Approval ENGINE multi-level konfigurable: struktur 6-dimensi (office/lokasi/org/posisi/grade/level), best-match, tipe approver ATASAN_LANGSUNG/ATASAN_N/POSISI/KARYAWAN/HR_ADMIN fallback + TemporaryApprover delegasi; Leave TANPA syarat nominal; decidedById = aktor final saja, chain = audit trail.
+- Letters: TIDAK ada template surat keterangan cuti (20 template: DISC/PA/EMP; "cuti" hanya di body PHK). Menu keys terverifikasi (leave:leave-info/request/approval/mass/type/encashment/reports; overview tanpa view-guard). Provisioning: ensureLeaveReference 14 jenis CT + UCT + TLATE/TABS/TKEHADIRAN (provisioning L489-584); seed demo leave-seed.ts (saldo 2025→generate 2026→SKB→encashment). Dashboard admin TANPA widget leave; ESS dashboard ada leaveAvailable + leaveBalances.
+- Gaps utama: carry-over MANUAL (generateLeaveInfo) — lupa generate = saldo baru auto-created carriedOver=0 (carry hilang senyap); tanpa reminder saldo before forfeit 31-12; tanpa retro/rapel otomatis saat cuti disetujui pasca-transfer payroll; tanpa ICS/kalender tim/forecast; WorkOff deduct hardwired CT-THN; MassLeave tanpa chain & tanpa notif karyawan; markEncashmentPaidForRun hanya processType SALARY.
+
+Stage Summary:
+- Laporan terstruktur diserahkan ke orkestrator Task 99: peta lengkap 10 titik integrasi leave (attendance, payroll, scheduler, notifikasi, approval engine, letters, RBAC, provisioning, dashboard, riwayat task) dengan file:line; flag eksplisit: approval MULTI-LEVEL konfigurable, carry-over MANUAL (risiko carry hilang), TIDAK ada forecast/ICS, potongan cuti tanpa upah = TABS otomatis via transfer TA (upah/25), leave→e-SPT/payslip hanya via komponen uang (UCT/TABS/CUTI_CASH), 9 job scheduler tanpa satu pun job leave tahunan. 10 gap fungsional terdokumentasi untuk gap analysis (prioritas: auto carry-over tahunan + guard saldo nol, hook retro payroll, notifikasi approver jalur public API).
+
+---
+Task ID: 99
+Agent: Z.ai (orkestrator utama) + subagent 99-a/98-b/98-c (Explore) & 98-d (riset pasar)
+Task: Audit menyeluruh module Leave + riset pasar module leave advanced + gap analysis (target: "lebih advanced dan smart")
+
+Work Log:
+- 4 subagent paralel: 99-a backend (leave-service.ts 1.669 baris, 9 API, entitlement rule engine, approval chain multi-level, encashment→payroll, mass leave SKB, 14 seed types), 99-b frontend (8 tab admin + ESS web + Flutter mobile, 24 UI gap), 99-c integrasi (attendance OnLeave overlay, TABS/UCT/CUTI_CASH payroll, 9 scheduler job, notifikasi, letters, provisioning, dashboard), 99-d riset pasar 34 web search (Workday/SAP SF/Darwinbox/BambooHR/Zoho/Rippling/Deel/Keka/greytHR + 18 kapabilitas smart + checklist statutor Indonesia + tren AI 2024-25).
+- Validasi silang orkestrator: ESS tanpa endpoint cancel ✓, UI reports tanpa tombol CSV (API ada) ✓, scheduler tanpa job carry-over ✓, guard Submitted-only (L869/1271) = cuti Approved tak bisa dibatalkan ✓.
+
+Stage Summary:
+- Kekuatan saat ini: multi-level approval berjenjang (6 dimensi + delegasi), rule engine entitlement per atribut karyawan (SetDays/AddDays/Multiply), prorate+carry+advance+half-day AM/PM, unit MONTH UU KIA, gender gate, mass leave SKB, encashment→payroll (UCT, snapshot M-11), integrasi TA→payroll (TABS), settlement CUTI_CASH/PHK_POT_CUTI, dokumen max-suffix race-safe, notifikasi email/WA/in-app/webhook.
+- Gap terbesar (urut dampak): (1) cuti Approved TIDAK BISA dibatalkan/diubah + ESS tak bisa cancel sendiri + alasan reject tak terlihat; (2) carry-over manual tanpa otomasi year-end (risiko silent-loss: ensureBalance auto-create carry=0); (3) tanpa kalender tim/ICS/forecast; (4) policy engine kurang: blackout, min-staf, notice period, tenure-based accrual bulanan, comp-off ber-expiry, buy/sell; (5) tanpa AI: anomaly/Bradford, burnout, prediksi, chatbot saldo; (6) needDocs tanpa upload lampiran; (7) UI: bulk approve, filter approval, export CSV (API sudah ada), grafik overview, hardcoded YEAR 2024-2027 & CT-THN encashment; (8) mass leave prefix-match bukan org-tree + tanpa undo + tanpa notifikasi; (9) rapel leave tak otomatis.
+- Laporan lengkap diserahkan ke user di kanal IM: struktur = ringkasan, as-is (fitur), benchmark pasar, gap analysis 30 temuan terklasifikasi, roadmap P1 cepat / P2 smart / P3 enterprise.
