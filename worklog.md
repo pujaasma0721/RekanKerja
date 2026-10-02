@@ -3229,3 +3229,25 @@ Stage Summary:
 - 31 file (26 edit + 5 baru): 9 temuan kritis audit ditutup (G1-G5 + export + KPI + year + guard), 3 fitur advance (kalender tim+ICS, policy v2 blackout/notice/maks berturut, encashment picker+notif), 2 fitur smart (risk signals ala Bradford, snapshot hangus chatbot) + otomasi tahunan penuh (fill-missing Jan + reminder Nov/Des).
 - Module Leave naik kelas: salah-approve kini bisa dipulihkan, ESS bisa tarik sendiri + lihat alasan, siklus tahunan otomatis, policy engine selaras benchmark (BreezeLeave/SAP), kalender + ICS seladar Workday/Leaveboard, deteksi pola ala Personio/HiBob.
 - Data demo dipulihkan penuh (MII 44 karyawan + 588 saldo leave + travel + medical + 3 tenant + akun demo).
+
+---
+Task ID: OPS-R1
+Agent: main (Z.ai Code)
+Task: Pemulihan sandbox mati (rebuild image) — database & dev server hilang
+
+Work Log:
+- Diagnosis: sandbox rebuild dari image → uptime 8 mnt, semua file gitignored hilang (src/generated/*, mini-services/postgres/data cluster, .env tertimpa default DATABASE_URL SQLite legacy)
+- Tulis ulang .env: PLATFORM_DB_URL + TENANT_DB_BASE_URL (embedded pg 127.0.0.1:5432 db=onevity user=onevity) + SESSION_SECRET
+- Regenerate 2 prisma client: bunx prisma generate --schema prisma/schema.prisma + schema-tenant.prisma → src/generated/{platform,tenant}
+- Bootstrap mini-services/postgres: bun run dev → initdb baru + pg_ctl start + ensure db onevity (daemon postgres PID 1638)
+- bun run db:push (platform schema) → 53ms sync
+- bun run scripts/restore-demo.ts → 3 tenant ACTIVE (MII penuh/Cahaya/Sentra); migrasi sandi awal gagal race schema → rerun manual scripts/migrate-password-security.ts sukses
+- bun run scripts/seed-ess-demo-user.ts → AppUser yusuf@mii.co.id + MenuAccess CUSTOM + platform user (restore-demo tidak mencakup akun ESS demo)
+- Watchdog dev server: pola `setsid -f nohup bash scripts/watch-dev.sh` (forced fork -f adalah KUNCI — tanpa -f proses mati diam-diam ±1 mnt setelah command exit; verifikasi empiris survive antar-command)
+- E2E browser: landing render → login HR hrd@mii.co.id/onevity123 → workspace MII → modul Leave render (Ringkasan: 3 menunggu approval, 1 encashment; menu 8 grup lengkap) → logout → login ESS yusuf@mii.co.id/EssDemo123! → Portal Karyawan (punch clock, saldo cuti 6+ jenis terisi: Tahunan 12/12, Besar 12/12, dst) → 0 console error
+
+Stage Summary:
+- Sandbox pulih penuh; postgres@5432 + smtp-catcher@2525 + watchdog(next dev)@3000 semua hidup & survive antar-command
+- TIDAK ada perubahan kode (murni pemulihan operasional); .env & data cluster TIDAK di-commit (gitignored)
+- Pelajaran baru: (1) setelah rebuild image wajib cek mini-services/postgres/data & .env, bukan hanya prisma generate; (2) watchdog wajib `setsid -f` bukan `setsid` polos; (3) akun ESS demo (yusuf) di-seed script terpisah seed-ess-demo-user.ts — jalankan setelah restore-demo
+- Dev server log bersih; scheduler aktif 3/3 tenant OK
