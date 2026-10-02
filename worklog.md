@@ -3251,3 +3251,85 @@ Stage Summary:
 - TIDAK ada perubahan kode (murni pemulihan operasional); .env & data cluster TIDAK di-commit (gitignored)
 - Pelajaran baru: (1) setelah rebuild image wajib cek mini-services/postgres/data & .env, bukan hanya prisma generate; (2) watchdog wajib `setsid -f` bukan `setsid` polos; (3) akun ESS demo (yusuf) di-seed script terpisah seed-ess-demo-user.ts — jalankan setelah restore-demo
 - Dev server log bersih; scheduler aktif 3/3 tenant OK
+---
+Task ID: 100-b
+Agent: general-purpose (audit frontend Attendance)
+Task: Audit murni UI/UX modul Time & Attendance (14 file admin src/rekankerja/time-attendance/components + ESS ess-attendance.tsx/ess-dashboard punch clock + ess/api clock/attendance/swap). TANPA perubahan kode.
+
+Work Log:
+- Baca worklog 200 baris terakhir (konteks Task 99 Leave + OPS-R1 pemulihan sandbox).
+- Baca penuh 14 file attendance (5.237 baris total): module shell (12 view switch), overview, templates (3 tab), assignments, matrix, clocking, absence, overtime, workoff, holidays, liveboard, shift-swap, machine-import, types.
+- Baca ESS: ess-attendance.tsx (kalender bulanan interaktif), ess-dashboard.tsx widget punch clock (geolokasi + banner error), ess-swap.tsx, ess/api/clock.ts (geofence Off/Warn/Strict haversine), ess/api/attendance.ts (regen scoped K-5).
+- Benchmark silang: grep Export CSV di seluruh rekankerja — Leave/Travel/Medical/Payroll punya anchor &export=csv; Attendance TIDAK. Ditemukan API absence-export.ts (T12-REPORTS, guard M-6, CSV+TOTAL) TERSEDIA tapi TIDAK direferensikan komponen mana pun → tombol export belum di-wire.
+- Verifikasi useApi (error tersedia, refresh useCallback stabil), ui-kit, useTableSort (aria-sort), useMenuPerms gating, app-shell ATTENDANCE_NAV (3 grup 12 view), thin routes.
+- Temuan 15 gap terklasifikasi (4 TINGGI, 5 SEDANG, 6 RENDAH) + daftar fitur benchmark (geofence map, selfie, bulk approve, pagination, dst).
+
+Stage Summary:
+- Kekuatan: konsistensi design language (PageHeader+KPI+StatusPill+toast+dark mode+i18n t(ID,EN) penuh), CoverageAlert kualitas data G-04 (3 jenjang + CTA regen), liveboard auto-refresh 30s + aria-live + mode riwayat, machine-import dry-run→AlertDialog→riwayat batch idempoten, shift-swap = gold standard (error state + AlertDialog + busy + kartu mobile), kalender libur 12 bulan + import CSV + generate tahun berikutnya, ESS punch clock geofence graceful + kalender klik-hari detail, a11y fondasi (aria-sort, listbox, sr-only), gating permission UI+server paralel.
+- Gap terbesar (urut dampak): (B-01) tombol Export CSV absensi TIDAK ada padahal API siap; (B-02) aksi destruktif tanpa konfirmasi — akhiri penugasan, cancel lembur approved, cancel izin; (B-03) error state API tidak dirender di 9/12 halaman admin (EmptyState menyesatkan saat gagal load); (B-04) dialog submit tanpa busy state (assignments/clocking/holidays/templates) → risiko double-submit; (B-05) tabel tanpa pagination + slice 100/30 tanpa indikator; (B-06) log mentah clock tak bisa dihapus/koreksi; (B-07) tanggal ISO mentah di matrix/holidays/dialog clock; (B-08) legend matriks hardcode; (B-09) 5 halaman tanpa export; (B-10) today pakai toISOString (UTC drift WIB pagi) di 5 titik; (B-11) typo "Penugatan" + badge ½ hari; (B-12) toggle StatusPill tanpa aria; (B-13) mobile hanya shift-swap berkartu; (B-14) default filter Pending vs all tak konsisten; (B-15) overview tanpa grafik tren.
+- Benchmark fitur yang tidak ada: bulk approve, geofence map preview, selfie clock, SSE/push (kini polling 30s), heatmap/tren, risk badge ala Leave/Travel, revert batch import, QR kios, wizard shift pattern, reminder belum clock-out, jam real-time di widget punch.
+- Laporan lengkap (peta UI, kekuatan, gap berkode, fitur absen, catatan implementator) diserahkan ke user di kanal IM. Tidak ada perubahan kode/commit/push (audit murni).
+
+---
+Task ID: 100-c
+Agent: general-purpose (subagent Z.ai)
+Task: Audit INTEGRASI module Time & Attendance lintas modul — Task 100 (READ-ONLY, tanpa perubahan kode).
+
+Work Log:
+- Baca worklog 200 baris terakhir + LS proyek; baca PENUH attendance-service.ts (2.464 baris), payroll-service.ts (titik TA), leave-service.ts (titik regen), scheduler-service.ts, approval-engine.ts (APPROVAL_DOC_TYPES), machine-import.ts, clocking/absence/matrix/liveboard/overtime/workoff/shift-swap API, ess/api/{clock,workoff,overtime,attendance,swap}.ts, ai-chat-service.ts (snapshot), provisioning (kode komponen), absence-export.ts, payroll-periods.ts (jendela TA), payroll-rapel.ts (sifat generic), settlement-service.ts (tanpa data presensi).
+- Peta integrasi disusun: attendance ↔ payroll (transfer LEMBUR/TLATE/TABS/TKEHADIRAN Specific terenkripsi; markOvertimePaidForRun di confirmRun + reversal di recalc; prorasi WorkingDays via countScheduledWorkingDaysPure; jendela TA di PayrollPeriod), ↔ leave (overlay OnLeave paidFlag; regen scoped saat approve/reject/cancel; delete future OnLeave; WorkOff deductLeave → auto LeaveRequest source "WorkOff" 1:1 idempoten + refund), ↔ ESS (clock geofence Off/Warn/Strict + koordinat; workoff/OT reuse service + approval chain; swap → admin approve override 1-hari), ↔ scheduler (TIDAK ada job attendance; SLA reminder mencakup chain Overtime/WorkOff), ↔ device (import CSV/TXT/XLSX exceljs; binding employeeNo|NIK terdekripsi; dedupe emp+timestamp+arah; dry-run + batch audit), ↔ approval engine (Overtime & WorkOff multi-jenjang; ShiftSwap DI LUAR engine), ↔ notifikasi (in-app+email+webhook utk OT/WO admin; ESS hanya in-app; swap in-app+WA), ↔ chatbot AI (snapshot "Presensi bulan berjalan" status counts).
+- Verifikasi fix audit lama BPA-time-attendance di source: K-1 (paidRunNo null di rekap uang), K-2 (outLimit +10 jam), K-3 (window taStart/taEnd + item run + decidedAt≤calculatedAt), M-1 (tier Holiday 2/3/4 = jam 1-7/8/9+), M-4/D-6a-c (rule dieksekusi), M-5→M-4 baru (validasi + anti-overlap window), M-6 (cap 4j/hari + 18j/minggu PP35 Ps.26 di submit+approve+verify), m-2 (rateMultiplier per kategori), m-7 (max-suffix), G-1 (deductLeave aktif + mirror saldo + reservasi), G-2 (HolidayDate overlay), G-8 (machine import + geofence) — SEMUA SUDAH DIKODE.
+- Temuan baru 15 (C-01..C-15), terpenting: C-01 retro satu arah (kejadian attendance terlambat setelah period Confirmed → uang terkunci, anti-overlap M-4 justru memblokir transfer ulang), C-02 transfer ke processType BONUS/YEAR_END_ADJ tidak pernah menandai lembur Paid → jalur double-pay di UI eksplisit (attendance-absence.tsx:237), C-03 potongan unpaid half-day dihitung 1 hari penuh (leaveUnpaid/workoffUnpaid++ per baris, bukan proporsi menit), C-05 tanpa job regen harian scheduler, plus carry-over lama M-2/M-3/m-3/m-6/m-9/G-4/G-5 yang masih terbuka.
+- TIDAK ada file kode yang diubah; hanya append worklog ini.
+
+Stage Summary:
+- Integrasi attendance RekanKerja tergolong matang di sisi kepatuhan (PP 35/2021 multiplier 1,5/2/2-3/2-3-4 + 1/173 + cap harian/mingguan, overlay libur, jendela TA + anti-overlap + marking Paid/reversal dua arah, enkripsi uang, transfer atomik idempoten) dan konsisten dua arah dengan Leave (OnLeave ↔ regen; WorkOff ↔ saldo cuti 1:1 idempoten + refund).
+- 3 risiko uang prioritas: C-01 (lembur/izin ter-approve terlambat tidak punya jalur pembayaran — perlu hook retro/rapel TA), C-02 (double-pay lembur bila transfer ke run non-SALARY — markOvertimePaidForRun return 0), C-03 (over-deduction setengah hari unpaid dipotong 1 hari penuh).
+- Gap non-uang: tanpa scheduler job attendance (regen harian/aging/reminder), ShiftSwap di luar approval engine & SLA, OnLeave absen dari KPI admin, matrix N+1, tanpa laporan kepatuhan resmi (Depnaker A1/DKI), tanpa rekonsiliasi otomatis TA↔payroll, tanpa push realtime mesin/geofence di jalur non-ESS.
+- Laporan lengkap A–E (peta integrasi, kekuatan, gap C-01..C-15, integrasi yang tidak ada, catatan implementator) diserahkan ke orkestrator Task 100.
+
+---
+Task ID: 100-a
+Agent: general-purpose (backend attendance audit)
+Task: Audit menyeluruh BACKEND module Time & Attendance RekanKerja (research-only, tanpa perubahan kode) — service inti, 15 file API, route handlers, model Prisma, scheduler, formula lembur/absensi.
+
+Work Log:
+- Baca worklog 200 baris terakhir (konteks Task 98/99 audit Leave + travel) untuk pola pelaporan & guard.
+- Baca LENGKAP src/rekankerja/time-attendance/services/attendance-service.ts (2.464 baris): resolusi day type (resolveDayTypeFromCache murni + prefetch batch M-13), regenerateDaily/Range (window clock D..D+2, outLimit K-2 +10 jam, guard K-3 future-Absent), overtimePayFor PP 35/2021 (1,5/2x weekday; 2/3x weekend; 7x2/8x3/9+4x holiday; 1/173; min+rounding rule), assertOvertimeCaps (harian 4 jam default + MINGGUAN 18 jam statutory Ps.26 + bulanan), recapPeriod + transferToPayroll (anti-overlap window M-4, transaksi atomik M-17, nilai terenkripsi), markOvertimePaidForRun (K-3), workoff deductLeave (potong saldo CT-THN via LeaveRequest 1:1 idempoten + refund + revalidasi pre-chain), attendanceCoverage (G-04).
+- Audit 15 file API + 4 file ESS (clock/attendance/overtime/workoff/swap) + 15 thin route: guard per method dicatat (requireTenant vs requireMenuAction op vs requireMenuViewAny — hanya absence-export); validasi input, race condition, error handling, notifikasi (in-app/email/WA/webhook).
+- Model Prisma terverifikasi: WorkDayType, WorkSchedule(+Day), ScheduleAssignment, AttendanceClockLog, AttendanceDaily, OvertimeOrder, WorkOffPermission, AttendanceRule (geofenceMode!), HolidayDate, MachineImportBatch, ShiftSwapRequest — field + index dipetakan.
+- Scheduler-service.ts: TIDAK ADA job attendance sama sekali (hanya leave-tahunan/payroll/sla/webhook/housekeeping/ptkp) — regen murni reaktif; konfirmasi via grep & baca runAllJobs.
+- Verifikasi silang: legacy src/lib/rekankerja/attendance-service.ts (966 baris versi lama) + payroll/leave-service legacy = dead code (saling import, tidak dipakai route aktif — payroll aktif memakai @/rekankerja/*); markOvertimePaidForRun aktif dipanggil confirmRun payroll-service.ts:1090.
+- Temuan utama dikumpulkan: A-01 guard GET lemah (absence GET bocor gaji tanpa money-view), A-02 tanpa regen terjadwal/stale pasca mutasi master, A-03 timeIn/timeOut day-type tak tervalidasi, A-04 race cap lembur, A-05 ESS clock-out gagal shift malam, + 12 temuan lain (performa N+1 matrix, machine-import non-atomik, dst).
+
+Stage Summary:
+- Laporan komprehensif backend attendance diserahkan ke orkestrator Task 100: peta 19 endpoint + 5 ESS (method+path+guard), 11 model DB, flow inti submit→approve→regen→transfer→Paid; 12 kekuatan; 17 gap berkode A-01..A-17 (1 KRITIS: GET tanpa menu-guard + gaji tak di-gate; 4 TINGGI: tanpa auto-regen/scheduler, timeIn tak valid, race cap OT, ESS night-shift lockout); daftar fitur absen (selfie/device binding, koreksi clock log, regen massal, TOIL, break unpaid, dsb.) + catatan teknis implementator (lokasi fungsi kunci, ketergantungan approval-engine/entitlement, risiko refactor dependensi melingkar).
+
+---
+Task ID: 100-d
+Agent: general-purpose (market research attendance)
+Task: Riset pasar module Time & Attendance advanced & smart (RESEARCH ONLY — tidak ada perubahan kode proyek; bahan gap analysis paralel dengan audit Task 100 agen lain).
+
+Work Log:
+- Baca worklog 150 baris terakhir (konteks Task 98/99 leave, format laporan) + skimatika modul TA: ls time-attendance/api (15 endpoint), head attendance-service.ts (resolveDayType cycle+anchor, hour buckets, lembur Plan→Actual→Verified multiplier PP 35/2021, transferToPayroll LEMBUR/TLATE/TABS/TKEHADIRAN), ess-attendance.tsx (kalender status + punch), ess/api/clock.ts (geofence Off/Warn/Strict × WorkLocation haversine radius — GPS sudah ADA), api/liveboard.ts (real-time inOffice/done/noClock/off/absent), api/machine-import.ts (CSV/XLSX file-based, bukan realtime push).
+- 53 kueri web search via z-ai CLI (function -n web_search; 9 kueri diulang karena rate-limit 429 — retry berjeda berhasil). Topik: vendor ID (Mekari Talenta/Flex, CATAPA, Gadjian, HashMicro, LinovHR, GreatDay, KaryaOne, Hadirr, Kerjoo, EVA, PayrollBozz, EPPLOYEE), enterprise global (Workday, SAP SF Time&Space, UKG/Kronos, Dayforce, ADP), SME modern (Rippling, Personio, Deputy, Connecteam, Jibble, Time Doctor, Hubstaff, When I Work), AI (anomaly/buddy punching, predictive no-show ShiftPredict, auto-schedule AI, NL timesheet + MCP), biometric & device (ZKTeco PUSH SDK realtime, rotating QR SafeQod, liveness 3D anti-spoof, beacon BLE/UWB, GPS mock detection), geofence multi-site/WiFi/VPN, shift (open shift bidding, shift marketplace, fatigue rules 4-night/12h-rest, Panama 2-2-3/DuPont), compliance ID (Kepmen 51/MWP/1999 1/173 & 1.5×/2×; Kepmen 102/2004 3j/14j; PP 35/2021 4j/18j + 7j/40j vs 8j/40j), anti-fraud stats (19% admit buddy punching, 5% payroll, $400B), analytics (liveboard TMetric, inconsistency alerts TeamBridge), API ecosystem (Apideck/Merge), tren 2024-2026 (Dayforce Co-Pilot, UKG agentic AI, MCP conversational timesheet, hybrid work, wellbeing/burnout, smart office $55B→$125B).
+- Susun laporan lengkap terstruktur (ringkasan eksekutif, landscape vendor, deep-dive advance & smart, standar kepatuhan ID + cara software menghitung, benchmark matrix 20 baris vs Mekari/HashMicro | Workday/SAP/UKG | Rippling/Personio/Deputy | Jibble/Connecteam | RekanKerja as-is, top-15 fitur ranking dampak×effort) — dikirim penuh ke orkestrator sebagai deliverable task ini. Draft + URL: /tmp/riset-100d.md (backup JSON: .tmp-research/).
+
+Stage Summary:
+- Bahan gap analysis modul Attendance siap. Temuan kunci: RekanKerja sudah punya GPS geofence basic (Off/Warn/Strict) + liveboard + machine-import file + lembur approval + payroll transfer — di atas rata-rata open-source lokal; GAP terbesar vs pasar: (1) verifikasi identitas saat clock (selfie/face+liveness — semua vendor ID top-5 punya), (2) integrasi device realtime push (ZKTeco) vs file import, (3) QR rotating & kiosk, (4) AI anomaly/prediktif/natural language (kelas UKG/Dayforce/Darwinbox), (5) open shift marketplace + fatigue rules, (6) compliance guard lembur 3j/hari 14j/minggu otomatis, (7) analytics heatmap + biaya lembur, (8) mock-location/device binding, (9) public API/webhook, (10) WiFi SSID/multi-site geofence. Rekomendasi top-5 cepat: selfie verification, guard lembur otomatis, heatmap analytics, ZKTeco push, rotating QR kiosk. Tidak ada file proyek yang diubah (hanya backup riset .tmp-research/).
+
+---
+Task ID: 100-e
+Agent: Z.ai (orkestrator utama)
+Task: Sintesis audit module Attendance (100-a/b/c/d) → laporan gap G1–G30 + roadmap F0/F1/F2 + riset pasar 53 kueri — disampaikan ke kanal IM
+
+Work Log:
+- Luncurkan 4 subagent paralel: 100-a backend (17 temuan A-01..A-17), 100-b frontend (15 temuan B-01..B-15), 100-c integrasi (15 temuan C-01..C-15), 100-d riset pasar (53 kueri web, 22 vendor, benchmark 22 kemampuan, top-15 fitur).
+- Verifikasi silang temuan kritis langsung di source oleh orkestrator: (1) A-01 KONFIRMASI — GET /absence hanya requireTenant, recapPeriod mengembalikan baseSalary/overtimePay tanpa money-view; GET overview/liveboard/matrix juga tanpa guard (0 menu-guard); (2) C-02 KONFIRMASI — markOvertimePaidForRun L1108 `if (!run || run.processType.code !== "SALARY") return 0` → transfer BONUS bermuatan LEMBUR tidak menandai Paid → double-pay window berikutnya; (3) C-03 KONFIRMASI — recapPeriod L854-855 `leaveUnpaid++`/`workoffUnpaid++` per baris integer → setengah hari unpaid dipotong 1 hari penuh; (4) A-05 KONFIRMASI — ess/api/clock.ts L80-89 window [00:00,24:00) + OUT wajib IN di window itu → shift malam lintas hari ditolak.
+- Konsolidasi 62 temuan → 30 gap (G1–G30) + skor 10 dimensi + roadmap 3 fase; laporan lengkap disampaikan ke user di kanal IM (pola T97/T99).
+
+Stage Summary:
+- Skor 10 dimensi: kalkulasi & kepatuhan lembur 9/10; engine jadwal 9/10; integrasi payroll 7,5; otorisasi endpoint 5; anti-fraud 4; realtime & device 5; UI admin 7; ESS 6,5; analytics 4; smart/AI 2,5 → ~59/100. Kekuatan: engine kelas enterprise lokal terbaik. Kesenjangan terbesar: lapisan verifikasi identitas (selfie/face/QR), realtime device (ZKTeco push), analytics visual, AI.
+- 4 temuan berdampak uang: G1 kebocoran gaji via GET, G2 double-pay LEMBUR non-SALARY, G3 over-deduction setengah hari, G12 clock future → manpulasi.
+- Roadmap: F0 = 12 gap kritis (guard GET+money-gate, double-pay, half-day, scheduler jobs, overnight clock-out, validasi HH:MM, race cap, export wire, konfirmasi destruktif, error state, busy state, validasi timestamp); F1 = advance (selfie evidence, guard lembur Kepmen 102 konfiguratif, heatmap & biaya lembur, ZKTeco push, QR kiosk, multi-geofence+WiFi, open shift, push notif, API+webhook, spoof detection, koreksi data, bulk approve, ICS); F2 = smart (anomaly detection, chatbot tools TA, burnout monitoring, face liveness).
+- Commit & push menyusul laporan ini.
