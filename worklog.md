@@ -2839,3 +2839,24 @@ Work Log:
 Stage Summary:
 - 9 temuan prioritas (2 P0 + 7 P1) diperbaiki & diverifikasi browser; 38 file berubah
 - Backlog tersisa dari rapor 88: i18n onboarding-checklist, window.confirm payroll (8 lokasi), error-state kosong di ±30 layar, focus-trap bottom sheet, kontras badge amber, widget sidebar era panel gelap, destructive confirm travel/settings/api — lihat 88-summary untuk daftar lengkap
+
+---
+Task ID: 93
+Agent: main (Z.ai Code)
+Task: pull github (sinkron 4 commit medical wave 89-92 dari remote) + parity DB lokal + regenerasi Prisma client
+
+Work Log:
+- Fetch & pull fast-forward origin (RekanKerja): main 547ea89 → 9262a39 (+4 commit: fix 89 wave1 medical, fix 90 wave1-E2E, fix 91 wave2, fix 92 wave3 — total 2608 insert; branch tracking diperbaiki onevity/main → origin/main)
+- Branch ess-rebuild-design (6314a8e) dibiarkan tidak tersentuh (belum merge)
+- Run parity pipeline CLI: gagal di langkah approval-structure (cahaya) + ESS — "Response from the Engine was empty"/"Engine is not yet connected"; diagnosis: tekanan memori (4GB total, ~865MB available, tanpa swap) membuat engine Prisma mati — BUKAN gap DDL nyata (output langkah tsb "0 tabel baru, 0 kolom baru")
+- Jalankan checkParityGap() (checker ringan otoritatif): ketemu gap nyata — tenant_lle (tenant ke-4, di luar DEMO_SCHEMAS default skrip) tanpa kolom medical wave1/wave3
+- Terapkan migrate-medical-wave1 + migrate-medical-wave3 via tenantSchemas() registry penuh (4 schema): prorateFactor (Claim+Balance), reversalOfId unique, providerId idx + 2 FK, MedicalBenefitType.needLetter — gap checker akhir: gap=false, 4/4 ready
+- BUG RUNTIME ditemukan via browser smoke: GET /api/rekankerja/ess/claims/medical → 500; akar masalah: src/generated/tenant (Prisma client) STALE — server dev tidak pernah restart pasca-pull sehingga client belum tahu kolom baru → select { needLetter: true } = "Unknown argument"; perbaik: prisma generate --schema prisma/schema-tenant.prisma → trigger restart dev server
+- Boot parity pasca-restart: "[demo-seed] 4 tenant sudah paritas — tidak ada tindakan" ✓
+- Verifikasi browser (agent-browser): login HR hrd@mii.co.id → modul Medical: Ringkasan KPI 4 kartu, Jenis Benefit tabel + dialog Jenis Baru memuat checkbox "Wajib surat rujukan" (fix G-2/92), Klaim Medis list+filter+search render, 0 error console
+- Verifikasi browser ESS: login yusuf@mii.co.id → Klaim Saya → tab Klaim Medis → GET ess/claims/medical 200 (dulu 500) → wizard "Ajukan Klaim Medis" terbuka (pilih jenis + hint wajib kwitansi), tombol submit benar disabled hingga form valid, 0 error console; 403 pada endpoint admin medical oleh sesi ESS = penolakan otorisasi yang benar
+
+Stage Summary:
+- Repo tersinkron penuh dengan GitHub (9262a39); DB lokal paritas 4/4 tenant (kolom medical wave1+wave3 terpasang semua)
+- Prisma client tenant diregenerasi — pola penting: SETIAP pull yang mengubah prisma/schema-tenant.prisma WAJIB diikuti prisma generate (atau restart dev server yang menjalankan generate di boot), kalau tidak endpoint yang menyentuh kolom baru akan 500
+- Smoke test HR+ESS lulus penuh; tidak ada perubahan kode aplikasi di sesi ini (hanya artefak lokal: DDL DB + generated client yang di-gitignore) — tidak ada file sumber yang berubah, hanya worklog ini yang di-commit
