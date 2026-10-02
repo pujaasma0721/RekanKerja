@@ -1,0 +1,65 @@
+[
+  {
+    "url": "https://www.sap.com",
+    "name": "Time&Space Workforce Management",
+    "snippet": "Reduce administrative overhead with powerful automated time and attendance rules , and employee self-service. Choose the combination of time recording options ... Read more",
+    "host_name": "www.sap.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com",
+    "name": "End-to-End solution for Work Schedule built on SAP BTP",
+    "snippet": "In SuccessFactors Employee Central, administrators can create work schedules directly, defining daily working hours on demand, while average fields can be auto ...",
+    "host_name": "community.sap.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.suretysystems.com",
+    "name": "How Can SuccessFactors HRIS Improve Operational",
+    "snippet": "Apr 13, 2023 — Employee Central offers a comprehensive time and attendance management solution to help employees record their time , request time -off, manage ... Read more",
+    "host_name": "www.suretysystems.com",
+    "rank": 2,
+    "date": "Apr 13, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.sap.com",
+    "name": "Enhancement to Employee Central Permissions",
+    "snippet": "Apr 3, 2026 — Attendance Mobile Features (Multiple Products) Time Tracking Access Time Statement from Time Sheet and Time Sheet Approval Center Attendance . ...",
+    "host_name": "help.sap.com",
+    "rank": 3,
+    "date": "Apr 3, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://rollingarrays.tech",
+    "name": "LMS Attendance Tracking: Automate It With LSYNC",
+    "snippet": "May 20, 2025 — Automate LMS attendance tracking with LSYNC . Cut admin time by 95% and sync attendance data instantly with SAP SuccessFactors.",
+    "host_name": "rollingarrays.tech",
+    "rank": 4,
+    "date": "May 20, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com",
+    "name": "Employee Central Time Management Guide | PDF | Payroll",
+    "snippet": "This document provides guidance on implementing several time management scenarios in SAP SuccessFactors Employee Central, including: 1. Creating a time type ...",
+    "host_name": "www.scribd.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cdn.training.sap.com",
+    "name": "SAP SuccessFactors Time Management Project Team",
+    "snippet": "Explain the key components of SAP SuccessFactors Time Management. ... Explain the self-service features related to time off that are available to employees. Read more",
+    "host_name": "cdn.training.sap.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  }
+]

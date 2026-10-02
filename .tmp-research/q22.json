@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://www.researchgate.net",
+    "name": "Fraud Mitigation in Attendance Monitoring Systems using",
+    "snippet": "Jun 11, 2026 — However, research confirms that static QR codes are vulnerable to screenshot sharing, and that dynamic or rotating QR codes improve security and ... Read more",
+    "host_name": "www.researchgate.net",
+    "rank": 0,
+    "date": "Jun 11, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.taqt.com",
+    "name": "SafeQod: Anti-Fraud Rotating QR Code for Attendance",
+    "snippet": "Prevent fake clock-ins with SafeQod's patented rotating QR code . Proves physical presence without GPS. Reliable, tamper-proof attendance for on-site teams.",
+    "host_name": "www.taqt.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://thesai.org",
+    "name": "Fraud Mitigation in Attendance Monitoring Systems using",
+    "snippet": "In this paper, a fraud -resistant attendance management solution is developed by harnessing technologies such as geofencing, dynamic QR code and IMEI Checking. Read more",
+    "host_name": "thesai.org",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://papers.ssrn.com",
+    "name": "IntelliAttend: An Autonomous Anti-Proxy Attendance",
+    "snippet": "Because the token rotates every 60 seconds, photographing and transmitting the QR code over external channels introduces propagation delays that reliably exceed. Read more",
+    "host_name": "papers.ssrn.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.academia.edu",
+    "name": "Fraud Mitigation in Attendance Monitoring Systems using",
+    "snippet": "Dynamic QR codes refresh every 20 seconds , preventing unauthorized sharing and proxy attendance. Geofencing restricts attendance registration to within defined ... Read more",
+    "host_name": "www.academia.edu",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://research-portal.uea.ac.uk",
+    "name": "Fraud mitigation in attendance monitoring systems using",
+    "snippet": "In this paper, a fraud -resistant attendance management solution is developed by harnessing technologies such as geofencing, dynamic QR code and IMEI Checking. Read more",
+    "host_name": "research-portal.uea.ac.uk",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://ideas.gohighlevel.com",
+    "name": "Dynamic QR Codes with Expiring, One-Time-Use  - HighLevel",
+    "snippet": "Feb 23, 2025 — To prevent fraud in check-in and loyalty systems, GoHighLevel should support dynamic QR codes that auto-refresh AND generate expiring, ...",
+    "host_name": "ideas.gohighlevel.com",
+    "rank": 6,
+    "date": "Feb 23, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://loopyah.com",
+    "name": "QR Code Ticketing Systems Guide: How To Sell, Scan &",
+    "snippet": "Oct 31, 2025 — Make dynamic ( rotating ) QR your default for live access control and fraud prevention; keep static QR as a controlled backup for print/ ... Read more",
+    "host_name": "loopyah.com",
+    "rank": 7,
+    "date": "Oct 31, 2025",
+    "favicon": ""
+  }
+]

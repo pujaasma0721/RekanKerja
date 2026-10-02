@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://sense.tech",
+    "name": "UWB versus BLE positioning systems compared",
+    "snippet": "Aug 29, 2026 — For detailed indoor positioning , UWB is designed to provide significantly finer location accuracy than BLE in an appropriately planned ... Read more",
+    "host_name": "sense.tech",
+    "rank": 0,
+    "date": "Aug 29, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.minew.com",
+    "name": "IoT in Healthcare: Smart Monitoring & Patient Care Systems",
+    "snippet": "How to Use Beacons in Indoor Navigation. Bluetooth beacons are placed at intervals in a building , transmitting signals to smartphones via Bluetooth. An app ... Read more",
+    "host_name": "www.minew.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.bespacific.com",
+    "name": "Tracking Indoor Location, Movement and Desk Occupancy",
+    "snippet": "Nov 28, 2024 — Bluetooth, another wireless technology, can also be used to monitor indoor location . This can involve Wi-Fi access points that track Bluetooth ... Read more",
+    "host_name": "www.bespacific.com",
+    "rank": 2,
+    "date": "Nov 28, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.researchgate.net",
+    "name": "(PDF) Occupancy Monitoring Using BLE Beacons",
+    "snippet": "Apr 3, 2025 — In this paper, we propose an Intelligent Bluetooth Virtual Door (IBVD) OM system for the indoor /outdoor tracking of individuals using the ... Read more",
+    "host_name": "www.researchgate.net",
+    "rank": 3,
+    "date": "Apr 3, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://ozrobotics.com",
+    "name": "Programmable UUID Major Minor ibeacon Sensor Asset",
+    "snippet": "Bluetooth beacon H3 is widely used for asset tracking, proximity marketing, attendance, etc. is widely used in indoor positioning , patrol check-in, information ...",
+    "host_name": "ozrobotics.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.academia.edu",
+    "name": "(PDF) iBeacon-Based Smart Attendance Monitoring and",
+    "snippet": "iBeacon technology operates on Bluetooth Low Energy , enabling precise indoor positioning and attendance tracking. The system counters fake attendance",
+    "host_name": "www.academia.edu",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://teamsoftware.com",
+    "name": "Custom Location Technology for Your Distributed Workforce",
+    "snippet": "The increased broadcast message capacity of Bluetooth improves the effectiveness of beacons for safety and emergency management tracking applications. In ... Read more",
+    "host_name": "teamsoftware.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://scholarspace.manoa.hawaii.edu",
+    "name": "Unpacking People's Understandings of Bluetooth Beacon",
+    "snippet": "by Y Yao · 2019 · Cited by 21 — Wi-Fi is designed to provide local area network access, but it can also be used to track people in indoor positioning systems [15, 16]. Using satellite, Global ... Read more",
+    "host_name": "scholarspace.manoa.hawaii.edu",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]

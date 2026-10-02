@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://5.imimg.com",
+    "name": "Biometric integration Hub",
+    "snippet": "ZKteco device ... Realtime PUSH API with time interval control. JSON format, query params, Auth header supported. Cloud PULL support. No need to deploy SDK or API ... Read more",
+    "host_name": "5.imimg.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com",
+    "name": "Interface With ZKTeco | PDF | Integer (Computer Science)",
+    "snippet": "Nov 4, 2018 — The following article contains some useful old pieces of code, if you ever get your hands on a biometric device (fingerprint reader for Time &  ...",
+    "host_name": "www.scribd.com",
+    "rank": 1,
+    "date": "Nov 4, 2018",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.camsbiometrics.com",
+    "name": "payroll",
+    "snippet": "Biometric attendance device sending real-time attendance data through a dual API to two separate. Case study: Pushing attendance from one device to multiple ... Read more",
+    "host_name": "forum.camsbiometrics.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pypi.org",
+    "name": "zkteco-push-python-sdk",
+    "snippet": "Sep 17, 2024 — A Python SDK for ZKTeco Attendance Pull Communication Protocol. from PyPI's database. Released: Sep 17, 2024. Requires Python >=3.6 … by the ...",
+    "host_name": "pypi.org",
+    "rank": 3,
+    "date": "Sep 17, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.experts-exchange.com",
+    "name": "How to access zkTeco time attendance devices on mvc",
+    "snippet": "Sep 15, 2020 — Hello everyone, How to connect Fingerprint device with MVC web application and store it's data in sql database. I have ZKTeco finger print ... Read more",
+    "host_name": "www.experts-exchange.com",
+    "rank": 4,
+    "date": "Sep 15, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://4820964.app.netsuite.com",
+    "name": "ZKBio Access IVS_Leaflet_1st draft_20200910",
+    "snippet": "Access IVS is a lite web-based security platform developed by ZKTeco, Attendance Management, Video Surveillance, Door status real-time monitoring. Set  ...",
+    "host_name": "4820964.app.netsuite.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

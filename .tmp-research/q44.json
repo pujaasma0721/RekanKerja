@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://play.google.com/store/apps/details?id=id.my.gp5.mockchecker&hl=en_US",
+    "name": "Mock Checker - Apps on Google Play",
+    "snippet": "May 6, 2026 — Mock Checker acts as a practical fake GPS and smali patcher detector by collecting relevant device and location signals, then evaluating them ... Read more",
+    "host_name": "play.google.com",
+    "rank": 0,
+    "date": "May 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.appdome.com",
+    "name": "How to Detect Fake Location in Android Apps Using AI",
+    "snippet": "Jun 14, 2026 — Appdome's dynamic Detect Fake Location plugin for Android defends against GPS spoofing and location manipulation tools that falsify device ... Read more",
+    "host_name": "www.appdome.com",
+    "rank": 1,
+    "date": "Jun 14, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.getodk.org",
+    "name": "Restricting fake location application while collecting gps",
+    "snippet": "Aug 15, 2020 — Enumerators are able to use fake location application while collecting gps points with Collect android app . Steps to reproduce the problem:. Read more",
+    "host_name": "forum.getodk.org",
+    "rank": 2,
+    "date": "Aug 15, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Location spoofing vs Geo Location attendance. · Issue #1329",
+    "snippet": "Jan 17, 2024 — Would it be possible to add system to detect \"Allow mock Location \" settings in developer settings in Andriod and bypass mock location apps to ... Read more",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "Jan 17, 2024",
+    "favicon": ""
+  }
+]

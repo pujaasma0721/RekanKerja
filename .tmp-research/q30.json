@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://www.apideck.com",
+    "name": "HRIS API Integrations — 59+ HRIS Connectors",
+    "snippet": "Connect to 59+ hris platforms including Workday, Hibob (Legacy), BambooHR through one HRIS API. Build hris integrations in minutes with Apideck.",
+    "host_name": "www.apideck.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.getknit.dev",
+    "name": "Seamless HRIS & Payroll Integrations for EWA Platforms",
+    "snippet": "Sep 26, 2025 — Is your EWA platform struggling with complex HRIS and payroll integrations? You're not alone. Learn how a Unified API can automate data flow ... Read more",
+    "host_name": "www.getknit.dev",
+    "rank": 1,
+    "date": "Sep 26, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.merge.dev",
+    "name": "Folks HR API Integration - Build & Ship Faster with Merge",
+    "snippet": "Integrate Folks HR with your product —along with any other. HR & payroll. application. Connect your product to all the applications your customers use via ... Read more",
+    "host_name": "www.merge.dev",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://bamboohr.grouper.ie",
+    "name": "Corak integrasi HRIS API untuk penggajian, kewangan dan",
+    "snippet": "Jul 5, 2026 — Practical integration patterns for connecting an HRIS to payroll , finance and identity systems, with guidance on webhooks, polling, SSO, SCIM ... Read more",
+    "host_name": "bamboohr.grouper.ie",
+    "rank": 3,
+    "date": "Jul 5, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.apideck.com",
+    "name": "HRIS connector coverage",
+    "snippet": "Apideck developer docs: Unified APIs, SDKs, sample projects, and 200+ connectors to ship integrations faster.",
+    "host_name": "developers.apideck.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.merge.dev",
+    "name": "Folks HR - Merge.dev",
+    "snippet": "Merge syncs data from Folks HR at the intervals below based on your sync plan. For faster syncs, use Third-party Webhooks or Force Resync. Common Model, Manual ... Read more",
+    "host_name": "docs.merge.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

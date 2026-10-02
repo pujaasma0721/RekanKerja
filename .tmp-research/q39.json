@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://www.accountablehq.com",
+    "name": "Eaglesoft HIPAA Compliance Guide: Security Features,",
+    "snippet": "May 30, 2026 — This Eaglesoft HIPAA Compliance Guide walks you through the essential safeguards that keep Protected Health Information (PHI/ePHI) secure in ... Read more",
+    "host_name": "www.accountablehq.com",
+    "rank": 0,
+    "date": "May 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.okta.com",
+    "name": "Okta Secure Identity Commitment",
+    "snippet": "Jun 25, 2025 — Enhanced mobile device protections: We have improved our overall mobile device management (MDM) security posture through additional restrictions ... Read more 42 pages",
+    "host_name": "www.okta.com",
+    "rank": 1,
+    "date": "Jun 25, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.federalregister.gov",
+    "name": "Privacy Act of 1974; System of Records",
+    "snippet": "Dec 1, 2023 — Contractors and licensees are subject to contract controls and unannounced on-site audits and inspections. regulated with installed security ...",
+    "host_name": "www.federalregister.gov",
+    "rank": 2,
+    "date": "Dec 1, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://my-cpe.com",
+    "name": "IT Setup Guide For Remote Working",
+    "snippet": "Further to add one more Security Level we usually give our IP Addresses to bind the remote access of the. User. So, nobody beyond MYCPE ONE's network can ... Read more",
+    "host_name": "my-cpe.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.adaxbs.com",
+    "name": "Elevator Access Control System Archives",
+    "snippet": "Every selection is logged with time, user, and cab ID, giving security a clear audit trail . The result is predictable movement, fewer unauthorized visits ... Read more",
+    "host_name": "www.adaxbs.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.researchgate.net",
+    "name": "design and development of secure door access module",
+    "snippet": "Feb 6, 2026 — This work presents the design and implementation of a hybrid secure door access module based on multi-factor authentication principles. Read more",
+    "host_name": "www.researchgate.net",
+    "rank": 5,
+    "date": "Feb 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.salesforce.com",
+    "name": "Field Audit Trail",
+    "snippet": "The increased limit of 200 tracked fields per object further supports broader auditing needs and stricter compliance standards.",
+    "host_name": "help.salesforce.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cloudsecurityalliance.org",
+    "name": "AICMv1.1 Implementation Guidelines for Orchestrated",
+    "snippet": "Jun 22, 2026 — maintain comprehensive audit trails , consultants must adhere to your UEM policies, allow security audits of their devices if necessary, and ...",
+    "host_name": "cloudsecurityalliance.org",
+    "rank": 7,
+    "date": "Jun 22, 2026",
+    "favicon": ""
+  }
+]
