@@ -13,6 +13,8 @@ import { ActivityLogView } from "@/rekankerja/shared/components/settings/activit
 import { EsignAdminView } from "@/rekankerja/shared/components/settings/esign-view";
 // Task 28-a — Notifikasi WhatsApp (terimplementasi)
 import { WhatsAppConfigView } from "@/rekankerja/shared/components/settings/whatsapp-view";
+// Task 96 — AI: provider per-tenant + basis pengetahuan
+import { AiProviderView, AiKnowledgeView } from "@/rekankerja/shared/components/settings/ai-settings-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +43,9 @@ export function SettingsModule({ view }: { view: string }) {
   if (view === "esign") return <EsignAdminView />;
   // Task 28-a — kanal notifikasi WhatsApp
   if (view === "whatsapp") return <WhatsAppConfigView />;
+  // Task 96 — provider AI per-tenant + basis pengetahuan AI
+  if (view === "ai-provider") return <AiProviderView />;
+  if (view === "ai-knowledge") return <AiKnowledgeView />;
   return <LookupPage />;
 }
 

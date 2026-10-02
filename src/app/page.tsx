@@ -16,6 +16,8 @@ import { AuthDesignLab } from "@/rekankerja/shared/components/design/auth-design
 import { DashboardModule } from "@/rekankerja/shared/components/dashboard/dashboard-module";
 // PWA (Task 27-d) — registrasi service worker + banner instal aplikasi
 import { PwaRegister } from "@/rekankerja/shared/components/pwa/pwa-register";
+// Task 96 — widget chat AI mengambang (admin + ESS, self-gate via sesi)
+import { AiChatWidget } from "@/rekankerja/shared/components/ai-chat/ai-chat-widget";
 import { OrgModule } from "@/rekankerja/human-resource/components/org/org-module";
 import { PositionModule } from "@/rekankerja/human-resource/components/position/position-module";
 import { EmployeeModule } from "@/rekankerja/human-resource/components/employee/employee-module";
@@ -142,6 +144,7 @@ function PageInner() {
       </AppShell>
       )}
       </AuthGate>
+      <AiChatWidget />
       <PwaRegister />
     </I18nProvider>
   );

@@ -2911,3 +2911,39 @@ Verifikasi browser (agent-browser, admin hrd@mii.co.id):
 Stage Summary:
 - Hover menu admin kini mengikuti tema aksen global (7 pilihan: Biru/Emerald/Amber/Teal/Cyan/Violet/Rose) di light+dark, konsisten di rail + panel menu + label grup + sheet mobile
 - Bonus koherensi: state aktif ikut tint aksen (dulu abu netral) sehingga hover/aktif membentuk hierarki satu keluarga warna
+
+---
+Task ID: 96
+Agent: main (Z.ai Code)
+Task: AI Chatbot pintar (permintaan lengkap user): scope menu per akses pengguna + data pribadi sendiri, hanya topik RekanKerja (+ peraturan pemerintah HR), provider AI per-tenant di Pengaturan Sistem, bubble chat, chat bawahan/atasan + Ahli HR, knowledge base AI
+
+Arsitektur & artefak:
+- PRISMA (schema-tenant.prisma + tenant-ddl.sql regenerated + client regenerated): AiProviderConfig (singleton per tenant, apiKey TERENKRIPSI enc:v1:t via field-crypto), AiKnowledgeDoc (KB RAG), AiChatMessage (riwayat per AppUser×mode), DirectMessage (DM antar pengguna, index sender/recipient/createdAt + recipient/readAt)
+- scripts/migrate-ai-chat.ts: DDL idempoten 4 tabel; parity step "ai-chat" + gap check aiTablesOk; 4/4 schema dimigrasi (MII/Cahaya/Sentra/lle)
+- services/ai-provider.ts: provider "builtin" (z-ai-web-dev-sdk server-side, pola skill LLM — system sebagai pesan assistant pertama) | "openai" (fetch {baseUrl}/chat/completions Bearer key terenkripsi, timeout 45s); testProvider utk tombol Tes Koneksi
+- services/ai-chat-service.ts:
+  * resolveAiActor (mirror resolveMe): sesi → tenant db → AppUser → akses menu (super admin ALL / UserMenuAccess CUSTOM / ESS murni)
+  * buildSystemPrompt: SCOPE_RULES 7 poin (hanya RekanKerja; menu sesuai akses; pengecualian data pribadi; pengecualian peraturan ketenagakerjaan RI: UU 13/2003, PP 35/2021, UU 12/2022 TPKS, BPJS, PPh21/TER PMK 168/2023, UMP/UMK, SKB; tolak topik lain; bahasa ikut user; jangan mengarang)
+  * snapshot data pribadi: profil (posisi/unit/joinDate) + saldo cuti listBalances tahun berjalan per jenis (sisa/hak/terpakai/diajukan) + rekap presensi bulan berjalan per status
+  * RAG KB: dokumen aktif diskor kata-kunci (stopword ID) → top-3 ke prompt (fallback 1 teratas, cap 7200 char)
+  * kontak: atasan langsung + 2 tingkat + bawahan langsung (EmployeeAssignment.managerId validTo null) yang punya AppUser aktif + pesan terakhir + unread
+  * DM: listDm (100 terakhir, tandai dibaca) + sendDm (guard relasi hierarki 1-2 tingkat, notifikasi in-app pushNotification penerima)
+- API routes /api/rekankerja/ai/*: chat (GET riwayat/POST tanya 502-error ramah/DELETE clear), provider-config (GET publik tanpa key + PUT guard settings:ai-provider + GET ?action=test), knowledge (CRUD guard settings:ai-knowledge, audit ActivityLog), contacts, dm (GET ?with= / POST)
+- Widget ai-chat-widget.tsx (mount page.tsx samping PwaRegister — muncul di shell ADMIN dan ESS, self-gate sesi): tombol mengambang brand-accent (mobile bottom-24 di atas tab bar), panel 400px: 3 tab Asisten AI/Ahli HR/Kontak; bubble chat (user kanan aksen/AI kiri card) + typing dots + riwayat server + tombol hapus; Kontak: daftar relasi+unread → thread DM poll 5s
+- Settings: SETTINGS_NAV grup "AI & Pengetahuan" (Provider AI/Basis Pengetahuan AI) + settings-module mapping + ai-settings-view.tsx (pilihan kartu provider, apiKey password terenkripsi tak pernah dikirim balik, switch aktif, Tes Koneksi; KB: list kartu + dialog add/edit + switch aktif + AlertDialog hapus) + MENU_OPS settings:ai-provider/ai-knowledge (editor hak akses otomatis ikut SETTINGS_NAV)
+- Fix saat verifikasi: import requireMenuAction salah modul (tenant-db → services/menu-access) — 500 di tes koneksi
+
+Verifikasi browser (agent-browser, admin hrd@mii.co.id + ESS yusuf@mii.co.id):
+- ADMIN: "Berapa sisa jatah cuti saya?" → AI menjawab DATA NYATA (Cuti Tahunan 16.17 hari, hak 14, terpakai 1.5 — dari snapshot listBalances)
+- Scope: "Cuaca + resep rendang" → ditolak sopan ("saya tidak bisa memberikan informasi tentang cuaca atau resep…")
+- Ahli HR: "hak cuti melahirkan menurut peraturan terbaru?" → jawab PP 35/2021 3/4 bulan (regulasi diizinkan)
+- RAG: tambah KB "Kebijakan Cuti Tahunan MII 2026" → tanya "apakah sisa cuti bisa diuangkan?" → "Berdasarkan kebijakan internal PT Mitra Industri Internasional… tidak dapat diuangkan kecuali saat resign" (jawaban berubah sesuai KB!)
+- Kontak admin: Sri Wahyuni (ATASAN LANGSUNG, HR Director), Hartono Wijaksono (ATASAN 2 TINGKAT, CEO), Yusuf (BAWAHAN LANGSUNG) — kirim DM sukses (POST 201)
+- Settings: Pengaturan Sistem → AI & Pengetahuan → Provider AI (default Bawaan aktif, Tes Koneksi "Koneksi AI RekanKerja berhasil") + Basis Pengetahuan (dokumen tersimpan, edit/hapus/aktif tersedia)
+- ESS yusuf: "sisa cuti tahunan saya" → 15 hari (hak 12, terpakai 1) ✓; PPh 21 → dijawab sbg regulasi pemerintah ✓; "cara menjalankan run payroll & setting komponen upah" → DITOLAK ("menu di luar akses Anda… pengguna portal ESS") ✓; DM dari HRD masuk + balas dua arah ✓
+- Mobile 375px: bodyW=375 (0 overflow), tombol widget di atas tab bar ESS; VLM desktop: "well-proportioned, professional, distinct bubbles, no major defects"
+- Lint 0 error (2 warning pre-existing); dev.log bersih; health 200
+
+Stage Summary:
+- AI chatbot end-to-end dengan disiplin scope sesuai permintaan (menu akses + data pribadi + regulasi pemerintah); provider per-tenant (builtin z-ai / OpenAI-compatible terenkripsi); bubble chat widget di admin+ESS; chat manusia bawahan/atasan + notifikasi; knowledge base RAG terbukti mengubah jawaban AI
+- PENTING utk pull berikutnya: schema-tenant berubah → prisma generate wajib (pola Task 93); DDL tenant lama via parity step ai-chat

@@ -2196,6 +2196,56 @@ CREATE TABLE "SignatureChallenge" (
     CONSTRAINT "SignatureChallenge_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "AiProviderConfig" (
+    "id" TEXT NOT NULL,
+    "provider" TEXT NOT NULL DEFAULT 'builtin',
+    "apiKey" TEXT,
+    "baseUrl" TEXT,
+    "model" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AiProviderConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AiKnowledgeDoc" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AiKnowledgeDoc_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AiChatMessage" (
+    "id" TEXT NOT NULL,
+    "appUserId" TEXT NOT NULL,
+    "mode" TEXT NOT NULL DEFAULT 'assistant',
+    "role" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AiChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DirectMessage" (
+    "id" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DirectMessage_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2636,6 +2686,18 @@ CREATE INDEX "SignatureRecord_signedAt_idx" ON "SignatureRecord"("signedAt");
 
 -- CreateIndex
 CREATE INDEX "SignatureChallenge_appUserId_createdAt_idx" ON "SignatureChallenge"("appUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AiKnowledgeDoc_active_idx" ON "AiKnowledgeDoc"("active");
+
+-- CreateIndex
+CREATE INDEX "AiChatMessage_appUserId_mode_createdAt_idx" ON "AiChatMessage"("appUserId", "mode", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "DirectMessage_senderId_recipientId_createdAt_idx" ON "DirectMessage"("senderId", "recipientId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "DirectMessage_recipientId_readAt_idx" ON "DirectMessage"("recipientId", "readAt");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

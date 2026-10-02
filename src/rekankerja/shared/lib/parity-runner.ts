@@ -188,6 +188,9 @@ const STEPS: Step[] = [
   // 52-f: kanal whistleblowing TPKS (UU 12/2022 Ps.22-24) — tabel
   // WhistleblowReport (CREATE IF NOT EXISTS + index, idempoten).
   { key: "whistleblow", label: "Task 52-f — tabel WhistleblowReport (kanal laporan TPKS)", run: (s) => import("../../../../scripts/migrate-whistleblow").then((m) => m.main(s)) },
+  // Task 96 — AI Assistant: 4 tabel (AiProviderConfig/AiKnowledgeDoc/
+  // AiChatMessage/DirectMessage) — CREATE IF NOT EXISTS idempoten.
+  { key: "ai-chat", label: "Task 96 — tabel AI Assistant (provider KB riwayat-chat DM)", run: (s) => import("../../../../scripts/migrate-ai-chat").then((m) => m.main(s)) },
   // Task 54 (BPA-AUDIT-53 "perbaiki semua"): F-02 tabel TER resmi PMK
   // 168/2023 (44/40/41 lapisan, max 34%) + F-07 cuti melahirkan 3+3 UU KIA
   // Ps.4(3)(a) + F-08 kutipan deskripsi + F-06 komponen PKWT_KOMP/PKWT_TAX.
@@ -300,6 +303,11 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'WhistleblowReport' AND table_schema = ANY($1::text[])`,
     );
+    // Task 96 — tabel AI Assistant belum ada di schema mana pun = gap.
+    const aiTablesOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'AiProviderConfig' AND table_schema = ANY($1::text[])`,
+    );
     // Task 58-b — gap PLATFORM (bukan per-tenant): kolom Tenant.companyCode.
     // Kegagalan koneksi platform TIDAK boleh jadi false positive → anggap OK.
     let companyCodeOk = true;
@@ -338,6 +346,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (pkwtFinalOk < schemas.length) reasons.push(`${schemas.length - pkwtFinalOk} tenant PKWT_KOMP belum SeveranceFinal (F-06)`);
     if (piiPlainOk > 0) reasons.push(`${piiPlainOk} tenant dengan PII lanjutan masih plaintext (Task 52-d)`);
     if (wbtOk < schemas.length) reasons.push(`${schemas.length - wbtOk} tenant tanpa tabel WhistleblowReport (Task 52-f)`);
+    if (aiTablesOk < schemas.length) reasons.push(`${schemas.length - aiTablesOk} tenant tanpa tabel AI Assistant (Task 96)`);
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
@@ -389,7 +398,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (medWave3Ok < medTypeTables)
       reasons.push(`${medTypeTables - medWave3Ok} tenant tanpa kolom wave3 medical: MedicalBenefitType.needLetter (fix 92)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok) };
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok) };
   } finally {
     await c.end();
   }

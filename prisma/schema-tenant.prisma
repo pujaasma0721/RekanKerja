@@ -2809,3 +2809,63 @@ model SignatureChallenge {
 
   @@index([appUserId, createdAt])
 }
+
+// ============ TASK 96 — AI ASSISTANT (chatbot pintar per-tenant) ============
+// 4 tabel pendukung: konfigurasi provider AI per tenant (setiap perusahaan
+// boleh pakai provider sendiri), basis pengetahuan (RAG), riwayat chat AI
+// per pengguna×mode, dan pesan langsung antar pengguna (bawahan/atasan).
+// Tanpa relasi FK ke AppUser — idem pola WhistleblowReport (kolom polos +
+// index) supaya DDL idempoten lintas versi schema.
+
+// Konfigurasi provider AI tenant (satu baris — singleton by convention).
+//   provider "builtin" → LLM bawaan RekanKerja (z-ai-web-dev-sdk server-side).
+//   provider "openai"  → endpoint OpenAI-compatible milik tenant sendiri
+//                        (baseUrl + model + apiKey TERENKRIPSI enc:v1:t:…).
+model AiProviderConfig {
+  id        String   @id @default(cuid())
+  provider  String   @default("builtin") // builtin | openai
+  apiKey    String? // terenkripsi (enc:v1:t:… — field-crypto per-tenant)
+  baseUrl   String? // mis. https://api.openai.com/v1
+  model     String? // mis. gpt-4o-mini
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+// Basis pengetahuan AI (menu Pengaturan → Basis Pengetahuan) — dokumen
+// aktif diinjeksi ke system prompt (RAG sederhana skor kata-kunci).
+model AiKnowledgeDoc {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  active    Boolean  @default(true)
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+// Riwayat percakapan AI per AppUser × mode (assistant | hr_expert).
+model AiChatMessage {
+  id        String   @id @default(cuid())
+  appUserId String
+  mode      String   @default("assistant") // assistant | hr_expert
+  role      String // user | assistant
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([appUserId, mode, createdAt])
+}
+
+// Pesan langsung antar pengguna (bawahan ↔ atasan) — 1:1, tanpa thread.
+model DirectMessage {
+  id          String    @id @default(cuid())
+  senderId    String
+  recipientId String
+  body        String
+  readAt      DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, readAt])
+}

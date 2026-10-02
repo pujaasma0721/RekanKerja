@@ -38,7 +38,7 @@ import {
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
-  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature,
+  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -266,6 +266,11 @@ export const SETTINGS_NAV: NavGroup[] = [
     { id: "audit", label: "Log Aktivitas", icon: ScrollText },
     // 80d — kelola kunci/PIN tanda tangan elektronik + audit rantai
     { id: "esign", label: "eSign", icon: FileSignature },
+  ] },
+  // Task 96 — AI: provider per-tenant + basis pengetahuan (RAG chatbot)
+  { section: "settings", label: "AI & Pengetahuan", children: [
+    { id: "ai-provider", label: "Provider AI", icon: Bot },
+    { id: "ai-knowledge", label: "Basis Pengetahuan AI", icon: BookOpen },
   ] },
 ];
 

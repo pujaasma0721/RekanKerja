@@ -188,6 +188,12 @@ export const MENU_OPS: Record<string, MenuOpDef[]> = {
     { key: "test", label: "Mengirim pesan WhatsApp uji", hint: "Tombol Tes Kirim pada konfigurasi provider WhatsApp" },
   ],
 
+  // Task 96 — AI: mengubah provider AI tenant & mengelola basis pengetahuan
+  "settings:ai-provider": [
+    { key: "test", label: "Menguji koneksi provider AI", hint: "Tombol Tes Koneksi pada Provider AI (Pengaturan)" },
+  ],
+  "settings:ai-knowledge": [],
+
   // wave 28 — report builder: menjalankan & mengekspor laporan kustom
   "hr:custom-reports": [
     { key: "run", label: "Menjalankan laporan kustom", hint: "Tombol Jalankan pada laporan kustom tersimpan" },
