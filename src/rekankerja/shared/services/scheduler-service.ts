@@ -928,6 +928,103 @@ async function jobAnnualPtkpRefresh(db: TenantDb): Promise<number> {
   return r.employees;
 }
 
+// Task 99 (F0-2, audit G2) — job tahunan modul Leave (otomasi siklus saldo):
+//   · NOVEMBER  : pengingat agregat ke HR — karyawan dengan saldo bawa yang
+//                 akan HANGUS 31 Des (use-it-or-lose-it nudge; marker per tahun).
+//   · DESEMBER  : pengingat ke HR utk generate saldo tahun depan (marker per
+//                 tahun; hanya bila belum ada baris saldo tahun depan).
+//   · JAN–MAR   : fill-missing otomatis — generateLeaveInfo(skipExisting) untuk
+//                 karyawan aktif yang belum punya baris saldo tahun berjalan
+//                 (baris existing TIDAK disentuh — edit manual HR terjaga);
+//                 notifikasi ke HR hanya saat ada baris yang benar dibuat.
+async function jobLeaveYearEnd(db: TenantDb): Promise<{ rows: number; notif: number }> {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-based
+  let notif = 0;
+  let rows = 0;
+  try {
+    if (m === 10) {
+      // November — pengingat hangus (marker tahunan, mirror pola PTKP)
+      const marker = `leave-hangus-${y}`;
+      const done = await db.activityLog.findFirst({
+        where: { action: "Scheduled", entity: "LeaveYearEnd", entityId: marker },
+        select: { id: true },
+      });
+      if (!done) {
+        const withCarry = await db.leaveBalance.count({ where: { year: y, carriedOver: { gt: 0 } } });
+        if (withCarry > 0) {
+          await notifyEvent(db, {
+            to: "admins", docType: "Leave", docNo: `LEAVE-${y}`,
+            title: `Sisa saldo bawa cuti hangus 31 Des ${y}`,
+            body: `${withCarry} baris saldo masih menyimpan hari bawa (carry-over) yang hangus otomatis 31 Des ${y}. Ingatkan karyawan memakai / menguangkan sisa saldo, atau lakukan penyesuaian.`,
+            kind: "leave", link: "leave:leave-info",
+          });
+          notif++;
+        }
+        await db.activityLog.create({
+          data: {
+            action: "Scheduled", entity: "LeaveYearEnd", entityId: marker,
+            detail: `Pengingat hangus carry-over ${y}: ${withCarry} baris saldo bawa aktif`,
+          },
+        });
+      }
+    }
+    if (m === 11) {
+      // Desember — pengingat generate tahun depan (marker tahunan)
+      const marker = `leave-gen-${y + 1}`;
+      const done = await db.activityLog.findFirst({
+        where: { action: "Scheduled", entity: "LeaveYearEnd", entityId: marker },
+        select: { id: true },
+      });
+      const nextYearRows = await db.leaveBalance.count({ where: { year: y + 1 } });
+      if (!done && nextYearRows === 0) {
+        await notifyEvent(db, {
+          to: "admins", docType: "Leave", docNo: `LEAVE-${y + 1}`,
+          title: `Generate saldo cuti tahun ${y + 1}`,
+          body: `Saldo cuti tahun ${y + 1} belum dibuat. Buka modul Leave → Informasi Cuti → Generate Leave Information sebelum 31 Des agar carry-over terhitung — atau biarkan job Januari mengisi otomatis (fill-missing).`,
+          kind: "leave", link: "leave:leave-info",
+        });
+        notif++;
+      }
+      await db.activityLog.create({
+        data: {
+          action: "Scheduled", entity: "LeaveYearEnd", entityId: marker,
+          detail: `Pengingat generate saldo ${y + 1}: ${nextYearRows} baris tahun depan sudah ada`,
+        },
+      });
+    }
+    if (m <= 2) {
+      // Jan–Mar — fill-missing: hanya buat baris yang BELUM ada (skipExisting)
+      const active = await db.employee.count({ where: { status: "Active" } });
+      if (active > 0) {
+        const have = await db.leaveBalance.findMany({
+          where: { year: y },
+          select: { employeeId: true },
+          distinct: ["employeeId"],
+        });
+        if (have.length < active) {
+          const { generateLeaveInfo } = await import("@/rekankerja/leave/services/leave-service");
+          const r = await generateLeaveInfo(db, { year: y, skipExisting: true });
+          rows = r.rows;
+          if (r.rows > 0) {
+            await notifyEvent(db, {
+              to: "admins", docType: "Leave", docNo: `LEAVE-${y}`,
+              title: `Saldo cuti ${y} dilengkapi otomatis`,
+              body: `${r.rows} baris saldo cuti tahun ${y} dibuat otomatis untuk karyawan aktif yang belum punya baris (fill-missing; carry-over dihitung 31-12-${y - 1}). Baris yang sudah ada tidak diubah.`,
+              kind: "leave", link: "leave:leave-info",
+            });
+            notif++;
+          }
+        }
+      }
+    }
+  } catch {
+    // tabel leave belum termigrasi di tenant ini → skip senyap (mirror pola lain)
+  }
+  return { rows, notif };
+}
+
 async function jobNotificationHousekeeping(db: TenantDb): Promise<number> {
   try {
     const cutoff = new Date(Date.now() - NOTIFICATION_RETENTION_DAYS * DAY_MS);
@@ -953,6 +1050,9 @@ export interface SchedulerJobCounts {
   /** T49 — karyawan yang status PTKP-nya disinkronkan dari data keluarga
    *  oleh job tahunan (paling signifikan pada siklus pertama tiap 1 Januari). */
   ptkpYearlySynced: number;
+  /** Task 99 (F0-2) — baris saldo cuti yang dibuat otomatis job leave-tahunan
+   *  (fill-missing Januari; pengingat Des/Nov dikirim sebagai notifikasi). */
+  leaveYearEndRows: number;
 }
 
 export interface SchedulerRunResult {
@@ -992,6 +1092,7 @@ export async function runAllJobs(
     notificationsPruned: 0,
     webhookRetried: 0,
     ptkpYearlySynced: 0,
+    leaveYearEndRows: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1057,6 +1158,13 @@ export async function runAllJobs(
   await guarded("ptkp-tahunan", async () => {
     jobs.ptkpYearlySynced = await jobAnnualPtkpRefresh(db);
   });
+  // Task 99 (F0-2) — otomasi siklus tahunan saldo cuti: pengingat hangus (Nov),
+  // pengingat generate tahun depan (Des), fill-missing otomatis (Jan–Mar).
+  await guarded("leave-tahunan", async () => {
+    const r = await jobLeaveYearEnd(db);
+    jobs.leaveYearEndRows = r.rows;
+    notificationsSent += r.notif;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1072,6 +1180,7 @@ export async function runAllJobs(
     (templatesSeeded > 0 ? `, ${templatesSeeded} template baru` : "") +
     (jobs.webhookRetried > 0 ? `, ${jobs.webhookRetried} webhook retry` : "") +
     (jobs.ptkpYearlySynced > 0 ? `, ${jobs.ptkpYearlySynced} PTKP disinkronkan dari data keluarga` : "") +
+    (jobs.leaveYearEndRows > 0 ? `, ${jobs.leaveYearEndRows} baris saldo cuti dibuat otomatis (fill-missing)` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

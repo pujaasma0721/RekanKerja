@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { RequestRowUI, LEAVE_STATUS_LABEL, LEAVE_STATUS_LABEL_EN, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
-import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Ban, Inbox, Search, CalendarClock, ShieldCheck, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
@@ -38,6 +38,25 @@ export function LeaveApprovalPage() {
   const requests = useMemo(() => (api.data?.requests ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
+
+  // Task 99 (F2-1) — bendera risiko pola cuti per baris Submitted (padanan
+  // panel "Anomali terdeteksi" travel approval; bantuan approver ala Bradford).
+  const riskBadges = (r: RequestRowUI): { label: string; tone: "amber" | "rose" }[] => {
+    if (!r.risk) return [];
+    const out: { label: string; tone: "amber" | "rose" }[] = [];
+    if (r.risk.mondayFriday >= 2) {
+      out.push({ label: t("Pola Senin/Jumat ×{n}", "Monday/Friday pattern ×{n}", { n: r.risk.mondayFriday }), tone: "amber" });
+    }
+    if (r.risk.shortLeaves60d >= 3) {
+      out.push({ label: t("Cuti pendek sering ×{n}/60hr", "Frequent short leaves ×{n}/60d", { n: r.risk.shortLeaves60d }), tone: "amber" });
+    }
+    if (r.risk.monthsSinceLastAnnual === null) {
+      out.push({ label: t("Belum pernah cuti tahunan", "Never taken annual leave"), tone: "rose" });
+    } else if (r.risk.monthsSinceLastAnnual >= 6) {
+      out.push({ label: t("Tanpa cuti tahunan {n} bln", "Without annual leave {n} mo", { n: r.risk.monthsSinceLastAnnual }), tone: "rose" });
+    }
+    return out;
+  };
 
   const openDialog = (r: RequestRowUI, a: Action) => {
     setTarget(r);
@@ -93,7 +112,9 @@ export function LeaveApprovalPage() {
           { label: t("Menunggu Keputusan", "Awaiting Decision"), value: stats?.submitted ?? 0, sub: t("permintaan cuti", "leave requests"), icon: Inbox, hero: true },
           { label: t("Total Hari Diminta", "Total Days Requested"), value: stats?.pendingDays ?? 0, sub: t("akumulasi hari kerja", "working days accumulated"), icon: CalendarClock },
           { label: t("Efek Approve", "Approve Effect"), value: "OnLeave", sub: t("status rekap absensi", "attendance recap status"), icon: ShieldCheck },
-          { label: t("Dokumen Wajib", "Required Documents"), value: String(requests.filter((r) => r.leaveTypeCode.startsWith("CT-MATI") || r.leaveTypeCode === "CT-NIKAH" || r.leaveTypeCode.startsWith("CT-KHITAN")).length), sub: t("perlu verifikasi dokumen", "need document verification"), icon: CheckCircle2 },
+          // Task 99 (F2-1) — pakai bendera needDocs dari master jenis cuti
+          // (sebelumnya heuristik prefix kode CT-MATI/NIKAH/KHITAN).
+          { label: t("Dokumen Wajib", "Required Documents"), value: String(requests.filter((r) => r.needDocs).length), sub: t("jenis butuh dokumen — verifikasi", "types need documents — verify"), icon: CheckCircle2 },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -154,6 +175,22 @@ export function LeaveApprovalPage() {
                       <TableCell>
                         <p className="text-xs text-slate-700 dark:text-slate-200">{r.leaveTypeName}</p>
                         <p className="max-w-52 truncate text-[10px] text-slate-400" title={r.reason ?? ""}>{r.reason}</p>
+                        {(() => {
+                          const badges = riskBadges(r);
+                          return badges.length > 0 ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-1" title={t("Sinyal pola cuti — periksa sebelum menyetujui", "Leave-pattern signals — review before approving")}>
+                              <ShieldAlert className="h-3 w-3 shrink-0 text-amber-500" />
+                              {badges.map((b) => (
+                                <span key={b.label} className={cn("inline-flex whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[9px] font-bold",
+                                  b.tone === "amber"
+                                    ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
+                                    : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400")}>
+                                  {b.label}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null;
+                        })()}
                       </TableCell>
                       <TableCell className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                         {new Date(r.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionFrom], SESSION_LABEL_EN[r.sessionFrom])} → {new Date(r.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })} {t(SESSION_LABEL[r.sessionTo], SESSION_LABEL_EN[r.sessionTo])}

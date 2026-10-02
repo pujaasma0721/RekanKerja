@@ -1,7 +1,7 @@
 "use client";
 // RekanKerja Leave — Cuti Massal (SKB cuti bersama, padanan MassLeave.jsp):
 // generate baris permintaan per karyawan org + exclude hari non-kerja & bentrok.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { LeaveTypeRow, MassLeaveRowUI } from "./leave-types";
+import { LeaveTypeRow, MassLeaveRowUI, RequestRowUI } from "./leave-types";
 import { Users, Plus, Megaphone, CalendarDays, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
@@ -33,6 +33,9 @@ export function LeaveMassPage() {
 
   const api = useApi<{ massLeaves: MassLeaveRowUI[] }>("/api/rekankerja/leave/mass");
   const typesApi = useApi<{ types: LeaveTypeRow[] }>("/api/rekankerja/leave/types");
+  // Task 99 (F1-7) — saran nama unit (datalist) dari riwayat cuti massal +
+  // baris permintaan cuti (orgUnitName) — mengurangi typo, tanpa API baru.
+  const reqsApi = useApi<{ requests: RequestRowUI[] }>("/api/rekankerja/leave/requests");
 
   const submit = async () => {
     if (!form.leaveTypeId) { toast.error(t("Jenis cuti wajib dipilih", "Leave type is required")); return; }
@@ -62,6 +65,13 @@ export function LeaveMassPage() {
   };
 
   const rows = api.data?.massLeaves ?? [];
+
+  const orgOptions = useMemo(() => {
+    const orgs = new Set<string>();
+    for (const m of rows) if (m.orgUnitName) orgs.add(m.orgUnitName);
+    for (const r of reqsApi.data?.requests ?? []) if (r.orgUnitName) orgs.add(r.orgUnitName);
+    return [...orgs].sort();
+  }, [rows, reqsApi.data]);
 
   return (
     <div>
@@ -196,7 +206,17 @@ export function LeaveMassPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">{t("Organisasi (kosong = semua)", "Organization (empty = all)")}</Label>
-              <Input value={form.orgUnitName} onChange={(e) => setForm({ ...form, orgUnitName: e.target.value })} placeholder={t("mis. PRODUKSI (termasuk sub-org)", "e.g. PRODUCTION (incl. sub-orgs)")} className="h-8 text-xs" />
+              <Input
+                value={form.orgUnitName}
+                onChange={(e) => setForm({ ...form, orgUnitName: e.target.value })}
+                placeholder={t("mis. PRODUKSI (termasuk sub-org)", "e.g. PRODUCTION (incl. sub-orgs)")}
+                list="leave-mass-org-options"
+                className="h-8 text-xs"
+              />
+              <datalist id="leave-mass-org-options">
+                {orgOptions.map((o) => <option key={o} value={o} />)}
+              </datalist>
+              <p className="text-[10px] text-slate-400">{t("Kosong = seluruh organisasi; nama unit / prefix = termasuk sub-unit. Saran diambil dari unit yang dikenal sistem.", "Empty = the entire organization; unit name / prefix = includes sub-units. Suggestions come from units known to the system.")}</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold">{t("Catatan")}</Label>

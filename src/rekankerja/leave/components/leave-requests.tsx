@@ -13,11 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { RequestRowUI, LeaveTypeRow, EmployeeOption, LEAVE_STATUS_LABEL, SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
-import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2 } from "lucide-react";
+import { Inbox, Plus, Search, CalendarClock, Send, Ban, CheckCircle2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
@@ -56,6 +57,11 @@ export function LeaveRequestsPage() {
     employeeId: "", leaveTypeId: "", dateFrom: todayISO(), sessionFrom: "AM",
     dateTo: todayISO(), sessionTo: "PM", reason: "", note: "",
   });
+  // Task 99 (F1-1) — pembatalan via AlertDialog: alasan OPSIONAL untuk yang
+  // masih Menunggu, WAJIB untuk cuti yang sudah efektif (Approved/MassLeave).
+  const [cancelTarget, setCancelTarget] = useState<RequestRowUI | null>(null);
+  const [cancelNote, setCancelNote] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di service).
   const [sortKey, setSortKey] = useState<"doc" | "employee" | "type" | "dateFrom" | "workingDays" | "remaining" | "backToWork" | "status">("dateFrom");
@@ -112,15 +118,39 @@ export function LeaveRequestsPage() {
     } finally { setBusy(false); }
   };
 
-  const cancelRequest = async (r: RequestRowUI) => {
-    if (r.status !== "Submitted") { toast.error(t("Hanya permintaan berstatus Menunggu yang bisa dibatalkan", "Only requests in Pending status can be cancelled")); return; }
+  const cancelEffective = (r: RequestRowUI) => r.status === "Approved" || r.status === "MassLeave";
+
+  const openCancel = (r: RequestRowUI) => {
+    setCancelTarget(r);
+    setCancelNote("");
+  };
+
+  const cancelRequest = async () => {
+    const r = cancelTarget;
+    if (!r) return;
+    // cuti yang sudah efektif → alasan WAJIB (dibutuhkan service; tercatat ke karyawan)
+    if (cancelEffective(r) && !cancelNote.trim()) {
+      toast.error(t("Alasan pembatalan wajib diisi untuk cuti yang sudah efektif", "A cancellation reason is required for leave that is already effective"));
+      return;
+    }
+    setCancelBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; status: string }>("/api/rekankerja/leave/requests", "PATCH", { id: r.id, action: "cancel", note: "Dibatalkan pemberi kuasa" });
-      toast.success(t("{doc} dibatalkan", "{doc} cancelled", { doc: res.docNo }));
+      const res = await apiSend<{ docNo: string; status: string; regeneratedDays: number }>(
+        "/api/rekankerja/leave/requests", "PATCH",
+        { id: r.id, action: "cancel", note: cancelNote.trim() ? cancelNote.trim() : undefined },
+      );
+      toast.success(
+        cancelEffective(r)
+          ? t("{doc} dibatalkan — saldo dipulihkan, {n} hari rekap absensi diregenerasi", "{doc} cancelled — balance restored, {n} days of the attendance recap regenerated", { doc: res.docNo, n: res.regeneratedDays })
+          : t("{doc} dibatalkan", "{doc} cancelled", { doc: res.docNo }),
+        { duration: 6000 },
+      );
+      setCancelTarget(null);
       api.refresh();
     } catch (e) {
+      // server menolak race (status berubah dsb.) — pesan asli ditampilkan
       toast.error(e instanceof Error ? e.message : t("Gagal membatalkan", "Failed to cancel"));
-    }
+    } finally { setCancelBusy(false); }
   };
 
   const stats = api.data?.stats;
@@ -198,7 +228,7 @@ export function LeaveRequestsPage() {
                     <ServerSortHead label={t("Sisa Saldo", "Remaining Balance")} active={sortKey === "remaining"} dir={sortDir} onClick={() => clickSort("remaining")} className="text-right text-[11px] font-bold" />
                     <ServerSortHead label={t("Kembali Kerja", "Back to Work")} active={sortKey === "backToWork"} dir={sortDir} onClick={() => clickSort("backToWork")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} className="text-[11px] font-bold" />
-                    <TableHead className="w-20" />
+                    <TableHead className="w-32" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -227,11 +257,23 @@ export function LeaveRequestsPage() {
                       <TableCell className="text-[11px] text-slate-500">
                         {r.backToWorkDate ? <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3 text-slate-400" />{new Date(r.backToWorkDate).toLocaleDateString(locale, { day: "2-digit", month: "short" })}</span> : "—"}
                       </TableCell>
-                      <TableCell><StatusPill status={r.status === "Submitted" ? "Submitted" : r.status === "Approved" || r.status === "MassLeave" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Cancelled"} /></TableCell>
                       <TableCell>
-                        {r.status === "Submitted" && perms.canOp("leave", "leave-request", "cancel") && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => cancelRequest(r)} title={t("Batalkan", "Cancel")}>
+                        <StatusPill status={r.status === "Submitted" ? "Submitted" : r.status === "Approved" || r.status === "MassLeave" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Cancelled"} />
+                        {(r.status === "Cancelled" || r.status === "Rejected") && r.decisionNote && (
+                          <p className="mt-0.5 max-w-36 truncate text-[10px] italic text-slate-400" title={r.decisionNote}>
+                            {t("Alasan:", "Reason:")} {r.decisionNote}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {perms.canOp("leave", "leave-request", "cancel") && r.status === "Submitted" && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openCancel(r)} title={t("Batalkan", "Cancel")}>
                             <Ban className="h-3.5 w-3.5 text-slate-400" />
+                          </Button>
+                        )}
+                        {perms.canOp("leave", "leave-request", "cancel") && cancelEffective(r) && (
+                          <Button size="sm" variant="outline" onClick={() => openCancel(r)} className="h-7 gap-1 border-rose-200 px-2 text-[10px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/40">
+                            <Ban className="h-3 w-3" /> {t("Batalkan (efektif)", "Cancel (effective)")}
                           </Button>
                         )}
                       </TableCell>
@@ -363,6 +405,61 @@ export function LeaveRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task 99 (F1-1) — konfirmasi pembatalan: alasan opsional (Menunggu) /
+          wajib (Approved/MassLeave — cuti sudah efektif). */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-sm">
+              <Ban className="h-4 w-4 text-rose-600" />
+              {cancelTarget && cancelEffective(cancelTarget)
+                ? t("Batalkan cuti efektif {doc}?", "Cancel effective leave {doc}?", { doc: cancelTarget.docNo })
+                : t("Batalkan permintaan {doc}?", "Cancel request {doc}?", { doc: cancelTarget?.docNo ?? "" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              {cancelTarget && (
+                <>
+                  {cancelTarget.docNo} — {cancelTarget.fullName} · {cancelTarget.leaveTypeName} · {fmtDay(cancelTarget.workingDays)} {t("hari kerja", "working days")} ·{" "}
+                  {new Date(cancelTarget.dateFrom).toLocaleDateString(locale, { day: "2-digit", month: "short" })} → {new Date(cancelTarget.dateTo).toLocaleDateString(locale, { day: "2-digit", month: "short" })}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {cancelTarget && cancelEffective(cancelTarget) && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <p>{t("Cuti sudah efektif — pembatalan memulihkan saldo & meregenerasi absensi; alasan wajib dan tercatat ke karyawan", "Leave is already effective — cancelling restores the balance & regenerates attendance; a reason is required and is recorded for the employee")}</p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold">
+              {cancelTarget && cancelEffective(cancelTarget)
+                ? t("Alasan Pembatalan *", "Cancellation Reason *")
+                : t("Alasan Pembatalan (opsional)", "Cancellation Reason (optional)")}
+            </Label>
+            <Textarea
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              placeholder={cancelTarget && cancelEffective(cancelTarget)
+                ? t("mis. salah rentang tanggal disetujui — dikoreksi pengajuan baru", "e.g. wrong date range approved — corrected via a new request")
+                : t("mis. karyawan mengajukan ulang dengan tanggal lain", "e.g. employee resubmitting with different dates")}
+              className="min-h-16 text-xs"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy} className="text-xs font-bold">{t("Kembali", "Back")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelBusy || (!!cancelTarget && cancelEffective(cancelTarget) && !cancelNote.trim())}
+              onClick={(e) => { e.preventDefault(); void cancelRequest(); }}
+              className="gap-1.5 bg-rose-600 text-xs font-bold text-white hover:bg-rose-700 focus-visible:ring-rose-600"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              {cancelBusy ? t("Memproses…", "Processing…") : t("Ya, Batalkan", "Yes, Cancel")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

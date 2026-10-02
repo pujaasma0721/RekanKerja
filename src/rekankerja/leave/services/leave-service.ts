@@ -124,6 +124,9 @@ interface TypeLite {
   maxPerRequest: number; paid: boolean; cashable: boolean; periodMode: string;
   prorateMonthly: boolean; carryOverMax: number; waitingMonths: number;
   allowAdvance: boolean; allowHalfDay: boolean; active: boolean;
+  // Task 99 — policy v2 ringan (audit Leave G10): notice period, batas hari
+  // berturut lintas permintaan, blackout dates. Default 0/[] = tanpa batas.
+  noticeDays: number; maxConsecutiveDays: number; blackoutDates: string;
 }
 
 // ============ Task 52-a — cuti khusus pekerja perempuan (UU 13/2003 Ps.82) ============
@@ -283,7 +286,10 @@ async function runTx<T>(db: TenantDb, fn: (tx: LeaveDb) => Promise<T>): Promise<
   throw lastErr;
 }
 
-/** Saldo satu karyawan×jenis×tahun (auto-buat bila belum ada). */
+/** Saldo satu karyawan×jenis×tahun (auto-buat bila belum ada).
+ *  Task 99 (F0-2, audit G2): baris tahun baru TIDAK LAGI diam-diam carry 0
+ *  saat HR lupa generate — carry dihitung SEKARANG dengan logika cermin
+ *  generateLeaveInfo (silent-loss fix). */
 async function ensureBalance(
   db: LeaveDb,
   employeeId: string,
@@ -294,9 +300,41 @@ async function ensureBalance(
     where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: type.id, year } },
   });
   if (existing) return existing;
+  const carriedOver = await computeCarryOver(db, employeeId, type, year);
   return db.leaveBalance.create({
-    data: { employeeId, leaveTypeId: type.id, year, note: "auto-generated dari permintaan" },
+    data: { employeeId, leaveTypeId: type.id, year, carriedOver, note: "auto-generated dari permintaan (carry-over dihitung otomatis)" },
   });
+}
+
+/** Task 99 (F0-2) — carry-over saat-membuat baris saldo baru: CERMIN logika
+ *  generateLeaveInfo (posisi 31-12 tahun lalu, clamp carryOverMax, rule-aware
+ *  point-in-time) supaya karyawan pertama yang mengajukan cuti di awal tahun
+ *  TIDAK kehilangan bawaan saldonya diam-diam (audit G2). */
+async function computeCarryOver(
+  db: LeaveDb,
+  employeeId: string,
+  type: TypeLite,
+  year: number,
+): Promise<number> {
+  if (type.carryOverMax <= 0) return 0;
+  const prev = await db.leaveBalance.findUnique({
+    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: type.id, year: year - 1 } },
+  });
+  if (!prev) return 0;
+  const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { joinDate: true } });
+  if (!emp) return 0;
+  const used = await db.leaveRequest.findMany({
+    where: { employeeId, leaveTypeId: type.id, year: year - 1, status: { in: ["Approved", "MassLeave"] } },
+    select: { workingDays: true, dateTo: true },
+  });
+  const lastYearEnd = new Date(year - 1, 11, 31, 23, 59, 59);
+  const [ctx, rules] = await Promise.all([
+    ruleContextForEmployee(db, employeeId, lastYearEnd),
+    leaveTypeRules(db, [type.id]),
+  ]);
+  const eff = entitlementFor(type.entitlement, rules.get(type.id), ctx);
+  const parts = computeParts(prev, type, emp, used, lastYearEnd, eff);
+  return round2(Math.max(0, Math.min(parts.remaining, type.carryOverMax)));
 }
 
 export interface RequestAvailability {
@@ -353,6 +391,95 @@ function isAnnualBalanceType(type: TypeLite): boolean {
   return type.prorateMonthly || type.carryOverMax > 0 || type.cashable || type.periodMode === "ANNIVERSARY";
 }
 
+// ============ Task 99 — policy engine v2 ringan (audit G10, benchmark pasar) ============
+
+/** Rentang blackout per jenis cuti — JSON [{from,to,note?}] (periode sibuk). */
+export interface BlackoutRange { from: string; to: string; note?: string }
+
+function parseBlackouts(type: TypeLite): BlackoutRange[] {
+  try {
+    const raw = JSON.parse(type.blackoutDates || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (r): r is BlackoutRange =>
+        !!r && typeof (r as BlackoutRange).from === "string" && typeof (r as BlackoutRange).to === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Guard blackout + notice period (Task 99) — dipakai preview & submit.
+ *  Blackout menolak rentang yang bertabrakan dengan periode sibuk; notice
+ *  period menolak pengajuan yang terlalu mepet tanggal mulai. */
+function assertPolicyWindows(type: TypeLite, from: Date, to: Date, today: Date): void {
+  for (const bo of parseBlackouts(type)) {
+    const bFrom = dayStart(new Date(bo.from + "T00:00:00"));
+    const bTo = dayStart(new Date(bo.to + "T00:00:00"));
+    if (from <= bTo && to >= bFrom) {
+      throw new Error(
+        `Periode sibuk (blackout) ${bo.from} → ${bo.to}${bo.note ? ` — ${bo.note}` : ""}: cuti ${type.name} tidak bisa diajukan pada rentang ini`,
+      );
+    }
+  }
+  if (type.noticeDays > 0) {
+    const lead = Math.floor((dayStart(from).getTime() - dayStart(today).getTime()) / 86400000);
+    if (lead < type.noticeDays) {
+      throw new Error(
+        `Cuti ${type.name} wajib diajukan minimal ${type.noticeDays} hari sebelum tanggal mulai (pengajuan ini ${lead < 0 ? "backdate" : `${lead} hari sebelumnya`})`,
+      );
+    }
+  }
+}
+
+/** Batas hari kerja BERTURUT lintas permintaan (Task 99): gabungkan
+ *  permintaan overlap/berdampingan (gap ≤ 3 hari kalender — menjangkau
+ *  akhir pekan) lalu hitung hari kerja run yang memuat pengajuan baru.
+ *  Mencegah "2 permintaan 6 hari berurutan" mengakali maxPerRequest. */
+async function assertMaxConsecutive(
+  db: TenantDb,
+  employeeId: string,
+  type: TypeLite,
+  from: Date,
+  to: Date,
+): Promise<void> {
+  if (!(type.maxConsecutiveDays > 0)) return;
+  const window = Math.min(Math.ceil(type.maxConsecutiveDays) + 3, 90);
+  const neighbors = await db.leaveRequest.findMany({
+    where: {
+      employeeId,
+      status: { in: ["Submitted", "Approved", "MassLeave"] },
+      dateFrom: { lte: addDays(to, window) },
+      dateTo: { gte: addDays(from, -window) },
+    },
+    select: { dateFrom: true, dateTo: true },
+  });
+  const intervals = [
+    ...neighbors.map((n) => ({ f: dayStart(n.dateFrom), t: dayStart(n.dateTo) })),
+    { f: dayStart(from), t: dayStart(to) },
+  ].sort((a, b) => a.f.getTime() - b.f.getTime());
+  const merged: { f: Date; t: Date }[] = [];
+  for (const iv of intervals) {
+    const last = merged[merged.length - 1];
+    if (last && iv.f.getTime() - last.t.getTime() <= 3 * 86400000) {
+      if (iv.t > last.t) last.t = iv.t;
+    } else {
+      merged.push({ ...iv });
+    }
+  }
+  const run = merged.find((m) => from >= m.f && from <= m.t);
+  if (!run) return;
+  let working = 0;
+  for (let d = new Date(run.f); d <= run.t && working <= type.maxConsecutiveDays; d = addDays(d, 1)) {
+    if (await isWorkday(db, employeeId, d)) working++;
+  }
+  if (working > type.maxConsecutiveDays) {
+    throw new Error(
+      `Total hari kerja berturut ${working} hari (termasuk permintaan yang berdampingan) melebihi batas ${type.maxConsecutiveDays} hari untuk ${type.name}`,
+    );
+  }
+}
+
 /** Guard backdate & validitas periode (fix L-03) — untuk submit & preview permintaan. */
 function assertRequestPeriod(
   type: TypeLite,
@@ -389,7 +516,7 @@ export interface GenerateResult {
 
 export async function generateLeaveInfo(
   db: TenantDb,
-  input: { year: number; leaveTypeId?: string; employeeIds?: string[] },
+  input: { year: number; leaveTypeId?: string; employeeIds?: string[]; skipExisting?: boolean },
 ): Promise<GenerateResult> {
   const types = (await db.leaveType.findMany({
     where: { active: true, ...(input.leaveTypeId ? { id: input.leaveTypeId } : {}) },
@@ -458,7 +585,11 @@ export async function generateLeaveInfo(
         carry = Math.max(0, Math.min(parts.remaining, type.carryOverMax));
       }
       const existing = existingMap.get(`${emp.id}|${type.id}`);
+      // Task 99 (F0-2) — skipExisting: mode fill-missing scheduler Januari — baris
+      // yang sudah ada TIDAK disentuh (carry-over hasil edit manual HR terjaga;
+      // hanya karyawan yang belum punya baris tahun berjalan yang dibuat).
       if (existing) {
+        if (input.skipExisting) { carryTotal += existing.carriedOver; continue; }
         if (existing.carriedOver !== carry) {
           await db.leaveBalance.update({
             where: { id: existing.id },
@@ -640,6 +771,10 @@ export async function previewRequest(
   const to = dayStart(new Date(input.dateTo));
   // L-03: guard backdate & periode berjalan (jenis saldo tahunan)
   assertRequestPeriod(type, emp, from, dayStart(new Date()));
+  // Task 99 — policy v2: blackout + notice period (preview menginformasikan
+  // penolakan sebelum submit, cermin guard submit).
+  assertPolicyWindows(type, from, to, dayStart(new Date()));
+  await assertMaxConsecutive(db, input.employeeId, type, from, to);
   const calc = await calculateRequestDays(db, input.employeeId, from, input.sessionFrom, to, input.sessionTo);
   const year = yearForDate(type, emp, from);
   // L-01: saldo preview memperhitungkan reservasi permintaan pending lain
@@ -680,6 +815,11 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
   // L-03: guard backdate & validitas periode (jenis saldo tahunan; jenis event
   // seperti nikah/duka mempertahankan perilaku lama — kejadian bisa lampau)
   assertRequestPeriod(type, emp, from, dayStart(asOf));
+
+  // Task 99 — policy v2 ringan (audit G10): blackout dates, notice period,
+  // dan batas hari kerja berturut lintas permintaan berdampingan.
+  assertPolicyWindows(type, from, to, dayStart(asOf));
+  await assertMaxConsecutive(db, input.employeeId, type, from, to);
 
   // masa kerja minimum (waiting period — padanan "takeable after 6 months")
   if (type.waitingMonths > 0 && monthsInService(emp.joinDate, asOf) < type.waitingMonths) {
@@ -789,7 +929,7 @@ export async function submitRequest(db: TenantDb, input: SubmitRequestInput): Pr
 
 export interface RequestRow {
   id: string; docNo: string; employeeId: string; employeeNo: string; fullName: string;
-  orgUnitName: string | null; leaveTypeName: string; leaveTypeCode: string; paid: boolean;
+  orgUnitName: string | null; leaveTypeName: string; leaveTypeCode: string; paid: boolean; needDocs: boolean;
   year: number; requestDate: Date; dateFrom: Date; sessionFrom: string;
   dateTo: Date; sessionTo: string; workingDays: number;
   balanceAtRequest: number; remainingAtRequest: number; backToWorkDate: Date | null;
@@ -797,11 +937,13 @@ export interface RequestRow {
   decisionNote: string | null; decidedAt: Date | null;
   /** ringkasan jalur approval berjenjang (Task 25) */
   approval: ChainSummary | null;
+  /** Task 99 (F2-1) — sinyal risiko pola cuti (hanya diminta approval inbox). */
+  risk?: LeaveRiskSignals | null;
 }
 
 export async function listRequests(
   db: TenantDb,
-  filter: { status?: string; employeeId?: string; year?: number; limit?: number; sortBy?: string; sortDir?: "asc" | "desc" } = {},
+  filter: { status?: string; employeeId?: string; year?: number; limit?: number; sortBy?: string; sortDir?: "asc" | "desc"; withRisk?: boolean } = {},
 ): Promise<RequestRow[]> {
   // Task 76 — sort server-side (whitelist; default terbaru dulu). Kolom relasi
   // via to-one: nama karyawan (employee), nama jenis cuti (leaveType).
@@ -830,22 +972,30 @@ export async function listRequests(
           assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 },
         },
       },
-      leaveType: { select: { name: true, code: true, paid: true } },
+      leaveType: { select: { name: true, code: true, paid: true, needDocs: true } },
     },
     orderBy: leaveOrderBy,
     take: filter.limit ?? 500,
   });
   const chainMap = await attachChainSummaries(db, "Leave", rows.map((r) => ({ id: r.id })));
+  // Task 99 (F2-1) — sinyal risiko pola cuti untuk approval inbox (smart):
+  // pola Senin/Jumat, frekuensi cuti pendek, lama tanpa cuti tahunan.
+  let riskMap: Map<string, LeaveRiskSignals> | null = null;
+  if (filter.withRisk) {
+    const submittedIds = [...new Set(rows.filter((r) => r.status === "Submitted").map((r) => r.employeeId))].slice(0, 100);
+    riskMap = await leaveRiskSignals(db, submittedIds);
+  }
   return rows.map((r) => ({
     id: r.id, docNo: r.docNo, employeeId: r.employeeId, employeeNo: r.employee.employeeNo,
     fullName: r.employee.fullName, orgUnitName: r.employee.assignments[0]?.orgUnit?.name ?? null,
-    leaveTypeName: r.leaveType.name, leaveTypeCode: r.leaveType.code, paid: r.leaveType.paid,
+    leaveTypeName: r.leaveType.name, leaveTypeCode: r.leaveType.code, paid: r.leaveType.paid, needDocs: r.leaveType.needDocs,
     year: r.year, requestDate: r.requestDate, dateFrom: r.dateFrom, sessionFrom: r.sessionFrom,
     dateTo: r.dateTo, sessionTo: r.sessionTo, workingDays: r.workingDays,
     balanceAtRequest: r.balanceAtRequest, remainingAtRequest: r.remainingAtRequest,
     backToWorkDate: r.backToWorkDate, status: r.status, source: r.source,
     reason: r.reason, note: r.note, decisionNote: r.decisionNote, decidedAt: r.decidedAt,
     approval: chainMap.get(r.id) ?? null,
+    risk: riskMap?.get(r.employeeId) ?? null,
   }));
 }
 
@@ -865,6 +1015,13 @@ export async function decideRequest(
 ): Promise<DecideRequestResult> {
   const req = await db.leaveRequest.findUnique({ where: { id: input.id }, include: { leaveType: true, employee: true } });
   if (!req) throw new Error("Permintaan tidak ditemukan");
+  // Task 99 (F0-1, audit G1) — pembatalan cuti yang SUDAH efektif (Approved /
+  // MassLeave) oleh admin/HR dengan alasan wajib: satu-satunya jalur pemulihan
+  // selain penyesuaian saldo manual. Saldo pulih otomatis (kolom f/g dihitung
+  // dinamis dari status dokumen).
+  if (input.action === "cancel" && (req.status === "Approved" || req.status === "MassLeave")) {
+    return cancelEffectiveRequest(db, req, input);
+  }
   if (req.status !== "Submitted") {
     throw new Error(`Permintaan sudah berstatus ${req.status} — hanya permintaan menunggu (Submitted) yang bisa diproses`);
   }
@@ -1028,6 +1185,111 @@ export async function decideRequest(
     },
   });
   return { docNo: req.docNo, status, regeneratedDays };
+}
+
+/** Task 99 (F0-1, audit G1) — batalkan cuti yang SUDAH efektif (Approved /
+ *  MassLeave) oleh admin/HR. Alasan WAJIB (tercatat ke karyawan via
+ *  decisionNote + ActivityLog). Saldo pulih otomatis karena taken/applied
+ *  dihitung dinamis dari status. Absensi: tanggal LAMPAU dihitung ulang dari
+ *  clock log (mirror reject — L-04), tanggal MASA DEPAN dihapus barisnya
+ *  (baris OnLeave usang tidak boleh menggantung; K-3 hanya melarang Absent
+ *  baru, tidak membersihkan OnLeave lama — makanya eksplisit dihapus). */
+async function cancelEffectiveRequest(
+  db: TenantDb,
+  req: { id: string; docNo: string; employeeId: string; dateFrom: Date; dateTo: Date; employee: { fullName: string }; leaveType: { name: string } },
+  input: { note?: string; actorId?: string },
+): Promise<DecideRequestResult> {
+  if (!input.note?.trim()) {
+    throw new Error("Pembatalan cuti yang sudah disetujui wajib menyertakan alasan (tercatat ke karyawan)");
+  }
+  const upd = await db.leaveRequest.updateMany({
+    where: { id: req.id, status: { in: ["Approved", "MassLeave"] } },
+    data: { status: "Cancelled", decidedById: input.actorId ?? null, decidedAt: new Date(), decisionNote: input.note.trim() },
+  });
+  if (upd.count === 0) throw new Error("Permintaan sudah diproses oleh pengguna lain — muat ulang daftar");
+
+  const { regenerateDaily } = await import("@/rekankerja/time-attendance/services/attendance-service");
+  const today = dayStart(new Date());
+  const futureDates: Date[] = [];
+  let regeneratedDays = 0;
+  for (let d = dayStart(req.dateFrom); d <= dayStart(req.dateTo); d = addDays(d, 1)) {
+    if (d > today) futureDates.push(new Date(d));
+    else {
+      await regenerateDaily(db, d, req.employeeId);
+      regeneratedDays++;
+    }
+  }
+  // tanggal depan: hapus baris absensi (OnLeave usang) — hari akan dihitung
+  // ulang saat tiba / saat ada clock; guard K-3 mencegah "Absent" fiktif.
+  if (futureDates.length > 0) {
+    await db.attendanceDaily.deleteMany({ where: { employeeId: req.employeeId, workDate: { in: futureDates } } });
+  }
+  await db.activityLog.create({
+    data: {
+      action: "Cancelled", entity: "LeaveRequest", entityId: req.docNo,
+      detail: `${req.docNo} (${req.employee.fullName}, ${req.leaveType.name}) dibatalkan OLEH ADMIN setelah efektif — ${input.note.trim()}`,
+    },
+  });
+  return { docNo: req.docNo, status: "Cancelled", regeneratedDays };
+}
+
+/** Task 99 (F0-3, audit G3) — ESS menarik (cancel) pengajuan cutinya sendiri
+ *  yang masih Submitted. Otorisasi = pemilik dokumen (bukan approver — chain
+ *  ditandai Cancelled dengan jejak "Ditarik pemohon"). Tanggal lampau
+ *  diregenerasi (mirror reject — L-04). */
+export async function cancelOwnRequest(
+  db: TenantDb,
+  input: { id: string; employeeId: string; note?: string; actorId?: string; actorName?: string },
+): Promise<{ docNo: string; status: string; regeneratedDays: number }> {
+  const req = await db.leaveRequest.findUnique({
+    where: { id: input.id },
+    include: { employee: { select: { fullName: true } }, leaveType: { select: { name: true } } },
+  });
+  if (!req) throw new Error("Permintaan tidak ditemukan");
+  if (req.employeeId !== input.employeeId) {
+    throw new Error("Akses ditolak: hanya pemohon yang bisa menarik pengajuan ini");
+  }
+  if (req.status !== "Submitted") {
+    throw new Error(`Hanya pengajuan yang masih menunggu persetujuan yang bisa ditarik (status saat ini ${req.status})`);
+  }
+  // chain → Cancelled (pemohon menarik dokumennya — bukan keputusan approver)
+  const chain = await getApprovalChain(db, "Leave", input.id);
+  if (chain && chain.status === "InProgress") {
+    const now = new Date();
+    await db.approvalChain.updateMany({
+      where: { id: chain.id, status: "InProgress" },
+      data: { status: "Cancelled", completedAt: now },
+    });
+    await db.approvalStep.updateMany({
+      where: { chainId: chain.id, status: { in: ["Current", "Waiting"] } },
+      data: { status: "Cancelled", decidedBy: input.actorName ?? "Pemohon", decidedAt: now, note: "Ditarik oleh pemohon" },
+    });
+  }
+  const upd = await db.leaveRequest.updateMany({
+    where: { id: input.id, status: "Submitted" },
+    data: {
+      status: "Cancelled", decidedById: input.actorId ?? null, decidedAt: new Date(),
+      decisionNote: input.note?.trim() || "Ditarik oleh pemohon",
+    },
+  });
+  if (upd.count === 0) throw new Error("Permintaan sudah diproses — muat ulang daftar");
+
+  // regen tanggal lampau (mirror reject — L-04: tanggal depan tidak boleh Absent fiktif)
+  const { regenerateDaily } = await import("@/rekankerja/time-attendance/services/attendance-service");
+  const today = dayStart(new Date());
+  let regeneratedDays = 0;
+  for (let d = dayStart(req.dateFrom); d <= dayStart(req.dateTo); d = addDays(d, 1)) {
+    if (d > today) continue;
+    await regenerateDaily(db, d, req.employeeId);
+    regeneratedDays++;
+  }
+  await db.activityLog.create({
+    data: {
+      action: "Cancelled", entity: "LeaveRequest", entityId: req.docNo,
+      detail: `${req.docNo} (${req.employee.fullName}, ${req.leaveType.name}) ditarik oleh PEMOHON dari ESS${input.note ? ` — ${input.note}` : ""}`,
+    },
+  });
+  return { docNo: req.docNo, status: "Cancelled", regeneratedDays };
 }
 
 // ============ mass leave (padanan MassLeave.jsp — SKB cuti bersama) ============
@@ -1539,28 +1801,8 @@ export async function markEncashmentPaidForRun(db: TenantDb, runId: string): Pro
 }
 
 // ============ query & laporan ============
-
-/** Siapa yang sedang/akan cuti pada rentang (padanan Query - Employee on Leave). */
-export async function listOnLeave(db: TenantDb, from: Date, to: Date) {
-  const start = dayStart(from);
-  const end = dayStart(addDays(to, 1));
-  const rows = await db.leaveRequest.findMany({
-    where: { status: { in: ["Approved", "MassLeave"] }, dateFrom: { lt: end }, dateTo: { gte: start } },
-    include: {
-      employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
-      leaveType: { select: { name: true, paid: true } },
-    },
-    orderBy: [{ dateFrom: "asc" }, { employee: { employeeNo: "asc" } }],
-    take: 500,
-  });
-  return rows.map((r) => ({
-    id: r.id, docNo: r.docNo, employeeNo: r.employee.employeeNo, fullName: r.employee.fullName,
-    orgUnitName: r.employee.assignments[0]?.orgUnit?.name ?? null,
-    leaveTypeName: r.leaveType.name, paid: r.leaveType.paid,
-    dateFrom: r.dateFrom, sessionFrom: r.sessionFrom, dateTo: r.dateTo, sessionTo: r.sessionTo,
-    workingDays: r.workingDays, status: r.status, reason: r.reason,
-  }));
-}
+// (listOnLeave — Siapa yang sedang/akan cuti pada rentang — berada di bagian
+//  kalender Task 99 di bawah, kini dengan filter opsional orgUnitName.)
 
 /** Ringkasan penggunaan per jenis (padanan History - Summary Based on Leave Type). */
 export async function typeUsageSummary(db: TenantDb, year: number) {
@@ -1590,6 +1832,135 @@ export async function typeUsageSummary(db: TenantDb, year: number) {
     carriedOver: round2(v.carried),
     taken: round2(reqAgg.get(id) ?? 0),
   })).sort((a, b) => b.taken - a.taken || a.code.localeCompare(b.code));
+}
+
+// ============ Task 99 (F2-1) — sinyal risiko pola cuti (smart, benchmark Personio/HiBob) ============
+
+export interface LeaveRiskSignals {
+  /** pengajuan 90 hari terakhir yang MULAI Senin ATAU BERAKHIR Jumat (pendek ≤4 hari). */
+  mondayFriday: number;
+  /** jumlah pengajuan ≤2 hari dalam 60 hari terakhir. */
+  shortLeaves60d: number;
+  /** bulan sejak cuti tahunan terakhir yang disetujui (null = belum pernah — sinyal burnout). */
+  monthsSinceLastAnnual: number | null;
+}
+
+/** Deteksi pola absen bermasalah utk kartu approval (batch per employeeIds).
+ *  Sengaja ringan: 1 query + agregasi in-memory — dipanggil approval inbox. */
+export async function leaveRiskSignals(db: TenantDb, employeeIds: string[]): Promise<Map<string, LeaveRiskSignals>> {
+  const map = new Map<string, LeaveRiskSignals>();
+  if (employeeIds.length === 0) return map;
+  const now = new Date();
+  const d90 = addDays(dayStart(now), -90);
+  const d60 = addDays(dayStart(now), -60);
+  const rows = await db.leaveRequest.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      requestDate: { gte: new Date(now.getFullYear() - 2, 0, 1) },
+      status: { in: ["Submitted", "Approved", "MassLeave"] },
+    },
+    select: { employeeId: true, dateFrom: true, dateTo: true, workingDays: true, requestDate: true, status: true, leaveType: { select: { code: true } } },
+    take: 2000,
+  });
+  for (const id of employeeIds) {
+    const mine = rows.filter((r) => r.employeeId === id);
+    const recent = mine.filter((r) => r.requestDate >= d90);
+    const mondayFriday = recent.filter((r) => {
+      const fd = new Date(r.dateFrom).getDay();
+      const td = new Date(r.dateTo).getDay();
+      return (fd === 1 || td === 5) && r.workingDays <= 4;
+    }).length;
+    const shortLeaves60d = mine.filter((r) => r.requestDate >= d60 && r.workingDays > 0 && r.workingDays <= 2).length;
+    const annuals = mine.filter(
+      (r) => (r.leaveType.code === "CT-THN" || r.leaveType.code === "CT-ANNIV") && (r.status === "Approved" || r.status === "MassLeave"),
+    );
+    const lastAnnual = annuals.reduce<Date | null>((m, r) => (!m || r.dateTo > m ? r.dateTo : m), null);
+    const monthsSinceLastAnnual = lastAnnual
+      ? Math.floor((now.getTime() - lastAnnual.getTime()) / (30.44 * 86400000))
+      : null;
+    map.set(id, { mondayFriday, shortLeaves60d, monthsSinceLastAnnual });
+  }
+  return map;
+}
+
+// ============ Task 99 (F1-1) — kalender cuti tim + ICS feed ============
+
+/** Siapa yang sedang/akan cuti pada rentang (padanan Query - Employee on Leave).
+ *  Task 99: filter opsional orgUnitName (exact / prefix sub-org — cermin mass leave). */
+export async function listOnLeave(db: TenantDb, from: Date, to: Date, orgUnitName?: string) {
+  const start = dayStart(from);
+  const end = dayStart(addDays(to, 1));
+  const rows = await db.leaveRequest.findMany({
+    where: { status: { in: ["Approved", "MassLeave"] }, dateFrom: { lt: end }, dateTo: { gte: start } },
+    include: {
+      employee: { select: { employeeNo: true, fullName: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
+      leaveType: { select: { name: true, paid: true } },
+    },
+    orderBy: [{ dateFrom: "asc" }, { employee: { employeeNo: "asc" } }],
+    take: 500,
+  });
+  const visible = orgUnitName
+    ? rows.filter((r) => {
+        const org = r.employee.assignments[0]?.orgUnit?.name ?? "";
+        return org === orgUnitName || org.startsWith(orgUnitName);
+      })
+    : rows;
+  return visible.map((r) => ({
+    id: r.id, docNo: r.docNo, employeeNo: r.employee.employeeNo, fullName: r.employee.fullName,
+    orgUnitName: r.employee.assignments[0]?.orgUnit?.name ?? null,
+    leaveTypeName: r.leaveType.name, paid: r.leaveType.paid,
+    dateFrom: r.dateFrom, sessionFrom: r.sessionFrom, dateTo: r.dateTo, sessionTo: r.sessionTo,
+    workingDays: r.workingDays, status: r.status, reason: r.reason,
+  }));
+}
+
+/** Task 99 (F1-1) — data kalender satu bulan: baris cuti Approved/MassLeave
+ *  (UI mengelompokkan per tanggal; orgUnitName opsional memfilter tim). */
+export async function leaveCalendarMonth(
+  db: TenantDb,
+  input: { month: string; orgUnitName?: string },
+): Promise<{ month: string; from: string; to: string; rows: Awaited<ReturnType<typeof listOnLeave>> }> {
+  const m = /^(\d{4})-(\d{2})$/.exec(input.month);
+  if (!m) throw new Error("Parameter month wajib format YYYY-MM");
+  const year = Number(m[1]);
+  const mon = Number(m[2]) - 1;
+  if (mon < 0 || mon > 11) throw new Error("Bulan tidak valid");
+  const from = new Date(year, mon, 1);
+  const to = new Date(year, mon + 1, 0);
+  const rows = await listOnLeave(db, from, to, input.orgUnitName);
+  return { month: input.month, from: fmtDateISO(from), to: fmtDateISO(to), rows };
+}
+
+/** Task 99 (F1-1) — ICS (RFC 5545) feed kalender cuti → Google/Outlook/Apple.
+ *  DTEND eksklusif (+1 hari). Baris per dokumen cuti. */
+export function buildLeaveIcs(
+  rows: { docNo: string; fullName: string; leaveTypeName: string; dateFrom: Date; dateTo: Date }[],
+  calName: string,
+): string {
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//RekanKerja//Leave//ID",
+    "CALSCALE:GREGORIAN",
+    `X-WR-CALNAME:${esc(calName)}`,
+  ];
+  for (const r of rows) {
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${r.docNo}@rekankerja`,
+      `DTSTAMP:${ymd(new Date())}T000000Z`,
+      `DTSTART;VALUE=DATE:${ymd(r.dateFrom)}`,
+      `DTEND;VALUE=DATE:${ymd(addDays(dayStart(r.dateTo), 1))}`,
+      `SUMMARY:${esc(`${r.fullName} — ${r.leaveTypeName}`)}`,
+      `DESCRIPTION:${esc(`Cuti ${r.docNo} (${r.leaveTypeName})`)}`,
+      "END:VEVENT",
+    );
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
 }
 
 // ============ overview (KPI ringkasan modul) ============

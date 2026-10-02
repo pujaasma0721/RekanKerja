@@ -18,7 +18,8 @@ import { Palmtree, Sparkles, Search, Plus, Minus, ArrowUpDown } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
-const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
+// Task 99 (F1-6) — opsi tahun dinamis (tahun berjalan −2 .. +1, bukan hardcoded).
+const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i);
 
 export function LeaveBalancesPage() {
   const { t } = useI18n();

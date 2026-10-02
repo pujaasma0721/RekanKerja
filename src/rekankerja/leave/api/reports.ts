@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { listOnLeave, typeUsageSummary } from "@/rekankerja/leave/services/leave-service";
 import { toCsv, csvResponse, exportFilename } from "@/rekankerja/shared/lib/export";
 
@@ -7,10 +7,12 @@ import { toCsv, csvResponse, exportFilename } from "@/rekankerja/shared/lib/expo
 //   onLeave (padanan Query - Employee on Leave) + typeUsage (Summary Based on Leave Type)
 // T12-REPORTS: ?export=csv → unduh CSV karyawan cuti pada rentang
 // (data sama dgn JSON — tanpa perubahan logika service).
+// Task 99: guard menu-view — view Laporan.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["leave:leave-reports"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     const year = sp.get("year") ? Number(sp.get("year")) : new Date().getFullYear();
     const now = new Date();

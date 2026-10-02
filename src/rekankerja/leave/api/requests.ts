@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { DecisionConflictError, DecisionForbiddenError } from "@/rekankerja/shared/services/approval-engine";
 import { listRequests, submitRequest, decideRequest, previewRequest } from "@/rekankerja/leave/services/leave-service";
 import { notifyEmailEvent, approverEmailsOf, employeeEmailOf } from "@/rekankerja/shared/services/email-service";
@@ -10,10 +9,15 @@ import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-servi
 
 // GET /api/rekankerja/leave/requests?status=&employeeId=&year= — daftar permintaan
 // (padanan LeaveRequest.jsp / LeaveRequestToApprove.jsp).
+// Task 99: guard menu-view (par M-6 travel T5) — cukup salah satu menu yang
+// memakai daftar ini: permintaan atau persetujuan.
+// Task 99: withRisk — sinyal pola cuti (Senin/Jumat, cuti pendek, burnout)
+// dihitung HANYA utk inbox approval (status=Submitted), bukan semua query.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["leave:leave-request", "leave:leave-approval"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status") ?? "all";
     const requests = await listRequests(db, {
@@ -22,6 +26,7 @@ export async function GET(req: NextRequest) {
       year: sp.get("year") ? Number(sp.get("year")) : undefined,
       sortBy: sp.get("sortBy") ?? undefined,
       sortDir: sp.get("sortDir") === "desc" ? "desc" : sp.get("sortDir") === "asc" ? "asc" : undefined,
+      withRisk: status === "Submitted",
     });
     const stats = {
       total: requests.length,
@@ -155,6 +160,28 @@ export async function PATCH(req: NextRequest) {
         // Fix audit 40 M-8 — link ke Persetujuan leave (bukan inbox PA-only).
         kind: "leave", link: "leave:leave-approval",
       });
+    }
+
+    // ===== Notifikasi in-app (Task 99) — cancel FINAL → pengaju =====
+    // Cancel efektif (Approved/MassLeave → Cancelled, saldo pulih) wajib
+    // memberi tahu karyawan; note wajib oleh service — pastikan masuk body.
+    if (b.action === "cancel" && !res.approval) {
+      void (async () => {
+        try {
+          const lr = await m.db.leaveRequest.findUnique({
+            where: { id: String(b.id) },
+            select: { employeeId: true, leaveType: { select: { name: true } } },
+          });
+          if (lr) {
+            await notifyEvent(m.db, {
+              to: "employee", docType: "Leave", docNo: res.docNo, docId: String(b.id), employeeId: lr.employeeId,
+              title: `Cuti ${res.docNo} dibatalkan`,
+              body: `${lr.leaveType?.name ?? "Cuti"} — catatan: ${b.note ? String(b.note) : "-"}`,
+              kind: "leave", link: "leave:leave-request",
+            });
+          }
+        } catch { /* never */ }
+      })();
     }
 
     // ===== Notifikasi email otomatis (Task 34) — fire-and-forget =====

@@ -253,6 +253,13 @@ const STEPS: Step[] = [
       await seedTravelCityRates(s);
     },
   },
+  // Task 99 — policy engine v2 ringan modul Leave: notice period, batas hari
+  // berturut lintas permintaan, blackout dates (periode sibuk) per jenis cuti.
+  {
+    key: "leave-advance",
+    label: "Task 99 — leave policy v2: LeaveType.noticeDays/maxConsecutiveDays/blackoutDates",
+    run: (s) => import("../../../../scripts/migrate-leave-advance").then((m) => m.main(s)),
+  },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -436,7 +443,15 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (medWave3Ok < medTypeTables)
       reasons.push(`${medTypeTables - medWave3Ok} tenant tanpa kolom wave3 medical: MedicalBenefitType.needLetter (fix 92)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok) };
+    // Task 99 — leave policy v2: kolom LeaveType.noticeDays belum ada = gap
+    // (penyebut = seluruh schema — LeaveType tabel inti semua tenant).
+    const leavePolicyOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'LeaveType' AND column_name = 'noticeDays' AND table_schema = ANY($1::text[])`,
+    );
+    if (leavePolicyOk < schemas.length)
+      reasons.push(`${schemas.length - leavePolicyOk} tenant tanpa kolom LeaveType.noticeDays/blackoutDates (Task 99 — leave policy v2)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk) };
   } finally {
     await c.end();
   }

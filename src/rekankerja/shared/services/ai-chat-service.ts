@@ -171,6 +171,15 @@ async function selfDataSnapshot(db: TenantDb, employeeId: string | null): Promis
     // saldo cuti tahun berjalan (padanan ESS "Klaim Saya" → sisa jatah)
     const balances = await listBalances(db, { employeeId, year }).catch(() => []);
     const female = emp.gender === "F";
+    // Task 99 (F2) — info pintar tambahan: bawaan yang hangus 31 Des + jumlah
+    // pengajuan yang menunggu persetujuan (jawab "kapan sisa saya hangus?").
+    const pendingLeaveCount = await db.leaveRequest
+      .count({ where: { employeeId, status: "Submitted" } })
+      .catch(() => 0);
+    const carryForfeitLines = balances
+      .filter((b) => female || !["CT-LAHIR-P", "CT-GUGUR-P"].includes(b.leaveTypeCode))
+      .filter((b) => b.carriedOver > 0)
+      .map((b) => `- ${b.leaveTypeName}: ${b.carriedOver} ${b.unit.toLowerCase()} BAWAAN akan HANGUS 31 Des ${year} bila tidak dipakai`);
     const leaveLines = balances
       .filter((b) => female || !["CT-LAHIR-P", "CT-GUGUR-P"].includes(b.leaveTypeCode))
       .map((b) => `- ${b.leaveTypeName}: sisa ${b.remaining} ${b.unit.toLowerCase()} (hak ${b.entitlement}, terpakai ${b.taken}, diajukan menunggu ${b.applied})`)
@@ -197,6 +206,8 @@ async function selfDataSnapshot(db: TenantDb, employeeId: string | null): Promis
       `Nama: ${emp.fullName} (NIK ${emp.employeeNo}) — status ${emp.status}`,
       `Posisi: ${emp.position?.title ?? "-"} · Unit: ${emp.orgUnit?.name ?? "-"} · Mulai kerja: ${emp.joinDate.toISOString().slice(0, 10)}`,
       `Saldo cuti ${year}:\n${leaveLines || "- belum ada baris saldo (jenis event dibuat otomatis saat pengajuan)"}`,
+      ...(carryForfeitLines.length > 0 ? [`Peringatan hangus (carry-over):\n${carryForfeitLines.join("\n")}`] : []),
+      `Pengajuan cuti menunggu persetujuan: ${pendingLeaveCount}`,
       `Presensi bulan berjalan: ${attLine}`,
       ...(travelLine ? [travelLine] : []),
     ].join("\n");

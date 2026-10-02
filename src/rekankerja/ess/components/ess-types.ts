@@ -139,6 +139,8 @@ export interface EssLeaveRequest {
   dateTo?: string | null;
   days?: number | null;
   status: string;
+  /** Task 99-C — alasan keputusan approver (Rejected) / catatan penarikan (Cancelled) */
+  decisionNote?: string | null;
   /** jenjang approval saat ini (badge "Jenjang X/Y menunggu {approver}") */
   approval?: EssLeaveApproval | null;
   /** fallback flat bila backend memakai bentuk legacy */

@@ -1,13 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+
+// Task 99 — validasi JSON blackoutDates: array [{from,to,note?}] tanggal valid.
+// Input rusak → fallback "[]" (tidak pernah throw — master tetap bisa disimpan).
+function parseBlackoutJson(raw: unknown): string {
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return "[]";
+    const clean = parsed
+      .filter(
+        (r): r is { from: string; to: string; note?: string } =>
+          !!r && typeof r === "object" && typeof (r as { from?: unknown }).from === "string" &&
+          typeof (r as { to?: unknown }).to === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test((r as { from: string }).from) &&
+          /^\d{4}-\d{2}-\d{2}$/.test((r as { to: string }).to),
+      )
+      .slice(0, 12)
+      .map((r) => ({ from: r.from, to: r.to, ...(typeof r.note === "string" && r.note.trim() ? { note: r.note.trim().slice(0, 120) } : {}) }));
+    return JSON.stringify(clean);
+  } catch {
+    return "[]";
+  }
+}
 
 // GET /api/rekankerja/leave/types — master jenis cuti + daftar karyawan aktif
 // (padanan LeaveType + QueryEmpLeaveInfo; employees utk picker form permintaan).
+// Task 99: guard menu-view — banyak dialog modul leave (permintaan/saldo/
+// massal/encashment) mengkonsumsi master jenis ini.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, [
+      "leave:leave-type", "leave:leave-request", "leave:leave-info", "leave:leave-mass", "leave:leave-encashment",
+    ]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const activeOnly = req.nextUrl.searchParams.get("all") !== "1";
     const [types, employees] = await Promise.all([
       db.leaveType.findMany({
@@ -49,6 +75,8 @@ export async function POST(req: NextRequest) {
     const clash = await db.leaveType.findUnique({ where: { code } });
     if (clash) return NextResponse.json({ error: `Kode ${code} sudah dipakai` }, { status: 400 });
     const unit = b.unit === "MONTH" ? "MONTH" : "DAY";
+    // Task 99 — policy v2: notice period, batas hari berturut, blackout dates.
+    const blackout = parseBlackoutJson(b.blackoutDates);
     const type = await db.leaveType.create({
       data: {
         code, name, description: b.description?.trim() || null, unit,
@@ -63,6 +91,9 @@ export async function POST(req: NextRequest) {
         allowAdvance: Boolean(b.allowAdvance),
         allowHalfDay: b.allowHalfDay !== false,
         needDocs: Boolean(b.needDocs),
+        noticeDays: Math.max(0, parseInt(b.noticeDays ?? 0, 10) || 0),
+        maxConsecutiveDays: Math.max(0, Number(b.maxConsecutiveDays ?? 0)),
+        blackoutDates: blackout,
         notes: b.notes?.trim() || null,
       },
     });
@@ -98,6 +129,10 @@ export async function PATCH(req: NextRequest) {
     if (b.allowAdvance !== undefined) data.allowAdvance = Boolean(b.allowAdvance);
     if (b.allowHalfDay !== undefined) data.allowHalfDay = Boolean(b.allowHalfDay);
     if (b.needDocs !== undefined) data.needDocs = Boolean(b.needDocs);
+    // Task 99 — policy v2: notice period, batas hari berturut, blackout dates.
+    if (b.noticeDays !== undefined) data.noticeDays = Math.max(0, parseInt(b.noticeDays ?? 0, 10) || 0);
+    if (b.maxConsecutiveDays !== undefined) data.maxConsecutiveDays = Math.max(0, Number(b.maxConsecutiveDays ?? 0));
+    if (b.blackoutDates !== undefined) data.blackoutDates = parseBlackoutJson(b.blackoutDates);
     if (b.active !== undefined) data.active = Boolean(b.active);
     if (b.notes !== undefined) data.notes = b.notes?.trim() || null;
     const type = await db.leaveType.update({ where: { id: b.id }, data });

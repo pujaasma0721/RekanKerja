@@ -3,12 +3,14 @@
 // permintaan dengan badge jenjang approval, dan dialog pengajuan
 // (jenis dari saldo, tanggal dari-sampai, half-day, alasan wajib; error 400
 // server tampil inline di dalam dialog).
+// Task 99-C — tarik pengajuan sendiri (PATCH, status Submitted), alasan
+// keputusan (Rejected/Cancelled), dan Kalender Tim unit kerja + unduh ICS.
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Palmtree, Plus, Send, Loader2, AlertTriangle, Clock3, CalendarRange } from "lucide-react";
+import { Palmtree, Plus, Send, Loader2, AlertTriangle, Clock3, CalendarRange, Undo2, Users, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useApi, fmtDate } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,16 +26,56 @@ import { ESS_BASE, submitLeave, pickNum } from "./ess-api";
 import type { EssLeaveData } from "./ess-types";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const monthISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+/** geser bulan YYYY-MM sebanyak delta bulan (murni Date, tanpa lib) */
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  return monthISO(new Date(y, (m ?? 1) - 1 + delta, 1));
+}
+
+// ===== Task 99-C — baris kalender tim (kontrak GET /ess/leave/calendar:
+// cuti Approved/MassLeave satu unit kerja, TANPA alasan — privacy) =====
+interface TeamLeaveRow {
+  id: string;
+  docNo: string;
+  employeeNo: string;
+  fullName: string;
+  orgUnitName: string | null;
+  leaveTypeName: string;
+  paid: boolean;
+  dateFrom: string;
+  sessionFrom: string;
+  dateTo: string;
+  sessionTo: string;
+  workingDays: number;
+  status: string;
+}
+
+interface TeamLeaveCalendarData {
+  month: string;
+  from: string;
+  to: string;
+  orgUnitName: string | null;
+  rows: TeamLeaveRow[];
+}
 
 interface EssLeavePageProps { intent: string | null }
 
 export function EssLeavePage({ intent }: EssLeavePageProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const api = useApi<EssLeaveData>(`${ESS_BASE}/leave`);
+  // Task 99-C — kalender tim: bulan aktif (default bulan ini), fetch per ganti bulan
+  const [calMonth, setCalMonth] = useState(() => monthISO(new Date()));
+  const cal = useApi<TeamLeaveCalendarData>(`${ESS_BASE}/leave/calendar?month=${calMonth}`, [calMonth]);
   // intent "new" dari aksi cepat dashboard → dialog langsung terbuka
   const [dialog, setDialog] = useState(() => intent === "new");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Task 99-C — dialog tarik pengajuan sendiri (hanya status Submitted)
+  const [withdraw, setWithdraw] = useState<{ id: string; docNo: string; typeName: string | null } | null>(null);
+  const [withdrawNote, setWithdrawNote] = useState("");
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [form, setForm] = useState({
     typeId: "",
     dateFrom: todayISO(),
@@ -57,6 +99,87 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
     if (isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) return 0;
     return Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
   }, [form.dateFrom, form.dateTo]);
+
+  // ===== Task 99-C — Tarik pengajuan sendiri (PATCH /ess/leave { id, note }) =====
+  const confirmWithdraw = async () => {
+    if (!withdraw || withdrawBusy) return;
+    setWithdrawBusy(true);
+    try {
+      const res = await apiSend<{ docNo: string; status: string }>(`${ESS_BASE}/leave`, "PATCH", {
+        id: withdraw.id,
+        note: withdrawNote.trim() || undefined,
+      });
+      toast.success(t("Pengajuan {doc} ditarik", "Request {doc} withdrawn", { doc: res.docNo || withdraw.docNo }));
+      setWithdraw(null);
+      setWithdrawNote("");
+      api.refresh();
+    } catch (e) {
+      // pesan 400 server (mis. sudah diputuskan approver) → toast
+      toast.error(e instanceof Error ? e.message : t("Gagal menarik pengajuan.", "Failed to withdraw the request."));
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  // ===== Task 99-C — data turunan Kalender Tim =====
+  const calRows = cal.data?.rows ?? [];
+  // docNo milik sendiri (dari riwayat) → sorot nama sendiri di kalender tim
+  const ownDocNos = useMemo(() => new Set(requests.map((r) => r.docNo)), [requests]);
+  const calMonthLabel = useMemo(() => {
+    const [y, m] = calMonth.split("-").map(Number);
+    return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(y, (m ?? 1) - 1, 1));
+  }, [calMonth, locale]);
+  // header hari Sen..Min (padanan pola ess-attendance)
+  const dayHeaders = useMemo(() => {
+    const base = new Date(2024, 0, 1); // Senin
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(1 + i);
+      return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(d);
+    });
+  }, [locale]);
+  // baris kalender → peta per-tanggal (rentang dateFrom..dateTo diurai per hari)
+  const byDay = useMemo(() => {
+    const map = new Map<string, { row: TeamLeaveRow; own: boolean }[]>();
+    for (const row of calRows) {
+      const from = String(row.dateFrom ?? "").slice(0, 10);
+      const to = String(row.dateTo ?? "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) continue;
+      const a = new Date(`${from}T00:00:00`);
+      const b = new Date(`${to}T00:00:00`);
+      if (isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) continue;
+      const own = ownDocNos.has(row.docNo);
+      const cur = new Date(a);
+      // guard 62 hari — cegah loop tak berujung pada data tak wajar
+      for (let guard = 0; cur <= b && guard < 62; guard++) {
+        const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+        const list = map.get(iso);
+        if (list) list.push({ row, own });
+        else map.set(iso, [{ row, own }]);
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    // urutan per hari: nama sendiri dulu, lalu alfabetis
+    for (const list of map.values()) {
+      list.sort((x, y) => Number(y.own) - Number(x.own) || x.row.fullName.localeCompare(y.row.fullName));
+    }
+    return map;
+  }, [calRows, ownDocNos]);
+  // sel grid 7 kolom Senin-dulu (padanan kalender ess-attendance)
+  const calCells = useMemo(() => {
+    const [y, m] = calMonth.split("-").map(Number);
+    const daysInMonth = new Date(y, m ?? 12, 0).getDate();
+    const offset = (new Date(y, (m ?? 1) - 1, 1).getDay() + 6) % 7;
+    const cells: ({ date: string; day: number; weekend: boolean; people: { row: TeamLeaveRow; own: boolean }[] } | null)[] = [];
+    for (let i = 0; i < offset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const wd = new Date(y, (m ?? 1) - 1, d).getDay();
+      cells.push({ date, day: d, weekend: wd === 0 || wd === 6, people: byDay.get(date) ?? [] });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [calMonth, byDay]);
 
   const submit = async () => {
     if (busy) return;
@@ -247,12 +370,154 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                           )}
                         </p>
                       )}
+                      {/* Task 99-C — alasan keputusan (Rejected/Cancelled): amber utk penolakan, muted utk pembatalan */}
+                      {(r.status === "Rejected" || r.status === "Cancelled") && r.decisionNote && (
+                        <p className={cn("mt-1 text-[11px] font-medium", r.status === "Rejected" ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
+                          {t("Alasan", "Reason")}: {r.decisionNote}
+                        </p>
+                      )}
                     </div>
-                    <StatusPill status={r.status} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusPill status={r.status} />
+                      {/* Task 99-C — tarik pengajuan sendiri (masih Submitted) */}
+                      {r.status === "Submitted" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 rounded-lg border-rose-200 px-2 text-[11px] font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                          onClick={() => {
+                            if (!r.id) return;
+                            setWithdraw({ id: r.id, docNo: r.docNo, typeName: r.typeName ?? null });
+                            setWithdrawNote("");
+                          }}
+                        >
+                          <Undo2 className="h-3 w-3" aria-hidden /> {t("Tarik", "Withdraw")}
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
             </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Task 99-C — kalender tim: siapa cuti di unit kerja saya ===== */}
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Kalender Tim", "Team Calendar")}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {/* navigasi bulan — murni Date, tanpa lib */}
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => setCalMonth(shiftMonth(calMonth, -1))} aria-label={t("Bulan sebelumnya", "Previous month")}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="min-w-[116px] text-center text-[12px] font-bold capitalize text-slate-700 dark:text-slate-200">{calMonthLabel}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => setCalMonth(shiftMonth(calMonth, 1))} aria-label={t("Bulan berikutnya", "Next month")}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {/* feed ICS utk Google/Outlook/Apple */}
+              <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-xl px-2.5 text-[11px] font-bold">
+                <a href={`${ESS_BASE}/leave/calendar?month=${calMonth}&format=ics`} download>
+                  <Download className="h-3.5 w-3.5" aria-hidden /> {t("Unduh ICS", "Download ICS")}
+                </a>
+              </Button>
+            </div>
+          </div>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {t("Siapa cuti di unit Anda ({unit})", "Who is on leave in your unit ({unit})", { unit: cal.data?.orgUnitName ?? "—" })}
+          </p>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 pt-0 sm:px-5">
+          {cal.loading && !cal.data ? (
+            <LoadingRows rows={4} />
+          ) : cal.error && !cal.data ? (
+            <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
+              <p className="flex items-center gap-1.5 text-[12px] font-medium text-slate-400">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {t("Kalender tim gagal dimuat", "Team calendar failed to load")}
+              </p>
+              <Button onClick={cal.refresh} variant="outline" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[11px] font-bold">
+                <Loader2 className="h-3 w-3" /> {t("Coba Lagi", "Try Again")}
+              </Button>
+            </div>
+          ) : calRows.length === 0 ? (
+            <EmptyState
+              title={t("Tidak ada rekan yang cuti bulan ini", "No teammates on leave this month")}
+              description={t("Cuti tersetujui rekan satu unit Anda akan tampil di sini.", "Approved leaves of your unit teammates will appear here.")}
+              icon={Users}
+            />
+          ) : (
+            <>
+              {/* header hari Sen..Min */}
+              <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-1.5">
+                {dayHeaders.map((d) => (
+                  <p key={d} className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{d}</p>
+                ))}
+              </div>
+              {/* grid hari + chip nama per hari (maks 3 + indikator +N) */}
+              <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                {calCells.map((cell, i) => {
+                  if (!cell) return <div key={`e${i}`} aria-hidden />;
+                  const isToday = cell.date === todayISO();
+                  return (
+                    <div
+                      key={cell.date}
+                      className={cn(
+                        "min-h-[64px] rounded-xl border p-1.5",
+                        cell.weekend
+                          ? "border-slate-200/60 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-800/40"
+                          : "border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900/40",
+                        isToday && "border-amber-400 ring-2 ring-amber-500/30 dark:border-amber-500/60",
+                      )}
+                    >
+                      <p className={cn("text-[11px] font-bold tabular-nums", isToday ? "text-amber-700 dark:text-amber-400" : "text-slate-500 dark:text-slate-400")}>{cell.day}</p>
+                      {cell.people.length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {cell.people.slice(0, 3).map((p) => (
+                            <span
+                              key={p.row.id}
+                              title={`${p.row.fullName} — ${p.row.leaveTypeName}${p.own ? ` (${t("Anda", "you")})` : ""}${p.row.paid ? "" : ` · ${t("tanpa upah", "unpaid")}`}`}
+                              className={cn(
+                                "block truncate rounded px-1 text-[10px] font-semibold leading-4",
+                                p.own
+                                  ? "bg-amber-500/15 font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                                  : p.row.paid
+                                    ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                    : "border border-dashed border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500",
+                              )}
+                            >
+                              {p.row.fullName}
+                            </span>
+                          ))}
+                          {cell.people.length > 3 && (
+                            <p className="px-1 text-[9px] font-bold leading-4 text-slate-400" title={cell.people.slice(3).map((p) => p.row.fullName).join(", ")}>
+                              +{cell.people.length - 3}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* legenda */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800/70">
+                <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <span className="h-2 w-2 rounded-sm bg-amber-500/60" aria-hidden /> {t("Anda", "You")}
+                </span>
+                <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <span className="h-2 w-2 rounded-sm bg-slate-300 dark:bg-slate-700" aria-hidden /> {t("Rekan satu unit", "Teammates")}
+                </span>
+                <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <span className="h-2 w-2 rounded-sm border border-dashed border-slate-400" aria-hidden /> {t("Tanpa upah", "Unpaid")}
+                </span>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -370,6 +635,51 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
             <Button onClick={() => void submit()} disabled={busy} className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {busy ? t("Menyimpan…") : t("Ajukan", "Submit")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Task 99-C — dialog tarik pengajuan ===== */}
+      <Dialog open={!!withdraw} onOpenChange={(v) => { if (!withdrawBusy && !v) { setWithdraw(null); setWithdrawNote(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("Tarik Pengajuan Cuti", "Withdraw Leave Request")}</DialogTitle>
+            <DialogDescription>
+              {t("Pengajuan akan ditarik sebelum diputuskan approver. Alasan (opsional) akan tercatat.", "The request will be withdrawn before the approver decides. A reason (optional) will be recorded.")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {withdraw && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-slate-50 px-3.5 py-2.5 dark:bg-slate-900/50">
+                <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+                  {withdraw.typeName ?? t("Cuti", "Leave")}
+                  <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{withdraw.docNo}</span>
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ess-leave-withdraw-note">{t("Alasan (opsional)", "Reason (optional)")}</Label>
+                <Textarea
+                  id="ess-leave-withdraw-note"
+                  rows={3}
+                  maxLength={200}
+                  value={withdrawNote}
+                  onChange={(e) => setWithdrawNote(e.target.value)}
+                  placeholder={t("Catatan penarikan (maks. 200 karakter)…", "Withdrawal note (max 200 characters)…")}
+                />
+                <p className="text-right text-[10px] tabular-nums text-slate-400">{withdrawNote.length}/200</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" disabled={withdrawBusy} onClick={() => { setWithdraw(null); setWithdrawNote(""); }} className="rounded-xl font-bold">
+              {t("Batal")}
+            </Button>
+            <Button variant="destructive" onClick={() => void confirmWithdraw()} disabled={withdrawBusy} className="gap-2 rounded-xl font-bold">
+              {withdrawBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+              {withdrawBusy ? t("Memproses…") : t("Ya, Tarik Pengajuan", "Yes, Withdraw Request")}
             </Button>
           </DialogFooter>
         </DialogContent>

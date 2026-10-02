@@ -3152,3 +3152,80 @@ Stage Summary:
 - Kekuatan saat ini: multi-level approval berjenjang (6 dimensi + delegasi), rule engine entitlement per atribut karyawan (SetDays/AddDays/Multiply), prorate+carry+advance+half-day AM/PM, unit MONTH UU KIA, gender gate, mass leave SKB, encashment→payroll (UCT, snapshot M-11), integrasi TA→payroll (TABS), settlement CUTI_CASH/PHK_POT_CUTI, dokumen max-suffix race-safe, notifikasi email/WA/in-app/webhook.
 - Gap terbesar (urut dampak): (1) cuti Approved TIDAK BISA dibatalkan/diubah + ESS tak bisa cancel sendiri + alasan reject tak terlihat; (2) carry-over manual tanpa otomasi year-end (risiko silent-loss: ensureBalance auto-create carry=0); (3) tanpa kalender tim/ICS/forecast; (4) policy engine kurang: blackout, min-staf, notice period, tenure-based accrual bulanan, comp-off ber-expiry, buy/sell; (5) tanpa AI: anomaly/Bradford, burnout, prediksi, chatbot saldo; (6) needDocs tanpa upload lampiran; (7) UI: bulk approve, filter approval, export CSV (API sudah ada), grafik overview, hardcoded YEAR 2024-2027 & CT-THN encashment; (8) mass leave prefix-match bukan org-tree + tanpa undo + tanpa notifikasi; (9) rapel leave tak otomatis.
 - Laporan lengkap diserahkan ke user di kanal IM: struktur = ringkasan, as-is (fitur), benchmark pasar, gap analysis 30 temuan terklasifikasi, roadmap P1 cepat / P2 smart / P3 enterprise.
+---
+Task ID: 99-A
+Agent: general-purpose (backend routes)
+Task: Wiring API routes modul Leave untuk fitur advance & smart Task 99 (cancel approved + withdraw ESS + kalender/ICS + risk signals + notifikasi encashment + menu-view guards).
+
+Work Log:
+- leave/api/requests.ts: GET guard requireMenuViewAny(leave-request|approval) + withRisk khusus status=Submitted; PATCH blok notifikasi baru utk cancel FINAL (in-app ke pengaju, judul "Cuti {docNo} dibatalkan", note masuk body).
+- ess/api/leave.ts: GET tambah decisionNote (additive); PATCH baru (withdraw) → cancelOwnRequest + notifikasi in-app ke admins; thin route ess/leave re-export PATCH.
+- BARU ess/api/leave-calendar.ts + thin route: kalender tim ESS (scope org aktor via assignment validTo null), format=ics (Cuti Tim — RekanKerja), field reason dihapus dari semua baris (privacy).
+- BARU leave/api/calendar.ts + thin route: kalender admin (guard leave-reports|approval|info), param month/org/format=ics (Kalender Cuti — RekanKerja).
+- Menu-view guards GET: types (5 menu), balances (leave-info), encashment, mass, overview (7 menu), reports — requireTenant diganti m.db.
+- transfer.ts: requireMutator → requireMenuAction(leave:leave-encashment, create).
+- encashment.ts: notifikasi in-app POST→admins (nama, hari, ≈Rp) + PATCH final approve/reject→employee (fetch employeeId); link leave:leave-encashment.
+- Verifikasi: tsc --noEmit → 0 error di rekankerja/(leave|ess)/api (403 baris error lain = pre-existing src/lib + travel + ai-chat); curl unauth: /api/rekankerja/leave/calendar 401 JSON, /api/rekankerja/ess/leave/calendar 401, PATCH /api/rekankerja/ess/leave 401, semua GET leave lama 401; dev.log tanpa compile error; eslint file saya 0 error/warning (1 error di leave-reports.tsx milik agen frontend — react-hooks/set-state-in-effect, bukan milik task ini).
+- Catatan env: dev server berkali-kali OOM-killed (limit 4GB sandbox, dmesg) saat kompilasi penuh — verifikasi HTTP selesai sebelum kejadian; perlu restart saat memori lega.
+
+Stage Summary:
+- 14 file (10 edit + 4 baru): cancel approved leave kini punya notifikasi, ESS bisa withdraw sendiri (PATCH) + lihat decisionNote, kalender cuti JSON+ICS admin & tim ESS tersedia, risk signals hanya dihitung inbox approval, semua GET leave + transfer ter-guard menu-key, encashment punya notifikasi in-app dua arah.
+- Tidak menyentuh leave-service.ts, scheduler, ai-chat, parity-runner, components, prisma (milik agen lain); tanpa commit/push/build.
+
+---
+Task ID: 99-C
+Agent: general-purpose (ESS UI leave)
+Task: ESS UI Task 99-C — tarik pengajuan cuti sendiri, alasan keputusan, Kalender Tim + ICS (hanya ess-leave.tsx + ess-types.ts).
+
+Work Log:
+- Baca worklog (konteks Task 98/99 audit gap: ESS tanpa cancel sendiri, alasan reject tak terlihat, tanpa kalender tim/ICS) + baca penuh ess-leave.tsx, ess-attendance.tsx (pola kalender Senin-dulu, month nav, statusMeta), ess-types.ts, ess-api.ts, useApi/apiSend, backend ess/api/leave.ts (GET+PATCH) + leave-calendar.ts + leave-service listOnLeave/leaveCalendarMonth (kontrak terkonfirmasi).
+- (1) Tarik pengajuan: tombol kecil "Tarik" (outline rose) pada baris riwayat status Submitted → dialog konfirmasi (deskripsi "Pengajuan akan ditarik sebelum diputuskan approver…", textarea alasan opsional max 200 + counter, Batal / "Ya, Tarik Pengajuan" destructive dgn busy) → PATCH /api/rekankerja/ess/leave {id, note} → toast sukses "Pengajuan {docNo} ditarik" + api.refresh(); gagal → toast.error pesan server.
+- (2) decisionNote (field baru di EssLeaveRequest ess-types.ts): baris Rejected/Cancelled tampil "Alasan: {decisionNote}" — amber utk Rejected, muted utk Cancelled.
+- (3) Kalender Tim (section Card baru di bawah riwayat): month nav chevron + label id-ID ("Oktober 2026", murni Date tanpa lib), header kanan anchor "Unduh ICS" (…/leave/calendar?month=YYYY-MM&format=ics, download) + caption "Siapa cuti di unit Anda ({orgUnitName})"; grid 7 kol Sen..Min, chip nama text-[10px] truncate maks 3 + indikator "+N" (title daftar lengkap), weekend diarsir slate, today ring amber; nama sendiri disorot amber (deteksi via match docNo riwayat sendiri, urut paling depan); chip unpaid = border dashed muted; legenda 3 item; fetch useApi per ganti bulan; LoadingRows utk loading, catatan muted + Coba Lagi utk error, EmptyState "Tidak ada rekan yang cuti bulan ini". Guard byDay 62 hari anti-loop.
+- Verifikasi: bunx tsc --noEmit | grep ess-leave → KOSONG; bun run lint → 0 error / 2 warning pre-existing (e2e-browser-subdomain.mjs; sempat ada 1 error di leave-reports.tsx milik agent paralel 99-B, kini sudah bersih); curl localhost:3000 → 200; dev.log tail bersih tanpa compile error; API ess/leave + leave/calendar merespons (401 tanpa sesi — sesuai).
+
+Stage Summary:
+- ESS Cuti Saya kini: karyawan bisa menarik pengajuan sendiri selama Submitted (PATCH, alasan opsional tercatat), melihat alasan penolakan/pembatalan, dan memantau kalender cuti tim satu unit kerja per bulan (chip nama, sorotan diri, unpaid dashed) + unduh feed ICS. Semua gaya konsisten design language ESS (amber accent, kartu animasi, dialog, toast, dark-mode), label Indonesia, tanpa indigo/blue. File diubah: src/rekankerja/ess/components/ess-leave.tsx (690 baris) + ess-types.ts (1 field aditif). Backend tidak disentuh. Belum ada commit/push.
+---
+Task ID: 99-B
+Agent: general-purpose (admin UI leave)
+Task: UI ADMIN modul Leave untuk Task 99 (advance & smart) — 8 file di src/rekankerja/leave/components/ + shared leave-types.ts; tanpa sentuh backend/ESS/prisma.
+
+Work Log:
+- leave-types.ts: LeaveTypeRow += noticeDays/maxConsecutiveDays/blackoutDates (JSON string) + helper parseBlackoutDates() (fallback []); RequestRowUI += needDocs & risk?:{mondayFriday,shortLeaves60d,monthsSinceLastAnnual}.
+- leave-requests.tsx: cancel kini via AlertDialog — Menunggu: alasan opsional; Approved/MassLeave: tombol "Batalkan (efektif)" + alasan WAJIB (confirm disabled) + peringatan "pembatalan memulihkan saldo & meregenerasi absensi"; toast sukses memuat docNo & regeneratedDays, error server (race) ditampilkan; decisionNote baris Cancelled/Rejected dirender "Alasan: …" muted di bawah StatusPill.
+- leave-approval.tsx: KPI "Dokumen Wajib" pakai r.needDocs (hapus heuristik prefix CT-MATI/NIKAH/KHITAN); badge risiko per baris Submitted (pola Senin/Jumat ×n, cuti pendek ×n/60hr amber; belum pernah/tanpa cuti tahunan n bln rose) — padanan panel anomali travel, inline di kolom Jenis & Alasan.
+- leave-reports.tsx: toggle Tabel|Kalender; Tabel + anchor Export CSV (from/to/year &export=csv, pola travel-reports); Kalender = grid bulanan murni Date/CSS 7 kolom (Sen..Min), navigasi prev/next + label "Okt 2026", chip inisial per karyawan (paid=brand, unpaid=dashed muted), weekend bg-accent/50, today ring-brand/40, filter unit dari orgUnitName distinct rows, anchor Unduh ICS (month+org&format=ics), legenda "N karyawan · M hari kerja"; parsing tanggal zona-lokal (isoToLocalKey) cermin toLocaleDateString; Tahun Ringkasan ikut dinamis.
+- leave-balances.tsx + leave-encashment.tsx (+ reports): YEAR_OPTIONS dinamis (currentYear−2..+1).
+- leave-encashment.tsx: dialog pengajuan kini Select SEMUA jenis cashable+aktif (default pertama — perilaku lama dipertahankan), form.leaveTypeId divalidasi.
+- leave-templates.tsx: dialog create/edit += Notice Period (hari), Maks Hari Kerja Berturut (bantuan "0 = bebas"), repeater Periode Sibuk maks 6 pasangan Dari/Sampai+catatan (serialisasi JSON blackoutDates; prefill parse aman saat edit); badge tabel "Notice {n}hr / Maks {n}hr berturut / Blackout ×{k}".
+- leave-mass.tsx: input organisasi tetap free-text + datalist opsi unit (union orgUnitName riwayat massal + GET leave/requests) + baris bantuan semantik prefix sub-unit.
+- Verifikasi: `bunx tsc --noEmit | grep leave/components|leave-types` → nihil; `bun run lint` → 0 error (2 warning e2e pre-existing); GET / → 200; dev.log bersih tanpa compile error. Catatan: kalender/error state UI tahan 404 selama API paralel belum naik; kini api/calendar.ts (backend agent) sudah tersedia & bentuk row cocok.
+
+Stage Summary:
+- 8 deliverable UI Task 99-B selesai: cancel efektif dgn alasan wajib (Approved/MassLeave), alasan keputusan terlihat, KPI dokumen akurat (needDocs), badge sinyal risiko approver, laporan Tabel|Kalender + Export CSV + ICS + filter unit + legenda, tahun dinamis, picker jenis cashable, master jenis cuti + policy v2 (notice/berturut/blackout repeater + badge), datalist unit cuti massal. Semua gaya mengikuti komponen existing (AlertDialog/Dialog/Select shadcn, amber/rose/brand, dark-mode paralel, label Indonesia+EN via t()). Tidak ada file backend/ESS yang disentuh; tidak ada commit.
+
+---
+Task ID: 99-final
+Agent: Z.ai (orkestrator utama) + subagent 99-A (routes) / 99-B (admin UI) / 99-C (ESS UI)
+Task: "kerjakan" — eksekusi roadmap audit Task 99 (module Leave): Fase 0 stabilisasi kritis + Fase 1 advance + Fase 2 smart.
+
+Work Log:
+- PULIHAN SANDOX (pra-eksekusi): sandbox di-reset jam 09:34 (proses mati, .git rollback ke 1d7711d, dev.log & data Postgres hilang). Pemulihan: merge origin/main (commit audit db8f674 selamat di GitHub), perbaiki mini-services/postgres (bun install + initdb fresh + start), tulis ulang .env (PLATFORM_DB_URL + TENANT_DB_BASE_URL postgres — file basi hanya DATABASE_URL sqlite), db:push, prisma generate ×2, watchdog → auto-seed MII; seed mati di tengah (OOM) → pemulihan terarah: ensureLeaveReference+seedLeaveDemoData (588 saldo/9 permintaan/massal 42/4 encashment) + travel + medical demo + restore-demo ulang (3 tenant + akun) + seed-ess-demo-user (yusuf).
+- F0-1 (G1): decideRequest kini menerima action=cancel untuk status Approved/MassLeave → cancelEffectiveRequest: alasan WAJIB, updateMany race-safe, regen absensi tanggal lampau + HAPUS baris OnLeave usang tanggal depan (guard K-3 tak membersihkan OnLeave), ActivityLog "dibatalkan OLEH ADMIN setelah efektif". UI: tombol "Batalkan (efektif)" + AlertDialog alasan wajib.
+- F0-2 (G2): ensureBalance TIDAK LAGI diam-diam carry 0 — computeCarryOver cermin generateLeaveInfo (31-12 tahun lalu, clamp, rule-aware point-in-time); generateLeaveInfo +option skipExisting (fill-missing); scheduler job BARU leave-tahunan (Nov: pengingat hangus carry ke HR agregat marker tahunan; Des: pengingat generate tahun depan; Jan-Mar: fill-missing otomatis skipExisting + notifikasi saat ada baris dibuat).
+- F0-3 (G3): cancelOwnRequest ESS (ownership+Submitted guard, chain ditandai "Ditarik pemohon", regen lampau) + PATCH /ess/leave + GET /ess/leave +decisionNote (additive — mobile aman); UI ESS: tombol Tarik + dialog + alasan ditampilkan utk Rejected/Cancelled.
+- F0-4 (G4): tombol Export CSV Laporan Cuti (API sudah ada T12), KPI "Dokumen Wajib" pakai flag needDocs (hapus heuristik prefix kode), YEAR_OPTIONS dinamis (y-2..y+1), cancel admin kini ber-dialog konfirmasi.
+- F0-5 (G5): guard GET 7 endpoint leave (requireMenuViewAny mirror T5 travel: requests/types/balances/encashment/mass/overview/reports) + POST /transfer requireMutator → leave:leave-encashment create; mass leave org input + datalist.
+- F1-1 (G6): KALENDER CUTI — leaveCalendarMonth + endpoint admin /leave/calendar (+format=ics ICS RFC 5545) + ESS /ess/leave/calendar (scope unit organisasi sendiri, reason di-strip utk privasi); UI admin: toggle Tabel|Kalender di Laporan (grid Sen-Min, chip per karyawan, filter org, unduh ICS, legend); UI ESS: section "Kalender Tim" (nav bulan, highlight nama sendiri, +N overflow, empty state).
+- F1-2 (G10): POLICY ENGINE v2 — schema LeaveType +3 kolom (noticeDays, maxConsecutiveDays, blackoutDates JSON) + migrasi migrate-leave-advance (4 tenant idempoten) + parity step leave-advance + gap check + tenant-ddl.sql regen (provisioning tenant baru lengkap); guard di preview+submit: assertPolicyWindows (blackout overlap + notice period) + assertMaxConsecutive (union permintaan berdampingan gap ≤3 hari, hitung hari kerja run); route types.ts POST/PATCH +validasi parseBlackoutJson; UI dialog jenis cuti +3 field + repeater blackout + badge tabel.
+- F1-3 (G13): encashment type picker (semua jenis cashable, bukan hardcode pertama) + notifikasi in-app (submit → admins; keputusan final → karyawan).
+- F2-1 (G14): leaveRiskSignals (pola Senin/Jumat 90hr, cuti pendek ≤2 hari 60hr, bulan tanpa cuti tahunan/belum pernah) batch di listRequests withRisk (status=Submitted) + badge panel amber/rose di kartu approval ala Concur travel.
+- F2-2 (chatbot Task 96): selfDataSnapshot + baris hangus carry-over per jenis + jumlah pengajuan menunggu — karyawan bisa tanya "kapan sisa saya hangus?".
+- VERIFIKASI E2E (agent-browser, login hrd + yusuf): admin batal efektif LR-2026-004 → Cancelled + alasan tampil + saldo pulih (dinamis); approval: KPI Dokumen Wajib=1 (needDocs) + API risk terverifikasi {mondayFriday,shortLeaves60d,monthsSinceLastAnnual}; Laporan → Kalender render + API 42 baris Sept + ICS 42 VEVENT valid; jenis cuti: simpan notice 3 + blackout 5-9 Okt "Tutup buku triwulan" → ESS ajukan 5 Okt DITOLAK "Periode sibuk (blackout)…", ajukan 4 Okt DITOLAK "wajib minimal 3 hari sebelum", ajukan 15-16 Okt SUKSES LR-2026-010 → Tarik → Cancelled "Ditarik oleh pemohon"; Kalender Tim ESS render (Yusuf+Dedi di September, highlight nama sendiri, ICS link). Scheduler siklus OK 0 gagal (job leave-tahunan no-op di Oktober sesuai jendela Nov/Des/Jan-Mar). tsc 0 error kode aktif, lint 0 error (2 warning pre-existing), dev.log bersih. Notice 3 direset ke 0 (blackout demo dipertahankan sebagai contoh).
+- Sandbox recovery pasca-reset terdokumentasi (mirror Task 83-restore): .env kini berisi kedua URL postgres — jangan ditimpa DATABASE_URL sqlite lagi.
+
+Stage Summary:
+- 31 file (26 edit + 5 baru): 9 temuan kritis audit ditutup (G1-G5 + export + KPI + year + guard), 3 fitur advance (kalender tim+ICS, policy v2 blackout/notice/maks berturut, encashment picker+notif), 2 fitur smart (risk signals ala Bradford, snapshot hangus chatbot) + otomasi tahunan penuh (fill-missing Jan + reminder Nov/Des).
+- Module Leave naik kelas: salah-approve kini bisa dipulihkan, ESS bisa tarik sendiri + lihat alasan, siklus tahunan otomatis, policy engine selaras benchmark (BreezeLeave/SAP), kalender + ICS seladar Workday/Leaveboard, deteksi pola ala Personio/HiBob.
+- Data demo dipulihkan penuh (MII 44 karyawan + 588 saldo leave + travel + medical + 3 tenant + akun demo).

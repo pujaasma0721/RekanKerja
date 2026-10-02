@@ -3,7 +3,7 @@
 // saldo, bentrok, backdate guard, maks per permintaan, waiting period).
 import { NextResponse } from "next/server";
 import { requireEss, fmtIsoDate } from "@/rekankerja/ess/api/ess-auth";
-import { listBalances, listRequests, submitRequest, FEMALE_ONLY_LEAVE } from "@/rekankerja/leave/services/leave-service";
+import { listBalances, listRequests, submitRequest, cancelOwnRequest, FEMALE_ONLY_LEAVE } from "@/rekankerja/leave/services/leave-service";
 import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services/email-service";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
@@ -73,6 +73,9 @@ export async function GET(req: Request) {
         dateTo: fmtIsoDate(r.dateTo),
         days: r.workingDays,
         status: r.status,
+        // Task 99 — alasan keputusan approver (reject/cancel) terlihat ESS
+        // (additive; klien lama mengabaikan field tak dikenal).
+        decisionNote: r.decisionNote ?? null,
         approval:
           r.approval && r.approval.status === "InProgress"
             ? {
@@ -161,6 +164,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ docNo: res.docNo, status: "Submitted" }, { status: 201 });
   } catch (e) {
     // validasi bisnis leave-service (saldo/bentrok/backdate/maks) → 400 ramah
+    return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
+  }
+}
+
+// PATCH — TARIK pengajuan cuti SENDIRI yang masih menunggu (Task 99 F0-2).
+// Body: { id, note? } — service (cancelOwnRequest) menegakkan kepemilikan +
+// status Submitted; saldo reservasi pulih otomatis + attendance regenerate.
+export async function PATCH(req: Request) {
+  const m = await requireEss(req);
+  if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+  const { db, employeeId, fullName, appUserId, platformUserId } = m.actor;
+
+  try {
+    const b = await req.json().catch(() => ({}));
+    if (!b.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
+    const note = b.note ? String(b.note) : undefined;
+
+    const res = await cancelOwnRequest(db, {
+      id: String(b.id),
+      employeeId,
+      note,
+      actorId: appUserId ?? platformUserId,
+      actorName: fullName,
+    });
+
+    // In-app → admin/HR (fire-and-forget): pengajuan ditarik pemohon.
+    void notifyEvent(db, {
+      to: "admins", docType: "Leave", docNo: res.docNo,
+      title: `Pengajuan cuti ${res.docNo} ditarik pemohon`,
+      body: `${fullName} menarik pengajuan cutinya${note ? ` — catatan: ${note}` : ""}`,
+      kind: "leave", link: "leave:leave-request",
+    }).catch(() => { /* notifikasi tidak boleh mengganggu proses utama ESS */ });
+
+    return NextResponse.json({ docNo: res.docNo, status: res.status });
+  } catch (e) {
+    // validasi bisnis (kepemilikan/status Submitted) → 400 ramah
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
   }
 }

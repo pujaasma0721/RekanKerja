@@ -33,6 +33,9 @@ const STATUS_FILTERS_EN: Record<string, string> = {
   all: "All", Submitted: "Pending", Approved: "Approved", Transferred: "Transferred", Paid: "Paid", Rejected: "Rejected",
 };
 
+// Task 99 (F1-6) — opsi tahun dinamis (tahun berjalan −2 .. +1, bukan hardcoded).
+const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i);
+
 export function LeaveEncashmentPage() {
   const { t, locale } = useI18n();
   const [statusFilter, setStatusFilter] = useState("all");
@@ -42,7 +45,7 @@ export function LeaveEncashmentPage() {
   const [rejectTarget, setRejectTarget] = useState<EncashmentRowUI | null>(null);
   const [rejectNote, setRejectNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ employeeId: "", year: String(new Date().getFullYear()), days: "2", paymentDate: "", note: "" });
+  const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", year: String(new Date().getFullYear()), days: "2", paymentDate: "", note: "" });
   const [periodId, setPeriodId] = useState("");
 
   const api = useApi<{ encashments: EncashmentRowUI[]; stats: { total: number; submitted: number; approved: number; transferred: number; paid: number; totalDays: number; totalAmount: number } }>(
@@ -57,15 +60,20 @@ export function LeaveEncashmentPage() {
 
   const openPeriods = (periodsApi.data?.periods ?? []).filter((p) => p.status === "Draft" || p.status === "Calculated");
 
+  // Task 99 (F1-6) — semua jenis cashable+aktif utk picker dialog (bukan hardcode pertama).
+  const cashableTypes = useMemo(
+    () => (typesApi.data?.types ?? []).filter((ty) => ty.cashable && ty.active),
+    [typesApi.data],
+  );
+
   const submit = async () => {
     if (!form.employeeId) { toast.error(t("Karyawan wajib dipilih", "Employee is required")); return; }
-    const cashableTypes = (typesApi.data?.types ?? []).filter((ty) => ty.cashable);
-    if (cashableTypes.length === 0) { toast.error(t("Tidak ada jenis cuti yang bisa diuangkan", "No cashable leave type available")); return; }
+    if (!form.leaveTypeId) { toast.error(t("Jenis cuti cashable wajib dipilih", "A cashable leave type is required")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; amount: number; remaining: number }>("/api/rekankerja/leave/encashment", "POST", {
         employeeId: form.employeeId,
-        leaveTypeId: cashableTypes[0]!.id, // jenis cashable pertama (CT-THN)
+        leaveTypeId: form.leaveTypeId,
         year: Number(form.year), days: Number(form.days),
         paymentDate: form.paymentDate || undefined, note: form.note || undefined,
       });
@@ -117,7 +125,7 @@ export function LeaveEncashmentPage() {
               <ArrowRightCircle className="h-4 w-4" /> {t("Transfer ke Payroll", "Transfer to Payroll")}
             </Button>
             <Button onClick={() => {
-              setForm({ employeeId: typesApi.data?.employees[0]?.id ?? "", year: String(new Date().getFullYear()), days: "2", paymentDate: "", note: "" });
+              setForm({ employeeId: typesApi.data?.employees[0]?.id ?? "", leaveTypeId: cashableTypes[0]?.id ?? "", year: String(new Date().getFullYear()), days: "2", paymentDate: "", note: "" });
               setDialog(true);
             }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> {t("Ajukan Encashment", "Request Encashment")}
@@ -240,12 +248,24 @@ export function LeaveEncashmentPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Task 99 (F1-6) — pilih jenis cashable (default: pertama — perilaku lama) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Jenis Cuti Cashable *", "Cashable Leave Type *")}</Label>
+              <Select value={form.leaveTypeId} onValueChange={(v) => setForm({ ...form, leaveTypeId: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={cashableTypes.length ? t("Pilih jenis cashable", "Select a cashable type") : t("Tidak ada jenis cashable", "No cashable type")} /></SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {cashableTypes.map((ty) => (
+                    <SelectItem key={ty.id} value={ty.id}>{ty.name} ({ty.entitlement} {ty.unit === "MONTH" ? t("bln", "mo") : t("hr", "d")})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">{t("Tahun Saldo *", "Balance Year *")}</Label>
                 <Select value={form.year} onValueChange={(v) => setForm({ ...form, year: v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{[2024, 2025, 2026, 2027].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                  <SelectContent>{YEAR_OPTIONS.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">

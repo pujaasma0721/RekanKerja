@@ -11,8 +11,36 @@ export interface LeaveTypeRow {
   prorateMonthly: boolean; carryOverMax: number; waitingMonths: number;
   allowAdvance: boolean; allowHalfDay: boolean; needDocs: boolean;
   active: boolean;
+  /** Task 99 — policy v2 ringan: notice period, batas hari berturut, blackout. */
+  noticeDays: number; maxConsecutiveDays: number;
+  /** JSON string [{from:"YYYY-MM-DD", to:"YYYY-MM-DD", note?}] — periode sibuk. */
+  blackoutDates: string;
   /** Task 33 — jumlah aturan diferensiasi entitlement. */
   ruleCount?: number;
+}
+
+/** Task 99 — rentang blackout (periode sibuk) hasil parse blackoutDates. */
+export interface BlackoutRangeUI { from: string; to: string; note?: string }
+
+/** Parse aman blackoutDates (JSON string) → array (fallback []). */
+export const parseBlackoutDates = (raw: string | null | undefined): BlackoutRangeUI[] => {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (r): r is BlackoutRangeUI =>
+        !!r && typeof (r as BlackoutRangeUI).from === "string" && typeof (r as BlackoutRangeUI).to === "string",
+    );
+  } catch {
+    return [];
+  }
+};
+
+/** Task 99 (F2-1) — sinyal risiko pola cuti pada baris Submitted (approval inbox). */
+export interface LeaveRiskSignalsUI {
+  mondayFriday: number;
+  shortLeaves60d: number;
+  monthsSinceLastAnnual: number | null;
 }
 
 export interface BalanceRowUI {
@@ -27,6 +55,8 @@ export interface BalanceRowUI {
 export interface RequestRowUI {
   id: string; docNo: string; employeeId: string; employeeNo: string; fullName: string;
   orgUnitName: string | null; leaveTypeName: string; leaveTypeCode: string; paid: boolean;
+  /** Task 99 — jenis cuti ini memerlukan dokumen pendukung (dari master). */
+  needDocs: boolean;
   year: number; requestDate: string; dateFrom: string; sessionFrom: string;
   dateTo: string; sessionTo: string; workingDays: number;
   balanceAtRequest: number; remainingAtRequest: number; backToWorkDate: string | null;
@@ -34,6 +64,8 @@ export interface RequestRowUI {
   decisionNote: string | null; decidedAt: string | null;
   /** info approval berjenjang (Task 25) — null bila tanpa chain */
   approval?: ApprovalChainUI | null;
+  /** Task 99 (F2-1) — sinyal risiko pola cuti (hanya diisi pada approval inbox). */
+  risk?: LeaveRiskSignalsUI | null;
 }
 
 /** Ringkasan jalur approval berjenjang pada row list (Task 25). */

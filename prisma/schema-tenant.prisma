@@ -1689,6 +1689,12 @@ model LeaveType {
   allowAdvance   Boolean  @default(false) // boleh saldo minus (advance leave)
   allowHalfDay   Boolean  @default(true) // boleh setengah hari (sesi AM/PM)
   needDocs       Boolean  @default(false) // perlu dokumen pendukung
+  // Task 99 — policy engine v2 ringan (audit Leave G10, benchmark BreezeLeave):
+  // notice period, batas hari kerja berturut lintas permintaan, dan periode
+  // sibuk (blackout) per jenis cuti. 0/kosong = tanpa batas (kompatibilitas penuh).
+  noticeDays         Int    @default(0) // minimal hari pemberitahuan sebelum tanggal mulai
+  maxConsecutiveDays Float  @default(0) // batas hari kerja BERTURUT termasuk permintaan berdampingan (0 = bebas)
+  blackoutDates      String @default("[]") // JSON [{from:"YYYY-MM-DD", to:"YYYY-MM-DD", note?}] — periode sibuk
   active         Boolean  @default(true)
   notes          String?
   createdAt      DateTime @default(now())

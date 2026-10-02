@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { listMassLeaves, createMassLeave } from "@/rekankerja/leave/services/leave-service";
 
 // GET /api/rekankerja/leave/mass — daftar cuti massal (SKB cuti bersama)
+// Task 99: guard menu-view — view Cuti Massal.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["leave:leave-mass"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const rows = await listMassLeaves(db);
     return NextResponse.json({ massLeaves: rows });
   } catch (e) {

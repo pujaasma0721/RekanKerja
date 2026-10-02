@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { listBalances, generateLeaveInfo, adjustBalance } from "@/rekankerja/leave/services/leave-service";
 
 // GET /api/rekankerja/leave/balances?employeeId=&leaveTypeId=&year=&leaveTypeCode=
@@ -15,10 +14,12 @@ import { listBalances, generateLeaveInfo, adjustBalance } from "@/rekankerja/lea
 // DI DALAM summary (total/limit/offset/capped — additive, tidak memecah
 // konsumen lama) supaya pemanggil API baru bisa mem-page eksplisit bila
 // total melampaui cap.
+// Task 99: guard menu-view — saldo hanya utk view Informasi Cuti.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["leave:leave-info"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const sp = req.nextUrl.searchParams;
     const rows = await listBalances(db, {
       employeeId: sp.get("employeeId") ?? undefined,

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuAction, requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { listEncashments, submitEncashment, decideEncashment } from "@/rekankerja/leave/services/leave-service";
+import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
 
 // GET /api/rekankerja/leave/encashment?status= — uang pengganti cuti
 // (padanan LeaveEncashment.jsp + LeaveEncashmentToApprove.jsp).
+// Task 99: guard menu-view — view Uang Pengganti Cuti.
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["leave:leave-encashment"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const status = req.nextUrl.searchParams.get("status") ?? "all";
     // 45-b: gerbang vault uang (requireTenant → resolve via sesi).
     const rows = await listEncashments(db, { status }, await moneyViewForReq(req, db));
@@ -49,6 +51,24 @@ export async function POST(req: NextRequest) {
       paymentDate: b.paymentDate ? String(b.paymentDate) : undefined,
       note: b.note ? String(b.note) : undefined,
     });
+
+    // Task 99 (G13) — notifikasi in-app → Admin/HR: pengajuan menunggu
+    // persetujuan (encashment sebelumnya tanpa notifikasi sama sekali).
+    void (async () => {
+      try {
+        const emp = await db.employee.findUnique({
+          where: { id: String(b.employeeId) },
+          select: { fullName: true },
+        });
+        await notifyEvent(db, {
+          to: "admins", docType: "Leave", docNo: res.docNo,
+          title: `Pengajuan uang pengganti cuti ${res.docNo} menunggu persetujuan`,
+          body: `${emp?.fullName ?? "Karyawan"} — ${Number(b.days)} hari (≈ Rp ${res.amount.toLocaleString("id-ID")})`,
+          kind: "leave", link: "leave:leave-encashment",
+        });
+      } catch { /* notifikasi tidak boleh mengganggu proses utama */ }
+    })();
+
     return NextResponse.json(res, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
@@ -77,6 +97,28 @@ export async function PATCH(req: NextRequest) {
       note: b.note ? String(b.note) : undefined,
       actorId: m.actor.appUserId ?? m.actor.userId,
     });
+
+    // Task 99 (G13) — notifikasi in-app → KARYAWAN untuk keputusan final
+    // approve/reject (bukan cancel): ESS melihat lonceng notifikasi.
+    if ((b.action === "approve" || b.action === "reject") && (res.status === "Approved" || res.status === "Rejected")) {
+      void (async () => {
+        try {
+          const enc = await m.db.leaveEncashment.findUnique({
+            where: { id: String(b.id) },
+            select: { employeeId: true, days: true },
+          });
+          if (enc) {
+            await notifyEvent(m.db, {
+              to: "employee", docType: "Leave", docNo: res.docNo, employeeId: enc.employeeId,
+              title: `Uang pengganti cuti ${res.docNo} ${res.status === "Approved" ? "disetujui" : "ditolak"}`,
+              body: `${enc.days} hari${b.note ? ` — catatan: ${String(b.note)}` : ""}`,
+              kind: "leave", link: "leave:leave-encashment",
+            });
+          }
+        } catch { /* notifikasi tidak boleh mengganggu proses utama */ }
+      })();
+    }
+
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 400 });
