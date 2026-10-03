@@ -2,8 +2,11 @@
 // RekanKerja Attendance — Kalender Hari Libur (T9-HOLIDAY): grid kalender 12 bulan
 // + daftar per tahun + tambah/edit/hapus + import CSV / generate tahun berikutnya.
 // Overlay engine: tanggal di sini menang atas cycle jadwal (resolveDayType).
+// Task 100-impl-B (F0): error state useApi + Coba Lagi (G10), dialog simpan &
+// hapus punya busy state anti double-submit (G11), kolom Tanggal format locale
+// bukan ISO mentah (B-7).
 import { useMemo, useState } from "react";
-import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import {
-  CalendarDays, Plus, Pencil, Trash2, Upload, Sparkles, CalendarRange, Info,
+  CalendarDays, Plus, Pencil, Trash2, Upload, Sparkles, CalendarRange, Info, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +70,8 @@ export function AttendanceHolidaysPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HolidayRow | null>(null);
   const [form, setForm] = useState({ date: "", name: "", kind: "National" });
+  const [busy, setBusy] = useState(false); // G11: dialog simpan sedang mengirim
+  const [deleteBusy, setDeleteBusy] = useState(false); // G11: dialog hapus sedang mengirim
 
   const api = useApi<HolidaysResponse>(`/api/rekankerja/attendance/holidays?year=${year}`, [year]);
   const holidays = api.data?.holidays ?? [];
@@ -99,6 +105,7 @@ export function AttendanceHolidaysPage() {
   };
 
   const save = async () => {
+    setBusy(true);
     try {
       if (edit) {
         await apiSend("/api/rekankerja/attendance/holidays", "PATCH", { id: edit.id, ...form });
@@ -111,11 +118,14 @@ export function AttendanceHolidaysPage() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setBusy(false);
     }
   };
 
   const remove = async () => {
     if (!deleteTarget) return;
+    setDeleteBusy(true);
     try {
       await apiSend("/api/rekankerja/attendance/holidays", "DELETE", { id: deleteTarget.id });
       toast.success(t("{name} dihapus dari kalender", "{name} removed from calendar", { name: deleteTarget.name }));
@@ -123,11 +133,14 @@ export function AttendanceHolidaysPage() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menghapus", "Failed to delete"));
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
   const stats = api.data?.stats;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // B-10 (kelas sama): "hari ini" zona lokal — penanda sel & baris hari ini akurat.
+  const todayIso = todayISO();
 
   return (
     <div>
@@ -160,6 +173,12 @@ export function AttendanceHolidaysPage() {
 
       {api.loading && !api.data ? (
         <LoadingRows rows={6} />
+      ) : api.error ? (
+        <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+          <CardContent className="p-0">
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          </CardContent>
+        </Card>
       ) : holidays.length === 0 ? (
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardContent className="p-5">
@@ -233,8 +252,9 @@ export function AttendanceHolidaysPage() {
                       const isToday = h.date === todayIso;
                       return (
                         <TableRow key={h.id} className={cn("hover:bg-slate-50 dark:hover:bg-slate-900/60", isToday && "bg-rose-50/60 dark:bg-rose-500/5")}>
-                          <TableCell className={cn("font-mono text-xs font-bold text-slate-700 dark:text-slate-300", isToday && "text-rose-600 dark:text-rose-400")}>
-                            {h.date}{isToday ? t(" (hari ini)", " (today)") : ""}
+                          <TableCell className={cn("text-xs font-bold text-slate-700 dark:text-slate-300", isToday && "text-rose-600 dark:text-rose-400")}>
+                            {/* B-7: format locale, bukan ISO mentah */}
+                            {fmtDate(h.date)}{isToday ? t(" (hari ini)", " (today)") : ""}
                           </TableCell>
                           <TableCell className="text-xs text-slate-500">
                             {new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d)}
@@ -315,29 +335,29 @@ export function AttendanceHolidaysPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)} className="font-bold">{t("Batal", "Cancel")}</Button>
-            <Button onClick={save} className="gap-1.5 font-bold">
-              {edit ? t("Simpan Perubahan", "Save Changes") : t("Tambahkan", "Add")}
+            <Button variant="outline" onClick={() => setDialog(false)} disabled={busy} className="font-bold">{t("Batal", "Cancel")}</Button>
+            <Button onClick={save} disabled={busy} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("Menyimpan…", "Saving…")}</> : <>{edit ? t("Simpan Perubahan", "Save Changes") : t("Tambahkan", "Add")}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ==== dialog konfirmasi hapus ==== */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteBusy) setDeleteTarget(null); }}>
         <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">{t("Hapus hari libur?", "Delete holiday?")}</DialogTitle>
           </DialogHeader>
           <p className="text-[13px] text-slate-500">
             {deleteTarget
-              ? t(`"${deleteTarget.name}" (${deleteTarget.date}) akan dihapus dari kalender — jadwal shift kembali mengikuti cycle.`, `"${deleteTarget.name}" (${deleteTarget.date}) will be removed — shift schedules take over again.`)
+              ? t(`"${deleteTarget.name}" (${fmtDate(deleteTarget.date)}) akan dihapus dari kalender — jadwal shift kembali mengikuti cycle.`, `"${deleteTarget.name}" (${fmtDate(deleteTarget.date)}) will be removed — shift schedules take over again.`)
               : ""}
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="font-bold">{t("Batal", "Cancel")}</Button>
-            <Button variant="destructive" onClick={remove} className="gap-1.5 font-bold">
-              <Trash2 className="h-3.5 w-3.5" /> {t("Hapus", "Delete")}
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy} className="font-bold">{t("Batal", "Cancel")}</Button>
+            <Button variant="destructive" onClick={remove} disabled={deleteBusy} className="gap-1.5 font-bold">
+              {deleteBusy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("Menghapus…", "Deleting…")}</> : <><Trash2 className="h-3.5 w-3.5" /> {t("Hapus", "Delete")}</>}
             </Button>
           </DialogFooter>
         </DialogContent>

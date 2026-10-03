@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { listDaily, regenerateDaily, recordClockLog } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // GET /api/rekankerja/attendance/clocking?date=YYYY-MM-DD — rekap harian (padanan
 // EmpClocking.jsp) + log mentah hari tsb.
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:clocking (dulu
+// requireTenant: rekap + log mentah clock seluruh karyawan terbaca bebas).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:clocking"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const dateParam = req.nextUrl.searchParams.get("date");
     const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
@@ -60,6 +62,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tanggal & jam wajib (YYYY-MM-DD, HH:MM)" }, { status: 400 });
     }
     const timestamp = new Date(`${dateParam}T${time}:00`);
+    // Task 100 (G12, audit A-05) — validasi jendela timestamp input manual:
+    // masa depan (>5 mnt) & backdate jauh (>30 hari) ditolak — clock masa depan
+    // adalah jalur manipulasi presensi (hadir "terjadwal"), backdate jauh
+    // seharusnya lewat koreksi histori (regen) dengan jejak audit.
+    {
+      const now = new Date();
+      if (timestamp.getTime() > now.getTime() + 5 * 60_000) {
+        return NextResponse.json({ error: "Waktu clock tidak boleh di masa depan (toleransi 5 menit)" }, { status: 400 });
+      }
+      if (timestamp.getTime() < now.getTime() - 30 * 86_400_000) {
+        return NextResponse.json(
+          { error: "Waktu clock tidak boleh lebih dari 30 hari ke belakang — gunakan regenerasi rekap untuk koreksi histori" },
+          { status: 400 },
+        );
+      }
+    }
     await recordClockLog(m.db, {
       employeeId: String(b.employeeId ?? ""),
       timestamp,

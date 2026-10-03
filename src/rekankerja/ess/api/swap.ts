@@ -263,27 +263,38 @@ export async function POST(req: Request) {
     }
 
     // kode berurutan tenant: TSK-0001
-    // Task 82-b: max-suffix — aman race (count+1 bisa bentrok saat 2 submit paralel)
-    const tskRows = await db.shiftSwapRequest.findMany({ where: { code: { startsWith: "TSK-" } }, select: { code: true } });
-    let tskMax = 0;
-    for (const r of tskRows) {
-      const n = parseInt(r.code.slice("TSK-".length), 10);
-      if (Number.isFinite(n) && n > tskMax) tskMax = n;
-    }
-    const code = `TSK-${String(tskMax + 1).padStart(4, "0")}`;
-
-    const created = await db.shiftSwapRequest.create({
-      data: {
-        code,
-        requesterId: employeeId,
-        targetId,
-        swapDate: dayStart(date),
-        requesterScheduleId: myRes.assignment.scheduleId || null,
-        targetScheduleId: targetRes.assignment.scheduleId || null,
-        reason: reason || null,
-        status: "Pending",
-      },
-    });
+    // Task 100 (G7b, audit A-04) — race-suffix: dua pengajuan paralel menghitung
+    // max+1 sama → unique code P2002 (dulu error 500 generik). Bungkus create
+    // dengan retry regen nomor (maks 3) — pola createWithDocNoRetry travel-service.
+    const created = await (async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const tskRows = await db.shiftSwapRequest.findMany({ where: { code: { startsWith: "TSK-" } }, select: { code: true } });
+        let tskMax = 0;
+        for (const r of tskRows) {
+          const n = parseInt(r.code.slice("TSK-".length), 10);
+          if (Number.isFinite(n) && n > tskMax) tskMax = n;
+        }
+        const code = `TSK-${String(tskMax + 1).padStart(4, "0")}`;
+        try {
+          return await db.shiftSwapRequest.create({
+            data: {
+              code,
+              requesterId: employeeId,
+              targetId,
+              swapDate: dayStart(date),
+              requesterScheduleId: myRes.assignment.scheduleId || null,
+              targetScheduleId: targetRes.assignment.scheduleId || null,
+              reason: reason || null,
+              status: "Pending",
+            },
+          });
+        } catch (e) {
+          if ((e as { code?: string })?.code === "P2002" && attempt < 2) continue; // nomor dipakai proses lain — regen
+          throw e;
+        }
+      }
+      throw new Error("Kode TSK unik tidak berhasil dialokasikan setelah 3 percobaan — coba ulang sesaat lagi");
+    })();
 
     await db.activityLog.create({
       data: {

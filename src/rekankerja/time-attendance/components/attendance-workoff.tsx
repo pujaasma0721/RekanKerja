@@ -1,6 +1,10 @@
 "use client";
 // RekanKerja Attendance — Work Off Permission: izin tidak masuk (padanan
 // EmployeeWorkOff.jsp) — paid/unpaid, potong cuti, approval.
+// Task 100-impl-B (F0): pembatalan izin kini lewat AlertDialog + alasan
+// opsional + busy (G9 — status Approved tegas soal pengembalian saldo cuti),
+// error state useApi + Coba Lagi (G10), filter default "Pending" gaya inbox
+// approval konsisten shift-swap (B-14), tanggal default form zona LOKAL (B-10).
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/rekankerja/shared/lib/use-table-sort";
@@ -14,20 +18,23 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { WorkoffRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { CheckCircle2, Plus, XCircle, Ban, Search, FileInput, CalendarOff } from "lucide-react";
+import { CheckCircle2, Plus, XCircle, Ban, Search, FileInput, CalendarOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// B-14: urutan inbox approval — Pending dulu, Semua terakhir (pola shift-swap).
 const STATUS_FILTERS = [
-  { key: "all", label: "Semua" },
   { key: "Pending", label: "Pending" },
   { key: "Approved", label: "Disetujui" },
   { key: "Rejected", label: "Ditolak" },
   { key: "Cancelled", label: "Dibatalkan" },
+  { key: "all", label: "Semua" },
 ];
 
 // label EN (peta paralel — render: t(f.label, STATUS_FILTERS_EN[f.key] ?? f.label))
@@ -41,14 +48,18 @@ const daysBetween = (a: string, b: string) =>
 export function AttendanceWorkoffPage() {
   const { t } = useI18n();
   const perms = useMenuPerms();
-  const [statusFilter, setStatusFilter] = useState("all");
+  // B-14: default "Pending" — inbox approval (konsisten shift-swap).
+  const [statusFilter, setStatusFilter] = useState("Pending");
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<WorkoffRow | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<WorkoffRow | null>(null); // G9: konfirmasi batalkan
+  const [cancelNote, setCancelNote] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
-    employeeId: "", dateFrom: new Date().toISOString().slice(0, 10), dateTo: new Date().toISOString().slice(0, 10),
+    employeeId: "", dateFrom: todayISO(), dateTo: todayISO(),
     allDay: true, timeFrom: "13:00", timeTo: "17:00",
     paid: true, deductLeave: true, reason: "", documentNote: "",
   });
@@ -99,8 +110,22 @@ export function AttendanceWorkoffPage() {
         toast.success(res.note);
       }
       api.refresh();
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal"));
+      return false;
+    }
+  };
+
+  // G9: batalkan izin — konfirmasi AlertDialog (Approved = tegas soal saldo cuti) + busy.
+  const runCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelBusy(true);
+    try {
+      const ok = await decide(cancelTarget, "cancel", cancelNote.trim() || "Dibatalkan admin");
+      if (ok) setCancelTarget(null);
+    } finally {
+      setCancelBusy(false);
     }
   };
 
@@ -160,7 +185,9 @@ export function AttendanceWorkoffPage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / document no.…")} className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
-          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : permits.length === 0 ? (
+          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          ) : permits.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Tidak ada izin", "No permits")} description={t("Ajukan izin tidak masuk — disetujui otomatis mengubah rekap absensi hari tsb.", "Submit an absence permit — approval automatically updates that day's attendance recap.")} icon={<CalendarOff className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
@@ -241,7 +268,7 @@ export function AttendanceWorkoffPage() {
                             </>
                           )}
                           {["Pending", "Approved"].includes(p.status) && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Batalkan", "Cancel")} onClick={() => decide(p, "cancel", "Dibatalkan admin")} aria-label={t("Batalkan izin", "Cancel permit")}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Batalkan", "Cancel")} onClick={() => { setCancelTarget(p); setCancelNote(""); }} aria-label={t("Batalkan izin", "Cancel permit")}>
                               <Ban className="h-4 w-4 text-slate-400" />
                             </Button>
                           )}
@@ -324,13 +351,59 @@ export function AttendanceWorkoffPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={submit} disabled={busy || !form.employeeId || !form.reason.trim()} className="font-bold">
-              {busy ? t("Mengirim…", "Sending…") : t("Ajukan Izin", "Submit Permit")}
+            <Button variant="outline" onClick={() => setDialog(false)} disabled={busy}>{t("Batal")}</Button>
+            <Button onClick={submit} disabled={busy || !form.employeeId || !form.reason.trim()} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Mengirim…", "Sending…")}</> : <>{t("Ajukan Izin", "Submit Permit")}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* G9: dialog konfirmasi batalkan izin (pola AlertDialog shift-swap) */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(v) => { if (!v && !cancelBusy) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Batalkan Izin {no}?", "Cancel Permit {no}?", { no: cancelTarget?.docNo ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget?.status === "Approved"
+                ? t(
+                    "Izin sudah disetujui — pembatalan MENGHITUNG ULANG rekap absensi tanggal izin dan mengembalikan saldo cuti yang dipotong (bila memotong cuti).",
+                    "This permit is already approved — cancelling RECALCULATES the attendance recap for the permit dates and refunds the deducted leave balance (if it deducted leave).",
+                  )
+                : t(
+                    "Izin akan dibatalkan dan karyawan menerima notifikasi pembatalan.",
+                    "The permit will be cancelled and the employee receives a cancellation notification.",
+                  )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {cancelTarget && (
+            <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-slate-800 dark:text-slate-200">{cancelTarget.employee.fullName}</p>
+                  <p className="truncate text-[11px] text-slate-400">{fmtDate(cancelTarget.dateFrom)} · {cancelTarget.deductLeave ? t("memotong saldo cuti", "deducts leave balance") : t("tanpa potongan cuti", "no leave deduction")}</p>
+                </div>
+                <StatusPill status={cancelTarget.status} />
+              </div>
+              <div className="mt-2 space-y-1.5">
+                <Label className="text-xs font-bold">{t("Alasan pembatalan (opsional)", "Cancellation reason (optional)")}</Label>
+                <Textarea value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} placeholder={t("mis. salah tanggal / dokumen pendukung tidak sah", "e.g. wrong date / invalid supporting document")} className="min-h-16 text-sm" maxLength={300} />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>{t("Batal", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelBusy}
+              className={cn("gap-1.5 font-bold", cancelBusy && "opacity-70")}
+              onClick={(e) => { e.preventDefault(); void runCancel(); }}
+            >
+              {cancelBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              {t("Ya, Batalkan Izin", "Yes, Cancel Permit")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* dialog tolak */}
       <Dialog open={!!rejectTarget} onOpenChange={(v) => !v && setRejectTarget(null)}>

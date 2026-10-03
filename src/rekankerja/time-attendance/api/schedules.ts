@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 
 // Task 52-g — UU 13/2003 Ps.77 ayat (1): 40 jam kerja/minggu, pembagian sah
 // 8 jam × 5 hari (≤ 2400 menit/minggu) ATAU pola 6 hari kerja × 7 jam
@@ -61,10 +60,13 @@ const SCHEDULE_INCLUDE = {
 } as const;
 
 // GET /api/rekankerja/attendance/schedules — master jadwal + cycle (padanan WorkSchedule.jsp)
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:templates-schedule
+// (dulu requireTenant; master jadwal kini berhak LIHAT per pengguna).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:templates-schedule"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const [schedules, dayTypes] = await Promise.all([
       db.workSchedule.findMany({ include: SCHEDULE_INCLUDE, orderBy: { code: "asc" } }),
       db.workDayType.findMany({ where: { active: true }, orderBy: { code: "asc" } }),

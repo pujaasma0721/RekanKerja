@@ -1,14 +1,16 @@
 "use client";
 // RekanKerja Attendance — Ringkasan: KPI hari ini + bulan berjalan + approval menunggu
-import { useApi } from "@/rekankerja/shared/lib/api";
+// Task 100-impl-B (F0): error state useApi + Coba Lagi (G10), regenerasi "hari ini"
+// zona LOKAL (B-10), tanggal terburuk CoverageAlert format locale (B-7).
+import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import {
   CalendarCheck2, Clock, XCircle, CheckCircle2, Users, CalendarClock,
   CalendarDays, RefreshCw, Timer, BadgeCheck, TrendingUp,
@@ -52,13 +54,14 @@ interface CoverageData {
 export function AttendanceOverview() {
   const { navigate } = useNav();
   const { t } = useI18n();
-  const { data, loading, refresh } = useApi<OverviewData>("/api/rekankerja/attendance/overview");
+  const { data, loading, error, refresh } = useApi<OverviewData>("/api/rekankerja/attendance/overview");
   const today = data?.today;
   const month = data?.month;
 
   const regenerateToday = async () => {
     try {
-      const d = new Date().toISOString().slice(0, 10);
+      // B-10: tanggal hari ini zona lokal (pola ess-attendance).
+      const d = todayISO();
       const res = await apiSend<{ regenerated: number }>("/api/rekankerja/attendance/clocking", "PATCH", { date: d });
       toast.success(t("Rekap hari ini dihitung ulang — {n} karyawan diproses", "Today's recap recalculated — {n} employees processed", { n: res.regenerated }));
       refresh();
@@ -114,6 +117,8 @@ export function AttendanceOverview() {
 
       {loading && !data ? (
         <LoadingRows rows={5} />
+      ) : error ? (
+        <ApiErrorState message={error} busy={loading} onRetry={refresh} />
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -273,7 +278,7 @@ function CoverageAlert({ cov, onOpenClocking }: { cov: CoverageData; onOpenClock
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
             {t("{n} kombinasi hilang", "{n} combinations missing", { n: cov.missing.toLocaleString(locale) })}
-            {worstDay ? t(" · terburuk {d} ({n})", " · worst {d} ({n})", { d: worstDay.date, n: worstDay.missing }) : ""}
+            {worstDay ? t(" · terburuk {d} ({n})", " · worst {d} ({n})", { d: fmtDate(worstDay.date), n: worstDay.missing }) : ""}
             {worstEmps ? t(" · karyawan: {list}", " · employees: {list}", { list: worstEmps }) : ""}
           </p>
           <Button size="sm" variant="outline" className="h-7 gap-1 border-slate-300/80 px-2.5 text-[11px] font-bold" onClick={onOpenClocking}>

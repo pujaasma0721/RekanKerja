@@ -1,8 +1,12 @@
 "use client";
 // RekanKerja Attendance — Matriks Jadwal: karyawan × 7 hari (padanan Employee
 // Schedule Matrix) dengan warna day type.
+// Task 100-impl-B (F0): error state useApi + Coba Lagi (G10), header pekan
+// format locale (B-7), dan navigasi/default pekan zona LOKAL (B-10 —
+// toISOString membuat Senin-default bergeser ke Minggu & tombol Prev/Next
+// mundur 6 hari di WIB).
 import { useState } from "react";
-import { useApi } from "@/rekankerja/shared/lib/api";
+import { useApi, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MatrixRow } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { Layers, ChevronLeft, ChevronRight, CalendarRange, CalendarDays, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +26,8 @@ function mondayOf(d: Date): Date {
   x.setDate(x.getDate() - dow);
   return x;
 }
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+// B-10: zona lokal —Senin-default & navigasi ±7 hari akurat di semua zona.
+const iso = (d: Date) => isoLocal(d);
 const shiftDate = (isoDate: string, days: number) => {
   const d = new Date(`${isoDate}T00:00:00`);
   d.setDate(d.getDate() + days);
@@ -65,7 +71,7 @@ export function AttendanceMatrixPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <Layers className="h-4 w-4 ov-text-accent" />
-              <p className="text-[13px] font-bold">{t("Pekan {a} — {b} · {n} karyawan", "Week {a} — {b} · {n} employees", { a: from, b: iso(shiftDate(from, 6)), n: api.data?.total ?? 0 })}</p>
+              <p className="text-[13px] font-bold">{t("Pekan {a} — {b} · {n} karyawan", "Week {a} — {b} · {n} employees", { a: fmtDate(from), b: fmtDate(shiftDate(from, 6)), n: api.data?.total ?? 0 })}</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -75,7 +81,9 @@ export function AttendanceMatrixPage() {
             </div>
           </div>
 
-          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : rows.length === 0 ? (
+          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          ) : rows.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Belum ada karyawan aktif", "No active employees yet")} description={t("Assign jadwal untuk melihat matriks.", "Assign schedules to view the matrix.")} icon={<CalendarRange className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">

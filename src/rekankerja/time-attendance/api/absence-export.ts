@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
 
     const recap = await recapPeriod(db, from, to);
 
+    // Task 100 (G3, audit C-03) — kolom hari unpaid kini fraksional (setengah
+    // hari = 0,5): tampil desimal KOMA (locale ID; aman — delimiter CSV " ; "),
+    // total ikut menjumlah angka fraksional.
+    const fmtDays = (n: number): string => (Number.isInteger(n) ? String(n) : String(n).replace(".", ","));
+
     const columns = [
       { header: "No. Karyawan", width: 14 },
       { header: "Nama", width: 28 },
@@ -48,7 +53,7 @@ export async function GET(req: NextRequest) {
     const rows = recap.map((r) => [
       r.employeeNo, r.fullName, r.orgUnitName ?? "", Math.round(r.baseSalary),
       r.scheduledDays, r.presentDays, r.lateCount, r.lateMinutes, r.absentDays,
-      r.workoffPaidDays, r.workoffUnpaidDays, r.leavePaidDays, r.leaveUnpaidDays,
+      r.workoffPaidDays, fmtDays(r.workoffUnpaidDays), r.leavePaidDays, fmtDays(r.leaveUnpaidDays),
       r.overtimeMinutes, Math.round(r.overtimePay), Math.round(r.lateDeduction),
       Math.round(r.absenceDeduction), Math.round(r.attendanceAllowance),
     ]);
@@ -56,8 +61,8 @@ export async function GET(req: NextRequest) {
     rows.push([
       "", `TOTAL (${recap.length} karyawan)`, "", "",
       sum((r) => r.scheduledDays), sum((r) => r.presentDays), sum((r) => r.lateCount), sum((r) => r.lateMinutes),
-      sum((r) => r.absentDays), sum((r) => r.workoffPaidDays), sum((r) => r.workoffUnpaidDays),
-      sum((r) => r.leavePaidDays), sum((r) => r.leaveUnpaidDays), sum((r) => r.overtimeMinutes),
+      sum((r) => r.absentDays), sum((r) => r.workoffPaidDays), fmtDays(sum((r) => r.workoffUnpaidDays)),
+      sum((r) => r.leavePaidDays), fmtDays(sum((r) => r.leaveUnpaidDays)), sum((r) => r.overtimeMinutes),
       Math.round(sum((r) => r.overtimePay)), Math.round(sum((r) => r.lateDeduction)),
       Math.round(sum((r) => r.absenceDeduction)), Math.round(sum((r) => r.attendanceAllowance)),
     ]);

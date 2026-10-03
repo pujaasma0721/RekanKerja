@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { isValidTimeStr } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // GET /api/rekankerja/attendance/day-types — master tipe hari (padanan DayType.jsp)
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:templates-schedule
+// (dulu requireTenant; pola GET attendance kini berhak LIHAT per pengguna).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:templates-schedule"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const dayTypes = await db.workDayType.findMany({
       orderBy: [{ category: "asc" }, { code: "asc" }],
     });
@@ -18,6 +21,25 @@ export async function GET(req: NextRequest) {
 
 // POST — buat tipe hari baru
 // T41-M2: guard hak AKSI menu attendance:templates-schedule (Baru).
+// Task 100 (G6, audit A-03) — validasi KETAT HH:MM utk timeIn/timeOut + urutan
+// jam (timeIn < timeOut; terbalik hanya sah utk nextDay lintas tengah malam).
+// Dulu string bebas → jam rusak (mis. "9:zz", "25:99") tersimpan → atTime()
+// menghasilkan Invalid Date → telat/lembur/pulang cepat salah hitung.
+function dayTypeError(timeIn: string | null, timeOut: string | null, nextDay: boolean): string | null {
+  if (timeIn != null && !isValidTimeStr(timeIn)) {
+    return `Jam masuk "${timeIn}" tidak valid — gunakan format HH:MM (jam 00–23, menit 00–59, mis. 08:00)`;
+  }
+  if (timeOut != null && !isValidTimeStr(timeOut)) {
+    return `Jam keluar "${timeOut}" tidak valid — gunakan format HH:MM (jam 00–23, menit 00–59, mis. 17:00)`;
+  }
+  if (timeIn != null && timeOut != null && timeIn === timeOut) {
+    return "Jam masuk dan jam keluar tidak boleh sama";
+  }
+  if (timeIn != null && timeOut != null && timeIn > timeOut && !nextDay) {
+    return `Jam masuk ${timeIn} ≥ jam keluar ${timeOut} — hanya sah bila lintas tengah malam (centang "pulang hari berikutnya")`;
+  }
+  return null;
+}
 export async function POST(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "attendance:templates-schedule", "create");
@@ -37,6 +59,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tipe hari kerja wajib punya jam masuk & keluar" }, { status: 400 });
     }
     const nextDay = Boolean(b.nextDay);
+    // Task 100 (G6) — tolak format jam rusak / urutan terbalik tanpa nextDay.
+    const err = dayTypeError(timeIn, timeOut, nextDay);
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
     const normalMinutes = Math.max(0, Math.min(960, parseInt(b.normalMinutes ?? 0, 10) || 0));
 
     const dayType = await db.workDayType.create({
@@ -77,6 +102,15 @@ export async function PATCH(req: NextRequest) {
     if (b.timeIn !== undefined) data.timeIn = b.timeIn ? String(b.timeIn) : null;
     if (b.timeOut !== undefined) data.timeOut = b.timeOut ? String(b.timeOut) : null;
     if (b.nextDay !== undefined) data.nextDay = Boolean(b.nextDay);
+    // Task 100 (G6) — validasi hasil gabungan PATCH terhadap nilai AKHIR
+    // (nilai bawaan baris lama utk field yang tidak dikirim).
+    {
+      const finalTimeIn = (data.timeIn !== undefined ? data.timeIn : existing.timeIn) as string | null;
+      const finalTimeOut = (data.timeOut !== undefined ? data.timeOut : existing.timeOut) as string | null;
+      const finalNextDay = data.nextDay !== undefined ? (data.nextDay as boolean) : existing.nextDay;
+      const err = dayTypeError(finalTimeIn, finalTimeOut, finalNextDay);
+      if (err) return NextResponse.json({ error: err }, { status: 400 });
+    }
     if (b.breakMinutes !== undefined) data.breakMinutes = Math.max(0, parseInt(b.breakMinutes, 10) || 0);
     if (b.breakPaid !== undefined) data.breakPaid = Boolean(b.breakPaid);
     if (b.normalMinutes !== undefined) data.normalMinutes = Math.max(0, Math.min(960, parseInt(b.normalMinutes, 10) || 0));

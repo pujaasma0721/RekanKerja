@@ -1,8 +1,9 @@
 // POST /api/rekankerja/ess/clock — presensi mandiri ESS (kontrak T8-ESS-FRONTEND).
 // Body: { direction: "IN"|"OUT", latitude?, longitude?, note? }
 // Validasi: jadwal hari ini ADA & clockingRequired; IN tunggal per hari;
-// OUT wajib setelah IN. Log ditulis source "Web" + koordinat (kolom baru
-// T7-ESS), lalu rekap hari itu dihitung ulang (regenerateDaily).
+// OUT wajib setelah IN (Task 100 G5: IN kemarin yang belum tertutup juga sah
+// utk shift malam lintas hari). Log ditulis source "Web" + koordinat (kolom
+// baru T7-ESS), lalu rekap hari itu dihitung ulang (regenerateDaily).
 // 27-a P0: geofencing presensi — AttendanceRule.geofenceMode (Off|Warn|Strict)
 // × koordinat WorkLocation karyawan. Strict tolak clock di luar radius /
 // tanpa koordinat; Warn catat peringatan di note tapi clock tetap sah.
@@ -86,6 +87,8 @@ export async function POST(req: Request) {
     const firstIn = logs.find((l) => l.direction === "IN");
 
     if (direction === "IN") {
+      // Aturan 1 IN/hari utk IN baru TIDAK berubah (Task 100 G5 hanya membuka
+      // OUT lintas hari di bawah).
       if (firstIn) {
         return NextResponse.json(
           { error: `Clock-in hari ini sudah tercatat pukul ${fmtHhMm(firstIn.timestamp)}` },
@@ -94,10 +97,31 @@ export async function POST(req: Request) {
       }
     } else {
       if (!firstIn) {
-        return NextResponse.json(
-          { error: "Belum ada clock-in hari ini — clock-out wajib setelah clock-in" },
-          { status: 400 },
-        );
+        // Task 100 (G5, audit A-05) — shift malam lintas hari (mis. 22:00–06:00):
+        // bila tidak ada IN hari ini, cari IN KEMARIN (window kemarin 12:00 →
+        // sekarang) yang belum punya OUT setelahnya → clock-out SAH untuk IN
+        // tersebut. Regen engine sudah mendukung clock lintas hari (window
+        // D..D+2, outLimit +10 jam setelah jam pulang) — hanya guard ESS ini
+        // yang dulu salah menolak ("Belum ada clock-in hari ini").
+        const yesterday = addDays(today, -1);
+        const sinceYesterdayNoon = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 12, 0, 0, 0);
+        const yLogs = await db.attendanceClockLog.findMany({
+          where: { employeeId, timestamp: { gte: sinceYesterdayNoon, lt: today } },
+          orderBy: { timestamp: "asc" },
+          select: { direction: true, timestamp: true },
+        });
+        const combined = [...yLogs, ...logs]; // gabung + logs hari ini (sudah asc per grup, urutan global aman: kemarin < hari ini)
+        let openIn: { timestamp: Date } | null = null;
+        for (const l of combined) {
+          if (l.direction === "IN") openIn = l;
+          else openIn = null; // OUT menutup IN sebelumnya
+        }
+        if (!openIn) {
+          return NextResponse.json(
+            { error: "Belum ada clock-in hari ini (atau kemarin sejak tengah hari) yang belum ditutup clock-out — clock-out wajib setelah clock-in" },
+            { status: 400 },
+          );
+        }
       }
     }
 

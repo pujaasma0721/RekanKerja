@@ -13,6 +13,12 @@ import {
 // (tidak meng-import service TA → bebas dependensi melingkar).
 import { effectiveEntitlement } from "@/rekankerja/leave/services/entitlement";
 
+// Task 100 (G7a, audit A-04) — klien yang dipakai validasi cap lembur: client
+// biasa ATAU client transaksi interaktif ($transaction) — assert dijalankan
+// ulang DI DALAM transaksi penulisan status supaya dua approve paralel tidak
+// bisa sama-sama lolos cap mingguan 18 jam (baca othersWeek → tulis status).
+type TaClient = TenantDb | Parameters<Parameters<TenantDb["$transaction"]>[0]>[0];
+
 // ============ utilitas waktu (semua Date = waktu lokal) ============
 
 export function dayStart(d: Date): Date {
@@ -776,8 +782,11 @@ export interface RecapRow {
   absentDays: number;
   absenceMinutes: number;
   workoffPaidDays: number;
+  /** Task 100 (G3, audit C-03) — kini fraksional: setengah hari (izin/cuti
+   *  unpaid sesi AM/PM) = 0,5 — dulu dihitung 1 hari penuh (over-deduction). */
   workoffUnpaidDays: number;
   leavePaidDays: number;
+  /** Task 100 (G3) — idem workoffUnpaidDays: fraksional (0,5 utk half-day). */
   leaveUnpaidDays: number;
   offDays: number;
   normalMinutes: number;
@@ -786,6 +795,18 @@ export interface RecapRow {
   lateDeduction: number;
   absenceDeduction: number;
   attendanceAllowance: number;
+}
+
+/**
+ * Task 100 (G3, audit C-03) — bobot hari UNPAID fraksional. regenerateDaily
+ * menandai baris setengah hari dengan notes "setengah hari" (cuti sesi PM/AM,
+ * izin !allDay): absenceMinutes = ⌈target/2⌉ & normalMinutes = ⌊target/2⌋ (paid)
+ * / 0 (unpaid). Dulu recap menghitung tiap BARIS 1 hari penuh — setengah hari
+ * unpaid dipotong TABS sehari penuh (over-deduction gaji). Deteksi via marker
+ * notes tsb (satu-satunya jejak half-day yang regen tulis ke AttendanceDaily).
+ */
+function unpaidDayWeight(notes: string | null): number {
+  return notes?.includes("setengah hari") ? 0.5 : 1;
 }
 
 export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId?: string): Promise<RecapRow[]> {
@@ -844,14 +865,15 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
           // T5-TA-FIX (D-7): klasifikasi berbayar dari kolom paidFlag (regen
           // mengisi dari LeaveType.paid); baris lama belum ter-regen (paidFlag
           // null) → fallback notes "tidak dibayar" (perilaku lama).
-          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) leaveUnpaid++;
+          // Task 100 (G3): bobot fraksional — setengah hari = 0,5 hari unpaid.
+          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) leaveUnpaid += unpaidDayWeight(r.notes);
           else leavePaid++;
           scheduledDays++;
           break;
         case "WorkOff":
           // T5-TA-FIX (D-7): sama — paidFlag dari WorkOffPermission.paid,
-          // fallback notes utk baris lama.
-          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) workoffUnpaid++;
+          // fallback notes utk baris lama. Task 100 (G3): fraksional (0,5 half-day).
+          if (r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"))) workoffUnpaid += unpaidDayWeight(r.notes);
           else workoffPaid++;
           scheduledDays++;
           break;
@@ -867,6 +889,9 @@ export async function recapPeriod(db: TenantDb, from: Date, to: Date, employeeId
     const hourly = baseSalary / 173;
     const lateDeduction = Math.round((lateMinutes / 60) * (rule.lateDeductionPerHour > 0 ? rule.lateDeductionPerHour : hourly));
     const perDay = rule.absenceDeductionPerDay > 0 ? rule.absenceDeductionPerDay : baseSalary / 25;
+    // Task 100 (G3): (absentDays + workoffUnpaid + leaveUnpaid) kini memuat
+    // bobot fraksional — setengah hari unpaid dipotong 0,5 × perDay, bukan
+    // sehari penuh (audit C-03: over-deduction TABS).
     const absenceDeduction = Math.round((absentDays + workoffUnpaid + leaveUnpaid) * perDay);
     const otPay = (otByEmp.get(emp.id) ?? []).reduce(
       (s, o) => s + overtimePayFor(
@@ -1033,7 +1058,7 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
       const amounts: [string, number, string][] = [
         [rule.overtimeComponentCode, includeOvertime ? r.overtimePay : 0, `Lembur ${Math.round(r.overtimeMinutes / 60)} jam`],
         [rule.lateDeductionComponentCode, includeLate ? r.lateDeduction : 0, `Telat ${r.lateCount}× (${Math.round(r.lateMinutes)} menit)`],
-        [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${r.workoffUnpaidDays + r.leaveUnpaidDays} hari`],
+        [rule.absenceDeductionComponentCode, includeAbsence ? r.absenceDeduction : 0, `Absen ${r.absentDays} hari, izin tanpa upah ${Math.round((r.workoffUnpaidDays + r.leaveUnpaidDays) * 10) / 10} hari`],
         [rule.attendanceAllowanceComponentCode, includeAllowance ? r.attendanceAllowance : 0, "Tunjangan kehadiran penuh (tanpa telat/absen)"],
       ];
       let any = false;
@@ -1090,7 +1115,10 @@ export async function transferToPayroll(db: TenantDb, input: TransferInput): Pro
  * Dipanggil confirmRun(): tandai Paid HANYA order lembur yang benar-benar dibayar
  * di run tsb — fix K-3 (dulu: window period run, semua order Approved, tanpa cek
  * keberadaan item di run):
- * - hanya run SALARY (run non-SALARY tidak pernah menandai lembur Paid);
+ * - Task 100 (G2, audit C-02): run processType APA PUN (SALARY, BONUS,
+ *   YEAR_END_ADJ, …) yang memuat item komponen lembur menandai order Paid —
+ *   dulu hanya SALARY, sehingga transfer lembur lewat run BONUS tidak pernah
+ *   menandai Paid → order terhitung LAGI di window berikutnya (double-pay);
  * - window = window transfer terakhir period (taStartDate/taEndDate — ditulis
  *   transferToPayroll, fix M-4); fallback window period utk data lama;
  * - hanya karyawan yang punya item komponen lembur (mis. LEMBUR) di run tsb —
@@ -1106,7 +1134,9 @@ export async function markOvertimePaidForRun(db: TenantDb, runId: string): Promi
       lines: { select: { employeeId: true, items: { select: { code: true } } } },
     },
   });
-  if (!run || run.processType.code !== "SALARY") return 0;
+  // Task 100 (G2): batasan processType.code === "SALARY" DIHAPUS — lihat
+  // komentar fungsi (double-pay lembur pada run BONUS/YEAR_END_ADJ).
+  if (!run) return 0;
 
   const rule = await getRule(db);
   const paidEmployees = run.lines
@@ -1168,7 +1198,7 @@ export async function recordClockLog(
 
 // ============ lembur: order + approval (padanan EmpOvertimeWrit) ============
 
-export async function nextOrderNo(db: TenantDb): Promise<string> {
+export async function nextOrderNo(db: TaClient): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `OT-${year}-`;
   // Task 82-b: max-suffix — aman race (count+1 bisa bentrok saat 2 submit paralel)
@@ -1207,8 +1237,9 @@ function otEffectiveMinutes(o: { status: string; planMinutes: number; verifiedMi
 
 /** Cap lembur efektif dari AttendanceRule — maxOvertimeHours (default 4 jam/hari)
  *  + cap opsional per bulan (null/0 = tanpa cap). Baca defensif: tenant remote
- *  yang kolomnya belum termigrasi → default PP 35/2021. */
-export async function overtimeCaps(db: TenantDb): Promise<{ dailyHours: number; monthlyHours: number | null }> {
+ *  yang kolomnya belum termigrasi → default PP 35/2021. Task 100 (G7a): menerima
+ *  client transaksi supaya bisa dijalankan DI DALAM $transaction. */
+export async function overtimeCaps(db: TaClient): Promise<{ dailyHours: number; monthlyHours: number | null }> {
   try {
     const rule = await db.attendanceRule.findFirst({
       orderBy: { id: "asc" },
@@ -1223,7 +1254,7 @@ export async function overtimeCaps(db: TenantDb): Promise<{ dailyHours: number; 
 }
 
 /** Total menit lembur AKTIF (Pending/Approved/Paid) karyawan pada satu tanggal. */
-async function activeOvertimeMinutesOnDate(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+async function activeOvertimeMinutesOnDate(db: TaClient, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
   const rows = await db.overtimeOrder.findMany({
     where: {
       employeeId,
@@ -1253,7 +1284,7 @@ function weekStartMonday(d: Date): Date {
  * sudah diputus → verifiedMinutes bila >0, else actualMinutes) — konsisten
  * dengan rekap uang recapPeriod/transferToPayroll dan helper cap harian/bulanan.
  */
-async function activeOvertimeMinutesInWeek(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+async function activeOvertimeMinutesInWeek(db: TaClient, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
   const weekFrom = weekStartMonday(date);
   const weekTo = addDays(weekFrom, 7);
   const rows = await db.overtimeOrder.findMany({
@@ -1269,7 +1300,7 @@ async function activeOvertimeMinutesInWeek(db: TenantDb, employeeId: string, dat
 }
 
 /** Total menit lembur AKTIF karyawan sepanjang bulan tanggal tsb. */
-async function activeOvertimeMinutesInMonth(db: TenantDb, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
+async function activeOvertimeMinutesInMonth(db: TaClient, employeeId: string, date: Date, excludeOrderId?: string): Promise<number> {
   const monthStart = dayStart(new Date(date.getFullYear(), date.getMonth(), 1));
   const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1);
   const rows = await db.overtimeOrder.findMany({
@@ -1289,9 +1320,11 @@ async function activeOvertimeMinutesInMonth(db: TenantDb, employeeId: string, da
  *  APPROVE/VERIFY (sebelum chain diputus supaya kegagalan meninggalkan order
  *  + chain utuh — pola T5 saldo workoff). HANYA dipanggil di titik keputusan
  *  manusia (submit/approve/verify) — bukan saat regen rekap, agar order yang
- *  sudah approved tidak ikut ditolak oleh proses otomatis (konsistensi M-6). */
+ *  sudah approved tidak ikut ditolak oleh proses otomatis (konsistensi M-6).
+ *  Task 100 (G7a, audit A-04): parameter db dilebarkan ke TaClient — caller
+ *  memanggilnya DALAM $transaction (re-assert atomik dengan tulis status). */
 async function assertOvertimeCaps(
-  db: TenantDb,
+  db: TaClient,
   employeeId: string,
   overtimeDate: Date,
   planMinutes: number,
@@ -1349,12 +1382,41 @@ export interface OvertimeSubmitResult {
  * Dulu hanya regex `^\d{2}:\d{2}$` → "25:99" lolos dari jalur admin → Date
  * Invalid/NaN tersbar ke perhitungan plan/aktual (error 500 saat submit).
  * (Jalur ESS sudah validasi ketat di route — ini menutup jalur admin/service.)
+ * Task 100 (G6): diekspor — dipakai juga api/day-types.ts utk validasi
+ * timeIn/timeOut tipe hari (audit A-03: string bebas tersimpan ke master).
  */
-function isValidTimeStr(s: string): boolean {
+export function isValidTimeStr(s: string): boolean {
   if (!/^\d{2}:\d{2}$/.test(s)) return false;
   const h = parseInt(s.slice(0, 2), 10);
   const m = parseInt(s.slice(3, 5), 10);
   return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+/**
+ * Task 100 (G7b, audit A-04) — lapis terakhir anti-race nomor dokumen (pola
+ * createWithDocNoRetry travel-service.ts): dua submit paralel menghitung
+ * max-suffix sama → unique docNo/orderNo → P2002 generik 400/500. Bungkus
+ * create dengan retry: tangkap P2002 → regen nomor → ulang (maks 3x).
+ */
+async function withDocNoRetry<T>(
+  nextNo: () => Promise<string>,
+  fn: (docNo: string) => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    const docNo = await nextNo();
+    try {
+      return await fn(docNo);
+    } catch (e) {
+      if ((e as { code?: string })?.code === "P2002") {
+        lastErr = e; // nomor unik kalah race — regen & ulang
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
 export async function submitOvertimeOrder(
@@ -1380,29 +1442,34 @@ export async function submitOvertimeOrder(
     ? Math.round(input.planMinutes)
     : Math.max(30, minutesBetween(tFrom, tTo));
 
-  // T15-CHAIN-EXT: cap lembur PP 35/2021 — TOLAK pengajuan yang melampaui
-  // (maks {maxOvertimeHours} jam/hari + MINGGUAN 18 jam Ps.26 [fix audit 40 M-6]
-  // + cap bulanan opsional dari AttendanceRule).
-  await assertOvertimeCaps(db, input.employeeId, date, plan);
-
-  // day type & kategori utk multiplier
+  // day type & kategori utk multiplier (baca murni — di luar transaksi)
   const { dayType } = await resolveDayType(db, input.employeeId, date);
   const dayCategory = dayType
     ? dayType.category === "Off" ? "Weekend" : dayType.category === "Holiday" ? "Holiday" : "Weekday"
     : "Weekday";
 
-  const orderNo = await nextOrderNo(db);
-  const order = await db.overtimeOrder.create({
-    data: {
-      orderNo, employeeId: input.employeeId, overtimeDate: date,
-      timeFrom: tFrom, timeTo: tTo, planMinutes: plan,
-      dayCategory, calculationTime: true,
-      letterNo: input.letterNo?.trim() || null,
-      reason: input.reason?.trim() || null,
-      status: "Pending",
-    },
-    include: OT_INCLUDE,
-  });
+  // Task 100 (G7a+G7b, audit A-04) — assert cap + alokasi orderNo + create
+  // dalam SATU $transaction (interaktif): dua submit paralel tidak bisa
+  // sama-sama lolos cap harian/mingguan (baca othersToday/othersWeek → tulis
+  // order atomik); dibungkus retry P2002 bila orderNo unik kalah race.
+  const order = await withDocNoRetry(
+    () => nextOrderNo(db),
+    (orderNo) => db.$transaction(async (tx) => {
+      await assertOvertimeCaps(tx, input.employeeId, date, plan);
+      return tx.overtimeOrder.create({
+        data: {
+          orderNo, employeeId: input.employeeId, overtimeDate: date,
+          timeFrom: tFrom, timeTo: tTo, planMinutes: plan,
+          dayCategory, calculationTime: true,
+          letterNo: input.letterNo?.trim() || null,
+          reason: input.reason?.trim() || null,
+          status: "Pending",
+        },
+        include: OT_INCLUDE,
+      });
+    }),
+  );
+  const orderNo = order.orderNo;
 
   // Approval berjenjang (T15-CHAIN-EXT, padanan WorkOff/Leave): bangun jalur
   // persetujuan sesuai struktur "Overtime" yang cocok dengan penempatan
@@ -1479,6 +1546,8 @@ export async function decideOvertimeOrder(
     const verified = opts.verifiedMinutes && opts.verifiedMinutes > 0 ? Math.round(opts.verifiedMinutes) : actual > 0 ? actual : 0;
     // T15-CHAIN-EXT: revalidasi cap (harian total + bulanan) SEBELUM chain diputus
     // supaya kegagalan meninggalkan order Pending + chain utuh (pola T5 workoff).
+    // Task 100 (G7a): fail-fast di luar transaksi — re-assert DALAM transaksi
+    // update status di bawah menutup race dua approve paralel (baca→tulis atomik).
     if (verified > 0) {
       await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, {
         excludeOrderId: id, verifiedMinutes: verified,
@@ -1486,7 +1555,6 @@ export async function decideOvertimeOrder(
     } else {
       await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id });
     }
-
     if (chain && chain.status === "InProgress") {
       const res = await decideApprovalChain(db, {
         docType: "Overtime", docId: id, action: "approve", note: opts.note, actor,
@@ -1515,18 +1583,31 @@ export async function decideOvertimeOrder(
       // jenjang TERAKHIR → lanjut keputusan final di bawah (aktual/verified/estPay)
     }
 
-    const updated = await db.overtimeOrder.update({
-      where: { id },
-      data: {
-        status: "Approved", approverId: actor.name,
-        decidedAt: new Date(), decisionNote: opts.note?.trim() || null,
-        actualMinutes: actual, verifiedMinutes: verified,
-        // multiplier jam ke-1 sesuai kategori hari (Weekday 1,5× / Weekend 2× / Holiday 2×)
-        rateMultiplier: verified > 0
-          ? order.dayCategory === "Weekend" || order.dayCategory === "Holiday" ? 2 : 1.5
-          : order.rateMultiplier,
-      },
-      include: OT_INCLUDE,
+    // Task 100 (G7a, audit A-04) — re-assert cap + update status Approved dalam
+    // SATU $transaction: dua approve paralel order berbeda tidak bisa sama-sama
+    // lolos cap mingguan 18 jam (jendela baca othersWeek → tulis status atomik).
+    // Fail-fast di atas menjaga chain utuh; assert ini yang otoritatif.
+    const updated = await db.$transaction(async (tx) => {
+      if (verified > 0) {
+        await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, {
+          excludeOrderId: id, verifiedMinutes: verified,
+        });
+      } else {
+        await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, { excludeOrderId: id });
+      }
+      return tx.overtimeOrder.update({
+        where: { id },
+        data: {
+          status: "Approved", approverId: actor.name,
+          decidedAt: new Date(), decisionNote: opts.note?.trim() || null,
+          actualMinutes: actual, verifiedMinutes: verified,
+          // multiplier jam ke-1 sesuai kategori hari (Weekday 1,5× / Weekend 2× / Holiday 2×)
+          rateMultiplier: verified > 0
+            ? order.dayCategory === "Weekend" || order.dayCategory === "Holiday" ? 2 : 1.5
+            : order.rateMultiplier,
+        },
+        include: OT_INCLUDE,
+      });
     });
     await regenerateDaily(db, order.overtimeDate, order.employeeId);
     const levelsNote = chain ? ` (${chain.totalLevels} jenjang)` : "";
@@ -1572,14 +1653,18 @@ export async function decideOvertimeOrder(
     // di tanggal sama + MINGGUAN 18 jam (PP 35/2021 Ps.26) + bulanan bila di-set.
     // Dulu hanya membandingkan jam order ini vs cap harian tunggal → order lain
     // hari/minggu yang sama tidak dihitung (total bisa menembus cap).
-    await assertOvertimeCaps(db, order.employeeId, order.overtimeDate, order.planMinutes, {
-      excludeOrderId: id,
-      verifiedMinutes: verified,
-    });
-    const updated = await db.overtimeOrder.update({
-      where: { id },
-      data: { verifiedMinutes: verified, decisionNote: opts.note?.trim() || `Jam diverifikasi: ${verified} menit` },
-      include: OT_INCLUDE,
+    // Task 100 (G7a): assert + update verifiedMinutes dalam SATU $transaction
+    // (race dua verifikasi/approve paralel tertutup atomik — audit A-04).
+    const updated = await db.$transaction(async (tx) => {
+      await assertOvertimeCaps(tx, order.employeeId, order.overtimeDate, order.planMinutes, {
+        excludeOrderId: id,
+        verifiedMinutes: verified,
+      });
+      return tx.overtimeOrder.update({
+        where: { id },
+        data: { verifiedMinutes: verified, decisionNote: opts.note?.trim() || `Jam diverifikasi: ${verified} menit` },
+        include: OT_INCLUDE,
+      });
     });
     await regenerateDaily(db, order.overtimeDate, order.employeeId);
     return { order: updated, note: `Jam lembur ${order.orderNo} diverifikasi: ${verified} menit` };
@@ -1998,18 +2083,25 @@ export async function submitWorkoff(
     deductDays = check.days;
   }
 
-  const docNo = await nextWorkoffNo(db);
-  const permit = await db.workOffPermission.create({
-    data: {
-      docNo, employeeId: input.employeeId, dateFrom: from, dateTo: to,
-      allDay, timeFrom: allDay ? null : input.timeFrom ?? null, timeTo: allDay ? null : input.timeTo ?? null,
-      paid: input.paid ?? true, deductLeave,
-      reason: input.reason?.trim() || null,
-      documentNote: input.documentNote?.trim() || null,
-      status: "Pending",
-    },
-    include: WO_INCLUDE,
-  });
+  // Task 100 (G7b, audit A-04) — docNo WO race-safe: dua submit paralel max-suffix
+  // sama → unique docNo P2002 → 400 generik. Retry regen nomor (maks 3x) — pola
+  // createWithDocNoRetry travel-service.ts. (deductLeave memakai docNo sebagai
+  // penanda 1:1 — nomor tetap unik penting utk idempotensi potong saldo.)
+  const permit = await withDocNoRetry(
+    () => nextWorkoffNo(db),
+    (docNo) => db.workOffPermission.create({
+      data: {
+        docNo, employeeId: input.employeeId, dateFrom: from, dateTo: to,
+        allDay, timeFrom: allDay ? null : input.timeFrom ?? null, timeTo: allDay ? null : input.timeTo ?? null,
+        paid: input.paid ?? true, deductLeave,
+        reason: input.reason?.trim() || null,
+        documentNote: input.documentNote?.trim() || null,
+        status: "Pending",
+      },
+      include: WO_INCLUDE,
+    }),
+  );
+  const docNo = permit.docNo;
 
   // Approval berjenjang (padanan Leave Task 25): bangun jalur persetujuan
   // sesuai struktur yang cocok dengan penempatan pemohon — fallback atasan

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 
 const ASSIGNMENT_INCLUDE = {
   employee: { select: { employeeNo: true, fullName: true, status: true, assignments: { where: { validTo: null }, select: { orgUnit: { select: { name: true } } }, take: 1 } } },
@@ -9,10 +8,13 @@ const ASSIGNMENT_INCLUDE = {
 
 // GET /api/rekankerja/attendance/assignments — penugasan jadwal per karyawan
 // (padanan EmpWorkSchedule.jsp)
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:assignment-schedule
+// (dulu requireTenant; penugasan jadwal kini berhak LIHAT per pengguna).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:assignment-schedule"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const [assignments, schedules, employees] = await Promise.all([
       db.scheduleAssignment.findMany({
         include: ASSIGNMENT_INCLUDE,

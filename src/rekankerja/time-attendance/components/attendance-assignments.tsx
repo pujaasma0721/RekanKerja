@@ -1,6 +1,10 @@
 "use client";
 // RekanKerja Attendance — Assign Jadwal: penugasan jadwal per karyawan
 // (padanan EmpWorkSchedule.jsp) + anchor Senin + non-clocking.
+// Task 100-impl-B (F0): akhiri penugasan kini lewat AlertDialog + busy
+// per-baris (G9, pola shift-swap), dialog Assign punya busy state anti
+// double-submit (G11), error state useApi + Coba Lagi (G10), tanggal default
+// zona LOKAL (B-10), typo "Penugatan" → "Penugasan" (B-11).
 import { useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useTableSort } from "@/rekankerja/shared/lib/use-table-sort";
@@ -12,12 +16,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { AssignmentRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { CalendarRange, Plus, LogOut, Search, Anchor, Clock } from "lucide-react";
+import { CalendarRange, Plus, LogOut, Search, Anchor, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function mondayOf(d: Date): Date {
@@ -27,13 +33,17 @@ function mondayOf(d: Date): Date {
   x.setDate(x.getDate() - dow);
   return x;
 }
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+// B-10: zona lokal — toISOString() membuat tanggal/anchor bergeser -1 hari (WIB).
+const iso = (d: Date) => isoLocal(d);
 
 export function AttendanceAssignmentsPage() {
   const { t } = useI18n();
   const api = useApi<{ assignments: AssignmentRow[]; schedules: { id: string; code: string; name: string; cycleDays: number }[]; employees: EmployeeOption[] }>("/api/rekankerja/attendance/assignments");
   const [dialog, setDialog] = useState(false);
   const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false); // G11: dialog Assign sedang mengirim
+  const [endTarget, setEndTarget] = useState<AssignmentRow | null>(null); // G9: konfirmasi akhiri
+  const [endBusy, setEndBusy] = useState(false);
   const [form, setForm] = useState({
     employeeId: "", scheduleId: "",
     validFrom: iso(new Date()), anchorMonday: iso(mondayOf(new Date())),
@@ -61,6 +71,7 @@ export function AttendanceAssignmentsPage() {
   const unassigned = employees.filter((e) => !scheduledIds.has(e.id));
 
   const submit = async () => {
+    setBusy(true);
     try {
       await apiSend("/api/rekankerja/attendance/assignments", "POST", {
         ...form,
@@ -71,16 +82,24 @@ export function AttendanceAssignmentsPage() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menugaskan jadwal", "Failed to assign schedule"));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const endAssignment = async (a: AssignmentRow) => {
+  // G9: akhiri penugasan — konfirmasi AlertDialog (pola shift-swap) + busy
+  const runEnd = async () => {
+    if (!endTarget) return;
+    setEndBusy(true);
     try {
-      await apiSend("/api/rekankerja/attendance/assignments", "PATCH", { id: a.id, action: "end" });
-      toast.success(t("Penugasan {name} diakhiri", "Assignment for {name} ended", { name: a.employee.fullName }));
+      await apiSend("/api/rekankerja/attendance/assignments", "PATCH", { id: endTarget.id, action: "end" });
+      toast.success(t("Penugasan {name} diakhiri", "Assignment for {name} ended", { name: endTarget.employee.fullName }));
+      setEndTarget(null);
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal"));
+    } finally {
+      setEndBusy(false);
     }
   };
 
@@ -146,7 +165,9 @@ export function AttendanceAssignmentsPage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. pegawai…", "Search employee / employee no.…")} className="h-8 w-56 pl-8 text-xs" />
             </div>
           </div>
-          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : filtered.length === 0 ? (
+          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          ) : filtered.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Belum ada penugasan jadwal", "No schedule assignments yet")} description={t("Assign jadwal cycle ke karyawan — rekap absensi mengikuti day type efektif.", "Assign a cycle schedule to an employee — the attendance recap follows the effective day type.")} icon={<CalendarRange className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
@@ -195,7 +216,7 @@ export function AttendanceAssignmentsPage() {
                         </button>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => endAssignment(a)} title={t("Akhiri penugasan", "End assignment")} aria-label={t("Akhiri penugasan", "End assignment")}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEndTarget(a)} disabled={endBusy} title={t("Akhiri penugasan", "End assignment")} aria-label={t("Akhiri penugasan", "End assignment")}>
                           <LogOut className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
                         </Button>
                       </TableCell>
@@ -207,7 +228,8 @@ export function AttendanceAssignmentsPage() {
           )}
           {history.length > 0 && (
             <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Riwayat Penugatan ({n})", "Assignment History ({n})", { n: history.length })}</p>
+              {/* B-11: typo "Penugatan" → "Penugasan" */}
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Riwayat Penugasan ({n})", "Assignment History ({n})", { n: history.length })}</p>
               <div className="max-h-40 overflow-y-auto">
                 {history.slice(0, 30).map((a) => (
                   <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-900/60">
@@ -281,11 +303,50 @@ export function AttendanceAssignmentsPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={submit} disabled={!form.employeeId || !form.scheduleId} className="font-bold">{t("Assign Jadwal")}</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} disabled={busy}>{t("Batal")}</Button>
+            <Button onClick={submit} disabled={busy || !form.employeeId || !form.scheduleId} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Menyimpan…", "Saving…")}</> : <>{t("Assign Jadwal")}</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* G9: konfirmasi akhiri penugasan (pola AlertDialog shift-swap) */}
+      <AlertDialog open={!!endTarget} onOpenChange={(v) => { if (!v && !endBusy) setEndTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Akhiri penugasan {name}?", "End assignment for {name}?", { name: endTarget?.employee.fullName ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "Rekap absensi karyawan ini akan dihitung ulang sampai hari ini — mulai besok hari tanpa jadwal dianggap Off. Riwayat tetap tersimpan.",
+                "This employee's attendance recap is recalculated up to today — from tomorrow, unscheduled days count as Off. History is kept.",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {endTarget && (
+            <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-slate-800 dark:text-slate-200">{endTarget.employee.fullName}</p>
+                  <p className="truncate text-[11px] text-slate-400">{endTarget.schedule.name} · {t("berlaku sejak {d}", "valid since {d}", { d: fmtDate(endTarget.validFrom) })}</p>
+                </div>
+                <LogOut className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={endBusy}>{t("Batal")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={endBusy}
+              className={cn("gap-1.5 font-bold", endBusy && "opacity-70")}
+              onClick={(e) => { e.preventDefault(); void runEnd(); }}
+            >
+              {endBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+              {t("Akhiri & Hitung Ulang", "End & Recalculate")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

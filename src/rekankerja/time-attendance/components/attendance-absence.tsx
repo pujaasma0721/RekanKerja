@@ -1,6 +1,10 @@
 "use client";
 // RekanKerja Attendance — Absensi & Izin: rekap bulanan per karyawan (padanan Query
 // Employee Attendance/Absence/Tidiness) + Transfer to Payroll (jembatan payroll).
+// Task 100-impl-B (F0): tombol Export CSV (G8 — API absence-export T12 akhirnya
+// ter-wire, params from/to = filter bulan halaman), error state useApi + Coba
+// Lagi (G10), tampilan hari rekap aman nilai fraksional 0,5 (G3), dan tanggal
+// bulan/jendela dihitung zona LOKAL (B-10 — toISOString UTC bergeser -1 hari).
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
@@ -16,11 +20,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { RecapRow, PeriodOption, WorkoffRow } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, fmtDays, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { XCircle, ArrowRightLeft, Search, Wallet, Timer, TrendingDown, CheckCircle2 } from "lucide-react";
+import { XCircle, ArrowRightLeft, Search, Wallet, Timer, TrendingDown, CheckCircle2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const monthIso = (d: Date) => d.toISOString().slice(0, 7);
+// B-10: bulan zona lokal (toISOString UTC salah bulan pada tgl 1 pkul 00:00–07:00 WIB).
+const monthIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
 export function AttendanceAbsencePage() {
   const { navigate } = useNav();
@@ -32,12 +38,12 @@ export function AttendanceAbsencePage() {
   const [busy, setBusy] = useState(false);
   const [transfer, setTransfer] = useState({
     periodId: "", processTypeCode: "SALARY",
-    from: `${monthIso(now)}-01`, to: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10),
+    from: `${monthIso(now)}-01`, to: isoLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
     includeOvertime: true, includeLate: true, includeAbsence: true, includeAttendanceAllowance: true,
   });
 
   const from = `${month}-01`;
-  const to = (() => { const [y, m] = month.split("-").map(Number); return new Date(y, m, 0).toISOString().slice(0, 10); })();
+  const to = (() => { const [y, m] = month.split("-").map(Number); return isoLocal(new Date(y, m, 0)); })();
   const api = useApi<{ from: string; to: string; recap: RecapRow[]; totals: Record<string, number>; periods: PeriodOption[]; processTypes: { id: string; code: string; name: string }[] }>(`/api/rekankerja/attendance/absence?from=${from}&to=${to}`);
   const workoffApi = useApi<{ permits: WorkoffRow[]; stats: { pending: number } }>(`/api/rekankerja/attendance/workoffs?status=Pending`);
 
@@ -106,7 +112,7 @@ export function AttendanceAbsencePage() {
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-rose-600" /><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t("Absen + Izin Unpaid", "Absent + Unpaid Permits")}</p></div>
-          <p className="text-lg font-extrabold text-rose-600 dark:text-rose-400">{t("{n} hari", "{n} days", { n: (totals?.absentDays ?? 0) + (totals?.workoffUnpaidDays ?? 0) })}</p>
+          <p className="text-lg font-extrabold text-rose-600 dark:text-rose-400">{t("{n} hari", "{n} days", { n: fmtDays((totals?.absentDays ?? 0) + (totals?.workoffUnpaidDays ?? 0)) })}</p>
           <p className="text-[11px] text-slate-400">{t("estimasi potongan {v}", "estimated deduction {v}", { v: fmtIDRShort(totals?.absenceDeduction ?? 0) })}</p>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -128,12 +134,25 @@ export function AttendanceAbsencePage() {
               <p className="text-[13px] font-bold">{t("Rekap {m} — {s}", "Recap {m} — {s}", { m: month, s: api.data ? t("{n} karyawan", "{n} employees", { n: rows.length }) : "…" })}</p>
               <p className="text-[11px] text-slate-400">{t("Jendela {s}", "Window {s}", { s: api.data ? `${fmtDate(api.data.from)} – ${fmtDate(api.data.to)}` : from })}</p>
             </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employee…")} className="h-8 w-48 pl-8 text-xs" />
+            <div className="flex flex-wrap items-center gap-2">
+              {/* G8: Export CSV — API /attendance/absence-export (T12, guard M-6) mengikuti
+                  jendela filter bulan halaman (pola anchor leave-reports). */}
+              <a
+                href={`/api/rekankerja/attendance/absence-export?from=${from}&to=${to}`}
+                className="inline-flex h-8 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+                aria-label={t("Unduh rekap absensi rentang ini sebagai CSV", "Download this range's attendance recap as CSV")}
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden /> {t("Export CSV", "Export CSV")}
+              </a>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan…", "Search employee…")} className="h-8 w-48 pl-8 text-xs" />
+              </div>
             </div>
           </div>
-          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : rows.length === 0 ? (
+          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : api.error ? (
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          ) : rows.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Belum ada data rekap", "No recap data yet")} description={t("Pastikan jadwal ter-assign dan clocking tercatat pada bulan ini.", "Make sure schedules are assigned and clocking is recorded for this month.")} icon={<XCircle className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
@@ -163,10 +182,10 @@ export function AttendanceAbsencePage() {
                         {r.lateCount > 0 ? t("{n}×", "{n}×", { n: r.lateCount }) : "—"}
                       </TableCell>
                       <TableCell className={cn("text-right text-xs font-bold", r.absentDays > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>
-                        {r.absentDays > 0 ? t("{n} h", "{n} d", { n: r.absentDays }) : "—"}
+                        {r.absentDays > 0 ? t("{n} h", "{n} d", { n: fmtDays(r.absentDays) }) : "—"}
                       </TableCell>
                       <TableCell className={cn("text-right text-xs font-bold", r.workoffUnpaidDays > 0 ? "text-orange-600 dark:text-orange-400" : "text-slate-400")}>
-                        {r.workoffUnpaidDays > 0 ? t("{n} h", "{n} d", { n: r.workoffUnpaidDays }) : "—"}
+                        {r.workoffUnpaidDays > 0 ? t("{n} h", "{n} d", { n: fmtDays(r.workoffUnpaidDays) }) : "—"}
                       </TableCell>
                       <TableCell className={cn("text-right text-xs font-bold", r.overtimeMinutes > 0 ? "ov-text-accent" : "text-slate-400")}>
                         {r.overtimeMinutes > 0 ? t("{n} j", "{n} h", { n: (r.overtimeMinutes / 60).toFixed(1) }) : "—"}

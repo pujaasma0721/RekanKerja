@@ -52,7 +52,7 @@ import { getTenantClient, type TenantDb } from "@/rekankerja/shared/lib/tenant-d
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { DEFAULT_TEMPLATES_PLACEHOLDER } from "@/rekankerja/shared/services/email-defaults";
 import { notifyEmailEvent, type EmailRecipient } from "@/rekankerja/shared/services/email-service";
-import { notifyEvent } from "@/rekankerja/shared/services/notification-service";
+import { notifyEvent, pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { retryFailedWebhookDeliveries } from "@/rekankerja/shared/services/webhook-service";
 
 // ---------- konstanta & env flag ----------
@@ -75,6 +75,17 @@ const DOC_EXPIRY_WINDOW_DAYS = 30;
 const APPROVAL_SLA_DAYS = 3;
 /** Payroll D-3 — reminder saat payday ≤ jumlah hari ini. */
 const PAYROLL_D_DAYS = 3;
+
+// ---------- Task 100 (G4, audit A-02/C-05): konstanta job attendance ----------
+
+/** Jam lokal mulai jendela pengingat clock-out (17:00–23:59, 1×/hari/karyawan). */
+const CLOCKOUT_REMINDER_FROM_HOUR = 17;
+/** Lembur Approved menunggu verifikasi lebih dari jumlah hari ini → aging. */
+const OT_AGING_DAYS = 3;
+/** Tanggal bulanan jendela pengingat transfer TA (menjelang akhir bulan). */
+const TRANSFER_REMINDER_DAYS = [25, 26, 27, 28] as const;
+/** Jendela TA berakhir ≤ jumlah hari ini → ingatkan transfer absensi. */
+const TA_TRANSFER_D_DAYS = 3;
 /** Retensi notifikasi (hari) untuk housekeeping. */
 const NOTIFICATION_RETENTION_DAYS = 180;
 
@@ -1035,6 +1046,266 @@ async function jobNotificationHousekeeping(db: TenantDb): Promise<number> {
   }
 }
 
+// ---------- Task 100 (G4, audit A-02/C-05): JOB-JOB ATTENDANCE ----------
+// Empat job modul Time & Attendance (semua idempoten + dedupe per hari via
+// claimReminder, defensif terhadap tenant yang tabelnya belum termigrasi):
+//   h. attendance-nightly        : regenerasi AttendanceDaily kemarin + hari ini
+//      (regen dulu murni reaktif — mutasi master jadwal/libur membuat rekap
+//      hari berjalan STALE sampai ada clock/approval berikutnya).
+//   i. attendance-clockout-reminder : 17:00–23:59 — karyawan dengan clock IN
+//      yang belum ditutup OUT → notifikasi in-app "Jangan lupa clock-out"
+//      (1×/hari/karyawan).
+//   j. attendance-ot-aging       : lembur Approved menunggu verifikasi > 3 hari
+//      → notifikasi admin attendance (jam belum diverifikasi = uang tertahan).
+//   k. attendance-transfer-reminder : tgl 25–28 — period Open/Processing dengan
+//      jendela TA berakhir ≤ 3 hari & belum pernah ditransfer → notifikasi
+//      admin payroll/attendance (lembur/telat/absen belum masuk payroll).
+
+/**
+ * JOB h — regenerasi rekap harian (kemarin + hari ini) seluruh karyawan aktif.
+ * Sekali per hari (marker claimReminder per tanggal; siklus scheduler 6 jam →
+ * tanpa marker akan regen 4×/hari). Gagal (mis. tabel belum termigrasi) →
+ * marker DILEPAS supaya siklus berikutnya hari yang sama mencoba ulang
+ * (regenerateRange idempoten — upsert per karyawan/tanggal).
+ */
+async function jobAttendanceNightly(db: TenantDb): Promise<number> {
+  const today = startOfDay(new Date());
+  const yesterday = new Date(today.getTime() - DAY_MS);
+  const key = `attendance-nightly:${dayKey(today)}`;
+  const claimed = await claimReminder(
+    db,
+    key,
+    `Regenerasi rekap absensi ${fmtDate(yesterday)}–${fmtDate(today)} (kemarin + hari ini)`,
+  );
+  if (!claimed) return 0; // sudah diregenerasi hari ini (siklus sebelumnya)
+  try {
+    // dynamic import — pola jobLeaveYearEnd (modul service berat, tak perlu di boot)
+    const { regenerateRange } = await import("@/rekankerja/time-attendance/services/attendance-service");
+    return await regenerateRange(db, yesterday, today);
+  } catch {
+    // gagal regen → lepas marker harian agar siklus 6-jam berikutnya mencoba ulang
+    try {
+      await db.activityLog.deleteMany({
+        where: { action: "Reminder", entity: "Scheduler", entityId: key },
+      });
+    } catch { /* best-effort */ }
+    return 0;
+  }
+}
+
+/**
+ * JOB i — pengingat clock-out (jendela 17:00–23:59, sekali per hari per
+ * karyawan). Populasi: clock IN TERBUKA (belum ada OUT setelahnya) sejak
+ * kemarin 12:00 — dibaca langsung dari AttendanceClockLog, bukan dari rekap
+ * harian (regen hari ini mungkin belum berjalan); mencakup shift malam
+ * lintas hari. Notifikasi in-app ke AppUser karyawan (pola ess/api/swap.ts).
+ */
+async function jobAttendanceClockoutReminder(db: TenantDb): Promise<{ employees: number; notif: number }> {
+  const now = new Date();
+  if (now.getHours() < CLOCKOUT_REMINDER_FROM_HOUR) return { employees: 0, notif: 0 }; // belum jendela sore
+  const today = startOfDay(now);
+  const yesterdayNoon = new Date(today.getTime() - DAY_MS / 2); // kemarin 12:00
+
+  let logs: Array<{ employeeId: string; direction: string; timestamp: Date }>;
+  try {
+    logs = await db.attendanceClockLog.findMany({
+      where: { timestamp: { gte: yesterdayNoon } },
+      orderBy: { timestamp: "asc" },
+      select: { employeeId: true, direction: true, timestamp: true },
+    });
+  } catch {
+    return { employees: 0, notif: 0 };
+  }
+  // IN terbuka per karyawan (OUT menutup IN sebelumnya — urutan asc)
+  const openIn = new Map<string, Date>();
+  for (const l of logs) {
+    if (l.direction === "IN") openIn.set(l.employeeId, l.timestamp);
+    else openIn.delete(l.employeeId);
+  }
+  if (openIn.size === 0) return { employees: 0, notif: 0 };
+
+  const empIds = [...openIn.keys()];
+  let employees: Array<{ id: string; employeeNo: string; fullName: string }>;
+  let users: Array<{ id: string; employeeId: string }>;
+  try {
+    [employees, users] = await Promise.all([
+      db.employee.findMany({
+        where: { id: { in: empIds }, status: "Active" },
+        select: { id: true, employeeNo: true, fullName: true },
+      }),
+      db.appUser.findMany({
+        where: { employeeId: { in: empIds }, active: true },
+        select: { id: true, employeeId: true },
+        take: 200,
+      }),
+    ]);
+  } catch {
+    return { employees: 0, notif: 0 };
+  }
+
+  const hhmm = (d: Date) =>
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const todayKey = dayKey(now);
+  const usersByEmp = new Map<string, string[]>();
+  for (const u of users) {
+    const arr = usersByEmp.get(u.employeeId) ?? [];
+    arr.push(u.id);
+    usersByEmp.set(u.employeeId, arr);
+  }
+
+  let sent = 0;
+  let notif = 0;
+  for (const emp of employees) {
+    const checkIn = openIn.get(emp.id);
+    if (!checkIn) continue;
+    // dedupe 1×/hari/karyawan (claimReminder atomik lintas proses)
+    const key = `attendance-clockout:${emp.id}:${todayKey}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Pengingat clock-out ${emp.employeeNo} (${emp.fullName}) — clock-in ${hhmm(checkIn)} belum ditutup`,
+    );
+    if (!claimed) continue;
+    for (const appUserId of usersByEmp.get(emp.id) ?? []) {
+      // never-throw (pushNotification menelan galat)
+      await pushNotification(db, {
+        appUserId,
+        title: "Jangan lupa clock-out",
+        body: `Clock-in Anda pukul ${hhmm(checkIn)} belum ditutup clock-out. Lakukan clock-out sebelum/segera setelah pulang agar jam kerja tercatat — rekap absensi & lembur dihitung dari pasangan clock-in/out.`,
+        kind: "attendance",
+      });
+      notif++;
+    }
+    sent++;
+  }
+  return { employees: sent, notif };
+}
+
+/**
+ * JOB j — aging verifikasi lembur: OvertimeOrder Approved, belum dibayar
+ * (paidRunNo null), disetujui > 3 hari lalu namun belum diverifikasi →
+ * notifikasi admin attendance (jam tidak diverifikasi = uang lembur tertahan
+ * & tidak ikut transfer payroll).
+ */
+async function jobAttendanceOtAging(db: TenantDb): Promise<{ orders: number; notif: number }> {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - OT_AGING_DAYS * DAY_MS);
+  const todayKey = dayKey(now);
+
+  let orders: Array<{ id: string; orderNo: string; overtimeDate: Date; decidedAt: Date | null }>;
+  try {
+    orders = await db.overtimeOrder.findMany({
+      where: {
+        status: "Approved",
+        paidRunNo: null,
+        // menunggu verify > 3 hari sejak disetujui (fallback tanggal lembur utk
+        // baris lama tanpa decidedAt)
+        OR: [{ decidedAt: { lte: cutoff } }, { decidedAt: null, overtimeDate: { lte: cutoff } }],
+      },
+      select: { id: true, orderNo: true, overtimeDate: true, decidedAt: true },
+      orderBy: [{ overtimeDate: "asc" }, { orderNo: "asc" }],
+      take: 100,
+    });
+  } catch {
+    return { orders: 0, notif: 0 };
+  }
+
+  let sent = 0;
+  let notif = 0;
+  for (const o of orders) {
+    const asOf = o.decidedAt ?? o.overtimeDate;
+    const days = Math.max(1, Math.floor((now.getTime() - asOf.getTime()) / DAY_MS));
+    const key = `attendance-ot-aging:${o.orderNo}:${todayKey}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Lembur ${o.orderNo} Approved ${days} hari belum diverifikasi`,
+    );
+    if (!claimed) continue; // dedupe per hari
+    const r = await notifyEvent(db, {
+      to: "admins",
+      docType: "Overtime",
+      docNo: o.orderNo,
+      docId: o.id,
+      title: `Lembur ${o.orderNo} menunggu verifikasi ${days} hari`,
+      body:
+        `Perintah lembur ${o.orderNo} (tanggal ${fmtDate(o.overtimeDate)}) sudah disetujui namun jamnya belum diverifikasi selama ${days} hari. ` +
+        `Verifikasi jam lembur di Kehadiran → Lembur agar upah lembur ikut terhitung pada transfer absensi berikutnya.`,
+      kind: "attendance",
+      link: "attendance:overtime",
+    });
+    notif += r.recipients.length;
+    sent++;
+  }
+  return { orders: sent, notif };
+}
+
+/**
+ * JOB k — pengingat transfer absensi menjelang tutup bulan (tanggal 25–28,
+ * sekali per hari): PayrollPeriod Open/Processing dengan jendela TA berakhir
+ * ≤ 3 hari & BELUM pernah ditransfer. Heuristik "belum transfer" yang aman:
+ * tidak ada ActivityLog "AttendanceTransfer" utk period tsb (baris itu ditulis
+ * transferToPayroll DALAM transaksi yang sama dengan komponen — marker paling
+ * otoritatif; period tanpa jendela TA sama sekali di-skip, tidak diduga-duga).
+ */
+async function jobAttendanceTransferReminder(db: TenantDb): Promise<{ periods: number; notif: number }> {
+  const now = new Date();
+  if (!(TRANSFER_REMINDER_DAYS as readonly number[]).includes(now.getDate())) {
+    return { periods: 0, notif: 0 }; // hanya tgl 25–28
+  }
+  const today = startOfDay(now);
+
+  let periods: Array<{ id: string; code: string; name: string; taEndDate: Date | null }>;
+  try {
+    periods = await db.payrollPeriod.findMany({
+      where: { status: { in: ["Open", "Processing"] } },
+      select: { id: true, code: true, name: true, taEndDate: true },
+      take: 100,
+    });
+  } catch {
+    return { periods: 0, notif: 0 };
+  }
+
+  let sent = 0;
+  let notif = 0;
+  for (const p of periods) {
+    if (!p.taEndDate) continue;
+    const taEnd = startOfDay(p.taEndDate);
+    const days = daysUntil(taEnd, today);
+    if (days < 0 || days > TA_TRANSFER_D_DAYS) continue; // bukan jendela D-3
+    try {
+      const transferred = await db.activityLog.findFirst({
+        where: { action: "Processed", entity: "AttendanceTransfer", entityId: p.id },
+        select: { id: true },
+      });
+      if (transferred) continue; // sudah pernah transfer TA utk period ini
+    } catch {
+      continue;
+    }
+    const key = `attendance-transfer:${p.id}:${dayKey(now)}`;
+    const claimed = await claimReminder(
+      db,
+      key,
+      `Pengingat transfer absensi period ${p.name} (${p.code}) — jendela TA berakhir ${fmtDate(taEnd)}`,
+    );
+    if (!claimed) continue; // dedupe per hari
+    const r = await notifyEvent(db, {
+      to: "admins",
+      docType: "PayrollRun",
+      docNo: p.code,
+      title: `Transfer absensi period ${p.name} belum dilakukan (jendela TA ${days === 0 ? "berakhir hari ini" : `berakhir ${days} hari lagi`})`,
+      body:
+        `Jendela TA period ${p.name} (${p.code}) berakhir ${fmtDate(taEnd)} dan belum ada transfer absensi (lembur/telat/absen/tunjangan kehadiran) ke payroll. ` +
+        `Buka Kehadiran → Absensi → Transfer ke Payroll sebelum period diproses agar komponen ikut terhitung.`,
+      kind: "payroll",
+      link: "attendance:absence",
+    });
+    notif += r.recipients.length;
+    sent++;
+  }
+  return { periods: sent, notif };
+}
+
 // ---------- orkestrasi per tenant ----------
 
 export interface SchedulerJobCounts {
@@ -1053,6 +1324,15 @@ export interface SchedulerJobCounts {
   /** Task 99 (F0-2) — baris saldo cuti yang dibuat otomatis job leave-tahunan
    *  (fill-missing Januari; pengingat Des/Nov dikirim sebagai notifikasi). */
   leaveYearEndRows: number;
+  /** Task 100 (G4) — baris AttendanceDaily yang diregenerasi job attendance-nightly
+   *  (kemarin + hari ini; regen dulu murni reaktif — audit A-02). */
+  attendanceNightlyRows: number;
+  /** Task 100 (G4) — karyawan yang dikirimi pengingat clock-out (1×/hari). */
+  attendanceClockoutReminded: number;
+  /** Task 100 (G4) — order lembur aging (>3 hari menunggu verifikasi) yang diingatkan. */
+  attendanceOtAging: number;
+  /** Task 100 (G4) — period dengan jendela TA berakhir yang diingatkan utk transfer. */
+  attendanceTransferReminders: number;
 }
 
 export interface SchedulerRunResult {
@@ -1093,6 +1373,10 @@ export async function runAllJobs(
     webhookRetried: 0,
     ptkpYearlySynced: 0,
     leaveYearEndRows: 0,
+    attendanceNightlyRows: 0,
+    attendanceClockoutReminded: 0,
+    attendanceOtAging: 0,
+    attendanceTransferReminders: 0,
   };
   let notificationsSent = 0;
   let templatesSeeded = 0;
@@ -1165,6 +1449,27 @@ export async function runAllJobs(
     jobs.leaveYearEndRows = r.rows;
     notificationsSent += r.notif;
   });
+  // Task 100 (G4) — empat job attendance: regen harian (stale pasca mutasi
+  // master), pengingat clock-out sore hari, aging verifikasi lembur, pengingat
+  // transfer TA menjelang tutup jendela period. Semua idempoten + dedupe/hari.
+  await guarded("attendance-nightly", async () => {
+    jobs.attendanceNightlyRows = await jobAttendanceNightly(db);
+  });
+  await guarded("attendance-clockout-reminder", async () => {
+    const r = await jobAttendanceClockoutReminder(db);
+    jobs.attendanceClockoutReminded = r.employees;
+    notificationsSent += r.notif;
+  });
+  await guarded("attendance-ot-aging", async () => {
+    const r = await jobAttendanceOtAging(db);
+    jobs.attendanceOtAging = r.orders;
+    notificationsSent += r.notif;
+  });
+  await guarded("attendance-transfer-reminder", async () => {
+    const r = await jobAttendanceTransferReminder(db);
+    jobs.attendanceTransferReminders = r.periods;
+    notificationsSent += r.notif;
+  });
 
   const totalJobs =
     jobs.resignTerminated +
@@ -1181,6 +1486,10 @@ export async function runAllJobs(
     (jobs.webhookRetried > 0 ? `, ${jobs.webhookRetried} webhook retry` : "") +
     (jobs.ptkpYearlySynced > 0 ? `, ${jobs.ptkpYearlySynced} PTKP disinkronkan dari data keluarga` : "") +
     (jobs.leaveYearEndRows > 0 ? `, ${jobs.leaveYearEndRows} baris saldo cuti dibuat otomatis (fill-missing)` : "") +
+    (jobs.attendanceNightlyRows > 0 ? `, ${jobs.attendanceNightlyRows} baris rekap absensi diregenerasi (nightly)` : "") +
+    (jobs.attendanceClockoutReminded > 0 ? `, ${jobs.attendanceClockoutReminded} pengingat clock-out terkirim` : "") +
+    (jobs.attendanceOtAging > 0 ? `, ${jobs.attendanceOtAging} lembur aging diingatkan` : "") +
+    (jobs.attendanceTransferReminders > 0 ? `, ${jobs.attendanceTransferReminders} pengingat transfer TA terkirim` : "") +
     (mutexSkipped > 0 ? `, ${mutexSkipped} job dilewati (dipegang proses lain)` : "") +
     (errors.length > 0 ? ` — galat: ${errors.join("; ")}` : "");
   await writeActivity(db, { action: "Scheduled", entity: "Scheduler", detail: `${detail} (${tenant})` });

@@ -1,6 +1,9 @@
 "use client";
 // RekanKerja Attendance — Template Jadwal: tabs Tipe Hari (padanan DayType.jsp) /
 // Jadwal cycle (WorkSchedule.jsp) / Pengaturan (Overtime Specified + Rounding).
+// Task 100-impl-B (F0): error state useApi + Coba Lagi di ketiga tab (G10),
+// dialog tipe hari / jadwal & tombol Simpan Pengaturan punya busy state anti
+// double-submit (G11).
 import { useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/rekankerja/shared/components/ui-kit";
@@ -16,8 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { DayTypeRow, ScheduleRow, AttendanceRule, DAY_CATEGORY_LABEL, DAY_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw, MapPin, Radar } from "lucide-react";
+import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw, MapPin, Radar, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PRESET_COLORS = ["#99CCFF", "#A7F3D0", "#FDE68A", "#C7D2FE", "#FCA5A5", "#86EFAC", "#E7E5E4", "#FDBA74", "#D9F99D", "#F5D0FE"];
@@ -59,6 +63,7 @@ function DayTypesTab() {
   const api = useApi<{ dayTypes: DayTypeRow[] }>("/api/rekankerja/attendance/day-types");
   const [dialog, setDialog] = useState(false);
   const [edit, setEdit] = useState<DayTypeRow | null>(null);
+  const [busy, setBusy] = useState(false); // G11: dialog tipe hari sedang mengirim
   const [form, setForm] = useState({
     code: "", name: "", category: "Workday", color: "#99CCFF",
     timeIn: "08:00", timeOut: "17:00", nextDay: false,
@@ -85,6 +90,7 @@ function DayTypesTab() {
   };
 
   const save = async () => {
+    setBusy(true);
     try {
       const body = {
         ...form,
@@ -106,6 +112,8 @@ function DayTypesTab() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -132,7 +140,9 @@ function DayTypesTab() {
             <Plus className="h-3.5 w-3.5" /> {t("Tipe Hari", "Day Type")}
           </Button>
         </div>
-        {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : dayTypes.length === 0 ? (
+        {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
+          <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+        ) : dayTypes.length === 0 ? (
           <div className="p-5"><EmptyState title={t("Belum ada tipe hari", "No day types yet")} description={t("Buat tipe hari pertama — mis. Jam Kantor 08:00-17:00 atau shift produksi.", "Create the first day type — e.g. Office Hours 08:00-17:00 or a production shift.")} /></div>
         ) : (
           <div className="overflow-x-auto">
@@ -282,8 +292,10 @@ function DayTypesTab() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={save} className="font-bold">{edit ? t("Simpan Perubahan", "Save Changes") : t("Buat Tipe Hari", "Create Day Type")}</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} disabled={busy}>{t("Batal")}</Button>
+            <Button onClick={save} disabled={busy || !form.code.trim() || !form.name.trim()} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Menyimpan…", "Saving…")}</> : <>{edit ? t("Simpan Perubahan", "Save Changes") : t("Buat Tipe Hari", "Create Day Type")}</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -298,6 +310,7 @@ function SchedulesTab() {
   const api = useApi<{ schedules: ScheduleRow[]; dayTypes: { id: string; code: string; name: string; color: string; category: string }[] }>("/api/rekankerja/attendance/schedules");
   const [dialog, setDialog] = useState(false);
   const [edit, setEdit] = useState<ScheduleRow | null>(null);
+  const [busy, setBusy] = useState(false); // G11: dialog jadwal sedang mengirim
   const [form, setForm] = useState({ code: "", name: "", days: ["OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFICE", "OFFSAT", "OFFSPH"] });
 
   const dayTypes = api.data?.dayTypes ?? [];
@@ -314,6 +327,7 @@ function SchedulesTab() {
   };
 
   const save = async () => {
+    setBusy(true);
     try {
       if (edit) {
         await apiSend("/api/rekankerja/attendance/schedules", "PATCH", { id: edit.id, name: form.name, days: form.days });
@@ -326,6 +340,8 @@ function SchedulesTab() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -352,7 +368,9 @@ function SchedulesTab() {
             <Plus className="h-3.5 w-3.5" /> {t("Jadwal", "Schedule")}
           </Button>
         </div>
-        {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={4} /></div> : schedules.length === 0 ? (
+        {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={4} /></div> : api.error ? (
+          <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+        ) : schedules.length === 0 ? (
           <div className="p-5"><EmptyState title={t("Belum ada jadwal", "No schedules yet")} description={t("Buat jadwal cycle — mis. kantor Senin–Jumat atau rotasi 3 regu produksi.", "Create a cycle schedule — e.g. office Monday–Friday or a 3-shift production rotation.")} /></div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -443,8 +461,10 @@ function SchedulesTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={save} className="font-bold">{edit ? t("Simpan Perubahan", "Save Changes") : t("Buat Jadwal", "Create Schedule")}</Button>
+            <Button variant="outline" onClick={() => setDialog(false)} disabled={busy}>{t("Batal")}</Button>
+            <Button onClick={save} disabled={busy || !form.code.trim() || !form.name.trim()} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Menyimpan…", "Saving…")}</> : <>{edit ? t("Simpan Perubahan", "Save Changes") : t("Buat Jadwal", "Create Schedule")}</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -459,6 +479,7 @@ function RulesTab() {
   const api = useApi<{ rule: AttendanceRule; components: { code: string; name: string; type: string }[]; allComponents: { code: string; name: string; type: string }[] }>("/api/rekankerja/attendance/settings");
   const [form, setForm] = useState<AttendanceRule | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false); // G11: Simpan Pengaturan sedang mengirim
 
   const rule = form ?? api.data?.rule ?? null;
   const allComponents = api.data?.allComponents ?? [];
@@ -467,6 +488,7 @@ function RulesTab() {
 
   const save = async () => {
     if (!rule) return;
+    setBusy(true);
     try {
       await apiSend("/api/rekankerja/attendance/settings", "PATCH", rule);
       toast.success(t("Pengaturan absensi disimpan", "Attendance settings saved"));
@@ -474,10 +496,13 @@ function RulesTab() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menyimpan", "Failed to save"));
+    } finally {
+      setBusy(false);
     }
   };
 
   if (api.loading && !api.data) return <div className="p-5"><LoadingRows rows={4} /></div>;
+  if (api.error) return <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />;
   if (!rule) return <EmptyState title={t("Aturan belum tersedia", "Rules not available")} />;
 
   const compName = (code: string) => allComponents.find((c) => c.code === code)?.name ?? code;
@@ -637,8 +662,8 @@ function RulesTab() {
                   <RotateCcw className="h-3.5 w-3.5" /> {t("Reset")}
                 </Button>
               )}
-              <Button size="sm" disabled={!dirty} onClick={save} className="gap-1.5 font-bold">
-                {t("Simpan Pengaturan", "Save Settings")}
+              <Button size="sm" disabled={!dirty || busy} onClick={save} className="gap-1.5 font-bold">
+                {busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("Menyimpan…", "Saving…")}</> : <>{t("Simpan Pengaturan", "Save Settings")}</>}
               </Button>
             </div>
           </div>

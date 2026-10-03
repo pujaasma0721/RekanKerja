@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { getRule } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // GET /api/rekankerja/attendance/settings — aturan singleton (padanan Overtime
 // Specified + User Defined Rounding + Absence Wage Rules).
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:templates-schedule
+// (dulu requireTenant — aturan presensi kini berhak LIHAT per pengguna; PATCH
+// tetap requireMenuAction update sejak T41-M2).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:templates-schedule"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const rule = await getRule(db);
     const components = await db.wageComponent.findMany({
       where: { code: { in: [rule.overtimeComponentCode, rule.lateDeductionComponentCode, rule.absenceDeductionComponentCode, rule.attendanceAllowanceComponentCode] } },

@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, requireMutator, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMutator } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
+import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
 import { recapPeriod, transferToPayroll } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // GET /api/rekankerja/attendance/absence?from=&to= — rekap period per karyawan
 // (padanan Query - Employee Attendance/Absence/Tidiness) + period payroll utk transfer.
 // Rekap uang hanya menghitung lembur Approved yang belum dibayar (fix K-1).
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:absence: dulu hanya
+// requireTenant → pengguna tanpa hak LIHAT menu absensi tetap bisa membaca
+// rekap seluruh karyawan (kebocoran data gaji). Pesan 403 dari viewAnyForbiddenMsg
+// (menu-access) — pola leave/requests.ts Task 99.
+// 45-b paralel: gerbang vault uang — field uang per baris + totals → null bila
+// sesi TANPA money-view (pola overtime.ts; counts/hari tetap tampil).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:absence"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const now = new Date();
     const fromParam = req.nextUrl.searchParams.get("from");
@@ -26,6 +35,20 @@ export async function GET(req: NextRequest) {
       db.processType.findMany({ select: { id: true, code: true, name: true }, orderBy: { sequence: "asc" } }),
     ]);
 
+    // Task 100 (G1) — money gate: tanpa money-view, nilai uang per baris → null
+    // (baseSalary/overtimePay/lateDeduction/absenceDeduction/attendanceAllowance);
+    // jumlah hari/counts tetap utuh. Perhitungan server tetap atas angka RAW —
+    // hanya DISPLAY yang digate (pola overtime.ts estPay).
+    const mv = await moneyViewForReq(req, db);
+    const recapOut = recap.map((r) => ({
+      ...r,
+      baseSalary: mv.canSee ? r.baseSalary : null,
+      overtimePay: mv.canSee ? r.overtimePay : null,
+      lateDeduction: mv.canSee ? r.lateDeduction : null,
+      absenceDeduction: mv.canSee ? r.absenceDeduction : null,
+      attendanceAllowance: mv.canSee ? r.attendanceAllowance : null,
+    }));
+
     const totals = {
       employees: recap.length,
       presentDays: recap.reduce((s, r) => s + r.presentDays, 0),
@@ -34,12 +57,13 @@ export async function GET(req: NextRequest) {
       absentDays: recap.reduce((s, r) => s + r.absentDays, 0),
       workoffUnpaidDays: recap.reduce((s, r) => s + r.workoffUnpaidDays, 0),
       overtimeMinutes: recap.reduce((s, r) => s + r.overtimeMinutes, 0),
-      overtimePay: recap.reduce((s, r) => s + r.overtimePay, 0),
-      lateDeduction: recap.reduce((s, r) => s + r.lateDeduction, 0),
-      absenceDeduction: recap.reduce((s, r) => s + r.absenceDeduction, 0),
-      attendanceAllowance: recap.reduce((s, r) => s + r.attendanceAllowance, 0),
+      // Task 100 (G1) — totals uang nullable saat masked (pola overtime.ts stats).
+      overtimePay: mv.canSee ? recap.reduce((s, r) => s + r.overtimePay, 0) : null,
+      lateDeduction: mv.canSee ? recap.reduce((s, r) => s + r.lateDeduction, 0) : null,
+      absenceDeduction: mv.canSee ? recap.reduce((s, r) => s + r.absenceDeduction, 0) : null,
+      attendanceAllowance: mv.canSee ? recap.reduce((s, r) => s + r.attendanceAllowance, 0) : null,
     };
-    return NextResponse.json({ from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), recap, totals, periods, processTypes });
+    return NextResponse.json({ from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), recap: recapOut, totals, periods, processTypes });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "unknown" }, { status: 500 });
   }

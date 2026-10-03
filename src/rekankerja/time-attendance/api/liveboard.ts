@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 
 // Task 27-e — Papan Kehadiran real-time ("siapa di kantor sekarang").
 // GET /api/rekankerja/attendance/liveboard?date=YYYY-MM-DD (default: hari ini).
@@ -14,6 +14,8 @@ import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-
 //   absent   : status Absent
 // Efisien: 2 query saja (employees.findMany + attendanceDaily.findMany pada
 // window 00:00..24:00; relasi orgUnit/workLocation ikut select — tanpa N+1).
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:liveboard (dulu
+// requireTenant: kehadiran real-time seluruh karyawan terbaca bebas).
 
 export interface LiveboardRow {
   employeeId: string;
@@ -33,8 +35,9 @@ const STATE_ORDER = { inOffice: 0, done: 1, noClock: 2, off: 3, absent: 4 } as c
 
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:liveboard"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     // Param tanggal opsional — validasi YYYY-MM-DD, default hari ini (server).
     const dateParam = req.nextUrl.searchParams.get("date");

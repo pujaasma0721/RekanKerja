@@ -17,14 +17,20 @@
 // Idempoten: import ulang file sama → semua baris duplikat, 0 sisipan.
 import { NextRequest, NextResponse } from "next/server";
 import * as ExcelJS from "exceljs";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { dayStart, addDays, regenerateDaily } from "@/rekankerja/time-attendance/services/attendance-service";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 20_000;
 const PREVIEW_ROWS = 50;
+
+// Task 100 (G12, audit A-01) — jendela timestamp import yang sah: baris dengan
+// waktu clock > sekarang+5 menit (jalur manipulasi presensi masa depan) atau
+// < sekarang−30 hari (koreksi histori jauh — harus lewat regen admin) diklasifikasi
+// "invalid" PER BARIS (file tetap diproses, bukan reject seluruh file).
+const IMPORT_FUTURE_TOLERANCE_MS = 5 * 60_000;
+const IMPORT_BACKDATE_MAX_MS = 30 * 86_400_000;
 
 // ============ tipe internal ============
 
@@ -246,6 +252,23 @@ async function classifyRows({ db, rows }: ClassifyInput): Promise<Classified> {
       continue;
     }
     if (!emp) { r.status = "unknown"; r.message = "karyawan tidak ditemukan / tidak aktif"; unknownSet.add(r.rawId); unknown++; continue; }
+    // Task 100 (G12) — jendela [-30 hari, +5 menit] dari sekarang: baris di luar
+    // jendela invalid per-baris dengan alasan (dry-run preview ikut menandai).
+    {
+      const tsMs = (r.timestamp as Date).getTime();
+      if (tsMs > Date.now() + IMPORT_FUTURE_TOLERANCE_MS) {
+        r.status = "invalid";
+        r.message = "waktu clock di masa depan (lebih dari 5 menit dari sekarang) — tidak diimpor";
+        invalid++;
+        continue;
+      }
+      if (tsMs < Date.now() - IMPORT_BACKDATE_MAX_MS) {
+        r.status = "invalid";
+        r.message = "waktu clock lebih dari 30 hari ke belakang — koreksi histori lewat regenerasi rekap";
+        invalid++;
+        continue;
+      }
+    }
     r.employeeId = emp.id; r.employeeNo = emp.employeeNo; r.fullName = emp.fullName;
     const key = `${emp.id}|${r.timestamp.getTime()}|${r.direction}`;
     if (dbKeys.has(key) || seenInFile.has(key)) {
@@ -373,8 +396,11 @@ async function parseFile(file: File): Promise<TableData> {
 
 export async function machineImportGet(req: NextRequest): Promise<NextResponse> {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 100 (G1, audit A-01) — guard VIEW menu attendance:machine-import
+    // (dulu requireTenant: riwayat batch import terbaca tanpa hak LIHAT).
+    const m = await requireMenuViewAny(req, ["attendance:machine-import"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
     const batches = await db.machineImportBatch.findMany({
       orderBy: { importedAt: "desc" },
       take: 20,
@@ -418,11 +444,13 @@ export async function machineImportPost(req: NextRequest): Promise<NextResponse>
     }
     const dryRun = ["true", "1", "yes"].includes(String(form.get("dryRun") ?? "").toLowerCase());
 
-    // preview (dryRun) = requireTenant; commit = op:import attendance:machine-import
+    // preview (dryRun) = VIEW menu attendance:machine-import (Task 100 G1 — dulu
+    // requireTenant: preview berisi baris log mentah karyawan, sifatnya baca);
+    // commit = op:import attendance:machine-import.
     if (dryRun) {
-      const db = await requireTenant(req);
-      if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
-      return await handleParsed(db, file, dryRun, null);
+      const m = await requireMenuViewAny(req, ["attendance:machine-import"]);
+      if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+      return await handleParsed(m.db, file, dryRun, null);
     }
     const m = await requireMenuAction(req, "attendance:machine-import", "op:import");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });

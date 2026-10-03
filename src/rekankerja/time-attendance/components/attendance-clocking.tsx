@@ -1,8 +1,11 @@
 "use client";
 // RekanKerja Attendance — Data Clocking: rekap harian per tanggal (padanan
 // EmpClocking.jsp) + input clock manual + Refresh Clocking.
+// Task 100-impl-B (F0): error state useApi + Coba Lagi (G10), dialog Catat
+// Clock & tombol Refresh punya busy state anti double-submit (G11), "hari
+// ini" zona LOKAL (B-10), judul dialog pakai fmtDate locale (B-7).
 import { useMemo, useState } from "react";
-import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,8 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { DailyRow, ClockLogRow, EmployeeOption, ATT_STATUS_LABEL, ATT_STATUS_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { Activity, Plus, RefreshCw, Search, LogIn, LogOut, Clock } from "lucide-react";
+import { Activity, Plus, RefreshCw, Search, LogIn, LogOut, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_TONE: Record<string, string> = {
@@ -31,7 +35,8 @@ const fmtTime = (d: string | null, locale: string) => {
   const t = new Date(d);
   return isNaN(t.getTime()) ? "—" : t.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 };
-const todayIso = () => new Date().toISOString().slice(0, 10);
+// B-10: zona lokal (pola ess-attendance) — toISOString UTC salah hari 00:00–07:00 WIB.
+const todayIso = () => todayISO();
 
 export function AttendanceClockingPage() {
   const { t, locale } = useI18n();
@@ -39,6 +44,8 @@ export function AttendanceClockingPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [clockDialog, setClockDialog] = useState(false);
+  const [busy, setBusy] = useState(false); // G11: dialog Catat Clock sedang mengirim
+  const [regenBusy, setRegenBusy] = useState(false); // G11: Refresh Clocking (anti double-click)
   const [form, setForm] = useState({ employeeId: "", time: "08:00", direction: "IN", note: "" });
 
   const api = useApi<{ date: string; rows: DailyRow[]; logs: ClockLogRow[]; employees: EmployeeOption[]; stats: { total: number; present: number; late: number; absent: number; workoff: number; off: number; lateMinutes: number; overtimeMinutes: number } }>(`/api/rekankerja/attendance/clocking?date=${date}`);
@@ -49,6 +56,7 @@ export function AttendanceClockingPage() {
   ), [api.data, query, statusFilter]);
 
   const submitClock = async () => {
+    setBusy(true);
     try {
       await apiSend("/api/rekankerja/attendance/clocking", "POST", { ...form, date });
       toast.success(t("Clock {dir} {time} tercatat — rekap harian diperbarui", "Clock {dir} {time} recorded — daily recap updated", { dir: form.direction, time: form.time }));
@@ -56,16 +64,21 @@ export function AttendanceClockingPage() {
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal mencatat clock", "Failed to record clock"));
+    } finally {
+      setBusy(false);
     }
   };
 
   const regenerate = async () => {
+    setRegenBusy(true);
     try {
       const res = await apiSend<{ regenerated: number }>("/api/rekankerja/attendance/clocking", "PATCH", { date });
       toast.success(t("Refresh Clocking selesai — {n} karyawan dihitung ulang", "Clocking refresh completed — {n} employees recalculated", { n: res.regenerated }));
       api.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal menghitung ulang", "Failed to recalculate"));
+    } finally {
+      setRegenBusy(false);
     }
   };
 
@@ -80,8 +93,8 @@ export function AttendanceClockingPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 w-36 text-xs font-bold" />
-            <Button variant="outline" onClick={regenerate} className="gap-2 font-bold">
-              <RefreshCw className="h-4 w-4" /> Refresh Clocking
+            <Button variant="outline" onClick={regenerate} disabled={regenBusy} className="gap-2 font-bold">
+              <RefreshCw className={cn("h-4 w-4", regenBusy && "animate-spin")} aria-hidden /> {regenBusy ? t("Memproses…", "Processing…") : t("Refresh Clocking")}
             </Button>
             <Button onClick={() => { setForm({ employeeId: api.data?.employees[0]?.id ?? "", time: "08:00", direction: "IN", note: "" }); setClockDialog(true); }} className="gap-2 font-bold">
               <Plus className="h-4 w-4" /> {t("Catat Clock", "Record Clock")}
@@ -138,7 +151,9 @@ export function AttendanceClockingPage() {
             </div>
 
             <TabsContent value="recap">
-              {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : rows.length === 0 ? (
+              {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={8} /></div> : api.error ? (
+                <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+              ) : rows.length === 0 ? (
                 <div className="p-5"><EmptyState title={t("Tidak ada data rekap", "No recap data")} description={t("Pilih tanggal lain atau catat clock terlebih dahulu.", "Pick another date or record a clock first.")} icon={<Activity className="h-6 w-6" />} /></div>
               ) : (
                 <div className="overflow-x-auto">
@@ -200,7 +215,9 @@ export function AttendanceClockingPage() {
             </TabsContent>
 
             <TabsContent value="logs">
-              {(api.data?.logs ?? []).length === 0 ? (
+              {api.error ? (
+                <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+              ) : (api.data?.logs ?? []).length === 0 ? (
                 <div className="p-5"><EmptyState title={t("Belum ada log pada tanggal ini", "No logs for this date yet")} description={t("Catat clock manual atau hubungkan mesin absensi.", "Record a manual clock or connect an attendance machine.")} icon={<Clock className="h-6 w-6" />} /></div>
               ) : (
                 <div className="overflow-x-auto">
@@ -243,7 +260,7 @@ export function AttendanceClockingPage() {
       <Dialog open={clockDialog} onOpenChange={setClockDialog}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{t("Catat Clock Manual — {date}", "Record Manual Clock — {date}", { date })}</DialogTitle>
+            <DialogTitle>{t("Catat Clock Manual — {date}", "Record Manual Clock — {date}", { date: fmtDate(date) })}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3.5 py-1">
             <div className="space-y-1.5">
@@ -282,8 +299,10 @@ export function AttendanceClockingPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setClockDialog(false)}>{t("Batal")}</Button>
-            <Button onClick={submitClock} disabled={!form.employeeId} className="font-bold">{t("Catat Clock", "Record Clock")}</Button>
+            <Button variant="outline" onClick={() => setClockDialog(false)} disabled={busy}>{t("Batal")}</Button>
+            <Button onClick={submitClock} disabled={busy || !form.employeeId} className="gap-1.5 font-bold">
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("Mengirim…", "Sending…")}</> : <>{t("Catat Clock", "Record Clock")}</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

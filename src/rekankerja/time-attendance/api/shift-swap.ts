@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { dayStart, addDays, regenerateDaily } from "@/rekankerja/time-attendance/services/attendance-service";
 import { pushNotification } from "@/rekankerja/shared/services/notification-service";
 import { sendWa, employeePhoneOf } from "@/rekankerja/shared/services/wa-service";
@@ -78,8 +78,11 @@ async function notifyEmployee(
 // ================= GET — daftar permintaan =================
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    // Task 100 (G1, audit A-01) — guard VIEW menu attendance:shift-swap (dulu
+    // requireTenant: daftar permintaan tukar shift terbaca tanpa hak LIHAT).
+    const m = await requireMenuViewAny(req, ["attendance:shift-swap"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status");

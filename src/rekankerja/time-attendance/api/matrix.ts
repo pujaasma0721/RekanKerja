@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny } from "@/rekankerja/shared/services/menu-access";
 import { resolveDayType, addDays } from "@/rekankerja/time-attendance/services/attendance-service";
 
 // GET /api/rekankerja/attendance/matrix?from=YYYY-MM-DD — matriks karyawan × 7 hari
 // (padanan Employee Schedule Matrix): day type efektif per hari per karyawan.
 // T9-HOLIDAY: sel hari libur nasional/bersama membawa info holiday (nama+jenis)
 // — kategori "Holiday" menang atas cycle jadwal (overlay kalender).
+// Task 100 (G1, audit A-01) — guard VIEW: menu matrix ATAU assignment-schedule
+// (data yang sama dipakai kedua halaman; pola multi-menu leave/requests.ts).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:matrix", "attendance:assignment-schedule"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const fromParam = req.nextUrl.searchParams.get("from");
     const from = fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam)

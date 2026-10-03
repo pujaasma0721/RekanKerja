@@ -1,6 +1,10 @@
 "use client";
 // RekanKerja Attendance — Lembur: perintah lembur Plan → Actual → Verified
 // (padanan EmpOvertimeWrit.jsp + approval) dengan multiplier PP 35/2021.
+// Task 100-impl-B (F0): pembatalan order kini lewat AlertDialog + alasan
+// opsional + busy (G9 — status Approved diberi teks tegas soal payroll),
+// error state useApi + Coba Lagi (G10), filter default "Pending" gaya inbox
+// approval konsisten shift-swap (B-14), tanggal default form zona LOKAL (B-10).
 import { useMemo, useState } from "react";
 import { useApi, apiSend, fmtIDR, fmtIDRShort, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useTableSort, nextServerSort, ServerSortHead, type ServerSortDir } from "@/rekankerja/shared/lib/use-table-sort";
@@ -13,21 +17,24 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { OvertimeRow, EmployeeOption, OT_CATEGORY_LABEL, OT_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
+import { ApiErrorState, todayISO } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { Clock, Plus, CheckCircle2, XCircle, Pencil, Ban, Search, BadgeCheck } from "lucide-react";
+import { Clock, Plus, CheckCircle2, XCircle, Pencil, Ban, Search, BadgeCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// B-14: urutan inbox approval — Pending dulu, Semua terakhir (pola shift-swap).
 const STATUS_FILTERS = [
-  { key: "all", label: "Semua" },
   { key: "Pending", label: "Pending" },
   { key: "Approved", label: "Disetujui" },
   { key: "Paid", label: "Dibayar" },
   { key: "Rejected", label: "Ditolak" },
   { key: "Cancelled", label: "Dibatalkan" },
+  { key: "all", label: "Semua" },
 ];
 
 // label EN (peta paralel — render: t(f.label, STATUS_FILTERS_EN[f.key] ?? f.label))
@@ -38,14 +45,18 @@ const STATUS_FILTERS_EN: Record<string, string> = {
 export function AttendanceOvertimePage() {
   const { t, locale } = useI18n();
   const perms = useMenuPerms();
-  const [statusFilter, setStatusFilter] = useState("all");
+  // B-14: default "Pending" — inbox approval (konsisten shift-swap).
+  const [statusFilter, setStatusFilter] = useState("Pending");
   const [query, setQuery] = useState("");
   const [orderDialog, setOrderDialog] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<OvertimeRow | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<OvertimeRow | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<OvertimeRow | null>(null); // G9: konfirmasi batalkan
+  const [cancelNote, setCancelNote] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
   const [verifyMinutes, setVerifyMinutes] = useState("120");
-  const [form, setForm] = useState({ employeeId: "", overtimeDate: new Date().toISOString().slice(0, 10), timeFrom: "17:00", timeTo: "20:00", letterNo: "", reason: "" });
+  const [form, setForm] = useState({ employeeId: "", overtimeDate: todayISO(), timeFrom: "17:00", timeTo: "20:00", letterNo: "", reason: "" });
   const [busy, setBusy] = useState(false);
 
   // Task 76 — sorting SERVER-SIDE: sortBy/sortDir dikirim ke API (whitelist di route).
@@ -98,8 +109,22 @@ export function AttendanceOvertimePage() {
         toast.success(res.note);
       }
       api.refresh();
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("Gagal"));
+      return false;
+    }
+  };
+
+  // G9: batalkan order — konfirmasi AlertDialog (Approved = teks tegas) + busy.
+  const runCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelBusy(true);
+    try {
+      const ok = await decide(cancelTarget, "cancel", { note: cancelNote.trim() || "Dibatalkan admin" });
+      if (ok) setCancelTarget(null);
+    } finally {
+      setCancelBusy(false);
     }
   };
 
@@ -159,7 +184,9 @@ export function AttendanceOvertimePage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. order…", "Search employee / order no.…")} className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
-          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : orders.length === 0 ? (
+          {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
+            <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
+          ) : orders.length === 0 ? (
             <div className="p-5"><EmptyState title={t("Tidak ada perintah lembur", "No overtime orders")} description={t("Ajukan work order lembur — jam akan diverifikasi dari clocking saat disetujui.", "Submit an overtime work order — hours will be verified from clocking upon approval.")} icon={<Clock className="h-6 w-6" />} /></div>
           ) : (
             <div className="overflow-x-auto">
@@ -247,7 +274,7 @@ export function AttendanceOvertimePage() {
                               <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Verifikasi jam", "Verify hours")} onClick={() => { setVerifyTarget(o); setVerifyMinutes(String(o.verifiedMinutes || o.actualMinutes || o.planMinutes)); }} aria-label={t("Verifikasi jam lembur", "Verify overtime hours")}>
                                 <Pencil className="h-4 w-4 ov-text-accent" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Batalkan", "Cancel")} onClick={() => decide(o, "cancel", { note: "Dibatalkan admin" })} aria-label={t("Batalkan lembur", "Cancel overtime")}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("Batalkan", "Cancel")} onClick={() => { setCancelTarget(o); setCancelNote(""); }} aria-label={t("Batalkan lembur", "Cancel overtime")}>
                                 <Ban className="h-4 w-4 text-slate-400" />
                               </Button>
                             </>
@@ -343,6 +370,52 @@ export function AttendanceOvertimePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* G9: dialog konfirmasi batalkan lembur (pola AlertDialog shift-swap) */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(v) => { if (!v && !cancelBusy) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Batalkan Lembur {no}?", "Cancel Overtime {no}?", { no: cancelTarget?.orderNo ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget?.status === "Approved"
+                ? t(
+                    "Lembur sudah disetujui — pembatalan MENGHAPUS jam lembur dari transfer payroll dan rekap absensi dihitung ulang.",
+                    "This overtime is already approved — cancelling REMOVES the overtime hours from the payroll transfer and recalculates the attendance recap.",
+                  )
+                : t(
+                    "Perintah lembur akan dibatalkan dan karyawan menerima notifikasi pembatalan.",
+                    "The overtime order will be cancelled and the employee receives a cancellation notification.",
+                  )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {cancelTarget && (
+            <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-slate-800 dark:text-slate-200">{cancelTarget.employee.fullName}</p>
+                  <p className="truncate text-[11px] text-slate-400">{fmtDate(cancelTarget.overtimeDate)} · {t("terverifikasi {n} j", "verified {n} h", { n: (cancelTarget.verifiedMinutes / 60).toFixed(1) })}</p>
+                </div>
+                <StatusPill status={cancelTarget.status} />
+              </div>
+              <div className="mt-2 space-y-1.5">
+                <Label className="text-xs font-bold">{t("Alasan pembatalan (opsional)", "Cancellation reason (optional)")}</Label>
+                <Textarea value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} placeholder={t("mis. salah tanggal / duplikat surat lembur", "e.g. wrong date / duplicate overtime letter")} className="min-h-16 text-sm" maxLength={300} />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>{t("Batal", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelBusy}
+              className={cn("gap-1.5 font-bold", cancelBusy && "opacity-70")}
+              onClick={(e) => { e.preventDefault(); void runCancel(); }}
+            >
+              {cancelBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              {t("Ya, Batalkan Lembur", "Yes, Cancel Overtime")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* dialog verifikasi */}
       <Dialog open={!!verifyTarget} onOpenChange={(v) => !v && setVerifyTarget(null)}>

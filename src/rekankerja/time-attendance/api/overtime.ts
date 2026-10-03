@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
 import { moneyViewForReq } from "@/rekankerja/shared/lib/money-view-req";
-import { requireMenuAction } from "@/rekankerja/shared/services/menu-access";
+import { requireMenuViewAny, requireMenuAction } from "@/rekankerja/shared/services/menu-access";
 import { attachChainSummaries, DecisionConflictError, DecisionForbiddenError } from "@/rekankerja/shared/services/approval-engine";
 import { dispatchWebhookEvent } from "@/rekankerja/shared/services/webhook-service";
 import { submitOvertimeOrder, decideOvertimeOrder } from "@/rekankerja/time-attendance/services/attendance-service";
@@ -12,10 +11,13 @@ import { notifyEmailEvent, approverEmailsOf } from "@/rekankerja/shared/services
 
 // GET /api/rekankerja/attendance/overtime?status= — daftar perintah lembur + statistik
 // (padanan EmpOvertimeWrit.jsp + approval berjenjang T15-CHAIN-EXT).
+// Task 100 (G1, audit A-01) — guard VIEW menu attendance:overtime (dulu
+// requireTenant: daftar lembur + estimasi upah terbaca tanpa hak LIHAT).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:overtime"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const status = req.nextUrl.searchParams.get("status");
     // Task 76 — sort server-side (whitelist; default terbaru dulu)

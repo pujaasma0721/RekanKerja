@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant, UNAUTHORIZED_MSG, type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
-import { requireMenuAction, type MenuActor } from "@/rekankerja/shared/services/menu-access";
+import { type TenantDb } from "@/rekankerja/shared/lib/tenant-db";
+import { requireMenuViewAny, requireMenuAction, type MenuActor } from "@/rekankerja/shared/services/menu-access";
 
 // ============ T9-HOLIDAY — Kalender Hari Libur (CRUD + import tahunan) =======
 // GET  /api/rekankerja/attendance/holidays?year=2026 — daftar libur tahun tsb
@@ -49,11 +49,13 @@ async function logHoliday(db: TenantDb, actor: MenuActor | null, action: string,
   }
 }
 
-// GET — kalender per tahun (tanpa mutasi → requireTenant, pola GET attendance)
+// GET — kalender per tahun — Task 100 (G1, audit A-01): guard VIEW menu
+// attendance:holidays (dulu requireTenant — pola GET attendance kini menu-guard).
 export async function GET(req: NextRequest) {
   try {
-    const db = await requireTenant(req);
-    if (!db) return NextResponse.json({ error: UNAUTHORIZED_MSG }, { status: 401 });
+    const m = await requireMenuViewAny(req, ["attendance:holidays"]);
+    if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
+    const db = m.db;
 
     const yearParam = req.nextUrl.searchParams.get("year");
     const year = yearParam && /^\d{4}$/.test(yearParam)
