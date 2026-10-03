@@ -1761,6 +1761,13 @@ CREATE TABLE "MedicalClaim" (
     "decidedAt" TIMESTAMP(3),
     "decisionNote" TEXT,
     "settledById" TEXT,
+    -- W4-1 (fix G-3) — piutang asuransi: siklus NONE → SUBMITTED → PAID / WRITTEN_OFF
+    "insState" TEXT NOT NULL DEFAULT 'NONE',
+    "insRefNo" TEXT,
+    "insAmount" TEXT NOT NULL DEFAULT '0',
+    "insSubmittedAt" TIMESTAMP(3),
+    "insPaidAt" TIMESTAMP(3),
+    "insPaidAmount" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "reversalOfId" TEXT,

@@ -1520,7 +1520,7 @@ async function generateSettleJournal(
   /** 44-c: konteks crypto ditangkap dari client LUAR (client transaksi Prisma
    *  tidak membawa brand schema — pola 44-d leave-service decideEncashment). */
   tc: FieldCrypto,
-): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number }> {
+): Promise<{ journalNo: string; journalDate: Date; lines: number; total: number; insAmount: number }> {
   const claim = await tx.medicalClaim.findUnique({
     where: { id: claimId },
     include: { lines: true, employee: { select: { fullName: true } }, type: { select: { code: true, name: true, pctCompany: true, pctInsurance: true, insuranceCompany: true } } },
@@ -1543,6 +1543,10 @@ async function generateSettleJournal(
       })
     : null;
   const insLabel = claim.type.insuranceCompany ?? "Asuransi";
+  // W4-1 (fix G-3): total piutang asuransi klaim ini — snapshot ke MedicalClaim
+  // insAmount pada transaksi settle, dipakai listInsuranceReceivables/decideInsurance
+  // (fallback komputasi ulang untuk klaim legacy pra-wave4 bila insAmount 0).
+  let insTotal = 0;
   // 44-c (M-8): approvedAmount baris TERENKRIPSI — dekripsi utk draft jurnal
   // (jurnal tetap ditulis terenkripsi wave-1 via tcJ di bawah — tidak dobel).
   for (const l of claim.lines) {
@@ -1552,6 +1556,7 @@ async function generateSettleJournal(
     if (insAcc) {
       const insPart = round2((approved * claim.type.pctInsurance) / 100);
       const compPart = round2(approved - insPart);
+      insTotal = round2(insTotal + insPart);
       if (compPart > 0) {
         drafts.push({
           accountCode: MEDICAL_EXPENSE_ACC.code,
@@ -1581,7 +1586,7 @@ async function generateSettleJournal(
     }
   }
   const total = round2(drafts.reduce((s, d) => s + d.amount, 0));
-  if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0 };
+  if (total <= 0) return { journalNo: "", journalDate: new Date(), lines: 0, total: 0, insAmount: insTotal };
   drafts.push({
     accountCode: CASH_ACC.code, accountName: CASH_ACC.name, position: "Credit",
     amount: total, memo: `${claim.docNo} — reimbursement medis ${claim.employee.fullName}`,
@@ -1608,7 +1613,7 @@ async function generateSettleJournal(
       },
     },
   });
-  return { journalNo, journalDate, lines: drafts.length, total };
+  return { journalNo, journalDate, lines: drafts.length, total, insAmount: insTotal };
 }
 
 // ============ W3-3 (fix G-5 BPA-medical) — potong gaji bagian over-limit ======
@@ -1924,6 +1929,9 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
           settleDate,
           settledById: actorId,
           decisionNote: input.note ?? claim.decisionNote,
+          // W4-1 (fix G-3): snapshot piutang asuransi saat settle (0 bila jenis
+          // tanpa pctInsurance — siklus piutang tak aktif untuk klaim ini).
+          insAmount: encMoney(tc, j.insAmount),
         },
       });
       // Fix audit 40 M-05 — aktor keputusan (appUserId/employeeId) ikut tercatat
@@ -1950,6 +1958,16 @@ export async function decideClaim(db: TenantDb, input: DecideClaimInput, actorId
     const dup = await db.medicalClaim.findUnique({ where: { reversalOfId: claim.id }, select: { docNo: true } });
     if (dup) {
       throw new Error(`Klaim ${claim.docNo} sudah di-storno via ${dup.docNo} — storno ganda ditolak`);
+    }
+    // W4-1 (fix G-3): klaim dengan piutang asuransi berjalan tidak boleh
+    // di-storno — jurnal pembalik tidak menutup piutang 13xx (pelunasan/pembatalan
+    // piutang harus lewat decideInsurance dulu; klaim PAID/WRITTEN_OFF sudah
+    // final di sisi asuransi — reversi manual oleh admin bila benar-benar perlu).
+    if (claim.insState === "SUBMITTED" || claim.insState === "PAID" || claim.insState === "WRITTEN_OFF") {
+      throw new Error(
+        `Klaim ${claim.docNo} memiliki piutang asuransi berstatus ${claim.insState} — ` +
+        "selesaikan piutangnya (terima pembayaran / hapus buku) sebelum storno, atau hubungi admin utk reversi manual",
+      );
     }
     useDepPool = claim.forDependent && depPoolSeparate(claim.type);
     const bal = await db.medicalBalance.findUnique({
@@ -2460,6 +2478,261 @@ export async function markMedicalPaidForRun(db: TenantDb, runId: string): Promis
   return targets.length;
 }
 
+// ============ W4-1 (fix G-3 BPA-medical) — piutang asuransi ============
+// Jurnal settle memecah bagian asuransi ke akun piutang 13xx (fix M-7 wave 1);
+// sebelumnya tidak ada proses klaim ke asuransi — piutang "diam" di buku besar.
+// Alur oranHR "Paid By Insurance %" kini lengkap: kirim klaim ke asuransi →
+// terima pembayaran (jurnal kas/piutang) → atau hapus buku (write-off).
+
+/** Bagian asuransi klaim — MIRROR persis kalkulasi generateSettleJournal
+ *  (round2 per baris) agar snapshot insAmount legacy pra-wave4 bisa dihitung
+ *  ulang konsisten dari baris klaim. */
+function insurancePartOf(
+  claim: { lines: { approvedAmount: string }[]; type: { pctInsurance: number } },
+  tc: FieldCrypto,
+): number {
+  return round2(claim.lines.reduce((s, l) => {
+    const a = decMoney(tc, l.approvedAmount);
+    return s + (a > 0 ? round2((a * claim.type.pctInsurance) / 100) : 0);
+  }, 0));
+}
+
+/** Daftar piutang asuransi (display). Klaim Settled pada jenis pctInsurance > 0;
+ *  fallback insAmount 0 (legacy pra-wave4) dihitung ulang dari baris klaim.
+ *  45-b: mv WAJIB — uang digate (masked → null). */
+export async function listInsuranceReceivables(db: TenantDb, mv: MoneyView) {
+  const rows0 = await db.medicalClaim.findMany({
+    where: { state: "Settled", type: { pctInsurance: { gt: 0 } } },
+    include: {
+      lines: { select: { approvedAmount: true } },
+      employee: { select: { employeeNo: true, fullName: true } },
+      type: { select: { code: true, name: true, pctInsurance: true, insuranceCompany: true } },
+    },
+    orderBy: { settleDate: "asc" },
+    take: 500,
+  });
+  const tc = tenantCryptoForDb(db);
+  const today = dayStart(new Date());
+  const rows = rows0.map((c) => {
+    const insAmt = Math.max(decMoney(tc, c.insAmount) ?? 0, insurancePartOf(c, tc));
+    const paid = mv.canSee ? decMoney(tc, c.insPaidAmount) ?? 0 : null;
+    const settled = c.insState === "PAID" || c.insState === "WRITTEN_OFF";
+    const outstanding = mv.canSee && !settled ? round2(Math.max(0, insAmt - (paid ?? 0))) : (settled ? 0 : null);
+    const anchor = c.insSubmittedAt ?? c.settleDate ?? c.updatedAt;
+    return {
+      id: c.id,
+      docNo: c.docNo,
+      employeeNo: c.employee.employeeNo,
+      fullName: c.employee.fullName,
+      typeCode: c.type.code,
+      typeName: c.type.name,
+      insurer: c.type.insuranceCompany ?? "Asuransi",
+      pctInsurance: c.type.pctInsurance,
+      journalNo: c.journalNo,
+      settleDate: c.settleDate,
+      insState: c.insState,
+      insRefNo: c.insRefNo,
+      insAmount: mv.canSee ? insAmt : null,
+      insPaidAmount: paid,
+      insSubmittedAt: c.insSubmittedAt,
+      insPaidAt: c.insPaidAt,
+      outstanding,
+      /** usia piutang (hari sejak settle / sejak dikirim bila sudah dikirim). */
+      ageDays: Math.max(0, Math.floor((today.getTime() - dayStart(anchor).getTime()) / 86_400_000)),
+    };
+  });
+  const byInsurerMap = new Map<string, { insurer: string; count: number; submitted: number; outstanding: number }>();
+  for (const r of rows) {
+    const cur = byInsurerMap.get(r.insurer) ?? { insurer: r.insurer, count: 0, submitted: 0, outstanding: 0 };
+    cur.count += 1;
+    if (r.insState === "SUBMITTED") cur.submitted += 1;
+    cur.outstanding = round2(cur.outstanding + (r.outstanding ?? 0));
+    byInsurerMap.set(r.insurer, cur);
+  }
+  return {
+    rows,
+    byInsurer: [...byInsurerMap.values()].sort((a, b) => b.outstanding - a.outstanding),
+    totalOutstanding: round2(rows.reduce((s, r) => s + (r.outstanding ?? 0), 0)),
+    unsubmitted: rows.filter((r) => r.insState === "NONE").length,
+    waitingPayment: rows.filter((r) => r.insState === "SUBMITTED").length,
+  };
+}
+
+/** Keputusan piutang asuransi: kirim klaim ke asuransi (submit), terima
+ *  pembayaran (paid — jurnal Debit kas / Credit piutang 13xx, mendukung
+ *  parsial: state PAID hanya saat lunas), atau hapus buku (writeoff —
+ *  jurnal Debit beban 5106 / Credit piutang; asuransi menolak/tidak mampu bayar).
+ *  Semua jurnal memakai pola generateSettleJournal (nextJournalNoInTx,
+ *  terenkripsi 28-c) dalam $transaction. */
+export interface InsuranceDecideInput {
+  claimId: string;
+  action: "submit" | "paid" | "writeoff";
+  /** nomor klaim pada asuransi (submit — opsional, dapat diisi belakangan). */
+  insRefNo?: string;
+  /** nilai dibayarkan asuransi (paid — default: sisa piutang). */
+  paidAmount?: number;
+  /** alasan wajib utk writeoff; catatan opsional utk submit/paid. */
+  note?: string;
+  actor?: { appUserId?: string | null; employeeId?: string | null; name?: string };
+}
+
+export async function decideInsurance(db: TenantDb, input: InsuranceDecideInput): Promise<Record<string, unknown>> {
+  const claim = await db.medicalClaim.findUnique({
+    where: { id: input.claimId },
+    include: {
+      lines: { select: { approvedAmount: true } },
+      employee: { select: { fullName: true } },
+      type: { select: { code: true, name: true, pctInsurance: true, insuranceCompany: true } },
+    },
+  });
+  if (!claim) throw new Error("Klaim tidak ditemukan");
+  if (claim.state !== "Settled") {
+    throw new Error(`Klaim ${claim.docNo} belum disettle — piutang asuransi hanya untuk klaim yang sudah dibayarkan perusahaan`);
+  }
+  if (claim.type.pctInsurance <= 0) {
+    throw new Error(`Jenis benefit ${claim.type.name} tidak memiliki kebijakan Paid By Insurance (pctInsurance = 0) — tidak ada piutang asuransi`);
+  }
+  const tc = tenantCryptoForDb(db);
+  const insAmt = Math.max(decMoney(tc, claim.insAmount) ?? 0, insurancePartOf(claim, tc));
+  if (insAmt <= 0) {
+    throw new Error(`Piutang asuransi klaim ${claim.docNo} nihil — tidak ada yang ditagihkan`);
+  }
+  const insLabel = claim.type.insuranceCompany ?? "Asuransi";
+  const paidPrev = decMoney(tc, claim.insPaidAmount) ?? 0;
+  const outstanding = round2(Math.max(0, insAmt - paidPrev));
+  const actorId = input.actor?.appUserId ?? undefined;
+
+  if (input.action === "submit") {
+    if (claim.insState !== "NONE") {
+      throw new Error(`Klaim ${claim.docNo} sudah dikirim ke asuransi (status ${claim.insState}) — kirim ulang ditolak`);
+    }
+    const refNo = input.insRefNo?.trim() || null;
+    await db.medicalClaim.update({
+      where: { id: claim.id },
+      data: { insState: "SUBMITTED", insRefNo: refNo, insSubmittedAt: new Date() },
+    });
+    await db.activityLog.create({
+      data: {
+        action: "Submitted", entity: "MedicalClaim", entityId: claim.id,
+        appUserId: actorId, employeeId: input.actor?.employeeId ?? undefined,
+        detail: `Piutang asuransi klaim ${claim.docNo} dikirim ke ${insLabel} — Rp ${fmtRp(insAmt)}${refNo ? ` (ref ${refNo})` : ""}${input.note ? ` — ${input.note}` : ""}`,
+      },
+    });
+    return { docNo: claim.docNo, insState: "SUBMITTED", insRefNo: refNo, insAmount: insAmt, outstanding };
+  }
+
+  if (input.action === "paid") {
+    if (claim.insState !== "SUBMITTED") {
+      throw new Error(
+        claim.insState === "NONE"
+          ? `Klaim ${claim.docNo} belum dikirim ke asuransi — kirim (submit) lebih dulu`
+          : `Piutang klaim ${claim.docNo} sudah ${claim.insState === "PAID" ? "lunas" : "dihapus buku"} — pembayaran ditolak`,
+      );
+    }
+    if (outstanding <= 0) {
+      throw new Error(`Piutang klaim ${claim.docNo} sudah lunas`);
+    }
+    const paidNew = round2(input.paidAmount ?? outstanding);
+    if (!(paidNew > 0) || paidNew > outstanding + 0.01) {
+      throw new Error(`Nilai pembayaran tidak wajar — sisa piutang ${fmtRp(outstanding)} (diterima ${fmtRp(paidNew)})`);
+    }
+    const fullyPaid = paidNew >= outstanding - 0.01;
+    const totalPaid = round2(paidPrev + paidNew);
+    const insAcc = await db.account.findFirst({
+      where: { code: { startsWith: "13" } }, select: { code: true, name: true }, orderBy: { code: "asc" },
+    });
+    if (!insAcc) throw new Error("Akun piutang 13xx tidak ditemukan — jurnal pelunasan tidak dapat dibuat");
+    const accCash = await db.account.findUnique({ where: { code: CASH_ACC.code }, select: { name: true } });
+    // K-1 — alokasi nomor jurnal DI DALAM transaksi (mirror generateSettleJournal).
+    let journalNo = "";
+    await db.$transaction(async (tx) => {
+      journalNo = await nextJournalNoInTx(tx);
+      await tx.payrollJournal.create({
+        data: {
+          journalNo, journalDate: new Date(), runId: null, runNo: claim.docNo,
+          description: `Pelunasan piutang asuransi ${claim.docNo} — ${insLabel} (${claim.type.name})`,
+          totalDebit: tc.encryptMoney(paidNew), totalCredit: tc.encryptMoney(paidNew), status: "Posted",
+          lines: {
+            create: [
+              { sequence: 1, accountCode: CASH_ACC.code, accountName: accCash?.name ?? CASH_ACC.name, position: "Debit", amount: tc.encryptMoney(paidNew), memo: `${claim.docNo} — diterima dari ${insLabel}${claim.insRefNo ? ` (ref ${claim.insRefNo})` : ""}` },
+              { sequence: 2, accountCode: insAcc.code, accountName: insAcc.name, position: "Credit", amount: tc.encryptMoney(paidNew), memo: `${claim.docNo} — pelunasan piutang ${insLabel} ${claim.type.pctInsurance}% ${claim.type.name}` },
+            ],
+          },
+        },
+      });
+      await tx.medicalClaim.update({
+        where: { id: claim.id },
+        data: {
+          insState: fullyPaid ? "PAID" : "SUBMITTED",
+          insPaidAt: fullyPaid ? new Date() : claim.insPaidAt,
+          insPaidAmount: encMoney(tc, totalPaid),
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          action: "Processed", entity: "MedicalClaim", entityId: claim.id,
+          appUserId: actorId, employeeId: input.actor?.employeeId ?? undefined,
+          detail: `Pembayaran asuransi ${insLabel} diterima utk klaim ${claim.docNo} — Rp ${fmtRp(paidNew)}${fullyPaid ? " (LUNAS)" : ` (sisa ${fmtRp(round2(outstanding - paidNew))})`} — jurnal ${journalNo}${input.note ? ` — ${input.note}` : ""}`,
+        },
+      });
+    });
+    return {
+      docNo: claim.docNo, insState: fullyPaid ? "PAID" : "SUBMITTED",
+      insAmount: insAmt, insPaidAmount: totalPaid, outstanding: round2(outstanding - paidNew), journalNo,
+    };
+  }
+
+  // ---- writeoff ----
+  if (!input.note?.trim()) {
+    throw new Error("Hapus buku piutang wajib menyertakan alasan (mis. klaim ditolak asuransi)");
+  }
+  if (claim.insState !== "SUBMITTED") {
+    throw new Error(
+      claim.insState === "NONE"
+        ? `Klaim ${claim.docNo} belum dikirim ke asuransi — kirim (submit) lebih dulu`
+        : `Piutang klaim ${claim.docNo} sudah ${claim.insState === "PAID" ? "lunas" : "dihapus buku"} — hapus buku ditolak`,
+    );
+  }
+  if (outstanding <= 0) {
+    throw new Error(`Piutang klaim ${claim.docNo} sudah lunas — tidak ada yang dihapus buku`);
+  }
+  const insAcc2 = await db.account.findFirst({
+    where: { code: { startsWith: "13" } }, select: { code: true, name: true }, orderBy: { code: "asc" },
+  });
+  if (!insAcc2) throw new Error("Akun piutang 13xx tidak ditemukan — jurnal hapus buku tidak dapat dibuat");
+  const accExp = await db.account.findUnique({ where: { code: MEDICAL_EXPENSE_ACC.code }, select: { name: true } });
+  // K-1 — alokasi nomor jurnal DI DALAM transaksi (mirror generateSettleJournal).
+  let journalNo = "";
+  await db.$transaction(async (tx) => {
+    journalNo = await nextJournalNoInTx(tx);
+    await tx.payrollJournal.create({
+      data: {
+        journalNo, journalDate: new Date(), runId: null, runNo: claim.docNo,
+        description: `Hapus buku piutang asuransi ${claim.docNo} — ${insLabel} (${claim.type.name})`,
+        totalDebit: tc.encryptMoney(outstanding), totalCredit: tc.encryptMoney(outstanding), status: "Posted",
+        lines: {
+          create: [
+            { sequence: 1, accountCode: MEDICAL_EXPENSE_ACC.code, accountName: accExp?.name ?? MEDICAL_EXPENSE_ACC.name, position: "Debit", amount: tc.encryptMoney(outstanding), memo: `${claim.docNo} — hapus buku piutang ${insLabel} (beban perusahaan)${input.note ? ` — ${input.note}` : ""}` },
+            { sequence: 2, accountCode: insAcc2.code, accountName: insAcc2.name, position: "Credit", amount: tc.encryptMoney(outstanding), memo: `${claim.docNo} — hapus buku piutang ${insLabel} ${claim.type.pctInsurance}% ${claim.type.name}` },
+          ],
+        },
+      },
+    });
+    await tx.medicalClaim.update({
+      where: { id: claim.id },
+      data: { insState: "WRITTEN_OFF" },
+    });
+    await tx.activityLog.create({
+      data: {
+        action: "Processed", entity: "MedicalClaim", entityId: claim.id,
+        appUserId: actorId, employeeId: input.actor?.employeeId ?? undefined,
+        detail: `Piutang asuransi klaim ${claim.docNo} DIHAPUS BUKU — Rp ${fmtRp(outstanding)} dibebankan — jurnal ${journalNo} — ${input.note}`,
+      },
+    });
+  });
+  return { docNo: claim.docNo, insState: "WRITTEN_OFF", insAmount: insAmt, outstanding: 0, journalNo };
+}
+
 // ============ KPI & laporan ============
 
 /** KPI medis (display). 45-b: mv WAJIB — agregat uang via dec0 (masked → 0,
@@ -2482,6 +2755,9 @@ export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
     where: { year, state: "Settled" },
     select: {
       typeId: true, totalApproved: true, totalBill: true,
+      // W4-1 (fix G-3): konteks piutang asuransi utk KPI outstanding.
+      insAmount: true, insPaidAmount: true, insState: true,
+      type: { select: { pctInsurance: true } },
       // W2-6 (G-9): konteks karyawan utk rekap per karyawan (SummaryEmployee).
       employee: { select: { employeeNo: true, fullName: true } },
     },
@@ -2536,11 +2812,21 @@ export async function medicalStats(db: TenantDb, year: number, mv: MoneyView) {
     byEmployeeMap.set(key, cur);
   }
   const byEmployee = [...byEmployeeMap.values()].sort((a, b) => b.approvedAmount - a.approvedAmount);
+  // W4-1 (fix G-3): piutang asuransi belum tertagih — Σ(insAmount − insPaid)
+  // klaim Settled dgn pctInsurance > 0 yang belum PAID/WRITTEN_OFF. Snapshot
+  // insAmount diisi sejak settle wave4 (klaim legacy pra-wave4 nilainya 0 —
+  // KPI hanya mencakup piutang yang terlacak; listInsuranceReceivables
+  // menghitung ulang legacy dari baris klaim).
+  const insOutstanding = round2(
+    settledRows
+      .filter((r) => r.type.pctInsurance > 0 && r.insState !== "PAID" && r.insState !== "WRITTEN_OFF")
+      .reduce((s, r) => s + Math.max(0, md(r.insAmount) - md(r.insPaidAmount)), 0),
+  );
   return {
     year, totalBalances, totalClaims, pendingClaims, settledClaims, adjustments, types,
     settledApproved,
     settledBill,
-    remaining, dependentRemaining, byType, byEmployee,
+    remaining, dependentRemaining, insOutstanding, byType, byEmployee,
   };
 }
 

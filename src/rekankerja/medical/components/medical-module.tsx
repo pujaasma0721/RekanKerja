@@ -8,6 +8,8 @@ import { MedicalAdjustmentPage } from "@/rekankerja/medical/components/medical-a
 import { MedicalBenefitTypePage } from "@/rekankerja/medical/components/medical-benefit-type";
 import { MedicalProvidersPage } from "@/rekankerja/medical/components/medical-providers";
 import { MedicalReportsPage } from "@/rekankerja/medical/components/medical-reports";
+// W4-1 (fix G-3) — piutang asuransi (padanan oranHR Paid By Insurance %).
+import { MedicalInsurancePage } from "@/rekankerja/medical/components/medical-insurance";
 
 export function MedicalModule({ view }: { view: string }) {
   switch (view) {
@@ -18,6 +20,7 @@ export function MedicalModule({ view }: { view: string }) {
     case "medical-benefit-type": return <MedicalBenefitTypePage />;
     case "medical-providers": return <MedicalProvidersPage />;
     case "medical-reports": return <MedicalReportsPage />;
+    case "medical-insurance": return <MedicalInsurancePage />;
     default: return <MedicalOverview />;
   }
 }

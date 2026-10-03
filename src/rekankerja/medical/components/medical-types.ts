@@ -109,10 +109,30 @@ export interface MedicalStatsUI {
   settledApproved: number; settledBill: number; remaining: number;
   /** W2-3 — sisa plafon pool dependent TERPISAH (SHARED tak dijumlah: pool bersama). */
   dependentRemaining?: number;
+  /** W4-1 — piutang asuransi belum tertagih (klaim Settled dgn pctInsurance > 0). */
+  insOutstanding?: number;
   byType: { typeCode: string; typeName: string; claimCount: number; approvedAmount: number }[];
   /** W2-6 — rekap beban per karyawan (padanan SummaryEmployee). */
   byEmployee?: { employeeNo: string; fullName: string; claimCount: number; approvedAmount: number }[];
 }
+
+/** W4-1 (fix G-3) — baris piutang asuransi (padoran oranHR Paid By Insurance %). */
+export interface InsReceivableUI {
+  id: string; docNo: string; employeeNo: string; fullName: string;
+  typeCode: string; typeName: string; insurer: string; pctInsurance: number;
+  journalNo: string | null; settleDate: string | null;
+  insState: string; insRefNo: string | null;
+  insAmount: number | null; insPaidAmount: number | null;
+  insSubmittedAt: string | null; insPaidAt: string | null;
+  outstanding: number | null; ageDays: number;
+}
+
+export const INS_STATE_LABEL: Record<string, string> = {
+  NONE: "Belum Dikirim",
+  SUBMITTED: "Menunggu Asuransi",
+  PAID: "Dibayar Asuransi",
+  WRITTEN_OFF: "Dihapus Buku",
+};
 
 export interface PeriodOptionUI {
   id: string; name: string; code: string; status: string;

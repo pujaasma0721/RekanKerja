@@ -6,7 +6,7 @@ import { PageHeader, LoadingCards } from "@/rekankerja/shared/components/ui-kit"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   HeartPulse, Inbox, Activity, CheckCircle2, FileText, TrendingUp,
-  ArrowRight, Landmark, Boxes, Wallet,
+  ArrowRight, Landmark, Boxes, Wallet, Coins,
 } from "lucide-react";
 import { MedicalStatsUI, fmtIDRShort, fmtIDR } from "./medical-types";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -49,6 +49,15 @@ export function MedicalOverview() {
       icon: Activity,
       onClick: () => navigate("medical", "medical-adjustment"),
     },
+    // W4-1 (fix G-3) — piutang asuransi belum tertagih (kondisional: hanya bila ada).
+    ...(s?.insOutstanding
+      ? [{
+          label: t("Piutang Asuransi", "Insurance Receivables"), value: fmtIDRShort(s.insOutstanding),
+          sub: t("bagian klaim dibayar asuransi — belum tertagih", "insurance-paid claim portion — outstanding"),
+          icon: Coins,
+          onClick: () => navigate("medical", "medical-insurance"),
+        }]
+      : []),
   ];
 
   const steps = [

@@ -243,6 +243,7 @@ const STEPS: Step[] = [
   // fix 92 (wave 3 medical): kolom MedicalBenefitType.needLetter — G-2 surat
   // rujukan wajib per jenis benefit. Skip schema tanpa tabel medical.
   { key: "medical-wave3", label: "Fix 92 — wave 3 medical: MedicalBenefitType.needLetter (G-2 surat rujukan)", run: (s) => import("../../../../scripts/migrate-medical-wave3").then((m) => m.main(s)) },
+  { key: "medical-wave4", label: "Fix 93 — wave 4 medical: MedicalClaim.ins* (G-3 piutang asuransi)", run: (s) => import("../../../../scripts/migrate-medical-wave4").then((m) => m.main(s)) },
   // Task 98 (F0-7 + F1-1): index-sweep tabel travel (B11) + tabel tarif kota
   // SBI TravelCityRate (PMK 32/2025) + seed idempoten create-only.
   {

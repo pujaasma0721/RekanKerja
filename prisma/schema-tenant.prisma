@@ -2336,6 +2336,15 @@ model MedicalClaim {
   decidedAt      DateTime?
   decisionNote   String?
   settledById    String?
+  // W4-1 (fix G-3 BPA-medical) — pelacakan piutang asuransi (padanan oranHR
+  // "Paid By Insurance %"): jurnal settle memecah bagian asuransi ke piutang
+  // 13xx; kolom ini mengelola siklusnya NONE → SUBMITTED → PAID / WRITTEN_OFF.
+  insState       String    @default("NONE") // NONE|SUBMITTED|PAID|WRITTEN_OFF
+  insRefNo       String?   // nomor klaim pada asuransi
+  insAmount      String    @default("0") // snapshot piutang saat settle (terenkripsi)
+  insSubmittedAt DateTime?
+  insPaidAt      DateTime?
+  insPaidAmount  String?   // nilai yang dibayarkan asuransi (terenkripsi)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

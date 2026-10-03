@@ -236,6 +236,8 @@ const MEDICAL_NAV: NavGroup[] = [
     { id: "medical-claim", label: "Klaim Medis", icon: Activity },
     { id: "medical-approval", label: "Persetujuan & Settlement", icon: CheckCircle2 },
     { id: "medical-adjustment", label: "Penyesuaian Saldo", icon: ArrowLeftRight },
+    // W4-1 (fix G-3) — piutang asuransi (padanan oranHR Paid By Insurance %).
+    { id: "medical-insurance", label: "Piutang Asuransi", icon: Coins },
   ] },
   { section: "medical", label: "Master & Laporan", children: [
     { id: "medical-benefit-type", label: "Jenis Benefit", icon: Boxes },
