@@ -3,12 +3,13 @@
 // Semua endpoint /api/rekankerja/ess/* sesuai KONTRAK API agent T7. Bentuk data yang
 // tidak dirinci kontrak dibaca defensif via pickStr/pickNum agar tampilan tetap rapi.
 import { useCallback, useEffect, useState } from "react";
-import { apiSend } from "@/rekankerja/shared/lib/api";
+import { apiSend, apiUpload } from "@/rekankerja/shared/lib/api";
 import type {
   EssAttendanceData,
   EssClaimsData,
   EssClockInput,
   EssClockResult,
+  EssClockSettings,
   EssLeaveData,
   EssLeaveSubmitInput,
   EssMedicalClaimFormData,
@@ -108,6 +109,47 @@ export const submitOvertime = (body: EssOvertimeInput) =>
 
 export const submitClock = (body: EssClockInput) =>
   apiSend<EssClockResult>(`${ESS_BASE}/clock`, "POST", body);
+
+// ============ Task 100 F1 (G13/G17) — clock multipart (foto selfie + QR) ============
+
+/** GET /ess/clock-settings — mode verifikasi presensi (selfie/face) widget punch clock. */
+export const fetchClockSettings = () => essGet<EssClockSettings>("/clock-settings");
+
+/**
+ * POST /ess/clock sebagai multipart/form-data — FormData berisi direction,
+ * latitude, longitude, accuracy, note, deviceId, qrToken, photo (Blob selfie.jpg).
+ * (apiUpload TIDAK menyetel Content-Type manual — browser menyetel boundary.)
+ */
+export const submitClockForm = (form: FormData) =>
+  apiUpload<EssClockResult>(`${ESS_BASE}/clock`, form);
+
+/**
+ * Fingerprint perangkat stabil (G13): UUID sekali di localStorage "rk_device_id",
+ * dikirim pada SETIAP clock supaya log presensi bisa diaudit per perangkat.
+ * Gagal akses storage → null (clock tetap jalan tanpa deviceId).
+ */
+export function getDeviceId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const KEY = "rk_device_id";
+    let v = window.localStorage.getItem(KEY);
+    if (!v) {
+      v = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `rk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      window.localStorage.setItem(KEY, v);
+    }
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+// ============ Task 100 F1 (G19) — open shift marketplace ============
+
+/** POST /ess/open-shift { postId } — ajukan klaim (201) / 409 sudah pernah. */
+export const claimOpenShift = (postId: string) =>
+  apiSend<{ ok: boolean; claimId: string; status: string }>(`${ESS_BASE}/open-shift`, "POST", { postId });
 
 // ============ POST permintaan surat layanan (26-a) ============
 export const submitLetterRequest = (body: { templateKey: string; purpose?: string; notes?: string }) =>

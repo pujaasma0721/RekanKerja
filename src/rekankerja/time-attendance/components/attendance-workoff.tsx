@@ -5,7 +5,9 @@
 // opsional + busy (G9 — status Approved tegas soal pengembalian saldo cuti),
 // error state useApi + Coba Lagi (G10), filter default "Pending" gaya inbox
 // approval konsisten shift-swap (B-14), tanggal default form zona LOKAL (B-10).
-import { useMemo, useState } from "react";
+// Task 100 F1 (G25, impl-E): putuskan massal — checkbox per baris Pending +
+// toolbar pilih semua + Setujui/Tolak Terpilih → PATCH op:bulk.
+import { useEffect, useMemo, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { nextServerSort, ServerSortHead, type ServerSortDir } from "@/rekankerja/shared/lib/use-table-sort";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
@@ -20,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { WorkoffRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
@@ -58,6 +61,12 @@ export function AttendanceWorkoffPage() {
   const [cancelNote, setCancelNote] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // ===== Task 100 F1 (G25): pilihan massal utk bulk decide =====
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"approve" | "reject" | null>(null);
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [form, setForm] = useState({
     employeeId: "", dateFrom: todayISO(), dateTo: todayISO(),
     allDay: true, timeFrom: "13:00", timeTo: "17:00",
@@ -78,6 +87,50 @@ export function AttendanceWorkoffPage() {
   const permits = useMemo(() => (api.data?.permits ?? []).filter((p) =>
     !query || p.employee.fullName.toLowerCase().includes(query.toLowerCase()) || p.docNo.toLowerCase().includes(query.toLowerCase())
   ), [api.data, query]);
+
+  // G25: hanya baris Pending yang bisa dipilih; seleksi dipangkas saat data berubah.
+  const pendingPermits = useMemo(() => permits.filter((p) => p.status === "Pending"), [permits]);
+  const pendingIds = useMemo(() => new Set(pendingPermits.map((p) => p.id)), [pendingPermits]);
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((id) => pendingIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [pendingIds]);
+  const selectedCount = selected.size;
+  const allPendingSelected = pendingPermits.length > 0 && pendingPermits.every((p) => selected.has(p.id));
+  const toggleSelect = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+  const toggleSelectAll = () => setSelected((prev) => (prev.size >= pendingPermits.length ? new Set() : new Set(pendingPermits.map((p) => p.id))));
+
+  // G25: kirim op:bulk → { results, okCount, failCount } (kontrak api/workoffs.ts impl-D).
+  const runBulk = async () => {
+    if (!bulkAction || selectedCount === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await apiSend<{ results: { id: string; ok: boolean; error?: string }[]; okCount: number; failCount: number }>(
+        "/api/rekankerja/attendance/workoffs", "PATCH", { op: "bulk", ids: [...selected], action: bulkAction, reason: bulkNote.trim() || undefined },
+      );
+      const firstError = res.results.find((r) => !r.ok)?.error;
+      if (res.failCount === 0) {
+        toast.success(t("{n} izin diproses", "{n} permits processed", { n: res.okCount }));
+      } else {
+        toast.warning(t("{ok} berhasil · {fail} gagal — {err}", "{ok} succeeded · {fail} failed — {err}", { ok: res.okCount, fail: res.failCount, err: firstError ?? "-" }));
+      }
+      setSelected(new Set());
+      setBulkAction(null);
+      setBulkNote("");
+      api.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal memproses massal", "Failed to bulk process"));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -185,6 +238,30 @@ export function AttendanceWorkoffPage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari karyawan / no. dokumen…", "Search employee / document no.…")} className="h-8 w-52 pl-8 text-xs" />
             </div>
           </div>
+          {/* ===== G25: toolbar pilihan massal (hanya baris Pending) ===== */}
+          {pendingPermits.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+              <label className="flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                <Checkbox
+                  checked={allPendingSelected ? true : selectedCount > 0 ? "indeterminate" : false}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label={t("Pilih semua izin Pending", "Select all pending permits")}
+                />
+                {t("Pilih semua (Pending)", "Select all (Pending)")}
+              </label>
+              <span className="text-[11px] font-semibold text-slate-400">{t("{n} terpilih", "{n} selected", { n: selectedCount })}</span>
+              {selectedCount > 0 && perms.canOp("attendance", "workoff", "approve") && (
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Button size="sm" className="h-7 gap-1 px-2.5 text-[11px] font-bold" onClick={() => { setBulkAction("approve"); setBulkNote(""); }}>
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {t("Setujui Terpilih ({n})", "Approve Selected ({n})", { n: selectedCount })}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 gap-1 px-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10" onClick={() => { setBulkAction("reject"); setBulkNote(""); }}>
+                    <XCircle className="h-3.5 w-3.5" /> {t("Tolak Terpilih ({n})", "Reject Selected ({n})", { n: selectedCount })}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {api.loading && !api.data ? <div className="p-5"><LoadingRows rows={6} /></div> : api.error ? (
             <ApiErrorState message={api.error} busy={api.loading} onRetry={api.refresh} />
           ) : permits.length === 0 ? (
@@ -194,6 +271,7 @@ export function AttendanceWorkoffPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
+                    <TableHead className="w-8" aria-label={t("Pilih", "Select")} />
                     <ServerSortHead label={t("Dokumen", "Document")} active={sortKey === "doc"} dir={sortDir} onClick={() => clickSort("doc")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Karyawan")} active={sortKey === "employee"} dir={sortDir} onClick={() => clickSort("employee")} className="text-[11px] font-bold" />
                     <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} className="text-[11px] font-bold" />
@@ -207,6 +285,15 @@ export function AttendanceWorkoffPage() {
                 <TableBody>
                   {permits.map((p) => (
                     <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                      <TableCell className="w-8">
+                        {p.status === "Pending" && (
+                          <Checkbox
+                            checked={selected.has(p.id)}
+                            onCheckedChange={() => toggleSelect(p.id)}
+                            aria-label={t("Pilih izin {no}", "Select permit {no}", { no: p.docNo })}
+                          />
+                        )}
+                      </TableCell>
                       <TableCell>
                         <p className="font-mono text-[11px] font-bold text-slate-500">{p.docNo}</p>
                         {p.reason && <p className="max-w-44 truncate text-[10px] italic text-slate-400" title={p.reason}>{p.reason}</p>}
@@ -432,6 +519,50 @@ export function AttendanceWorkoffPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== G25: AlertDialog putuskan massal (approve/reject) ===== */}
+      <AlertDialog open={!!bulkAction} onOpenChange={(v) => { if (!v && !bulkBusy) { setBulkAction(null); setBulkNote(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === "approve"
+                ? t("Setujui {n} izin sekaligus?", "Approve {n} permits at once?")
+                : t("Tolak {n} izin sekaligus?", "Reject {n} permits at once?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === "approve"
+                ? t("Approval berjenjang tetap berjalan per dokumen — dokumen yang sudah diputuskan proses lain gagal per-item tanpa membatalkan sisa batch. Rekap absensi tanggal izin otomatis dihitung ulang.", "Tiered approval still runs per document — documents already decided elsewhere fail per-item without aborting the rest of the batch. The attendance recap for the permit dates is recalculated automatically.")
+                : t("Seluruh izin terpilih akan ditolak — karyawan menerima notifikasi per dokumen.", "All selected permits will be rejected — employees are notified per document.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
+            <p className="mb-1.5 font-bold text-slate-700 dark:text-slate-200">{t("Ringkasan pilihan", "Selection summary")}</p>
+            <ul className="max-h-36 space-y-0.5 overflow-y-auto font-mono text-[11px] text-slate-500 dark:text-slate-400">
+              {pendingPermits.filter((p) => selected.has(p.id)).slice(0, 8).map((p) => (
+                <li key={p.id}>• {p.docNo} — {p.employee.fullName}</li>
+              ))}
+              {selectedCount > 8 && <li className="text-slate-400">+{selectedCount - 8} {t("lainnya", "more")}</li>}
+            </ul>
+            {bulkAction === "reject" && (
+              <div className="mt-2 space-y-1.5">
+                <Label className="text-xs font-bold">{t("Alasan (opsional)", "Reason (optional)")}</Label>
+                <Textarea value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} placeholder={t("mis. dokumen pendukung tidak lengkap", "e.g. incomplete supporting documents")} className="min-h-16 text-sm" maxLength={300} />
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>{t("Batal", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkBusy}
+              className={cn("gap-1.5 font-bold", bulkBusy && "opacity-70", bulkAction === "reject" && "bg-rose-600 hover:bg-rose-700")}
+              onClick={(e) => { e.preventDefault(); void runBulk(); }}
+            >
+              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : bulkAction === "approve" ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+              {bulkAction === "approve" ? t("Ya, Setujui Terpilih", "Yes, Approve Selected") : t("Ya, Tolak Terpilih", "Yes, Reject Selected")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

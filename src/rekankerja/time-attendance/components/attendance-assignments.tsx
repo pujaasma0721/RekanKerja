@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { AssignmentRow, EmployeeOption } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { CalendarRange, Plus, LogOut, Search, Anchor, Clock, Loader2 } from "lucide-react";
+import { CalendarRange, Plus, LogOut, Search, Anchor, Clock, Loader2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function mondayOf(d: Date): Date {
@@ -179,7 +179,7 @@ export function AttendanceAssignmentsPage() {
                     {sort.head("cycle", "Cycle", "text-[11px] font-bold")}
                     {sort.head("validFrom", t("Berlaku Sejak", "Valid Since"), "text-[11px] font-bold")}
                     {sort.head("clocking", "Clocking", "text-[11px] font-bold")}
-                    <TableHead className="w-20" />
+                    <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -216,9 +216,22 @@ export function AttendanceAssignmentsPage() {
                         </button>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEndTarget(a)} disabled={endBusy} title={t("Akhiri penugasan", "End assignment")} aria-label={t("Akhiri penugasan", "End assignment")}>
-                          <LogOut className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          {/* G26 (Task 100-impl-E): unduh jadwal shift 60 hari (ICS)
+                              utk Google/Outlook/Apple Calendar — anchor direct API. */}
+                          <a
+                            href={`/api/rekankerja/attendance/schedule-ics?employeeId=${a.employeeId}`}
+                            download
+                            title={t("Unduh jadwal shift 60 hari (ICS)", "Download 60-day shift schedule (ICS)")}
+                            aria-label={t("Unduh jadwal shift 60 hari untuk {name}", "Download the 60-day shift schedule for {name}", { name: a.employee.fullName })}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:ov-text-accent dark:hover:bg-slate-800"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEndTarget(a)} disabled={endBusy} title={t("Akhiri penugasan", "End assignment")} aria-label={t("Akhiri penugasan", "End assignment")}>
+                            <LogOut className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

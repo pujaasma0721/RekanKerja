@@ -13,6 +13,9 @@ import { AttendanceHolidaysPage } from "@/rekankerja/time-attendance/components/
 import { AttendanceLiveboardPage } from "@/rekankerja/time-attendance/components/attendance-liveboard";
 import { AttendanceShiftSwapPage } from "@/rekankerja/time-attendance/components/attendance-shift-swap";
 import { AttendanceMachineImportPage } from "@/rekankerja/time-attendance/components/attendance-machine-import";
+// Task 100 F1 (impl-E) — open shift marketplace (G19) + kios QR (G17)
+import { AttendanceOpenShiftPage } from "@/rekankerja/time-attendance/components/attendance-open-shift";
+import { AttendanceKioskPage } from "@/rekankerja/time-attendance/components/attendance-kiosk";
 
 export function AttendanceModule({ view }: { view: string }) {
   switch (view) {
@@ -30,6 +33,9 @@ export function AttendanceModule({ view }: { view: string }) {
     case "liveboard": return <AttendanceLiveboardPage />;
     case "shift-swap": return <AttendanceShiftSwapPage />;
     case "machine-import": return <AttendanceMachineImportPage />;
+    // Task 100 F1 (impl-E) — G19 open shift marketplace + G17 kios QR
+    case "open-shift": return <AttendanceOpenShiftPage />;
+    case "kiosk-qr": return <AttendanceKioskPage />;
     default: return <AttendanceOverview />;
   }
 }

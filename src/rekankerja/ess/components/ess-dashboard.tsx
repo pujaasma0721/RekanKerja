@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import {
   Palmtree, ClipboardList, Clock, ReceiptText, Bell, MapPin, LogIn, LogOut,
   Fingerprint, TrendingUp, Inbox, CheckCircle2, ArrowRight, Loader2, AlertTriangle, Sparkles,
+  Camera, QrCode, ScanFace,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDateLong } from "@/rekankerja/shared/lib/api";
@@ -17,8 +18,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ESS_BASE, essDocTypeLabel, essDocTypeLabelEn, fmtClockTime, submitClock } from "./ess-api";
-import type { EssDashboard, EssMe, EssView } from "./ess-types";
+import { ESS_BASE, essDocTypeLabel, essDocTypeLabelEn, fmtClockTime, submitClockForm, getDeviceId } from "./ess-api";
+import { EssClockSelfieDialog } from "./ess-clock-selfie";
+import { EssClockQrDialog } from "./ess-clock-qr";
+import type { EssClockSettings, EssDashboard, EssMe, EssView } from "./ess-types";
 
 interface EssDashboardProps {
   me: EssMe;
@@ -60,6 +63,17 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   // bukan hanya toast sekilas.
   const [clockError, setClockError] = useState<string | null>(null);
 
+  // ===== Task 100 F1 — mode verifikasi presensi (G13 selfie / G30 face) =====
+  // endpoint ringan /ess/clock-settings; gagal/503 → default "off" (perilaku lama).
+  const settings = useApi<EssClockSettings>(`${ESS_BASE}/clock-settings`);
+  const selfieMode = settings.data?.selfieMode ?? "off";
+  const faceVerifyMode = settings.data?.faceVerifyMode ?? "off";
+
+  // draf presensi menunggu foto selfie (dialog terbuka). qrToken ikut draf bila
+  // selfie diminta SETELAH scan QR kios (G17 → G13 berantai).
+  const [draft, setDraft] = useState<{ direction: "IN" | "OUT"; qrToken?: string } | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+
   // ===== sapaan sesuai jam =====
   const hour = new Date().getHours();
   const greet =
@@ -72,12 +86,15 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   // ===== clock in/out — geolokasi opsional dgn fallback mulus =====
   // 27-a: bila Geofencing Ketat aktif dan lokasi ditolak, server menolak clock —
   // pesan error server ditampilkan toast + banner menetap di widget.
-  const doClock = async (direction: "IN" | "OUT") => {
+  // Task 100 F1: submit kini multipart FormData — membawa deviceId (G13),
+  // foto selfie Blob "selfie.jpg" (G13/G30) & qrToken payload kios (G17).
+  const doClock = async (direction: "IN" | "OUT", photo: Blob | null, qrToken?: string) => {
     if (clockBusy) return;
     setClockBusy(direction);
     setClockError(null);
     let latitude: number | undefined;
     let longitude: number | undefined;
+    let accuracy: number | undefined;
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         if (typeof navigator === "undefined" || !navigator.geolocation) { reject(new Error("unsupported")); return; }
@@ -85,26 +102,73 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
       });
       latitude = pos.coords.latitude;
       longitude = pos.coords.longitude;
+      accuracy = pos.coords.accuracy;
       setGeoState("ok");
     } catch {
       setGeoState("off"); // izin ditolak / tidak tersedia → kirim tanpa koordinat
     }
     try {
-      const res = await submitClock({ direction, latitude, longitude, note: note.trim() || undefined });
+      const form = new FormData();
+      form.set("direction", direction);
+      if (note.trim()) form.set("note", note.trim());
+      const deviceId = getDeviceId();
+      if (deviceId) form.set("deviceId", deviceId);
+      if (latitude != null && longitude != null) {
+        form.set("latitude", String(latitude));
+        form.set("longitude", String(longitude));
+        if (accuracy != null && Number.isFinite(accuracy)) form.set("accuracy", String(accuracy));
+      }
+      if (qrToken) form.set("qrToken", qrToken);
+      if (photo) form.set("photo", photo, "selfie.jpg");
+      const res = await submitClockForm(form);
       toast.success(
         direction === "IN"
           ? t("Clock in tercatat pukul {time}", "Clock in recorded at {time}", { time: fmtClockTime(res.time, locale) })
           : t("Clock out tercatat pukul {time}", "Clock out recorded at {time}", { time: fmtClockTime(res.time, locale) }),
       );
+      // flag ops dari server (tidak menolak presensi): face-mismatch di mode
+      // warn, vlm-unavailable, qr-invalid, dsb — dikabari ringan utk transparansi.
+      const flags = res.flags ?? [];
+      if (flags.includes("face-mismatch")) {
+        toast.warning(t("Foto selfie tidak cocok dengan referensi wajah Anda — tercatat untuk audit HR.", "The selfie does not match your face reference — recorded for HR audit."));
+      }
+      if (flags.includes("qr-invalid")) {
+        toast.warning(t("QR kios tidak valid/kedaluwarsa — presensi tetap tercatat tanpa verifikasi kios.", "Kiosk QR invalid/expired — attendance is still recorded without kiosk verification."));
+      }
       setNote("");
       dash.refresh();
     } catch (e) {
+      // G5/G13/G30 — pesan server (geofence ketat, selfie wajib, verifikasi
+      // wajah strict, dsb) ditampilkan APA ADANYA: toast 8 dtk + banner menetap.
       const msg = e instanceof Error ? e.message : t("Gagal mencatat presensi", "Failed to record attendance");
       toast.error(msg, { duration: 8000 });
       setClockError(msg);
     } finally {
       setClockBusy(null);
     }
+  };
+
+  /** Tombol IN/OUT: mode selfie aktif → buka dialog foto dulu (G13/G30). */
+  const beginClock = (direction: "IN" | "OUT") => {
+    if (clockBusy != null) return;
+    if (selfieMode !== "off") {
+      setDraft({ direction });
+      return;
+    }
+    void doClock(direction, null);
+  };
+
+  /** QR kios terdeteksi (G17): arah otomatis dari clock hari ini → submit.
+   *  Bila selfie diminta, dialog foto terbuka dulu dgn qrToken di draf. */
+  const onQrDetected = (token: string) => {
+    setQrOpen(false);
+    const c = dash.data?.clockToday ?? null;
+    const direction: "IN" | "OUT" = c?.in != null && c.out == null ? "OUT" : "IN";
+    if (selfieMode !== "off") {
+      setDraft({ direction, qrToken: token });
+      return;
+    }
+    void doClock(direction, null, token);
   };
 
   // ===== loading / error =====
@@ -241,7 +305,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <Button
                   disabled={clockBusy != null || clocked || doneForToday}
-                  onClick={() => void doClock("IN")}
+                  onClick={() => beginClock("IN")}
                   className="h-12 flex-1 gap-2 rounded-2xl bg-white text-base font-extrabold text-amber-700 shadow-lg hover:bg-amber-50 disabled:opacity-60"
                 >
                   {clockBusy === "IN" ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
@@ -249,11 +313,22 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                 </Button>
                 <Button
                   disabled={clockBusy != null || !clocked || doneForToday}
-                  onClick={() => void doClock("OUT")}
+                  onClick={() => beginClock("OUT")}
                   className="h-12 flex-1 gap-2 rounded-2xl bg-white text-base font-extrabold text-amber-700 shadow-lg hover:bg-amber-50 disabled:opacity-60"
                 >
                   {clockBusy === "OUT" ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
                   {t("Clock Out")}
+                </Button>
+                {/* Task 100 F1 (G17) — absen via QR kios: kamera belakang + jsQR */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={clockBusy != null || doneForToday}
+                  onClick={() => setQrOpen(true)}
+                  aria-label={t("Absen via QR kios", "Clock via kiosk QR")}
+                  className="h-12 w-full gap-2 rounded-2xl border-white/40 bg-white/15 text-[13px] font-extrabold text-white backdrop-blur hover:bg-white/25 hover:text-white sm:w-auto sm:px-5"
+                >
+                  <QrCode className="h-5 w-5" /> {t("Absen via QR Kios", "Clock via Kiosk QR")}
                 </Button>
                 <div className="sm:w-56">
                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/60" htmlFor="ess-clock-note">
@@ -279,6 +354,22 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                     ? t("Lokasi tidak tersedia — presensi tetap tercatat tanpa koordinat (ditolak bila geofencing ketat).", "Location unavailable — attendance is still recorded without coordinates (rejected when strict geofencing is on).")
                     : t("Lokasi akan dilampirkan otomatis bila perangkat mengizinkan.", "Location will be attached automatically if the device allows it.")}
               </p>
+
+              {/* Task 100 F1 (G13/G30) — indikator mode verifikasi presensi */}
+              {selfieMode !== "off" && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-white/70">
+                  <Camera className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {selfieMode === "required"
+                    ? t("Foto selfie wajib dilampirkan saat presensi dari perangkat ini.", "A selfie photo is required when clocking from this device.")
+                    : t("Foto selfie opsional sebagai bukti kehadiran.", "An optional selfie photo as proof of attendance.")}
+                </p>
+              )}
+              {faceVerifyMode !== "off" && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-white/70">
+                  <ScanFace className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {t("Foto dibandingkan dengan foto referensi wajah Anda.", "Photos are compared with your face reference.")}
+                </p>
+              )}
 
               {/* 27-a: banner error presensi (geofence ketat / validasi) — menetap */}
               {clockError && (
@@ -456,6 +547,28 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* ===== Task 100 F1 — dialog selfie (G13/G30) & QR kios (G17) ===== */}
+      <EssClockSelfieDialog
+        open={draft != null}
+        direction={draft?.direction ?? "IN"}
+        selfieMode={selfieMode}
+        faceVerifyMode={faceVerifyMode}
+        busy={clockBusy != null}
+        onSubmit={(photo) => {
+          const d = draft;
+          setDraft(null);
+          if (d) void doClock(d.direction, photo, d.qrToken);
+        }}
+        onOpenChange={(v) => { if (!v) setDraft(null); }}
+      />
+      <EssClockQrDialog
+        open={qrOpen}
+        direction={dash.data?.clockToday?.in != null && dash.data.clockToday.out == null ? "OUT" : "IN"}
+        busy={clockBusy != null}
+        onDetected={onQrDetected}
+        onOpenChange={setQrOpen}
+      />
     </div>
   );
 }

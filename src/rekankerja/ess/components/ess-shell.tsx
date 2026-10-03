@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserRound, Palmtree, Fingerprint, ReceiptText, HeartPulse, ClipboardList, FileText,
   Bell, Moon, Sun, LogOut, KeyRound, X, CheckCheck, MoreHorizontal, ArrowRight, Check,
   Waypoints, ChevronDown, Building2, Clock as ClockIcon, UserRoundSearch,
-  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package,
+  AlertTriangle, Loader2, LayoutTemplate, Megaphone, ArrowLeftRight, Package, CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, initials, fmtDateTime } from "@/rekankerja/shared/lib/api";
@@ -45,6 +45,8 @@ import { EssLetters } from "./ess-letters";
 import { EssAnnouncements } from "./ess-announcements";
 import { EssSwap } from "./ess-swap";
 import { EssAssets } from "./ess-assets";
+// Task 100 F1 (G19) — marketplace open shift
+import { EssOpenShift } from "./ess-open-shift";
 // Task 52-f — kanal whistleblowing TPKS (anonim) utk semua pekerja.
 import { WhistleblowForm, WB_CATEGORIES } from "@/rekankerja/whistleblow/components/whistleblow-form";
 import { Siren, Ticket } from "lucide-react";
@@ -64,6 +66,8 @@ const ESS_NAV: EssNavItem[] = [
   // Task 27-f/g/b — pengumuman / tukar shift / aset saya
   { id: "announcements", label: "Pengumuman", en: "Announcements", short: "Pengumuman", shortEn: "News", icon: Megaphone },
   { id: "swap", label: "Tukar Shift", en: "Shift Swap", short: "Tukar Shift", shortEn: "Swap", icon: ArrowLeftRight },
+  // Task 100 F1 (G19) — marketplace open shift (klaim shift tambahan)
+  { id: "open-shift", label: "Open Shift", en: "Open Shift", short: "Open Shift", shortEn: "Open Shift", icon: CalendarPlus },
   { id: "assets", label: "Aset Saya", en: "My Assets", short: "Aset", shortEn: "Assets", icon: Package },
   // Task 52-f — kanal pelaporan pelanggaran/TPKS (anonim, semua pekerja)
   { id: "whistleblow", label: "Laporkan Pelanggaran", en: "Report a Violation", short: "Lapor", shortEn: "Report", icon: Siren },
@@ -594,6 +598,8 @@ export function EssShell() {
             {/* Task 27-f/g/b — pengumuman / tukar shift / aset saya */}
             {view === "announcements" && <EssAnnouncements />}
             {view === "swap" && <EssSwap />}
+            {/* Task 100 F1 (G19) — marketplace open shift */}
+            {view === "open-shift" && <EssOpenShift />}
             {view === "assets" && <EssAssets />}
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">

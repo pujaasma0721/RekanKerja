@@ -3429,3 +3429,64 @@ Work Log:
 
 Stage Summary:
 - Baseline bersih total sebelum Wave 3 (frontend). Pelajaran proses: SELALU tunggu subagent menulis worklog SEBELUM verifikasi/commit; tsc full tanpa filter.
+
+---
+Task ID: 100-impl-E
+Agent: general-purpose (F1 admin frontend) — orkestrator menyelesaikan dokumentasi + perbaikan (agent kehilangan result channel setelah menulis kode)
+Task: F1 ADMIN FRONTEND — G15 analytics Ringkasan, G19 tab Open Shift, G25 bulk approve, G24 koreksi (hapus log/regen rentang/override), G16 simulator device, G14/G13/G18/G23/G30 pengaturan lanjutan, G26 ICS, G17 kios QR
+
+Work Log:
+- attendance-overview.tsx: +panel Tren Kehadiran (bar stacked CSS murni), Heatmap Kehadiran (grid 7×18), Biaya Lembur per Unit (money-gated), Top 5 Telat, Sinyal Anomali & Burnout (badge severity) — fetch analytics+anomalies API, nav bulan.
+- attendance-open-shift.tsx (BARU): daftar posting + filter status, dialog Buka Shift (jadwal→tipe hari berjenjang — hanya day type dalam cycle), Tutup/Batalkan (AlertDialog), approve/reject klaim; nav id "open-shift" + case module.
+- attendance-kiosk.tsx (BARU): layar kios gelap, jam real-time, QR via qrcode.toDataURL dari endpoint kiosk-token (route baru, HMAC bucket 30 dtk), countdown refresh; nav id "kiosk-qr".
+- attendance-overtime.tsx + attendance-workoff.tsx: checkbox bulk (Pending saja) + Setujui/Tolak Terpilih (AlertDialog + alasan) → PATCH op:bulk.
+- attendance-clocking.tsx: hapus log (AlertDialog), Regen Rentang (≤62 hari), Koreksi baris rekap (dialog status/checkIn/checkOut/paidFlag/alasan wajib) → op:override-daily.
+- attendance-machine-import.tsx: kartu Perangkat Push (ZKTeco) + tombol Simulasikan Punch (kunci status masked).
+- attendance-templates.tsx RulesTab: section "Kehadiran Lanjutan" — selfieMode/faceVerifyMode/geofenceMultiSite/otCapMode(+CUSTOM)/fatigue×2/burnout + Generate Kunci Perangkat (tampil sekali).
+- attendance-assignments.tsx: tombol ICS per karyawan.
+- app-shell.tsx: +nav Open Shift & Kios QR.
+- Fix orkestrator: ScheduleDayRow.dayType +id (2 error tsc) + api/schedules.ts select dayType +id (dropdown open-shift butuh).
+
+Stage Summary:
+- Semua view admin F1 render (E2E browser orkestrator: analytics 5 panel, open-shift buka→klaim→setujui golden path, kios jam+QR+countdown, settings 8 field baru + key masked). 0 console error.
+
+---
+Task ID: 100-impl-F
+Agent: general-purpose (F1 ESS frontend) — orkestrator menyelesaikan dokumentasi
+Task: F1 ESS FRONTEND — G13 selfie, G17 scan QR, G19 open shift ESS, G26 ICS
+
+Work Log:
+- ess-clock-camera.tsx (BARU): komponen kamera reusable (getUserMedia, capture canvas 640px jpeg).
+- ess-clock-selfie.tsx (BARU): dialog selfie — video + Ambil Foto/Ulang + preview; kamera gagal → pesan jelas (required blok, warn lanjut); privacy line.
+- ess-clock-qr.tsx (BARU): dialog scan QR kios — kamera belakang + jsQR per frame (rAF), deteksi "ovqr:" → submit clock dgn qrToken; timeout 60 dtk; cleanup stream.
+- ess-dashboard.tsx: integrasi widget punch — tombol "Absen via QR kios", panel selfie muncul sesuai selfieMode (fetch clock-settings endpoint baru ess/api/clock-settings.ts + route, guard requireEss — hanya selfieMode/faceVerifyMode), deviceId localStorage UUID stabil, chaining QR→selfie.
+- ess-open-shift.tsx (BARU) + ess-shell nav: halaman Open Shift (kartu posting ≤30 hr, status klaim sendiri, Ambil Shift AlertDialog, posting penuh disabled, link ICS).
+- ess-attendance.tsx: tombol Unduh jadwal (.ics) → /ess/attendance/ics.
+- ess-api.ts / ess-types.ts: tipe & helper.
+
+Stage Summary:
+- E2E orkestrator: dashboard ESS render + tombol QR; dialog QR graceful tanpa kamera (headless); halaman Open Shift render + posting terlihat + klaim yusuf Pending→(approve admin)→Approved; ICS link. 0 console error.
+
+---
+Task ID: 100-impl-G
+Agent: general-purpose (F2 chatbot) — orkestrator menyelesai dokumentasi
+Task: F2 G28 — snapshot presensi DETAILED + pengetahuan aturan lembur di chatbot AI (Task 96)
+
+Work Log:
+- ai-chat-service.ts: attendanceSelfDetail(db, employeeId) — rekap bulan berjalan (menit telat, hari telat, absen, izin unpaid, jam normal, jam lembur Approved), riwayat 7 hari (Hadir HH:MM/telat n mnt/Libur/Cuti), klaim lembur menunggu verify, estimasi potongan (Intl id-ID, hubungi HR bila tanpa akses gaji), status geofence+selfie tenant → baris snapshot; system prompt kemampuan +; pengetahuan Ahli HR: PP 35/2021 4j/18j, Kepmen 102 3j/14j, upah 1/173, istirahat 30 mnt setelah 4 jam (hitung otomatis per mode tenant); anti-IDOR tetap (data pribadi saja).
+
+Stage Summary:
+- E2E orkestrator (chat nyata yusuf): "berapa menit telat saya bulan ini dan apa aturan lembur?" → jawaban 0 hari (0 menit) + PP 35/2021 4j/hari 18j/minggu + status geofence/selfie off — semua dari snapshot. 
+
+---
+Task ID: 100-impl-ORCH2
+Agent: Z.ai (orkestrator utama)
+Task: Konsolidasi Wave 3 + bug fix matematis open-shift + verifikasi E2E menyeluruh
+
+Work Log:
+- 3 subagent kehilangan result channel (deadline infra) tapi kode tuntas 99% — dilanjutkan orkestrator: 2 error tipe (dayType id) + 1 bug matematis KRITIS ditemukan via E2E golden path: approve-claim open-shift memakai schedDay.sequence mentah sebagai anchorSequence — untuk workDate ≠ Senin, resolve jatuh ke hari cycle yang SALAH (3 Okt Sabtu resolve "Off" bukan OFFICE). FIX: anchorSequence disintesis dgn rumus kebalikan resolveDayType ((S − minSeq − offset) mod L mod L) + 1; verifikasi: override diperbaiki → regen → status "Absent" dayType OFFICE (hari kerja tambahan Sabtu — benar); posting berikutnya akan benar sejak approve.
+- E2E menyeluruh (browser + curl + DB): (1) admin: Ringkasan 5 panel analytics baru render; Open Shift: buat posting (jadwal→day type cycle) → ESS yusuf klaim (AlertDialog) → admin approve (AlertDialog) → DB: override assignment 1-hari + filled 1/2 + claim Approved; Kios QR: jam live 03.05.48 + countdown token 11 dtk + canvas; Pengaturan: 8 field lanjutan + device key masked + regen mengembalikan key sekali; (2) ESS: QR dialog graceful tanpa kamera; Open Shift page + ICS link; (3) chatbot: jawaban telat 0 menit + aturan lembur PP 35 + status geofence/selfie dari snapshot; (4) device-punch ZKTeco: key dari settings regen → POST 2 punch → {ok,imported:1,unknown:[MII99999]} + ClockLog source "Machine" + regen checkIn terekam; (5) temuan UX pre-existing (bukan bug Task 100): uiMode override localStorage bertahan antar akun di browser sama — hrd mendarat di ESS yusuf; solusi pengguna: menu akun → Mode Admin (perilaku desain T8).
+- Cleanup: script diagnostik sementara dihapus; tsc 0 error seluruh proyek; lint 0 error; dev.log bersih.
+
+Stage Summary:
+- FASE 1 + FASE 2 LENGKAP & TERPUSH: 30 gap roadmap Task 100 tuntas (F0 12/12, F1 14/14 versi pragmatis — WiFi SSID dishskip karena web browser tak bisa baca SSID, face-recognition penuh digantikan VLM face-verify opt-in, F2 4/4 — anomaly rules+burnout+chatbot tools+VLM liveness-lite). Module Attendance naik kelas: anti-fraud (selfie+QR kios+device push+speed-flag), realtime device, analytics visual, marketplace shift, compliance engine konfiguratif, AI.

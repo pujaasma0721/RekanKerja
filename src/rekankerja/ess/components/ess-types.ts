@@ -21,7 +21,9 @@ export type EssView =
   | "swap"
   | "assets"
   // Task 52-f — kanal laporan TPKS (anonim) utk semua pekerja
-  | "whistleblow";
+  | "whistleblow"
+  // Task 100 F1 (G19) — marketplace open shift utk karyawan
+  | "open-shift";
 
 /** record dinamis — kolom dibaca defensif (pickStr/pickNum) */
 export type EssRecord = Record<string, unknown>;
@@ -179,6 +181,21 @@ export interface EssClockInput {
 export interface EssClockResult {
   ok: boolean;
   time: string;
+  /** Task 100 F1 (kontrak impl-C) — bukti & flag presensi (opsional defensif). */
+  faceVerified?: boolean | null;
+  selfieTaken?: boolean;
+  flags?: string[];
+  accuracy?: number | null;
+}
+
+/**
+ * Task 100 F1 (G13/G30) — GET /ess/clock-settings: mode verifikasi presensi
+ * utk widget punch clock. selfieMode required|warn → panel selfie sebelum submit;
+ * faceVerifyMode != off → hint verifikasi wajah.
+ */
+export interface EssClockSettings {
+  selfieMode: "off" | "warn" | "required";
+  faceVerifyMode: "off" | "warn" | "strict";
 }
 
 // ============ 7-8. GET /ess/payslips(+detail) ============
@@ -265,6 +282,36 @@ export interface EssLetterRequest {
 export interface EssLettersData {
   templates: EssLetterTemplate[];
   requests: EssLetterRequest[];
+}
+
+// ============ 6b. GET/POST /ess/open-shift (Task 100 F1 G19) ============
+/** Status klaim saya pada satu posting open shift. */
+export interface EssOpenShiftMyClaim {
+  id: string;
+  status: string; // Pending | Approved | Rejected
+  createdAt: string;
+}
+
+/** Satu posting open shift terbuka (≤ 30 hari ke depan). */
+export interface EssOpenShiftPost {
+  id: string;
+  workDate: string; // YYYY-MM-DD
+  scheduleName: string;
+  dayTypeName: string;
+  dayTypeCode: string;
+  dayTypeColor: string | null;
+  timeIn: string | null;
+  timeOut: string | null;
+  orgUnitName: string | null;
+  slots: number;
+  filled: number;
+  slotsLeft: number;
+  notes: string | null;
+  myClaim: EssOpenShiftMyClaim | null;
+}
+
+export interface EssOpenShiftData {
+  posts: EssOpenShiftPost[];
 }
 
 // ============ hasil submit umum (201 { docNo, status }) ============

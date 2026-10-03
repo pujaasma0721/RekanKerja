@@ -6,6 +6,7 @@
 // double-submit (G11).
 import { useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows, StatusPill } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,14 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { DayTypeRow, ScheduleRow, AttendanceRule, DAY_CATEGORY_LABEL, DAY_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw, MapPin, Radar, Loader2 } from "lucide-react";
+import { CalendarClock, Plus, Pencil, Palette, Layers, Settings2, Trash2, Minus, RotateCcw, MapPin, Radar, Loader2, Camera, ScanFace, Gauge, Flame, KeyRound, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PRESET_COLORS = ["#99CCFF", "#A7F3D0", "#FDE68A", "#C7D2FE", "#FCA5A5", "#86EFAC", "#E7E5E4", "#FDBA74", "#D9F99D", "#F5D0FE"];
@@ -476,10 +478,33 @@ function SchedulesTab() {
 
 function RulesTab() {
   const { t } = useI18n();
+  const perms = useMenuPerms();
   const api = useApi<{ rule: AttendanceRule; components: { code: string; name: string; type: string }[]; allComponents: { code: string; name: string; type: string }[] }>("/api/rekankerja/attendance/settings");
   const [form, setForm] = useState<AttendanceRule | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false); // G11: Simpan Pengaturan sedang mengirim
+
+  // ===== Task 100 F1 (G16, impl-E): generate kunci perangkat (tampil sekali) =====
+  const canUpdateRules = perms.canOp("attendance", "templates-schedule", "update");
+  const [keyConfirm, setKeyConfirm] = useState(false);
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  const regenDeviceKey = async () => {
+    setKeyBusy(true);
+    try {
+      const res = await apiSend<{ rule: AttendanceRule; deviceApiKey: string }>("/api/rekankerja/attendance/settings", "PATCH", { op: "regenDeviceKey" });
+      setKeyConfirm(false);
+      setGeneratedKey(res.deviceApiKey);
+      setKeyCopied(false);
+      api.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal menggenerate kunci", "Failed to generate the key"));
+    } finally {
+      setKeyBusy(false);
+    }
+  };
 
   const rule = form ?? api.data?.rule ?? null;
   const allComponents = api.data?.allComponents ?? [];
@@ -601,6 +626,122 @@ function RulesTab() {
         </CardContent>
       </Card>
 
+      {/* ===== Task 100 F1 (G13/G18/G30/G14/G23/G29, impl-E): Kehadiran Lanjutan ===== */}
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+        <CardContent className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-bold">{t("Kehadiran Lanjutan", "Advanced Attendance")}</p>
+              <p className="text-[11px] text-slate-400">{t("Verifikasi identitas clock ESS, cap lembur konfiguratif, fatigue & burnout, kunci perangkat push", "ESS clock identity verification, configurable overtime caps, fatigue & burnout, push device key")}</p>
+            </div>
+            <Gauge className="h-5 w-5 ov-text-accent" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* G13 — mode selfie */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold"><Camera className="h-3.5 w-3.5 ov-text-accent" aria-hidden /> {t("Selfie saat clock *", "Selfie on clock *")}</Label>
+              <Select value={rule.selfieMode ?? "off"} onValueChange={(v) => set({ selfieMode: v })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">{t("Nonaktif (off)", "Disabled (off)")}</SelectItem>
+                  <SelectItem value="warn">{t("Peringatan (warn)", "Warning (warn)")}</SelectItem>
+                  <SelectItem value="required">{t("Wajib (required)", "Required")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400">{t("required: clock ESS tanpa foto DITOLAK; warn: clock sah + catatan flag.", "required: ESS clock without a photo is REJECTED; warn: clock valid + flagged.")}</p>
+            </div>
+            {/* G30 — verifikasi wajah */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold"><ScanFace className="h-3.5 w-3.5 ov-text-accent" aria-hidden /> {t("Verifikasi wajah (VLM) *", "Face verification (VLM) *")}</Label>
+              <Select value={rule.faceVerifyMode ?? "off"} onValueChange={(v) => set({ faceVerifyMode: v })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">{t("Nonaktif (off)", "Disabled (off)")}</SelectItem>
+                  <SelectItem value="warn">{t("Peringatan (warn)", "Warning (warn)")}</SelectItem>
+                  <SelectItem value="strict">{t("Ketat (strict)", "Strict (strict)")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400">{t("Foto pertama jadi referensi; strict: wajah berbeda → clock ditolak. Model VLM sisi server.", "The first photo becomes the reference; strict: a different face → clock rejected. Server-side VLM model.")}</p>
+            </div>
+            {/* G18 — geofence multi-site */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold"><Radar className="h-3.5 w-3.5 ov-text-accent" aria-hidden /> {t("Geofence multi-lokasi", "Multi-site geofence")}</Label>
+              <div className="flex items-center gap-2">
+                <Switch id="geofenceMultiSite" checked={rule.geofenceMultiSite === true} onCheckedChange={(v) => set({ geofenceMultiSite: v })} />
+                <Label htmlFor="geofenceMultiSite" className="text-xs font-medium">
+                  {rule.geofenceMultiSite === true ? t("aktif — lokasi terdekat menang", "on — nearest location wins") : t("nonaktif — hanya lokasi utama", "off — main location only")}
+                </Label>
+              </div>
+              <p className="text-[10px] text-slate-400">{t("Cocokkan jarak ke SEMUA lokasi kerja berkoordinat — karyawan di cabang lain tetap bisa absen sah.", "Match distance against ALL coordinated work locations — employees at other branches can still clock in validly.")}</p>
+            </div>
+            {/* G14 — mode cap lembur */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Batas cap lembur *", "Overtime cap preset *")}</Label>
+              <Select value={rule.otCapMode ?? "PP35"} onValueChange={(v) => set({ otCapMode: v })}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PP35">{t("PP 35/2021 — 4 jam/hari, 18 jam/minggu", "PP 35/2021 — 4 h/day, 18 h/week")}</SelectItem>
+                  <SelectItem value="KEPMEN102">{t("Kepmen 102/2004 — 3 jam/hari, 14 jam/minggu", "Kepmen 102/2004 — 3 h/day, 14 h/week")}</SelectItem>
+                  <SelectItem value="CUSTOM">{t("Kustom", "Custom")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-slate-400">{t("Preset kepatuhan lembur — divalidasi ulang saat submit & approve.", "Compliance overtime preset — re-validated on submit & approve.")}</p>
+            </div>
+            {(rule.otCapMode ?? "PP35") === "CUSTOM" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">{t("Cap lembur / hari (jam) *", "Overtime cap / day (hours) *")}</Label>
+                  <Input type="number" min={1} max={40} value={rule.otCapDayHours ?? 4} onChange={(e) => set({ otCapDayHours: Math.max(1, Math.min(40, parseInt(e.target.value, 10) || 4)) })} className="text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">{t("Cap lembur / minggu (jam) *", "Overtime cap / week (hours) *")}</Label>
+                  <Input type="number" min={1} max={40} value={rule.otCapWeekHours ?? 18} onChange={(e) => set({ otCapWeekHours: Math.max(1, Math.min(40, parseInt(e.target.value, 10) || 18)) })} className="text-sm" />
+                </div>
+              </>
+            )}
+            {/* G23 — fatigue rules */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Maks malam berturut-turut", "Max consecutive nights")}</Label>
+              <Input type="number" min={1} max={10} value={rule.fatigueMaxConsecutiveNights ?? 4} onChange={(e) => set({ fatigueMaxConsecutiveNights: Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 4)) })} className="text-sm" />
+              <p className="text-[10px] text-slate-400">{t("Aturan fatigue 1–10 malam — shift malam berturut melebihi nilai ini ditandai.", "Fatigue rule 1–10 nights — consecutive night shifts above this are flagged.")}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">{t("Min istirahat antar shift (jam)", "Min rest between shifts (hours)")}</Label>
+              <Input type="number" min={4} max={36} value={rule.fatigueMinRestHours ?? 8} onChange={(e) => set({ fatigueMinRestHours: Math.max(4, Math.min(36, parseInt(e.target.value, 10) || 8)) })} className="text-sm" />
+              <p className="text-[10px] text-slate-400">{t("4–36 jam — jeda istirahat minimum antar dua shift (fatigue G23).", "4–36 hours — minimum rest gap between two shifts (G23 fatigue).")}</p>
+            </div>
+            {/* G29 — burnout */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs font-bold"><Flame className="h-3.5 w-3.5 text-rose-500" aria-hidden /> {t("Ambang burnout lembur (jam/bulan)", "Overtime burnout threshold (hours/month)")}</Label>
+              <Input type="number" min={1} max={200} value={rule.burnoutOtHoursMonthly ?? 40} onChange={(e) => set({ burnoutOtHoursMonthly: Math.max(1, Math.min(200, parseInt(e.target.value, 10) || 40)) })} className="text-sm" />
+              <p className="text-[10px] text-slate-400">{t("1–200 jam — rata-rata lembur 3 bulan di atas ambang ini ditandai burnout di Ringkasan.", "1–200 hours — a 3-month overtime average above this is flagged as burnout on the Overview.")}</p>
+            </div>
+            {/* G16 — kunci perangkat push */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="flex items-center gap-1.5 text-xs font-bold"><KeyRound className="h-3.5 w-3.5 ov-text-accent" aria-hidden /> {t("Kunci Perangkat Push (ZKTeco)", "Push Device Key (ZKTeco)")}</Label>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-slate-50/60 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+                {rule.deviceApiKeySet ? (
+                  <Badge variant="outline" className="border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
+                    {t("kunci aktif", "key active")} <span className="font-mono font-normal">{rule.deviceApiKeyMasked ?? ""}</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">{t("belum ada kunci", "no key yet")}</Badge>
+                )}
+                {canUpdateRules && (
+                  <Button size="sm" variant="outline" className="ml-auto h-7 gap-1.5 px-2.5 text-[11px] font-bold" onClick={() => setKeyConfirm(true)} disabled={keyBusy}>
+                    {keyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+                    {t("Generate Kunci Perangkat", "Generate Device Key")}
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-500">
+                {t("⚠ Kunci penuh HANYA ditampilkan sekali di hasil generate (GET selalu masked) — salin & simpan di vault kredensial. Generate ulang mencabut kunci lama (mesin harus dikonfigurasi ulang).", "⚠ The full key is shown ONLY once on generation (GET is always masked) — copy & store it in a credentials vault. Regenerating revokes the old key (machines must be reconfigured).")}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="p-5">
           <div className="mb-4">
@@ -669,6 +810,75 @@ function RulesTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ===== G16: konfirmasi generate kunci perangkat ===== */}
+      <AlertDialog open={keyConfirm} onOpenChange={(v) => { if (!v && !keyBusy) setKeyConfirm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Generate kunci perangkat baru?", "Generate a new device key?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rule.deviceApiKeySet
+                ? t("Kunci lama akan DICABUT — mesin absen push yang memakai kunci lama berhenti sinkron sampai dikonfigurasi ulang.", "The OLD key is REVOKED — push attendance machines using the old key stop syncing until reconfigured.")
+                : t("Kunci dipakai mesin absen PUSH SDK (ZKTeco) utk autentikasi ke /device-punch.", "The key is used by PUSH SDK (ZKTeco) attendance machines to authenticate against /device-punch.")}
+              {" "}
+              {t("Kunci penuh hanya ditampilkan SEKALI setelah ini — tidak bisa dilihat lagi.", "The full key is shown only ONCE afterwards — it cannot be viewed again.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={keyBusy}>{t("Batal", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={keyBusy}
+              className={cn("gap-1.5 font-bold", keyBusy && "opacity-70")}
+              onClick={(e) => { e.preventDefault(); void regenDeviceKey(); }}
+            >
+              {keyBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              {t("Ya, Generate Kunci", "Yes, Generate Key")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ===== G16: dialog hasil generate — kunci penuh TAMPIL SEKALI + tombol salin ===== */}
+      <Dialog open={!!generatedKey} onOpenChange={(v) => { if (!v) setGeneratedKey(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("Kunci Perangkat Baru (tampilkan sekali)", "New Device Key (shown once)")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+              {t("Salin sekarang — kunci ini TIDAK akan ditampilkan lagi (GET selalu masked). Konfigurasikan mesin absen push (ZKTeco PUSH SDK): header X-Api-Key atau field key.", "Copy it now — this key is NEVER shown again (GET is always masked). Configure the push attendance machine (ZKTeco PUSH SDK): X-Api-Key header or key field.")}
+            </p>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+              <code className="min-w-0 flex-1 break-all font-mono text-[12px] font-bold text-slate-800 dark:text-slate-100">{generatedKey}</code>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1.5 font-bold"
+                onClick={async () => {
+                  if (!generatedKey) return;
+                  try {
+                    await navigator.clipboard.writeText(generatedKey);
+                    setKeyCopied(true);
+                    toast.success(t("Kunci disalin ke clipboard", "Key copied to clipboard"));
+                  } catch {
+                    toast.error(t("Gagal menyalin — salin manual dari teks", "Copy failed — copy the text manually"));
+                  }
+                }}
+                aria-label={t("Salin kunci perangkat", "Copy the device key")}
+              >
+                {keyCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {keyCopied ? t("Tersalin", "Copied") : t("Salin", "Copy")}
+              </Button>
+            </div>
+            <p className="text-[10px] text-slate-400">
+              {t("Uji kunci dari halaman Import Mesin Absen → kartu Perangkat Push → Simulasikan Punch.", "Test the key from the Machine Import page → Push Device card → Simulate Punch.")}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setGeneratedKey(null)} className="font-bold">{t("Sudah Kusimpan", "I've Saved It")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

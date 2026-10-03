@@ -10,7 +10,7 @@ export interface DayTypeRow {
 
 export interface ScheduleDayRow {
   id: string; sequence: number; dayTypeId: string;
-  dayType: { code: string; name: string; color: string; category: string; timeIn: string | null; timeOut: string | null; nextDay: boolean; normalMinutes: number };
+  dayType: { id: string; code: string; name: string; color: string; category: string; timeIn: string | null; timeOut: string | null; nextDay: boolean; normalMinutes: number };
 }
 
 export interface ScheduleRow {
@@ -24,7 +24,7 @@ export interface AssignmentRow {
   anchorMonday: string; anchorSequence: number; clockingRequired: boolean;
   validFrom: string; validTo: string | null; notes: string | null;
   employee: { employeeNo: string; fullName: string; status: string; assignments: { orgUnit: { name: string } | null }[] };
-  schedule: { code: string; name: string; cycleDays: number; days: { sequence: number; dayType: { code: string; name: string; color: string } }[] };
+  schedule: { code: string; name: string; cycleDays: number; days: { sequence: number; dayType: { id: string; code: string; name: string; color: string } }[] };
 }
 
 export interface EmployeeOption {
@@ -51,6 +51,14 @@ export interface DailyRow {
   lateMinutes: number; earlyMinutes: number; workMinutes: number;
   normalMinutes: number; absenceMinutes: number; overtimeMinutes: number;
   notes: string | null;
+  /** G24 (Task 100-impl-E): id baris AttendanceDaily + penanda koreksi —
+   * opsional karena listDaily (backend) belum mengekspos field ini; UI
+   * merender badge "Dikoreksi" begitu field tersaji (catatan worklog). */
+  id?: string;
+  state?: string | null;
+  revised?: boolean | null;
+  revisedBy?: string | null;
+  paidFlag?: boolean | null;
 }
 
 export interface ClockLogRow {
@@ -101,6 +109,20 @@ export interface AttendanceRule {
   attendanceAllowanceAmount: number; lateDeductionPerHour: number; absenceDeductionPerDay: number;
   /** 27-a P0: mode geofencing presensi ESS — Off|Warn|Strict. */
   geofenceMode: string;
+  /** Task 100 F1 (impl-C — G13/G18/G30/G14/G23/G29/G16): aturan lanjutan.
+   * Opsional — payload settings lama (pra-impl-C) tetap dirender tanpa section. */
+  selfieMode?: string;
+  faceVerifyMode?: string;
+  geofenceMultiSite?: boolean;
+  otCapMode?: string;
+  otCapDayHours?: number | null;
+  otCapWeekHours?: number | null;
+  fatigueMaxConsecutiveNights?: number | null;
+  fatigueMinRestHours?: number | null;
+  burnoutOtHoursMonthly?: number | null;
+  /** G16 — status kunci perangkat (GET selalu masked, tidak pernah kunci penuh). */
+  deviceApiKeySet?: boolean;
+  deviceApiKeyMasked?: string | null;
 }
 
 export interface PeriodOption {

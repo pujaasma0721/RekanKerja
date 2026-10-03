@@ -5,7 +5,7 @@
 // Navigasi bulan prev/next; hari ini bertanda; i18n penuh.
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, RotateCcw, Loader2, AlertTriangle, Fingerprint, CalendarDays, Clock3, Timer, TrendingUp, LogIn, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Loader2, AlertTriangle, Fingerprint, CalendarDays, Clock3, Timer, TrendingUp, LogIn, LogOut, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -109,19 +109,27 @@ export function EssAttendance() {
         title={t("Presensi Saya", "My Attendance")}
         description={t("Kalender kehadiran, jam kerja, dan lembur per bulan.", "Attendance calendar, work hours, and overtime per month.")}
         actions={
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setMonth(shiftMonth(month, -1)); setSelected(null); }} aria-label={t("Bulan sebelumnya", "Previous month")}>
-              <ChevronLeft className="h-4 w-4" />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Task 100 F1 (G26) — feed ICS jadwal shift 60 hari utk kalender ponsel */}
+            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-xl px-2.5 text-[11px] font-bold" title={t("Unduh jadwal shift saya 60 hari (.ics)", "Download my 60-day shift schedule (.ics)")}>
+              <a href={`${ESS_BASE}/attendance/ics`} download aria-label={t("Unduh jadwal shift saya 60 hari (.ics)", "Download my 60-day shift schedule (.ics)")}>
+                <Download className="h-3.5 w-3.5" aria-hidden /> {t("Jadwal (.ics)", "Schedule (.ics)")}
+              </a>
             </Button>
-            <span className="min-w-[130px] text-center text-[13px] font-bold capitalize text-slate-700 dark:text-slate-200">{monthLabel}</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={month >= currentMonth} onClick={() => { setMonth(shiftMonth(month, 1)); setSelected(null); }} aria-label={t("Bulan berikutnya", "Next month")}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {!isCurrent && (
-              <Button variant="ghost" size="sm" className="h-8 gap-1 rounded-lg px-2 text-[11px] font-bold" onClick={() => { setMonth(currentMonth); setSelected(null); }}>
-                <RotateCcw className="h-3 w-3" /> {t("Bulan ini", "This month")}
+            <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setMonth(shiftMonth(month, -1)); setSelected(null); }} aria-label={t("Bulan sebelumnya", "Previous month")}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            )}
+              <span className="min-w-[130px] text-center text-[13px] font-bold capitalize text-slate-700 dark:text-slate-200">{monthLabel}</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled={month >= currentMonth} onClick={() => { setMonth(shiftMonth(month, 1)); setSelected(null); }} aria-label={t("Bulan berikutnya", "Next month")}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {!isCurrent && (
+                <Button variant="ghost" size="sm" className="h-8 gap-1 rounded-lg px-2 text-[11px] font-bold" onClick={() => { setMonth(currentMonth); setSelected(null); }}>
+                  <RotateCcw className="h-3 w-3" /> {t("Bulan ini", "This month")}
+                </Button>
+              )}
+            </div>
           </div>
         }
       />

@@ -10,16 +10,18 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   FileUp, FileSpreadsheet, Loader2, Upload, Download, RotateCcw, TriangleAlert,
-  CheckCircle2, Copy, UserX, FileX2, History, Fingerprint, Info,
+  CheckCircle2, Copy, UserX, FileX2, History, Fingerprint, Info, Eye, EyeOff, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useApi, fmtDateTime } from "@/rekankerja/shared/lib/api";
+import { useApi, fmtDateTime, apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -73,6 +75,14 @@ interface BatchRow {
 }
 interface BatchesRes { batches: BatchRow[] }
 
+/** Task 100 F1 (G16): rule settings — hanya status kunci perangkat (masked). */
+interface DeviceRuleRes {
+  rule: {
+    deviceApiKeySet?: boolean;
+    deviceApiKeyMasked?: string | null;
+  };
+}
+
 const IMPORT_URL = "/api/rekankerja/attendance/machine-import";
 const MAX_BYTES = 5 * 1024 * 1024;
 const PREVIEW_ROWS = 50;
@@ -105,6 +115,41 @@ export function AttendanceMachineImportPage() {
 
   const canImport = perms.canOp("attendance", "machine-import", "import");
   const busy = phase === "checking" || phase === "committing";
+
+  // ===== Task 100 F1 (G16): simulator device push (ZKTeco PUSH SDK) =====
+  const ruleApi = useApi<DeviceRuleRes>("/api/rekankerja/attendance/settings");
+  const keySet = ruleApi.data?.rule?.deviceApiKeySet === true;
+  const keyMasked = ruleApi.data?.rule?.deviceApiKeyMasked ?? null;
+  const [punchNo, setPunchNo] = useState("MII00001");
+  const [punchDir, setPunchDir] = useState<"IN" | "OUT">("IN");
+  const [devKey, setDevKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [simBusy, setSimBusy] = useState(false);
+
+  const simulatePunch = async () => {
+    if (!keySet || !devKey.trim()) return;
+    setSimBusy(true);
+    try {
+      const res = await apiSend<{ ok: boolean; imported: number; skipped: number; unknown: string[] }>(
+        "/api/rekankerja/attendance/device-punch", "POST",
+        { key: devKey.trim(), punches: [{ id: punchNo.trim(), time: new Date().toISOString(), dir: punchDir }] },
+      );
+      toast.success(t(
+        "Simulasi push selesai — {i} disisipkan, {s} dilewati{u}",
+        "Push simulation finished — {i} inserted, {s} skipped{u}",
+        {
+          i: res.imported,
+          s: res.skipped,
+          u: res.unknown.length > 0 ? `, ${res.unknown.length} tak dikenal (${res.unknown.slice(0, 3).join(", ")})` : "",
+        },
+      ));
+      batchesApi.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("Gagal mensimulasikan push", "Failed to simulate push"));
+    } finally {
+      setSimBusy(false);
+    }
+  };
 
   const reset = () => {
     setPhase("idle");
@@ -552,6 +597,111 @@ export function AttendanceMachineImportPage() {
               </Table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Task 100 F1 (G16): kartu simulator device push (ZKTeco) ===== */}
+      <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
+        <CardContent className="p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="flex items-center gap-1.5 text-[13px] font-bold">
+                <Fingerprint className="h-4 w-4 ov-text-accent" aria-hidden />
+                {t("Perangkat Push (ZKTeco)", "Push Device (ZKTeco)")}
+              </p>
+              <p className="text-[11px] text-slate-400">
+                {t("Mesin absen PUSH SDK mengirim punch real-time ke /device-punch (auth kunci perangkat — bukan sesi).", "PUSH SDK attendance machines send punches in real time to /device-punch (device-key auth — not a session).")}
+              </p>
+            </div>
+            {/* status kunci — TIDAK pernah ditampilkan penuh (masked saja) */}
+            {ruleApi.loading && !ruleApi.data ? (
+              <span className="text-[11px] text-slate-400">{t("memuat status…", "loading status…")}</span>
+            ) : ruleApi.error ? (
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                {t("status tidak diketahui", "status unknown")}
+              </Badge>
+            ) : keySet ? (
+              <Badge variant="outline" className="border-brand/25 bg-brand/10 text-[10px] font-bold text-brand-deep dark:border-brand/25 dark:bg-brand/10 dark:text-brand/85">
+                {t("kunci aktif", "key active")} {keyMasked ? <span className="font-mono font-normal">· {keyMasked}</span> : null}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                {t("belum ada kunci", "no key yet")}
+              </Badge>
+            )}
+          </div>
+          {canImport && (
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">{t("No. Karyawan", "Employee No.")}</Label>
+                <Input value={punchNo} onChange={(e) => setPunchNo(e.target.value)} placeholder="MII00001" className="h-9 font-mono text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">{t("Arah Punch", "Punch Direction")}</Label>
+                <div className="flex h-9 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+                  {(["IN", "OUT"] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setPunchDir(d)}
+                      className={cn(
+                        "flex-1 px-3 text-[11px] font-bold transition",
+                        punchDir === d ? "ov-fill" : "bg-slate-50 text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
+                      )}
+                      aria-pressed={punchDir === d}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">{t("Kunci Perangkat", "Device Key")}</Label>
+                <div className="relative">
+                  <Input
+                    type={showKey ? "text" : "password"}
+                    value={devKey}
+                    onChange={(e) => setDevKey(e.target.value)}
+                    placeholder="ovdev_…"
+                    className="h-9 pr-9 font-mono text-sm"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    aria-label={showKey ? t("Sembunyikan kunci", "Hide key") : t("Tampilkan kunci", "Show key")}
+                  >
+                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button
+                onClick={simulatePunch}
+                disabled={simBusy || !keySet || !devKey.trim() || !punchNo.trim()}
+                className="gap-1.5 font-bold"
+                title={!keySet ? t("Generate kunci perangkat dulu di Template Jadwal → Pengaturan → Kehadiran Lanjutan", "Generate a device key first under Schedule Templates → Settings → Advanced Attendance") : undefined}
+              >
+                {simBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {t("Simulasikan Punch", "Simulate Punch")}
+              </Button>
+            </div>
+          )}
+          {!keySet && !ruleApi.loading && !ruleApi.error && (
+            <p className="mt-2.5 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {t(
+                "Kunci perangkat belum ada — generate di Pengaturan (Template Jadwal → Pengaturan → Kehadiran Lanjutan → Generate Kunci Perangkat). Kunci penuh hanya ditampilkan SEKALI saat digenerate: salin lalu tempel di sini untuk simulasi.",
+                "No device key yet — generate one under Settings (Schedule Templates → Settings → Advanced Attendance → Generate Device Key). The full key is shown only ONCE on generation: copy it then paste it here to simulate.",
+              )}
+            </p>
+          )}
+          <p className="mt-2.5 text-[10px] leading-relaxed text-slate-400">
+            {t(
+              "Simulasi mengirim 1 punch contoh (waktu = sekarang) persis seperti payload mesin: {\"key\": \"ovdev_…\", \"punches\": [{\"id\", \"time\", \"dir\"}]} → log source \"Machine\" + rekap harian dihitung ulang.",
+              "The simulation sends 1 sample punch (time = now) exactly like the machine payload: {\"key\": \"ovdev_…\", \"punches\": [{\"id\", \"time\", \"dir\"}]} → logs with source \"Machine\" + the daily recap is recalculated.",
+            )}
+          </p>
         </CardContent>
       </Card>
     </div>

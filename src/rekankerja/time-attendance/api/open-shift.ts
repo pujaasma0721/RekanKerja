@@ -19,8 +19,8 @@ import {
 //       (cancel menolak otomatis klaim Pending);
 //       op:"approve-claim" { claimId } → override ScheduleAssignment 1-hari
 //       (POLA shift-swap approve: validFrom=validTo=workDate, anchorMonday =
-//       Senin minggu workDate, anchorSequence = posisi dayTypeId di cycle
-//       WorkScheduleDay) + filled++ (≥slots → Closed) + regenerateDaily +
+//       Senin minggu workDate, anchorSequence disintesis agar workDate jatuh
+//       pada sequence dayTypeId — rumus kebalikan resolveDayType) + filled++ (≥slots → Closed) + regenerateDaily +
 //       notif karyawan + webhook "openshift.claimed";
 //       op:"reject-claim" { claimId, reason } → tolak klaim (alasan ke
 //       ActivityLog + notifikasi — model claim tanpa kolom reason).
@@ -383,11 +383,12 @@ export async function PATCH(req: NextRequest) {
         );
       }
 
-      // ---- anchorSequence = posisi dayTypeId di cycle jadwal posting ----
-      const schedDay = await db.workScheduleDay.findFirst({
-        where: { scheduleId: post.scheduleId, dayTypeId: post.dayTypeId },
+      // ---- sequence target = posisi dayTypeId di cycle jadwal posting ----
+      const schedDays = await db.workScheduleDay.findMany({
+        where: { scheduleId: post.scheduleId },
         orderBy: { sequence: "asc" },
       });
+      const schedDay = schedDays.find((d) => d.dayTypeId === post.dayTypeId);
       if (!schedDay) {
         return NextResponse.json(
           { error: "Tipe hari posting tidak ditemukan pada cycle jadwal — posting tidak konsisten, batalkan dan buat ulang" },
@@ -409,15 +410,23 @@ export async function PATCH(req: NextRequest) {
       const clockingRequired = active[0]?.clockingRequired ?? true;
 
       // ---- override 1-hari (POLA shift-swap approve L239-296) ----
-      // anchorMonday = Senin minggu workDate; rotasi sequence dihitung dari
-      // posisi dayTypeId posting pada cycle jadwal posting.
+      // anchorMonday = Senin minggu workDate; anchorSequence DISINTESIS agar
+      // workDate jatuh persis pada sequence dayTypeId posting (rumus kebalikan
+      // resolveDayType: idx = (offset + anchorSeq - 1) mod cycleLen →
+      // anchorSeq = ((S - minSeq - offset) mod L mod L) + 1) — fix Task 100:
+      // versi lama memakai S mentah sehingga shift Sabtu/Minggu resolve ke
+      // hari cycle yang salah.
       const monday = addDays(workDate, -((workDate.getDay() + 6) % 7));
+      const cycleLen = Math.max(1, schedDays.length);
+      const minSeq = schedDays.reduce((m, d) => Math.min(m, d.sequence), schedDays[0]?.sequence ?? 1);
+      const offsetDays = Math.round((workDate.getTime() - monday.getTime()) / 86_400_000);
+      const anchorSeq = (((schedDay.sequence - minSeq - offsetDays) % cycleLen) + cycleLen) % cycleLen + 1;
       const override = await db.scheduleAssignment.create({
         data: {
           employeeId: emp.id,
           scheduleId: post.scheduleId,
           anchorMonday: monday,
-          anchorSequence: schedDay.sequence,
+          anchorSequence: anchorSeq,
           clockingRequired,
           validFrom: workDate,
           validTo: workDate,

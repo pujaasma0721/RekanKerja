@@ -7,7 +7,9 @@
 //     (resolveMenuPerms — ALL/super admin/CUSTOM). Menu di luar akses →
 //     ditolak sopan + arahkan ke admin/pemilik menu.
 //  3. Pengecualian #1: DATA PRIBADI pengguna sendiri selalu boleh
-//     (sisa jatah cuti, profil, rekap presensi bulan ini…).
+//     (sisa jatah cuti, profil, presensi detail bulan berjalan — telat,
+//     absen, lembur, riwayat 7 hari, estimasi potongan, aturan selfie/
+//     geofence (Task 100 G28) — uang muka/klaim perjalanan dinas).
 //  4. Pengecualian #2: PERATURAN PEMERINTAH RI bidang ketenagakerjaan
 //     yang relevan dgn aplikasi (UU 13/2003, PP 35/2021, UU 12/2022 TPKS,
 //     BPJS, PPh 21/TER PMK 168/2023, UMP/UMK, SKB 3 menteri) boleh
@@ -185,17 +187,13 @@ async function selfDataSnapshot(db: TenantDb, employeeId: string | null): Promis
       .map((b) => `- ${b.leaveTypeName}: sisa ${b.remaining} ${b.unit.toLowerCase()} (hak ${b.entitlement}, terpakai ${b.taken}, diajukan menunggu ${b.applied})`)
       .join("\n");
 
-    // rekap presensi bulan berjalan
-    const monthStart = new Date(year, new Date().getMonth(), 1);
-    const att = await db.attendanceDaily.findMany({
-      where: { employeeId, workDate: { gte: monthStart } },
-      select: { status: true },
-    }).catch(() => [] as { status: string }[]);
-    const attCount = att.reduce<Record<string, number>>((acc, a) => {
-      acc[a.status] = (acc[a.status] ?? 0) + 1;
-      return acc;
-    }, {});
-    const attLine = Object.entries(attCount).map(([s, n]) => `${s}: ${n} hari`).join(", ") || "belum ada data bulan ini";
+    // Task 100 (G28, F2) — presensi bulan berjalan DETAILED: rekap diperdalam
+    // (menit telat total, hari telat/absen, izin unpaid, jam kerja normal,
+    // jam lembur dari order disetujui), estimasi dampak payroll best-effort,
+    // riwayat 7 hari terakhir, klaim lembur menunggu verifikasi, dan aturan
+    // geofence/selfie tenant. Menggantikan hitungan status sederhana Task 96
+    // (ringkasan status tetap ada — baris pertama blok).
+    const attendanceLines = await attendanceSelfDetail(db, employeeId).catch(() => [] as string[]);
 
     // Task 98 (F2-1) — snapshot perjalanan dinas: uang muka beredar + jatuh tempo
     // settlement terdekat + status klaim terakhir → karyawan bisa tanya "berapa
@@ -208,7 +206,7 @@ async function selfDataSnapshot(db: TenantDb, employeeId: string | null): Promis
       `Saldo cuti ${year}:\n${leaveLines || "- belum ada baris saldo (jenis event dibuat otomatis saat pengajuan)"}`,
       ...(carryForfeitLines.length > 0 ? [`Peringatan hangus (carry-over):\n${carryForfeitLines.join("\n")}`] : []),
       `Pengajuan cuti menunggu persetujuan: ${pendingLeaveCount}`,
-      `Presensi bulan berjalan: ${attLine}`,
+      ...attendanceLines,
       ...(travelLine ? [travelLine] : []),
     ].join("\n");
   } catch {
@@ -271,6 +269,169 @@ async function travelSelfLine(db: TenantDb, employeeId: string): Promise<string>
     : `Perjalanan dinas: ${reqs.length} pengajuan tercatat, tidak ada uang muka beredar`;
 }
 
+/** Task 100 (G28, F2) — blok presensi DETAILED milik karyawan utk snapshot
+ *  chatbot: rekap bulan berjalan yang diperdalam (menit telat total, hari
+ *  telat, hari absen, izin/cuti unpaid, jam kerja normal, jam lembur dari
+ *  OvertimeOrder disetujui), estimasi dampak payroll (best-effort, BERLABEL
+ *  "estimasi" — bukan angka run final), riwayat 7 hari terakhir, klaim lembur
+ *  menunggu verifikasi, dan mode geofence/selfie tenant (supaya chatbot bisa
+ *  menjawab "kenapa saya harus foto selfie saat clock?").
+ *  Disiplin query: SATU findMany per tabel, window bulan berjalan + ekor
+ *  riwayat 7 hari, take wajar. Data HANYA milik karyawan sendiri (anti IDOR). */
+async function attendanceSelfDetail(db: TenantDb, employeeId: string): Promise<string[]> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const histFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6); // 7 hari termasuk hari ini
+  const from = histFrom.getTime() < monthStart.getTime() ? histFrom : monthStart; // window gabungan rekap + riwayat
+
+  // (1) AttendanceDaily — SATU query utk rekap bulan berjalan + riwayat 7 hari
+  //     (terbaru dulu → slice riwayat tinggal ambil atas; take 40 ≈ ±37 hari window).
+  const rows = await db.attendanceDaily.findMany({
+    where: { employeeId, workDate: { gte: from, lt: nextMonth } },
+    orderBy: { workDate: "desc" },
+    take: 40,
+    select: {
+      workDate: true, status: true, checkIn: true, checkOut: true, notes: true,
+      paidFlag: true, lateMinutes: true, normalMinutes: true,
+    },
+  });
+  const monthRows = rows.filter((r) => r.workDate.getTime() >= monthStart.getTime());
+  const statusCount = monthRows.reduce<Record<string, number>>((acc, r) => {
+    acc[r.status] = (acc[r.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  let lateMinutes = 0, lateDays = 0, unpaidDays = 0, normalMinutes = 0;
+  for (const r of monthRows) {
+    lateMinutes += r.lateMinutes;
+    if (r.status === "Late") lateDays++;
+    // izin/cuti TIDAK dibayar (memotong upah) — deteksi PERSIS recapPeriod:
+    // kolom paidFlag hasil regen + fallback notes baris lama; setengah hari = 0,5.
+    if (r.status === "OnLeave" || r.status === "WorkOff") {
+      const unpaid = r.paidFlag === false || (r.paidFlag === null && r.notes?.includes("tidak dibayar"));
+      if (unpaid) unpaidDays += r.notes?.includes("setengah hari") ? 0.5 : 1;
+    }
+    normalMinutes += r.normalMinutes;
+  }
+
+  // (2) OvertimeOrder bulan berjalan (Approved/Paid) — jam lembur diakui:
+  //     verifiedMinutes bila sudah diverifikasi admin, else actualMinutes
+  //     (pola burnoutRolling / regen daily).
+  const otOrders = await db.overtimeOrder.findMany({
+    where: { employeeId, overtimeDate: { gte: monthStart, lt: nextMonth }, status: { in: ["Approved", "Paid"] } },
+    orderBy: { overtimeDate: "desc" },
+    take: 62,
+    select: { orderNo: true, status: true, paidRunNo: true, actualMinutes: true, verifiedMinutes: true },
+  });
+  const otMinutes = otOrders.reduce((s, o) => s + (o.verifiedMinutes > 0 ? o.verifiedMinutes : o.actualMinutes), 0);
+  // klaim lembur menunggu VERIFIKASI jam aktual: sudah disetujui + belum
+  // dibayar run payroll + jam aktual belum diverifikasi (verifiedMinutes 0).
+  const otPendingVerify = otOrders.filter((o) => o.status === "Approved" && !o.paidRunNo && o.verifiedMinutes <= 0);
+  const otPendingMinutes = otPendingVerify.reduce((s, o) => s + o.actualMinutes, 0);
+
+  // (3) AttendanceRule — read-only findFirst TANPA create (snapshot chat tidak
+  //     boleh menulis; pola defensif burnoutRolling utk tenant belum termigrasi).
+  let rule: {
+    geofenceMode: string; geofenceMultiSite: boolean; selfieMode: string;
+    faceVerifyMode: string; lateDeductionPerHour: number; otCapMode: string;
+    otCapDayHours: number | null; otCapWeekHours: number | null;
+  } | null = null;
+  try {
+    rule = await db.attendanceRule.findFirst({
+      orderBy: { id: "asc" },
+      select: {
+        geofenceMode: true, geofenceMultiSite: true, selfieMode: true, faceVerifyMode: true,
+        lateDeductionPerHour: true, otCapMode: true, otCapDayHours: true, otCapWeekHours: true,
+      },
+    });
+  } catch {
+    rule = null;
+  }
+
+  // (4) gaji pokok penempatan AKTIF milik SENDIRI (enkripsi M-8 → dekripsi) —
+  //     murni utk estimasi potongan telat; karyawan lain tidak disentuh.
+  const { tenantCryptoForDb } = await import("@/rekankerja/shared/lib/field-crypto");
+  const tc = tenantCryptoForDb(db);
+  const asg = await db.employeeAssignment.findFirst({
+    where: { employeeId, validTo: null },
+    select: { baseSalary: true },
+  });
+  const baseSalary = tc.decryptMoney(asg?.baseSalary) ?? 0;
+  const lateTarif = rule?.lateDeductionPerHour ?? 0; // >0 = tarif potongan telat tetap per jam (rule tenant)
+  const perHour = lateTarif > 0 ? lateTarif : baseSalary / 173; // upah sejam 1/173 (default aplikasi)
+
+  const fmtR = (n: number) => `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+  const jam = (m: number) => (m / 60).toLocaleString("id-ID", { maximumFractionDigits: 1 });
+  const monthName = monthStart.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  const statusLine = Object.entries(statusCount).map(([s, n]) => `${s}: ${n} hari`).join(", ") || "belum ada data bulan ini";
+
+  const lines: string[] = [
+    `Presensi bulan berjalan (${monthName}): ${statusLine}`,
+    `- Telat: ${lateDays} hari (total ${lateMinutes} menit) · Absen: ${statusCount["Absent"] ?? 0} hari · Izin/cuti tidak dibayar: ${unpaidDays.toLocaleString("id-ID")} hari`,
+    `- Jam kerja normal diakui: ${jam(normalMinutes)} jam · Jam lembur diakui: ${jam(otMinutes)} jam (${otOrders.length} order lembur disetujui bulan ini)`,
+  ];
+
+  // estimasi dampak payroll — best-effort & BERLABEL estimasi; rumus mirror
+  // recapPeriod (menit telat / 60 × upah per jam; tarif tetap bila diatur tenant).
+  if (lateTarif > 0 || baseSalary > 0) {
+    lines.push(
+      `- Estimasi dampak payroll bulan ini (ESTIMASI best-effort, bukan angka final run payroll): potongan telat ≈ ${fmtR((lateMinutes / 60) * perHour)} (${lateMinutes} menit ÷ 60 × upah per jam ${fmtR(perHour)}${lateTarif > 0 ? " — tarif tetap rule tenant" : " = 1/173 gaji pokok"}). Potongan absen/izin tidak dibayar dihitung lengkap oleh run payroll — angka final hubungi HR.`,
+    );
+  } else {
+    lines.push("- Estimasi potongan telat bulan ini: hubungi HR (data upah utk estimasi tidak terbaca aplikasi).");
+  }
+
+  // riwayat 7 hari terakhir — dari AttendanceDaily + jam check-in/out.
+  const fmtDay = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  const fmtT = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const hist = rows.filter((r) => r.workDate.getTime() >= histFrom.getTime());
+  if (hist.length > 0) {
+    const histLines = hist.map((r) => {
+      const clock = r.checkIn ? ` ${fmtT(r.checkIn)}${r.checkOut ? `–${fmtT(r.checkOut)}` : ""}` : "";
+      if (r.status === "Late") return `${fmtDay(r.workDate)}: Hadir${clock} (telat ${r.lateMinutes} mnt)`;
+      if (r.status === "Present") return `${fmtDay(r.workDate)}: Hadir${clock}`;
+      if (r.status === "Absent") return `${fmtDay(r.workDate)}: Absen${r.notes ? ` (${r.notes})` : ""}`;
+      if (r.status === "OnLeave" || r.status === "WorkOff") {
+        return `${fmtDay(r.workDate)}: ${r.notes ?? (r.status === "OnLeave" ? "Cuti" : "Izin")}`;
+      }
+      return `${fmtDay(r.workDate)}: ${r.notes ?? (r.status === "Off" || r.status === "Holiday" ? "Libur" : r.status)}`;
+    });
+    lines.push(`Riwayat presensi 7 hari terakhir (terbaru dulu):\n- ${histLines.join("\n- ")}`);
+  }
+  lines.push(`Klaim lembur menunggu verifikasi jam aktual: ${otPendingVerify.length} order (${jam(otPendingMinutes)} jam)`);
+
+  // aturan clock tenant — supaya chatbot bisa menjawab "kenapa saya harus
+  // foto selfie saat clock?" / "apa itu geofence?" dari konfigurasi nyata.
+  const gf = rule?.geofenceMode ?? "Off";
+  const gfLabel: Record<string, string> = {
+    Off: "koordinat tidak diperiksa",
+    Warn: "clock di luar radius lokasi dicatat peringatan, clock tetap sah",
+    Strict: "clock di luar radius lokasi kerja DITOLAK aplikasi",
+  };
+  const selfie = rule?.selfieMode ?? "off";
+  const selfieLabel: Record<string, string> = {
+    off: "selfie tidak diminta saat clock",
+    warn: "selfie tanpa foto tetap jalan (ditandai utk ditelaah)",
+    required: "selfie WAJIB saat clock — tanpa foto clock ditolak",
+  };
+  const face = rule?.faceVerifyMode ?? "off";
+  const faceLabel: Record<string, string> = {
+    off: "verifikasi wajah nonaktif",
+    warn: "foto selfie dibandingkan dgn foto referensi (AI) — beda orang ditandai",
+    strict: "verifikasi wajah ketat — clock ditolak bila bukan pemilik akun",
+  };
+  const otCap =
+    rule == null || rule.otCapMode === "PP35"
+      ? "PP 35/2021 — maks 4 jam/hari & 18 jam/minggu"
+      : rule.otCapMode === "KEPMEN102"
+        ? "Kepmen 102/2004 — maks 3 jam/hari & 14 jam/minggu"
+        : `kustom — maks ${rule.otCapDayHours ?? 4} jam/hari & ${rule.otCapWeekHours ?? 18} jam/minggu`;
+  lines.push(
+    `Aturan clock-in tenant Anda: geofence ${gf} (${gfLabel[gf] ?? ""}${rule?.geofenceMultiSite ? "; mode multi-lokasi — radius lokasi aktif terdekat yang dipakai" : ""}); ${selfieLabel[selfie] ?? "selfie tidak diminta saat clock"}; ${faceLabel[face] ?? "verifikasi wajah nonaktif"}. Cap lembur: ${otCap}.`,
+  );
+  return lines;
+}
+
 // ============ RAG KNOWLEDGE BASE (skor kata-kunci sederhana) ============
 
 const STOPWORDS = new Set(["yang", "dan", "di", "ke", "dari", "untuk", "dengan", "apa", "bagaimana", "cara", "adalah", "itu", "ini", "saya", "boleh", "apakah", "gimana", "ga", "nggak", "the", "a", "of", "to", "how", "what"]);
@@ -311,11 +472,12 @@ const SCOPE_RULES = `
 ATURAN SCOPE (WAJIB — pelanggaran = jawaban salah):
 1. HANYA bahas hal seputar APLIKASI RekanKerja (HRIS: karyawan, presensi, cuti, payroll, travel, medical, whistleblowing, ESS, pengaturan).
 2. MENU: hanya bahas menu yang TERDAFTAR di "MENU YANG BISA DIAKSES PENGGUNA" di bawah. Pertanyaan tentang menu lain → tolak sopan: "Menu itu di luar akses Anda — silakan hubungi admin/HR". JANGAN pernah membocorkan isi/cara pakai menu yang tidak ada di daftar.
-3. PENGECUALIAN DATA PRIBADI: pertanyaan tentang data DIRI SENDIRI pengguna selalu boleh dijawab dari "DATA PRIBADI PENGGUNA" di bawah (sisa jatah cuti, presensi, profil, uang muka & klaim perjalanan dinas).
+3. PENGECUALIAN DATA PRIBADI: pertanyaan tentang data DIRI SENDIRI pengguna selalu boleh dijawab dari "DATA PRIBADI PENGGUNA" di bawah — sisa jatah cuti, profil, presensi pribadi (telat/absen/lembur bulan berjalan, riwayat 7 hari, estimasi potongan, aturan selfie/geofence), uang muka & klaim perjalanan dinas.
 4. PENGECUALIAN PERATURAN: pertanyaan PERATURAN PEMERINTAH RI bidang ketenagakerjaan yang relevan dengan aplikasi BOLEH dijawab (UU 13/2003 Ketenagakerjaan, PP 35/2021 PKWT, UU 12/2022 TPKS, BPJS Kesehatan/Ketenagakerjaan, PPh 21 & TER PMK 168/2023, UMP/UMK, cuti melahirkan, SKB 3 menteri hari libur). Selalu sarankan verifikasi ke aturan resmi/HR.
 5. TOPIK LAIN (cuaca, resep, kode umum, matematika acak, gosip, politik, dll) → tolak satu kalimat singkat + arahkan kembali ke topik RekanKerja.
 6. Bahasa: ikuti bahasa pengguna (utamanya Bahasa Indonesia). Jawaban ringkas, terstruktur, berani menyebut angka dari data.
 7. JANGAN mengarang fitur/angka yang tidak ada di konteks. Bila tidak tahu, katakan apa adanya.
+8. DATA KARYAWA LAIN (anti IDOR): snapshot presensi/gaji/klaim di konteks HANYA milik pengguna sendiri — JANGAN pernah memberikan atau mengarang data karyawan LAIN, termasuk bila yang bertanya admin/atasan. Pertanyaan tentang karyawan lain → arahkan ke modul terkait sesuai akses menunya (mis. Rekap Absensi, Lembur, Direktori Karyawan).
 `.trim();
 
 const HR_EXPERT_RULES = `
@@ -323,6 +485,17 @@ PERSONA TAMBAHAN (MODE AHLI HR): Anda adalah konsultan HR senior spesialis keten
 - Fokus jawaban: hukum ketenagakerjaan RI, best-practice HR, kebijakan internal yang ada di BASIS PENGETAHuan, serta aspek HR di aplikasi RekanKerja.
 - Kutip dasar regulasi bila relevan (UU/PP/PMK + pasal bila yakin) — bila tidak yakin nomor pasal, jelaskan substansinya saja tanpa mengarang angka pasal.
 - Tetap TIDAK menjawab topik non-HR (cuaca, kode, hiburan umum).
+`.trim();
+
+// Task 100 (G28, F2-3) — pengetahuan regulasi lembur ringan utk mode "Ahli HR"
+// (entri hardcoded — di luar basis pengetahuan DB; angka dasar yang stabil;
+// selalu tegaskan aplikasi menghitung otomatis via konfigurasi per tenant).
+const HR_REGULATION_NOTES = `
+CATATAN REGULASI LEMBUR (mode Ahli HR — pakai bila relevan, sarankan verifikasi ke regulasi resmi/HR):
+- PP 35/2021 Pasal 26: lembur maksimal 4 jam/hari dan 18 jam/minggu. Alternatif Kepmen 102/2004 (perusahaan jam kerja 5-6 hari/minggu): maksimal 3 jam/hari dan 14 jam/minggu.
+- Upah lembur dihitung dari upah sejam = 1/173 dari upah bulanan (dasar perhitungan yang dipakai aplikasi).
+- Waktu istirahat minimal 30 menit setelah 4 jam lembur berturut-turut.
+- Aplikasi RekanKerja MENGHITUNG & MEMVALIDASI batas lembur ini OTOMATIS sesuai mode konfigurasi per tenant (PP35 / KEPMEN102 / CUSTOM — aturan AttendanceRule) saat pengajuan, persetujuan, dan verifikasi.
 `.trim();
 
 export interface ChatContextInput {
@@ -344,7 +517,7 @@ export async function buildSystemPrompt(db: TenantDb, actor: AiActor, input: Cha
   const parts = [
     "Anda adalah asisten AI internal aplikasi HRIS **RekanKerja** (multi-tenant, Bahasa Indonesia).",
     SCOPE_RULES,
-    input.mode === "hr_expert" ? HR_EXPERT_RULES : "",
+    input.mode === "hr_expert" ? `${HR_EXPERT_RULES}\n\n${HR_REGULATION_NOTES}` : "",
     `IDENTITAS PENGGUNA: ${actor.name} (role workspace: ${actor.platformRole}).`,
     `MENU YANG BISA DIAKSES PENGGUNA:\n${menuSection}`,
     `DATA PRIBADI PENGGUNA (boleh dibahas dengannya):\n${selfData}`,

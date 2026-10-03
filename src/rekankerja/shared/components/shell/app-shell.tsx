@@ -38,7 +38,7 @@ import {
   CalendarClock, Palmtree, Plane, HeartPulse, Boxes, FileSpreadsheet, BookOpen, BarChart3,
   Hospital, TrendingUp, Mail, MoreHorizontal, ArrowRight, XCircle, ChartNoAxesColumn, CalendarDays, FolderOpen,
   Webhook, ScrollText, Megaphone, Package, Radar, FileUp, MessageCircle, SlidersHorizontal,
-  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot,
+  MegaphoneOff, Siren, Eye, ClipboardCheck, Send, FileSignature, Bot, QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -180,6 +180,8 @@ const ATTENDANCE_NAV: NavGroup[] = [
     { id: "assignment-schedule", label: "Assign Jadwal", icon: CalendarRange },
     { id: "matrix", label: "Matriks Jadwal", icon: Layers },
     { id: "holidays", label: "Kalender Libur", icon: CalendarDays },
+    // Task 100 F1 (G19, impl-E) — marketplace open shift (posting + klaim)
+    { id: "open-shift", label: "Open Shift", icon: Users },
   ] },
   { section: "attendance", label: "Kehadiran", children: [
     { id: "clocking", label: "Data Clocking", icon: Activity },
@@ -192,6 +194,8 @@ const ATTENDANCE_NAV: NavGroup[] = [
     { id: "shift-swap", label: "Tukar Shift", icon: ArrowLeftRight },
     // 27-a — import log mesin absen (sidik jari/face) CSV/Excel
     { id: "machine-import", label: "Import Mesin Absen", icon: FileUp },
+    // Task 100 F1 (G17, impl-E) — kios QR presensi (mode tampilan sesi admin)
+    { id: "kiosk-qr", label: "Kios QR", icon: QrCode },
   ] },
 ];
 

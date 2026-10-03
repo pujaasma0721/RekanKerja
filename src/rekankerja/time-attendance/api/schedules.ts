@@ -54,7 +54,7 @@ function assertWeeklyHours(
 const SCHEDULE_INCLUDE = {
   days: {
     orderBy: { sequence: "asc" as const },
-    include: { dayType: { select: { code: true, name: true, color: true, category: true, timeIn: true, timeOut: true, nextDay: true, normalMinutes: true } } },
+    include: { dayType: { select: { id: true, code: true, name: true, color: true, category: true, timeIn: true, timeOut: true, nextDay: true, normalMinutes: true } } },
   },
   _count: { select: { assignments: true } },
 } as const;
