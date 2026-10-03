@@ -105,7 +105,12 @@ export function TravelRequestsPage() {
     if (validDests.length === 0) { toast.error(t("Minimal 1 destinasi dengan kota terisi", "At least 1 destination with a city filled in")); return; }
     setBusy(true);
     try {
-      const res = await apiSend<{ docNo: string; destinations: number; days: number; advanceAmount: number; settlementDue: string | null }>(
+      const res = await apiSend<{
+          docNo: string; destinations: number; days: number; advanceAmount: number; settlementDue: string | null;
+          // Task 98 (F1-3) — peringatan budget dari server (tipe sempat terlewat)
+          budgetWarning?: string | null;
+          budget?: { costCenter: string | null; remaining: number | null } | null;
+        }>(
         "/api/rekankerja/travel/requests", "POST",
         {
           ...form,

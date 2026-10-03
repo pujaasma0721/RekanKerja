@@ -3379,3 +3379,53 @@ Stage Summary:
 - 8 gap F0 backend tuntas + terverifikasi browser (403 ESS vs 200 admin). Kombinasi dgn impl-B (10 file UI) = Fase 0 lengkap 12/12 gap.
 - Tidak ada perubahan prisma schema (murni logic + guard + scheduler).
 - Checkpoint commit dilakukan orkestrator setelah verifikasi ini.
+
+---
+Task ID: 100-impl-C
+Agent: general-purpose (F1 core backend) — orkestrator mendokumentasikan (agent selesai menulis kode, result message hilang karena deadline infra)
+Task: F1 CORE BACKEND — schema advance + service + ESS clock upgrade (G13 selfie, G14 cap Kepmen konfiguratif, G17 QR token, G18 multi-geofence, G22 speed-flag, G23 fatigue, G27 anomaly, G29 burnout, G30 VLM face verify)
+
+Work Log:
+- prisma/schema-tenant.prisma: AttendanceClockLog +selfieUrl/deviceId/faceVerified/anomalyNotes; AttendanceRule +selfieMode/faceVerifyMode/geofenceMultiSite/otCapMode/otCapDayHours/otCapWeekHours/fatigueMaxConsecutiveNights/fatigueMinRestHours/burnoutOtHoursMonthly/deviceApiKey; Employee +selfieRefUrl; model BARU OpenShiftPost + OpenShiftClaim (unique claim per post per karyawan). Prisma client tenant di-regen.
+- scripts/migrate-attendance-advance.ts (BARU): per-tenant idempoten — DIVERIFIKASI JALAN: 3/3 schema OK. Step "attendance-advance" ditambah ke parity-runner + DDL di-append ke tenant-ddl.sql (provisioning tenant baru).
+- attendance-service.ts: assertOvertimeCaps baca rule (mode PP35=4/18 default | KEPMEN102=3/14 | CUSTOM via otCapDay/WeekHours; null → PP35 backward-compat); assertFatigue (maks malam berturut + jeda istirahat antar shift) diexport utk wiring assignment.
+- services/attendance-anomaly.ts (BARU): detectAnomalies (duplicateGeo ≤15m/5mnt ≥2 pasangan/7hr; latePattern Senin/Jumat ≥3/90hr; boundaryClock ±90dtk ≥4/30hr; impossibleTravel >250 km/jam; speedFlag dari anomalyNotes) + burnoutRolling (jam lembur 3 bulan, flag > ambang bulanan) + api/anomalies.ts GET (guard attendance:liveboard|schedules; from/to default 30 hari) + webhook attendance.anomaly severity tinggi best-effort.
+- ess/api/clock.ts: FormData multipart (photo ≤2MB, deviceId, qrToken, accuracy) — G13 selfie required/warn per rule (saveAttachment entityType attendance-selfie, selfieUrl di log); G30 VLM compare dgn Employee.selfieRefUrl (referensi pertama kali = selfie pertama; strict tolak bila beda, warn flag; VLM gagal → tidak memblokir kecuali strict mencatat vlm-unavailable) — pakai z-ai-web-dev-sdk createVision pola travel OCR; G18 multi-geofence (cocokkan SEMUA WorkLocation aktif, terdekat menang) bila rule.geofenceMultiSite; G22 speed-check vs punch bercoordinate terakhir (>250 km/jam → anomalyNotes "speed"); G17 QR HMAC-SHA256 bucket 30 dtk (secret = sha256(SESSION_SECRET|schemaName)) → log ditandai qr-verified.
+- api/settings.ts: field baru di GET/PATCH (validasi enum/angka) + op regenDeviceKey ("ovdev_{slug}_{24hex}" — return sekali, GET masked).
+- Fix orkestrator pasca-agent: @ts-expect-error d.ts model wajib (runtime abaikan — terbukti E2E T98) di clock.ts DAN travel/ocr.ts (error lama tersembunyi).
+
+Stage Summary:
+- Semua field advance hidup di DB 3 tenant; guard 401 terverifikasi curl; ESS clock mendukung selfie+face-verify+QR+multi-geofence+speed-flag; anomaly & burnout engine siap konsumsi UI.
+
+---
+Task ID: 100-impl-D
+Agent: general-purpose (F1 endpoints backend) — orkestrator mendokumentasikan (idem)
+Task: F1 ENDPOINTS — G15 analytics, G16 device-punch ZKTeco, G19 open shift, G24 koreksi data, G25 bulk decide, G26 ICS jadwal, G20/G21 notif+webhook
+
+Work Log:
+- api/analytics.ts + route (BARU): GET ?month=YYYY-MM guard attendance:schedules + moneyViewForReq → {trend:[{date,present,late,absent,onLeave,off,workoff}], heatmap:[{dow 1-7 Sen=1, hour 5-22, count}] dari ClockLog IN, otByOrg:[{org,minutes,estPay|null}] (Approved bulan itu × overtimePayFor; money-gated), moneyView, topLate top-10}.
+- api/device-punch.ts + route (BARU): POST {key|header X-Api-Key, punches:[{id(USERID/PIN), time, dir|status auto}]} maks 200 → resolve tenant via format ovdev_{slug}_{secret} (platform db) → ClockLog source Machine + window G12 konsisten + dedupe + regen per (karyawan, tanggal) → {ok, imported, skipped, unknown[]}. TANPA guard menu (auth device key).
+- api/open-shift.ts + ess/api/open-shift.ts + routes (BARU): admin GET (posting 30hr + claims), POST create (guard create; notif + webhook openshift.posted), PATCH op:close/cancel/approve-claim/reject-claim — approve → override assignment 1-hari (anchorMonday = Senin minggu workDate, anchorSequence = sequence dayTypeId di WorkScheduleDay; pola shift-swap) + filled++ → auto-Closed ≥slots + regen + ActivityLog + notif + webhook openshift.claimed. ESS: GET posting Open + status klaim sendiri; POST klaim (P2002 → 409).
+- api/clocking.ts TAMBAH (GET/POST lama utuh): DELETE ?id= (guard update; hapus log + ActivityLog + regen tanggal itu); PATCH op:regen-range {from,to,employeeId?} maks 62 hari (regenerateRange); PATCH op:override-daily {id,status?,checkIn?/checkOut? HH:MM,paidFlag?,reason WAJIB} → state "Revised" + revised/revisedBy (kolom hidup pertama kali; regen PRESERVE baris Revised — kontrak dgn service).
+- api/overtime.ts + api/workoffs.ts TAMBAH op:bulk {ids ≤50, action approve|reject, reason?} → loop decide service existing, hasil per-id {ok|error}, response {results, okCount, failCount}.
+- api/schedule-ics.ts + ess/api/attendance-ics.ts + routes (BARU): VCALENDAR RFC 5545 60 hari (VEVENT per hari kerja dari assignment resolve; DTSTART;VALUE=DATE; SUMMARY "Shift {nama}"), filename jadwal-{employeeNo}.ics; admin guard assignment-schedule + param employeeId; ESS self-scoped guard requireEss.
+- Verifikasi orkestrator: seluruh endpoint smoke 401 tanpa sesi (guard aktif); migrasi schema (impl-C) 3/3 OK; tsc 0 error PROYEK PENUH; lint 0 error.
+
+Stage Summary:
+- 6 endpoint family baru + 2 op bulk + 3 op koreksi aktif; frontend Wave 3 tinggal konsumsi. Kontrak response ada di komentar header masing-masing file api.
+
+---
+Task ID: 100-impl-ORCH1
+Agent: Z.ai (orkestrator utama)
+Task: Konsolidasi Wave 2 + perbaikan error tipe lintas proyek (49 baris error → 0)
+
+Work Log:
+- Kedua subagent C & D kehilangan result message (deadline infra) tapi pekerjaan tuntas — diverifikasi langsung: file lengkap, migrasi jalan 3/3, guard 401, prisma client regen.
+- ROOT CAUSE temuan penting: subagent "gagal" TIDAK selalu mati — mereka lanjut menulis setelah timeout. F0 commit sempat menangkap swap.ts setengah-edit (bug scope `code` di luar IIFE) → fixed: const code = created.code.
+- Hapus dead code audit A-16: src/lib/rekankerja/** (18 file service legacy) + src/components/rekankerja/** (UI lama) — 0 referensi aktif (migrate-to-postgres.ts di-repoint ke @/rekankerja/shared/lib/*).
+- Fix error TSC pre-existing yang belum pernah terdeteksi (tsc filter grep terlalu sempit di sesi-sesi sebelumnya): travel/ocr.ts + ess/api/clock.ts createVision model wajib (@ts-expect-error + komentar bukti E2E); ai-provider.ts AiProviderRow +apiKey; ai-chat-service.ts appUserId non-null + Map tuple + EmpRow; scheduler users employeeId|null skip; travel-service.ts 5 site (g() nullable, dayStart guard, advanceAmount ?? 0); travel-requests.tsx tipe res +budget/budgetWarning; tsconfig exclude 3 script historis (dump/restore/migrate-to-postgres).
+- HASIL: bunx tsc --noEmit = 0 error SELURUH PROYEK (pertama kali); lint 0 error; dev server hidup; endpoint baru 401-guarded.
+- jsqr@1.4.0 diinstall (scanner QR ESS Wave 3); qrcode@1.5.4 sudah ada.
+
+Stage Summary:
+- Baseline bersih total sebelum Wave 3 (frontend). Pelajaran proses: SELALU tunggu subagent menulis worklog SEBELUM verifikasi/commit; tsc full tanpa filter.

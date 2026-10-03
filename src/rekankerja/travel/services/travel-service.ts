@@ -354,8 +354,8 @@ export async function estimateTrip(db: TenantDb, legs: TripEstimateLeg[]): Promi
   let hotelTotal = 0;
   for (const l of legs) {
     const rate = matchCityRate(rates, l.city);
-    const days = daysOf(l.dateFrom, l.dateTo);
-    const nights = nightsOf(l.dateFrom, l.dateTo);
+    const days = daysOf(new Date(l.dateFrom), new Date(l.dateTo)); // T98: idem
+    const nights = nightsOf(new Date(l.dateFrom), new Date(l.dateTo)); // T98: leg boleh ISO string — normalisasi ke Date
     const overseas = Boolean(l.overseas) || rate?.overseas || false;
     // SBI 60%: seluruh kaki kota sama (domestik) → uang harian 60%
     const sameCityDomestic =
@@ -425,7 +425,7 @@ export async function budgetStatusFor(
   const committed = round2(claims.filter((c) => c.status === "Approved").reduce((s, c) => s + (tc.decryptMoney(c.totalSettlement) ?? 0), 0));
   const itemAmount = budget.items[0] ? tc.decryptMoney(budget.items[0].amount) ?? 0 : null;
   const base = itemAmount ?? tc.decryptMoney(budget.totalBudget) ?? 0;
-  const g = (n: number) => (mv.canSee ? n : null);
+  const g = (n: number | null) => (mv.canSee ? n : null); // T100-fix: itemAmount nullable saat tanpa item budget
   return {
     year: budget.year,
     costCenter,
@@ -599,8 +599,9 @@ export async function detectClaimAnomalies(
     const histLines = hist.filter((h) => h.employeeId === c.employeeId && h.id !== c.id).flatMap((h) => h.expenses);
     const dupFound = c.expenses.some((e) => {
       if (!e.expenseDate) return false;
+      const eDate: Date = e.expenseDate; // T100-fix: sempitkan null utk callback some
       const amt = tc.decryptMoney(e.amount) ?? 0;
-      return histLines.some((h) => h.expenseDate && dayStart(h.expenseDate).getTime() === dayStart(e.expenseDate).getTime() && (tc.decryptMoney(h.amount) ?? 0) === amt);
+      return histLines.some((h) => !!h.expenseDate && dayStart(h.expenseDate).getTime() === dayStart(eDate).getTime() && (tc.decryptMoney(h.amount) ?? 0) === amt);
     });
     if (dupFound) flags.push({ kind: "duplicate", label: "Ada baris nominal+tanggal identik dengan klaim lain karyawan ini ≤90 hari — cek double-claim" });
     // over-limit per unit
@@ -768,9 +769,10 @@ export async function submitTravelRequest(db: TenantDb, input: SubmitTravelReque
   } catch { estimate = null; }
   try {
     budget = await budgetStatusFor(db, costCenter, { canSee: true });
-    if (budget && budget.remaining != null && input.advanceAmount > 0 && input.advanceAmount > budget.remaining) {
+    const adv = input.advanceAmount ?? 0; // T100-fix: field opsional — tanpa uang muka = 0
+    if (budget && budget.remaining != null && adv > 0 && adv > budget.remaining) {
       budgetWarning =
-        `Uang muka ${fmtIDRLog(input.advanceAmount)} melebihi sisa budget CC ${costCenter} ` +
+        `Uang muka ${fmtIDRLog(adv)} melebihi sisa budget CC ${costCenter} ` +
         `(${fmtIDRLog(Math.max(0, budget.remaining ?? 0))} tersisa). Pengajuan tetap diproses — approver akan melihat peringatan ini.`;
     }
   } catch { budget = null; }

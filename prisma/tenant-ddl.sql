@@ -148,6 +148,7 @@ CREATE TABLE "Employee" (
     "photoUrl" TEXT,
     "bankName" TEXT,
     "bankAccount" TEXT,
+    "selfieRefUrl" TEXT,
     "companyId" TEXT NOT NULL,
     "joinDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "endDate" TIMESTAMP(3),
@@ -1165,6 +1166,10 @@ CREATE TABLE "AttendanceClockLog" (
     "note" TEXT,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
+    "selfieUrl" TEXT,
+    "deviceId" TEXT,
+    "faceVerified" BOOLEAN,
+    "anomalyNotes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AttendanceClockLog_pkey" PRIMARY KEY ("id")
@@ -1268,6 +1273,16 @@ CREATE TABLE "AttendanceRule" (
     "lateDeductionPerHour" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "absenceDeductionPerDay" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "geofenceMode" TEXT NOT NULL DEFAULT 'Off',
+    "geofenceMultiSite" BOOLEAN NOT NULL DEFAULT false,
+    "selfieMode" TEXT NOT NULL DEFAULT 'off',
+    "faceVerifyMode" TEXT NOT NULL DEFAULT 'off',
+    "otCapMode" TEXT NOT NULL DEFAULT 'PP35',
+    "otCapDayHours" INTEGER,
+    "otCapWeekHours" INTEGER,
+    "fatigueMaxConsecutiveNights" INTEGER NOT NULL DEFAULT 4,
+    "fatigueMinRestHours" INTEGER NOT NULL DEFAULT 12,
+    "deviceApiKey" TEXT,
+    "burnoutOtHoursMonthly" INTEGER NOT NULL DEFAULT 40,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AttendanceRule_pkey" PRIMARY KEY ("id")
@@ -3199,3 +3214,51 @@ ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_requesterId_fkey
 -- AddForeignKey
 ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+
+-- ============================================================================
+-- Task 100 F1 (impl-C, G26) — Open Shift marketplace (append-only)
+-- ============================================================================
+-- CreateTable
+CREATE TABLE "OpenShiftPost" (
+    "id" TEXT NOT NULL,
+    "workDate" TIMESTAMP(3) NOT NULL,
+    "scheduleId" TEXT NOT NULL,
+    "dayTypeId" TEXT NOT NULL,
+    "orgUnitName" TEXT,
+    "slots" INTEGER NOT NULL DEFAULT 1,
+    "filled" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "notes" TEXT,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OpenShiftPost_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OpenShiftClaim" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "decidedBy" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OpenShiftClaim_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "OpenShiftPost_workDate_idx" ON "OpenShiftPost"("workDate");
+
+-- CreateIndex
+CREATE INDEX "OpenShiftPost_status_idx" ON "OpenShiftPost"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OpenShiftClaim_postId_employeeId_key" ON "OpenShiftClaim"("postId", "employeeId");
+
+-- AddForeignKey
+ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_postId_fkey" FOREIGN KEY ("postId") REFERENCES "OpenShiftPost"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;

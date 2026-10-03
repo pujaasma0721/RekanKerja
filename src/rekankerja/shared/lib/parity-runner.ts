@@ -260,6 +260,14 @@ const STEPS: Step[] = [
     label: "Task 99 — leave policy v2: LeaveType.noticeDays/maxConsecutiveDays/blackoutDates",
     run: (s) => import("../../../../scripts/migrate-leave-advance").then((m) => m.main(s)),
   },
+  // Task 100 F1 (impl-C) — modul Attendance advance: kolom selfie/face-verify/
+  // multi-geofence/cap lembur konfiguratif/fatigue/device key/burnout + tabel
+  // OpenShiftPost/OpenShiftClaim (open shift marketplace).
+  {
+    key: "attendance-advance",
+    label: "Task 100 — attendance advance: selfie/faceVerify/otCap/fatigue + OpenShift",
+    run: (s) => import("../../../../scripts/migrate-attendance-advance").then((m) => m.main(s)),
+  },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============
@@ -451,7 +459,22 @@ export async function checkParityGap(): Promise<ParityGap> {
     );
     if (leavePolicyOk < schemas.length)
       reasons.push(`${schemas.length - leavePolicyOk} tenant tanpa kolom LeaveType.noticeDays/blackoutDates (Task 99 — leave policy v2)`);
-    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk) };
+    // Task 100 F1 (impl-C) — gap attendance advance: kolom AttendanceRule.otCapMode
+    // belum ada ATAU tabel OpenShiftPost belum ada = gap (penyebut = seluruh
+    // schema — AttendanceRule tabel inti semua tenant).
+    const otCapModeOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'AttendanceRule' AND column_name = 'otCapMode' AND table_schema = ANY($1::text[])`,
+    );
+    if (otCapModeOk < schemas.length)
+      reasons.push(`${schemas.length - otCapModeOk} tenant tanpa kolom AttendanceRule.otCapMode (Task 100 — attendance advance)`);
+    const openShiftOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'OpenShiftPost' AND table_schema = ANY($1::text[])`,
+    );
+    if (openShiftOk < schemas.length)
+      reasons.push(`${schemas.length - openShiftOk} tenant tanpa tabel OpenShiftPost (Task 100 — open shift)`);
+    return { gap: reasons.length > 0, reasons, tenants: schemas.length, readySchemas: Math.min(annOk, encOk, vaultOk, vaultKeyOk, ptkpSrcOk, maternityOk, jkpOk, terOfficialOk, jkpFixedOk, maternity3Ok, pkwtFinalOk, wbtOk, aiTablesOk, wageHistOk, idleTimeoutOk, medWave1Ok, medWave3Ok, leavePolicyOk, otCapModeOk, openShiftOk) };
   } finally {
     await c.end();
   }

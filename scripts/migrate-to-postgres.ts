@@ -6,9 +6,9 @@
 // Jalankan: bun run scripts/migrate-to-postgres.ts
 import { PrismaClient as Legacy } from "@/generated/legacy";
 import { PrismaClient as Platform } from "@/generated/platform";
-import { provisionTenantSchema, slugify, schemaNameForSlug } from "@/lib/rekankerja/provisioning";
-import { getTenantClient } from "@/lib/rekankerja/tenant-db";
-import { hashPassword } from "@/lib/rekankerja/auth";
+import { provisionTenantSchema, slugify, schemaNameForSlug } from "@/rekankerja/shared/lib/provisioning";
+import { getTenantClient } from "@/rekankerja/shared/lib/tenant-db";
+import { hashPassword } from "@/rekankerja/shared/lib/auth";
 
 const legacy = new Legacy({ datasources: { db: { url: process.env.LEGACY_SQLITE_URL ?? "file:/home/z/my-project/db/custom.db" } } });
 const platform = new Platform();

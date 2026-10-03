@@ -1223,12 +1223,12 @@ const DEFAULT_MAX_OVERTIME_HOURS = 4;
 /**
  * Fix audit 40 M-6 — cap lembur MINGGUAN statutory: PP 35/2021 Pasal 26
  * (perubahan atas UU 13/2003 Ps.79) = maksimum 18 jam lembur per minggu
- * (jendela Senin 00:00 – Minggu 24:00). Konstanta di KODE, bukan kolom
- * AttendanceRule — regulasi wajib berlaku seragam di semua tenant tanpa
- * migrasi schema; cap harian (default 4 jam) & cap bulanan opsional tetap
- * dibaca dari AttendanceRule.
+ * (jendela Senin 00:00 – Minggu 24:00). Konstanta di KODE sebagai nilai
+ * PRESET mode "PP35" (Task 100 F1 G14 — otCapMode): mode KEPMEN102/CUSTOM
+ * membaca nilai mingguan dari rule; mode PP35 tetap 18 jam statutory.
  */
-const WEEKLY_OT_CAP_MINUTES = 18 * 60;
+const WEEKLY_OT_CAP_HOURS = 18;
+const WEEKLY_OT_CAP_MINUTES = WEEKLY_OT_CAP_HOURS * 60;
 
 /** Menit efektif sebuah order terhadap cap (Pending = rencana, sudah diputus = jam dibayar). */
 function otEffectiveMinutes(o: { status: string; planMinutes: number; verifiedMinutes: number; actualMinutes: number }): number {
@@ -1238,18 +1238,49 @@ function otEffectiveMinutes(o: { status: string; planMinutes: number; verifiedMi
 /** Cap lembur efektif dari AttendanceRule — maxOvertimeHours (default 4 jam/hari)
  *  + cap opsional per bulan (null/0 = tanpa cap). Baca defensif: tenant remote
  *  yang kolomnya belum termigrasi → default PP 35/2021. Task 100 (G7a): menerima
- *  client transaksi supaya bisa dijalankan DI DALAM $transaction. */
-export async function overtimeCaps(db: TaClient): Promise<{ dailyHours: number; monthlyHours: number | null }> {
+ *  client transaksi supaya bisa dijalankan DI DALAM $transaction.
+ *
+ *  Task 100 F1 (G14) — mode cap lembur KONFIGURATIF (rule.otCapMode):
+ *    - PP35 (default / kolom null / tak termigrasi): harian = maxOvertimeHours
+ *      (knob lama, default 4 jam — preset PP 35/2021), mingguan = 18 jam
+ *      statutory Ps.26 (TIDAK berubah — itu memang nilainya);
+ *    - KEPMEN102: preset Kepmen 102/MWP/2004 — 3 jam/hari + 14 jam/minggu;
+ *    - CUSTOM: otCapDayHours/otCapWeekHours (null/0 → fallback preset PP35).
+ */
+export async function overtimeCaps(db: TaClient): Promise<{
+  dailyHours: number;
+  weeklyHours: number;
+  monthlyHours: number | null;
+  otCapMode: string;
+}> {
   try {
     const rule = await db.attendanceRule.findFirst({
       orderBy: { id: "asc" },
-      select: { maxOvertimeHours: true, maxOvertimeHoursMonthly: true },
+      select: {
+        maxOvertimeHours: true, maxOvertimeHoursMonthly: true,
+        otCapMode: true, otCapDayHours: true, otCapWeekHours: true,
+      },
     });
-    const dailyHours = rule && rule.maxOvertimeHours > 0 ? rule.maxOvertimeHours : DEFAULT_MAX_OVERTIME_HOURS;
+    const mode = rule?.otCapMode === "KEPMEN102" || rule?.otCapMode === "CUSTOM" ? rule.otCapMode : "PP35";
+    let dailyHours: number;
+    let weeklyHours: number;
+    if (mode === "KEPMEN102") {
+      dailyHours = 3; // Kepmen 102/2004: maks 3 jam/hari
+      weeklyHours = 14; // Kepmen 102/2004: maks 14 jam/minggu
+    } else if (mode === "CUSTOM") {
+      dailyHours = rule?.otCapDayHours && rule.otCapDayHours > 0 ? rule.otCapDayHours : DEFAULT_MAX_OVERTIME_HOURS;
+      weeklyHours = rule?.otCapWeekHours && rule.otCapWeekHours > 0 ? rule.otCapWeekHours : WEEKLY_OT_CAP_HOURS;
+    } else {
+      // PP35 — batas statutory mingguan 18 jam TETAP (justru itu nilainya);
+      // harian memakai knob lama maxOvertimeHours (default 4 = preset PP35).
+      dailyHours = rule && rule.maxOvertimeHours > 0 ? rule.maxOvertimeHours : DEFAULT_MAX_OVERTIME_HOURS;
+      weeklyHours = WEEKLY_OT_CAP_HOURS;
+    }
     const monthlyHours = rule?.maxOvertimeHoursMonthly && rule.maxOvertimeHoursMonthly > 0 ? rule.maxOvertimeHoursMonthly : null;
-    return { dailyHours, monthlyHours };
+    return { dailyHours, weeklyHours, monthlyHours, otCapMode: mode };
   } catch {
-    return { dailyHours: DEFAULT_MAX_OVERTIME_HOURS, monthlyHours: null };
+    // kolom baru belum termigrasi (tenant remote) → backward-compat PP35.
+    return { dailyHours: DEFAULT_MAX_OVERTIME_HOURS, weeklyHours: WEEKLY_OT_CAP_HOURS, monthlyHours: null, otCapMode: "PP35" };
   }
 }
 
@@ -1330,31 +1361,35 @@ async function assertOvertimeCaps(
   planMinutes: number,
   opts: { excludeOrderId?: string; verifiedMinutes?: number } = {},
 ): Promise<{ dailyHours: number }> {
-  const { dailyHours, monthlyHours } = await overtimeCaps(db);
+  // Task 100 F1 (G14) — cap kini KONFIGURATIF per rule.otCapMode (PP35 |
+  // KEPMEN102 | CUSTOM); pesan error menyebut mode supaya jelas dasar aturan.
+  const { dailyHours, weeklyHours, monthlyHours, otCapMode } = await overtimeCaps(db);
   const dailyCap = dailyHours * 60;
+  const capLabel =
+    otCapMode === "KEPMEN102" ? "Kepmen 102/2004" : otCapMode === "CUSTOM" ? "kebijakan kustom" : "PP 35/2021";
 
   // jam yang akan dibayar (bila diketahui) tak boleh melebihi cap harian
   const payable = opts.verifiedMinutes ?? planMinutes;
   if (payable > dailyCap) {
     throw new Error(
-      `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (PP 35/2021)` +
+      `Lembur ${Math.ceil(payable / 60 * 10) / 10} jam melebihi batas maksimal ${dailyHours} jam/hari (${capLabel})` +
         (opts.verifiedMinutes != null ? " — kurangi jam terverifikasi ke dalam batas" : ""),
     );
   }
   const othersToday = await activeOvertimeMinutesOnDate(db, employeeId, overtimeDate, opts.excludeOrderId);
   if (othersToday + payable > dailyCap) {
     throw new Error(
-      `Total lembur tanggal ${fmtDate(overtimeDate)} melampaui batas ${dailyHours} jam/hari (PP 35/2021) — ` +
+      `Total lembur tanggal ${fmtDate(overtimeDate)} melampaui batas ${dailyHours} jam/hari (${capLabel}) — ` +
         `sudah terdaftar ${Math.round(othersToday / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
     );
   }
-  // Fix audit 40 M-6 — cap MINGGUAN statutory 18 jam (PP 35/2021 Ps.26): jendela
-  // Senin 00:00 s/d Minggu 24:00 yang memuat tanggal order; total kumulatif
-  // lintas hari (tanpa ini 6 hari × 4 jam = 24 jam/minggu lolos cap harian).
+  // Fix audit 40 M-6 + Task 100 F1 (G14) — cap MINGGUAN kini mengikuti mode:
+  // PP35 = 18 jam statutory Ps.26; KEPMEN102 = 14 jam; CUSTOM = otCapWeekHours.
+  // Jendela tetap Senin 00:00 s/d Minggu 24:00 yang memuat tanggal order.
   const othersWeek = await activeOvertimeMinutesInWeek(db, employeeId, overtimeDate, opts.excludeOrderId);
-  if (othersWeek + payable > WEEKLY_OT_CAP_MINUTES) {
+  if (othersWeek + payable > weeklyHours * 60) {
     throw new Error(
-      `PP 35/2021 Ps.26: maksimum 18 jam lembur per minggu — minggu ini sudah terdaftar ${Math.round(othersWeek / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
+      `${capLabel}: maksimum ${weeklyHours} jam lembur per minggu — minggu ini sudah terdaftar ${Math.round(othersWeek / 60 * 10) / 10} jam, pengajuan ini ${Math.ceil(payable / 60 * 10) / 10} jam`,
     );
   }
   if (monthlyHours != null) {
@@ -1366,6 +1401,220 @@ async function assertOvertimeCaps(
     }
   }
   return { dailyHours };
+}
+
+// ============ Task 100 F1 (G23) — fatigue rules penugasan jadwal ============
+
+/** Elemen cycle jadwal utk resolusi day type (sequence → dayTypeId). */
+interface FatigueCycleDay {
+  sequence: number;
+  dayTypeId: string;
+}
+
+/**
+ * Resolusi day type sebuah tanggal dari cycle jadwal (matematika identik
+ * resolveDayTypeFromCache — satu sumber semantik anchoring cycle).
+ */
+function fatigueDayOfCycle(
+  cycle: FatigueCycleDay[],
+  anchorMonday: Date,
+  anchorSequence: number,
+  date: Date,
+): FatigueCycleDay | null {
+  if (cycle.length === 0) return null;
+  const offset = diffDays(anchorMonday, date);
+  const idx = ((offset + (anchorSequence - 1)) % cycle.length + cycle.length) % cycle.length;
+  const seq = cycle.reduce((best, d) => (d.sequence < best.sequence ? d : best), cycle[0]!).sequence + idx;
+  return cycle.find((d) => d.sequence === seq) ?? cycle.find((d) => d.sequence === idx + 1) ?? null;
+}
+
+/** Bentuk tanggal singkat utk pesan error: "12 Okt 2026". */
+function fmtDayShort(d: Date): string {
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * Task 100 F1 (G23) — FATIGUE RULES: validasi penugasan jadwal terhadap
+ * kelelahan kerja shift (benchmark UKG/Deputy "4 malam berturut + 12 jam
+ * jeda istirahat"). Dipanggil saat PENUGASAN JADWAL (assignment create):
+ *   assertFatigue(db, employeeId, newScheduleId, anchorMonday, workDate)
+ * Bila validasi create ada di route (api/assignments.ts — milik agen D),
+ * orkestrator tinggal memanggil fungsi ini SEBELUM create; tanpa
+ * newScheduleId → memvalidasi pola jadwal SAAT INI karyawan.
+ * Aturan (dari AttendanceRule, baca defensif — tenant belum termigrasi = no-op):
+ *   1. maks shift malam BERTURUT (dayType timeIn ≥ 21:00 ATAU nextDay)
+ *      = fatigueMaxConsecutiveNights (default 4; 0 = nonaktif);
+ *   2. jeda istirahat antar hari kerja ≥ fatigueMinRestHours jam (default 12)
+ *      — dihitung dari timeOut hari kerja sebelumnya ke timeIn hari kerja
+ *      berikutnya (nextDay diperhitungkan: 22:00–06:00 berakhir D+1 06:00).
+ * Throw Error deskriptif (route → 400) bila dilanggar.
+ */
+export async function assertFatigue(
+  db: TenantDb,
+  employeeId: string,
+  newScheduleId?: string,
+  anchorMonday?: Date,
+  workDate?: Date,
+): Promise<void> {
+  // ambil parameter fatigue dari rule singleton (defensif — kolom baru).
+  let maxNights = 4;
+  let minRestHours = 12;
+  try {
+    const rule = await db.attendanceRule.findFirst({
+      orderBy: { id: "asc" },
+      select: { fatigueMaxConsecutiveNights: true, fatigueMinRestHours: true },
+    });
+    if (rule?.fatigueMaxConsecutiveNights != null && rule.fatigueMaxConsecutiveNights >= 0) {
+      maxNights = rule.fatigueMaxConsecutiveNights;
+    }
+    if (rule?.fatigueMinRestHours != null && rule.fatigueMinRestHours >= 0) {
+      minRestHours = rule.fatigueMinRestHours;
+    }
+  } catch {
+    return; // tenant remote tanpa kolom fatigue — aturan nonaktif (no-op)
+  }
+  if (maxNights <= 0 && minRestHours <= 0) return; // keduanya dinonaktifkan admin
+
+  const fromDate = dayStart(workDate ?? new Date());
+  const windowStart = addDays(fromDate, -28); // riwayat malam berturut pra-perubahan
+  const windowEnd = addDays(fromDate, 28); // simulasikan pola baru 1 bulan ke depan
+  const cycleLen = Math.max(7, Math.round((windowEnd.getTime() - windowStart.getTime()) / 86_400_000));
+
+  // assignment lama yang menaungi window (pra perubahan) + jadwal BARU (simulasi).
+  const assignments = await db.scheduleAssignment.findMany({
+    where: {
+      employeeId,
+      validFrom: { lte: windowEnd },
+      OR: [{ validTo: null }, { validTo: { gte: windowStart } }],
+    },
+    include: { schedule: { include: { days: true } } },
+    orderBy: { validFrom: "desc" },
+  });
+  let newSchedule: { days: FatigueCycleDay[] } | null = null;
+  if (newScheduleId) {
+    const s = await db.workSchedule.findUnique({
+      where: { id: newScheduleId },
+      include: { days: true },
+    });
+    if (s && s.active) newSchedule = { days: s.days };
+  }
+  // anchor jadwal baru: pakai parameter, else Senin minggu efektif + seq 1
+  // (meniru default api/assignments saat anchor tidak dikirim).
+  const newAnchor = anchorMonday
+    ? dayStart(anchorMonday)
+    : (() => {
+        const d = new Date(fromDate);
+        const dow = (d.getDay() + 6) % 7; // Senin=0
+        return addDays(d, -dow);
+      })();
+
+  // day type yang dirujuk seluruh cycle — satu kueri in [...]
+  const dayTypeIds = new Set<string>();
+  for (const a of assignments) for (const d of a.schedule.days) dayTypeIds.add(d.dayTypeId);
+  if (newSchedule) for (const d of newSchedule.days) dayTypeIds.add(d.dayTypeId);
+  const dtRows = dayTypeIds.size > 0
+    ? await db.workDayType.findMany({ where: { id: { in: [...dayTypeIds] } } })
+    : [];
+  const dtById = new Map<string, DayTypeCacheRow>(dtRows.map((d) => [d.id, d as DayTypeCacheRow]));
+
+  // libur dalam window (overlay menang atas cycle — hari libur bukan hari kerja).
+  const holidaySet = new Set<string>();
+  try {
+    const hs = await db.holidayDate.findMany({
+      where: { date: { gte: windowStart, lt: windowEnd } },
+      select: { date: true },
+    });
+    for (const h of hs) {
+      const d = dayStart(h.date);
+      holidaySet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    }
+  } catch {
+    /* tanpa kalender libur — lanjut tanpa overlay */
+  }
+
+  // resolusi per tanggal: [workday?, night?, timeIn, timeOut, nextDay]
+  interface DayPlan {
+    date: Date;
+    night: boolean;
+    timeIn: string | null;
+    timeOut: string | null;
+    nextDay: boolean;
+  }
+  const plan: DayPlan[] = [];
+  for (let i = 0; i < cycleLen; i++) {
+    const date = addDays(windowStart, i);
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    let day: FatigueCycleDay | null = null;
+    if (newSchedule && date >= fromDate) {
+      day = fatigueDayOfCycle(newSchedule.days, newAnchor, 1, date);
+    } else {
+      // assignment lama yang berlaku pada tanggal tsb (validFrom terbaru menang —
+      // list sudah orderBy validFrom desc, ambil yang PERTAMA cocok).
+      const a = assignments.find(
+        (x) => x.validFrom <= date && (x.validTo == null || x.validTo >= date),
+      );
+      if (a) day = fatigueDayOfCycle(a.schedule.days, a.anchorMonday, a.anchorSequence, date);
+    }
+    const dt = day ? dtById.get(day.dayTypeId) : undefined;
+    const isWorkday =
+      !!dt && dt.active && dt.category === "Workday" && !holidaySet.has(iso) && !!dt.timeIn && !!dt.timeOut;
+    plan.push({
+      date,
+      night: isWorkday && ((dt!.timeIn ?? "00:00") >= "21:00" || dt!.nextDay),
+      timeIn: isWorkday ? dt!.timeIn : null,
+      timeOut: isWorkday ? dt!.timeOut : null,
+      nextDay: isWorkday ? dt!.nextDay : false,
+    });
+  }
+
+  // ---- aturan 1: maks shift malam berturut ----
+  if (maxNights > 0) {
+    let run = 0;
+    let runStart: Date | null = null;
+    for (const p of plan) {
+      if (p.night) {
+        if (run === 0) runStart = p.date;
+        run++;
+        // run yang melanggar hanya relevan bila menyentuh periode baru
+        // (p.date ≥ fromDate); run sejarah murni bukan akibat perubahan ini.
+        if (run > maxNights && p.date >= fromDate) {
+          throw new Error(
+            `Fatigue rule (Task 100 G23): pola jadwal menempatkan ${run} shift malam berturut-turut sejak ` +
+              `${fmtDayShort(runStart!)} — maksimum ${maxNights} malam berturut (fatigueMaxConsecutiveNights). ` +
+              `Sisipkan hari off di antara blok malam.`,
+          );
+        }
+      } else {
+        run = 0;
+      }
+    }
+  }
+
+  // ---- aturan 2: jeda istirahat ≥ fatigueMinRestHours antar hari kerja ----
+  if (minRestHours > 0) {
+    let lastEnd: Date | null = null; // timeOut efektif hari kerja sebelumnya
+    let lastDate: Date | null = null;
+    let lastTimeOut = ""; // "HH:MM" hari kerja sebelumnya (utk pesan)
+    for (const p of plan) {
+      if (p.timeIn == null || p.timeOut == null) continue; // bukan hari kerja
+      const startNext = atTime(p.timeIn, p.date, p.nextDay);
+      if (lastEnd != null && lastDate != null) {
+        const restHours = (startNext.getTime() - lastEnd.getTime()) / 3_600_000;
+        // pasangan masa lalu (kedua hari < fromDate) bukan akibat perubahan
+        // ini — hanya pasangan yang menyentuh periode baru yang ditolak.
+        if (restHours < minRestHours && p.date >= fromDate) {
+          throw new Error(
+            `Fatigue rule (Task 100 G23): jeda istirahat ${fmtDayShort(lastDate)} (${lastTimeOut}${p.nextDay ? " besok" : ""}) → ` +
+              `${fmtDayShort(p.date)} (${p.timeIn}) hanya ${Math.round(restHours * 10) / 10} jam — minimum ` +
+              `${minRestHours} jam antar hari kerja (fatigueMinRestHours). Sesuaikan jam jadwal atau sisipkan hari off.`,
+          );
+        }
+      }
+      lastEnd = atTime(p.timeOut, p.date, p.nextDay);
+      lastDate = p.date;
+      lastTimeOut = p.timeOut;
+    }
+  }
 }
 
 export interface OvertimeSubmitResult {

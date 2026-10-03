@@ -16,6 +16,7 @@ export type AiProviderKind = "builtin" | "openai";
 export interface AiProviderRow {
   id: string;
   provider: string;
+  apiKey: string | null; // terenkripsi enc:v1:t:… — Task 100: sertakan (tipe lama terlewat saat T96)
   baseUrl: string | null;
   model: string | null;
   enabled: boolean;

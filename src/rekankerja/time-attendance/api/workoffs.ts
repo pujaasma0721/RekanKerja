@@ -129,7 +129,94 @@ export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "attendance:workoff", "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const b = await req.json();
+    const b = await req.json().catch(() => ({}));
+
+    // ===== Task 100 F1 (G25) — op:"bulk": putuskan banyak izin sekaligus =====
+    // body { ids: string[] (maks 50), action: "approve"|"reject", reason? } →
+    // loop decideWorkoff PERSIS seperti op tunggal (approval berjenjang tetap
+    // jalan per dokumen); dokumen yang sudah diputuskan proses lain gagal
+    // per-id (race-safe) tanpa membatalkan sisa batch. Notifikasi per dokumen
+    // mirror op tunggal (email + in-app + webhook, fire-and-forget).
+    if (b.op === "bulk") {
+      // unknown[] dulu supaya Set ter-infer string[] (new Set(any) → Set<unknown>)
+      const rawIds: unknown[] = Array.isArray(b.ids) ? b.ids : [];
+      const ids = [...new Set(rawIds.map((x) => String(x ?? "").trim()).filter(Boolean))];
+      if (ids.length === 0) return NextResponse.json({ error: "ids wajib diisi (array id dokumen izin)" }, { status: 400 });
+      if (ids.length > 50) {
+        return NextResponse.json({ error: `Maksimal 50 dokumen per operasi massal (diminta ${ids.length})` }, { status: 400 });
+      }
+      const actionStr = String(b.action ?? "");
+      if (actionStr !== "approve" && actionStr !== "reject") {
+        return NextResponse.json({ error: "action wajib approve|reject untuk operasi massal" }, { status: 400 });
+      }
+      const action: "approve" | "reject" = actionStr;
+      const note = b.reason != null ? String(b.reason).slice(0, 300) : undefined;
+
+      const results: Array<{ id: string; ok: boolean; status?: string | null; error?: string }> = [];
+      for (const id of ids) {
+        try {
+          const res = await decideWorkoff(m.db, id, action, {
+            approver: m.actor.name,
+            note,
+            actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name },
+          });
+          // keputusan FINAL saja yang menotifikasi (approve jenjang menengah →
+          // res.approval terisi, izin masih Pending — mirror op tunggal;
+          // bulk hanya approve|reject, tidak ada jalur cancel)
+          if (!res.approval) {
+            void (async () => {
+              try {
+                const wo = await m.db.workOffPermission.findUnique({
+                  where: { id },
+                  select: { employeeId: true, docNo: true, dateFrom: true, dateTo: true, paid: true, employee: { select: { fullName: true } } },
+                });
+                if (!wo) return;
+                const emp = await employeeEmailOf(m.db, wo.employeeId);
+                if (emp) {
+                  notifyEmailEvent(m.db, {
+                    event: action === "approve" ? "workoff.approved" : "workoff.rejected",
+                    to: [emp],
+                    data: {
+                      nama: wo.employee?.fullName ?? "-", docNo: wo.docNo,
+                      tanggal: `${new Date(wo.dateFrom).toISOString().slice(0, 10)} → ${new Date(wo.dateTo).toISOString().slice(0, 10)}`,
+                      kebijakan: wo.paid ? "Dibayar (gaji tetap)" : "Tanpa upah",
+                      status: action === "approve" ? "Disetujui" : "Ditolak",
+                      keterangan: note ?? "-",
+                    },
+                  });
+                }
+                await notifyEvent(m.db, {
+                  to: "employee", docType: "WorkOff", docNo: wo.docNo, docId: id, employeeId: wo.employeeId,
+                  title: action === "approve" ? `Pengajuan izin ${wo.docNo} disetujui` : `Pengajuan izin ${wo.docNo} ditolak`,
+                  body: `Izin tidak masuk ${new Date(wo.dateFrom).toISOString().slice(0, 10)} → ${new Date(wo.dateTo).toISOString().slice(0, 10)}${note ? ` — catatan: ${note}` : ""}`,
+                  kind: "attendance", link: "attendance:workoff",
+                });
+                await dispatchWebhookEvent(
+                  m.db, null,
+                  action === "approve" ? "workoff.approved" : "workoff.rejected",
+                  {
+                    docNo: wo.docNo, employeeId: wo.employeeId, employeeName: wo.employee?.fullName ?? null,
+                    dateFrom: new Date(wo.dateFrom).toISOString().slice(0, 10),
+                    dateTo: new Date(wo.dateTo).toISOString().slice(0, 10),
+                    paid: wo.paid, note: note ?? null, decidedBy: m.actor.name, source: "bulk",
+                  },
+                );
+              } catch {
+                // notifikasi tidak boleh menggagalkan keputusan
+              }
+            })();
+          }
+          const permit = res.permit as { status?: string } | null;
+          results.push({ id, ok: true, status: permit?.status ?? null });
+        } catch (e) {
+          // race double-decide / akses jenjang → gagal per-id
+          results.push({ id, ok: false, error: e instanceof Error ? e.message : "unknown" });
+        }
+      }
+      const okCount = results.filter((r) => r.ok).length;
+      return NextResponse.json({ results, okCount, failCount: results.length - okCount });
+    }
+
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
     const res = await decideWorkoff(m.db, b.id, b.action, {
       approver: b.approver ?? m.actor.name,

@@ -163,7 +163,80 @@ export async function PATCH(req: NextRequest) {
   try {
     const m = await requireMenuAction(req, "attendance:overtime", "op:approve");
     if (!m.ok) return NextResponse.json({ error: m.error }, { status: m.status });
-    const b = await req.json();
+    const b = await req.json().catch(() => ({}));
+
+    // ===== Task 100 F1 (G25) — op:"bulk": putuskan banyak dokumen sekaligus ====
+    // body { ids: string[] (maks 50), action: "approve"|"reject", reason? } →
+    // loop decideOvertimeOrder PERSIS seperti op tunggal (service yang sama,
+    // validasi cap PP 35/2021 + approval berjenjang tetap jalan per dokumen);
+    // dokumen yang sudah diputuskan proses lain gagal per-id (race-safe) tanpa
+    // membatalkan sisa batch.
+    if (b.op === "bulk") {
+      // unknown[] dulu supaya Set ter-infer string[] (new Set(any) → Set<unknown>)
+      const rawIds: unknown[] = Array.isArray(b.ids) ? b.ids : [];
+      const ids = [...new Set(rawIds.map((x) => String(x ?? "").trim()).filter(Boolean))];
+      if (ids.length === 0) return NextResponse.json({ error: "ids wajib diisi (array nomor/id dokumen)" }, { status: 400 });
+      if (ids.length > 50) {
+        return NextResponse.json({ error: `Maksimal 50 dokumen per operasi massal (diminta ${ids.length})` }, { status: 400 });
+      }
+      const actionStr = String(b.action ?? "");
+      if (actionStr !== "approve" && actionStr !== "reject") {
+        return NextResponse.json({ error: "action wajib approve|reject untuk operasi massal" }, { status: 400 });
+      }
+      const action: "approve" | "reject" = actionStr;
+      const note = b.reason != null ? String(b.reason).slice(0, 300) : undefined;
+
+      const results: Array<{ id: string; ok: boolean; status?: string | null; error?: string }> = [];
+      for (const id of ids) {
+        try {
+          const res = await decideOvertimeOrder(m.db, id, action, {
+            approver: m.actor.name,
+            note,
+            actor: { role: m.actor.role, employeeId: m.actor.employeeId, name: m.actor.name, appUserId: m.actor.appUserId },
+          });
+          const order = res.order as
+            | { orderNo: string; employeeId: string; status: string; overtimeDate: Date }
+            | null;
+          // notifikasi per dokumen — mirror op tunggal (fire-and-forget)
+          if (action === "approve" && res.approval) {
+            void notifyEvent(m.db, {
+              to: "nextApprover", docType: "Overtime", docNo: order?.orderNo ?? id, docId: id,
+              title: `Perintah lembur ${order?.orderNo ?? "-"} menunggu persetujuan Anda (jenjang ${res.approval.currentLevel}/${res.approval.totalLevels})`,
+              body: `Jenjang sebelumnya disetujui — menunggu keputusan ${res.approval.currentApprover ?? "approver berikutnya"}.`,
+              kind: "attendance", link: "attendance:overtime",
+            });
+          }
+          if (order && !res.approval && (order.status === "Approved" || order.status === "Rejected")) {
+            void notifyEvent(m.db, {
+              to: "employee", docType: "Overtime", docNo: order.orderNo, docId: id, employeeId: order.employeeId,
+              title: action === "approve" ? `Perintah lembur ${order.orderNo} disetujui` : `Perintah lembur ${order.orderNo} ditolak`,
+              body: note ? `Catatan: ${note}` : res.note,
+              kind: "attendance", link: "attendance:overtime",
+            });
+            if (action === "approve") {
+              void (async () => {
+                try {
+                  await dispatchWebhookEvent(m.db, null, "overtime.approved", {
+                    docNo: order.orderNo,
+                    employeeId: order.employeeId,
+                    overtimeDate: new Date(order.overtimeDate).toISOString().slice(0, 10),
+                    status: order.status,
+                    source: "bulk",
+                  });
+                } catch { /* webhook tidak boleh mengganggu proses utama */ }
+              })();
+            }
+          }
+          results.push({ id, ok: true, status: order?.status ?? null });
+        } catch (e) {
+          // race double-decide / cap lembur / akses jenjang → gagal per-id
+          results.push({ id, ok: false, error: e instanceof Error ? e.message : "unknown" });
+        }
+      }
+      const okCount = results.filter((r) => r.ok).length;
+      return NextResponse.json({ results, okCount, failCount: results.length - okCount });
+    }
+
     if (!b.id || !b.action) return NextResponse.json({ error: "id & action wajib" }, { status: 400 });
     const res = await decideOvertimeOrder(m.db, b.id, b.action, {
       approver: b.approver ?? m.actor.name,

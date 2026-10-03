@@ -1126,7 +1126,7 @@ async function jobAttendanceClockoutReminder(db: TenantDb): Promise<{ employees:
 
   const empIds = [...openIn.keys()];
   let employees: Array<{ id: string; employeeNo: string; fullName: string }>;
-  let users: Array<{ id: string; employeeId: string }>;
+  let users: Array<{ id: string; employeeId: string | null }>;
   try {
     [employees, users] = await Promise.all([
       db.employee.findMany({
@@ -1148,6 +1148,7 @@ async function jobAttendanceClockoutReminder(db: TenantDb): Promise<{ employees:
   const todayKey = dayKey(now);
   const usersByEmp = new Map<string, string[]>();
   for (const u of users) {
+    if (!u.employeeId) continue; // AppUser tanpa relasi karyawan — lewati
     const arr = usersByEmp.get(u.employeeId) ?? [];
     arr.push(u.id);
     usersByEmp.set(u.employeeId, arr);

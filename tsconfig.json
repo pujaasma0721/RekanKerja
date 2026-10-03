@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "skills",
-    "agent-ctx"
+    "agent-ctx",
+    "prisma/dump-job-data.ts",
+    "prisma/restore-assignments.ts",
+    "scripts/migrate-to-postgres.ts"
   ]
 }

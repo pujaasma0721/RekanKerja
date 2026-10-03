@@ -205,6 +205,10 @@ model Employee {
   photoUrl      String?
   bankName      String?
   bankAccount   String? // no. rekening — terenkripsi (enc:v1:t:…)
+  // Task 100 F1 (G30): foto referensi verifikasi wajah saat clock ESS — path
+  // relatif storage (uploads/{slug}/…); foto PERTAMA kali dipakai sebagai
+  // referensi bila karyawan belum punya.
+  selfieRefUrl  String?
 
   // lifecycle kepegawaian (bukan riwayat penempatan)
   companyId String
@@ -276,6 +280,9 @@ model Employee {
   announcementReads       AnnouncementRead[]
   swapRequestsAsRequester ShiftSwapRequest[] @relation("SwapRequester")
   swapRequestsAsTarget    ShiftSwapRequest[] @relation("SwapTarget")
+
+  // Task 100 F1 (G26): klaim open shift yang diajukan karyawan
+  openShiftClaims OpenShiftClaim[]
 
   // relasi approval berjenjang
   structureLevelsAsApprover ApprovalStructureLevel[] @relation("LevelApproverEmployee")
@@ -1521,7 +1528,16 @@ model AttendanceClockLog {
   // T7-ESS: posisi clock via web/mobile (opsional — geolocation presensi).
   latitude   Float?
   longitude  Float?
-  createdAt  DateTime @default(now())
+  // Task 100 F1 (G13/G22/G30): bukti & verifikasi identitas saat clock —
+  // selfieUrl = path relatif storage foto selfie; deviceId = fingerprint
+  // perangkat klien; faceVerified = hasil perbandingan VLM vs foto referensi;
+  // anomalyNotes = flag ringkas dipisah koma (mis. "speed", "dupgeo",
+  // "qr-verified", "vlm-unavailable") utk deteksi anomali G27.
+  selfieUrl    String?
+  deviceId     String?
+  faceVerified Boolean?
+  anomalyNotes String?
+  createdAt   DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -1650,7 +1666,70 @@ model AttendanceRule {
   // 27-a P0 — geofencing presensi: Off = abaikan koordinat; Warn = catat
   // peringatan tapi clock tetap sah; Strict = tolak clock di luar radius.
   geofenceMode                     String   @default("Off") // Off|Warn|Strict
+  // Task 100 F1 (G18) — geofence MULTI-SITE: cocokkan jarak ke SEMUA WorkLocation
+  // aktif berlat/long (yang terdekat menang), bukan hanya lokasi karyawan.
+  geofenceMultiSite                Boolean  @default(false)
+  // Task 100 F1 (G13) — selfie saat clock: off = tak diminta; warn = tanpa foto
+  // tetap jalan (flag); required = tolak clock tanpa foto.
+  selfieMode                       String   @default("off") // off|warn|required
+  // Task 100 F1 (G30) — verifikasi wajah (VLM z-ai) bila selfie dikirim:
+  // off|warn (lanjut + flag bila beda)|strict (tolak clock bila beda orang).
+  faceVerifyMode                   String   @default("off") // off|warn|strict
+  // Task 100 F1 (G14) — mode cap lembur: PP35 = 4 j/hari + 18 j/mgg (Ps.26,
+  // default); KEPMEN102 = Kepmen 102/2004 (3 j/hari + 14 j/mgg); CUSTOM =
+  // pakai otCapDayHours/otCapWeekHours (null → fallback PP35).
+  otCapMode                        String   @default("PP35") // PP35|KEPMEN102|CUSTOM
+  otCapDayHours                    Int? // CUSTOM — cap harian (jam)
+  otCapWeekHours                   Int? // CUSTOM — cap mingguan (jam)
+  // Task 100 F1 (G23) — fatigue rules: maks shift malam berturut-turut +
+  // jeda istirahat minimum antar hari kerja (jam). 0 = nonaktif.
+  fatigueMaxConsecutiveNights      Int      @default(4)
+  fatigueMinRestHours              Int      @default(12)
+  // Task 100 F1 (G16/G8-device) — API key perangkat presensi (device punch,
+  // agen D): "ovdev_{slug}_{hex48}"; dibuat op regenDeviceKey (GET disembunyikan).
+  deviceApiKey                    String?
+  // Task 100 F1 (G29) — ambang burnout: rata-rata jam lembur per bulan (3 bulan
+  // rolling) yang menghasilkan flag pada laporan anomali.
+  burnoutOtHoursMonthly            Int      @default(40)
   updatedAt                        DateTime @updatedAt
+}
+
+// Task 100 F1 (G26) — open shift marketplace: posting shift kosong pada
+// tanggal tertentu (jadwal + day type) utk diklaim karyawan sukarela.
+model OpenShiftPost {
+  id          String   @id @default(cuid())
+  workDate    DateTime
+  scheduleId  String
+  dayTypeId   String
+  orgUnitName String?
+  slots       Int      @default(1)
+  filled      Int      @default(0)
+  status      String   @default("Open") // Open|Filled|Closed|Cancelled
+  notes       String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  claims OpenShiftClaim[]
+
+  @@index([workDate])
+  @@index([status])
+}
+
+// Task 100 F1 (G26) — pengajuan klaim open shift oleh karyawan (1 klaim
+// aktif per karyawan per post; diputus admin: Pending→Approved|Rejected).
+model OpenShiftClaim {
+  id         String    @id @default(cuid())
+  postId     String
+  employeeId String
+  status     String    @default("Pending") // Pending|Approved|Rejected
+  decidedBy  String?
+  decidedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  post     OpenShiftPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, employeeId])
 }
 
 // T9-HOLIDAY — kalender hari libur (nasional/bersama/perusahaan). Overlay engine:

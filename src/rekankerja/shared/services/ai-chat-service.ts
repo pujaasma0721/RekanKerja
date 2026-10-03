@@ -386,7 +386,7 @@ export async function askAi(db: TenantDb, actor: AiActor, mode: AiChatMode, ques
   await db.aiChatMessage.create({ data: { appUserId: actor.appUserId!, mode, role: "user", content: q } });
 
   const history = await db.aiChatMessage.findMany({
-    where: { appUserId: actor.appUserId, mode },
+    where: { appUserId: actor.appUserId!, mode }, // non-null: baris user baru dibuat di atas
     orderBy: { createdAt: "desc" },
     take: HISTORY_LIMIT,
     select: { role: true, content: true },
@@ -468,7 +468,8 @@ export async function listChatContacts(db: TenantDb, actor: AiActor): Promise<Ch
     where: { id: { in: empIds } },
     select: { id: true, fullName: true, position: { select: { title: true } } },
   }).catch(() => [] as { id: string; fullName: string; position: { title: string | null } | null }[]);
-  const empById = new Map(employees.map((e) => [e.id, e]));
+  type EmpRow = { id: string; fullName: string; position: { title: string | null } | null };
+  const empById = new Map<string, EmpRow>(employees.map((e: EmpRow) => [e.id, e] as [string, EmpRow]));
 
   const contacts: ChatContact[] = [];
   for (const [empId, relation] of relations) {

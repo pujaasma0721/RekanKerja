@@ -295,6 +295,9 @@ export async function POST(req: Request) {
       }
       throw new Error("Kode TSK unik tidak berhasil dialokasikan setelah 3 percobaan — coba ulang sesaat lagi");
     })();
+    // Task 100 (G7b) — `code` scope IIFE: turunkan dari row hasil create agar
+    // referensi ActivityLog/notifikasi di bawah tetap valid.
+    const code = created.code;
 
     await db.activityLog.create({
       data: {
