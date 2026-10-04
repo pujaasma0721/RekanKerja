@@ -216,24 +216,45 @@ export async function effectiveTenantIdOf(
 }
 
 /**
- * Task 64k — batas idle sesi workspace aktif (menit; 0/null = nonaktif).
- * Best-effort: gagal (schema tak terjangkau, tabel lama) → null — fitur idle
- * timeout mati, sisanya tidak terpengaruh.
+ * Batas idle sesi global (menit) dari env — default 30. `0` = nonaktif
+ * (kembali ke kebijakan per-tenant saja). Nilai negatif / bukan angka →
+ * default 30. Dibaca per-request (bukan cache modul) agar `pm2 restart
+ * --update-env` langsung berlaku tanpa rebuild.
+ */
+export const DEFAULT_SESSION_IDLE_MINUTES = 30;
+
+export function sessionIdleTimeoutMinutes(): number {
+  const raw = (process.env.SESSION_IDLE_TIMEOUT_MINUTES ?? "").trim();
+  if (raw === "") return DEFAULT_SESSION_IDLE_MINUTES;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_SESSION_IDLE_MINUTES;
+  return Math.floor(n);
+}
+
+/**
+ * Task 64k — batas idle sesi workspace aktif (menit; null = nonaktif).
+ * Prioritas: kebijakan per-tenant (>0) MENANG atas env; bila tenant tidak
+ * mengatur (0), pakai SESSION_IDLE_TIMEOUT_MINUTES (default 30).
+ * Best-effort: gagal (schema tak terjangkau, tabel lama) → fallback env —
+ * fitur idle tetap jalan, sisanya tidak terpengaruh.
  */
 export async function idleTimeoutOfSession(userId: string, tenantId: string | null): Promise<number | null> {
-  if (!tenantId) return null;
+  const envIdle = sessionIdleTimeoutMinutes();
+  const fallback = envIdle > 0 ? envIdle : null;
+  if (!tenantId) return fallback;
   try {
     const m = await platformDb.userTenant.findFirst({
       where: { userId, tenantId },
       select: { tenant: { select: { schemaName: true, status: true } } },
     });
-    if (!m || m.tenant.status !== "ACTIVE") return null;
+    if (!m || m.tenant.status !== "ACTIVE") return fallback;
     const { getTenantClient } = await import("./tenant-db");
     const { getTenantPolicy } = await import("../services/password-security");
     const policy = await getTenantPolicy(getTenantClient(m.tenant.schemaName));
-    return policy.idleTimeoutMinutes > 0 ? policy.idleTimeoutMinutes : null;
+    if (policy.idleTimeoutMinutes > 0) return policy.idleTimeoutMinutes;
+    return fallback;
   } catch {
-    return null;
+    return fallback;
   }
 }
 

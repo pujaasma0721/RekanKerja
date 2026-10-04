@@ -9,7 +9,8 @@
 import { useEffect } from "react";
 import { useSession } from "./session-store";
 
-const KEEPALIVE_MS = 10 * 60 * 1000; // /api/auth/me tiap 10 menit (sliding refresh)
+const IDLE_CHECK_MS = 60 * 1000; // cek idle tiap 1 menit (agar batas 30 mnt tepat ±1 mnt)
+const KEEPALIVE_EVERY_N_TICKS = 10; // /api/auth/me tiap 10 tick = 10 menit (sliding refresh)
 
 /** Catat aktivitas terakhir (throttle 10 dtk — jangan tulis tiap gerakan mouse). */
 let lastActivity = Date.now();
@@ -26,11 +27,12 @@ export function initSessionLifecycle() {
   const events: (keyof WindowEventMap)[] = ["keydown", "pointerdown", "pointermove", "wheel", "touchstart", "scroll"];
   for (const ev of events) window.addEventListener(ev, onActivity, { passive: true, capture: true });
 
+  let tickCount = 0;
   const tick = window.setInterval(() => {
     const { status, info, expired, expire } = useSession.getState();
     if (status !== "ready" || expired) return;
 
-    // ---- lapisan 2: idle timeout (kebijakan tenant) ----
+    // ---- lapisan 2: idle timeout (env global / kebijakan tenant) ----
     const idleMinutes = info?.idleTimeoutMinutes ?? 0;
     if (idleMinutes > 0 && Date.now() - lastActivity >= idleMinutes * 60_000) {
       void (async () => {
@@ -40,9 +42,12 @@ export function initSessionLifecycle() {
       return;
     }
 
-    // ---- lapisan 1: sliding refresh via /api/auth/me ----
-    void fetch("/api/auth/me", { cache: "no-store" }).catch(() => {});
-  }, KEEPALIVE_MS);
+    // ---- lapisan 1: sliding refresh via /api/auth/me (tiap 10 menit) ----
+    tickCount += 1;
+    if (tickCount % KEEPALIVE_EVERY_N_TICKS === 0) {
+      void fetch("/api/auth/me", { cache: "no-store" }).catch(() => {});
+    }
+  }, IDLE_CHECK_MS);
 
   return () => {
     window.clearInterval(tick);
