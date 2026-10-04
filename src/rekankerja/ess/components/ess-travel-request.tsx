@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { StatusPill, EmptyState } from "@/rekankerja/shared/components/ui-kit";
+import { StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ESS_BASE } from "./ess-api";
 import {
   CityRateRowUI, estimateTripClient,
-  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtIDRShort, fmtDateID,
+  fmtIDR, fmtIDRShort, fmtDateID,
 } from "@/rekankerja/travel/components/travel-types";
 import {
-  Plane, Plus, Send, Loader2, Wallet, Globe2, Trash2, Sparkles, Clock, MapPin, ChevronDown, ChevronRight,
+  Plane, Plus, Send, Loader2, Wallet, Globe2, Trash2, Sparkles, Clock, MapPin, ChevronDown, ChevronRight, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,17 @@ interface SubmitResult {
   approvalLevels: number; firstApprover: string | null;
   budgetWarning?: string | null;
   budget?: { costCenter: string | null; remaining: number | null } | null;
+}
+
+// 101-f — FormError kanon (padanan ess-letters.tsx): box rose + AlertTriangle h-4 w-4.
+function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <span className="break-words">{message}</span>
+    </div>
+  );
 }
 
 export function EssTravelRequest() {
@@ -143,11 +154,9 @@ export function EssTravelRequest() {
   return (
     <>
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-              <Plane className="h-4 w-4" aria-hidden />
-            </span>
+            <Plane className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Perjalanan Dinas Saya", "My Business Trips")}
           </CardTitle>
           <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-400">
@@ -156,8 +165,14 @@ export function EssTravelRequest() {
         </CardHeader>
         <CardContent className="space-y-3 pt-1">
           {api.loading && !api.data ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-[12px] text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("Memuat pengajuan dinis…", "Loading your trips…")}
+            <LoadingRows rows={4} />
+          ) : api.error && !api.data ? (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+              <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+              <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat perjalanan dinas", "Failed to load business trips")}</p>
+              <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+                <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+              </Button>
             </div>
           ) : requests.length === 0 ? (
             <EmptyState
@@ -190,27 +205,27 @@ export function EssTravelRequest() {
                         {r.approval ? ` · ${t("jenjang", "tier")} ${r.approval.currentLevel}/${r.approval.totalLevels}` : ""}
                       </span>
                     </span>
-                    <StatusPill status={t(TRAVEL_STATUS_LABEL[r.status] ?? r.status, TRAVEL_STATUS_LABEL_EN[r.status] ?? r.status)} />
+                    <StatusPill status={r.status} />
                   </button>
                   {expanded === r.docNo && (
                     <div className="mt-2 space-y-1.5 rounded-xl bg-slate-50 px-3 py-2.5 text-[11px] dark:bg-slate-800/50">
                       <p className="text-slate-600 dark:text-slate-300">{r.purpose}</p>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-500">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {r.destinations.map((d) => `${d.city}${d.overseas ? " ✈" : ""}`).join(" → ")}</span>
                         {r.advanceAmount != null && r.advanceAmount > 0 && (
                           <span className="flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-400"><Wallet className="h-3 w-3" /> {t("uang muka {amt}", "advance {amt}", { amt: fmtIDRShort(r.advanceAmount) })}</span>
                         )}
                         {r.settlementDue && (
-                          <span className={cn("flex items-center gap-1", r.overdue ? "font-bold text-rose-600 dark:text-rose-400" : "text-slate-500")}>
+                          <span className={cn("flex items-center gap-1", r.overdue ? "font-bold text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
                             <Clock className="h-3 w-3" /> {t("jatuh tempo klaim {d}", "claim due {d}", { d: fmtDateID(r.settlementDue) })}{r.overdue ? ` · ${t("LEWAT", "OVERDUE")}` : ""}
                           </span>
                         )}
                         {r.activeClaimDocNo && (
-                          <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">{t("klaim {no} diproses", "claim {no} in process", { no: r.activeClaimDocNo })}</span>
+                          <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">{t("klaim {no} diproses", "claim {no} in process", { no: r.activeClaimDocNo })}</span>
                         )}
                       </div>
                       {r.approval?.currentApprover && r.status === "Submitted" && (
-                        <p className="text-slate-500">{t("menunggu", "awaiting")} <b>{r.approval.currentApprover}</b></p>
+                        <p className="text-slate-500 dark:text-slate-400">{t("menunggu", "awaiting")} <b>{r.approval.currentApprover}</b></p>
                       )}
                       {r.decisionNote && <p className="rounded-lg bg-white px-2 py-1.5 text-slate-600 dark:bg-slate-900 dark:text-slate-300">{r.decisionNote}</p>}
                       {r.status === "Approved" && !r.hasActiveClaim && (
@@ -231,10 +246,10 @@ export function EssTravelRequest() {
       </Card>
 
       <Dialog open={dialog} onOpenChange={(v) => { if (!busy) setDialog(v); }}>
-        <DialogContent className="max-h-[92vh] w-[min(680px,94vw)] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plane className="h-4 w-4 text-sky-600" aria-hidden /> {t("Ajukan Perjalanan Dinas", "Request Business Trip")}
+              <Plane className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Ajukan Perjalanan Dinas", "Request Business Trip")}
             </DialogTitle>
             <DialogDescription>
               {t("Multi-kota + uang muka opsional — estimasi otomatis dari tarif SBI PMK 32/2025; approval berjenjang ke atasan.", "Multi-city + optional advance — automatic estimates from SBI rates (PMK 32/2025); tiered approval to your manager.")}
@@ -276,18 +291,18 @@ export function EssTravelRequest() {
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-400">{t("Destinasi {n}", "Destination {n}", { n: i + 1 })}</span>
                     {dests.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 rounded-lg px-2 text-[11px] text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40" onClick={() => setDests(dests.filter((_, x) => x !== i))}>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 rounded-lg px-2 text-[11px] text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10" onClick={() => setDests(dests.filter((_, x) => x !== i))}>
                         <Trash2 className="h-3 w-3" /> {t("Hapus", "Remove")}
                       </Button>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-slate-500">{t("Kota *", "City *")}</Label>
+                      <Label className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Kota *", "City *")}</Label>
                       <Input value={d.city} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, city: e.target.value } : x))} placeholder="Bandung" className="h-8 rounded-lg text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-slate-500">{t("Zona", "Zone")}</Label>
+                      <Label className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Zona", "Zone")}</Label>
                       <Select value={d.zoneCode} onValueChange={(v) => setDests(dests.map((x, xi) => xi === i ? { ...x, zoneCode: v } : x))}>
                         <SelectTrigger className="h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -298,17 +313,17 @@ export function EssTravelRequest() {
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-slate-500">{t("Tgl Berangkat", "Departure")}</Label>
+                      <Label className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Tgl Berangkat", "Departure")}</Label>
                       <Input type="date" value={d.dateFrom} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateFrom: e.target.value } : x))} className="h-8 rounded-lg text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] font-bold text-slate-500">{t("Tgl Datang", "Arrival")}</Label>
+                      <Label className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Tgl Datang", "Arrival")}</Label>
                       <Input type="date" value={d.dateTo} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, dateTo: e.target.value } : x))} className="h-8 rounded-lg text-sm" />
                     </div>
                   </div>
                   {zones.find((z) => z.code === d.zoneCode)?.overseas && (
                     <div className="mt-2 space-y-1">
-                      <Label className="text-[10px] font-bold text-slate-500">{t("Negara (luar negeri)", "Country (overseas)")}</Label>
+                      <Label className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("Negara (luar negeri)", "Country (overseas)")}</Label>
                       <Input value={d.country} onChange={(e) => setDests(dests.map((x, xi) => xi === i ? { ...x, country: e.target.value } : x))} placeholder="Singapura" className="h-8 rounded-lg text-sm" />
                     </div>
                   )}
@@ -318,8 +333,8 @@ export function EssTravelRequest() {
 
             {/* Task 98 (F1-2) — estimasi SBI live */}
             {estimate && estimate.legs.length > 0 && (
-              <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/20">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-sky-800 dark:text-sky-300">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-400">
                   <Sparkles className="h-3.5 w-3.5" /> {t("Estimasi Biaya — tarif SBI PMK 32/2025", "Cost Estimate — SBI rates (PMK 32/2025)")}
                 </p>
                 <div className="space-y-1.5">
@@ -328,7 +343,7 @@ export function EssTravelRequest() {
                       <div className="flex flex-wrap items-center justify-between gap-1">
                         <span className="font-bold text-slate-700 dark:text-slate-300">
                           {l.city} · {l.days} {t("hari", "days")} / {l.nights} {t("malam", "nights")}
-                          {l.overseas && <Globe2 className="ml-1 inline h-3 w-3 text-sky-500" />}
+                          {l.overseas && <Globe2 className="ml-1 inline h-3 w-3 text-amber-500" />}
                         </span>
                         <span className="font-bold text-slate-800 dark:text-slate-200">{fmtIDRShort(l.perDiem + l.hotelEstimate)}</span>
                       </div>
@@ -343,12 +358,12 @@ export function EssTravelRequest() {
                   ))}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-black text-sky-800 dark:text-sky-300">
+                  <p className="text-xs font-black text-amber-800 dark:text-amber-400">
                     {t("Total estimasi: {amt}", "Estimated total: {amt}", { amt: fmtIDR(estimate.estimateTotal) })}
                   </p>
                   <Button
                     type="button" variant="outline" size="sm"
-                    className="h-7 gap-1 rounded-lg border-sky-300 text-[11px] font-bold text-sky-700 hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                    className="h-7 gap-1 rounded-lg border-amber-300 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-500/10"
                     onClick={() => setForm({ ...form, advanceAmount: String(estimate!.estimateTotal) })}
                   >
                     <Wallet className="h-3 w-3" /> {t("Gunakan sebagai uang muka", "Use as the advance")}
@@ -357,7 +372,7 @@ export function EssTravelRequest() {
               </div>
             )}
 
-            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
               <Label className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-400">
                 <Wallet className="h-3.5 w-3.5" /> {t("Uang Muka (opsional — dicairkan setelah disetujui)", "Advance (optional — disbursed after approval)")}
               </Label>
@@ -380,9 +395,7 @@ export function EssTravelRequest() {
               <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-xl text-sm" />
             </div>
 
-            {formError && (
-              <p className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">{formError}</p>
-            )}
+            {formError && <FormError message={formError} />}
           </div>
 
           <DialogFooter className="items-center gap-3">

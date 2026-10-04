@@ -3,19 +3,31 @@
 // chip fakta + kartu atasan langsung + tab read-only) + Ganti Kata Sandi.
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { KeyRound, BriefcaseBusiness, UserRound, IdCard, Building2, UserCheck, CalendarRange, MapPin, Mail, Phone, Award } from "lucide-react";
+import { KeyRound, BriefcaseBusiness, UserRound, IdCard, Building2, UserCheck, CalendarRange, Mail, Phone, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtDate, fmtDateLong, initials, tenure } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill } from "@/rekankerja/shared/components/ui-kit";
 import { ChangePasswordDialog } from "@/rekankerja/shared/components/shell/change-password-dialog";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { EssMe } from "./ess-types";
 
 interface EssProfileProps { me: EssMe }
+
+// Status kepegawaian — nilai domain (provisioning EmploymentStatus:
+// Permanent/Contract/Probation/Outsourcing) dilokalkan ke istilah Indonesia;
+// nilai di luar peta tampil mentah (fallback mulus).
+const EMPLOYMENT_STATUS_ID: Record<string, string> = {
+  Permanent: "Tetap",
+  Contract: "Kontrak",
+  Probation: "Percobaan",
+  Outsourcing: "Outsourcing",
+};
+const employmentStatusLabel = (t: (id: string, en: string) => string, value: string) =>
+  t(EMPLOYMENT_STATUS_ID[value] ?? value, value);
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   const { t } = useI18n();
@@ -54,15 +66,15 @@ export function EssProfile({ me }: EssProfileProps) {
         transition={{ duration: 0.3 }}
         className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
-        <div className="relative h-28 bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 dark:from-amber-600 dark:via-amber-700 dark:to-orange-800">
+        <div className="relative h-28 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 dark:from-amber-600 dark:via-amber-700 dark:to-amber-900">
           <div className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full bg-white/15 blur-2xl" aria-hidden />
-          <div className="pointer-events-none absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-orange-300/25 blur-2xl" aria-hidden />
+          <div className="pointer-events-none absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-amber-300/25 blur-2xl" aria-hidden />
         </div>
         <div className="relative -mt-12 px-5 pb-6 sm:px-6">
           <div className="flex flex-wrap items-end gap-4">
             <Avatar className="h-24 w-24 rounded-2xl border-4 border-white shadow-lg dark:border-slate-900">
               {e.photoUrl && <AvatarImage src={e.photoUrl} alt={e.fullName} />}
-              <AvatarFallback className="rounded-2xl bg-amber-100 text-2xl font-extrabold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
+              <AvatarFallback className="rounded-2xl bg-amber-100 text-2xl font-extrabold text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
                 {initials(e.fullName)}
               </AvatarFallback>
             </Avatar>
@@ -72,7 +84,7 @@ export function EssProfile({ me }: EssProfileProps) {
                 {e.employmentStatus && <StatusPill status={e.employmentStatus} />}
               </div>
               <p className="mt-1 text-[13px] font-bold text-slate-600 dark:text-slate-300">
-                <span className="font-mono text-amber-700 dark:text-amber-500">{e.employeeNo}</span>
+                <span className="font-mono text-amber-700 dark:text-amber-400">{e.employeeNo}</span>
                 {e.positionTitle ? ` · ${e.positionTitle}` : ""}
               </p>
               <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-400">
@@ -82,21 +94,21 @@ export function EssProfile({ me }: EssProfileProps) {
               {/* chip fakta */}
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {e.joinDate && (
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     <CalendarRange className="h-3 w-3 text-amber-600 dark:text-amber-400" aria-hidden />
                     {t("bergabung {d}", "joined {d}", { d: fmtDate(e.joinDate) })} · {tenure(e.joinDate)}
                   </span>
                 )}
                 {e.gradeCode && (
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     <Award className="h-3 w-3 text-amber-600 dark:text-amber-400" aria-hidden />
                     {t("Grade {g}", "Grade {g}", { g: e.gradeCode })}{e.levelCode ? ` · ${e.levelCode}` : ""}
                   </span>
                 )}
                 {e.employmentStatus && (
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10.5px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     <BriefcaseBusiness className="h-3 w-3 text-amber-600 dark:text-amber-400" aria-hidden />
-                    {e.employmentStatus}
+                    {employmentStatusLabel(t, e.employmentStatus)}
                   </span>
                 )}
               </div>
@@ -115,21 +127,27 @@ export function EssProfile({ me }: EssProfileProps) {
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         {/* ===== atasan langsung ===== */}
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              <UserCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Atasan Langsung", "Direct Manager")}
-            </p>
-            <p className="mt-2 text-[15px] font-extrabold text-slate-900 dark:text-slate-50">{e.managerName ?? t("—")}</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <UserRound className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Atasan Langsung", "Direct Manager")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 pt-0">
+            <p className="text-[15px] font-extrabold text-slate-900 dark:text-slate-50">{e.managerName ?? t("—")}</p>
             <p className="mt-0.5 text-[11px] text-slate-400">{t("Persetujuan pengajuan Anda mengalir ke atasan ini.", "Your request approvals flow to this manager.")}</p>
           </CardContent>
         </Card>
         {/* ===== kontak ===== */}
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              <Mail className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Kontak", "Contact")}
-            </p>
-            <p className="mt-2 truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Mail className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Kontak", "Contact")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 pt-0">
+            <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">
               {e.email ?? t("—")}
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-bold text-slate-800 dark:text-slate-100">
@@ -137,13 +155,16 @@ export function EssProfile({ me }: EssProfileProps) {
             </p>
           </CardContent>
         </Card>
-        {/* ===== perusahaan ===== */}
+        {/* ===== penempatan ===== */}
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              <MapPin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Penempatan", "Placement")}
-            </p>
-            <p className="mt-2 text-[15px] font-extrabold text-slate-900 dark:text-slate-50">{me.companyName ?? t("—")}</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Building2 className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Penempatan", "Placement")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 pt-0">
+            <p className="text-[15px] font-extrabold text-slate-900 dark:text-slate-50">{me.companyName ?? t("—")}</p>
             <p className="mt-0.5 text-[11px] text-slate-400">{e.orgUnitName ?? t("—")}</p>
           </CardContent>
         </Card>
@@ -154,13 +175,13 @@ export function EssProfile({ me }: EssProfileProps) {
         <CardContent className="p-4 sm:p-6">
           <Tabs defaultValue="work">
             <TabsList className="mb-2 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900/70 sm:w-auto">
-              <TabsTrigger value="work" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-800 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
+              <TabsTrigger value="work" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-700 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
                 <BriefcaseBusiness className="h-3.5 w-3.5" /> {t("Pekerjaan", "Employment")}
               </TabsTrigger>
-              <TabsTrigger value="personal" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-800 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
+              <TabsTrigger value="personal" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-700 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
                 <UserRound className="h-3.5 w-3.5" /> {t("Pribadi & Kontak", "Personal & Contact")}
               </TabsTrigger>
-              <TabsTrigger value="identity" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-800 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
+              <TabsTrigger value="identity" className="gap-1.5 rounded-lg px-3.5 py-2 text-[13px] data-[state=active]:bg-white data-[state=active]:text-amber-700 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-amber-400">
                 <IdCard className="h-3.5 w-3.5" /> {t("Identitas & Asuransi", "Identity & Insurance")}
               </TabsTrigger>
             </TabsList>
@@ -176,7 +197,7 @@ export function EssProfile({ me }: EssProfileProps) {
                 <div>
                   <InfoRow label={t("Atasan Langsung", "Direct Manager")} value={e.managerName} />
                   <InfoRow label={t("Tanggal Bergabung", "Join Date")} value={e.joinDate ? fmtDate(e.joinDate) : null} />
-                  <InfoRow label={t("Status Kepegawaian", "Employment Status")} value={e.employmentStatus} />
+                  <InfoRow label={t("Status Kepegawaian", "Employment Status")} value={e.employmentStatus ? employmentStatusLabel(t, e.employmentStatus) : null} />
                   <InfoRow label={t("Perusahaan", "Company")} value={me.companyName} />
                 </div>
               </div>
@@ -193,7 +214,7 @@ export function EssProfile({ me }: EssProfileProps) {
                   <InfoRow label={t("Telepon", "Phone")} value={e.phone} />
                 </div>
               </div>
-              <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50/60 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50/60 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
                 <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("Perubahan data pribadi diajukan melalui admin HR (Personnel Action).", "Personal data changes are submitted through HR admin (Personnel Action).")}
               </p>

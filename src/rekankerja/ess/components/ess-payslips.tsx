@@ -42,9 +42,9 @@ function ItemList({ title, icon: Icon, items, tone, empty }: {
   const { t } = useI18n();
   return (
     <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-      <CardHeader className="pb-1">
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <Icon className={cn("h-4 w-4", tone === "earn" && "text-brand dark:text-brand/85", tone === "deduct" && "text-rose-500 dark:text-rose-400", tone === "info" && "text-slate-400")} aria-hidden />
+          <Icon className={cn("h-4 w-4", tone === "earn" && "text-brand dark:text-brand/85", tone === "deduct" && "text-rose-600 dark:text-rose-400", tone === "info" && "text-slate-400")} aria-hidden />
           {title}
         </CardTitle>
       </CardHeader>
@@ -88,10 +88,10 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
             <LoadingRows rows={5} />
           </div>
         ) : detail.error || !detail.data ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/30">
-            <AlertTriangle className="h-6 w-6 text-rose-400" aria-hidden />
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat detail slip", "Failed to load payslip detail")}</p>
-            <p className="max-w-sm break-words text-xs text-slate-500">{detail.error ?? t("Slip tidak ditemukan.", "Slip not found.")}</p>
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+            <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+            <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat detail slip", "Failed to load payslip detail")}</p>
+            <p className="max-w-sm break-words text-xs text-slate-500 dark:text-slate-400">{detail.error ?? t("Slip tidak ditemukan.", "Slip not found.")}</p>
             <Button onClick={detail.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
               <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
             </Button>
@@ -131,11 +131,11 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     </div>
                     <div className="space-y-2.5 py-4">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-semibold text-slate-500">{t("Gaji Kotor (Gross)", "Gross Pay")}</span>
+                        <span className="text-[12.5px] font-semibold text-slate-500 dark:text-slate-400">{t("Gaji Kotor (Gross)", "Gross Pay")}</span>
                         <span className="text-[14px] font-extrabold tabular-nums text-slate-800 dark:text-slate-100">{fmtIDR(d.gross)}</span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[12.5px] font-semibold text-slate-500">{t("Total Potongan", "Total Deductions")}</span>
+                        <span className="text-[12.5px] font-semibold text-slate-500 dark:text-slate-400">{t("Total Potongan", "Total Deductions")}</span>
                         <span className="text-[14px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">−{fmtIDR(d.totalDeductions)}</span>
                       </div>
                     </div>
@@ -172,12 +172,14 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
           {list.loading && !list.data ? (
             <div className="p-5"><LoadingRows rows={5} /></div>
           ) : list.error && !list.data ? (
-            <div className="flex flex-col items-center gap-2 p-10 text-center">
-              <AlertTriangle className="h-6 w-6 text-rose-400" aria-hidden />
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat daftar slip", "Failed to load payslip list")}</p>
-              <Button onClick={list.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
-                <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
-              </Button>
+            <div className="p-5">
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+                <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat daftar slip", "Failed to load payslip list")}</p>
+                <Button onClick={list.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+                  <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+                </Button>
+              </div>
             </div>
           ) : slips.length === 0 ? (
             <div className="p-5">
@@ -199,7 +201,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                       <ReceiptText className="h-5 w-5" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13.5px] font-bold text-slate-800 dark:text-slate-100">{loc(s.periodName)}</p>
+                      <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">{loc(s.periodName)}</p>
                       <p className="mt-0.5 text-[11.5px] text-slate-400">
                         {t("Gross {g}", "Gross {g}", { g: fmtIDR(s.gross) })}
                         {s.paidAt ? ` · ${t("dibayar {d}", "paid {d}", { d: fmtDate(s.paidAt) })}` : ""}
@@ -207,7 +209,7 @@ export function EssPayslips({ intent }: EssPayslipsProps) {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("Net", "Net")}</p>
-                      <p className="text-[15px] font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{fmtIDR(s.net)}</p>
+                      <p className="text-lg font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{fmtIDR(s.net)}</p>
                     </div>
                     <StatusPill status={s.status} />
                   </button>

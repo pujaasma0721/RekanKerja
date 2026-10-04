@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import {
   Palmtree, ClipboardList, Clock, ReceiptText, Bell, MapPin, LogIn, LogOut,
   Fingerprint, TrendingUp, Inbox, CheckCircle2, ArrowRight, Loader2, AlertTriangle, Sparkles,
-  Camera, QrCode, ScanFace,
+  Camera, QrCode, ScanFace, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApi, fmtIDR, fmtDateLong } from "@/rekankerja/shared/lib/api";
@@ -185,13 +185,13 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   if (!dash.data) {
     return (
       <div>
-        <PageHeader title={t("Dashboard", "Dashboard")} description={t("Ringkasan aktivitas kekaryawanan Anda.", "A summary of your employee activity.")} />
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30">
+        <PageHeader eyebrow={t("Employee Self Service", "Employee Self Service")} title={t("Dashboard", "Dashboard")} description={t("Ringkasan aktivitas kekaryawanan Anda.", "A summary of your employee activity.")} />
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10">
             <AlertTriangle className="h-6 w-6 text-rose-500 dark:text-rose-400" aria-hidden />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat dashboard", "Failed to load dashboard")}</p>
-          <p className="max-w-sm break-words text-xs text-slate-500">{dash.error ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+          <p className="max-w-sm break-words text-xs text-slate-500 dark:text-slate-400">{dash.error ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
           <Button onClick={dash.refresh} variant="outline" className="gap-2 rounded-xl font-bold">
             <Loader2 className="h-4 w-4" /> {t("Coba Lagi", "Try Again")}
           </Button>
@@ -209,10 +209,19 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
   const quickActions = [
     { label: t("Ajukan Cuti", "Request Leave"), icon: Palmtree, onClick: () => go("leave", "new"), cls: "text-amber-700 dark:text-amber-400" },
     { label: t("Izin Tidak Masuk", "Work Off Permit"), icon: ClipboardList, onClick: () => go("requests", "workoff"), cls: "text-brand-deep dark:text-brand/85" },
-    { label: t("Ajukan Lembur", "Request Overtime"), icon: Clock, onClick: () => go("requests", "overtime"), cls: "text-orange-700 dark:text-orange-400" },
+    { label: t("Ajukan Lembur", "Request Overtime"), icon: Clock, onClick: () => go("requests", "overtime"), cls: "text-amber-700 dark:text-amber-400" },
   ];
 
   const maxBalance = Math.max(1, ...d.leaveBalances.map((b) => b.available ?? 0));
+
+  // KPI grid — entrance stagger (pola ess-attendance); item "Menunggu Persetujuan"
+  // bersifat kondisional agar delay mengikuti posisi visual yang sebenarnya.
+  const kpis: { key: string; hero?: boolean; label: string; value: string; sub: string; icon: React.ElementType }[] = [
+    { key: "leave", hero: true, label: t("Saldo Cuti Tersedia", "Leave Balance Available"), value: String(k.leaveAvailable ?? 0), sub: t("hari cuti bisa dipakai", "days of leave available"), icon: Palmtree },
+    { key: "pending", label: t("Pengajuan Saya Menunggu", "My Pending Requests"), value: String(k.pendingMine ?? 0), sub: t("menunggu keputusan approver", "awaiting approver decision"), icon: Inbox },
+    ...((k.waitingApproval ?? 0) > 0 ? [{ key: "approval", label: t("Menunggu Persetujuan Saya", "Awaiting My Approval"), value: String(k.waitingApproval ?? 0), sub: t("butuh keputusan Anda", "needs your decision"), icon: CheckCircle2 }] : []),
+    { key: "present", label: t("Hadir Bulan Ini", "Present This Month"), value: String(k.present ?? 0), sub: t("{n} telat · {m} absen", "{n} late · {m} absent", { n: k.late ?? 0, m: k.absent ?? 0 }), icon: TrendingUp },
+  ];
 
   return (
     <div className="space-y-5">
@@ -246,12 +255,11 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
       {/* ===== KPI ===== */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <EssKpi hero label={t("Saldo Cuti Tersedia", "Leave Balance Available")} value={String(k.leaveAvailable ?? 0)} sub={t("hari cuti bisa dipakai", "days of leave available")} icon={Palmtree} />
-        <EssKpi label={t("Pengajuan Saya Menunggu", "My Pending Requests")} value={String(k.pendingMine ?? 0)} sub={t("menunggu keputusan approver", "awaiting approver decision")} icon={Inbox} />
-        {(k.waitingApproval ?? 0) > 0 && (
-          <EssKpi label={t("Menunggu Persetujuan Saya", "Awaiting My Approval")} value={String(k.waitingApproval ?? 0)} sub={t("butuh keputusan Anda", "needs your decision")} icon={CheckCircle2} />
-        )}
-        <EssKpi label={t("Hadir Bulan Ini", "Present This Month")} value={String(k.present ?? 0)} sub={t("{n} telat · {m} absen", "{n} late · {m} absent", { n: k.late ?? 0, m: k.absent ?? 0 })} icon={TrendingUp} />
+        {kpis.map((s, i) => (
+          <motion.div key={s.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+            <EssKpi label={s.label} value={s.value} sub={s.sub} icon={s.icon} hero={s.hero} />
+          </motion.div>
+        ))}
       </div>
 
       {/* ===== widget clock + aksi cepat ===== */}
@@ -309,7 +317,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                   className="h-12 flex-1 gap-2 rounded-2xl bg-white text-base font-extrabold text-amber-700 shadow-lg hover:bg-amber-50 disabled:opacity-60"
                 >
                   {clockBusy === "IN" ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
-                  {t("Clock In")}
+                  {t("Clock In", "Clock In")}
                 </Button>
                 <Button
                   disabled={clockBusy != null || !clocked || doneForToday}
@@ -317,7 +325,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                   className="h-12 flex-1 gap-2 rounded-2xl bg-white text-base font-extrabold text-amber-700 shadow-lg hover:bg-amber-50 disabled:opacity-60"
                 >
                   {clockBusy === "OUT" ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
-                  {t("Clock Out")}
+                  {t("Clock Out", "Clock Out")}
                 </Button>
                 {/* Task 100 F1 (G17) — absen via QR kios: kamera belakang + jsQR */}
                 <Button
@@ -393,7 +401,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
         {/* aksi cepat */}
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">{t("Aksi Cepat", "Quick Actions")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Aksi Cepat", "Quick Actions")}
+            </CardTitle>
             <p className="mt-0.5 text-[11px] text-slate-400">{t("Pengajuan paling sering dipakai", "Most-used requests")}</p>
           </CardHeader>
           <CardContent className="space-y-2 pt-2">
@@ -422,7 +433,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold">{t("Pengajuan Terbaru", "Recent Requests")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Pengajuan Terbaru", "Recent Requests")}
+            </CardTitle>
             <Button size="sm" variant="ghost" onClick={() => go("leave")} className="h-7 gap-1 px-2 text-[11px] font-bold text-amber-700 hover:text-amber-800 dark:text-amber-400">
               {t("Cuti Saya", "My Leave")} <ArrowRight className="h-3 w-3" />
             </Button>
@@ -455,7 +469,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold">{t("Ringkas Saldo Cuti", "Leave Balance Summary")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Palmtree className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Ringkas Saldo Cuti", "Leave Balance Summary")}
+            </CardTitle>
             <StatusPill status="Active" />
           </CardHeader>
           <CardContent className="space-y-3 pt-2">
@@ -487,7 +504,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">{t("Slip Gaji Terakhir", "Latest Payslip")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <ReceiptText className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Slip Gaji Terakhir", "Latest Payslip")}
+            </CardTitle>
             <p className="mt-0.5 text-[11px] text-slate-400">{t("Periode berjalan terakhir yang tersedia", "Latest available period")}</p>
           </CardHeader>
           <CardContent className="pt-2">
@@ -507,7 +527,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                   <p className="text-lg font-extrabold tabular-nums text-slate-900 dark:text-slate-50">{fmtIDR(d.latestPayslip.netAmount)}</p>
                 </div>
                 <Button onClick={() => go("payslips", `line:${d.latestPayslip!.lineId}`)} size="sm" className="gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
-                  {t("Lihat")} <ArrowRight className="h-3.5 w-3.5" />
+                  {t("Lihat", "View")} <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             ) : (
@@ -522,7 +542,10 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
 
         <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">{t("Notifikasi Terbaru", "Recent Notifications")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Bell className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              {t("Notifikasi Terbaru", "Recent Notifications")}
+            </CardTitle>
             <p className="mt-0.5 text-[11px] text-slate-400">{t("Dari bell di kanan atas untuk feed lengkap", "Use the bell above for the full feed")}</p>
           </CardHeader>
           <CardContent className="pt-2">

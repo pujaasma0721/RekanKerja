@@ -31,7 +31,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ESS_BASE, markNotifRead, useEssMe } from "./ess-api";
-import { StatusPill } from "@/rekankerja/shared/components/ui-kit";
+import { StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import type { EssMe, EssNotificationsData, EssView } from "./ess-types";
 import { EssDashboard } from "./ess-dashboard";
 import { EssProfile } from "./ess-profile";
@@ -93,7 +93,7 @@ function EssLogo({ compact = false }: { compact?: boolean }) {
     <div className="flex items-center gap-3">
       <div
         className={cn(
-          "flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_rgba(37,99,235,0.55)]",
+          "flex items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_var(--ov-accent-glow,rgba(37,99,235,0.28))]",
           compact ? "h-9 w-9" : "h-10 w-10",
         )}
       >
@@ -177,7 +177,7 @@ function EssNotificationBell() {
         >
           <Bell className="h-[18px] w-[18px]" />
           {unread > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-extrabold text-white">
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-extrabold text-white">
               {unread > 9 ? "9+" : unread}
             </span>
           )}
@@ -256,16 +256,23 @@ function WhistleblowMyReports() {
         )}
       </p>
       {api.loading && !api.data ? (
-        <div className="mt-3 space-y-2">
-          <div className="h-9 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
-          <div className="h-9 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
-        </div>
+        <LoadingRows rows={3} className="mt-3" />
       ) : api.error ? (
-        <p className="mt-3 text-[11px] text-slate-400">{api.error}</p>
+        <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+          <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+          <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat laporan Anda", "Failed to load your reports")}</p>
+          <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+            <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+          </Button>
+        </div>
       ) : (api.data?.reports ?? []).length === 0 ? (
-        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2.5 text-[11px] text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-          {t("Belum ada laporan teridentifikasi milik Anda.", "You have no identified reports yet.")}
-        </p>
+        <div className="mt-3">
+          <EmptyState
+            title={t("Belum ada laporan teridentifikasi milik Anda.", "You have no identified reports yet.")}
+            description={t("Laporan yang Anda kirim dengan identitas akan tampil di sini beserta statusnya.", "Reports you submit with your identity will appear here with their status.")}
+            icon={FileText}
+          />
+        </div>
       ) : (
         <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/70">
           {(api.data?.reports ?? []).map((r) => (
@@ -340,7 +347,7 @@ export function EssShell() {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_rgba(37,99,235,0.55)]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_var(--ov-accent-glow,rgba(37,99,235,0.28))]">
             <Waypoints className="h-7 w-7" aria-hidden />
           </div>
           <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
@@ -379,7 +386,7 @@ export function EssShell() {
             )}
             {/* pintasan keluar — akun ESS tanpa data karyawan tetap bisa kembali ke layar masuk */}
             <Button onClick={() => void session.logout()} variant="outline" className="gap-2 rounded-xl font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10">
-              <LogOut className="h-4 w-4" /> {t("Keluar")}
+              <LogOut className="h-4 w-4" /> {t("Keluar", "Log out")}
             </Button>
           </div>
         </div>
@@ -470,8 +477,8 @@ export function EssShell() {
                 <KeyRound className="h-4 w-4" /> {t("Ganti Kata Sandi", "Change Password")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => void session.logout()}>
-                <LogOut className="h-4 w-4" /> {t("Keluar")}
+              <DropdownMenuItem className="text-rose-600 focus:text-rose-600 dark:text-rose-400 dark:focus:text-rose-400" onClick={() => void session.logout()}>
+                <LogOut className="h-4 w-4" /> {t("Keluar", "Log out")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -493,7 +500,7 @@ export function EssShell() {
                   className={cn(
                     "relative flex min-w-0 items-center gap-1.5 px-2.5 py-2.5 text-[13px] font-bold transition-colors lg:px-3.5",
                     active
-                      ? "text-amber-800 dark:text-amber-400"
+                      ? "text-amber-700 dark:text-amber-400"
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
                   )}
                 >
@@ -522,7 +529,7 @@ export function EssShell() {
                       className={cn(
                         "relative flex min-w-0 items-center gap-1.5 rounded-t-xl px-2.5 py-2.5 text-[13px] font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:px-3.5",
                         overflowActive
-                          ? "text-amber-800 dark:text-amber-400"
+                          ? "text-amber-700 dark:text-amber-400"
                           : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
                       )}
                     >
@@ -576,7 +583,7 @@ export function EssShell() {
       {/* ============ KONTEN — view-state internal ESS ============ */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {/* judul view untuk mobile (desktop sudah punya menu aktif di topnav) */}
-        <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-deep dark:text-brand md:hidden">
+        <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-deep dark:text-brand md:hidden">
           {t(activeItem.label, activeItem.en)}
         </p>
         <AnimatePresence mode="wait">
@@ -604,12 +611,12 @@ export function EssShell() {
             {view === "whistleblow" && (
               <div className="mx-auto max-w-2xl">
                 <div className="mb-4 flex items-start gap-3 border-b border-slate-200/70 pb-4 dark:border-slate-800/70">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-[0_10px_28px_-12px_rgba(225,29,72,0.7)]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-600/40">
                     <Siren className="h-5 w-5" aria-hidden />
                   </div>
                   <div>
-                    <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Laporkan Pelanggaran", "Report a Violation")}</h1>
-                    <p className="text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+                    <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Laporkan Pelanggaran", "Report a Violation")}</h1>
+                    <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
                       {t(
                         "Kanal pelaporan kekerasan seksual & pelanggaran di tempat kerja (UU 12/2022). Anonim & dilindungi undang-undang.",
                         "Channel for reporting sexual violence & workplace violations (Law 12/2022). Anonymous & protected by law.",
@@ -665,9 +672,9 @@ export function EssShell() {
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <Icon className={cn("relative h-[18px] w-[18px]", active ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")} aria-hidden />
+                  <Icon className={cn("relative h-[18px] w-[18px]", active ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")} aria-hidden />
                 </span>
-                <span className={cn("max-w-[64px] truncate text-[9px] font-bold", active ? "text-amber-800 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
+                <span className={cn("max-w-[64px] truncate text-[10px] font-bold", active ? "text-amber-700 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
                   {t(item.short, item.shortEn)}
                 </span>
               </button>
@@ -687,9 +694,9 @@ export function EssShell() {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <MoreHorizontal className={cn("relative h-[18px] w-[18px]", ESS_TABS.includes(view) ? "text-slate-400 dark:text-slate-500" : "text-amber-700 dark:text-amber-400")} aria-hidden />
+              <MoreHorizontal className={cn("relative h-[18px] w-[18px]", ESS_TABS.includes(view) ? "text-slate-400 dark:text-slate-500" : "text-amber-600 dark:text-amber-400")} aria-hidden />
             </span>
-            <span className={cn("text-[9px] font-bold", ESS_TABS.includes(view) ? "text-slate-400 dark:text-slate-500" : "text-amber-800 dark:text-amber-400")}>
+            <span className={cn("text-[10px] font-bold", ESS_TABS.includes(view) ? "text-slate-400 dark:text-slate-500" : "text-amber-700 dark:text-amber-400")}>
               {t("Lainnya", "More")}
             </span>
           </button>
@@ -722,7 +729,7 @@ export function EssShell() {
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700" aria-hidden />
               <div className="mb-2 flex items-center justify-between">
                 <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t("Menu Lainnya", "More Menu")}</p>
-                <button className="rounded-full p-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setSheet(false)} aria-label={t("Tutup")}>
+                <button className="rounded-full p-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setSheet(false)} aria-label={t("Tutup", "Close")}>
                   <X className="h-4 w-4 text-slate-400" />
                 </button>
               </div>
@@ -737,11 +744,11 @@ export function EssShell() {
                       className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
                       onClick={() => go(item.id)}
                     >
-                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", current ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800")}>
+                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", current ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>
                         <Icon className="h-4 w-4" />
                       </span>
                       <span className="flex-1 text-[13px] font-bold text-slate-700 dark:text-slate-200">{t(item.label, item.en)}</span>
-                      {current ? <Check className="h-4 w-4 shrink-0 text-amber-600" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />}
+                      {current ? <Check className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />}
                     </motion.button>
                   );
                 })}
@@ -766,13 +773,13 @@ export function EssShell() {
                     onClick={() => { setSheet(false); setPwOpen(true); }}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
-                    <KeyRound className="h-3.5 w-3.5" /> {t("Ganti Sandi")}
+                    <KeyRound className="h-3.5 w-3.5" /> {t("Ganti Sandi", "Change Password")}
                   </button>
                   <button
                     onClick={() => { setSheet(false); void session.logout(); }}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-200 py-2 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
                   >
-                    <LogOut className="h-3.5 w-3.5" /> {t("Keluar")}
+                    <LogOut className="h-3.5 w-3.5" /> {t("Keluar", "Log out")}
                   </button>
                 </div>
                 {me.canAdmin && (

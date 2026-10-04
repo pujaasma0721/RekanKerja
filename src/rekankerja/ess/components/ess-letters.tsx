@@ -32,6 +32,9 @@ import { fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 // pilihan keperluan cepat + "Lainnya" (tulis bebas)
 const PURPOSE_OPTIONS = ["Kredit", "KPR", "Visa", "Asuransi", "Lainnya"] as const;
 
+// peta EN pilihan keperluan (di luar peta: teks mentah — KPR/Visa identik)
+const PURPOSE_EN: Record<string, string> = { Kredit: "Credit", Asuransi: "Insurance", Lainnya: "Other" };
+
 function FormError({ message }: { message: string | null }) {
   const { t } = useI18n();
   if (!message) return null;
@@ -184,6 +187,14 @@ export function EssLetters() {
       {/* ===== kartu jenis surat ===== */}
       {api.loading && !api.data ? (
         <LoadingRows rows={4} />
+      ) : api.error && !api.data ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+          <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+          <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat jenis surat", "Failed to load letter types")}</p>
+          <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+            <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+          </Button>
+        </div>
       ) : templates.length === 0 ? (
         <EmptyState
           title={t("Belum ada jenis surat tersedia", "No letter types available yet")}
@@ -196,11 +207,9 @@ export function EssLetters() {
             const pending = pendingByTemplate.get(tpl.key) ?? null;
             return (
               <Card key={tpl.key} className="flex flex-col rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-                <CardHeader className="pb-2">
+                <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-                      <FileText className="h-4 w-4" aria-hidden />
-                    </span>
+                    <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
                     {tpl.name}
                   </CardTitle>
                   <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-slate-400">
@@ -240,7 +249,7 @@ export function EssLetters() {
 
       {/* ===== riwayat permintaan ===== */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Riwayat Permintaan Surat", "Letter Request History")}
@@ -248,7 +257,15 @@ export function EssLetters() {
         </CardHeader>
         <CardContent className="pt-1">
           {api.loading && !api.data ? (
-            <p className="py-4 text-center text-[12px] text-slate-400">{t("Memuat…")}</p>
+            <LoadingRows rows={4} />
+          ) : api.error && !api.data ? (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+              <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+              <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat riwayat surat", "Failed to load letter history")}</p>
+              <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+                <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+              </Button>
+            </div>
           ) : requests.length === 0 ? (
             <EmptyState
               title={t("Belum ada permintaan surat", "No letter requests yet")}
@@ -304,7 +321,7 @@ export function EssLetters() {
                 </SelectTrigger>
                 <SelectContent>
                   {PURPOSE_OPTIONS.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p}>{t(p, PURPOSE_EN[p] ?? p)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -338,10 +355,10 @@ export function EssLetters() {
             <FormError message={error} />
           </div>
           <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={() => setReqOpen(false)} className="rounded-xl font-bold">{t("Batal")}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => setReqOpen(false)} className="rounded-xl font-bold">{t("Batal", "Cancel")}</Button>
             <Button onClick={() => void submit()} disabled={busy} className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {busy ? t("Menyimpan…") : t("Ajukan Permintaan", "Submit Request")}
+              {busy ? t("Menyimpan…", "Saving…") : t("Ajukan Permintaan", "Submit Request")}
             </Button>
           </DialogFooter>
         </DialogContent>

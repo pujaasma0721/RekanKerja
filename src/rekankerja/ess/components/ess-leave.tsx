@@ -266,7 +266,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600"
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 dark:from-amber-500 dark:to-amber-400"
                         />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -384,7 +384,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 gap-1 rounded-lg border-rose-200 px-2 text-[11px] font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                          className="h-7 gap-1 rounded-lg border-rose-200 px-2 text-[11px] font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/40 dark:hover:text-rose-300"
                           onClick={() => {
                             if (!r.id) return;
                             setWithdraw({ id: r.id, docNo: r.docNo, typeName: r.typeName ?? null });
@@ -437,12 +437,11 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
           {cal.loading && !cal.data ? (
             <LoadingRows rows={4} />
           ) : cal.error && !cal.data ? (
-            <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
-              <p className="flex items-center gap-1.5 text-[12px] font-medium text-slate-400">
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {t("Kalender tim gagal dimuat", "Team calendar failed to load")}
-              </p>
-              <Button onClick={cal.refresh} variant="outline" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[11px] font-bold">
-                <Loader2 className="h-3 w-3" /> {t("Coba Lagi", "Try Again")}
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+              <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+              <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat kalender tim", "Failed to load team calendar")}</p>
+              <Button onClick={cal.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+                <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
               </Button>
             </div>
           ) : calRows.length === 0 ? (
@@ -454,13 +453,13 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
           ) : (
             <>
               {/* header hari Sen..Min */}
-              <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-1.5">
+              <div className="mb-2 grid grid-cols-7 gap-1.5 sm:gap-2">
                 {dayHeaders.map((d) => (
                   <p key={d} className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">{d}</p>
                 ))}
               </div>
               {/* grid hari + chip nama per hari (maks 3 + indikator +N) */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                 {calCells.map((cell, i) => {
                   if (!cell) return <div key={`e${i}`} aria-hidden />;
                   const isToday = cell.date === todayISO();
@@ -468,14 +467,19 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                     <div
                       key={cell.date}
                       className={cn(
-                        "min-h-[64px] rounded-xl border p-1.5",
+                        "relative min-h-[64px] rounded-xl border p-1.5",
                         cell.weekend
                           ? "border-slate-200/60 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-800/40"
                           : "border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900/40",
-                        isToday && "border-amber-400 ring-2 ring-amber-500/30 dark:border-amber-500/60",
+                        isToday && "border-amber-400 dark:border-amber-500/50 ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-slate-950",
                       )}
                     >
                       <p className={cn("text-[11px] font-bold tabular-nums", isToday ? "text-amber-700 dark:text-amber-400" : "text-slate-500 dark:text-slate-400")}>{cell.day}</p>
+                      {isToday && (
+                        <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-1.5 text-[8px] font-extrabold uppercase text-white">
+                          {t("ini", "now")}
+                        </span>
+                      )}
                       {cell.people.length > 0 && (
                         <div className="mt-1 space-y-0.5">
                           {cell.people.slice(0, 3).map((p) => (
@@ -495,7 +499,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
                             </span>
                           ))}
                           {cell.people.length > 3 && (
-                            <p className="px-1 text-[9px] font-bold leading-4 text-slate-400" title={cell.people.slice(3).map((p) => p.row.fullName).join(", ")}>
+                            <p className="px-1 text-[10px] font-bold leading-4 text-slate-400" title={cell.people.slice(3).map((p) => p.row.fullName).join(", ")}>
                               +{cell.people.length - 3}
                             </p>
                           )}
@@ -508,13 +512,13 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
               {/* legenda */}
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800/70">
                 <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  <span className="h-2 w-2 rounded-sm bg-amber-500/60" aria-hidden /> {t("Anda", "You")}
+                  <span className="h-2 w-2 rounded-sm bg-amber-500/60 dark:bg-amber-500/70" aria-hidden /> {t("Anda", "You")}
                 </span>
                 <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   <span className="h-2 w-2 rounded-sm bg-slate-300 dark:bg-slate-700" aria-hidden /> {t("Rekan satu unit", "Teammates")}
                 </span>
                 <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  <span className="h-2 w-2 rounded-sm border border-dashed border-slate-400" aria-hidden /> {t("Tanpa upah", "Unpaid")}
+                  <span className="h-2 w-2 rounded-sm border border-dashed border-slate-400 dark:border-slate-500" aria-hidden /> {t("Tanpa upah", "Unpaid")}
                 </span>
               </div>
             </>
@@ -630,11 +634,11 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
 
           <DialogFooter>
             <Button variant="outline" disabled={busy} onClick={() => setDialog(false)} className="rounded-xl font-bold">
-              {t("Batal")}
+              {t("Batal", "Cancel")}
             </Button>
             <Button onClick={() => void submit()} disabled={busy} className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {busy ? t("Menyimpan…") : t("Ajukan", "Submit")}
+              {busy ? t("Menyimpan…", "Saving…") : t("Ajukan", "Submit")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -675,11 +679,11 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
 
           <DialogFooter>
             <Button variant="outline" disabled={withdrawBusy} onClick={() => { setWithdraw(null); setWithdrawNote(""); }} className="rounded-xl font-bold">
-              {t("Batal")}
+              {t("Batal", "Cancel")}
             </Button>
             <Button variant="destructive" onClick={() => void confirmWithdraw()} disabled={withdrawBusy} className="gap-2 rounded-xl font-bold">
               {withdrawBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-              {withdrawBusy ? t("Memproses…") : t("Ya, Tarik Pengajuan", "Yes, Withdraw Request")}
+              {withdrawBusy ? t("Memproses…", "Processing…") : t("Ya, Tarik Pengajuan", "Yes, Withdraw Request")}
             </Button>
           </DialogFooter>
         </DialogContent>

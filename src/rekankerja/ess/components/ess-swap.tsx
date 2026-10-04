@@ -69,10 +69,25 @@ interface SwapHistoryRow {
 interface ListData { mine: SwapHistoryRow[]; toMe: SwapHistoryRow[] }
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
+const SCROLL_CLS = "max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700";
 
 const timeLabel = (timeIn: string | null, timeOut: string | null) =>
   !timeIn && !timeOut ? "—" : `${timeIn ?? "?"}–${timeOut ?? "?"}`;
+
+// kotak error kanon + tombol Coba Lagi (pola ErrorRetry ess-claims)
+function ErrorRetry({ title, message, onRetry }: { title: string; message: string | null; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+      <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+      <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{title}</p>
+      <p className="max-w-sm break-words text-xs text-slate-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+      <Button onClick={onRetry} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+        <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+      </Button>
+    </div>
+  );
+}
 
 // ===== kartu riwayat (dipakai "Permintaan Saya" + "Permintaan ke Saya") =====
 function SwapHistoryCard({
@@ -88,7 +103,7 @@ function SwapHistoryCard({
   return (
     <div className="rounded-xl border border-slate-200 p-3.5 dark:border-slate-800">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[11px] font-bold text-slate-500">{r.code}</span>
+        <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">{r.code}</span>
         <StatusPill status={r.status} />
         <span className="inline-flex items-center gap-1 text-[12px] font-bold text-slate-700 dark:text-slate-300">
           <CalendarRange className="h-3.5 w-3.5 text-slate-400" aria-hidden /> {fmtDate(r.swapDate)}
@@ -157,7 +172,7 @@ function SwapHistoryCard({
         {role === "mine" && r.status === "Pending" && onCancel && (
           <Button
             variant="outline" size="sm" disabled={busy}
-            className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+            className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
             onClick={() => onCancel(r)}
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} {t("Batalkan", "Cancel")}
@@ -248,11 +263,9 @@ export function EssSwap() {
 
       {/* ===== seksi 1: ajukan tukar shift ===== */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-              <ArrowLeftRight className="h-4 w-4" aria-hidden />
-            </span>
+            <ArrowLeftRight className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Ajukan Tukar Shift", "Submit Shift Swap")}
           </CardTitle>
         </CardHeader>
@@ -272,6 +285,13 @@ export function EssSwap() {
               <Label className="text-xs font-bold">{t("Jadwal Saya", "My Schedule")}</Label>
               {propose.loading && !propose.data ? (
                 <div className="h-9 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : propose.error && !propose.data ? (
+                <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/25 dark:bg-rose-500/10">
+                  <AlertTriangle className="h-4 w-4 text-rose-500" aria-hidden />
+                  <p className="text-[12px] font-bold text-rose-700 dark:text-rose-400">
+                    {t("Gagal memuat jadwal", "Failed to load schedule")}
+                  </p>
+                </div>
               ) : myShift?.holiday ? (
                 <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/25 dark:bg-rose-500/10">
                   <CalendarRange className="h-4 w-4 text-rose-500" aria-hidden />
@@ -281,7 +301,7 @@ export function EssSwap() {
                 </div>
               ) : myShift?.dayType ? (
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/60">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ borderColor: myShift.dayType.color ?? "#d6d3d1", background: myShift.dayType.color ?? "#d6d3d1" }} aria-hidden />
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ borderColor: myShift.dayType.color ?? "#cbd5e1", background: myShift.dayType.color ?? "#cbd5e1" }} aria-hidden />
                   <p className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-700 dark:text-slate-200">
                     {myShift.dayType.name}
                     <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{timeLabel(myShift.dayType.timeIn, myShift.dayType.timeOut)}</span>
@@ -296,7 +316,7 @@ export function EssSwap() {
                 </div>
               )}
               {myShift?.scheduleName && (
-                <p className="text-[10px] text-slate-400">{myShift.scheduleName}{!myShift.clockingRequired ? " · non-clocking" : ""}</p>
+                <p className="text-[10px] text-slate-400">{myShift.scheduleName}{!myShift.clockingRequired ? t(" · non-clocking", " · non-clocking") : ""}</p>
               )}
             </div>
           </div>
@@ -337,17 +357,26 @@ export function EssSwap() {
 
             {propose.loading && !propose.data ? (
               <LoadingRows rows={3} />
+            ) : propose.error && !propose.data ? (
+              <ErrorRetry
+                title={t("Gagal memuat data tukar shift", "Failed to load shift swap data")}
+                message={propose.error}
+                onRetry={propose.refresh}
+              />
             ) : !myShift?.dayType ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
-                {t("Pilih tanggal ketika Anda berjadwal untuk melihat rekan yang bisa diajak tukar.", "Pick a date on which you have a schedule to see swap candidates.")}
-              </p>
-            ) : candidates.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
-                {t(
-                  "Tidak ada rekan dengan shift berbeda pada tanggal ini.",
-                  "No colleague has a different shift on this date.",
+              <EmptyState
+                icon={CalendarRange}
+                title={t("Anda tidak berjadwal pada tanggal ini", "You have no schedule on this date")}
+                description={t(
+                  "Pilih tanggal ketika Anda berjadwal untuk melihat rekan yang bisa diajak tukar.",
+                  "Pick a date on which you have a schedule to see swap candidates.",
                 )}
-              </p>
+              />
+            ) : candidates.length === 0 ? (
+              <EmptyState
+                icon={UserCheck}
+                title={t("Tidak ada rekan dengan shift berbeda pada tanggal ini.", "No colleague has a different shift on this date.")}
+              />
             ) : (
               <div className={cn("space-y-2", SCROLL_CLS)} role="listbox" aria-label={t("Daftar rekan kandidat tukar shift", "Shift swap candidate list")}>
                 {candidates.map((c) => {
@@ -359,7 +388,7 @@ export function EssSwap() {
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-xl border p-2.5 text-left transition hover:border-amber-300 hover:bg-amber-50/50 dark:hover:border-amber-500/40 dark:hover:bg-amber-500/5",
                         isSel
-                          ? "border-amber-400 bg-amber-50 ring-1 ring-amber-400 dark:border-amber-500/50 dark:bg-amber-500/10"
+                          ? "border-amber-400 bg-amber-50/70 ring-2 ring-amber-500 ring-offset-1 dark:border-amber-500/50 dark:bg-amber-500/10 dark:ring-offset-slate-950"
                           : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
                       )}
                     >
@@ -374,7 +403,7 @@ export function EssSwap() {
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <Badge variant="outline" className="max-w-40 truncate border-slate-200 text-[10px] font-bold dark:border-slate-700">
+                        <Badge variant="outline" className="max-w-40 truncate border-slate-200 text-[10px] font-bold dark:border-slate-800">
                           {c.dayType.name}
                         </Badge>
                         <p className="mt-0.5 font-mono text-[10px] font-semibold text-slate-400">{c.timeLabel}</p>
@@ -412,7 +441,7 @@ export function EssSwap() {
               className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {busy ? t("Mengirim…") : t("Ajukan Tukar Shift", "Submit Swap")}
+              {busy ? t("Mengirim…", "Sending…") : t("Ajukan Tukar Shift", "Submit Swap")}
             </Button>
           </div>
         </CardContent>
@@ -420,7 +449,7 @@ export function EssSwap() {
 
       {/* ===== seksi 2: permintaan saya ===== */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <History className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Permintaan Saya", "My Requests")}
@@ -434,6 +463,12 @@ export function EssSwap() {
         <CardContent className="pt-1">
           {list.loading && !list.data ? (
             <LoadingRows rows={3} />
+          ) : list.error && !list.data ? (
+            <ErrorRetry
+              title={t("Gagal memuat data tukar shift", "Failed to load shift swap data")}
+              message={list.error}
+              onRetry={list.refresh}
+            />
           ) : mineRows.length === 0 ? (
             <EmptyState
               title={t("Belum ada permintaan tukar shift", "No shift swap requests yet")}
@@ -452,7 +487,7 @@ export function EssSwap() {
 
       {/* ===== seksi 3: permintaan ke saya ===== */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <Inbox className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Permintaan ke Saya", "Requests to Me")}
@@ -467,10 +502,17 @@ export function EssSwap() {
           </p>
           {list.loading && !list.data ? (
             <LoadingRows rows={2} />
+          ) : list.error && !list.data ? (
+            <ErrorRetry
+              title={t("Gagal memuat data tukar shift", "Failed to load shift swap data")}
+              message={list.error}
+              onRetry={list.refresh}
+            />
           ) : toMeRows.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/30">
-              {t("Belum ada rekan yang mengajukan tukar shift dengan Anda.", "No colleague has requested a swap with you yet.")}
-            </p>
+            <EmptyState
+              icon={Inbox}
+              title={t("Belum ada rekan yang mengajukan tukar shift dengan Anda.", "No colleague has requested a swap with you yet.")}
+            />
           ) : (
             <div className={cn("space-y-3", SCROLL_CLS)}>
               {toMeRows.map((r) => (

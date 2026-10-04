@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Megaphone, Pin, CalendarDays, CheckCheck, Dot, PartyPopper, Scale, Siren,
+  AlertTriangle, Loader2,
 } from "lucide-react";
 import { useApi, apiSend, fmtDate, fmtDateTime } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -51,13 +52,36 @@ const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = 
   Event: { icon: PartyPopper, cls: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" },
   Darurat: { icon: Siren, cls: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400" },
 };
+// peta EN kategori — fallback = nilai mentah dari server
+const CATEGORY_EN: Record<string, string> = {
+  Umum: "General",
+  Kebijakan: "Policy",
+  Event: "Event",
+  Darurat: "Urgent",
+};
 function CategoryBadge({ category }: { category: string }) {
+  const { t } = useI18n();
   const meta = CATEGORY_META[category] ?? CATEGORY_META.Umum;
   const Icon = meta.icon;
   return (
     <Badge variant="outline" className={cn("gap-1 text-[10px] font-bold", meta.cls)}>
-      <Icon className="h-3 w-3" aria-hidden /> {category}
+      <Icon className="h-3 w-3" aria-hidden /> {t(category, CATEGORY_EN[category] ?? category)}
     </Badge>
+  );
+}
+
+// kotak error kanon + tombol Coba Lagi (pola ErrorRetry ess-claims)
+function ErrorRetry({ title, message, onRetry }: { title: string; message: string | null; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+      <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+      <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{title}</p>
+      <p className="max-w-sm break-words text-xs text-slate-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+      <Button onClick={onRetry} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+        <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+      </Button>
+    </div>
   );
 }
 
@@ -107,12 +131,12 @@ export function EssAnnouncements() {
         )}
         actions={
           unread > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11.5px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400" role="status">
               <Dot className="h-4 w-4 -mx-1 fill-amber-500 text-amber-500" aria-hidden />
               {t("{n} belum dibaca", "{n} unread", { n: unread })}
             </span>
           ) : announcements.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-3 py-1.5 text-[11.5px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" role="status">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand-deep dark:border-brand/30 dark:bg-brand/10 dark:text-brand/85" role="status">
               <CheckCheck className="h-3.5 w-3.5" aria-hidden />
               {t("Semua sudah dibaca", "All read")}
             </span>
@@ -123,6 +147,12 @@ export function EssAnnouncements() {
       {/* ===== daftar kartu pengumuman ===== */}
       {api.loading && !api.data ? (
         <LoadingRows rows={4} />
+      ) : api.error && !api.data ? (
+        <ErrorRetry
+          title={t("Gagal memuat pengumuman", "Failed to load announcements")}
+          message={api.error}
+          onRetry={api.refresh}
+        />
       ) : announcements.length === 0 ? (
         <EmptyState
           icon={Megaphone}
@@ -168,15 +198,15 @@ export function EssAnnouncements() {
                 )}
               </div>
               <p className={cn(
-                "mt-2 text-[14px] font-bold leading-snug text-slate-800 dark:text-slate-100",
-                !ann.readByMe && "text-slate-900 dark:text-white",
+                "mt-2 text-sm font-bold leading-snug text-slate-800 dark:text-slate-100",
+                !ann.readByMe && "text-slate-900 dark:text-slate-50",
               )}>
                 {ann.title}
               </p>
               <p className="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
                 {ann.body}
               </p>
-              <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-medium text-slate-400">
+              <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <CalendarDays className="h-3.5 w-3.5" aria-hidden />
                 {ann.publishedAt ? fmtDateTime(ann.publishedAt) : "—"}
                 <span className="font-mono text-slate-300 dark:text-slate-600">· {ann.code}</span>
@@ -209,7 +239,7 @@ export function EssAnnouncements() {
 
               {/* isi — paragraf dipertahankan, panjang di-scroll */}
               <div
-                className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-[13px] leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700"
+                className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-[13px] leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700"
                 role="region"
                 aria-label={t("Isi pengumuman", "Announcement body")}
               >
@@ -217,12 +247,12 @@ export function EssAnnouncements() {
               </div>
 
               {detail.expiresAt && (
-                <p className="text-[10.5px] text-slate-400">
+                <p className="text-[11px] text-slate-400">
                   {t("Tersedia hingga {date}.", "Available until {date}.", { date: fmtDate(detail.expiresAt) })}
                 </p>
               )}
               <DialogFooter className="items-center sm:justify-between">
-                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold text-brand dark:text-brand/85" role="status">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-brand dark:text-brand/85" role="status">
                   <CheckCheck className="h-3.5 w-3.5" aria-hidden />
                   {detail.readByMe || api.data?.announcements.find((a) => a.id === detail.id)?.readByMe
                     ? t("Sudah Anda baca", "You have read this")

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ClipboardList, Clock, Plus, Send, Loader2, AlertTriangle, CalendarOff, History } from "lucide-react";
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { PageHeader, StatusPill, EmptyState } from "@/rekankerja/shared/components/ui-kit";
+import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,9 @@ function RequestCard({ title, description, icon: Icon, cta, onOpen, latest }: Re
   const { t } = useI18n();
   return (
     <Card className="flex flex-col rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-            <Icon className="h-4 w-4" aria-hidden />
-          </span>
+          <Icon className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
           {title}
         </CardTitle>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-slate-400">{description}</p>
@@ -80,6 +78,21 @@ function FormError({ message }: { message: string | null }) {
     <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <span className="break-words">{message}</span>
+    </div>
+  );
+}
+
+// kotak error kanon + tombol Coba Lagi (pola ErrorRetry ess-claims)
+function ErrorRetry({ title, message, onRetry }: { title: string; message: string | null; onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
+      <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
+      <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{title}</p>
+      <p className="max-w-sm break-words text-xs text-slate-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+      <Button onClick={onRetry} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
+        <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
+      </Button>
     </div>
   );
 }
@@ -191,14 +204,20 @@ export function EssRequests({ intent }: EssRequestsProps) {
 
       {/* riwayat ringkas gabungan */}
       <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-bold">
             <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden /> {t("Riwayat Terbaru", "Recent History")}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-1">
           {dash.loading && !dash.data ? (
-            <p className="py-4 text-center text-[12px] text-slate-400">{t("Memuat…")}</p>
+            <LoadingRows rows={4} />
+          ) : dash.error && !dash.data ? (
+            <ErrorRetry
+              title={t("Gagal memuat pengajuan", "Failed to load requests")}
+              message={dash.error}
+              onRetry={dash.refresh}
+            />
           ) : recents.filter((r) => /work.?off|overtime|lembur|izin/i.test(r.docType)).length === 0 ? (
             <EmptyState
               title={t("Belum ada riwayat", "No history yet")}
@@ -283,10 +302,10 @@ export function EssRequests({ intent }: EssRequestsProps) {
             <FormError message={wError} />
           </div>
           <DialogFooter>
-            <Button variant="outline" disabled={wBusy} onClick={() => setWorkoffOpen(false)} className="rounded-xl font-bold">{t("Batal")}</Button>
+            <Button variant="outline" disabled={wBusy} onClick={() => setWorkoffOpen(false)} className="rounded-xl font-bold">{t("Batal", "Cancel")}</Button>
             <Button onClick={() => void submitWorkoffReq()} disabled={wBusy} className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
               {wBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {wBusy ? t("Menyimpan…") : t("Ajukan", "Submit")}
+              {wBusy ? t("Menyimpan…", "Saving…") : t("Ajukan", "Submit")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -330,10 +349,10 @@ export function EssRequests({ intent }: EssRequestsProps) {
             <FormError message={oError} />
           </div>
           <DialogFooter>
-            <Button variant="outline" disabled={oBusy} onClick={() => setOvertimeOpen(false)} className="rounded-xl font-bold">{t("Batal")}</Button>
+            <Button variant="outline" disabled={oBusy} onClick={() => setOvertimeOpen(false)} className="rounded-xl font-bold">{t("Batal", "Cancel")}</Button>
             <Button onClick={() => void submitOvertimeReq()} disabled={oBusy} className="gap-2 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
               {oBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {oBusy ? t("Menyimpan…") : t("Ajukan", "Submit")}
+              {oBusy ? t("Menyimpan…", "Saving…") : t("Ajukan", "Submit")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -20,7 +20,7 @@ import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/sh
 import {
   AttachmentUploadArea,
 } from "@/rekankerja/shared/components/attachment-upload";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +55,7 @@ function ErrorRetry({ message, onRetry }: { message: string | null; onRetry: () 
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
       <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
       <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat klaim", "Failed to load claims")}</p>
-      <p className="max-w-sm break-words text-xs text-slate-500">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
+      <p className="max-w-sm break-words text-xs text-slate-500 dark:text-slate-400">{message ?? t("Server tidak dapat dijangkau.", "The server could not be reached.")}</p>
       <Button onClick={onRetry} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
         <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
       </Button>
@@ -67,8 +67,8 @@ function ErrorRetry({ message, onRetry }: { message: string | null; onRetry: () 
 function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[12px] leading-relaxed text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+    <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <span className="break-words">{message}</span>
     </div>
   );
@@ -200,10 +200,10 @@ function MedicalClaimDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[min(560px,94vw)] overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HeartPulse className="h-4 w-4 text-rose-500" aria-hidden />
+            <HeartPulse className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Ajukan Klaim Medis", "Submit Medical Claim")}
           </DialogTitle>
           <DialogDescription>
@@ -216,7 +216,7 @@ function MedicalClaimDialog({
 
         <div className="space-y-4">
           {types === null && !loadError ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500 dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" /> {t("Memuat jenis benefit & saldo…", "Loading benefit types & balance…")}
             </div>
           ) : loadError && !types ? (
@@ -255,7 +255,7 @@ function MedicalClaimDialog({
               {selected?.needLetter && (
                 <div className="space-y-1">
                   <Label className="text-xs font-bold">
-                    {t("No. surat rujukan dokter/RS", "Referral letter no.")} <span className="text-rose-500">*</span>
+                    {t("No. surat rujukan dokter/RS", "Referral letter no.")} <span className="text-rose-500 dark:text-rose-400">*</span>
                   </Label>
                   <Input
                     value={letterNo}
@@ -302,7 +302,7 @@ function MedicalClaimDialog({
                   />
                   <span className="text-[12px] leading-relaxed">
                     <span className="font-bold">{t("Klaim untuk keluarga (dependent)", "Claim for a family member (dependent)")}</span>
-                    <span className="block text-slate-500">
+                    <span className="block text-slate-500 dark:text-slate-400">
                       {selected.depRemaining > 0
                         ? t("Memotong plafon dependent terpisah — sisa {n}", "Deducts from a separate dependent pool — {n} left", { n: fmtIDR(selected.depRemaining) })
                         : t("Memotong plafon bersama karyawan", "Deducts from the shared employee pool")}
@@ -322,7 +322,7 @@ function MedicalClaimDialog({
                       {lines.length > 1 && (
                         <Button
                           type="button" variant="ghost" size="sm"
-                          className="h-7 gap-1 rounded-lg px-2 text-[11px] text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40"
+                          className="h-7 gap-1 rounded-lg px-2 text-[11px] text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
                           onClick={() => setLines((prev) => prev.filter((_, idx) => idx !== i))}
                         >
                           <Trash2 className="h-3 w-3" /> {t("Hapus", "Remove")}
@@ -331,7 +331,7 @@ function MedicalClaimDialog({
                     </div>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] font-semibold text-slate-500">
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                           {forDependent ? t("Nama keluarga yang dirawat *", "Treated family member's name *") : t("Nama yang dirawat *", "Treated person's name *")}
                         </Label>
                         <Input
@@ -342,19 +342,19 @@ function MedicalClaimDialog({
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-slate-500">{t("Diagnosa / perawatan", "Diagnosis / treatment")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Diagnosa / perawatan", "Diagnosis / treatment")}</Label>
                         <Input value={l.treatment} onChange={(e) => setLine(i, { treatment: e.target.value })} placeholder={t("mis. Scaling & tambal gigi", "e.g. Scaling & filling")} className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-slate-500">{t("Tanggal perawatan", "Treatment date")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Tanggal perawatan", "Treatment date")}</Label>
                         <Input type="date" max={todayISO()} value={l.treatmentDate} onChange={(e) => setLine(i, { treatmentDate: e.target.value })} className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-slate-500">{t("No. kwitansi", "Receipt no.")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("No. kwitansi", "Receipt no.")}</Label>
                         <Input value={l.receiptNo} onChange={(e) => setLine(i, { receiptNo: e.target.value })} placeholder="RSK-0001" className="rounded-lg" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-slate-500">{t("Dokter / RS / klinik", "Physician / hospital")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Dokter / RS / klinik", "Physician / hospital")}</Label>
                         <Input value={[l.physician, l.hospital].filter(Boolean).join(" — ")}
                           onChange={(e) => {
                             const [p, h] = e.target.value.split(" — ");
@@ -365,7 +365,7 @@ function MedicalClaimDialog({
                         />
                       </div>
                       <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-[11px] font-semibold text-slate-500">{t("Nilai tagihan (Rp) *", "Billed amount (Rp) *")}</Label>
+                        <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Nilai tagihan (Rp) *", "Billed amount (Rp) *")}</Label>
                         <Input type="number" min={0} step="any" inputMode="numeric" value={l.billAmount} onChange={(e) => setLine(i, { billAmount: e.target.value })} placeholder="450000" className="rounded-lg tabular-nums" />
                       </div>
                     </div>
@@ -402,12 +402,12 @@ function MedicalClaimDialog({
 
         <DialogFooter className="items-center gap-3">
           <div className="mr-auto text-[12px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
-            {t("Total tagihan:", "Total billed:")} <span className="text-slate-900 dark:text-white">{fmtIDR(totalBill)}</span>
+            {t("Total tagihan:", "Total billed:")} <span className="text-slate-900 dark:text-slate-50">{fmtIDR(totalBill)}</span>
           </div>
           <Button variant="outline" className="rounded-xl font-bold" onClick={() => onOpenChange(false)} disabled={busy}>
             {t("Batal", "Cancel")}
           </Button>
-          <Button onClick={submit} disabled={busy || !types} className="gap-1.5 rounded-xl bg-rose-600 font-bold text-white hover:bg-rose-700">
+          <Button onClick={submit} disabled={busy || !types} className="gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {t("Ajukan Klaim", "Submit Claim")}
           </Button>
@@ -608,10 +608,10 @@ function TravelClaimDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[min(560px,94vw)] overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plane className="h-4 w-4 text-sky-600" aria-hidden />
+            <Plane className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
             {t("Ajukan Klaim Travel", "Submit Travel Claim")}
           </DialogTitle>
           <DialogDescription>
@@ -624,7 +624,7 @@ function TravelClaimDialog({
 
         <div className="space-y-4">
           {requests === null && !loadError ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-slate-500 dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" /> {t("Memuat pengajuan dinas & jenis biaya…", "Loading trips & expense types…")}
             </div>
           ) : loadError && !requests ? (
@@ -648,12 +648,12 @@ function TravelClaimDialog({
               </div>
 
               {selectedReq ? (
-                <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-3.5 py-2.5 dark:border-sky-900/50 dark:bg-sky-950/30">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                   <InfoLine label={t("Perjalanan", "Trip")} value={`${fmtDate(selectedReq.dateFrom)} – ${fmtDate(selectedReq.dateTo)} (${selectedReq.days} ${t("hari", "days")})`} />
                   <InfoLine label={t("Tujuan", "Destination")} value={selectedReq.destinations.join(" → ") || "—"} />
                   {selectedReq.purpose && <InfoLine label={t("Keperluan", "Purpose")} value={selectedReq.purpose} />}
                   <InfoLine label={t("Uang muka", "Advance")} value={fmtIDR(selectedReq.advanceAmount)} />
-                  <p className="mt-1 text-[11px] leading-relaxed text-sky-700 dark:text-sky-300">
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     {t("Tanggal tiap baris biaya harus dalam rentang perjalanan.", "Each expense date must fall within the trip range.")}
                   </p>
                 </div>
@@ -684,7 +684,7 @@ function TravelClaimDialog({
                         {lines.length > 1 && (
                           <Button
                             type="button" variant="ghost" size="sm"
-                            className="h-7 gap-1 rounded-lg px-2 text-[11px] text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40"
+                            className="h-7 gap-1 rounded-lg px-2 text-[11px] text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
                             onClick={() => setLines((prev) => prev.filter((_, idx) => idx !== i))}
                           >
                             <Trash2 className="h-3 w-3" /> {t("Hapus", "Remove")}
@@ -693,7 +693,7 @@ function TravelClaimDialog({
                       </div>
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                         <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Jenis biaya *", "Expense type *")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Jenis biaya *", "Expense type *")}</Label>
                           <Select value={l.expenseCode} onValueChange={(v) => setLine(i, { expenseCode: v })}>
                             <SelectTrigger className="rounded-lg"><SelectValue placeholder={t("Pilih jenis…", "Pick a type…")} /></SelectTrigger>
                             <SelectContent>
@@ -708,7 +708,7 @@ function TravelClaimDialog({
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Tanggal", "Date")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Tanggal", "Date")}</Label>
                           <Input
                             type="date"
                             value={l.expenseDate}
@@ -719,20 +719,20 @@ function TravelClaimDialog({
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Nominal (Rp) *", "Amount (Rp) *")}</Label>
                           <Input type="number" min={0} step="any" inputMode="numeric" value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} placeholder="350000" className="rounded-lg tabular-nums" />
                         </div>
                         <div className="space-y-1">
                           {/* Task 98 (F0-6) — qty: limit berlaku per unit (hari/km). */}
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Unit (hari / km / malam)", "Units (days / km / nights)")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Unit (hari / km / malam)", "Units (days / km / nights)")}</Label>
                           <Input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} className="rounded-lg tabular-nums" />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Tamu (opsional)", "Guest (optional)")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Tamu (opsional)", "Guest (optional)")}</Label>
                           <Input value={l.guestName} onChange={(e) => setLine(i, { guestName: e.target.value })} placeholder={t("untuk entertainment", "for entertainment")} className="rounded-lg" />
                         </div>
                         <div className="space-y-1 sm:col-span-2">
-                          <Label className="text-[11px] font-semibold text-slate-500">{t("Keterangan", "Description")}</Label>
+                          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Keterangan", "Description")}</Label>
                           <Input value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder={t("mis. Hotel 2 malam", "e.g. Hotel, 2 nights")} className="rounded-lg" />
                         </div>
                       </div>
@@ -747,7 +747,7 @@ function TravelClaimDialog({
                 })}
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Task 98 (F2-3) — pindai kwitansi via AI (OCR). */}
-                  <label className={cn("inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-sky-300 px-3 text-[12px] font-bold text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40", ocrBusy && "pointer-events-none opacity-60")}>
+                  <label className={cn("inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-amber-300 px-3 text-[12px] font-bold text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-500/10", ocrBusy && "pointer-events-none opacity-60")}>
                     <input
                       type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
                       disabled={ocrBusy}
@@ -772,11 +772,11 @@ function TravelClaimDialog({
               {/* penyesuaian lanjutan */}
               <div className="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-slate-300 p-3 dark:border-slate-700 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-slate-500">{t("Dibayar pihak lain (Rp)", "Paid by third party (Rp)")}</Label>
+                  <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Dibayar pihak lain (Rp)", "Paid by third party (Rp)")}</Label>
                   <Input type="number" min={0} step="any" value={otherCompanyExp} onChange={(e) => setOtherCompanyExp(e.target.value)} className="rounded-lg tabular-nums" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-slate-500">{t("Rugi kurs (Rp)", "Exchange loss (Rp)")}</Label>
+                  <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t("Rugi kurs (Rp)", "Exchange loss (Rp)")}</Label>
                   <Input type="number" min={0} step="any" value={exchangeLoss} onChange={(e) => setExchangeLoss(e.target.value)} className="rounded-lg tabular-nums" />
                 </div>
               </div>
@@ -807,12 +807,12 @@ function TravelClaimDialog({
 
         <DialogFooter className="items-center gap-3">
           <div className="mr-auto text-[12px] font-bold tabular-nums text-slate-600 dark:text-slate-300">
-            {t("Total rincian:", "Expense total:")} <span className="text-slate-900 dark:text-white">{fmtIDR(total)}</span>
+            {t("Total rincian:", "Expense total:")} <span className="text-slate-900 dark:text-slate-50">{fmtIDR(total)}</span>
           </div>
           <Button variant="outline" className="rounded-xl font-bold" onClick={() => onOpenChange(false)} disabled={busy}>
             {t("Batal", "Cancel")}
           </Button>
-          <Button onClick={submit} disabled={busy || !requests} className="gap-1.5 rounded-xl bg-sky-700 font-bold text-white hover:bg-sky-800">
+          <Button onClick={submit} disabled={busy || !requests} className="gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {t("Ajukan Klaim", "Submit Claim")}
           </Button>
@@ -858,15 +858,21 @@ export function EssClaims() {
 
         <TabsContent value="medical">
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-            <CardContent className="px-0 pb-2 pt-2">
-              <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-2">
-                <p className="text-xs text-slate-500">
-                  {t("Reimbursement medis Anda — plafon per jenis diaudit server.", "Your medical reimbursements — per-type limits are audited server-side.")}
-                </p>
-                <Button onClick={() => setMedDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-rose-600 font-bold text-white hover:bg-rose-700">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <HeartPulse className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                  {t("Klaim Medis Saya", "My Medical Claims")}
+                </CardTitle>
+                <Button onClick={() => setMedDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
                   <Plus className="h-4 w-4" /> {t("Ajukan Klaim Medis", "Submit Medical Claim")}
                 </Button>
               </div>
+              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                {t("Reimbursement medis Anda — plafon per jenis diaudit server.", "Your medical reimbursements — per-type limits are audited server-side.")}
+              </p>
+            </CardHeader>
+            <CardContent className="px-0 pb-2 pt-0">
               {api.loading && !api.data ? (
                 <div className="px-5"><LoadingRows rows={4} /></div>
               ) : api.error && !api.data ? (
@@ -923,15 +929,21 @@ export function EssClaims() {
 
         <TabsContent value="travel">
           <Card className="rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
-            <CardContent className="px-0 pb-2 pt-2">
-              <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-2">
-                <p className="text-xs text-slate-500">
-                  {t("Settlement biaya perjalanan dinas vs uang muka.", "Business travel expense settlement vs advance.")}
-                </p>
-                <Button onClick={() => setTrDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-sky-700 font-bold text-white hover:bg-sky-800">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <Plane className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                  {t("Klaim Perjalanan Dinas Saya", "My Travel Claims")}
+                </CardTitle>
+                <Button onClick={() => setTrDialog(true)} className="shrink-0 gap-1.5 rounded-xl bg-amber-600 font-bold text-white hover:bg-amber-700">
                   <Plus className="h-4 w-4" /> {t("Ajukan Klaim Travel", "Submit Travel Claim")}
                 </Button>
               </div>
+              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                {t("Settlement biaya perjalanan dinas vs uang muka.", "Business travel expense settlement vs advance.")}
+              </p>
+            </CardHeader>
+            <CardContent className="px-0 pb-2 pt-0">
               {api.loading && !api.data ? (
                 <div className="px-5"><LoadingRows rows={4} /></div>
               ) : api.error && !api.data ? (

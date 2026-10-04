@@ -62,6 +62,8 @@ const STATUS_MAP: Record<string, { label: string; cls: string; dot: string }> = 
   Calculated: { label: "Terhitung", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Confirmed: { label: "Dikonfirmasi", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Paid: { label: "Dibayar", cls: "bg-brand/10 text-brand-deep border-brand/40 dark:bg-brand/20 dark:text-brand/75 dark:border-brand/40", dot: "bg-brand" },
+  // 101-f: klaim/pengajuan travel ditransfer ke payroll (done → brand, padanan TRAVEL_STATUS_LABEL)
+  Transferred: { label: "Ditransfer", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   // wage type
   Earning: { label: "Earning", cls: "bg-brand/10 text-brand-deep border-brand/25 dark:bg-brand/10 dark:text-brand/85 dark:border-brand/25", dot: "bg-brand" },
   Deduction: { label: "Deduction", cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25", dot: "bg-rose-500" },
@@ -89,6 +91,7 @@ const STATUS_LABEL_EN: Record<string, string> = {
   Calculated: "Calculated",
   Confirmed: "Confirmed",
   Paid: "Paid",
+  Transferred: "Transferred",
   Earning: "Earning",
   Deduction: "Deduction",
   Informational: "Informational",
