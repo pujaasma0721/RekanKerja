@@ -97,7 +97,7 @@ function OpenShiftCard({
                 {t("Penuh", "Full")}
               </span>
             ) : (
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="text-[11px] font-bold text-brand dark:text-brand/85">
                 {t("{n} slot tersisa", "{n} slot(s) left", { n: p.slotsLeft })}
               </span>
             )}
@@ -201,7 +201,7 @@ export function EssOpenShift() {
             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30">
               <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
               <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t("Gagal memuat open shift", "Failed to load open shifts")}</p>
-              <p className="max-w-sm break-words text-xs text-slate-500">{api.error}</p>
+              <p className="max-w-sm break-words text-xs text-slate-500 dark:text-slate-400">{api.error}</p>
               <Button onClick={api.refresh} variant="outline" size="sm" className="mt-1 gap-1.5 rounded-lg font-bold">
                 <Loader2 className="h-3.5 w-3.5" /> {t("Coba Lagi", "Try Again")}
               </Button>
@@ -237,11 +237,11 @@ export function EssOpenShift() {
           {confirmTarget && (
             <div className="rounded-xl border border-slate-200 px-3.5 py-3 text-[12px] dark:border-slate-800">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-slate-500">{t("Tanggal", "Date")}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("Tanggal", "Date")}</span>
                 <span className="font-bold text-slate-800 dark:text-slate-100">{fmtDate(confirmTarget.workDate)}</span>
               </div>
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="text-slate-500">{t("Shift", "Shift")}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("Shift", "Shift")}</span>
                 <span className="font-bold text-slate-800 dark:text-slate-100">
                   {confirmTarget.dayTypeName}
                   <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{timeLabel(confirmTarget.timeIn, confirmTarget.timeOut)}</span>
@@ -249,12 +249,12 @@ export function EssOpenShift() {
               </div>
               {confirmTarget.orgUnitName && (
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="text-slate-500">{t("Unit", "Unit")}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t("Unit", "Unit")}</span>
                   <span className="max-w-[60%] truncate font-bold text-slate-800 dark:text-slate-100">{confirmTarget.orgUnitName}</span>
                 </div>
               )}
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="text-slate-500">{t("Slot", "Slots")}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t("Slot", "Slots")}</span>
                 <span className="font-bold tabular-nums text-slate-800 dark:text-slate-100">
                   {confirmTarget.filled}/{confirmTarget.slots} · {t("{n} tersisa", "{n} left", { n: confirmTarget.slotsLeft })}
                 </span>
@@ -269,7 +269,7 @@ export function EssOpenShift() {
               onClick={(e) => { e.preventDefault(); void submitClaim(); }}
             >
               {claimBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {claimBusy ? t("Mengirim…") : t("Ya, Ambil Shift", "Yes, Take Shift")}
+              {claimBusy ? t("Mengirim…", "Sending…") : t("Ya, Ambil Shift", "Yes, Take Shift")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -87,7 +87,7 @@ export function EssClockQrDialog({ open, direction, busy, onDetected, onOpenChan
     return () => window.clearTimeout(id);
   }, [open, onOpenChange, t]);
 
-  const dirLabel = direction === "IN" ? t("Clock In") : t("Clock Out");
+  const dirLabel = direction === "IN" ? t("Clock In", "Clock In") : t("Clock Out", "Clock Out");
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && busy) return; onOpenChange(v); }}>

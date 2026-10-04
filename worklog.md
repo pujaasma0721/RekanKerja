@@ -3674,3 +3674,17 @@ Work Log:
 Stage Summary:
 - 14 file berubah (12 komponen ESS + ui-kit additif + worklog): identitas visual ESS kini tunggal — amber aksen, slate netral, rose destruktif, brand positif; struktur kartu/pill/error/empty/loading/dialog seragam antar 12 halaman; bug fungsional StatusPill travel + 2 kelas dialog TYPO ditemukan & diperbaiki; dark mode coverage penuh; i18n EN lengkap.
 - Catatan lintas modul: pola StatusPill label-sebagai-key juga ada di modul travel ADMIN (travel-approval/claims/reports/requests/claim-approval) — kandidat task lanjutan.
+---
+Task ID: 101-sync
+Agent: Z.ai (orkestrator) — sinkronisasi pasca-rebase dengan sesi paralel T100
+Task: Integrasikan T101 dengan commit paralel (T100 F0-F2 impl + T93 wave4) + audit tema fitur ESS baru
+
+Work Log:
+- Push pertama ditolak (remote maju 3 commit dari sesi paralel: 2fcc0fc + 390f4e7 + 54d06a1 = T100 roadmap 30 gap diimplementasikan penuh + T93 wave4 piutang asuransi). Rebase: konflik hanya ess-dashboard.tsx (import lucide — digabung union: Camera,QrCode,ScanFace + Zap) + worklog.md (union entry kedua sesi, separator --- ditambahkan). Push sukses 38d6eba.
+- Sesuai mandat "semua page ESS": sweep tema kode ESS BARU dari sesi paralel (ess-open-shift.tsx 279br, ess-clock-qr.tsx, ess-clock-selfie.ts, ess-clock-camera.ts, ess-dashboard +125br, ess-shell, ess-swap): ditemukan text-emerald-600/400 (slot tersedia open-shift — off-palet) → text-brand dark:text-brand/85; 5× text-slate-500 tanpa dark → + dark:text-slate-400; t("Mengirim…")/"Clock In"/"Clock Out" satu-argumen → dua argumen.
+- Infra pasca-rebase: dependensi jsqr belum ter-install di sandbox (milik sesi paralel) → bun install; klien Prisma tenant basi → db.openShiftPost undefined → API ess/open-shift 500 → regenerate 2 klien prisma + restart dev server → pulih (tabel OpenShiftPost/Claim terverifikasi ada di 3 schema tenant).
+- VERIFIKASI E2E final: login yusuf → dashboard (tombol QR kios render, dialog QR terbuka+tutup mulus, 0 error) → Open Shift (judul render, emerald BERSIH → brand, empty state "Belum ada open shift terbuka" benar setelah API pulih 200, 4 kartu); VLM konfirmasi 2 layar baru konsisten tema (kartu putih border halus, amber tombol utama, rose error, tanpa emerald/sky).
+- tsc 0 error file ESS; lint 0 error (2 warning pre-existing); dev.log bersih.
+
+Stage Summary:
+- T101 kini terintegrasi penuh dengan pekerjaan paralel T100: seluruh halaman ESS — termasuk 4 layar baru (open shift, QR kios, selfie clock, kamera) — satu design language amber/slate/rose/brand dengan dark pairs lengkap; masalah infra stale-client pasca-rebase teridentifikasi & dipulihkan (regenerasi prisma + jsqr).
