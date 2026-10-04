@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
     let parsed: Record<string, unknown> | null = null;
     let providerError: string | null = null;
     try {
-      const { default: ZAI } = await import("z-ai-web-dev-sdk");
-      const zai = await ZAI.create();
+      const { createZaiClient } = await import("@/rekankerja/shared/services/zai-client");
+      const zai = await createZaiClient();
       // d.ts menuntut field `model` tapi runtime SDK mengabaikannya (vision model
       // dipilih backend) — E2E T98 lulus tanpa model. Kompromi tipe:
       // @ts-expect-error field model tidak diperlukan runtime createVision

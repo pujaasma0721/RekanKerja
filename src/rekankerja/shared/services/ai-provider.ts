@@ -10,6 +10,7 @@
 // Satu fungsi completion dipakai semua mode chat (assistant | hr_expert).
 import type { TenantDb } from "@/rekankerja/shared/lib/tenant-db";
 import { tenantCryptoForDb } from "@/rekankerja/shared/lib/field-crypto";
+import { createZaiClient } from "@/rekankerja/shared/services/zai-client";
 
 export type AiProviderKind = "builtin" | "openai";
 
@@ -85,10 +86,11 @@ export async function aiComplete(db: TenantDb, input: AiCompletionInput): Promis
   return completeBuiltin(input);
 }
 
-/** LLM bawaan RekanKerja (z-ai-web-dev-sdk — SERVER-SIDE ONLY). */
+/** LLM bawaan RekanKerja (z-ai-web-dev-sdk — SERVER-SIDE ONLY).
+ *  Klien dibuat via helper env-first (Z_AI_BASE_URL/Z_AI_API_KEY) supaya
+ *  jalan di production tanpa file `.z-ai-config` (gitignored). */
 async function completeBuiltin(input: AiCompletionInput): Promise<AiCompletionResult> {
-  const { default: ZAI } = await import("z-ai-web-dev-sdk");
-  const zai = await ZAI.create();
+  const zai = await createZaiClient();
   // Pola SDK: system prompt dikirim sebagai pesan 'assistant' PERTAMA.
   const messages = [{ role: "assistant" as const, content: input.system }, ...input.messages];
   const completion = await withTimeout(

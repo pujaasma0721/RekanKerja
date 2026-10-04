@@ -157,8 +157,8 @@ async function verifyFace(
     return null; // file referensi hilang dari storage
   }
   try {
-    const { default: ZAI } = await import("z-ai-web-dev-sdk");
-    const zai = await ZAI.create();
+    const { createZaiClient } = await import("@/rekankerja/shared/services/zai-client");
+    const zai = await createZaiClient();
     // d.ts menuntut field `model` tapi runtime SDK mengabaikannya (vision model
     // dipilih backend) — terbukti E2E T98 OCR tanpa model. Kompromi tipe:
     // @ts-expect-error field model tidak diperlukan runtime createVision
