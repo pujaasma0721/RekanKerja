@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   AdjustmentUI, BenefitTypeUI, EmployeeOption, fmtIDR, fmtDateID, todayISO,
+  CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN,
 } from "./medical-types";
 import { Activity, Plus, XCircle, Ban, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -99,7 +100,7 @@ export function MedicalAdjustmentPage() {
       const res = await apiSend<{ docNo: string; state: string }>("/api/rekankerja/medical/adjustments", "PATCH", {
         id: decideDialog.adj.id, action: decideDialog.action, note: reason || undefined,
       });
-      toast.success(`${res.docNo} → ${res.state}`);
+      toast.success(t("{doc} → {s}", "{doc} → {s}", { doc: res.docNo, s: t(CLAIM_STATUS_LABEL[res.state] ?? res.state, CLAIM_STATUS_LABEL_EN[res.state] ?? res.state) }));
       setDecideDialog(null);
       setReason("");
       api.refresh();
@@ -204,7 +205,7 @@ export function MedicalAdjustmentPage() {
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", a.forDependent
                           ? "bg-brand/15 text-brand-deep dark:bg-brand/15 dark:text-brand/85"
                           : "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-400")}>
-                          {a.forDependent ? "Dependent" : t("Karyawan")}
+                          {a.forDependent ? t("Tanggungan", "Dependent") : t("Karyawan")}
                         </span>
                       </TableCell>
                       {/* Task 88: penyesuaian negatif kini rose, positif tetap biru (dulu kedua cabang identik). */}
@@ -309,7 +310,7 @@ export function MedicalAdjustmentPage() {
               <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
                 <p className="font-bold">{decideDialog.adj.docNo} — {decideDialog.adj.fullName}</p>
                 <p className="text-slate-600 dark:text-slate-300">
-                  {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? "dependent" : t("karyawan", "employee")} · {fmtDateID(decideDialog.adj.adjustmentDate)}
+                  {decideDialog.adj.typeName} · {decideDialog.adj.forDependent ? t("tanggungan", "dependent") : t("karyawan", "employee")} · {fmtDateID(decideDialog.adj.adjustmentDate)}
                 </p>
                 <p className="text-sm font-black">
                   {decideDialog.adj.amount > 0 ? "+" : ""}{fmtIDR(decideDialog.adj.amount)}

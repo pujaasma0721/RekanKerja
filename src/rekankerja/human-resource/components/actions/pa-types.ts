@@ -1,7 +1,7 @@
 "use client";
 // Shared types + helpers for Personnel Action module
 import { fmtIDR, fmtDate } from "@/rekankerja/shared/lib/api";
-import { translate } from "@/rekankerja/shared/lib/i18n-core";
+import { translate, currentLocale } from "@/rekankerja/shared/lib/i18n-core";
 
 export interface LayerApprover {
   id: string;
@@ -181,7 +181,7 @@ export function detailValue(key: string, v: unknown): string {
   if (v == null || v === "" || v === false) return "—";
   if (key.toLowerCase().includes("salary")) return fmtIDR(Number(v));
   if (key === "percent" || key === "uangPisahPct") return `${Number(v).toFixed(0)}%`;
-  if (key === "pesangonMultiplier") return `×${Number(v).toLocaleString("id-ID")}`;
+  if (key === "pesangonMultiplier") return `×${Number(v).toLocaleString(currentLocale())}`;
   if (key === "lastDay" || key === "newEndDate" || key === "effectiveDate") return fmtDate(String(v));
   if (key === "includeBonusProRata") return v === true || v === "true" ? "Ya" : "—";
   return String(v);

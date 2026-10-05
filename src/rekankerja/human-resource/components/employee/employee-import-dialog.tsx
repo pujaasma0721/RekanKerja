@@ -12,6 +12,7 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN } from "./types";
 import { useMenuPerms } from "@/rekankerja/shared/lib/menu-perms-context";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, Loader2, TriangleAlert, Upload, XCircle, CheckCircle2, RotateCcw } from "lucide-react";
@@ -337,7 +338,7 @@ export function EmployeeImportDialog({ onImported }: { onImported?: () => void }
                           <td className="max-w-40 truncate px-3 py-1.5">{p.orgUnit ?? "—"}</td>
                           <td className="max-w-40 truncate px-3 py-1.5">{p.position ?? "—"}</td>
                           <td className="px-3 py-1.5">{p.grade ?? "—"}</td>
-                          <td className="px-3 py-1.5">{p.employmentStatus}</td>
+                          <td className="px-3 py-1.5">{t(EMPLOYMENT_STATUS_LABEL[p.employmentStatus] ?? p.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[p.employmentStatus])}</td>
                         </tr>
                       ))}
                     </tbody>

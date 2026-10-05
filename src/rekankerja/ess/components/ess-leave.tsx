@@ -34,6 +34,19 @@ function shiftMonth(month: string, delta: number): string {
   return monthISO(new Date(y, (m ?? 1) - 1 + delta, 1));
 }
 
+// Task 103-e — label status pengajuan utk toast (pola peta id/en paralel;
+// status di luar peta dirender mentah selaras StatusPill).
+const REQ_STATUS_LABEL: Record<string, { id: string; en: string }> = {
+  Submitted: { id: "Diajukan", en: "Submitted" },
+  Approved: { id: "Disetujui", en: "Approved" },
+  Rejected: { id: "Ditolak", en: "Rejected" },
+  Cancelled: { id: "Dibatalkan", en: "Cancelled" },
+};
+function reqStatusLabel(status: string, t: (id: string, en: string) => string): string {
+  const m = REQ_STATUS_LABEL[status];
+  return m ? t(m.id, m.en) : status;
+}
+
 // ===== Task 99-C — baris kalender tim (kontrak GET /ess/leave/calendar:
 // cuti Approved/MassLeave satu unit kerja, TANPA alasan — privacy) =====
 interface TeamLeaveRow {
@@ -197,7 +210,7 @@ export function EssLeavePage({ intent }: EssLeavePageProps) {
         halfDay: form.halfDay || undefined,
         reason: form.reason.trim(),
       });
-      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: res.status }));
+      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: reqStatusLabel(res.status, t) }));
       setDialog(false);
       setForm({ typeId: "", dateFrom: todayISO(), dateTo: todayISO(), halfDay: false, reason: "" });
       api.refresh();

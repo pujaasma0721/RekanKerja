@@ -22,6 +22,7 @@ import {
   ChevronDown, CircleDot, FileSignature,
 } from "lucide-react";
 import { EsignSignDialog } from "@/rekankerja/shared/components/esign/sign-dialog";
+import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN } from "../employee/types";
 import { cn } from "@/lib/utils";
 import { LetterPreviewDialog } from "../employee/letter-preview-dialog";
 
@@ -119,7 +120,7 @@ export function PADetail({ id }: { id: string }) {
             <MetaItem label={t("Efektif", "Effective")} value={fmtDate(pa.effectiveDate)} />
             <MetaItem label={t("Dibuat", "Created")} value={fmtDate(pa.createdAt)} />
             <MetaItem label={t("Oleh", "By")} value={pa.createdBy ?? "—"} mono />
-            <MetaItem label="Submitted" value={pa.submittedAt ? fmtDate(pa.submittedAt) : "—"} />
+            <MetaItem label={t("Disubmit", "Submitted")} value={pa.submittedAt ? fmtDate(pa.submittedAt) : "—"} />
           </dl>
         </div>
 
@@ -149,7 +150,7 @@ export function PADetail({ id }: { id: string }) {
           </button>
           <div className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Join {fmtDate(emp.joinDate)} · {tenure(emp.joinDate)}</span>
-            <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {emp.employmentStatus} · {emp.company?.shortName ?? "—"}</span>
+            <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {t(EMPLOYMENT_STATUS_LABEL[emp.employmentStatus] ?? emp.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[emp.employmentStatus])} · {emp.company?.shortName ?? "—"}</span>
           </div>
         </div>
       </div>

@@ -169,10 +169,10 @@ export function LeaveTypesPage() {
                       <TableCell>
                         <div className="flex max-w-64 flex-wrap gap-1">
                           {ty.paid && <Badge className="bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Dibayar", "Paid")}</Badge>}
-                          {ty.cashable && <Badge className="bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Cashable")}</Badge>}
-                          {ty.carryOverMax > 0 && <Badge className="bg-primary/10 text-[9px] font-bold text-primary">{t("Carry")} {ty.carryOverMax}</Badge>}
+                          {ty.cashable && <Badge className="bg-brand/15 text-[9px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Bisa Diuangkan", "Cashable")}</Badge>}
+                          {ty.carryOverMax > 0 && <Badge className="bg-primary/10 text-[9px] font-bold text-primary">{t("Bawa", "Carry")} {ty.carryOverMax}</Badge>}
                           {ty.waitingMonths > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("Tunggu {n} bln", "Wait {n} mo", { n: ty.waitingMonths })}</Badge>}
-                          {ty.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("Advance")}</Badge>}
+                          {ty.allowAdvance && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("Advance", "Advance")}</Badge>}
                           {ty.needDocs && <Badge className="bg-slate-100 text-[9px] font-bold text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300">{t("Dokumen", "Docs")}</Badge>}
                           {/* Task 99 — policy v2: notice, hari berturut, blackout */}
                           {ty.noticeDays > 0 && <Badge className="bg-primary/10 text-[9px] font-bold text-primary">{t("Notice {n}hr", "Notice {n}d", { n: ty.noticeDays })}</Badge>}
@@ -223,7 +223,7 @@ export function LeaveTypesPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">{t("Nama *", "Name *")}</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Cuti Tahunan" className="h-8 text-xs" />
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("Cuti Tahunan", "Annual Leave")} className="h-8 text-xs" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -246,7 +246,7 @@ export function LeaveTypesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">{t("Max/Request")}</Label>
+                <Label className="text-xs font-bold">{t("Maks/Pengajuan", "Max/Request")}</Label>
                 <Input type="number" value={form.maxPerRequest} onChange={(e) => setForm({ ...form, maxPerRequest: e.target.value })} className="h-8 text-xs" />
               </div>
             </div>
@@ -262,7 +262,7 @@ export function LeaveTypesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">{t("Max Carry-Over")}</Label>
+                <Label className="text-xs font-bold">{t("Maks Carry-Over", "Max Carry-Over")}</Label>
                 <Input type="number" value={form.carryOverMax} onChange={(e) => setForm({ ...form, carryOverMax: e.target.value })} className="h-8 text-xs" />
               </div>
               <div className="space-y-1.5">

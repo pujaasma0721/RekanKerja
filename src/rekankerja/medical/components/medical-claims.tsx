@@ -21,7 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   ClaimUI, ClaimPreviewUI, ClaimLineUI, BenefitTypeUI, EmployeeOption,
-  CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN, fmtIDR, fmtDateID, fmtDateTimeID, todayISO,
+  CLAIM_STATUS_LABEL, CLAIM_STATUS_LABEL_EN, FREQ_PERIOD_LABEL, FREQ_PERIOD_LABEL_EN,
+  fmtIDR, fmtDateID, fmtDateTimeID, todayISO,
 } from "./medical-types";
 import {
   FileText, Plus, Search, ChevronDown, ChevronRight, Trash2, Activity, Calculator, Paperclip,
@@ -284,7 +285,7 @@ export function MedicalClaimsPage() {
                     <ServerSortHead label={t("Jenis")} active={sortKey === "type"} dir={sortDir} onClick={() => clickSort("type")} />
                     <ServerSortHead label={t("Tanggal")} active={sortKey === "date"} dir={sortDir} onClick={() => clickSort("date")} />
                     {sort.head("bill", t("Tagihan", "Bill"), "text-right")}
-                    {sort.head("approved", "Approved", "text-right")}
+                    {sort.head("approved", t("Disetujui", "Approved"), "text-right")}
                     <ServerSortHead label={t("Status")} active={sortKey === "status"} dir={sortDir} onClick={() => clickSort("status")} />
                   </TableRow>
                 </TableHeader>
@@ -327,20 +328,20 @@ export function MedicalClaimsPage() {
                                 <div className="space-y-4">
                                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                     <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-                                      <p className="text-[11px] font-bold uppercase text-slate-400">Snapshot Limit</p>
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">{t("Snapshot Limit", "Snapshot Limit")}</p>
                                       <p className="text-sm font-black">{fmtIDR(c.maxBenefitAt)}</p>
                                       <p className="text-xs text-slate-500">{t("used saat ajukan: {v}", "used at submission: {v}", { v: fmtIDR(c.usedAt) })}</p>
                                     </div>
                                     <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-                                      <p className="text-[11px] font-bold uppercase text-slate-400">Total Reimbursement</p>
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">{t("Total Reimbursement", "Total Reimbursement")}</p>
                                       <p className="text-sm font-black">{fmtIDR(c.totalReimburse)}</p>
                                     </div>
                                     <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-                                      <p className="text-[11px] font-bold uppercase text-slate-400">Non Reimbursement</p>
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">{t("Non Reimbursement", "Non Reimbursement")}</p>
                                       <p className="text-sm font-black">{fmtIDR(c.totalNonRe)}</p>
                                     </div>
                                     <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-                                      <p className="text-[11px] font-bold uppercase text-slate-400">Settlement</p>
+                                      <p className="text-[11px] font-bold uppercase text-slate-400">{t("Settlement", "Settlement")}</p>
                                       <p className="text-sm font-black">{c.settleDate ? fmtDateID(c.settleDate) : "—"}</p>
                                       {c.journalNo && <p className="text-xs text-slate-500">{t("jurnal {n}", "journal {n}", { n: c.journalNo })}</p>}
                                     </div>
@@ -364,7 +365,7 @@ export function MedicalClaimsPage() {
                                           <TableHead>{t("Tanggal")}</TableHead>
                                           <TableHead>{t("Dokter / RS", "Physician / Hospital")}</TableHead>
                                           <TableHead className="text-right">{t("Tagihan", "Bill")}</TableHead>
-                                          <TableHead className="text-right">Approved</TableHead>
+                                          <TableHead className="text-right">{t("Disetujui", "Approved")}</TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -390,7 +391,7 @@ export function MedicalClaimsPage() {
 
                                   {detail.statusLog?.length > 0 && (
                                     <div className="rounded-lg bg-white p-3 dark:bg-slate-900">
-                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-slate-400">Status Log</p>
+                                      <p className="mb-1.5 text-[11px] font-bold uppercase text-slate-400">{t("Log Status", "Status Log")}</p>
                                       <div className="space-y-1">
                                         {detail.statusLog.map((sl, i) => (
                                           <p key={i} className="text-xs text-slate-600 dark:text-slate-400">
@@ -477,7 +478,7 @@ export function MedicalClaimsPage() {
           {preview && (
             <div className="grid gap-2 rounded-xl border ov-border-accent ov-soft p-3 text-sm sm:grid-cols-4">
               <div>
-                <p className="text-[11px] font-bold uppercase ov-text-accent">Limit</p>
+                <p className="text-[11px] font-bold uppercase ov-text-accent">{t("Limit", "Limit")}</p>
                 <p className="font-black text-slate-900 dark:text-slate-50">{preview.limitRule === "UNLIMITED" || preview.unlimited ? "Unlimited" : fmtIDR(preview.benefitAmount)}</p>
                 {preview.prorateFactor != null && preview.prorateFactor < 1 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -502,7 +503,7 @@ export function MedicalClaimsPage() {
               <div>
                 <p className="text-[11px] font-bold uppercase ov-text-accent">{t("Frekuensi", "Frequency")}</p>
                 <p className="font-black text-slate-900 dark:text-slate-50">
-                  {preview.freqUnlimited ? "Unlimited" : `${preview.freqValue}× / ${preview.freqPeriod}`}
+                  {preview.freqUnlimited ? "Unlimited" : `${preview.freqValue}× / ${t(FREQ_PERIOD_LABEL[preview.freqPeriod] ?? preview.freqPeriod, FREQ_PERIOD_LABEL_EN[preview.freqPeriod] ?? preview.freqPeriod)}`}
                 </p>
                 <p className="text-xs text-slate-500">{t("{n} klaim tahun ini", "{n} claims this year", { n: preview.claimCountYear })}</p>
               </div>
@@ -592,11 +593,11 @@ export function MedicalClaimsPage() {
                       }} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Approved *</Label>
+                      <Label className="text-xs">{t("Disetujui *", "Approved *")}</Label>
                       <Input type="number" min={0} value={l.approvedAmount} onChange={(e) => setLine(i, { approvedAmount: e.target.value, reimburseAmount: l.reimburseAmount || e.target.value })} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Reimbursement</Label>
+                      <Label className="text-xs">{t("Reimbursement", "Reimbursement")}</Label>
                       <Input type="number" min={0} value={l.reimburseAmount} onChange={(e) => setLine(i, { reimburseAmount: e.target.value })} />
                     </div>
                     <div className="flex items-end justify-between gap-2">
@@ -617,8 +618,8 @@ export function MedicalClaimsPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
             <span className="flex items-center gap-1.5 font-semibold"><Calculator className="h-4 w-4 ov-text-accent" /> {t("Total")}</span>
             <span className="text-slate-600 dark:text-slate-300">{t("Tagihan", "Bill")} <span className="font-black">{fmtIDR(totals.bill)}</span></span>
-            <span className="text-slate-600 dark:text-slate-300">Reimburse <span className="font-black">{fmtIDR(totals.re)}</span></span>
-            <span className="ov-text-accent">Approved <span className="font-black">{fmtIDR(totals.approved)}</span></span>
+            <span className="text-slate-600 dark:text-slate-300">{t("Reimburse", "Reimburse")} <span className="font-black">{fmtIDR(totals.re)}</span></span>
+            <span className="ov-text-accent">{t("Disetujui", "Approved")} <span className="font-black">{fmtIDR(totals.approved)}</span></span>
           </div>
 
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Catatan pengajuan (opsional)…", "Submission note (optional)…")} rows={2} />

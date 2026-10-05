@@ -85,7 +85,7 @@ function PostStatusBadge({ status }: { status: string }) {
 }
 
 export function AttendanceOpenShiftPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const perms = useMenuPerms();
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -284,7 +284,7 @@ export function AttendanceOpenShiftPage() {
                       <div className="flex min-w-0 items-start gap-3">
                         <div className="flex h-10 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-50 text-center dark:bg-slate-900/60">
                           <span className="text-[15px] font-extrabold leading-none text-slate-800 dark:text-slate-100">{new Date(`${p.workDate}T00:00:00`).getDate()}</span>
-                          <span className="text-[9px] font-bold uppercase text-slate-400">{new Date(`${p.workDate}T00:00:00`).toLocaleDateString("id-ID", { month: "short" })}</span>
+                          <span className="text-[9px] font-bold uppercase text-slate-400">{new Date(`${p.workDate}T00:00:00`).toLocaleDateString(locale, { month: "short" })}</span>
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -313,7 +313,7 @@ export function AttendanceOpenShiftPage() {
                               <Lock className="h-3.5 w-3.5" /> {t("Tutup")}
                             </Button>
                             <Button variant="outline" size="sm" className="h-7 gap-1 px-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10" onClick={() => setPostAction({ op: "cancel", post: p })}>
-                              <Ban className="h-3.5 w-3.5" /> {t("Batalkan")}
+                              <Ban className="h-3.5 w-3.5" /> {t("Batalkan", "Cancel")}
                             </Button>
                           </>
                         )}

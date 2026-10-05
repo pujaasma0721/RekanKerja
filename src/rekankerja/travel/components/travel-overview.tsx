@@ -14,7 +14,7 @@ import {
   ArrowRight, Calculator, Landmark, AlertTriangle, Clock, Users, Gauge, BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
-import { TravelStatsUI, BudgetRowUI, TravelAnalyticsUI, fmtIDRShort } from "./travel-types";
+import { TravelStatsUI, BudgetRowUI, TravelAnalyticsUI, EXPENSE_KIND_LABEL, EXPENSE_KIND_LABEL_EN, fmtIDRShort } from "./travel-types";
 import { cn } from "@/lib/utils";
 
 export function TravelOverview() {
@@ -298,7 +298,7 @@ export function TravelOverview() {
                       return (
                         <div key={k.kind}>
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{k.kind}</span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{t(EXPENSE_KIND_LABEL[k.kind] ?? k.kind, EXPENSE_KIND_LABEL_EN[k.kind] ?? k.kind)}</span>
                             <span className="text-slate-500 dark:text-slate-400">{fmtIDRShort(k.amount)}</span>
                           </div>
                           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">

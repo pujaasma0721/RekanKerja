@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { BadgeCheck, ShieldAlert, FileSignature, Fingerprint } from "lucide-react";
 
 // ============ HALAMAN VERIFIKASI PUBLIK e-SIGN (Task 80) ====================
@@ -7,6 +7,11 @@ import { BadgeCheck, ShieldAlert, FileSignature, Fingerprint } from "lucide-reac
 // metadata pembuktian (penandatangan, waktu, status kriptografis) — ISI
 // dokumen tidak diekspos. Tenant di-resolve server via API (?t= / host /
 // pencarian lintas tenant) — di sini cukup render hasil fetch.
+//
+// Bilingual (Task 103-d): server component TIDAK bisa membaca localStorage
+// "rekankerja:lang" → preferensi bahasa dibaca dari cookie "rklang" yang
+// ditulis I18nProvider (shared/lib/i18n.tsx). Semua teks statis dibungkus
+// helper tr(id, en); format tanggal mengikuti lang.
 // ============================================================================
 
 export const dynamic = "force-dynamic";
@@ -19,10 +24,11 @@ interface VerifyPayload {
   error?: string;
 }
 
-const DOC_LABEL: Record<string, string> = {
-  LetterDocument: "Surat",
-  PersonnelAction: "Personnel Action",
-  PayrollRun: "Run Payroll",
+// Label jenis dokumen per bahasa (di-render via tr di bawah).
+const DOC_LABEL: Record<string, { id: string; en: string }> = {
+  LetterDocument: { id: "Surat", en: "Letter" },
+  PersonnelAction: { id: "Personnel Action", en: "Personnel Action" },
+  PayrollRun: { id: "Run Payroll", en: "Run Payroll" },
 };
 
 async function verify(id: string, host: string | null): Promise<{ data: VerifyPayload | null; status: number }> {
@@ -43,14 +49,23 @@ export default async function VerifyPage({ params }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  // Next 16 — headers() async; x-forwarded-host dari nginx/Cloudflare
+  // Next 16 — headers()/cookies() async; x-forwarded-host dari nginx/Cloudflare
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const { data, status } = await verify(id, host);
 
+  // Preferensi bahasa via cookie rklang (default Indonesia).
+  const lang = (await cookies()).get("rklang")?.value === "en" ? "en" : "id";
+  const tr = (id: string, en: string) => (lang === "en" ? en : id);
+
   const fmt = (iso?: string) => {
     if (!iso) return "—";
-    return new Date(iso).toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" });
+    return new Date(iso).toLocaleString(lang === "en" ? "en-US" : "id-ID", { dateStyle: "full", timeStyle: "short" });
+  };
+
+  const docLabelOf = (dt?: string) => {
+    const dl = DOC_LABEL[dt ?? ""];
+    return dl ? tr(dl.id, dl.en) : (dt ?? "—");
   };
 
   return (
@@ -62,17 +77,22 @@ export default async function VerifyPage({ params }: {
           </span>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">RekanKerja e-Sign</p>
-            <h1 className="text-lg font-bold leading-tight text-slate-900">Verifikasi Tanda Tangan Elektronik</h1>
+            <h1 className="text-lg font-bold leading-tight text-slate-900">
+              {tr("Verifikasi Tanda Tangan Elektronik", "Electronic Signature Verification")}
+            </h1>
           </div>
         </div>
 
         {status === 404 || data?.error ? (
           <div className="rounded-xl bg-rose-50 p-5 ring-1 ring-rose-200">
             <div className="flex items-center gap-2 font-bold text-rose-700">
-              <ShieldAlert className="h-5 w-5" /> Tanda tangan tidak ditemukan
+              <ShieldAlert className="h-5 w-5" /> {tr("Tanda tangan tidak ditemukan", "Signature not found")}
             </div>
             <p className="mt-2 text-sm text-rose-600">
-              QR atau tautan ini tidak merujuk pada tanda tangan yang terdaftar. Pastikan kode diambil dari dokumen resmi.
+              {tr(
+                "QR atau tautan ini tidak merujuk pada tanda tangan yang terdaftar. Pastikan kode diambil dari dokumen resmi.",
+                "This QR/link does not match a registered signature. Make sure the code comes from an official document.",
+              )}
             </p>
           </div>
         ) : data?.valid ? (
@@ -80,41 +100,60 @@ export default async function VerifyPage({ params }: {
             <div className={`rounded-xl p-5 ring-1 ${data.chainIntact === false ? "bg-amber-50 ring-amber-200" : "bg-emerald-50 ring-emerald-200"}`}>
               <div className={`flex items-center gap-2 font-bold ${data.chainIntact === false ? "text-amber-700" : "text-emerald-700"}`}>
                 {data.chainIntact === false ? <ShieldAlert className="h-5 w-5" /> : <BadgeCheck className="h-5 w-5" />}
-                {data.chainIntact === false ? "VALID — dengan catatan rantai" : "TANDA TANGAN VALID"}
+                {data.chainIntact === false
+                  ? tr("VALID — dengan catatan rantai", "VALID — with chain caveats")
+                  : tr("TANDA TANGAN VALID", "SIGNATURE VALID")}
               </div>
               <p className="mt-1.5 text-sm text-emerald-800/80">
                 {data.chainIntact === false
-                  ? "Tanda tangan kriptografis sah, namun posisinya dalam rantai historis tidak berurutan — hubungi administrator untuk audit."
-                  : "Dokumen ditandatangani secara elektronik dan tidak berubah sejak ditandatangani (terverifikasi kriptografis)."}
+                  ? tr(
+                      "Tanda tangan kriptografis sah, namun posisinya dalam rantai historis tidak berurutan — hubungi administrator untuk audit.",
+                      "The cryptographic signature is valid, but its position in the historical chain is out of order — contact an administrator for an audit.",
+                    )
+                  : tr(
+                      "Dokumen ditandatangani secara elektronik dan tidak berubah sejak ditandatangani (terverifikasi kriptografis).",
+                      "This document was signed electronically and has not changed since signing (cryptographically verified).",
+                    )}
               </p>
             </div>
 
             <dl className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
-              <Row label="Dokumen" value={`${DOC_LABEL[data.docType ?? ""] ?? data.docType ?? "—"}${data.docRef ? ` · ${data.docRef}` : ""}`} />
-              <Row label="Penandatangan" value={data.signerName ?? "—"} icon />
-              <Row label="Peran" value={data.signerRole ?? "—"} />
-              <Row label="Waktu tanda tangan" value={fmt(data.signedAt)} />
-              <Row label="Organisasi" value={data.tenantSlug ?? "—"} />
+              <Row label={tr("Dokumen", "Document")} value={`${docLabelOf(data.docType)}${data.docRef ? ` · ${data.docRef}` : ""}`} />
+              <Row label={tr("Penandatangan", "Signer")} value={data.signerName ?? "—"} icon />
+              <Row label={tr("Peran", "Role")} value={data.signerRole ?? "—"} />
+              <Row label={tr("Waktu tanda tangan", "Signing time")} value={fmt(data.signedAt)} />
+              <Row label={tr("Organisasi", "Organization")} value={data.tenantSlug ?? "—"} />
             </dl>
           </div>
         ) : (
           <div className="rounded-xl bg-rose-50 p-5 ring-1 ring-rose-200">
             <div className="flex items-center gap-2 font-bold text-rose-700">
-              <ShieldAlert className="h-5 w-5" /> TANDA TANGAN TIDAK VALID
+              <ShieldAlert className="h-5 w-5" /> {tr("TANDA TANGAN TIDAK VALID", "SIGNATURE INVALID")}
             </div>
             <p className="mt-2 text-sm text-rose-600">
-              {data?.reason ?? "Verifikasi gagal — dokumen kemungkinan telah diubah setelah ditandatangani."}
+              {data?.reason ?? tr(
+                "Verifikasi gagal — dokumen kemungkinan telah diubah setelah ditandatangani.",
+                "Verification failed — the document may have been altered after signing.",
+              )}
             </p>
           </div>
         )}
 
         <p className="mt-6 flex items-center gap-1.5 text-[11px] text-slate-400">
           <FileSignature className="h-3.5 w-3.5" />
-          Bukti kriptografis RSA-PSS · SHA-256 · hash-chain per organisasi
+          {tr(
+            "Bukti kriptografis RSA-PSS · SHA-256 · hash-chain per organisasi",
+            "Cryptographic proof: RSA-PSS · SHA-256 · per-organization hash chain",
+          )}
         </p>
         <p className="mt-1 text-[11px] text-slate-400">
-          Butuh memeriksa dokumen fisik/digital? Cocokkan nomor dokumen dan penandatangan di atas dengan salinan resmi Anda.{" "}
-          <Link href="/" className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">Beranda RekanKerja</Link>
+          {tr(
+            "Butuh memeriksa dokumen fisik/digital? Cocokkan nomor dokumen dan penandatangan di atas dengan salinan resmi Anda.",
+            "Need to check the physical/digital document? Match the document number and signer above against your official copy.",
+          )}{" "}
+          <Link href="/" className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">
+            {tr("Beranda RekanKerja", "RekanKerja Home")}
+          </Link>
         </p>
       </div>
     </main>

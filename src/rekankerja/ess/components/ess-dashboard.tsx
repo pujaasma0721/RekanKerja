@@ -457,7 +457,7 @@ export function EssDashboard({ me, go }: EssDashboardProps) {
                         {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
                         <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.docNo}</span>
                       </p>
-                      <p className="text-[11px] text-slate-400">{r.dateLabel ?? "—"}</p>
+                      <p className="text-[11px] text-slate-400">{r.dateLabel ? loc(r.dateLabel) : "—"}</p>
                     </div>
                     <StatusPill status={r.status} />
                   </li>

@@ -41,7 +41,7 @@ function contractDaysLeft(contractEnd: string | null): number | null {
 
 /** Badge masa kontrak: merah ≤7 hr / sudah lewat, amber ≤30 hr. */
 function ContractBadge({ employmentStatus, contractEnd }: { employmentStatus: string; contractEnd: string | null }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const isPkwt = ["Contract", "Probation", "Outsourcing"].includes(employmentStatus);
   const days = isPkwt ? contractDaysLeft(contractEnd) : null;
   if (days == null) return <span className="text-[12.5px] text-slate-300">—</span>;
@@ -58,7 +58,7 @@ function ContractBadge({ employmentStatus, contractEnd }: { employmentStatus: st
             ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400"
             : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400",
       )}
-      title={contractEnd ? new Date(contractEnd).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : undefined}
+      title={contractEnd ? new Date(contractEnd).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) : undefined}
     >
       <CalendarClock className="h-3 w-3" aria-hidden />
       {overdue
@@ -152,7 +152,7 @@ export function EmployeeDirectory() {
       <button
         type="button"
         onClick={() => toggleSort(k)}
-        title="Klik untuk urutkan"
+        title={t("Klik untuk urutkan", "Click to sort")}
         className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70"
       >
         {label}

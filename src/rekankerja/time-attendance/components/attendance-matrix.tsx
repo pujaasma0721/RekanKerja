@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MatrixRow } from "@/rekankerja/time-attendance/components/attendance-types";
+import { MatrixRow, DAY_CATEGORY_LABEL, DAY_CATEGORY_LABEL_EN } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { Layers, ChevronLeft, ChevronRight, CalendarRange, CalendarDays, Search } from "lucide-react";
@@ -36,10 +36,12 @@ const shiftDate = (isoDate: string, days: number) => {
 
 export function AttendanceMatrixPage() {
   const { navigate } = useNav();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [from, setFrom] = useState(iso(mondayOf(new Date())));
   const [query, setQuery] = useState("");
-  const api = useApi<{ from: string; days: { date: string; label: string }[]; rows: MatrixRow[]; total: number }>(`/api/rekankerja/attendance/matrix?from=${from}`);
+  // Task 103-e (B-16): server mengirim date ISO mentah — label kolom hari
+  // diformat CLIENT dengan locale aktif (bukan toLocaleDateString id-ID server).
+  const api = useApi<{ from: string; days: { date: string }[]; rows: MatrixRow[]; total: number }>(`/api/rekankerja/attendance/matrix?from=${from}`);
 
   const rows = (api.data?.rows ?? []).filter((r) =>
     !query || r.fullName.toLowerCase().includes(query.toLowerCase()) || r.employeeNo.toLowerCase().includes(query.toLowerCase())
@@ -56,11 +58,11 @@ export function AttendanceMatrixPage() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setFrom(iso(shiftDate(from, -7)))} className="gap-1" aria-label={t("Minggu sebelumnya", "Previous week")}>
-              <ChevronLeft className="h-4 w-4" /> Prev
+              <ChevronLeft className="h-4 w-4" /> {t("Sebelumnya", "Prev")}
             </Button>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-36 text-xs" />
             <Button variant="outline" size="sm" onClick={() => setFrom(iso(shiftDate(from, 7)))} className="gap-1" aria-label={t("Minggu berikutnya", "Next week")}>
-              Next <ChevronRight className="h-4 w-4" />
+              {t("Berikutnya", "Next")} <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         }
@@ -92,9 +94,11 @@ export function AttendanceMatrixPage() {
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                     <TableHead className="min-w-52 text-[11px] font-bold">{t("Karyawan")}</TableHead>
                     {days.map((d) => (
-                      <TableHead key={d.date} className="min-w-24 text-center text-[10px] font-bold uppercase">{d.label}</TableHead>
+                      <TableHead key={d.date} className="min-w-24 text-center text-[10px] font-bold uppercase">
+                        {new Intl.DateTimeFormat(locale, { weekday: "short", day: "2-digit", month: "short" }).format(new Date(`${d.date}T00:00:00`))}
+                      </TableHead>
                     ))}
-                    <TableHead className="text-[11px] font-bold">Clocking</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Wajib Clocking", "Clocking Required")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -110,7 +114,7 @@ export function AttendanceMatrixPage() {
                             // T9-HOLIDAY: sel tanggal libur — merah bata + nama libur
                             <div
                               className="rounded-lg border border-rose-400 bg-rose-500/90 px-1.5 py-1.5 text-white"
-                              title={`${c.holiday.name}${c.holiday.kind === "Joint" ? " (cuti bersama)" : c.holiday.kind === "Company" ? " (libur perusahaan)" : ""}`}
+                              title={`${c.holiday.name}${c.holiday.kind === "Joint" ? t(" (cuti bersama)", " (joint leave)") : c.holiday.kind === "Company" ? t(" (libur perusahaan)", " (company holiday)") : ""}`}
                             >
                               <p className="text-[10px] font-extrabold">{t("LIBUR", "HOL")}</p>
                               <p className="hidden truncate text-[8px] font-medium text-rose-50 sm:block" title={c.holiday.name}>{c.holiday.name}</p>
@@ -119,7 +123,7 @@ export function AttendanceMatrixPage() {
                             <div
                               className="rounded-lg border px-1.5 py-1.5"
                               style={{ backgroundColor: (c.color ?? "#E7E5E4") + "55", borderColor: (c.color ?? "#E7E5E4") }}
-                              title={`${c.name} (${c.category})`}
+                              title={`${c.name} (${c.category ? t(DAY_CATEGORY_LABEL[c.category] ?? c.category, DAY_CATEGORY_LABEL_EN[c.category] ?? c.category) : "—"})`}
                             >
                               <p className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{c.code}</p>
                               <p className="hidden text-[8px] font-medium text-slate-500 sm:block">{c.category === "Off" ? t("LIBUR", "OFF") : c.code === "OFFICE" ? t("KANTOR", "OFFICE") : ""}</p>
@@ -133,7 +137,7 @@ export function AttendanceMatrixPage() {
                       ))}
                       <TableCell>
                         <span className={cn("text-[10px] font-bold", r.clockingRequired ? "text-brand dark:text-brand/85" : "text-slate-400")}>
-                          {r.clockingRequired ? t("Wajib", "Required") : "Non-clock"}
+                          {r.clockingRequired ? t("Wajib", "Required") : t("Non-clocking", "Non-clocking")}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -149,7 +153,7 @@ export function AttendanceMatrixPage() {
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
-              {legend().map((l) => (
+              {legend(t).map((l) => (
                 <span key={l.code} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <span className={cn("h-2.5 w-2.5 rounded-full", l.holiday && "bg-rose-500")} style={l.holiday ? undefined : { backgroundColor: l.color }} /> {l.code}
                 </span>
@@ -173,11 +177,12 @@ export function AttendanceMatrixPage() {
   );
 }
 
-function legend() {
+function legend(t: (id: string, en: string) => string) {
+  // Task 103-e — entri bercampur ID/EN ("OFF/Off", "HOLIDAY/Libur") → t() dua-argumen.
   return [
     { code: "OFFICE", color: "#99CCFF" }, { code: "FLEX", color: "#E7E5E4" },
     { code: "SHIFT1", color: "#A7F3D0" }, { code: "SHIFT2", color: "#FDE68A" },
-    { code: "SHIFT3", color: "#C7D2FE" }, { code: "OFF/Off", color: "#FCA5A5" },
-    { code: "HOLIDAY/Libur", color: "#F87171", holiday: true },
+    { code: "SHIFT3", color: "#C7D2FE" }, { code: t("OFF/Libur", "OFF/Off"), color: "#FCA5A5" },
+    { code: t("HOLIDAY/Libur", "HOLIDAY/Holiday"), color: "#F87171", holiday: true },
   ];
 }

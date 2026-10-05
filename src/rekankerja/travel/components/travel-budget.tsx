@@ -114,7 +114,7 @@ export function TravelBudgetPage() {
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-slate-50 py-2 dark:bg-slate-800/60">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Total Budget</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t("Total Budget", "Total Budget")}</p>
                       <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(b.totalBudget)}</p>
                     </div>
                     <div className={cn("rounded-lg py-2", over ? "bg-rose-50 dark:bg-rose-950/30" : "bg-brand/10 dark:bg-brand/30")}>
@@ -218,7 +218,7 @@ export function TravelBudgetPage() {
                 <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} disabled={Boolean(editId)} className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">{t("Total Budget (Rp) *")}</Label>
+                <Label className="text-xs font-bold">{t("Total Budget (Rp) *", "Total Budget (Rp) *")}</Label>
                 <Input type="number" min="0" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} placeholder="250000000" className="text-sm" />
               </div>
             </div>

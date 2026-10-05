@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { BookOpen, FileDown, Sparkles, ChevronRight, Scale, Landmark } from "lucide-react";
 import { JournalRow, JournalLine, MissingRunRow } from "@/rekankerja/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
-import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
 
 interface JournalsData {
   journals: JournalRow[];
@@ -147,7 +147,7 @@ export function PayrollJournalsPage() {
                             <p className="text-[10px] text-slate-400">{fmtDateTime(j.journalDate)}</p>
                           </TableCell>
                           <TableCell className="font-mono text-[11px] text-slate-500">{j.runNo ?? "—"}</TableCell>
-                          <TableCell className="max-w-[320px] truncate text-xs text-slate-500" >{j.description ?? "—"}</TableCell>
+                          <TableCell className="max-w-[320px] truncate text-xs text-slate-500" >{locActivity(j.description ?? "—")}</TableCell>
                           <TableCell className="text-center text-xs font-semibold">{j._count.lines}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalDebit)}</TableCell>
                           <TableCell className="text-right text-xs font-bold">{fmtIDR(j.totalCredit)}</TableCell>
@@ -243,7 +243,7 @@ function JournalDetailDialog({ journal, onClose }: { journal: (JournalRow & { li
                       <p className="font-mono text-[11px] font-bold text-slate-500">{l.accountCode}</p>
                       <p className="text-[11px]">{l.accountName}</p>
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate text-[11px] text-slate-500">{l.memo ?? "—"}</TableCell>
+                    <TableCell className="max-w-[220px] truncate text-[11px] text-slate-500">{locActivity(l.memo ?? "—")}</TableCell>
                     <TableCell className={cn("text-right text-[11px] font-semibold", l.position === "Debit" ? "text-brand-deep dark:text-brand/85" : "text-slate-300 dark:text-slate-600")}>
                       {l.position === "Debit" ? fmtIDR(l.amount) : ""}
                     </TableCell>

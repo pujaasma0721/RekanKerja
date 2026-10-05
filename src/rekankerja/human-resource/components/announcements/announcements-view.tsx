@@ -37,6 +37,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["Umum", "Kebijakan", "Event", "Darurat"] as const;
+// Task 103-f — pasangan EN kategori pengumuman (nilai ID tetap disimpan ke server).
+const CATEGORY_EN: Record<string, string> = { Umum: "General", Kebijakan: "Policy", Event: "Event", Darurat: "Emergency" };
 
 // ================= TIPE DATA =================
 interface AnnouncementRow {
@@ -95,11 +97,12 @@ const CATEGORY_META: Record<string, { icon: React.ElementType; cls: string }> = 
   Darurat: { icon: Siren, cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/25" },
 };
 function CategoryBadge({ category }: { category: string }) {
+  const { t } = useI18n();
   const meta = CATEGORY_META[category] ?? CATEGORY_META.Umum;
   const Icon = meta.icon;
   return (
     <Badge variant="outline" className={cn("gap-1 text-[10px] font-bold", meta.cls)}>
-      <Icon className="h-3 w-3" aria-hidden /> {category}
+      <Icon className="h-3 w-3" aria-hidden /> {t(category, CATEGORY_EN[category] ?? category)}
     </Badge>
   );
 }
@@ -284,7 +287,7 @@ function AnnouncementsList({ perms }: { perms: PermsApi }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("Semua kategori", "All categories")}</SelectItem>
-                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{t(c, CATEGORY_EN[c] ?? c)}</SelectItem>)}
               </SelectContent>
             </Select>
             <p className="text-[11px] font-bold text-slate-400" aria-live="polite">
@@ -643,7 +646,7 @@ function AnnouncementDialog({ open, editing, canPublish, setOpen, onSaved }: {
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {c}
+                      {t(c, CATEGORY_EN[c] ?? c)}
                       {c === "Darurat" ? t(" (mendesak)", " (urgent)") : ""}
                     </SelectItem>
                   ))}

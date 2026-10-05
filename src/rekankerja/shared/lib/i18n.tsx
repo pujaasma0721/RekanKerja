@@ -60,11 +60,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Persist + sinkronkan <html lang> + cookie (untuk SSR masa depan).
+  // Persist + sinkronkan <html lang> + cookie (dibaca server component /v/[id]).
   // Catatan: state global i18n-core TIDAK di-set di sini — harus sinkron saat
   // setState (lih. setLang) supaya translate() tidak pernah membaca bahasa basi.
   useEffect(() => {
     document.documentElement.lang = lang === "en" ? "en" : "id";
+    // Cookie rklang — satu-satunya kanal preferensi bahasa yang bisa dibaca
+    // server component (localStorage hanya ada di browser). Dipakai /v/[id].
+    document.cookie = `rklang=${lang}; path=/; max-age=31536000; samesite=lax`;
     try {
       window.localStorage.setItem(STORAGE_KEY, lang);
     } catch {

@@ -174,7 +174,7 @@ export function LeaveReportsPage() {
                 className="inline-flex h-8 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
                 aria-label={t("Unduh daftar karyawan cuti sebagai CSV", "Download the on-leave list as CSV")}
               >
-                <Download className="h-3.5 w-3.5" /> {t("Export CSV")}
+                <Download className="h-3.5 w-3.5" /> {t("Export CSV", "Export CSV")}
               </a>
               <div className="ml-auto flex items-center gap-2 rounded-xl ov-soft px-3 py-2">
                 <CalendarDays className="h-4 w-4" />

@@ -429,7 +429,7 @@ export function CustomReportsView() {
   return (
     <div>
       <PageHeader
-        eyebrow="Laporan"
+        eyebrow={t("Laporan")}
         title={t("Laporan Kustom", "Custom Reports")}
         description={t(
           "Bangun laporan ad-hoc: pilih sumber data, field & filter — jalankan, simpan, lalu ekspor ke CSV/Excel.",

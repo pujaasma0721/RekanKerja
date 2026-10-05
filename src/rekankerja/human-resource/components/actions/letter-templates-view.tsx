@@ -192,6 +192,8 @@ export function LetterTemplatesView() {
   );
   const signedCount = (issued.data?.letters ?? []).filter((d) => d.esign).length;
   const CATEGORY_LABEL: Record<string, string> = { Disciplinary: "Disipliner", PersonnelAction: "Personnel Action", EmployeeService: "Layanan Karyawan" };
+  // Task 103-f — pasangan EN (key = kode kategori) utk render t(label, EN).
+  const CATEGORY_LABEL_EN: Record<string, string> = { Disciplinary: "Disciplinary", PersonnelAction: "Personnel Action", EmployeeService: "Employee Service" };
 
   /** Toggle aktif/nonaktif (klik pil). */
   const toggleActive = async (tpl: TemplateRow) => {
@@ -520,7 +522,7 @@ export function LetterTemplatesView() {
                               <FileText className="h-3.5 w-3.5 text-slate-400" aria-hidden />
                               <p className="font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200">{d.refNo}</p>
                               <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                {CATEGORY_LABEL[d.category] ?? d.category}
+                                {t(CATEGORY_LABEL[d.category] ?? d.category, CATEGORY_LABEL_EN[d.category] ?? d.category)}
                               </Badge>
                               {d.esign ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">

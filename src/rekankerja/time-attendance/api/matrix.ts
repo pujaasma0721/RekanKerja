@@ -29,13 +29,12 @@ export async function GET(req: NextRequest) {
       orderBy: { employeeNo: "asc" },
     });
 
-    const days: { date: string; label: string }[] = [];
+    // Task 103-e (B-16) — kirim date ISO mentah saja; label kolom hari diformat
+    // CLIENT dengan locale aktif (sebelumnya toLocaleDateString("id-ID") hardcode).
+    const days: { date: string }[] = [];
     for (let i = 0; i < 7; i++) {
       const d = addDays(from, i);
-      days.push({
-        date: d.toISOString().slice(0, 10),
-        label: d.toLocaleDateString("id-ID", { weekday: "short", day: "2-digit", month: "short" }),
-      });
+      days.push({ date: d.toISOString().slice(0, 10) });
     }
 
     const rows = await Promise.all(

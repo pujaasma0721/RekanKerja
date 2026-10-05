@@ -20,7 +20,7 @@ import { RunDetail, RunLine, RunLog, UmkLineWarning, TAX_STATUS_LABEL, WAGE_TYPE
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
 import { BpjsExportButton, PayrollRegisterExportButton, MonthlyReportExportButton } from "@/rekankerja/payroll/components/payroll-report-buttons";
 import { cn } from "@/lib/utils";
-import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc, locActivity } from "@/rekankerja/shared/lib/i18n";
 
 export function PayrollRunDetailPage() {
   const { params, navigate, setParams } = useNav();
@@ -169,7 +169,7 @@ export function PayrollRunDetailPage() {
       </div>
 
       <PageHeader
-        eyebrow={t("PROSES PAYROLL · {p}", "PAYROLL RUN · {p}", { p: run.period.name })}
+        eyebrow={t("PROSES PAYROLL · {p}", "PAYROLL RUN · {p}", { p: loc(run.period.name) })}
         title={run.runNo}
         description={`${run.processType.name} · ${t("dibuat", "created")} ${fmtDateTime(run.createdAt)}${run.calculatedAt ? ` · ${t("dihitung", "calculated")} ${fmtDateTime(run.calculatedAt)}` : ""}${run.status === "Confirmed" || run.status === "Paid" ? ` · ${t("jurnal terposting otomatis", "journal posted automatically")}` : ""}`}
         actions={
@@ -559,7 +559,7 @@ export function PayrollRunDetailPage() {
                       {l.employeeNo ? `${l.employeeNo} — ${l.employeeName ?? ""}` : t("Umum", "General")}
                       <span className="ml-2 font-mono text-[10px] font-normal text-slate-400">{l.code}</span>
                     </p>
-                    <p className="text-[11.5px] text-slate-500 dark:text-slate-400">{l.message}</p>
+                    <p className="text-[11.5px] text-slate-500 dark:text-slate-400">{locActivity(l.message)}</p>
                   </div>
                 </div>
               ))}

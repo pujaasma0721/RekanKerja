@@ -34,6 +34,7 @@ function myClaimLabel(status: string, t: (a: string, b: string) => string) {
   if (status === "Pending") return t("Sedang diajukan", "Submitted");
   if (status === "Approved") return t("Disetujui", "Approved");
   if (status === "Rejected") return t("Ditolak", "Rejected");
+  if (status === "Cancelled") return t("Dibatalkan", "Cancelled");
   return status;
 }
 

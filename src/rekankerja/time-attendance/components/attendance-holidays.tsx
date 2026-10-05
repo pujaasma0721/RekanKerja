@@ -525,7 +525,10 @@ function HolidayImportDialog({
             onChange={(e) => setText(e.target.value)}
             rows={9}
             spellCheck={false}
-            placeholder={`2027-01-01;Tahun Baru Masehi 2027;National\n2027-08-17;Hari Proklamasi Kemerdekaan RI;National\n2027-12-24;Cuti Bersama Natal;Joint`}
+            placeholder={t(
+              "2027-01-01;Tahun Baru Masehi 2027;National\n2027-08-17;Hari Proklamasi Kemerdekaan RI;National\n2027-12-24;Cuti Bersama Natal;Joint",
+              "2027-01-01;New Year 2027;National\n2027-08-17;Indonesian Independence Day;National\n2027-12-24;Christmas Joint Leave;Joint",
+            )}
             className="rounded-xl font-mono text-xs"
           />
           <p className="text-[11px] font-semibold text-slate-500">

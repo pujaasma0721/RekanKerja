@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { INS_STATE_LABEL, InsReceivableUI, fmtIDR, fmtDateID } from "./medical-types";
+import { INS_STATE_LABEL, INS_STATE_LABEL_EN, InsReceivableUI, fmtIDR, fmtDateID } from "./medical-types";
 import { Coins, Send, HandCoins, Eraser, Building2 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { toast } from "sonner";
@@ -88,7 +88,7 @@ export function MedicalInsurancePage() {
         setDialog(null);
         await api.refresh();
       } else {
-        toast.error(String(j?.error ?? `Gagal (${res.status})`));
+        toast.error(String(j?.error ?? t("Gagal ({code})", "Failed ({code})", { code: res.status })));
       }
     } finally {
       setBusy(false);
@@ -153,7 +153,7 @@ export function MedicalInsurancePage() {
               {byInsurer.map((b) => (
                 <span key={b.insurer} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                   <Building2 className="h-3.5 w-3.5 ov-text-accent" />
-                  {b.insurer} · {b.count} klaim · {fmtIDR(b.outstanding)}
+                  {b.insurer} · {t("{n} klaim", "{n} claims", { n: b.count })} · {fmtIDR(b.outstanding)}
                 </span>
               ))}
             </div>
@@ -205,10 +205,10 @@ export function MedicalInsurancePage() {
                         <TableCell className="text-right">{r.insPaidAmount == null ? "—" : fmtIDR(r.insPaidAmount)}</TableCell>
                         <TableCell>
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${INS_STATE_VARIANT[r.insState] ?? ""}`}>
-                            {INS_STATE_LABEL[r.insState] ?? r.insState}
+                            {t(INS_STATE_LABEL[r.insState] ?? r.insState, INS_STATE_LABEL_EN[r.insState] ?? r.insState)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right text-xs text-slate-500">{r.ageDays} hr</TableCell>
+                        <TableCell className="text-right text-xs text-slate-500">{t("{n} hr", "{n} d", { n: r.ageDays })}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             {r.insState === "NONE" && (

@@ -15,6 +15,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { TableHead } from "@/components/ui/table";
+import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
 export type SortAccessor<T> = (row: T) => string | number | Date | null | undefined;
 export type SortCfg<T> = Record<string, SortAccessor<T>>;
@@ -26,6 +27,7 @@ export function useTableSort<T>(
 ) {
   const [key, setKey] = useState<string | null>(opts?.defaultKey ?? null);
   const [dir, setDir] = useState<"asc" | "desc">(opts?.defaultDir ?? "asc");
+  const { t } = useI18n(); // Task 102: tooltip sort ikut bahasa aktif
 
   const toggle = (k: string) => {
     if (k === key) setDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -59,7 +61,7 @@ export function useTableSort<T>(
       <button
         type="button"
         onClick={() => toggle(k)}
-        title="Klik untuk urutkan"
+        title={t("Klik untuk urutkan", "Click to sort")}
         className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70"
       >
         {label}
@@ -125,12 +127,13 @@ export function ServerSortHead({
   onClick: () => void;
   className?: string;
 }) {
+  const { t } = useI18n(); // Task 102: tooltip sort ikut bahasa aktif
   return (
     <TableHead className={className} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}>
       <button
         type="button"
         onClick={onClick}
-        title="Klik untuk urutkan"
+        title={t("Klik untuk urutkan", "Click to sort")}
         className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70"
       >
         {label}

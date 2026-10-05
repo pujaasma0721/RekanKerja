@@ -223,7 +223,17 @@ export const TRAVEL_STATUS_LABEL_EN: Record<string, string> = {
   Paid: "Paid",
 };
 
+// Task 103-h — label ID + peta EN paralel (render: t(MAP[k] ?? k, MAP_EN[k] ?? k)),
+// konsisten dengan pola TRAVEL_STATUS_LABEL di atas (dulu EN-only tanpa _EN).
 export const EXPENSE_KIND_LABEL: Record<string, string> = {
+  GENERAL: "Biaya Umum",
+  ALLOWANCE: "Uang Saku",
+  MILEAGE: "Kilometer",
+  ENTERTAINMENT: "Hiburan",
+};
+
+// Peta EN paralel EXPENSE_KIND_LABEL (render: t(MAP[k], MAP_EN[k])).
+export const EXPENSE_KIND_LABEL_EN: Record<string, string> = {
   GENERAL: "General Expense",
   ALLOWANCE: "Allowance",
   MILEAGE: "Mileage",

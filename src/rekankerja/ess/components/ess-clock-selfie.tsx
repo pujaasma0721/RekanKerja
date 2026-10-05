@@ -75,7 +75,7 @@ export function EssClockSelfieDialog({
     })();
   };
 
-  const dirLabel = direction === "IN" ? t("Clock In") : t("Clock Out");
+  const dirLabel = direction === "IN" ? t("Clock In", "Clock In") : t("Clock Out", "Clock Out");
   const cameraFailed = error != null;
 
   return (

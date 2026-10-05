@@ -102,7 +102,7 @@ export function LeaveBalancesPage() {
         description={t("Saldo per karyawan × jenis — formula (a+b+c) − (d+e+f+g): carry-over, earned prorata, penyesuaian, hangus, diuangkan, terpakai", "Balance per employee × type — formula (a+b+c) − (d+e+f+g): carry-over, prorated earned, adjustment, forfeited, cashed out, taken")}
         actions={
           <Button onClick={() => { setGenForm({ year: String(year), leaveTypeId: "all" }); setGenDialog(true); }} className="gap-2 font-bold">
-            <Sparkles className="h-4 w-4" /> {t("Generate Leave Information")}
+            <Sparkles className="h-4 w-4" /> {t("Generate Informasi Cuti", "Generate Leave Information")}
           </Button>
         }
       />
@@ -156,11 +156,11 @@ export function LeaveBalancesPage() {
                     {sort.head("employee", t("Karyawan"), "text-[11px] font-bold")}
                     {sort.head("type", t("Jenis Cuti", "Leave Type"), "text-[11px] font-bold")}
                     {sort.head("period", t("Periode"), "text-[11px] font-bold")}
-                    {sort.head("carried", t("a · Carry"), "text-right text-[11px] font-bold")}
-                    {sort.head("earned", t("b · Earned"), "text-right text-[11px] font-bold")}
-                    {sort.head("adjustment", t("c · Adj"), "text-right text-[11px] font-bold")}
+                    {sort.head("carried", t("a · Bawa", "a · Carry"), "text-right text-[11px] font-bold")}
+                    {sort.head("earned", t("b · Didapat", "b · Earned"), "text-right text-[11px] font-bold")}
+                    {sort.head("adjustment", t("c · Penyesuaian", "c · Adj"), "text-right text-[11px] font-bold")}
                     {sort.head("forfeited", t("d · Hangus", "d · Forfeit"), "text-right text-[11px] font-bold")}
-                    {sort.head("cashed", t("e · Cash"), "text-right text-[11px] font-bold")}
+                    {sort.head("cashed", t("e · Diuangkan", "e · Cash"), "text-right text-[11px] font-bold")}
                     {sort.head("taken", t("f · Terpakai", "f · Taken"), "text-right text-[11px] font-bold")}
                     {sort.head("applied", t("g · Akan", "g · Upcoming"), "text-right text-[11px] font-bold")}
                     {sort.head("remaining", t("Saldo", "Balance"), "text-right text-[11px] font-bold")}
@@ -207,7 +207,7 @@ export function LeaveBalancesPage() {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 ov-text-accent" /> {t("Generate Leave Information")}
+              <Sparkles className="h-4 w-4 ov-text-accent" /> {t("Generate Informasi Cuti", "Generate Leave Information")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
@@ -237,7 +237,7 @@ export function LeaveBalancesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenDialog(false)} className="text-xs font-bold">{t("Batal")}</Button>
-            <Button onClick={generate} disabled={busy} className="text-xs font-bold">{t("Generate")}</Button>
+            <Button onClick={generate} disabled={busy} className="text-xs font-bold">{t("Generate", "Generate")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

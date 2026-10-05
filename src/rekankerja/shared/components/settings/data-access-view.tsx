@@ -12,6 +12,7 @@
 //   jumlah karyawan yang terlihat, contoh).
 import { useState } from "react";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
+import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,13 +91,17 @@ interface PreviewResp {
 }
 
 const SUBJECT_TYPES = [
-  { value: "ROLE", label: "Role" },
-  { value: "USER", label: "Pengguna" },
-  { value: "ACCESS_GROUP", label: "Access Group" },
+  { value: "ROLE", label: "Role", en: "Role" },
+  { value: "USER", label: "Pengguna", en: "User" },
+  { value: "ACCESS_GROUP", label: "Access Group", en: "Access Group" },
 ] as const;
 
 const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
   Permanent: "Tetap", Contract: "Kontrak", Probation: "Percobaan", Outsourcing: "Outsourcing",
+};
+// Peta EN paralel EMPLOYMENT_STATUS_LABEL (label ID dipertahankan; render t(MAP[k], MAP_EN[k])).
+const EMPLOYMENT_STATUS_LABEL_EN: Record<string, string> = {
+  Permanent: "Permanent", Contract: "Contract", Probation: "Probation", Outsourcing: "Outsourcing",
 };
 
 function subjectLabel(r: Rule): string {
@@ -107,6 +112,7 @@ function subjectLabel(r: Rule): string {
 
 // =================================================================
 export function DataAccessView() {
+  const { t } = useI18n();
   const { data, loading, error, refresh } = useApi<RulesResp>("/api/rekankerja/data-access-rules");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [editing, setEditing] = useState<Rule | null>(null);
@@ -123,10 +129,10 @@ export function DataAccessView() {
     setToggling(r.id);
     try {
       await apiSend(`/api/rekankerja/data-access-rules?id=${r.id}`, "PATCH", { active });
-      toast.success(`Rule ${r.code} ${active ? "diaktifkan" : "dinonaktifkan"}`);
+      toast.success(active ? t("Rule {code} diaktifkan", "Rule {code} enabled", { code: r.code }) : t("Rule {code} dinonaktifkan", "Rule {code} disabled", { code: r.code }));
       refresh();
     } catch (e) {
-      toast.error("Gagal mengubah status rule", { description: (e as Error).message });
+      toast.error(t("Gagal mengubah status rule", "Failed to change rule status"), { description: (e as Error).message });
     } finally {
       setToggling(null);
     }
@@ -136,11 +142,11 @@ export function DataAccessView() {
     if (!deleting) return;
     try {
       await apiSend(`/api/rekankerja/data-access-rules?id=${deleting.id}`, "DELETE");
-      toast.success(`Rule ${deleting.code} dihapus`);
+      toast.success(t("Rule {code} dihapus", "Rule {code} deleted", { code: deleting.code }));
       setDeleting(null);
       refresh();
     } catch (e) {
-      toast.error("Gagal menghapus rule", { description: (e as Error).message });
+      toast.error(t("Gagal menghapus rule", "Failed to delete rule"), { description: (e as Error).message });
     }
   };
 
@@ -149,10 +155,10 @@ export function DataAccessView() {
       {/* ringkasan */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Rule Aktif", value: activeCount, icon: ShieldCheck },
-          { label: "Rule Parameter", value: criteriaCount, icon: SlidersHorizontal },
-          { label: "Dimensi Kriteria", value: 7, icon: Network },
-          { label: "Akses Otomatis", value: 3, icon: Crown },
+          { label: t("Rule Aktif", "Active Rules"), value: activeCount, icon: ShieldCheck },
+          { label: t("Rule Parameter", "Parameter Rules"), value: criteriaCount, icon: SlidersHorizontal },
+          { label: t("Dimensi Kriteria", "Criteria Dimensions"), value: 7, icon: Network },
+          { label: t("Akses Otomatis", "Automatic Access"), value: 3, icon: Crown },
         ].map((c) => (
           <Card key={c.label} className="rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <CardContent className="flex items-center gap-3 p-4">
@@ -171,20 +177,20 @@ export function DataAccessView() {
       {/* catatan akses otomatis — berlaku tanpa perlu di-setting */}
       <div className="rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/40 p-4 dark:border-emerald-500/25 dark:from-emerald-500/10 dark:to-teal-500/5">
         <p className="flex items-center gap-2 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
-          <Crown className="h-4 w-4" /> Akses otomatis — tanpa perlu diatur di menu ini
+          <Crown className="h-4 w-4" /> {t("Akses otomatis — tanpa perlu diatur di menu ini", "Automatic access — no configuration needed in this menu")}
         </p>
         <div className="mt-2.5 grid gap-2 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300 sm:grid-cols-3">
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-            <span><b>Super Admin</b> (role Admin / workspace OWNER &amp; ADMIN) mengakses semua data karyawan.</span>
+            <span><b>Super Admin</b> {t("(role Admin / workspace OWNER & ADMIN) mengakses semua data karyawan.", "(role Admin / workspace OWNER & ADMIN) can access all employee data.")}</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-            <span><b>Atasan langsung</b> otomatis mengakses data seluruh bawahannya.</span>
+            <span><b>{t("Atasan langsung", "Direct superior")}</b> {t("otomatis mengakses data seluruh bawahannya.", "automatically accesses all of their subordinates' data.")}</span>
           </span>
           <span className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-900/50">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
-            <span><b>Setiap pengguna</b> selalu dapat mengakses data dirinya sendiri.</span>
+            <span><b>{t("Setiap pengguna", "Every user")}</b> {t("selalu dapat mengakses data dirinya sendiri.", "can always access their own data.")}</span>
           </span>
         </div>
       </div>
@@ -195,28 +201,28 @@ export function DataAccessView() {
           <Select value={subjectFilter} onValueChange={setSubjectFilter}>
             <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Subjek</SelectItem>
-              {SUBJECT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              <SelectItem value="all">{t("Semua Subjek", "All Subjects")}</SelectItem>
+              {SUBJECT_TYPES.map((st) => <SelectItem key={st.value} value={st.value}>{t(st.label, st.en)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => setSimulating(true)} className="h-10 gap-2 rounded-xl">
-            <Wand2 className="h-4 w-4" /> Simulasi Akses
+            <Wand2 className="h-4 w-4" /> {t("Simulasi Akses", "Access Simulation")}
           </Button>
           <Button onClick={() => setCreating(true)} className="h-10 gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
-            <Plus className="h-4 w-4" /> Rule Baru
+            <Plus className="h-4 w-4" /> {t("Rule Baru", "New Rule")}
           </Button>
         </div>
       </div>
 
       {/* daftar rule */}
       {loading ? <LoadingRows /> : error ? (
-        <EmptyState title="Gagal memuat" description={error} icon={CircleAlert} />
+        <EmptyState title={t("Gagal memuat", "Failed to load")} description={error} icon={CircleAlert} />
       ) : rules.length === 0 ? (
         <EmptyState
-          title="Belum ada rule skema akses"
-          description="Buat rule parametrik — tanpa rule, pengguna hanya mengakses data diri, bawahannya (atasan langsung), atau semua data (super admin)."
+          title={t("Belum ada rule skema akses", "No access scheme rules yet")}
+          description={t("Buat rule parametrik — tanpa rule, pengguna hanya mengakses data diri, bawahannya (atasan langsung), atau semua data (super admin).", "Create parametric rules — without rules, users can only access their own data, their subordinates' (direct superior), or all data (super admin).")}
           icon={ShieldCheck}
         />
       ) : (
@@ -246,14 +252,14 @@ export function DataAccessView() {
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus rule {deleting?.code}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("Hapus rule {code}?", "Delete rule {code}?", { code: deleting?.code ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Rule &ldquo;{deleting?.name}&rdquo; akan dihapus. Subjeknya kembali hanya memiliki akses otomatis (diri sendiri, bawahan langsung, atau semua bila super admin).
+              {t("Rule “{name}” akan dihapus. Subjeknya kembali hanya memiliki akses otomatis (diri sendiri, bawahan langsung, atau semua bila super admin).", "Rule “{name}” will be deleted. Its subject reverts to automatic access only (self, direct subordinates, or everything if super admin).", { name: deleting?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={remove} className="bg-rose-600 hover:bg-rose-700">Hapus</AlertDialogAction>
+            <AlertDialogCancel>{t("Batal", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={remove} className="bg-rose-600 hover:bg-rose-700">{t("Hapus", "Delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -267,14 +273,15 @@ function RuleCard({ r, busy, onToggle, onEdit, onDelete }: {
   r: Rule; busy: boolean;
   onToggle: (v: boolean) => void; onEdit: () => void; onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const criteria: { label: string; icon: React.ElementType }[] = [];
-  if (r.companyOffice) criteria.push({ label: `Kantor: ${r.companyOffice.name}`, icon: Building2 });
-  if (r.workLocation) criteria.push({ label: `Lokasi: ${r.workLocation.name}`, icon: MapPin });
-  if (r.orgUnit) criteria.push({ label: `Unit: ${r.orgUnit.name}`, icon: Network });
-  if (r.position) criteria.push({ label: `Posisi: ${r.position.title}`, icon: BriefcaseBusiness });
-  if (r.grade) criteria.push({ label: `Grade: ${r.grade.code} — ${r.grade.name}`, icon: GraduationCap });
-  if (r.positionLevel) criteria.push({ label: `Level: ${r.positionLevel.code} — ${r.positionLevel.name}`, icon: TrendingUp });
-  if (r.employmentStatus) criteria.push({ label: `Status: ${EMPLOYMENT_STATUS_LABEL[r.employmentStatus] ?? r.employmentStatus}`, icon: BadgeCheck });
+  if (r.companyOffice) criteria.push({ label: t("Kantor: {v}", "Office: {v}", { v: r.companyOffice.name }), icon: Building2 });
+  if (r.workLocation) criteria.push({ label: t("Lokasi: {v}", "Location: {v}", { v: r.workLocation.name }), icon: MapPin });
+  if (r.orgUnit) criteria.push({ label: t("Unit: {v}", "Unit: {v}", { v: r.orgUnit.name }), icon: Network });
+  if (r.position) criteria.push({ label: t("Posisi: {v}", "Position: {v}", { v: r.position.title }), icon: BriefcaseBusiness });
+  if (r.grade) criteria.push({ label: t("Grade: {c} — {v}", "Grade: {c} — {v}", { c: r.grade.code, v: r.grade.name }), icon: GraduationCap });
+  if (r.positionLevel) criteria.push({ label: t("Level: {c} — {v}", "Level: {c} — {v}", { c: r.positionLevel.code, v: r.positionLevel.name }), icon: TrendingUp });
+  if (r.employmentStatus) criteria.push({ label: t("Status: {v}", "Status: {v}", { v: t(EMPLOYMENT_STATUS_LABEL[r.employmentStatus] ?? r.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[r.employmentStatus] ?? r.employmentStatus) }), icon: BadgeCheck });
 
   return (
     <Card className={cn("rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900", !r.active && "opacity-60")}>
@@ -285,13 +292,13 @@ function RuleCard({ r, busy, onToggle, onEdit, onDelete }: {
               <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{r.code}</span>
               <span className="font-semibold text-slate-900 dark:text-slate-50">{r.name}</span>
               <Badge className="rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">{subjectLabel(r)}</Badge>
-              {!r.active && <Badge variant="secondary" className="rounded-lg">Nonaktif</Badge>}
+              {!r.active && <Badge variant="secondary" className="rounded-lg">{t("Nonaktif", "Disable")}</Badge>}
             </div>
             {r.description && <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">{r.description}</p>}
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {criteria.length === 0 ? (
                 <Badge variant="outline" className="gap-1 rounded-lg border-emerald-200 bg-emerald-50 text-[11px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                  <ShieldCheck className="h-3 w-3" /> Akses penuh — semua karyawan (tanpa kriteria)
+                  <ShieldCheck className="h-3 w-3" /> {t("Akses penuh — semua karyawan (tanpa kriteria)", "Full access — all employees (no criteria)")}
                 </Badge>
               ) : criteria.map((c, i) => (
                 <Badge key={i} variant="outline" className="gap-1 rounded-lg border-amber-200 bg-amber-50 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -299,16 +306,16 @@ function RuleCard({ r, busy, onToggle, onEdit, onDelete }: {
                 </Badge>
               ))}
               <Badge variant="outline" className="rounded-lg border-slate-300 text-[10px] text-slate-400 dark:border-slate-600">
-                prioritas {r.priority}
+                {t("prioritas {n}", "priority {n}", { n: r.priority })}
               </Badge>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Switch checked={r.active} disabled={busy} onCheckedChange={onToggle} aria-label="Aktifkan rule" />
-            <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8 rounded-lg" aria-label="Ubah">
+            <Switch checked={r.active} disabled={busy} onCheckedChange={onToggle} aria-label={t("Aktifkan rule", "Enable rule")} />
+            <Button size="icon" variant="ghost" onClick={onEdit} className="h-8 w-8 rounded-lg" aria-label={t("Ubah", "Edit")}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8 rounded-lg text-rose-600 hover:text-rose-700" aria-label="Hapus">
+            <Button size="icon" variant="ghost" onClick={onDelete} className="h-8 w-8 rounded-lg text-rose-600 hover:text-rose-700" aria-label={t("Hapus", "Delete")}>
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -364,15 +371,16 @@ const anyCriteria = (d: Draft) =>
   !!(d.companyOfficeId || d.workLocationId || d.orgUnitId || d.positionId || d.gradeId || d.positionLevelId || d.employmentStatus);
 
 function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; resp: RulesResp | null; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
   const [d, setD] = useState<Draft>(draftFrom(rule));
   const [saving, setSaving] = useState(false);
   const set = (patch: Partial<Draft>) => setD((cur) => ({ ...cur, ...patch }));
 
   const save = async () => {
-    if (!d.code.trim() || !d.name.trim()) { toast.error("Kode & nama rule wajib diisi"); return; }
-    if (d.subjectType === "ROLE" && !d.role) { toast.error("Pilih role subjek"); return; }
-    if (d.subjectType === "USER" && !d.appUserId) { toast.error("Pilih pengguna subjek"); return; }
-    if (d.subjectType === "ACCESS_GROUP" && !d.accessGroupId) { toast.error("Pilih access group subjek"); return; }
+    if (!d.code.trim() || !d.name.trim()) { toast.error(t("Kode & nama rule wajib diisi", "Rule code & name are required")); return; }
+    if (d.subjectType === "ROLE" && !d.role) { toast.error(t("Pilih role subjek", "Select a subject role")); return; }
+    if (d.subjectType === "USER" && !d.appUserId) { toast.error(t("Pilih pengguna subjek", "Select a subject user")); return; }
+    if (d.subjectType === "ACCESS_GROUP" && !d.accessGroupId) { toast.error(t("Pilih access group subjek", "Select a subject access group")); return; }
     setSaving(true);
     try {
       const body = {
@@ -387,10 +395,10 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
         employmentStatus: d.employmentStatus || null,
       };
       await apiSend(rule ? `/api/rekankerja/data-access-rules?id=${rule.id}` : "/api/rekankerja/data-access-rules", rule ? "PATCH" : "POST", body);
-      toast.success(rule ? `Rule ${d.code} diperbarui` : `Rule ${d.code} dibuat`);
+      toast.success(rule ? t("Rule {code} diperbarui", "Rule {code} updated", { code: d.code }) : t("Rule {code} dibuat", "Rule {code} created", { code: d.code }));
       onDone();
     } catch (e) {
-      toast.error("Gagal menyimpan rule", { description: (e as Error).message });
+      toast.error(t("Gagal menyimpan rule", "Failed to save rule"), { description: (e as Error).message });
     } finally {
       setSaving(false);
     }
@@ -402,36 +410,36 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{rule ? `Ubah Rule ${rule.code}` : "Rule Skema Akses Baru"}</DialogTitle>
+          <DialogTitle>{rule ? t("Ubah Rule {code}", "Edit Rule {code}", { code: rule.code }) : t("Rule Skema Akses Baru", "New Access Scheme Rule")}</DialogTitle>
           <DialogDescription>
-            Subjek berhak mengakses karyawan yang penempatannya cocok dengan kriteria (semua terpilih = AND). Kosongkan semua kriteria untuk akses penuh.
+            {t("Subjek berhak mengakses karyawan yang penempatannya cocok dengan kriteria (semua terpilih = AND). Kosongkan semua kriteria untuk akses penuh.", "The subject can access employees whose placement matches the criteria (all selected = AND). Leave all criteria empty for full access.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ra-code">Kode</Label>
+              <Label htmlFor="ra-code">{t("Kode", "Code")}</Label>
               <Input id="ra-code" value={d.code} onChange={(e) => set({ code: e.target.value })} placeholder="ACC-PROD-OPS" className="rounded-xl" disabled={!!rule} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ra-name">Nama Rule</Label>
-              <Input id="ra-name" value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="Operasional Produksi — Kantu Surabaya" className="rounded-xl" />
+              <Label htmlFor="ra-name">{t("Nama Rule", "Rule Name")}</Label>
+              <Input id="ra-name" value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder={t("Operasional Produksi — Kantu Surabaya", "Production Operations — Surabaya Office")} className="rounded-xl" />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Subjek — pemegang hak akses</Label>
+            <Label>{t("Subjek — pemegang hak akses", "Subject — access rights holder")}</Label>
             <div className="grid gap-3 sm:grid-cols-2">
               <Select value={d.subjectType} onValueChange={(v) => set({ subjectType: v, role: "", appUserId: "", accessGroupId: "" })}>
                 <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {SUBJECT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {SUBJECT_TYPES.map((st) => <SelectItem key={st.value} value={st.value}>{t(st.label, st.en)}</SelectItem>)}
                 </SelectContent>
               </Select>
               {d.subjectType === "ROLE" && (
                 <Select value={d.role} onValueChange={(v) => set({ role: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih role" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih role", "Select role")} /></SelectTrigger>
                   <SelectContent>
                     {(resp?.roles ?? []).map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
@@ -439,7 +447,7 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
               )}
               {d.subjectType === "USER" && (
                 <Select value={d.appUserId} onValueChange={(v) => set({ appUserId: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih pengguna", "Select user")} /></SelectTrigger>
                   <SelectContent>
                     {(resp?.users ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName} ({u.username} · {u.role})</SelectItem>)}
                   </SelectContent>
@@ -447,7 +455,7 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
               )}
               {d.subjectType === "ACCESS_GROUP" && (
                 <Select value={d.accessGroupId} onValueChange={(v) => set({ accessGroupId: v })}>
-                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih access group" /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih access group", "Select access group")} /></SelectTrigger>
                   <SelectContent>
                     {(resp?.groups ?? []).map((g) => <SelectItem key={g.id} value={g.id}>{g.name} ({g.code})</SelectItem>)}
                   </SelectContent>
@@ -458,24 +466,24 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
             <p className="flex items-center gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-100">
-              <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> Kriteria sasaran — karyawan yang dapat diakses
+              <SlidersHorizontal className="h-4 w-4 text-emerald-600" /> {t("Kriteria sasaran — karyawan yang dapat diakses", "Target criteria — employees that can be accessed")}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {([
-                { key: "companyOfficeId" as const, label: "Kantor", items: (refs?.offices ?? []).map((o) => ({ value: o.id, label: `${o.name}${o.city ? ` — ${o.city}` : ""}` })) },
-                { key: "workLocationId" as const, label: "Lokasi Kerja", items: (refs?.locations ?? []).map((l) => ({ value: l.id, label: `${l.name}${l.city ? ` — ${l.city}` : ""}` })) },
-                { key: "orgUnitId" as const, label: "Unit Organisasi", items: (refs?.units ?? []).map((u) => ({ value: u.id, label: u.name })) },
-                { key: "positionId" as const, label: "Posisi", items: (refs?.positions ?? []).map((p) => ({ value: p.id, label: p.title })) },
-                { key: "gradeId" as const, label: "Grade", items: (refs?.grades ?? []).map((g) => ({ value: g.id, label: `${g.code} — ${g.name}` })) },
-                { key: "positionLevelId" as const, label: "Level Jabatan", items: (refs?.levels ?? []).map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` })) },
-                { key: "employmentStatus" as const, label: "Status Kerja", items: (resp?.employmentStatuses ?? []).map((s) => ({ value: s, label: EMPLOYMENT_STATUS_LABEL[s] ?? s })) },
+                { key: "companyOfficeId" as const, label: t("Kantor", "Office"), items: (refs?.offices ?? []).map((o) => ({ value: o.id, label: `${o.name}${o.city ? ` — ${o.city}` : ""}` })) },
+                { key: "workLocationId" as const, label: t("Lokasi Kerja", "Work Location"), items: (refs?.locations ?? []).map((l) => ({ value: l.id, label: `${l.name}${l.city ? ` — ${l.city}` : ""}` })) },
+                { key: "orgUnitId" as const, label: t("Unit Organisasi", "Organizational Unit"), items: (refs?.units ?? []).map((u) => ({ value: u.id, label: u.name })) },
+                { key: "positionId" as const, label: t("Posisi", "Position"), items: (refs?.positions ?? []).map((p) => ({ value: p.id, label: p.title })) },
+                { key: "gradeId" as const, label: t("Grade", "Grade"), items: (refs?.grades ?? []).map((g) => ({ value: g.id, label: `${g.code} — ${g.name}` })) },
+                { key: "positionLevelId" as const, label: t("Level Jabatan", "Job Level"), items: (refs?.levels ?? []).map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` })) },
+                { key: "employmentStatus" as const, label: t("Status Kerja", "Employment Status"), items: (resp?.employmentStatuses ?? []).map((s) => ({ value: s, label: t(EMPLOYMENT_STATUS_LABEL[s] ?? s, EMPLOYMENT_STATUS_LABEL_EN[s] ?? s) })) },
               ]).map((f) => (
                 <div key={f.key} className="space-y-1.5">
                   <Label className="text-xs text-slate-500">{f.label}</Label>
                   <Select value={d[f.key] || "__all"} onValueChange={(v) => set({ [f.key]: v === "__all" ? "" : v } as Partial<Draft>)}>
                     <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all">Semua (tanpa filter)</SelectItem>
+                      <SelectItem value="__all">{t("Semua (tanpa filter)", "All (no filter)")}</SelectItem>
                       {f.items.map((it) => <SelectItem key={it.value} value={it.value}>{it.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -485,32 +493,32 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
             {!anyCriteria(d) && (
               <p className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Tanpa kriteria apa pun, rule ini memberi <b>akses penuh</b> ke seluruh data karyawan bagi subjeknya.
+                {t("Tanpa kriteria apa pun, rule ini memberi", "With no criteria at all, this rule grants")} <b>{t("akses penuh", "full access")}</b> {t("ke seluruh data karyawan bagi subjeknya.", "to all employee data for its subject.")}
               </p>
             )}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ra-priority">Prioritas (urutan evaluasi)</Label>
+              <Label htmlFor="ra-priority">{t("Prioritas (urutan evaluasi)", "Priority (evaluation order)")}</Label>
               <Input id="ra-priority" type="number" value={d.priority} onChange={(e) => set({ priority: e.target.value })} className="rounded-xl" />
             </div>
             <div className="flex items-center gap-2 pt-6">
               <Switch checked={d.active} onCheckedChange={(v) => set({ active: v })} id="ra-active" />
-              <Label htmlFor="ra-active">Rule aktif</Label>
+              <Label htmlFor="ra-active">{t("Rule aktif", "Rule active")}</Label>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ra-desc">Deskripsi (opsional)</Label>
+            <Label htmlFor="ra-desc">{t("Deskripsi (opsional)", "Description (optional)")}</Label>
             <Textarea id="ra-desc" value={d.description} onChange={(e) => set({ description: e.target.value })} rows={2} className="rounded-xl" />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">Batal</Button>
+          <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">{t("Batal", "Cancel")}</Button>
           <Button onClick={save} disabled={saving} className="h-10 gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800">
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Simpan Rule
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />} {t("Simpan Rule", "Save Rule")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -521,6 +529,7 @@ function RuleFormDialog({ rule, resp, onClose, onDone }: { rule: Rule | null; re
 // ================= dialog simulasi =================
 
 function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose: () => void }) {
+  const { t } = useI18n();
   const [userId, setUserId] = useState(users[0]?.id ?? "");
   const { data, loading, error } = useApi<PreviewResp>(userId ? `/api/rekankerja/data-access-rules?action=preview&userId=${encodeURIComponent(userId)}` : null, [userId]);
   const p = data?.preview;
@@ -529,17 +538,17 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 text-emerald-600" /> Simulasi Akses Efektif</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Wand2 className="h-4 w-4 text-emerald-600" /> {t("Simulasi Akses Efektif", "Effective Access Simulation")}</DialogTitle>
           <DialogDescription>
-            Coba skema akses untuk seorang pengguna — menggabungkan akses otomatis (super admin, atasan langsung, diri sendiri) dengan rule parametrik.
+            {t("Coba skema akses untuk seorang pengguna — menggabungkan akses otomatis (super admin, atasan langsung, diri sendiri) dengan rule parametrik.", "Try the access scheme for a user — combines automatic access (super admin, direct superior, self) with parametric rules.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Pengguna</Label>
+            <Label>{t("Pengguna", "User")}</Label>
             <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder="Pilih pengguna" /></SelectTrigger>
+              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900"><SelectValue placeholder={t("Pilih pengguna", "Select user")} /></SelectTrigger>
               <SelectContent>
                 {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName} ({u.username} · {u.role})</SelectItem>)}
               </SelectContent>
@@ -547,7 +556,7 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
           </div>
 
           {loading && <LoadingRows rows={3} />}
-          {error && <EmptyState title="Gagal simulasi" description={error} icon={CircleAlert} />}
+          {error && <EmptyState title={t("Gagal simulasi", "Simulation failed")} description={error} icon={CircleAlert} />}
           {p && (
             <div className="space-y-3">
               <div className={cn(
@@ -559,22 +568,22 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
                 {p.all ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-emerald-600" />}
                 <div>
                   <p className="text-sm font-bold text-slate-900 dark:text-slate-50">
-                    {p.all ? "Akses penuh — seluruh data karyawan" : `${p.accessibleCount} karyawan dapat diakses`}
+                    {p.all ? t("Akses penuh — seluruh data karyawan", "Full access — all employee data") : t("{n} karyawan dapat diakses", "{n} employees accessible", { n: p.accessibleCount })}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {p.all ? "Semua karyawan terlihat di direktori & detail." : "Hanya karyawan dalam cakupan ini yang terlihat di direktori & detail."}
+                    {p.all ? t("Semua karyawan terlihat di direktori & detail.", "All employees visible in directory & detail.") : t("Hanya karyawan dalam cakupan ini yang terlihat di direktori & detail.", "Only employees within this scope are visible in directory & detail.")}
                   </p>
                 </div>
               </div>
 
               <div>
                 <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
-                  <Network className="h-3.5 w-3.5" /> Sumber akses
+                  <Network className="h-3.5 w-3.5" /> {t("Sumber akses", "Access Sources")}
                 </p>
                 <div className="max-h-44 space-y-1.5 overflow-y-auto">
                   {p.sources.length === 0 && (
                     <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
-                      Tidak ada akses — pengguna ini tidak dapat melihat data karyawan lain (hanya dirinya, tanpa bawahan/rule).
+                      {t("Tidak ada akses — pengguna ini tidak dapat melihat data karyawan lain (hanya dirinya, tanpa bawahan/rule).", "No access — this user cannot view other employees' data (only themselves, no subordinates/rules).")}
                     </p>
                   )}
                   {p.sources.map((s, i) => (
@@ -587,13 +596,13 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
 
               {p.subordinateCount > 0 && (
                 <p className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50/60 px-3 py-2 text-xs font-medium text-teal-700 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-300">
-                  <Users className="h-3.5 w-3.5" /> {p.subordinateCount} bawahan langsung aktif — otomatis dapat diakses.
+                  <Users className="h-3.5 w-3.5" /> {t("{n} bawahan langsung aktif — otomatis dapat diakses.", "{n} active direct subordinates — automatically accessible.", { n: p.subordinateCount })}
                 </p>
               )}
 
               {!p.all && p.sample.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">Contoh karyawan dalam cakupan</p>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">{t("Contoh karyawan dalam cakupan", "Example employees in scope")}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {p.sample.map((e) => (
                       <Badge key={e.id} variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
@@ -602,7 +611,7 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
                     ))}
                     {p.accessibleCount > p.sample.length && (
                       <Badge variant="outline" className="rounded-lg border-slate-200 text-[11px] text-slate-400 dark:border-slate-700">
-                        +{p.accessibleCount - p.sample.length} lainnya
+                        {t("+{n} lainnya", "+{n} more", { n: p.accessibleCount - p.sample.length })}
                       </Badge>
                     )}
                   </div>
@@ -613,7 +622,7 @@ function SimulateDialog({ users, onClose }: { users: RulesResp["users"]; onClose
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">Tutup</Button>
+          <Button variant="outline" onClick={onClose} className="h-10 rounded-xl">{t("Tutup", "Close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

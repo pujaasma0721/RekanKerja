@@ -45,7 +45,7 @@ export function MedicalOverview() {
     },
     {
       label: t("Penyesuaian Saldo"), value: s ? String(s.adjustments) : "—",
-      sub: "Medical Adjustment (± employee/dependent)",
+      sub: t("Penyesuaian Medis (± karyawan/tanggungan)", "Medical Adjustment (± employee/dependent)"),
       icon: Activity,
       onClick: () => navigate("medical", "medical-adjustment"),
     },

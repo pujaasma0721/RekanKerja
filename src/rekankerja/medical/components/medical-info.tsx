@@ -152,7 +152,7 @@ export function MedicalInfoPage() {
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Limit</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Total Limit", "Total Limit")}</p>
             <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDR(totals.limit)}</p>
             <p className="mt-1 text-xs text-slate-500">{t("{n} baris saldo", "{n} balance rows", { n: balances.length })}{typeFilter !== "all" ? ` · ${typeFilter}` : ""}</p>
           </CardContent>
@@ -192,7 +192,7 @@ export function MedicalInfoPage() {
                   <TableRow>
                     <TableHead>{t("Karyawan")}</TableHead>
                     <TableHead>{t("Jenis")}</TableHead>
-                    <TableHead className="text-right">Limit</TableHead>
+                    <TableHead className="text-right">{t("Limit", "Limit")}</TableHead>
                     <TableHead className="text-right">{t("Saldo Awal (Migrasi)", "Initial (Migration)")}</TableHead>
                     <TableHead className="text-right">{t("Penyesuaian", "Adjustment")}</TableHead>
                     <TableHead className="text-right">{t("Terpakai", "Used")}</TableHead>
@@ -309,13 +309,13 @@ export function MedicalInfoPage() {
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={genCorrection} onCheckedChange={(v) => setGenCorrection(Boolean(v))} />
-              Benefit Limit Correction — {t("tulis ulang limit existing", "overwrite existing limits")}
+              {t("Koreksi Limit Benefit — ", "Benefit Limit Correction — ")}{t("tulis ulang limit existing", "overwrite existing limits")}
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenOpen(false)}>{t("Batal")}</Button>
             <Button onClick={generate} disabled={busy}>
-              {busy ? t("Menggenerate…", "Generating…") : "Process"}
+              {busy ? t("Menggenerate…", "Generating…") : t("Proses", "Process")}
             </Button>
           </DialogFooter>
         </DialogContent>

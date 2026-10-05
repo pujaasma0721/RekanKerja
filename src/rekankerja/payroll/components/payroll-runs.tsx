@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { PlayCircle, Plus, Calculator, CheckCircle2, Wallet, Trash2, Play, ChevronRight, Receipt, Gift, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { BonusMassalDialog } from "@/rekankerja/payroll/components/bonus-massal-dialog";
-import { PeriodRow, ProcessTypeRow, RunRow } from "@/rekankerja/payroll/components/payroll-types";
+import { PeriodRow, ProcessTypeRow, RunRow, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { BankExportMenu } from "@/rekankerja/payroll/components/bank-export-menu";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
@@ -74,7 +74,7 @@ export function PayrollRunsPage() {
   // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
   const sortHead = (k: string, label: React.ReactNode, className?: string) => (
     <TableHead className={className}>
-      <button type="button" onClick={() => toggleSort(k)} title="Klik untuk urutkan"
+      <button type="button" onClick={() => toggleSort(k)} title={t("Klik untuk urutkan", "Click to sort")}
         className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70">
         {label}
         {sortKey === k ? (
@@ -114,7 +114,7 @@ export function PayrollRunsPage() {
             <SelectContent>
               <SelectItem value="all">{t("Semua Period", "All Periods")}</SelectItem>
               {(periodsApi.data?.periods ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -271,7 +271,7 @@ function NewRunDialog({ open, periods, onClose }: { open: boolean; periods: Peri
               <SelectContent>
                 {periods.map((p) => (
                   <SelectItem key={p.id} value={p.id} disabled={p.status === "Closed" || p.status === "Locked"}>
-                    {p.name} {p.status !== "Open" && `(${p.status})`}
+                    {loc(p.name)} {p.status !== "Open" && `(${t(PERIOD_STATUS_LABEL[p.status] ?? p.status, PERIOD_STATUS_LABEL_EN[p.status] ?? p.status)})`}
                   </SelectItem>
                 ))}
               </SelectContent>

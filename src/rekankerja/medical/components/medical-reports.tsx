@@ -102,7 +102,7 @@ export function MedicalReportsPage() {
         </Card>
         <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Approved</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Disetujui", "Approved")}</p>
             <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(totals.approved)}</p>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export function MedicalReportsPage() {
                       <TableHead>{t("Jenis")}</TableHead>
                       <TableHead>{t("Tanggal")}</TableHead>
                       <TableHead className="text-right">{t("Tagihan", "Bill")}</TableHead>
-                      <TableHead className="text-right">Approved</TableHead>
+                      <TableHead className="text-right">{t("Disetujui", "Approved")}</TableHead>
                       <TableHead>{t("Status")}</TableHead>
                     </TableRow>
                   </TableHeader>

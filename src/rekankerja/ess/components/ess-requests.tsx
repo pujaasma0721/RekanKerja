@@ -8,7 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ClipboardList, Clock, Plus, Send, Loader2, AlertTriangle, CalendarOff, History } from "lucide-react";
 import { useApi } from "@/rekankerja/shared/lib/api";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,19 @@ import type { EssDashboard } from "./ess-types";
 import { EssTravelRequest } from "./ess-travel-request";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// Task 103-e — label status pengajuan utk toast (pola peta id/en paralel;
+// status di luar peta, mis. "Pending", dirender mentah selaras StatusPill).
+const REQ_STATUS_LABEL: Record<string, { id: string; en: string }> = {
+  Submitted: { id: "Diajukan", en: "Submitted" },
+  Approved: { id: "Disetujui", en: "Approved" },
+  Rejected: { id: "Ditolak", en: "Rejected" },
+  Cancelled: { id: "Dibatalkan", en: "Cancelled" },
+};
+function reqStatusLabel(status: string, t: (id: string, en: string) => string): string {
+  const m = REQ_STATUS_LABEL[status];
+  return m ? t(m.id, m.en) : status;
+}
 
 interface EssRequestsProps { intent: string | null }
 
@@ -57,7 +70,7 @@ function RequestCard({ title, description, icon: Icon, cta, onOpen, latest }: Re
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-mono text-[12px] font-semibold text-slate-600 dark:text-slate-300">{latest.docNo}</span>
               <StatusPill status={latest.status} />
-              <span className="text-[11px] text-slate-400">{latest.dateLabel ?? "—"}</span>
+              <span className="text-[11px] text-slate-400">{latest.dateLabel ? loc(latest.dateLabel) : "—"}</span>
             </div>
           ) : (
             <p className="text-[12px] text-slate-400">{t("Belum ada — Anda belum pernah mengajukan.", "None yet — you have never submitted this.")}</p>
@@ -134,7 +147,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
         paid: wForm.paid,
         reason: wForm.reason.trim(),
       });
-      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: res.status }));
+      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: reqStatusLabel(res.status, t) }));
       setWorkoffOpen(false);
       setWForm({ dateFrom: todayISO(), dateTo: todayISO(), halfDay: false, paid: false, reason: "" });
       dash.refresh();
@@ -160,7 +173,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
         planEnd: oForm.planEnd,
         reason: oForm.reason.trim(),
       });
-      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: res.status }));
+      toast.success(t("{doc} diajukan — status {status}", "{doc} submitted — status {status}", { doc: res.docNo, status: reqStatusLabel(res.status, t) }));
       setOvertimeOpen(false);
       setOForm({ date: todayISO(), planStart: "18:00", planEnd: "20:00", reason: "" });
       dash.refresh();
@@ -233,7 +246,7 @@ export function EssRequests({ intent }: EssRequestsProps) {
                       {t(essDocTypeLabel(r.docType), essDocTypeLabelEn(r.docType))}
                       <span className="ml-1.5 font-mono text-[11px] font-semibold text-slate-400">{r.docNo}</span>
                     </p>
-                    <p className="text-[11px] text-slate-400">{r.dateLabel ?? "—"}</p>
+                    <p className="text-[11px] text-slate-400">{r.dateLabel ? loc(r.dateLabel) : "—"}</p>
                   </div>
                   <StatusPill status={r.status} />
                 </li>

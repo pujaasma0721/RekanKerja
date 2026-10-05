@@ -351,7 +351,7 @@ export function LeaveRequestsPage() {
                 {selectedType && (
                   <div className="flex gap-1">
                     {selectedType.allowHalfDay && <Badge className="bg-white text-[9px] font-bold">{t("½ hari OK", "½ day OK")}</Badge>}
-                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold">{t("advance OK")}</Badge>}
+                    {selectedType.allowAdvance && <Badge className="bg-white text-[9px] font-bold">{t("advance OK", "advance OK")}</Badge>}
                     {selectedType.waitingMonths > 0 && <Badge className="bg-white text-[9px] font-bold">{t("tunggu {n} bln", "wait {n} mo", { n: selectedType.waitingMonths })}</Badge>}
                   </div>
                 )}

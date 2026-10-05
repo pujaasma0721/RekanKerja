@@ -21,7 +21,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { RecapRow, PeriodOption, WorkoffRow } from "@/rekankerja/time-attendance/components/attendance-types";
 import { ApiErrorState, fmtDays, isoLocal } from "@/rekankerja/time-attendance/components/attendance-ui";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
+// Task 103-e (B-13) — label status period payroll (pola travel-claim-approval).
+import { PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { XCircle, ArrowRightLeft, Search, Wallet, Timer, TrendingDown, CheckCircle2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -243,7 +245,7 @@ export function AttendanceAbsencePage() {
                   <SelectTrigger className="text-sm"><SelectValue placeholder={periods.length ? t("Pilih period", "Select period") : t("Belum ada period terbuka", "No open periods yet")} /></SelectTrigger>
                   <SelectContent>
                     {periods.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.status})</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{loc(p.name)} ({t(PERIOD_STATUS_LABEL[p.status] ?? p.status, PERIOD_STATUS_LABEL_EN[p.status] ?? p.status)})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

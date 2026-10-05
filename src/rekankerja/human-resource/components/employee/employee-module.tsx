@@ -15,7 +15,8 @@ import { AssetsModule } from "@/rekankerja/human-resource/components/assets/asse
 import { AnnouncementsView } from "@/rekankerja/human-resource/components/announcements/announcements-view";
 import { EmployeeAvatar } from "@/rekankerja/human-resource/components/employee/employee-avatar";
 import { EmployeeLetterIssueDialog, type ServiceTemplateRow } from "@/rekankerja/human-resource/components/employee/employee-letter-issue-dialog";
-import { pkwtDurationLabel } from "@/rekankerja/human-resource/services/pkwt";
+import { pkwtDurationLabel, pkwtDurationLabelEn } from "@/rekankerja/human-resource/services/pkwt";
+import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN, WORK_SHIFTS_EN } from "./types";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,9 +132,31 @@ interface LetterRow {
   purpose: string | null;
 };
 
+// Task 103-f — pasangan EN untuk label alasan perubahan penempatan.
+// Sumber kebenaran: CHANGE_REASON_LABEL_EN di services/assignment.ts (server,
+// mengimpor node:crypto/Prisma — tidak boleh diimpor komponen client).
+// Key = `changeReasonLabel` yang dikirim API employee-detail (label ID).
+const CHANGE_REASON_LABEL_EN: Record<string, string> = {
+  "Penempatan Awal": "Initial Placement",
+  "Promosi": "Promotion",
+  "Demosi": "Demotion",
+  "Transfer": "Transfer",
+  "Mutasi": "Mutation",
+  "Penyesuaian Upah": "Salary Adjustment",
+  "Perubahan Status": "Status Change",
+  "Perpanjangan Kontrak": "Contract Extension",
+  "Perpanjangan Probation": "Probation Extension",
+  "Perubahan Manual": "Manual Change",
+};
+
+// Task 103-f — durasi PKWT mengikuti bahasa aktif: pkwtDurationLabel selalu ID,
+// pkwtDurationLabelEn pasangannya utk mode EN (var {dur} banner guard & InfoItem).
+const pkwtDurationOf = (lang: "id" | "en", totalMonths: number) =>
+  lang === "en" ? pkwtDurationLabelEn(totalMonths) : pkwtDurationLabel(totalMonths);
+
 function EmployeeDetail() {
   const { params, navigate } = useNav();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const perms = useMenuPerms();
   const { data, loading, refresh } = useApi<{ employee: DetailEmp }>(params.id ? `/api/rekankerja/employee-detail?id=${params.id}` : null);
   // 5-OFFBOARDING — proses offboarding berjalan utk karyawan ini (banner info di profil)
@@ -194,7 +217,7 @@ function EmployeeDetail() {
                   <span className="font-mono font-bold">{e.employeeNo}</span> · {e.position?.title ?? "—"} · {e.orgUnit?.name ?? "—"}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge className="border border-white/25 bg-white/15 text-[10px] text-white backdrop-blur">{e.employmentStatus}</Badge>
+                  <Badge className="border border-white/25 bg-white/15 text-[10px] text-white backdrop-blur">{t(EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[e.employmentStatus])}</Badge>
                   {e.grade && <Badge className="border-white/25 bg-white/15 text-white backdrop-blur">{t("Grade {code}", "Grade {code}", { code: e.grade.code })}</Badge>}
                   <Badge className="border border-white/25 bg-white/15 text-[10px] text-white backdrop-blur">{t("Masa kerja {t}", "Tenure {t}", { t: tenure(e.joinDate) })}</Badge>
                 </div>
@@ -242,7 +265,7 @@ function EmployeeDetail() {
                 {t(
                   "Total {dur} sejak {start} ({renew} perpanjangan) — PKWT + seluruh perpanjangannya dibatasi maksimal 5 tahun; lewat itu perusahaan WAJIB menawarkan PKS. Terbitkan PA Perubahan Status → Permanent, atau lakukan PHK dengan penggantian hak.",
                   "Total {dur} since {start} ({renew} renewals) — a PKWT plus all its renewals is capped at 5 years; beyond that the employer MUST offer a permanent contract. Issue a Change Status personnel action → Permanent, or terminate with statutory compensation.",
-                  { dur: pkwtDurationLabel(e.pkwt.totalMonths ?? 0), start: fmtDate(e.pkwt.start ?? e.joinDate), renew: String(e.pkwt.renewals) },
+                  { dur: pkwtDurationOf(lang, e.pkwt.totalMonths ?? 0), start: fmtDate(e.pkwt.start ?? e.joinDate), renew: String(e.pkwt.renewals) },
                 )}
               </p>
             </div>
@@ -349,10 +372,10 @@ function EmployeeDetail() {
                     <InfoItem icon={Briefcase} label={t("Posisi")} value={e.position?.title ?? "—"} />
                     <InfoItem icon={Users} label={t("Unit Organisasi")} value={e.orgUnit?.name ?? "—"} />
                     <InfoItem icon={GraduationCap} label={t("Grade")} value={e.grade ? `${e.grade.code} — ${e.grade.name}` : "—"} />
-                    <InfoItem icon={Clock3} label={t("Status Kepegawaian", "Employment Status")} value={e.employmentStatus} />
+                    <InfoItem icon={Clock3} label={t("Status Kepegawaian", "Employment Status")} value={t(EMPLOYMENT_STATUS_LABEL[e.employmentStatus] ?? e.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[e.employmentStatus])} />
                     <InfoItem icon={Calendar} label={t("Tanggal Masuk", "Join Date")} value={fmtDateLong(e.joinDate)} />
                     {e.endDate && <InfoItem icon={Calendar} label={t("Tanggal Keluar", "End Date")} value={fmtDateLong(e.endDate)} />}
-                    <InfoItem icon={Clock3} label={t("Jadwal Kerja", "Work Schedule")} value={e.workShift} />
+                    <InfoItem icon={Clock3} label={t("Jadwal Kerja", "Work Schedule")} value={t(e.workShift, WORK_SHIFTS_EN[e.workShift] ?? e.workShift)} />
                     <InfoItem icon={Banknote} label={t("Gaji Pokok")} value={fmtIDR(e.baseSalary)} />
                     {/* 26-b — kontrak PKWT (PP 35/2021) */}
                     {e.pkwt.isPkwt && (
@@ -378,7 +401,7 @@ function EmployeeDetail() {
                           <InfoItem
                             icon={Scale}
                             label={t("Total Durasi PKWT", "Total PKWT Duration")}
-                            value={pkwtDurationLabel(e.pkwt.totalMonths)}
+                            value={pkwtDurationOf(lang, e.pkwt.totalMonths)}
                             hint={e.pkwt.over5y
                               ? t("> 5 tahun — wajib konversi PKS", "> 5 years — permanent conversion due")
                               : t("batas 5 tahun (Pasal 8)", "5-year cap (Art. 8)")}
@@ -707,7 +730,7 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                 )}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold", REASON_TONE[a.changeReason] ?? REASON_TONE.Initial)}>
-                      {a.changeReasonLabel ?? a.changeReason}
+                      {t(a.changeReasonLabel ?? a.changeReason, CHANGE_REASON_LABEL_EN[a.changeReasonLabel ?? ""] ?? a.changeReason)}
                     </span>
                     <span className={cn("text-[11px] font-bold", active ? "ov-text-accent" : "text-slate-500 dark:text-slate-400")}>{period(a)}</span>
                     {active && <span className="rounded-full ov-fill px-2 py-0.5 text-[9px] font-extrabold tracking-wide">{t("SAAT INI", "CURRENT")}</span>}
@@ -723,10 +746,10 @@ function AssignmentTimeline({ assignments, canUpdate, onCorrect }: { assignments
                   </p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1"><GraduationCap className="h-3 w-3" /> {a.grade ? t("Grade {code}", "Grade {code}", { code: a.grade.code }) : "—"}</span>
-                    <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {a.employmentStatus}</span>
+                    <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {t(EMPLOYMENT_STATUS_LABEL[a.employmentStatus] ?? a.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[a.employmentStatus])}</span>
                     <span className="inline-flex items-center gap-1"><Banknote className="h-3 w-3" /> {fmtIDR(a.baseSalary)}</span>
                     {a.managerName && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {t("Atasan: {n}", "Manager: {n}", { n: a.managerName })}</span>}
-                    {a.workShift !== "Regular" && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" /> {a.workShift}</span>}
+                    {a.workShift !== "Regular" && <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" /> {t(a.workShift, WORK_SHIFTS_EN[a.workShift] ?? a.workShift)}</span>}
                   </div>
                   {chips.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">

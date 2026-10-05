@@ -513,7 +513,7 @@ function CompAssignmentDialog({ open, onClose }: { open: boolean; onClose: () =>
                   <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("pilih", "select")} /></SelectTrigger>
                   <SelectContent>
                     {(periodsApi.data?.periods ?? []).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -652,7 +652,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("period target", "target period")} /></SelectTrigger>
                 <SelectContent>
                   {(openPeriods.length ? openPeriods : periods).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -665,7 +665,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("period awal", "start period")} /></SelectTrigger>
                 <SelectContent className="max-h-52">
                   {processedPeriods.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -676,7 +676,7 @@ function RapelDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("period akhir", "end period")} /></SelectTrigger>
                 <SelectContent className="max-h-52">
                   {processedPeriods.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

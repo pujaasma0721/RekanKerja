@@ -191,6 +191,12 @@ interface BulkRow {
 }
 
 const MONTH_NAMES = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+// Task 103-g — alasan skip bulk disimpan sbg KODE (bukan teks ID) agar bisa
+// diterjemahkan di titik render; label ID/EN dipetakan via t() dua-argumen.
+const SKIP_LABEL: Record<string, string> = { ada: "sudah ada", irisan: "beririsan" };
+const SKIP_LABEL_EN: Record<string, string> = { ada: "already exists", irisan: "overlapping" };
+
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 const safeDay = (v: string, fb: number) => { const n = Math.trunc(Number(v)); return Number.isFinite(n) ? Math.min(Math.max(n, 1), 28) : fb; };
@@ -230,8 +236,8 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
       const ts = useTa ? iso(y, m + Number(taStartOff || 0), safeDay(taStartDay, 26)) : null;
       const te = useTa ? iso(y, m + Number(taEndOff || 0), safeDay(taEndDay, 25)) : null;
       let skip: string | null = null;
-      if (existingRanges.some((p) => p.code === code || (p.y === y && p.m === m))) skip = "sudah ada";
-      else if (existingRanges.some((p) => p.s <= e && p.e >= s)) skip = "beririsan";
+      if (existingRanges.some((p) => p.code === code || (p.y === y && p.m === m))) skip = "ada";
+      else if (existingRanges.some((p) => p.s <= e && p.e >= s)) skip = "irisan";
       return { month: m, name: `${nm} ${y}`, code, start: s, end: e, taStart: ts, taEnd: te, skip };
     });
   }, [mode, year, startDay, useTa, taStartDay, taStartOff, taEndDay, taEndOff, existingRanges]);
@@ -356,13 +362,13 @@ function PeriodDialog({ open, onClose, periods }: { open: boolean; onClose: () =
                     <tbody>
                       {preview.map((r) => (
                         <tr key={r.code} className={`border-t border-slate-100 dark:border-slate-800 ${r.skip ? "opacity-45" : ""}`}>
-                          <td className="px-2.5 py-1.5 font-bold">{r.name}</td>
+                          <td className="px-2.5 py-1.5 font-bold">{loc(r.name)}</td>
                           <td className="px-2.5 py-1.5 font-mono text-slate-500">{r.start.slice(5)} → {r.end.slice(5)}</td>
                           <td className="px-2.5 py-1.5 font-mono text-slate-500">
                             {r.taStart ? `${r.taStart.slice(5)} → ${r.taEnd?.slice(5)}` : "—"}
                           </td>
                           <td className={`px-2.5 py-1.5 font-semibold ${r.skip ? "text-amber-600" : "ov-text-accent"}`}>
-                            {r.skip ?? t("akan dibuat", "will be created")}
+                            {r.skip ? t(SKIP_LABEL[r.skip] ?? r.skip, SKIP_LABEL_EN[r.skip] ?? r.skip) : t("akan dibuat", "will be created")}
                           </td>
                         </tr>
                       ))}

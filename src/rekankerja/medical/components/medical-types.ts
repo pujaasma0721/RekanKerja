@@ -211,6 +211,13 @@ export const FREQ_PERIOD_LABEL_EN: Record<string, string> = {
   EVERY_X_YEARS: "every X years",
 };
 
+export const INS_STATE_LABEL_EN: Record<string, string> = {
+  NONE: "Not Sent",
+  SUBMITTED: "Awaiting Insurance",
+  PAID: "Paid by Insurance",
+  WRITTEN_OFF: "Written Off",
+};
+
 // ---- formatters ikut bahasa aktif (state i18n-core tersinkron dgn useI18n) ----
 const dateLocale = () => (getLang() === "en" ? "en-US" : "id-ID");
 

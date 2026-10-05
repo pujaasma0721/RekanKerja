@@ -102,3 +102,16 @@ export function pkwtDurationLabel(totalMonths: number): string {
   if (months === 0) return `${years} tahun`;
   return `${years} tahun ${months} bulan`;
 }
+
+/**
+ * Pasangan EN dari pkwtDurationLabel (Task 103-f): "X yr Y mo" / "Y mo" —
+ * dipilih pemanggil UI berdasarkan lang aktif (mode EN tidak memakai
+ * pkwtDurationLabel karena outputnya selalu berbahasa Indonesia).
+ */
+export function pkwtDurationLabelEn(totalMonths: number): string {
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  if (years <= 0) return `${months} mo`;
+  if (months === 0) return `${years} yr`;
+  return `${years} yr ${months} mo`;
+}

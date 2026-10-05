@@ -66,7 +66,7 @@ export function LeaveApprovalPage() {
 
   const decide = async () => {
     if (!target) return;
-    if (action === "reject" && !note.trim()) { toast.error("Alasan penolakan wajib diisi"); return; }
+    if (action === "reject" && !note.trim()) { toast.error(t("Alasan penolakan wajib diisi", "Rejection reason is required")); return; }
     setBusy(true);
     try {
       const res = await apiSend<{ docNo: string; status: string; regeneratedDays: number; approval?: { currentLevel: number; totalLevels: number; currentApprover: string | null } }>(

@@ -200,7 +200,7 @@ export function AttendanceClockingPage() {
             {/* G24: regen rentang histori (maks 62 hari) */}
             {canUpdate && (
               <Button variant="outline" onClick={() => { setRangeForm({ from: date, to: date }); setRangeOpen(true); }} className="gap-2 font-bold">
-                <CalendarRange className="h-4 w-4" aria-hidden /> {t("Regen Rentang")}
+                <CalendarRange className="h-4 w-4" aria-hidden /> {t("Regen Rentang", "Regenerate Range")}
               </Button>
             )}
             <Button onClick={() => { setForm({ employeeId: api.data?.employees[0]?.id ?? "", time: "08:00", direction: "IN", note: "" }); setClockDialog(true); }} className="gap-2 font-bold">
@@ -247,7 +247,7 @@ export function AttendanceClockingPage() {
                     <SelectItem value="Late">{t("Telat", "Late")}</SelectItem>
                     <SelectItem value="Absent">{t("Absen", "Absent")}</SelectItem>
                     <SelectItem value="WorkOff">{t("Izin", "Permit")}</SelectItem>
-                    <SelectItem value="Off">Off</SelectItem>
+                    <SelectItem value="Off">{t("Off", "Off")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="relative">
@@ -269,8 +269,8 @@ export function AttendanceClockingPage() {
                       <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
                         <TableHead className="text-[11px] font-bold">{t("Karyawan")}</TableHead>
                         <TableHead className="text-[11px] font-bold">{t("Tipe Hari", "Day Type")}</TableHead>
-                        <TableHead className="text-[11px] font-bold">Clock In</TableHead>
-                        <TableHead className="text-[11px] font-bold">Clock Out</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Jam Masuk", "Clock In")}</TableHead>
+                        <TableHead className="text-[11px] font-bold">{t("Jam Pulang", "Clock Out")}</TableHead>
                         <TableHead className="text-right text-[11px] font-bold">{t("Telat", "Late")}</TableHead>
                         <TableHead className="text-right text-[11px] font-bold">{t("Pulang Cepat", "Early Out")}</TableHead>
                         <TableHead className="text-right text-[11px] font-bold">{t("Jam Kerja", "Work Hours")}</TableHead>

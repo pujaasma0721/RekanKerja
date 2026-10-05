@@ -499,7 +499,7 @@ function JobLibrary() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => setEditing(j)} className="rounded-lg p-1.5 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label="Edit job">
+                      <button onClick={() => setEditing(j)} className="rounded-lg p-1.5 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" aria-label={t("Ubah job", "Edit job")}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </div>

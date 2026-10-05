@@ -361,13 +361,13 @@ export function TravelRequestsPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">{t("Template *")}</Label>
+                <Label className="text-xs font-bold">{t("Template *", "Template *")}</Label>
                 <Select value={form.templateCode} onValueChange={(v) => setForm({ ...form, templateCode: v })}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {templates.map((tpl) => (
                       <SelectItem key={tpl.id} value={tpl.code} className="text-sm">
-                        {tpl.name} {tpl.isDefault ? "(default)" : ""} — {t("settle {n} hr", "settle in {n} days", { n: tpl.settlementDay })}
+                        {tpl.name} {tpl.isDefault ? t("(bawaan)", "(default)") : ""} — {t("settle {n} hr", "settle in {n} days", { n: tpl.settlementDay })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -553,7 +553,7 @@ export function TravelRequestsPage() {
               onClick={() => { const r = confirmCancel; setConfirmCancel(null); if (r) void cancelRequest(r); }}
               className="bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-600"
             >
-              {cancelBusy ? t("Memproses…") : t("Ya, Batalkan Permintaan", "Yes, Cancel Request")}
+              {cancelBusy ? t("Memproses…", "Processing…") : t("Ya, Batalkan Permintaan", "Yes, Cancel Request")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

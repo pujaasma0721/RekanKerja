@@ -145,10 +145,10 @@ export function MedicalBenefitTypePage() {
                 <TableHeader className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                   <TableRow>
                     {sort.head("name", t("Jenis"))}
-                    {sort.head("limit", "Limit")}
+                    {sort.head("limit", t("Limit", "Limit"))}
                     {sort.head("freq", t("Frekuensi", "Frequency"))}
                     <TableHead>{t("Sisa Saldo", "Remaining Balance")}</TableHead>
-                    <TableHead>Dependent</TableHead>
+                    <TableHead>{t("Tanggungan", "Dependent")}</TableHead>
                     <TableHead className="text-right">{t("Saldo / Klaim", "Balances / Claims")}</TableHead>
                     <TableHead>{t("Aturan", "Rules")}</TableHead>
                     <TableHead className="w-12" />
@@ -163,7 +163,7 @@ export function MedicalBenefitTypePage() {
                       </TableCell>
                       <TableCell>
                         {bt.limitRule === "UNLIMITED" ? (
-                          <span className="flex items-center gap-1 font-semibold"><InfinityIcon className="h-3.5 w-3.5" /> Unlimited</span>
+                          <span className="flex items-center gap-1 font-semibold"><InfinityIcon className="h-3.5 w-3.5" /> {t("Tak Terbatas", "Unlimited")}</span>
                         ) : bt.limitRule === "FACTOR" ? (
                           <span className="font-semibold">{bt.limitValue}× {t("gaji pokok", "base salary")}</span>
                         ) : (
@@ -174,7 +174,7 @@ export function MedicalBenefitTypePage() {
                         </p>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {bt.freqUnlimited ? "Unlimited" : `${bt.freqValue}× / ${t(FREQ_PERIOD_LABEL[bt.freqPeriod] ?? bt.freqPeriod, FREQ_PERIOD_LABEL_EN[bt.freqPeriod])}`}
+                        {bt.freqUnlimited ? t("Tak Terbatas", "Unlimited") : `${bt.freqValue}× / ${t(FREQ_PERIOD_LABEL[bt.freqPeriod] ?? bt.freqPeriod, FREQ_PERIOD_LABEL_EN[bt.freqPeriod])}`}
                         {bt.needReceipt && <span className="block text-xs text-slate-500">{t("perlu kwitansi", "receipt required")}</span>}
                         {bt.needLetter && <span className="block text-xs text-slate-500">{t("perlu surat rujukan", "referral required")}</span>}
                       </TableCell>
@@ -242,7 +242,7 @@ export function MedicalBenefitTypePage() {
             <div className="space-y-1.5">
               <Label>
                 {form.limitRule === "FACTOR" ? t("Faktor × gaji *", "Factor × salary *")
-                  : form.limitRule === "NOMINAL" ? "Nominal (Rp) *"
+                  : form.limitRule === "NOMINAL" ? t("Nominal (Rp) *", "Nominal (Rp) *")
                   : form.limitRule === "WAGE_COMPONENT" ? t("Kode Komponen Upah *", "Wage Component Code *")
                   : "—"}
               </Label>
@@ -311,7 +311,7 @@ export function MedicalBenefitTypePage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>{form.unusedRule === "CASH" ? t("Wage Code Tunai", "Cash Wage Code") : form.unusedRule === "CARRY" ? "Max Carry-Over (Rp)" : "—"}</Label>
+              <Label>{form.unusedRule === "CASH" ? t("Wage Code Tunai", "Cash Wage Code") : form.unusedRule === "CARRY" ? t("Maks Carry-Over (Rp)", "Max Carry-Over (Rp)") : "—"}</Label>
               {form.unusedRule === "CASH" ? (
                 <Input value={form.cashWageCode} onChange={(e) => setForm({ ...form, cashWageCode: e.target.value })} placeholder="UMC" />
               ) : form.unusedRule === "CARRY" ? (

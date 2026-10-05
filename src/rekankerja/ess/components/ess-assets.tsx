@@ -40,6 +40,17 @@ function categoryIcon(category: string): React.ElementType {
   }
 }
 
+// Task 103-e — kategori aset disimpan DB dalam Bahasa Indonesia → peta EN
+// (render t(category, EN[category] ?? category); kategori tak dikenal → raw).
+const ASSET_CATEGORY_EN: Record<string, string> = {
+  Elektronik: "Electronics",
+  Kendaraan: "Vehicle",
+  "Alat Kerja": "Work Tool",
+  Seragam: "Uniform",
+  Furniture: "Furniture",
+  Lainnya: "Other",
+};
+
 // pil kondisi pengembalian utk riwayat (dot warna ikut kondisi — selaras titik timeline)
 function ConditionPill({ cond }: { cond: string | null }) {
   const { t } = useI18n();
@@ -147,7 +158,7 @@ export function EssAssets() {
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                            {a.asset.category}
+                            {t(a.asset.category, ASSET_CATEGORY_EN[a.asset.category] ?? a.asset.category)}
                           </Badge>
                           {a.dueAt && (
                             <Badge variant="outline" className={cn(

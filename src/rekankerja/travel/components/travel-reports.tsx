@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   TravelClaimRowUI, ClaimExpenseUI, EmployeeOption,
-  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, fmtIDR, fmtIDRShort, fmtDateID,
+  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, EXPENSE_KIND_LABEL_EN, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./travel-types";
 import { BarChart3, Search, FileText, Landmark, TrendingUp, RotateCcw, Download } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -103,7 +103,7 @@ export function TravelReportsPage() {
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="ov-border-accent bg-primary/10 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider ov-text-accent">Total Settlement</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider ov-text-accent">{t("Total Settlement", "Total Settlement")}</p>
               <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{fmtIDRShort(summary.totalSettlement)}</p>
               <p className="text-[11px] text-slate-500">{t("{n} klaim", "{n} claims", { n: summary.claims })}</p>
             </CardContent>
@@ -147,7 +147,7 @@ export function TravelReportsPage() {
                 <div key={k.kind}>
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-700 dark:text-slate-300">
-                      {EXPENSE_KIND_LABEL[k.kind] ?? k.kind}
+                      {t(EXPENSE_KIND_LABEL[k.kind] ?? k.kind, EXPENSE_KIND_LABEL_EN[k.kind] ?? k.kind)}
                       <span className="ml-1 font-normal text-slate-400">{t("({n} baris)", "({n} lines)", { n: k.lines })}</span>
                     </span>
                     <span className="font-bold text-slate-700 dark:text-slate-300">{fmtIDRShort(k.amount)}</span>

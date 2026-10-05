@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PA_TYPES } from "@/rekankerja/shared/components/ui-kit";
 import { PA_TYPE_LABEL_EN } from "./pa-types";
+import { EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN } from "../employee/types";
 import { useApi, apiSend, initials, avatarColor, fmtIDR } from "@/rekankerja/shared/lib/api";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { useNav } from "@/rekankerja/shared/lib/store";
@@ -276,9 +277,9 @@ export function CreatePADialog({ open, onOpenChange }: { open: boolean; onOpenCh
             {selected && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200/80 bg-slate-50/60 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/40">
                 <span>{t("Posisi:", "Position:")} <b className="text-slate-700 dark:text-slate-300">{selected.position?.title ?? "—"}</b></span>
-                <span>Grade: <b className="text-slate-700 dark:text-slate-300">{selected.grade?.code ?? "—"}</b></span>
+                <span>{t("Grade:", "Grade:")} <b className="text-slate-700 dark:text-slate-300">{selected.grade?.code ?? "—"}</b></span>
                 <span>{t("Gaji pokok:", "Base salary:")} <b className="text-slate-700 dark:text-slate-300">{fmtIDR(selected.baseSalary)}</b></span>
-                <span>Status: <b className="text-slate-700 dark:text-slate-300">{selected.employmentStatus}</b></span>
+                <span>{t("Status:", "Status:")} <b className="text-slate-700 dark:text-slate-300">{t(EMPLOYMENT_STATUS_LABEL[selected.employmentStatus] ?? selected.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[selected.employmentStatus])}</b></span>
               </div>
             )}
           </div>

@@ -212,7 +212,7 @@ export function AttendanceAssignmentsPage() {
                           <span className={cn("relative h-4 w-7 rounded-full transition", a.clockingRequired ? "ov-fill" : "bg-slate-300 dark:bg-slate-700")}>
                             <span className={cn("absolute top-0.5 h-3 w-3 rounded-full bg-white transition", a.clockingRequired ? "left-3.5" : "left-0.5")} />
                           </span>
-                          <span className="text-[10px] font-bold text-slate-500">{a.clockingRequired ? t("Wajib", "Required") : "Non-clock"}</span>
+                          <span className="text-[10px] font-bold text-slate-500">{a.clockingRequired ? t("Wajib", "Required") : t("Non-clocking", "Non-clocking")}</span>
                         </button>
                       </TableCell>
                       <TableCell>
@@ -270,7 +270,7 @@ export function AttendanceAssignmentsPage() {
                 <SelectContent className="max-h-64">
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
-                      {e.employeeNo} · {e.fullName} {scheduledIds.has(e.id) && <Badge variant="outline" className="ml-1 text-[9px]">re-assign</Badge>}
+                      {e.employeeNo} · {e.fullName} {scheduledIds.has(e.id) && <Badge variant="outline" className="ml-1 text-[9px]">{t("re-assign", "re-assign")}</Badge>}
                     </SelectItem>
                   ))}
                 </SelectContent>

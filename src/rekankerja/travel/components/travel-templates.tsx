@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TemplateRowUI, ExpenseTypeRowUI, ZoneRowUI, EXPENSE_KIND_LABEL, fmtIDR } from "./travel-types";
+import { TemplateRowUI, ExpenseTypeRowUI, ZoneRowUI, EXPENSE_KIND_LABEL, EXPENSE_KIND_LABEL_EN, fmtIDR } from "./travel-types";
 import { LayoutTemplate, Boxes, MapPin, Pencil, Plus, Landmark, Clock, Globe2, CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
@@ -139,10 +139,10 @@ export function TravelTemplatesPage() {
                   <TableHeader>
                     <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                       <TableHead>{t("Kode")}</TableHead>
-                      <TableHead>Template</TableHead>
+                      <TableHead>{t("Template", "Template")}</TableHead>
                       <TableHead className="hidden md:table-cell">{t("Deskripsi", "Description")}</TableHead>
-                      <TableHead>Settlement</TableHead>
-                      <TableHead className="text-center">Default</TableHead>
+                      <TableHead>{t("Settlement", "Settlement")}</TableHead>
+                      <TableHead className="text-center">{t("Default", "Default")}</TableHead>
                       <TableHead className="text-right">{t("Dipakai", "Used")}</TableHead>
                       <TableHead />
                     </TableRow>
@@ -157,7 +157,7 @@ export function TravelTemplatesPage() {
                           <p className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                             <Clock className="h-3 w-3" /> {t("{n} hari", "{n} days", { n: tpl.settlementDay })}
                           </p>
-                          <p className="text-[11px] text-slate-500">{tpl.settlementMethod}</p>
+                          <p className="text-[11px] text-slate-500">{tpl.settlementMethod === "Kas" ? t("Kas", "Cash") : tpl.settlementMethod === "Payroll" ? t("Payroll", "Payroll") : tpl.settlementMethod}</p>
                         </TableCell>
                         <TableCell className="text-center">
                           {tpl.isDefault ? <Badge className="bg-primary/10 text-[10px] font-bold text-primary">DEFAULT</Badge> : <span className="text-slate-300">—</span>}
@@ -189,7 +189,7 @@ export function TravelTemplatesPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <CircleDollarSign className="h-4 w-4 ov-text-accent" />
-                  {EXPENSE_KIND_LABEL[kind] ?? kind}
+                  {t(EXPENSE_KIND_LABEL[kind] ?? kind, EXPENSE_KIND_LABEL_EN[kind] ?? kind)}
                   <Badge variant="secondary" className="text-[10px] font-bold">{list.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -201,7 +201,7 @@ export function TravelTemplatesPage() {
                         <TableHead>{t("Kode")}</TableHead>
                         <TableHead>{t("Nama")}</TableHead>
                         <TableHead className="hidden md:table-cell">{t("Deskripsi", "Description")}</TableHead>
-                        <TableHead className="text-right">Limit</TableHead>
+                        <TableHead className="text-right">{t("Limit", "Limit")}</TableHead>
                         <TableHead className="hidden lg:table-cell">{t("Akun (D/K)", "Account (D/C)")}</TableHead>
                         <TableHead className="text-center">{t("Dokumen", "Docs")}</TableHead>
                         <TableHead>{t("Aturan", "Rules")}</TableHead>
@@ -348,7 +348,7 @@ export function TravelTemplatesPage() {
                 <Select value={expForm.expenseKind} onValueChange={(v) => setExpForm({ ...expForm, expenseKind: v })}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="GENERAL" className="text-sm">General Expense</SelectItem>
+                    <SelectItem value="GENERAL" className="text-sm">{t("Biaya Umum", "General Expense")}</SelectItem>
                     <SelectItem value="ALLOWANCE" className="text-sm">{t("Allowance (uang saku)", "Allowance")}</SelectItem>
                     <SelectItem value="MILEAGE" className="text-sm">{t("Mileage (jarak/BBM)", "Mileage (distance/fuel)")}</SelectItem>
                     <SelectItem value="ENTERTAINMENT" className="text-sm">{t("Entertainment (+ tamu)", "Entertainment (+ guests)")}</SelectItem>

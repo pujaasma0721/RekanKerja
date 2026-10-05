@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { TravelClaimRowUI, PeriodOptionUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, fmtIDR, fmtDateID, subMoney } from "./travel-types";
+import { TravelClaimRowUI, PeriodOptionUI, TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, EXPENSE_KIND_LABEL_EN, fmtIDR, fmtDateID, subMoney } from "./travel-types";
+import { PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { CheckCircle2, XCircle, Ban, Landmark, Wallet, Inbox, FileText, ArrowRight, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
 interface DecideState {
   claim: TravelClaimRowUI | null;
@@ -224,7 +225,7 @@ export function TravelClaimApprovalPage() {
                   {(c.advanceAmount ?? 0) > 0 && <Badge className="bg-amber-100 text-[9px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400">{t("MUKA {amt}", "ADVANCE {amt}", { amt: fmtIDR(c.advanceAmount) })}</Badge>}
                   {c.overLimitLines > 0 && <Badge className="bg-rose-100 text-[9px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400">{t("{n} LEBIH LIMIT", "{n} OVER LIMIT", { n: c.overLimitLines })}</Badge>}
                   {c.expenseKinds.map((k) => (
-                    <Badge key={k} variant="outline" className="text-[9px] font-bold">{k}</Badge>
+                    <Badge key={k} variant="outline" className="text-[9px] font-bold">{t(EXPENSE_KIND_LABEL[k] ?? k, EXPENSE_KIND_LABEL_EN[k] ?? k)}</Badge>
                   ))}
                 </div>
 
@@ -314,7 +315,7 @@ export function TravelClaimApprovalPage() {
                         {c.journalNo ? <span className="font-mono text-[11px] font-bold text-brand-deep dark:text-brand/85">{c.journalNo}</span> : <span className="text-slate-400">—</span>}
                       </td>
                       <td className="px-4 py-2 text-right text-slate-400">
-                        {c.paidRunNo ? `run ${c.paidRunNo}` : c.periodCode ? `period ${c.periodCode}` : c.decidedAt ? fmtDateID(c.decidedAt) : "—"}
+                        {c.paidRunNo ? t("run {n}", "run {n}", { n: c.paidRunNo }) : c.periodCode ? t("period {n}", "period {n}", { n: c.periodCode }) : c.decidedAt ? fmtDateID(c.decidedAt) : "—"}
                       </td>
                     </tr>
                   ))}
@@ -398,7 +399,7 @@ export function TravelClaimApprovalPage() {
                 <SelectContent>
                   {openPeriods.map((p) => (
                     <SelectItem key={p.id} value={p.id} className="text-sm">
-                      {p.name} ({p.status})
+                      {loc(p.name)} ({t(PERIOD_STATUS_LABEL[p.status] ?? p.status, PERIOD_STATUS_LABEL_EN[p.status] ?? p.status)})
                     </SelectItem>
                   ))}
                 </SelectContent>

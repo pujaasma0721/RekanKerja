@@ -402,6 +402,27 @@ export const CHANGE_REASON_LABEL: Record<string, string> = {
   ManualEdit: "Perubahan Manual",
 };
 
+/**
+ * Task 103-f — pasangan EN untuk CHANGE_REASON_LABEL (key = label ID, persis
+ * nilai yang dikirim API sebagai `changeReasonLabel`). Dipakai render
+ * t(changeReasonLabel, CHANGE_REASON_LABEL_EN[changeReasonLabel]).
+ * CATATAN: map ini juga diduplikasi lokal di employee-module.tsx (klien) —
+ * file ini mengimpor modul server (node:crypto/Prisma) sehingga TIDAK boleh
+ * diimpor komponen "use client".
+ */
+export const CHANGE_REASON_LABEL_EN: Record<string, string> = {
+  "Penempatan Awal": "Initial Placement",
+  "Promosi": "Promotion",
+  "Demosi": "Demotion",
+  "Transfer": "Transfer",
+  "Mutasi": "Mutation",
+  "Penyesuaian Upah": "Salary Adjustment",
+  "Perubahan Status": "Status Change",
+  "Perpanjangan Kontrak": "Contract Extension",
+  "Perpanjangan Probation": "Probation Extension",
+  "Perubahan Manual": "Manual Change",
+};
+
 // ============ Task 64 — riwayat template upah effective-dated ============
 
 /**

@@ -35,6 +35,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["Elektronik", "Kendaraan", "Seragam", "Alat Kerja", "Furniture", "Lainnya"] as const;
+// Task 103-f — pasangan EN kategori aset (nilai ID tetap dikirim/disimpan ke server).
+const CATEGORY_EN: Record<string, string> = { Elektronik: "Electronics", Kendaraan: "Vehicles", Seragam: "Uniform", "Alat Kerja": "Work Equipment", Furniture: "Furniture", Lainnya: "Other" };
 const STATUSES = ["Available", "Assigned", "Maintenance", "Retired", "Lost"] as const;
 const CONDITIONS: { key: string; label: string; en: string }[] = [
   { key: "Good", label: "Baik", en: "Good" },
@@ -110,6 +112,7 @@ function AssetStatusPill({ status }: { status: string }) {
 
 /** Chip kategori — ikon ringan per kelompok barang. */
 function CategoryBadge({ category }: { category: string }) {
+  const { t } = useI18n();
   const Icon =
     category === "Elektronik" ? Package :
     category === "Kendaraan" ? Boxes :
@@ -119,7 +122,7 @@ function CategoryBadge({ category }: { category: string }) {
     CircleHelp;
   return (
     <Badge variant="outline" className="gap-1 border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-      <Icon className="h-3 w-3" aria-hidden /> {category}
+      <Icon className="h-3 w-3" aria-hidden /> {t(category, CATEGORY_EN[category] ?? category)}
     </Badge>
   );
 }
@@ -244,7 +247,7 @@ function InventoryTab({ perms }: { perms: PermsApi }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("Semua kategori", "All categories")}</SelectItem>
-              {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{t(c, CATEGORY_EN[c] ?? c)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
@@ -682,7 +685,7 @@ function AssetDialog({ open, editing, setOpen, onSaved }: {
               <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                 <SelectTrigger id="ast-cat" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{t(c, CATEGORY_EN[c] ?? c)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

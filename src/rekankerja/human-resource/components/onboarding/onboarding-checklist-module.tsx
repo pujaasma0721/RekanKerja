@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApi, apiSend, fmtDate } from "@/rekankerja/shared/lib/api";
 import { useNav } from "@/rekankerja/shared/lib/store";
+import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,12 @@ interface OnDetail {
 interface ViewerMeta { allowedDepts: string[] | null; canComplete: boolean }
 
 const STATUS_LABEL: Record<string, string> = { Done: "Selesai", Pending: "Menunggu", Na: "N/A" };
+// EN paralel — konvensi peta _EN + t(map[k], mapEN[k]) seperti modul HR lain.
+const STATUS_LABEL_EN: Record<string, string> = { Done: "Done", Pending: "Pending", Na: "N/A" };
 
 // ================= DAFTAR =================
 function OnboardingChecklistList({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useI18n();
   const { data, refresh } = useApi<{ onboardings: OnRow[]; statusCounts: Record<string, number>; total: number }>("/api/rekankerja/onboarding");
   const [showNew, setShowNew] = useState(false);
   const [showRecipients, setShowRecipients] = useState(false);
@@ -63,15 +67,18 @@ function OnboardingChecklistList({ onOpen }: { onOpen: (id: string) => void }) {
     <div className="space-y-4">
       <PageHeader
         eyebrow="Onboarding"
-        title="Checklist Onboarding"
-        description="Proses penyambutan karyawan baru — checklist per bagian (IT, GA, Finance, HR, Supervisor, Payroll)"
+        title={t("Checklist Onboarding", "Onboarding Checklist")}
+        description={t(
+          "Proses penyambutan karyawan baru — checklist per bagian (IT, GA, Finance, HR, Supervisor, Payroll)",
+          "New employee welcome process — per-department checklist (IT, GA, Finance, HR, Supervisor, Payroll)",
+        )}
         actions={
           <>
             <Button variant="outline" onClick={() => setShowRecipients(true)}>
-              <Mail className="mr-2 h-4 w-4" /> Email Penerima
+              <Mail className="mr-2 h-4 w-4" /> {t("Email Penerima", "Recipient Emails")}
             </Button>
             <Button onClick={() => setShowNew(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Proses Baru
+              <Plus className="mr-2 h-4 w-4" /> {t("Proses Baru", "New Process")}
             </Button>
           </>
         }
@@ -84,18 +91,21 @@ function OnboardingChecklistList({ onOpen }: { onOpen: (id: string) => void }) {
           ) : data.onboardings.length === 0 ? (
             <EmptyState
               icon={<ClipboardCheck className="h-10 w-10" />}
-              title="Belum ada proses onboarding"
-              description="Proses dibuat otomatis saat karyawan baru ditambahkan, atau buat manual lewat tombol Proses Baru."
+              title={t("Belum ada proses onboarding", "No onboarding process yet")}
+              description={t(
+                "Proses dibuat otomatis saat karyawan baru ditambahkan, atau buat manual lewat tombol Proses Baru.",
+                "A process is created automatically when a new employee is added, or create one manually via the New Process button.",
+              )}
             />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Posisi / Unit</TableHead>
-                  <TableHead>Mulai</TableHead>
-                  <TableHead>Progres</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("Karyawan", "Employee")}</TableHead>
+                  <TableHead>{t("Posisi / Unit", "Position / Unit")}</TableHead>
+                  <TableHead>{t("Mulai", "Start")}</TableHead>
+                  <TableHead>{t("Progres", "Progress")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -138,6 +148,7 @@ function OnboardingChecklistList({ onOpen }: { onOpen: (id: string) => void }) {
 
 // ================= DIALOG PROSES BARU =================
 function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useI18n();
   const { data: empData } = useApi<{ employees: { id: string; fullName: string; employeeNo: string }[] }>("/api/rekankerja/employees?pageSize=500");
   const [employeeId, setEmployeeId] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -145,14 +156,14 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   const [busy, setBusy] = useState(false);
 
   async function create() {
-    if (!employeeId) { toast.error("Pilih karyawan dulu"); return; }
+    if (!employeeId) { toast.error(t("Pilih karyawan dulu", "Select an employee first")); return; }
     setBusy(true);
     try {
       await apiSend("/api/rekankerja/onboarding", "POST", { employeeId, startDate: startDate || null, note: note || null });
-      toast.success("Proses onboarding dibuat — email checklist dikirim ke tiap bagian");
+      toast.success(t("Proses onboarding dibuat — email checklist dikirim ke tiap bagian", "Onboarding process created — checklist email sent to each department"));
       onCreated();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal");
+      toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
     } finally {
       setBusy(false);
     }
@@ -162,13 +173,13 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Proses Onboarding Baru</DialogTitle>
+          <DialogTitle>{t("Proses Onboarding Baru", "New Onboarding Process")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label>Karyawan</Label>
+            <Label>{t("Karyawan", "Employee")}</Label>
             <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger><SelectValue placeholder="Pilih karyawan…" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("Pilih karyawan…", "Select an employee…")} /></SelectTrigger>
               <SelectContent>
                 {(empData?.employees ?? []).map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.fullName} ({e.employeeNo})</SelectItem>
@@ -177,21 +188,23 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Tanggal mulai (opsional)</Label>
+            <Label>{t("Tanggal mulai (opsional)", "Start date (optional)")}</Label>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Catatan (opsional)</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="mis. penempatan kantor pusat" />
+            <Label>{t("Catatan (opsional)", "Notes (optional)")}</Label>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mis. penempatan kantor pusat", "e.g. HQ placement")} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Checklist bawaan: akun user & perangkat (IT), meja & kartu akses (GA), kontrak & BPJS (HR),
-            orientasi (Supervisor), data payroll (Payroll). Email checklist otomatis dikirim ke tiap bagian.
+            {t(
+              "Checklist bawaan: akun user & perangkat (IT), meja & kartu akses (GA), kontrak & BPJS (HR), orientasi (Supervisor), data payroll (Payroll). Email checklist otomatis dikirim ke tiap bagian.",
+              "Default checklist: user account & devices (IT), desk & access card (GA), contract & BPJS (HR), orientation (Supervisor), payroll data (Payroll). A checklist email is automatically sent to each department.",
+            )}
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={() => void create()} disabled={busy}>Buat & Kirim Email</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal", "Cancel")}</Button>
+          <Button onClick={() => void create()} disabled={busy}>{t("Buat & Kirim Email", "Create & Send Email")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -200,6 +213,7 @@ function NewProcessDialog({ onClose, onCreated }: { onClose: () => void; onCreat
 
 // ================= DIALOG PENERIMA EMAIL =================
 function RecipientsDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const { data } = useApi<{ departments: { dept: string; label: string; emails: string[] }[] }>("/api/rekankerja/checklist-recipients");
   const [edit, setEdit] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -220,9 +234,9 @@ function RecipientsDialog({ onClose }: { onClose: () => void }) {
     try {
       const emails = (edit[dept] ?? "").split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
       await apiSend("/api/rekankerja/checklist-recipients", "PUT", { dept, emails });
-      toast.success(`Penerima email bagian ${dept} disimpan`);
+      toast.success(t("Penerima email bagian {dept} disimpan", "Recipient emails for {dept} saved", { dept }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal");
+      toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
     } finally {
       setBusy(null);
     }
@@ -232,10 +246,13 @@ function RecipientsDialog({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Penerima Email Checklist per Bagian</DialogTitle>
+          <DialogTitle>{t("Penerima Email Checklist per Bagian", "Per-Department Checklist Recipient Emails")}</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          Kosong = email dikirim ke Admin/HR (fallback). Pisahkan beberapa email dengan koma.
+          {t(
+            "Kosong = email dikirim ke Admin/HR (fallback). Pisahkan beberapa email dengan koma.",
+            "Empty = email sent to Admin/HR (fallback). Separate multiple emails with commas.",
+          )}
         </p>
         <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
           {!data ? (
@@ -249,16 +266,16 @@ function RecipientsDialog({ onClose }: { onClose: () => void }) {
                     className="flex-1"
                     value={edit[d.dept] ?? ""}
                     onChange={(e) => setEdit((p) => ({ ...p, [d.dept]: e.target.value }))}
-                    placeholder="email1@perusahaan.com, email2@perusahaan.com"
+                    placeholder={t("email1@perusahaan.com, email2@perusahaan.com", "email1@company.com, email2@company.com")}
                   />
-                  <Button variant="outline" size="sm" disabled={busy === d.dept} onClick={() => void save(d.dept)}>Simpan</Button>
+                  <Button variant="outline" size="sm" disabled={busy === d.dept} onClick={() => void save(d.dept)}>{t("Simpan", "Save")}</Button>
                 </div>
               </div>
             ))
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Tutup</Button>
+          <Button variant="outline" onClick={onClose}>{t("Tutup", "Close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -267,6 +284,7 @@ function RecipientsDialog({ onClose }: { onClose: () => void }) {
 
 // ================= DETAIL =================
 function OnboardingChecklistDetail({ id }: { id: string }) {
+  const { t } = useI18n();
   const { navigate } = useNav();
   const { data, refresh } = useApi<{ onboarding: OnDetail; viewer: ViewerMeta; departments: DeptMeta[] }>(`/api/rekankerja/onboarding/${id}`);
   const [busyTask, setBusyTask] = useState<string | null>(null);
@@ -284,7 +302,7 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
   async function setTask(taskId: string, status: string) {
     setBusyTask(taskId);
     try { await patch({ action: "task", taskId, status }); } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal");
+      toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
     } finally { setBusyTask(null); }
   }
 
@@ -298,36 +316,36 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("employee", "onboarding-checklist", {})}>
-          <ArrowLeft className="mr-1 h-4 w-4" /> Daftar
+          <ArrowLeft className="mr-1 h-4 w-4" /> {t("Daftar", "List")}
         </Button>
       </div>
 
       <PageHeader
-        eyebrow="Checklist Onboarding"
+        eyebrow={t("Checklist Onboarding", "Onboarding Checklist")}
         title={detail.employee.fullName}
-        description={`${detail.employee.employeeNo} · ${detail.employee.position?.title ?? "-"} · ${detail.employee.orgUnit?.name ?? "-"}${detail.startDate ? ` · mulai ${fmtDate(detail.startDate)}` : ""}`}
+        description={`${detail.employee.employeeNo} · ${detail.employee.position?.title ?? "-"} · ${detail.employee.orgUnit?.name ?? "-"}${detail.startDate ? ` · ${t("mulai", "starts")} ${fmtDate(detail.startDate)}` : ""}`}
         actions={
           viewer?.canComplete && detail.status === "Open" ? (
             <>
               <Button variant="outline" disabled={resending} onClick={async () => {
                 setResending(true);
-                try { await patch({ action: "resendEmail" }); toast.success("Email checklist dikirim ulang ke tiap bagian"); }
-                catch (e) { toast.error(e instanceof Error ? e.message : "Gagal"); }
+                try { await patch({ action: "resendEmail" }); toast.success(t("Email checklist dikirim ulang ke tiap bagian", "Checklist email resent to each department")); }
+                catch (e) { toast.error(e instanceof Error ? e.message : t("Gagal", "Failed")); }
                 finally { setResending(false); }
               }}>
-                <Send className="mr-2 h-4 w-4" /> Kirim Ulang Email
+                <Send className="mr-2 h-4 w-4" /> {t("Kirim Ulang Email", "Resend Email")}
               </Button>
               <Button variant="outline" onClick={async () => {
-                try { await patch({ action: "cancel" }); toast.success("Proses dibatalkan"); }
-                catch (e) { toast.error(e instanceof Error ? e.message : "Gagal"); }
+                try { await patch({ action: "cancel" }); toast.success(t("Proses dibatalkan", "Process cancelled")); }
+                catch (e) { toast.error(e instanceof Error ? e.message : t("Gagal", "Failed")); }
               }}>
-                <Trash2 className="mr-2 h-4 w-4" /> Batalkan
+                <Trash2 className="mr-2 h-4 w-4" /> {t("Batalkan", "Cancel")}
               </Button>
               <Button disabled={detail.taskStats.pending > 0} onClick={async () => {
-                try { await patch({ action: "complete" }); toast.success("Proses ditandai selesai"); }
-                catch (e) { toast.error(e instanceof Error ? e.message : "Gagal"); }
+                try { await patch({ action: "complete" }); toast.success(t("Proses ditandai selesai", "Process marked complete")); }
+                catch (e) { toast.error(e instanceof Error ? e.message : t("Gagal", "Failed")); }
               }}>
-                <Check className="mr-2 h-4 w-4" /> Tandai Selesai
+                <Check className="mr-2 h-4 w-4" /> {t("Tandai Selesai", "Mark Complete")}
               </Button>
             </>
           ) : undefined
@@ -337,9 +355,13 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
       <Card>
         <CardContent className="space-y-1 pt-6">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Progres checklist</span>
+            <span className="font-medium">{t("Progres checklist", "Checklist progress")}</span>
             <span className="text-muted-foreground">
-              {detail.taskStats.done} selesai · {detail.taskStats.na} N/A · {detail.taskStats.pending} menunggu — dari {detail.taskStats.total}
+              {t(
+                "{done} selesai · {na} N/A · {pending} menunggu — dari {total}",
+                "{done} done · {na} N/A · {pending} pending — of {total}",
+                { done: detail.taskStats.done, na: detail.taskStats.na, pending: detail.taskStats.pending, total: detail.taskStats.total },
+              )}
             </span>
           </div>
           <Progress value={pct} className="h-2" />
@@ -352,53 +374,53 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Tugas</TableHead>
-                <TableHead className="w-36">Bagian</TableHead>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-40">Oleh</TableHead>
-                <TableHead className="w-32 text-right">Aksi</TableHead>
+                <TableHead>{t("Tugas", "Task")}</TableHead>
+                <TableHead className="w-36">{t("Bagian", "Department")}</TableHead>
+                <TableHead className="w-28">{t("Status", "Status")}</TableHead>
+                <TableHead className="w-40">{t("Oleh", "By")}</TableHead>
+                <TableHead className="w-32 text-right">{t("Aksi", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {detail.tasks.map((t) => {
+              {detail.tasks.map((task) => {
                 // koordinator (allowedDepts null) bebas; selain itu hanya bagiannya
-                const canTouch = viewer?.allowedDepts === null || (viewer?.allowedDepts ?? []).includes(t.owner ?? "");
+                const canTouch = viewer?.allowedDepts === null || (viewer?.allowedDepts ?? []).includes(task.owner ?? "");
                 return (
-                  <TableRow key={t.id}>
-                    <TableCell className="text-muted-foreground">{t.seq}</TableCell>
+                  <TableRow key={task.id}>
+                    <TableCell className="text-muted-foreground">{task.seq}</TableCell>
                     <TableCell>
-                      <div className="font-medium">{t.title}</div>
-                      {t.notes && <div className="text-xs text-muted-foreground">{t.notes}</div>}
+                      <div className="font-medium">{task.title}</div>
+                      {task.notes && <div className="text-xs text-muted-foreground">{task.notes}</div>}
                     </TableCell>
                     <TableCell>
-                      {t.owner ? <Badge variant="outline">{t.ownerLabel ?? t.owner}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                      {task.owner ? <Badge variant="outline">{task.ownerLabel ?? task.owner}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell>
-                      <StatusPill status={t.status === "Done" ? "Completed" : t.status === "Pending" ? "Open" : "Cancelled"} />
-                      <span className="sr-only">{STATUS_LABEL[t.status] ?? t.status}</span>
+                      <StatusPill status={task.status === "Done" ? "Completed" : task.status === "Pending" ? "Open" : "Cancelled"} />
+                      <span className="sr-only">{t(STATUS_LABEL[task.status] ?? task.status, STATUS_LABEL_EN[task.status] ?? task.status)}</span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {t.completedByName
-                        ? `${t.completedByName} (app)`
-                        : t.completedVia?.startsWith("email:")
-                          ? `email: ${t.completedVia.slice(6)}`
+                      {task.completedByName
+                        ? `${task.completedByName} (app)`
+                        : task.completedVia?.startsWith("email:")
+                          ? `email: ${task.completedVia.slice(6)}`
                           : "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       {canTouch && detail.status === "Open" ? (
                         <div className="flex justify-end gap-1">
-                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === t.id || t.status === "Done"} title="Selesai" onClick={() => void setTask(t.id, "Done")}>
+                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === task.id || task.status === "Done"} title={t("Selesai", "Done")} onClick={() => void setTask(task.id, "Done")}>
                             <Check className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === t.id || t.status === "Na"} title="Tidak berlaku" onClick={() => void setTask(t.id, "Na")}>
+                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === task.id || task.status === "Na"} title={t("Tidak berlaku", "Not applicable")} onClick={() => void setTask(task.id, "Na")}>
                             <Minus className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === t.id || t.status === "Pending"} title="Kembalikan" onClick={() => void setTask(t.id, "Pending")}>
+                          <Button variant="outline" size="icon" className="h-7 w-7" disabled={busyTask === task.id || task.status === "Pending"} title={t("Kembalikan", "Reopen")} onClick={() => void setTask(task.id, "Pending")}>
                             <CircleDashed className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">{detail.status !== "Open" ? "terkunci" : "bukan bagian Anda"}</span>
+                        <span className="text-xs text-muted-foreground">{detail.status !== "Open" ? t("terkunci", "locked") : t("bukan bagian Anda", "not your department")}</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -419,7 +441,7 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
       )}
       {viewer?.canComplete && detail.status === "Open" && (
         <Button variant="ghost" onClick={() => setShowAdd(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Tambah Tugas
+          <Plus className="mr-2 h-4 w-4" /> {t("Tambah Tugas", "Add Task")}
         </Button>
       )}
     </div>
@@ -428,19 +450,20 @@ function OnboardingChecklistDetail({ id }: { id: string }) {
 
 // ================= TAMBAH TUGAS =================
 function AddTaskDialog({ id, departments, onClose, onAdded }: { id: string; departments: DeptMeta[]; onClose: () => void; onAdded: () => void }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [owner, setOwner] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function add() {
-    if (!title.trim()) { toast.error("Judul tugas wajib diisi"); return; }
+    if (!title.trim()) { toast.error(t("Judul tugas wajib diisi", "Task title is required")); return; }
     setBusy(true);
     try {
       await apiSend(`/api/rekankerja/onboarding/${id}`, "PATCH", { action: "addTask", title, owner: owner || null });
-      toast.success("Tugas ditambahkan");
+      toast.success(t("Tugas ditambahkan", "Task added"));
       onAdded();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal");
+      toast.error(e instanceof Error ? e.message : t("Gagal", "Failed"));
     } finally {
       setBusy(false);
     }
@@ -449,16 +472,16 @@ function AddTaskDialog({ id, departments, onClose, onAdded }: { id: string; depa
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Tambah Tugas</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("Tambah Tugas", "Add Task")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label>Judul tugas</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="mis. Penyiapan telepon kantor" />
+            <Label>{t("Judul tugas", "Task title")}</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("mis. Penyiapan telepon kantor", "e.g. Office phone setup")} />
           </div>
           <div className="space-y-1">
-            <Label>Bagian penanggung jawab</Label>
+            <Label>{t("Bagian penanggung jawab", "Responsible department")}</Label>
             <Select value={owner} onValueChange={setOwner}>
-              <SelectTrigger><SelectValue placeholder="Pilih bagian…" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("Pilih bagian…", "Select department…")} /></SelectTrigger>
               <SelectContent>
                 {departments.map((d) => (
                   <SelectItem key={d.dept} value={d.dept}>{d.label}</SelectItem>
@@ -468,8 +491,8 @@ function AddTaskDialog({ id, departments, onClose, onAdded }: { id: string; depa
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button disabled={busy} onClick={() => void add()}>Tambah</Button>
+          <Button variant="outline" onClick={onClose}>{t("Batal", "Cancel")}</Button>
+          <Button disabled={busy} onClick={() => void add()}>{t("Tambah", "Add")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

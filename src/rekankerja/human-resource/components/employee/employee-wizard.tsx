@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { RELIGIONS_EN, MARITAL_STATUSES_EN, WORK_SHIFTS_EN, EMPLOYMENT_STATUS_LABEL, EMPLOYMENT_STATUS_LABEL_EN } from "./types";
 import { motion } from "framer-motion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { LetterPreviewDialog } from "./letter-preview-dialog";
@@ -332,7 +333,7 @@ export function OnboardingWizard() {
                         <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih", "Select")} /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
-                          {lk("MaritalStatus").map((m) => <SelectItem key={m.code} value={m.label}>{m.label}</SelectItem>)}
+                          {lk("MaritalStatus").map((m) => <SelectItem key={m.code} value={m.label}>{t(m.label, MARITAL_STATUSES_EN[m.label] ?? m.label)}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -341,7 +342,7 @@ export function OnboardingWizard() {
                         <SelectTrigger className="h-9"><SelectValue placeholder={t("Pilih", "Select")} /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">{t("— Pilih —", "— Select —")}</SelectItem>
-                          {lk("Religion").map((r) => <SelectItem key={r.code} value={r.label}>{r.label}</SelectItem>)}
+                          {lk("Religion").map((r) => <SelectItem key={r.code} value={r.label}>{t(r.label, RELIGIONS_EN[r.label] ?? r.label)}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -454,7 +455,7 @@ export function OnboardingWizard() {
                       >
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {lk("EmploymentStatus").map((s) => <SelectItem key={s.code} value={s.label}>{s.label}</SelectItem>)}
+                          {lk("EmploymentStatus").map((s) => <SelectItem key={s.code} value={s.label}>{t(EMPLOYMENT_STATUS_LABEL[s.label] ?? s.label, EMPLOYMENT_STATUS_LABEL_EN[s.label])}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -465,7 +466,7 @@ export function OnboardingWizard() {
                       <Select value={form.workShift} onValueChange={(v) => set("workShift", v)}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {lk("WorkShift").map((s) => <SelectItem key={s.code} value={s.label}>{s.label}</SelectItem>)}
+                          {lk("WorkShift").map((s) => <SelectItem key={s.code} value={s.label}>{t(s.label, WORK_SHIFTS_EN[s.label] ?? s.label)}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
@@ -557,7 +558,7 @@ export function OnboardingWizard() {
                     [t("Nama Lengkap"), form.fullName || "—"], [t("Jenis Kelamin", "Gender"), form.gender === "F" ? t("Perempuan", "Female") : t("Laki-laki", "Male")],
                     [t("Tempat/Tgl Lahir", "Place/Date of Birth"), [form.birthPlace, form.birthDate].filter(Boolean).join(", ") || "—"],
                     [t("NIK", "NIK"), form.nationalId || "—"], [t("NPWP"), form.taxId || "—"],
-                    [t("Status"), form.maritalStatus || "—"], [t("Agama", "Religion"), form.religion || "—"], [t("Gol. Darah", "Blood Type"), form.bloodType || "—"],
+                    [t("Status"), form.maritalStatus ? t(form.maritalStatus, MARITAL_STATUSES_EN[form.maritalStatus] ?? form.maritalStatus) : "—"], [t("Agama", "Religion"), form.religion ? t(form.religion, RELIGIONS_EN[form.religion] ?? form.religion) : "—"], [t("Gol. Darah", "Blood Type"), form.bloodType || "—"],
                     [t("Email"), form.email || "—"], [t("Telepon"), form.phone || "—"],
                     [t("Alamat"), [form.address, form.city].filter(Boolean).join(", ") || "—"],
                   ]} />
@@ -566,13 +567,13 @@ export function OnboardingWizard() {
                     [t("Grade"), selectedGrade ? `${selectedGrade.code} — ${selectedGrade.name}` : "—"],
                     [t("Kantor", "Office"), selectedOffice ? `${selectedOffice.code} — ${selectedOffice.name}` : "—"],
                     [t("Lokasi Kerja", "Work Location"), selectedLocation ? `${selectedLocation.code} — ${selectedLocation.name}` : "—"],
-                    [t("Status Kepegawaian", "Employment Status"), form.employmentStatus], [t("Tanggal Masuk", "Join Date"), form.joinDate || "—"],
+                    [t("Status Kepegawaian", "Employment Status"), t(EMPLOYMENT_STATUS_LABEL[form.employmentStatus] ?? form.employmentStatus, EMPLOYMENT_STATUS_LABEL_EN[form.employmentStatus])], [t("Tanggal Masuk", "Join Date"), form.joinDate || "—"],
                     ...(form.employmentStatus !== "Permanent" ? ([
                       [t("Kontrak PKWT", "PKWT Contract"), form.contractStart || form.contractEnd
                         ? `${form.contractStart || "?"} → ${form.contractEnd || "?"}${Number(form.renewalCount) > 0 ? ` · ${t("perpanjangan ke-{n}", "renewal no. {n}", { n: String(Number(form.renewalCount)) })}` : ""}`
                         : "—"],
                     ] as [string, string][]) : []),
-                    [t("Jadwal Kerja", "Work Schedule"), form.workShift], [t("Atasan", "Manager"), selectedManager?.fullName ?? "—"],
+                    [t("Jadwal Kerja", "Work Schedule"), t(form.workShift, WORK_SHIFTS_EN[form.workShift] ?? form.workShift)], [t("Atasan", "Manager"), selectedManager?.fullName ?? "—"],
                   ]} />
                   <ReviewSection icon={Wallet} title={t("Upah & Bank", "Salary & Bank")} onEdit={() => setStep(3)} items={[
                     [t("Gaji Pokok"), form.baseSalary ? fmtIDR(Number(form.baseSalary)) : "—"],

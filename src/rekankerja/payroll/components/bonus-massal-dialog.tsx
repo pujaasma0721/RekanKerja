@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApi, apiSend, initials, avatarColor, fmtIDR } from "@/rekankerja/shared/lib/api";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 import type { PeriodRow, ProcessTypeRow, WageCompFull } from "@/rekankerja/payroll/components/payroll-types";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, Coins, Loader2, Calculator, PartyPopper, Users } from "lucide-react";
@@ -228,7 +228,7 @@ export function BonusMassalDialog({
                 {openPeriods.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">{t("Tidak ada period terbuka", "No open periods")}</p>}
                 {openPeriods.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} <Badge variant="outline" className="ml-1.5 h-4 rounded px-1.5 text-[9px] font-bold text-slate-400">{p.status}</Badge>
+                    {loc(p.name)} <Badge variant="outline" className="ml-1.5 h-4 rounded px-1.5 text-[9px] font-bold text-slate-400">{p.status}</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -242,7 +242,7 @@ export function BonusMassalDialog({
               <SelectTrigger className="h-11 w-full"><SelectValue placeholder={t("BONUS / THR", "BONUS / THR")} /></SelectTrigger>
               <SelectContent>
                 {bonusTypes.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name} <span className="ml-1 font-mono text-[10px] text-slate-400">{p.code}</span></SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{loc(p.name)} <span className="ml-1 font-mono text-[10px] text-slate-400">{p.code}</span></SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -421,7 +421,7 @@ export function BonusMassalDialog({
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/60 px-3.5 py-2.5 text-[11px] dark:border-slate-800 dark:bg-slate-900/40">
               <span className="flex items-center gap-2 font-bold text-slate-500">
                 <Coins className="h-3.5 w-3.5" />
-                {preview.period.name} × {preview.processType.code} · {preview.component.code}
+                {loc(preview.period.name)} × {preview.processType.code} · {preview.component.code}
               </span>
               <span>
                 {t("{n} karyawan · total", "{n} employees · total", { n: preview.count })}{" "}
@@ -487,8 +487,8 @@ export function BonusMassalDialog({
             </p>
             <p className="mt-1 text-xs leading-relaxed text-brand-deep dark:text-brand/75">
               {t(
-                `Total ${fmtIDR(preview?.total ?? 0)} akan dibuat sebagai assignment Specific pada ${period?.name ?? "-"} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% gaji pokok)`}, lalu run dihitung otomatis. Karyawan yang sudah punya assignment akan dilewati.`,
-                `Total ${fmtIDR(preview?.total ?? 0)} will be created as Specific assignments on ${period?.name ?? "-"} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% of base salary)`}, then the run is calculated automatically. Employees with existing assignments are skipped.`,
+                `Total ${fmtIDR(preview?.total ?? 0)} akan dibuat sebagai assignment Specific pada ${loc(period?.name ?? "-")} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% gaji pokok)`}, lalu run dihitung otomatis. Karyawan yang sudah punya assignment akan dilewati.`,
+                `Total ${fmtIDR(preview?.total ?? 0)} will be created as Specific assignments on ${loc(period?.name ?? "-")} × ${procType?.code ?? "-"}${amountMode === "nominal" ? "" : ` (${percent}% of base salary)`}, then the run is calculated automatically. Employees with existing assignments are skipped.`,
               )}
             </p>
             <div className="mt-3 flex justify-end gap-2">

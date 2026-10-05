@@ -140,7 +140,7 @@ export function AttendanceMachineImportPage() {
         {
           i: res.imported,
           s: res.skipped,
-          u: res.unknown.length > 0 ? `, ${res.unknown.length} tak dikenal (${res.unknown.slice(0, 3).join(", ")})` : "",
+          u: res.unknown.length > 0 ? `, ${t("{n} tak dikenal ({list})", "{n} unknown ({list})", { n: res.unknown.length, list: res.unknown.slice(0, 3).join(", ") })}` : "",
         },
       ));
       batchesApi.refresh();

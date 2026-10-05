@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   TravelClaimRowUI, TravelRequestRowUI, ExpenseTypeRowUI, EmployeeOption,
-  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, fmtIDR, fmtIDRShort, fmtDateID,
+  TRAVEL_STATUS_LABEL, TRAVEL_STATUS_LABEL_EN, EXPENSE_KIND_LABEL, EXPENSE_KIND_LABEL_EN, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./travel-types";
 import {
   FileText, Plus, Search, Calculator, Wallet, ChevronDown, ChevronRight,
@@ -456,7 +456,7 @@ export function TravelClaimsPage() {
                                 <p className="mb-1 text-xs font-black uppercase tracking-wide text-slate-500">{t("Jenis Biaya", "Expense Types")}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {c.expenseKinds.map((k) => (
-                                    <Badge key={k} variant="outline" className="text-[10px] font-bold">{EXPENSE_KIND_LABEL[k] ?? k}</Badge>
+                                    <Badge key={k} variant="outline" className="text-[10px] font-bold">{t(EXPENSE_KIND_LABEL[k] ?? k, EXPENSE_KIND_LABEL_EN[k] ?? k)}</Badge>
                                   ))}
                                   <span className="text-[11px] text-slate-500">{t("total biaya {amt}", "total expenses {amt}", { amt: fmtIDR(c.totalExpenses) })}</span>
                                 </div>
@@ -638,7 +638,7 @@ export function TravelClaimsPage() {
                             <SelectContent className="max-h-56">
                               {selectableTypes.map((t2) => (
                                 <SelectItem key={t2.id} value={t2.code} className="text-xs">
-                                  {t2.code} — {t2.name} ({EXPENSE_KIND_LABEL[t2.kind] ?? t2.kind})
+                                  {t2.code} — {t2.name} ({t(EXPENSE_KIND_LABEL[t2.kind] ?? t2.kind, EXPENSE_KIND_LABEL_EN[t2.kind] ?? t2.kind)})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -654,7 +654,7 @@ export function TravelClaimsPage() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-[10px] font-bold text-slate-500">
-                            {et?.kind === "MILEAGE" ? t("Km / unit", "Km / unit") : et?.kind === "ALLOWANCE" ? t("Jumlah hari", "Number of days") : "Qty"}
+                            {et?.kind === "MILEAGE" ? t("Km / unit", "Km / unit") : et?.kind === "ALLOWANCE" ? t("Jumlah hari", "Number of days") : t("Jml", "Qty")}
                           </Label>
                           <Input type="number" min="0" value={l.qty} onChange={(e) => setLines(lines.map((x, xi) => xi === i ? { ...x, qty: e.target.value } : x))} className="h-8 text-sm" />
                         </div>
@@ -673,7 +673,7 @@ export function TravelClaimsPage() {
                       </div>
                       {et && (
                         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                          <Badge variant="outline" className="text-[9px] font-bold">{EXPENSE_KIND_LABEL[et.kind] ?? et.kind}</Badge>
+                          <Badge variant="outline" className="text-[9px] font-bold">{t(EXPENSE_KIND_LABEL[et.kind] ?? et.kind, EXPENSE_KIND_LABEL_EN[et.kind] ?? et.kind)}</Badge>
                           {et.needDocs && <Badge variant="secondary" className="text-[9px] font-bold">{t("Perlu dokumen", "Docs required")}</Badge>}
                           {et.limitAmount > 0 && !et.unlimited && (
                             <span className={cn("font-semibold", overLimit ? "text-rose-600" : "text-slate-500")}>

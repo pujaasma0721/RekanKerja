@@ -102,7 +102,7 @@ const ACTIVITY_PHRASES: [string, string][] = [
   // — Task 52-e: audit trail akses baca profil (UU PDP 27/2022) —
   ["Melihat detail karyawan", "Viewed employee profile"],
   ["cakupan PII", "PII scope"],
-  ["Viewed", "Melihat"],
+  ["Melihat", "Viewed"],
   ["penuh", "full"],
   // — notifikasi scheduler —
   ["menunggu persetujuan Anda", "awaiting your approval"],
@@ -227,6 +227,57 @@ const ACTIVITY_PHRASES: [string, string][] = [
   ["cuti", "leave"],
   ["baru", "new"],
   ["jenis", "types"],
+  // — Task 102 audit bilingual: fix frasa yang selama ini dikorupsi substitusi
+  //    substring ("pembaruan"→"pem…new…an", "kepada"→"ke…on") + cakupan frasa
+  //    baru dari modul whistleblow/scheduler/HR/payroll/travel yang dilaporkan —
+  ["Mohon pembaruan", "Please update"],
+  ["pembaruan", "update"],
+  ["dikirim", "sent"],
+  ["kepada", "to"],
+  ["Mohon", "Please"],
+  ["menunggu verifikasi", "awaiting verification"],
+  ["Catatan tindak lanjut", "Follow-up note"],
+  ["mulai penanganan", "started handling"],
+  ["DITERIMA", "RECEIVED"],
+  ["SELESAI", "COMPLETED"],
+  ["DITUTUP", "CLOSED"],
+  ["Laporan", "Report"],
+  ["laporan", "report"],
+  ["Penerbitan pengumuman", "Publishing announcement"],
+  ["ditugaskan ke", "assigned to"],
+  ["inventaris", "inventory"],
+  ["Profil perusahaan", "Company profile"],
+  ["Pelanggaran dicatat", "Violation recorded"],
+  ["Koreksi manual", "Manual correction"],
+  ["baris riwayat", "history row"],
+  ["penempatan", "placement"],
+  ["Template surat", "Letter template"],
+  ["ke bawaan sistem", "to system defaults"],
+  ["untuk", "for"],
+  ["Gagal membuat", "Failed to create"],
+  ["dokumen", "document"],
+  ["Posisi", "Position"],
+  ["pinjaman", "loan"],
+  ["cicilan", "installment"],
+  ["ditambahkan", "added"],
+  ["terpasang", "attached"],
+  ["ditandai DIBAYAR", "marked PAID"],
+  ["bulanan", "monthly"],
+  ["periode", "period"],
+  ["versi", "version"],
+  ["siap", "ready"],
+  ["otomatis", "automatically"],
+  ["dibayar", "paid"],
+  ["ditandai", "marked"],
+  ["dicairkan", "disbursed"],
+  ["ditarik", "withdrawn"],
+  ["diedit", "edited"],
+  ["destinasi", "destination"],
+  ["uang muka", "advance"],
+  ["Lembur", "Overtime"],
+  ["tugas", "tasks"],
+  ["bagian", "section"],
+  ["Cuti massal", "Mass leave"],
 ];
 
 /** Frasa diurut TERPANJANG-DULU sekali di init (hindari kecocokan parsial). */
@@ -234,13 +285,24 @@ const ACTIVITY_PHRASES_SORTED = [...ACTIVITY_PHRASES].sort(
   (a, b) => b[0].length - a[0].length,
 );
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
+/** Regex per frasa dikompilasi SEKALI di init. Word-boundary Unicode: frasa hanya
+ *  cocok bila tidak berbatasan huruf/angka — fix Task 102: substitusi substring
+ *  lama (split/join) merusak teks ("pembaruan"→"pemnewan", "kepada"→"keon"). */
+const ACTIVITY_RULES: { re: RegExp; en: string }[] = ACTIVITY_PHRASES_SORTED.map(
+  ([id, en]) => ({ re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(id)}(?![\\p{L}\\p{N}])`, "gu"), en }),
+);
+
 /** Terjemahkan best-effort teks sistem (activity/notifikasi) saat EN aktif. */
 export function locActivity(s: string | null | undefined): string {
   if (s == null) return "";
   if (globalLang !== "en") return s;
   let out = applyMonthSwap(s); // nama bulan ID→EN dulu (mis. "Slip gaji AGUSTUS 2026")
-  for (const [id, en] of ACTIVITY_PHRASES_SORTED) {
-    if (out.includes(id)) out = out.split(id).join(en);
+  for (const { re, en } of ACTIVITY_RULES) {
+    out = out.replace(re, en);
   }
   return out;
 }
@@ -471,4 +533,96 @@ export const BASE_EN: Record<string, string> = {
   "Distribusi Usia": "Age Distribution",
   "Rata-rata": "Average",
   "Kunci (prefix)": "Key (prefix)",
+
+  // — Task 102 audit bilingual: key t() satu-argumen yang belum ada di kamus —
+  // (mencegah silent Indonesian fallback saat mode EN aktif)
+  "Delegasi": "Delegation",
+  "Nomor": "Number",
+  "Struktur": "Structure",
+  "Tersalin": "Copied",
+  "Label": "Label",
+  "Template": "Template",
+  "Export CSV": "Export CSV",
+  "No.": "No.",
+  "Onboarding": "Onboarding",
+  "Clock In": "Clock In",
+  "Clock Out": "Clock Out",
+  "—": "—",
+  "Regen Rentang": "Regenerate Range",
+  "Batalkan": "Cancel",
+  "Non-Clocking": "Non-Clocking",
+  "Gagal menyimpan": "Failed to save",
+  "Tanggal efektif wajib diisi": "Effective date is required",
+  "Simpan Koreksi": "Save Correction",
+  "Menghapus…": "Deleting…",
+  "Institusi": "Institution",
+  "Unit organisasi": "Organizational Unit",
+  "MODUL HUMAN RESOURCE": "HUMAN RESOURCE MODULE",
+  "Export Demografi (XLSX)": "Export Demographics (XLSX)",
+  "Bank": "Bank",
+  "Checklist": "Checklist",
+  "Personal": "Personal",
+  "Edit": "Edit",
+  "Valid": "Valid",
+  "Invalid": "Invalid",
+  "Probation": "Probation",
+  "Outsourcing": "Outsourcing",
+  "Verbal": "Verbal",
+  "Final": "Final",
+  "NPWP": "NPWP",
+  "Personnel Action": "Personnel Action",
+  "Unit": "Unit",
+  "Gender": "Gender",
+  "Headcount": "Headcount",
+  "Hires": "Hires",
+  "Hires YTD": "Hires YTD",
+  "Exits": "Exits",
+  "Exits YTD": "Exits YTD",
+  "Turnover %": "Turnover %",
+  "Turnover Rate": "Turnover Rate",
+  "Turnover & Tenure": "Turnover & Tenure",
+  "Avg Tenure": "Avg Tenure",
+  "D1–D4": "D1–D4",
+  "Export XLSX": "Export XLSX",
+  "Export Turnover (XLSX)": "Export Turnover (XLSX)",
+  "TOTAL": "TOTAL",
+  "Karyawan *": "Employee *",
+  "Deskripsi": "Description",
+  "Ubah TA": "Edit TA",
+  "Bulanan": "Monthly",
+  "Komponen": "Component",
+  "UMP/UMK": "Min. Wage",
+  "Period": "Period",
+  "Run": "Run",
+  "Runs": "Runs",
+  "Take Home Pay": "Take Home Pay",
+  "PTKP": "PTKP",
+  "PPh21": "PPh21",
+  "Benefit": "Benefit",
+  "Debit": "Debit",
+  "Period *": "Period *",
+  "Period · Run": "Period · Run",
+  "Slip": "Slip",
+  "Limit": "Limit",
+  "Memo": "Memo",
+  "Register": "Register",
+  "Outstanding": "Outstanding",
+  "TA": "TA",
+  "Memproses…": "Processing…",
+  "Anniversary": "Anniversary",
+  "Formula Settlement": "Formula Settlement",
+  "Approval": "Approval",
+  "Generate": "Generate",
+  "Payroll": "Payroll",
+  // — label navigasi dinamis (dirender t(var) dari app-shell) —
+  "Piutang Asuransi": "Insurance Receivables",
+  "Basis Pengetahuan AI": "AI Knowledge Base",
+  "AI & Pengetahuan": "AI & Knowledge",
+  "Provider AI": "AI Provider",
+  "Kios QR": "QR Kiosk",
+  "Laporkan Pelanggaran": "Report a Violation",
+  "Penanganan": "Handling",
+  "Kelola Laporan": "Report Management",
+  "Lapor": "Report",
+  "Kanal pelaporan anonim & penanganan (TPKS)": "Anonymous reporting & handling channel (SVA)",
 };

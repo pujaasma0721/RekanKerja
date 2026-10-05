@@ -190,7 +190,7 @@ export function MedicalApprovalPage() {
         </Card>
         <Card className="border-slate-200 bg-white/80 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
           <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Transfer UMC</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("Transfer UMC", "UMC Transfer")}</p>
             <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{t("Akhir Tahun", "Year-End")}</p>
             <p className="mt-1 text-xs text-slate-500">{t("sisa saldo jenis CASH ditarik tunai via payslip", "remaining balance of CASH types is cashed out via payslip")}</p>
           </CardContent>
@@ -227,7 +227,7 @@ export function MedicalApprovalPage() {
                       {t("Jenjang {l}", "Tier {l}", { l: `${c.approval.currentLevel}/${c.approval.totalLevels}` })}
                     </span>
                   )}
-                  {c.forDependent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand-deep dark:bg-brand/15 dark:text-brand/85">dependent</span>}
+                  {c.forDependent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand-deep dark:bg-brand/15 dark:text-brand/85">{t("tanggungan", "dependent")}</span>}
                 </div>
                 <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                   {c.fullName} · {c.typeName} · {fmtDateID(c.claimDate)}
@@ -320,7 +320,7 @@ export function MedicalApprovalPage() {
                 <p className="font-bold">{claim.docNo} — {claim.fullName}</p>
                 <p className="text-slate-600 dark:text-slate-300">{claim.typeName} · {fmtDateID(claim.claimDate)}</p>
                 <p className="text-xs text-slate-500">
-                  {t("Tagihan", "Bill")} {fmtIDR(claim.totalBill)} · Approved <span className="font-semibold">{fmtIDR(claim.totalApproved)}</span> · Non-re {fmtIDR(claim.totalNonRe)}
+                  {t("Tagihan", "Bill")} {fmtIDR(claim.totalBill)} · {t("Disetujui", "Approved")} <span className="font-semibold">{fmtIDR(claim.totalApproved)}</span> · {t("Non-re", "Non-re")} {fmtIDR(claim.totalNonRe)}
                 </p>
               </div>
               {claim.approval?.status === "InProgress" && (

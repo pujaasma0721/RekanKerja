@@ -86,6 +86,25 @@ const ESS_OVERFLOW_DESKTOP = ESS_NAV.filter((n) => !ESS_TABS_DESKTOP.includes(n.
 
 const subscribeNoop = () => () => {};
 
+// Task 103-e — label dwibahasa utk role akun ESS di menu avatar. Mencakup
+// platform role (OWNER|ADMIN|HR|VIEWER) maupun AppUser.role tenant
+// (Admin|HR Manager|HR Staff|Approver|Viewer); nilai lain → raw.
+const ESS_ROLE_LABEL: Record<string, { id: string; en: string }> = {
+  OWNER: { id: "Pemilik", en: "Owner" },
+  ADMIN: { id: "Admin", en: "Admin" },
+  HR: { id: "HR", en: "HR" },
+  VIEWER: { id: "Pengamat", en: "Viewer" },
+  Admin: { id: "Admin", en: "Admin" },
+  "HR Manager": { id: "HR Manager", en: "HR Manager" },
+  "HR Staff": { id: "HR Staff", en: "HR Staff" },
+  Approver: { id: "Approver", en: "Approver" },
+  Viewer: { id: "Pengamat", en: "Viewer" },
+};
+function essRoleLabel(role: string, t: (id: string, en: string) => string): string {
+  const m = ESS_ROLE_LABEL[role];
+  return m ? t(m.id, m.en) : role;
+}
+
 // ============ LOGO ESS (pola lockup editorial: kotak tinta + aksen brand "Kerja") ============
 function EssLogo({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
@@ -461,7 +480,7 @@ export function EssShell() {
                 <p className="truncate font-bold text-slate-800 dark:text-slate-100">{me.employee.fullName}</p>
                 <p className="mt-0.5 truncate font-medium text-slate-400">
                   {me.employee.email ?? me.employee.employeeNo}
-                  {me.role ? ` · ${me.role}` : ""}
+                  {me.role ? ` · ${essRoleLabel(me.role, t)}` : ""}
                 </p>
                 <p className="mt-0.5 truncate font-normal text-slate-400">
                   {me.employee.positionTitle ?? me.employee.employeeNo}

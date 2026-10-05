@@ -23,6 +23,7 @@ import { IdCard, Pencil, Search, Wallet, Users, RefreshCw, ArrowRight, Info, His
 import { ProfileRow, PtkpSyncResponse, TAX_STATUS_OPTIONS, TAX_STATUS_OPTION_EN, TemplateRow, PayrollHistoryResponse, SalaryHistoryEntry, TemplateHistoryEntry } from "@/rekankerja/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { currentLocale } from "@/rekankerja/shared/lib/i18n-core";
 
 /**
  * Task 58 — GUARD TAMPILAN (defense in depth): nilai teks PII dari respons
@@ -64,7 +65,7 @@ export function PayrollProfilesPage() {
   // Header sort memakai state server-side (Task 75) — ikon ↑/↓/↕ konsisten
   const sortHead = (k: string, label: React.ReactNode, className?: string) => (
     <TableHead className={className}>
-      <button type="button" onClick={() => toggleSort(k)} title="Klik untuk urutkan"
+      <button type="button" onClick={() => toggleSort(k)} title={t("Klik untuk urutkan", "Click to sort")}
         className="inline-flex items-center gap-1 whitespace-nowrap transition hover:opacity-70">
         {label}
         {sortKey === k ? (
@@ -243,7 +244,7 @@ function PayrollHistoryDialog({ row, templates, onClose, onCorrected }: { row: P
   }
 
   const fmtPeriod = (from: string, to: string | null) =>
-    `${new Date(from).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })} — ${to ? new Date(to).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : t("Sekarang", "Present")}`;
+    `${new Date(from).toLocaleDateString(currentLocale(), { day: "2-digit", month: "short", year: "numeric" })} — ${to ? new Date(to).toLocaleDateString(currentLocale(), { day: "2-digit", month: "short", year: "numeric" }) : t("Sekarang", "Present")}`;
   const reasonLabel = (r: string | null) =>
     r === "Initial" ? t("Penempatan Awal", "Initial placement")
     : r === "Promotion" ? t("Promosi", "Promotion")

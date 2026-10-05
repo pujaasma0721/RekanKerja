@@ -182,7 +182,7 @@ export function LeaveEncashmentPage() {
                     <TableHead className="text-right text-[11px] font-bold">{t("Hari", "Days")}</TableHead>
                     <TableHead className="text-right text-[11px] font-bold">{t("Estimasi Upah", "Estimated Wage")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Tgl Bayar", "Pay Date")}</TableHead>
-                    <TableHead className="text-[11px] font-bold">{t("Payroll")}</TableHead>
+                    <TableHead className="text-[11px] font-bold">{t("Payroll", "Payroll")}</TableHead>
                     <TableHead className="text-[11px] font-bold">{t("Status")}</TableHead>
                     <TableHead className="w-28" />
                   </TableRow>
@@ -322,8 +322,8 @@ export function LeaveEncashmentPage() {
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-brand/15 text-[10px] font-bold text-brand-deep hover:bg-brand/15 dark:bg-brand/15 dark:text-brand/85">{t("Komponen UCT", "UCT Component")}</Badge>
-              <Badge variant="outline" className="text-[10px]">{t("Run SALARY")}</Badge>
-              <Badge variant="outline" className="text-[10px]">{t("Confirm → Paid")}</Badge>
+              <Badge variant="outline" className="text-[10px]">{t("Run SALARY", "Run SALARY")}</Badge>
+              <Badge variant="outline" className="text-[10px]">{t("Konfirmasi → Dibayar", "Confirm → Paid")}</Badge>
             </div>
           </div>
           <DialogFooter>

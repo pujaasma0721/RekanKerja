@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { TAX_STATUS_LABEL, SptReportData, PeriodRow } from "@/rekankerja/payroll/components/payroll-types";
 import { FileSpreadsheet, FileDown, Landmark, Calculator, ArrowDownUp, Info, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/rekankerja/shared/lib/i18n";
+import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
 export function PayrollSptPage() {
   const { t } = useI18n();
@@ -135,7 +135,7 @@ export function PayrollSptPage() {
               <SelectTrigger className="h-9 w-[190px] text-xs font-bold"><SelectValue placeholder={t("Pilih period", "Select period")} /></SelectTrigger>
               <SelectContent>
                 {confirmedPeriods.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{loc(p.name)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

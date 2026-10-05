@@ -25,7 +25,7 @@ import {
   HeartHandshake, Plus, CheckCircle2, XCircle, CalendarClock, Wallet, Pencil,
   Stethoscope, Glasses, Dumbbell, PartyPopper, Sparkles, Landmark, Ban, FileText, ChevronRight, SlidersHorizontal,
 } from "lucide-react";
-import { BenefitTypeRow, BenefitClaimRow, BenefitStats, PeriodRow, WageCompFull } from "@/rekankerja/payroll/components/payroll-types";
+import { BenefitTypeRow, BenefitClaimRow, BenefitStats, PeriodRow, WageCompFull, PERIOD_STATUS_LABEL, PERIOD_STATUS_LABEL_EN } from "@/rekankerja/payroll/components/payroll-types";
 import { cn } from "@/lib/utils";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 
@@ -45,6 +45,12 @@ const STATUS_FILTERS_EN: Record<string, string> = {
 const CATEGORY_ICON: Record<string, React.ElementType> = {
   Medical: Stethoscope, Kesehatan: Glasses, Transport: Landmark,
   Rekreasi: Dumbbell, Perayaan: PartyPopper,
+};
+
+// Task 103-g — kategori benefit (data master ID) → label EN paralel utk t() dua-argumen
+const CATEGORY_LABEL_EN: Record<string, string> = {
+  Medical: "Medical", Kesehatan: "Health", Transport: "Transport",
+  Rekreasi: "Recreation", Perayaan: "Celebration", Lainnya: "Other",
 };
 
 const RESET_LABEL: Record<string, string> = {
@@ -424,7 +430,7 @@ function TypeCard({ type, onEdit, onChanged, onOpenRules }: {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate text-[14px] font-bold">{type.name}</p>
-              <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-brand dark:text-brand/85">{type.category}</Badge>
+              <Badge variant="outline" className="shrink-0 text-[9px] font-bold text-brand dark:text-brand/85">{t(type.category, CATEGORY_LABEL_EN[type.category] ?? type.category)}</Badge>
             </div>
             <p className="font-mono text-[10px] text-slate-400">{type.code} · {t(RESET_LABEL[type.resetPeriod] ?? type.resetPeriod, RESET_LABEL_EN[type.resetPeriod])}</p>
             {type.description && <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{type.description}</p>}
@@ -681,7 +687,7 @@ function TypeDialog({ open, editing, onClose, onSaved }: {
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["Medical", "Kesehatan", "Transport", "Rekreasi", "Perayaan", "Lainnya"].map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>{t(c, CATEGORY_LABEL_EN[c] ?? c)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -852,7 +858,7 @@ function ScheduleDialog({ claim, onClose, onDone }: { claim: BenefitClaimRow | n
               <SelectTrigger className="mt-1.5"><SelectValue placeholder={t("pilih period", "select period")} /></SelectTrigger>
               <SelectContent className="max-h-52">
                 {periods.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name} · {p.status}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{loc(p.name)} · {t(PERIOD_STATUS_LABEL[p.status] ?? p.status, PERIOD_STATUS_LABEL_EN[p.status] ?? p.status)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

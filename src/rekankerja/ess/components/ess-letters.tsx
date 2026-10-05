@@ -66,7 +66,7 @@ function RequestTimelineItem({ r }: { r: EssLetterRequest }) {
         </div>
         <p className="mt-1 text-[11px] text-slate-400">
           {t("diajukan", "requested")} {fmtDateTime(r.createdAt)}
-          {r.purpose ? ` · ${t("keperluan", "for")}: ${r.purpose}` : ""}
+          {r.purpose ? ` · ${t("keperluan", "for")}: ${t(r.purpose, PURPOSE_EN[r.purpose] ?? r.purpose)}` : ""}
         </p>
         {r.notes && (
           <p className="mt-1 rounded-lg bg-slate-100/70 px-2.5 py-1.5 text-[11px] italic leading-relaxed text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">

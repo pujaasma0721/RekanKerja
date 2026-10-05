@@ -44,6 +44,18 @@ function statusMeta(status: string) {
   return STATUS_META[status] ?? { id: status, en: status, cell: "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-400", dot: "bg-slate-400" };
 }
 
+// Task 103-e — kategori hari dari DB (EN: Workday/Off/Holiday) → label
+// dwibahasa (nilai tak dikenal → raw, kode day type fallback apa adanya).
+const DAY_CATEGORY: Record<string, { id: string; en: string }> = {
+  Workday: { id: "Hari Kerja", en: "Workday" },
+  Off: { id: "Libur", en: "Off" },
+  Holiday: { id: "Hari Libur", en: "Holiday" },
+};
+function dayCategoryLabel(raw: string, t: (id: string, en: string) => string): string {
+  const m = DAY_CATEGORY[raw];
+  return m ? t(m.id, m.en) : raw;
+}
+
 const fmtMin = (m: number | null | undefined, t: (id: string, en: string) => string) => {
   if (!m) return "—";
   if (m < 60) return `${Math.round(m)} ${t("mnt", "min")}`;
@@ -208,7 +220,7 @@ export function EssAttendance() {
                             ? "border-dashed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
                             : "border-slate-200/70 bg-slate-50/40 text-slate-400 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-600",
                       )}
-                      title={rec ? `${meta?.id ?? rec.status}${rec.clockIn ? ` · in ${rec.clockIn}` : ""}` : undefined}
+                      title={rec ? `${t(meta?.id ?? String(rec.status), meta?.en ?? String(rec.status))}${rec.clockIn ? ` · in ${rec.clockIn}` : ""}` : undefined}
                     >
                       <span className="text-sm tabular-nums sm:text-base">{cell.day}</span>
                       {rec && <span className={cn("mt-0.5 h-1.5 w-1.5 rounded-full", meta!.dot)} aria-hidden />}
@@ -255,7 +267,7 @@ export function EssAttendance() {
                       {selectedDay.date ? new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${String(selectedDay.date).slice(0, 10)}T00:00:00`)) : "—"}
                     </p>
                     <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                      {t("Kategori hari", "Day category")}: {String(selectedDay.category ?? selectedDay.dayTypeCode ?? "—")}
+                      {t("Kategori hari", "Day category")}: {selectedDay.category ?? selectedDay.dayTypeCode ? dayCategoryLabel(String(selectedDay.category ?? selectedDay.dayTypeCode), t) : "—"}
                     </p>
                   </div>
                   <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold", statusMeta(String(selectedDay.status ?? "")).cell)}>

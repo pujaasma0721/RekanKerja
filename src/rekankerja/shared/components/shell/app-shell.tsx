@@ -1035,7 +1035,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     )}
                   </span>
                   <span className={cn("text-[9px] font-bold", !active && "text-slate-400 dark:text-slate-500")} style={active ? { color: accent } : undefined}>
-                    {m.short}
+                    {t(m.short)}
                   </span>
                 </button>
               );
