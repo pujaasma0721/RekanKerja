@@ -121,6 +121,10 @@ async function completeOpenai(db: TenantDb, row: AiProviderRow, input: AiComplet
         model: row.model,
         messages: [{ role: "system", content: input.system }, ...input.messages],
         temperature: input.temperature ?? 0.4,
+        // Beberapa proxy OpenAI-compatible (mis. gateway lokal) default-nya
+        // mengembalikan SSE walaupun field stream tidak dikirim — parser
+        // res.json() di bawah hanya bisa membaca JSON non-stream.
+        stream: false,
         ...(input.maxTokens ? { max_tokens: input.maxTokens } : {}),
       }),
     }),
