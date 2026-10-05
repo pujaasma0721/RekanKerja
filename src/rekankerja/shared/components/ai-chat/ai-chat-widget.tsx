@@ -16,6 +16,7 @@ import {
   Bot, Scale, Users, X, SendHorizonal, Loader2, Trash2, ArrowLeft, Sparkles, MessageCircle,
 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { initials } from "@/rekankerja/shared/lib/api";
@@ -52,8 +53,10 @@ function Bubble({ mine, children, accent }: { mine: boolean; children: React.Rea
     <div className={cn("flex w-full", mine ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
-          mine ? "rounded-br-md text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+          "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
+          mine
+            ? "max-w-[85%] rounded-br-md text-white"
+            : "max-w-[95%] rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
         )}
         style={mine ? { background: accent } : undefined}
       >
@@ -108,7 +111,7 @@ const MD_COMPONENTS: Components = {
 };
 
 function AssistantMd({ content }: { content: string }) {
-  return <ReactMarkdown components={MD_COMPONENTS}>{content}</ReactMarkdown>;
+  return <ReactMarkdown components={MD_COMPONENTS} remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
 }
 
 // ---------- panel chat AI (dipakai 2 mode) ----------
@@ -436,7 +439,7 @@ export function AiChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.97 }}
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className="fixed inset-x-3 bottom-[160px] z-[56] flex h-[min(62vh,540px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl md:inset-x-auto md:bottom-24 md:right-6 md:h-[min(70vh,580px)] md:w-[400px] dark:border-slate-800 dark:bg-slate-950"
+            className="fixed inset-x-3 bottom-[160px] z-[56] flex h-[min(62vh,540px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl md:inset-x-auto md:bottom-24 md:right-6 md:h-[min(70vh,580px)] md:w-[440px] dark:border-slate-800 dark:bg-slate-950"
           >
             {/* header + tab */}
             <div className="border-b border-slate-200/80 bg-white px-3 pt-2.5 dark:border-slate-800 dark:bg-slate-900">
