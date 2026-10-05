@@ -3995,3 +3995,22 @@ Work Log:
 
 Stage Summary:
 - 73 file berubah: bilingual RekanKerja naik dari ±90% → praktis penuh di layer UI. Bug korupsi teks locActivity ditemukan & diperbaiki (word-boundary + entri terbalik + 49 frasa). 5 file nol-i18n kini ter-cover (2 di antaranya dead code — dicatat). Halaman publik (eSign verify + checklist) kini ikut bahasa via cookie rklang. Sisa kelas P5 (400+ pesan error server, email/WA/PDF satu bahasa, data master DB satu bahasa) = keputusan produk/arsitektur berikutnya — dirinci di laporan audit.
+
+---
+Task ID: 104
+Agent: Z.ai (orkestrator)
+Task: "cek tampilan chart menu Organization Chart, kira2 apa yang perlu diperbaiki, analisa dulu jangan ada perubahan" — audit tampilan Peta Organisasi (org/chart) TANPA perubahan kode
+
+Work Log:
+- Git clean & up-to-date (HEAD 19defdb); tidak ada commit baru remote. Pull: "Already up to date."
+- Baca penuh 6 file modul org: org-module.tsx (router view), org-map-view.tsx (1473 baris — chart utama), unit-tree-view.tsx, company-view.tsx, office-location-view.tsx, types.ts + API org-map.ts (org-map route → requireMenuViewAny ["hr:chart"]).
+- E2E visual via agent-browser (login hrd@mii.co.id, workspace MII, ?s=org&v=chart): desktop 1440px (default People fit 37%, Unit fit 54%), expand-all (People → zoom clamp 20%, konten ±12.700px lebar, transform x=-556 → sebagian besar off-screen), collapse-all (zoom basi 20%, kartu 48px nyaris tak terlihat), pencarian "Rina" (badge 4 hasil benar; highlight ring-2 jalan; 13 kartu dirender tapi hanya 7-8 masuk viewport karena transform basi), drawer Person 360° (header+quick stats+garis pelaporan+4 tab; gaji tampil karena vault terbuka), drawer Unit (stats+kepala+anggota+posisi+lowongan), mobile 375px (stacked list — bagus), dark mode via toggle app (konsisten), cek vacancy card (amber dashed, 1 terlihat di depth default).
+- Verifikasi DOM langsung: transform matrix(0.2,…,-556.6,36.7) setelah collapse+search; kartu root 48px; 13 kartu total / 7 dalam viewport; bounding wrap aktual 1038px (1440) & 878px (1280) — koreksi salah ukur sendiri (semua 8 kartu unit visible di 1280).
+- Console: hanya warning pre-existing DialogContent requires DialogTitle (sumber: SheetContent drawer PersonDrawer/UnitDrawer tanpa SheetTitle) — tidak ada error baru. Dev log: semua API 200.
+
+Stage Summary:
+- TIDAK ADA PERUBAHAN KODE (sesuai instruksi). Temuan utama (laporan lengkap dikirim ke user):
+  P1: (1) fit() hanya ter-trigger di [data, mode] — expand-all/collapse-all meninggalkan zoom/pan basi (kasus terburuk: zoom 20% + transform x=-556 → kanvas tampak kosong); (2) pencarian tidak re-center/zoom ke hasil — hasil bisa off-screen/mikroskopis.
+  P2: (3) expand-all 42 org → 20% illegible (layout horizontal murni; perlu tidy/vertical layout atau fit-to-depth); (4) teks kartu < 10px efektif ~4px pada zoom fit default 37% (perlu mini-node <60% zoom); (5) legend overlay menutupi kanvas kiri-atas; (6) state expand/collapse shared antar mode Orang/Unit.
+  P3: (7) tab toggle "Unit" ambigu vs menu sidebar "Unit Organisasi" (a11y find-by-name bentrok); (8) SheetContent drawer tanpa SheetTitle (console a11y warning); (9) tanpa export/print PNG/PDF; (10) tanpa double-click zoom & keyboard pan; (11) dimming hasil pencarian lemah (ancestor tak di-dim); (12) monthlyCost=0 tampil "Rp 0" menyesatkan bila vault terkunci (baseSalary mask null → sum 0); (13) matchAncestors edge case root/orphan; (14) payload 1 call seluruh karyawan — perlu perhatian pada 500+ org.
+  Yang sudah bagus: struktur info, bilingual penuh, pan/zoom/wheel, drawer 360° & unit, mobile stacked tree, dark mode, vacancy cards, a11y dasar kartu.
