@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot, Scale, Users, X, SendHorizonal, Loader2, Trash2, ArrowLeft, Sparkles, MessageCircle,
 } from "lucide-react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useApi, apiSend } from "@/rekankerja/shared/lib/api";
 import { initials } from "@/rekankerja/shared/lib/api";
@@ -77,6 +78,37 @@ function TypingDots() {
       </div>
     </div>
   );
+}
+
+// ---------- render markdown utk balasan AI (tabel cuti, heading, list…) ----------
+// Balasan LLM kerap berformat Markdown; tanpa renderer ini tampil sebagai
+// teks mentah (|---|---| dst). react-markdown aman: raw HTML tak dirender.
+const MD_COMPONENTS: Components = {
+  h1: ({ node, ...p }) => <h3 className="mt-2 mb-1 text-[13px] font-bold first:mt-0" {...p} />,
+  h2: ({ node, ...p }) => <h3 className="mt-2 mb-1 text-[13px] font-bold first:mt-0" {...p} />,
+  h3: ({ node, ...p }) => <h4 className="mt-2 mb-1 text-[12.5px] font-semibold first:mt-0" {...p} />,
+  h4: ({ node, ...p }) => <h4 className="mt-1.5 mb-1 text-[12.5px] font-semibold first:mt-0" {...p} />,
+  p: ({ node, ...p }) => <p className="my-1 first:my-0" {...p} />,
+  ul: ({ node, ...p }) => <ul className="my-1 list-disc space-y-0.5 pl-4" {...p} />,
+  ol: ({ node, ...p }) => <ol className="my-1 list-decimal space-y-0.5 pl-4" {...p} />,
+  li: ({ node, ...p }) => <li className="leading-snug" {...p} />,
+  table: ({ node, ...p }) => (
+    <div className="my-1.5 overflow-x-auto">
+      <table className="w-full border-collapse text-[11.5px]" {...p} />
+    </div>
+  ),
+  th: ({ node, ...p }) => <th className="border border-slate-300 px-1.5 py-1 text-left font-semibold dark:border-slate-600" {...p} />,
+  td: ({ node, ...p }) => <td className="border border-slate-200 px-1.5 py-1 align-top dark:border-slate-700" {...p} />,
+  strong: ({ node, ...p }) => <strong className="font-semibold" {...p} />,
+  a: ({ node, ...p }) => <a className="text-brand underline underline-offset-2" target="_blank" rel="noreferrer" {...p} />,
+  code: ({ node, ...p }) => <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] dark:bg-slate-900" {...p} />,
+  pre: ({ node, ...p }) => <pre className="my-1.5 overflow-x-auto rounded-lg bg-slate-900 p-2 text-[11px] text-slate-100" {...p} />,
+  blockquote: ({ node, ...p }) => <blockquote className="my-1 border-l-2 border-slate-300 pl-2 text-slate-500 dark:border-slate-600 dark:text-slate-400" {...p} />,
+  hr: () => <hr className="my-2 border-slate-200 dark:border-slate-700" />,
+};
+
+function AssistantMd({ content }: { content: string }) {
+  return <ReactMarkdown components={MD_COMPONENTS}>{content}</ReactMarkdown>;
 }
 
 // ---------- panel chat AI (dipakai 2 mode) ----------
@@ -154,7 +186,9 @@ function AiChatPane({ mode, accent }: { mode: "assistant" | "hr_expert"; accent:
           </div>
         )}
         {all.map((m) => (
-          <Bubble key={m.id} mine={m.role === "user"} accent={accent}>{m.content}</Bubble>
+          <Bubble key={m.id} mine={m.role === "user"} accent={accent}>
+            {m.role === "user" ? m.content : <AssistantMd content={m.content} />}
+          </Bubble>
         ))}
         {busy && <TypingDots />}
         {error && (
