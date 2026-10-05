@@ -74,6 +74,9 @@ export async function GET(req: NextRequest) {
     // 45-b: gerbang vault uang — baseSalary display digate (masked → null);
     // sort unit-head + monthlyCost tetap dihitung dari nilai RAW (compute).
     const mv = await moneyViewForReq(req, db);
+    // T105: bila brankas uang terkunci, jangan kirim angka biaya sama sekali —
+    // null + flag moneyMasked agar UI merender "—" (bukan "Rp 0" yang menyesatkan).
+    const moneyMasked = !mv.canSee;
     const tc = tenantCryptoForDb(db);
     const active = employees.map((e) => {
       const cur = e.assignments[0] ?? null;
@@ -158,7 +161,7 @@ export async function GET(req: NextRequest) {
       if (p.managerId) reportCounts.set(p.managerId, (reportCounts.get(p.managerId) ?? 0) + 1);
     }
     const managers = [...reportCounts.values()].filter((n) => n > 0);
-    const monthlyCost = people.reduce((acc, p) => acc + (p.baseSalary ?? 0), 0);
+    const monthlyCostRaw = active.reduce((acc, e) => acc + e.salaryRaw, 0);
     const totalSlots = positions.reduce((acc, p) => acc + p.headcount, 0);
     const totalFilled = positions.reduce((acc, p) => acc + Math.min(p.headcount, activeByPos.get(p.id) ?? 0), 0);
 
@@ -176,6 +179,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       company,
+      moneyMasked,
       stats: {
         activeEmployees: people.length,
         totalEmployees: employees.length,
@@ -186,7 +190,7 @@ export async function GET(req: NextRequest) {
         totalSlots,
         filledPositions: totalFilled,
         vacancies: totalSlots - totalFilled,
-        monthlyCost,
+        monthlyCost: moneyMasked ? null : monthlyCostRaw,
         avgSpan: managers.length ? Number((managers.reduce((a, b) => a + b, 0) / managers.length).toFixed(1)) : 0,
       },
       people,

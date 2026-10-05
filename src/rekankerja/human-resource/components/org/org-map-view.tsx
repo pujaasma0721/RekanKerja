@@ -11,7 +11,7 @@ import { PageHeader, EmptyState, StatusPill, LoadingRows } from "@/rekankerja/sh
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -20,8 +20,10 @@ import { levelLabel, levelLabelEn } from "./types";
 import {
   Users, Building2, Search, X, UnfoldVertical, FoldVertical, ZoomIn, ZoomOut, Maximize2,
   UserPlus, Star, Wallet, GitFork, Network, Landmark, Crown, ChevronRight, ChevronDown,
-  Clock3, GraduationCap, Briefcase, BriefcaseBusiness, RefreshCw, MapPin, Building, Layers,
+  Clock3, GraduationCap, Briefcase, BriefcaseBusiness, RefreshCw, MapPin, Building, Layers, Download,
 } from "lucide-react";
+import { toast } from "sonner";
+import { toPng } from "html-to-image";
 
 // ============ types ============
 interface MapPerson {
@@ -50,12 +52,14 @@ interface OrgMapRes {
   stats: {
     activeEmployees: number; totalEmployees: number; probation: number; contract: number;
     units: number; positions: number; totalSlots: number; filledPositions: number;
-    vacancies: number; monthlyCost: number; avgSpan: number;
+    vacancies: number; monthlyCost: number | null; avgSpan: number;
   };
   people: MapPerson[];
   positions: MapPosition[];
   units: MapUnit[];
   vacancies: MapVacancy[];
+  // true bila brankas uang terkunci — semua nilai biaya dirender "—"
+  moneyMasked: boolean;
 }
 interface UnitAgg { total: number; direct: number; cost: number; vac: number; positions: number }
 
@@ -91,6 +95,21 @@ const STATUS_DOT: Record<string, string> = {
 };
 const LINE = "bg-slate-300 dark:bg-slate-700";
 const DEFAULT_DEPTH = 1; // kedalaman default terbuka (0 = akar)
+const MINI_K = 0.6; // zoom di bawah ini → kartu dirender sebagai pill ringkas (mini node)
+
+// Jalankan fn beberapa kali (sinkron + 60 ms + 160 ms) sampai layout stabil —
+// dipakai fit/auto-frame karena pergantian pill↔kartu mengubah ukuran konten
+// SETELAH transform baru dipasang (commit React bisa terjadi setelah frame).
+// Berbasis setTimeout (bukan rAF) agar andal juga saat frame di-throttle.
+// Mengembalikan fungsi cancel — WAJIB dipanggil di cleanup effect agar pass
+// basi dari sesi sebelumnya tidak menimpa state sesi baru (ganti mode/pencarian).
+const runToSettle = (fn: () => void): (() => void) => {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  fn();
+  timers.push(setTimeout(fn, 60));
+  timers.push(setTimeout(fn, 160));
+  return () => timers.forEach(clearTimeout);
+};
 
 // ============ MAIN ============
 export function OrgMapView() {
@@ -103,12 +122,18 @@ export function OrgMapView() {
   const [override, setOverride] = useState<ReadonlyMap<string, boolean>>(new Map());
   const [selected, setSelected] = useState<{ type: "person" | "unit"; id: string } | null>(null);
   const [tf, setTf] = useState({ x: 0, y: 24, k: 1 });
+  const tfRef = useRef(tf);
+  tfRef.current = tf;
   const [dragging, setDragging] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [fitReq, setFitReq] = useState(0);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
   const data = api.data;
+  const masked = data?.moneyMasked === true;
 
   // ---------- model indices ----------
   const model = useMemo(() => {
@@ -272,14 +297,24 @@ export function OrgMapView() {
     });
   }, []);
 
-  const expandAllAction = () => { setExpandAll(true); setOverride(new Map()); };
+  const expandAllAction = () => { setExpandAll(true); setOverride(new Map()); setFitReq((n) => n + 1); };
   const collapseAllAction = () => {
     setExpandAll(false);
-    if (!model) return;
-    const m = new Map<string, boolean>();
-    for (const id of model.childrenOf.keys()) m.set(id, false);
-    for (const id of model.unitChildren.keys()) m.set(id, false);
-    setOverride(m);
+    if (model) {
+      const m = new Map<string, boolean>();
+      for (const id of model.childrenOf.keys()) m.set(id, false);
+      for (const id of model.unitChildren.keys()) m.set(id, false);
+      setOverride(m);
+    }
+    setFitReq((n) => n + 1);
+  };
+  // Ganti mode = mulai dari ekspansi default; state expand/collapse tidak
+  // dibawa antar mode Orang ↔ Unit (semua setState di batch yang sama).
+  const switchMode = (m: "orang" | "unit") => {
+    if (m === mode) return;
+    setMode(m);
+    setExpandAll(false);
+    setOverride(new Map());
   };
 
   // ---------- pan & zoom ----------
@@ -307,22 +342,48 @@ export function OrgMapView() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [zoomAt]);
 
-  const fit = useCallback(() => {
-    const wrap = wrapRef.current;
-    const content = contentRef.current;
-    if (!wrap || !content) return;
-    const bw = content.scrollWidth;
-    const bh = content.scrollHeight;
-    if (!bw || !bh) return;
-    const k = clamp(Math.min(wrap.clientWidth / (bw + 96), wrap.clientHeight / (bh + 48)), 0.2, 1.1);
-    setTf({ k, x: (wrap.clientWidth - bw * k) / 2, y: Math.max(20, (wrap.clientHeight - bh * k) * 0.08) });
+  // Fit umum. minK = batas bawah zoom: 0.2 untuk overview penuh (tombol Fit),
+  // 0.6 agar kartu tetap terbaca setelah Perluas Semua. Konten selalu dipusatkan
+  // horizontal — kartu akar memang berada di tengah subtree-nya (flex items-center),
+  // sehingga centering menjamin akar terlihat meski pohon sangat lebar.
+  // Dua mekanisme anti-osilasi: (1) pass tambahan via runToSettle mengoreksi
+  // re-flow pill↔kartu SETELAH transform dipasang; (2) k hanya boleh mengecil
+  // dalam satu sesi (kMin) — kFit antar mode berbeda, tanpa damping k akan
+  // bolak-balik menyeberangi MINI_K tanpa pernah konvergen.
+  const fitWith = useCallback((minK: number) => {
+    let kMin = Infinity;
+    const apply = () => {
+      const wrap = wrapRef.current;
+      const content = contentRef.current;
+      if (!wrap || !content) return;
+      const bw = content.scrollWidth;
+      const bh = content.scrollHeight;
+      if (!bw || !bh) return;
+      const k = clamp(Math.min(wrap.clientWidth / (bw + 96), wrap.clientHeight / (bh + 48), kMin), minK, 1.1);
+      kMin = Math.min(kMin, k);
+      const x = (wrap.clientWidth - bw * k) / 2;
+      const y = Math.max(20, (wrap.clientHeight - bh * k) * 0.08);
+      setTf({ k, x, y });
+    };
+    return runToSettle(apply);
   }, []);
 
   useEffect(() => {
     if (!data) return;
-    const r = requestAnimationFrame(() => fit());
-    return () => cancelAnimationFrame(r);
-  }, [data, mode, fit]);
+    let cancel: (() => void) | undefined;
+    const r = requestAnimationFrame(() => { cancel = fitWith(0.2); });
+    return () => { cancelAnimationFrame(r); cancel?.(); };
+  }, [data, mode, fitWith]);
+
+  // Refit setelah Perluas/Tutup Semua — double rAF agar menunggu commit DOM
+  // ekspansi baru terlebih dahulu, baru ukur scrollWidth/scrollHeight.
+  useEffect(() => {
+    if (!fitReq) return;
+    let cancel: (() => void) | undefined;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => { inner = requestAnimationFrame(() => { cancel = fitWith(0.6); }); });
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner); cancel?.(); };
+  }, [fitReq, fitWith]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -344,10 +405,106 @@ export function OrgMapView() {
     if (wrapRef.current?.hasPointerCapture(e.pointerId)) wrapRef.current.releasePointerCapture(e.pointerId);
   };
 
+  // Navigasi keyboard: panah = geser, + / − = zoom, 0 = pas layar.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const pan = 90;
+    if (e.key === "ArrowLeft") { setTf((t2) => ({ ...t2, x: t2.x + pan })); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { setTf((t2) => ({ ...t2, x: t2.x - pan })); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { setTf((t2) => ({ ...t2, y: t2.y + pan })); e.preventDefault(); }
+    else if (e.key === "ArrowDown") { setTf((t2) => ({ ...t2, y: t2.y - pan })); e.preventDefault(); }
+    else if (e.key === "+" || e.key === "=") { zoomAt(1.25); e.preventDefault(); }
+    else if (e.key === "-" || e.key === "_") { zoomAt(0.8); e.preventDefault(); }
+    else if (e.key === "0") { fitWith(0.2); e.preventDefault(); }
+  };
+
+  // Double-click area kosong = zoom in di titik kursor (kartu tetap membuka drawer).
+  const onDoubleClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button, [role='button'], input, a, [data-nodrag]")) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    zoomAt(1.5, e.clientX - rect.left, e.clientY - rect.top);
+  };
+
   const openPerson = useCallback((id: string) => setSelected({ type: "person", id }), []);
   const openUnit = useCallback((id: string) => setSelected({ type: "unit", id }), []);
 
   const matchesCount = model?.searchOn ? model.matchPersonIds.size + model.matchUnitIds.size : 0;
+
+  // Auto-frame hasil pencarian: pusatkan bounding box kartu yang cocok di
+  // tengah viewport (debounce 260 ms per ketikan). Zoom dipilih sekecil mungkin
+  // agar semua hasil muat, dengan batas [0.35, 1] supaya tetap terbaca.
+  // Penting: (1) rect diukur RELATIF WRAP — transform tf juga relatif wrap;
+  // (2) runToSettle + damping kMin (k hanya mengecil per sesi) agar konvergen
+  // menghadapi re-flow pill↔kartu saat zoom menyeberangi MINI_K.
+  // Saat pencarian dihapus (true→false), kembalikan overview default.
+  const wasSearchOn = useRef(false);
+  useEffect(() => {
+    if (!model || !data) return;
+    let cancel: (() => void) | undefined;
+    if (!model.searchOn) {
+      if (!wasSearchOn.current) return;
+      wasSearchOn.current = false;
+      const r = requestAnimationFrame(() => { cancel = fitWith(0.2); });
+      return () => { cancelAnimationFrame(r); cancel?.(); };
+    }
+    wasSearchOn.current = true;
+    const tm = setTimeout(() => {
+      let kMin = Infinity;
+      const applyFrame = () => {
+        const wrap = wrapRef.current;
+        if (!wrap) return;
+        const wr = wrap.getBoundingClientRect();
+        const ids = mode === "orang" ? model.matchPersonIds : model.matchUnitIds;
+        const els = Array.from(ids)
+          .map((id) => wrap.querySelector<HTMLElement>(`[data-org-node="${id}"]`))
+          .filter((x): x is HTMLElement => !!x);
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const el of els) {
+          const r = el.getBoundingClientRect();
+          if (!r.width) continue;
+          minX = Math.min(minX, r.left - wr.left); minY = Math.min(minY, r.top - wr.top);
+          maxX = Math.max(maxX, r.right - wr.left); maxY = Math.max(maxY, r.bottom - wr.top);
+        }
+        if (!Number.isFinite(minX)) return;
+        const cur = tfRef.current;
+        const cx = ((minX + maxX) / 2 - cur.x) / cur.k;
+        const cy = ((minY + maxY) / 2 - cur.y) / cur.k;
+        const needW = (maxX - minX) / cur.k + 220;
+        const needH = (maxY - minY) / cur.k + 180;
+        const kFit = Math.min(wrap.clientWidth / needW, wrap.clientHeight / needH);
+        const k = clamp(Math.min(kFit, 1, kMin), 0.35, 1);
+        kMin = Math.min(kMin, k);
+        setTf({ k, x: wrap.clientWidth / 2 - cx * k, y: Math.max(24, wrap.clientHeight / 2 - cy * k) });
+      };
+      cancel = runToSettle(applyFrame);
+    }, 260);
+    return () => { clearTimeout(tm); cancel?.(); };
+  }, [mode, data, model, fitWith]);
+
+  // Ekspor kanvas menjadi PNG (resolusi 2×, tanpa transform pan/zoom).
+  const exportPng = async () => {
+    const content = contentRef.current;
+    if (!content || exporting) return;
+    setExporting(true);
+    try {
+      const dark = document.documentElement.classList.contains("dark");
+      const url = await toPng(content, {
+        pixelRatio: 2,
+        backgroundColor: dark ? "#020617" : "#f8fafc",
+        width: content.scrollWidth,
+        height: content.scrollHeight,
+        style: { transform: "none", transformOrigin: "top left" },
+      });
+      const a = document.createElement("a");
+      a.download = `peta-organisasi-${mode}-${new Date().toISOString().slice(0, 10)}.png`;
+      a.href = url;
+      a.click();
+      toast.success(t("Peta organisasi diunduh sebagai PNG", "Organization chart downloaded as PNG"));
+    } catch {
+      toast.error(t("Gagal mengekspor PNG", "Failed to export PNG"));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ---------- render ----------
   if (api.loading && !data) {
@@ -392,16 +549,18 @@ export function OrgMapView() {
       />
 
       {/* ====== KPI strip ====== */}
-      <StatsStrip stats={data.stats} />
+      <StatsStrip stats={data.stats} masked={masked} />
 
       {/* ====== explorer card ====== */}
       <Card className="mt-4 overflow-hidden rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         {/* toolbar */}
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 p-3 dark:border-slate-800">
-          <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900" role="group" aria-label={t("Mode tampilan", "View mode")}>
+          <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-900" role="tablist" aria-label={t("Mode tampilan", "View mode")}>
             <button
               type="button"
-              onClick={() => setMode("orang")}
+              role="tab"
+              aria-selected={mode === "orang"}
+              onClick={() => switchMode("orang")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
                 mode === "orang" ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
@@ -411,7 +570,9 @@ export function OrgMapView() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("unit")}
+              role="tab"
+              aria-selected={mode === "unit"}
+              onClick={() => switchMode("unit")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition",
                 mode === "unit" ? "ov-fill shadow-sm" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
@@ -443,6 +604,9 @@ export function OrgMapView() {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-[11.5px]" onClick={exportPng} disabled={exporting} title={t("Unduh peta sebagai PNG", "Download chart as PNG")}>
+              <Download className={cn("h-3.5 w-3.5", exporting && "animate-pulse")} /> <span className="hidden sm:inline">{exporting ? t("Mengekspor…", "Exporting…") : "PNG"}</span>
+            </Button>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-[11.5px]" onClick={expandAllAction} title={t("Buka semua cabang", "Expand all branches")}>
               <UnfoldVertical className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Perluas Semua", "Expand All")}</span>
             </Button>
@@ -455,8 +619,11 @@ export function OrgMapView() {
         {/* ====== desktop: interactive canvas ====== */}
         <div
           ref={wrapRef}
+          tabIndex={0}
+          role="application"
+          aria-label={t("Kanvas peta organisasi — panah untuk geser, tombol + dan − untuk zoom, 0 untuk pas layar", "Organization chart canvas — arrow keys to pan, + and − to zoom, 0 to fit")}
           className={cn(
-            "relative hidden h-[620px] touch-none select-none overflow-hidden md:block",
+            "relative hidden h-[620px] touch-none select-none overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:block",
             dragging ? "cursor-grabbing" : "cursor-grab",
             "bg-slate-50 [background-image:radial-gradient(circle,#d6d3d1_1px,transparent_1px)] [background-size:24px_24px] dark:bg-slate-950/60 dark:[background-image:radial-gradient(circle,#292524_1px,transparent_1px)]"
           )}
@@ -464,6 +631,8 @@ export function OrgMapView() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onKeyDown={onKeyDown}
+          onDoubleClick={onDoubleClick}
         >
           <div
             ref={contentRef}
@@ -473,14 +642,14 @@ export function OrgMapView() {
             {mode === "orang" ? (
               <div className="flex items-start gap-12 px-10">
                 {model.roots.map((p) => (
-                  <PersonColumn key={p.id} p={p} depth={0} model={model} isExpanded={isExpandedP} toggle={toggle} openPerson={openPerson} />
+                  <PersonColumn key={p.id} p={p} depth={0} model={model} isExpanded={isExpandedP} toggle={toggle} openPerson={openPerson} mini={tf.k < MINI_K} />
                 ))}
                 {model.orphanVacs.length > 0 && <OrphanVacancies vacs={model.orphanVacs} />}
               </div>
             ) : (
               <div className="flex items-start gap-10 px-10">
                 {model.unitRoots.map((u) => (
-                  <UnitColumn key={u.id} u={u} depth={0} model={model} isExpanded={isExpandedU} toggle={toggle} openUnit={openUnit} />
+                  <UnitColumn key={u.id} u={u} depth={0} model={model} isExpanded={isExpandedU} toggle={toggle} openUnit={openUnit} mini={tf.k < MINI_K} masked={masked} />
                 ))}
               </div>
             )}
@@ -494,22 +663,32 @@ export function OrgMapView() {
             <button type="button" onClick={() => zoomAt(0.8)} title={t("Perkecil", "Zoom out")} aria-label={t("Perkecil", "Zoom out")} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               <ZoomOut className="h-4 w-4" />
             </button>
-            <button type="button" onClick={fit} title={t("Sesuaikan tampilan", "Fit to view")} aria-label={t("Sesuaikan tampilan", "Fit to view")} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button type="button" onClick={() => fitWith(0.2)} title={t("Sesuaikan tampilan", "Fit to view")} aria-label={t("Sesuaikan tampilan", "Fit to view")} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               <Maximize2 className="h-4 w-4" />
             </button>
             <span className="px-1 pb-0.5 text-[9px] font-bold tabular-nums text-slate-400">{Math.round(tf.k * 100)}%</span>
           </div>
 
-          {/* legend */}
-          <div className="absolute left-3 top-3 hidden rounded-xl border border-slate-200 bg-white/90 px-2.5 py-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 lg:block">
-            <p className="mb-1 text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400">{t("Legenda", "Legend")}</p>
-            <div className="space-y-1 text-[10px] font-medium text-slate-600 dark:text-slate-300">
-              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand" /> {t("Karyawan tetap", "Permanent employee")}</p>
-              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> {t("Percobaan", "Probation")}</p>
-              <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand/55" /> {t("Kontrak", "Contract")}</p>
-              <p className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded border-2 border-dashed border-amber-400" /> {t("Posisi lowong", "Vacant position")}</p>
-              <p className="flex items-center gap-1.5"><Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" /> {t("Kepala unit", "Unit head")}</p>
-            </div>
+          {/* legend — dapat dilipat agar tidak menutupi kanvas */}
+          <div className="absolute left-3 top-3 hidden rounded-xl border border-slate-200 bg-white/90 px-2.5 py-1.5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 lg:block">
+            <button
+              type="button"
+              onClick={() => setLegendOpen((o) => !o)}
+              aria-expanded={legendOpen}
+              className="flex w-full items-center gap-1 text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              {t("Legenda", "Legend")}
+              <ChevronDown className={cn("h-3 w-3 transition-transform", !legendOpen && "-rotate-90")} />
+            </button>
+            {legendOpen && (
+              <div className="mt-1 space-y-1 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand" /> {t("Karyawan tetap", "Permanent employee")}</p>
+                <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" /> {t("Percobaan", "Probation")}</p>
+                <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand/55" /> {t("Kontrak", "Contract")}</p>
+                <p className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded border-2 border-dashed border-amber-400" /> {t("Posisi lowong", "Vacant position")}</p>
+                <p className="flex items-center gap-1.5"><Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" /> {t("Kepala unit", "Unit head")}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -518,7 +697,7 @@ export function OrgMapView() {
           {mode === "orang" ? (
             model.roots.map((p) => <MobilePersonItem key={p.id} p={p} depth={0} model={model} isExpanded={isExpandedP} toggle={toggle} openPerson={openPerson} />)
           ) : (
-            model.unitRoots.map((u) => <MobileUnitItem key={u.id} u={u} depth={0} model={model} isExpanded={isExpandedU} toggle={toggle} openUnit={openUnit} />)
+            model.unitRoots.map((u) => <MobileUnitItem key={u.id} u={u} depth={0} model={model} isExpanded={isExpandedU} toggle={toggle} openUnit={openUnit} masked={masked} />)
           )}
         </div>
       </Card>
@@ -536,20 +715,21 @@ export function OrgMapView() {
         model={model}
         onClose={() => setSelected(null)}
         onSelectPerson={(id) => setSelected({ type: "person", id })}
+        masked={masked}
       />
     </div>
   );
 }
 
 // ============ KPI strip ============
-function StatsStrip({ stats }: { stats: OrgMapRes["stats"] }) {
+function StatsStrip({ stats, masked }: { stats: OrgMapRes["stats"]; masked: boolean }) {
   const { t } = useI18n();
   const items = [
     { icon: Users, label: t("Karyawan Aktif", "Active Employees"), value: String(stats.activeEmployees), sub: t("{n} total · {m} percobaan", "{n} total · {m} probation", { n: stats.totalEmployees, m: stats.probation }) },
     { icon: Network, label: t("Unit Organisasi"), value: String(stats.units), sub: t("{n} posisi aktif", "{n} active positions", { n: stats.positions }) },
     { icon: BriefcaseBusiness, label: t("Slot Terisi", "Filled Slots"), value: `${stats.filledPositions}/${stats.totalSlots}`, sub: t("headcount terisi", "filled headcount") },
     { icon: UserPlus, label: t("Lowongan", "Vacancies"), value: String(stats.vacancies), sub: t("slot belum terisi", "open slots") },
-    { icon: Wallet, label: t("Biaya Gaji / Bulan", "Monthly Salary Cost"), value: fmtIDRShort(stats.monthlyCost), sub: t("gaji pokok aktif", "active base salaries") },
+    { icon: Wallet, label: t("Biaya Gaji / Bulan", "Monthly Salary Cost"), value: masked || stats.monthlyCost == null ? "—" : fmtIDRShort(stats.monthlyCost), sub: masked || stats.monthlyCost == null ? t("brankas uang terkunci", "money vault locked") : t("gaji pokok aktif", "active base salaries") },
     { icon: GitFork, label: t("Rata-rata Span", "Average Span"), value: String(stats.avgSpan), sub: t("bawahan per atasan", "subordinates per manager") },
   ];
   return (
@@ -595,9 +775,9 @@ type ToggleFn = (id: string, depth: number, hasKids: boolean, isExpanded: IsExpa
 
 // ============ PEOPLE TREE (desktop) ============
 function PersonColumn({
-  p, depth, model, isExpanded, toggle, openPerson,
+  p, depth, model, isExpanded, toggle, openPerson, mini,
 }: {
-  p: MapPerson; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openPerson: (id: string) => void;
+  p: MapPerson; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openPerson: (id: string) => void; mini: boolean;
 }) {
   const kids = model.childrenOf.get(p.id) ?? [];
   const vacs = model.vacancyByParent.get(p.id) ?? [];
@@ -614,7 +794,7 @@ function PersonColumn({
 
   return (
     <div className="flex flex-col items-center">
-      <PersonCard p={p} depth={depth} reportCount={kids.length} vacCount={vacs.length} expanded={expanded} matched={matched} dimmed={dimmed} isHead={isHead} onOpen={() => openPerson(p.id)} onToggle={() => toggle(p.id, depth, total > 0, isExpanded)} />
+      <PersonCard p={p} depth={depth} reportCount={kids.length} vacCount={vacs.length} expanded={expanded} matched={matched} dimmed={dimmed} isHead={isHead} onOpen={() => openPerson(p.id)} onToggle={() => toggle(p.id, depth, total > 0, isExpanded)} mini={mini} />
 
       {total > 0 && expanded && (
         <>
@@ -628,9 +808,9 @@ function PersonColumn({
                   <div className={cn("absolute top-0 h-px", LINE)} style={{ left: first ? "50%" : "0", right: last ? "50%" : "0" }} />
                   <div className={cn("absolute left-1/2 top-0 h-7 w-px -translate-x-1/2", LINE)} />
                   {n.kind === "person" ? (
-                    <PersonColumn p={n.k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openPerson={openPerson} />
+                    <PersonColumn p={n.k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openPerson={openPerson} mini={mini} />
                   ) : (
-                    <VacancyCard v={n.v} dimmed={model.searchOn} />
+                    <VacancyCard v={n.v} dimmed={model.searchOn} mini={mini} />
                   )}
                 </div>
               );
@@ -643,18 +823,54 @@ function PersonColumn({
 }
 
 function PersonCard({
-  p, depth, reportCount, vacCount, expanded, matched, dimmed, isHead, onOpen, onToggle,
+  p, depth, reportCount, vacCount, expanded, matched, dimmed, isHead, onOpen, onToggle, mini,
 }: {
   p: MapPerson; depth: number; reportCount: number; vacCount: number; expanded: boolean; matched: boolean; dimmed: boolean; isHead: boolean;
-  onOpen: () => void; onToggle: () => void;
+  onOpen: () => void; onToggle: () => void; mini: boolean;
 }) {
   const { t } = useI18n();
   const root = depth === 0;
   const total = reportCount + vacCount;
+  // Mini pill (zoom < MINI_K): overview ringkas — avatar, nama, status, jumlah
+  // bawahan — supaya struktur tetap terbaca saat pohon dimuat penuh.
+  if (mini) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        data-org-node={p.id}
+        onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+        className={cn(
+          "flex h-8 w-44 cursor-pointer items-center gap-1.5 rounded-full border px-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          root ? "ov-border-accent ov-soft shadow-md" : "border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+          matched && "ring-2 ring-ring",
+          dimmed && "opacity-30 saturate-50"
+        )}
+      >
+        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[7px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-800 dark:text-slate-100">{p.fullName}</span>
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", STATUS_DOT[p.employmentStatus] ?? "bg-brand")} />
+        {isHead && !root && <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />}
+        {total > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            aria-label={expanded ? t("Tutup cabang", "Collapse branch") : t("Buka cabang", "Expand branch")}
+            className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          >
+            {total}
+            <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       role="button"
       tabIndex={0}
+      data-org-node={p.id}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className={cn(
@@ -663,7 +879,7 @@ function PersonCard({
           ? "ov-border-accent ov-soft shadow-md"
           : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700",
         matched && "ring-2 ring-ring",
-        dimmed && "opacity-40 saturate-50"
+        dimmed && "opacity-30 saturate-50"
       )}
     >
       <div className="flex items-start gap-2.5">
@@ -719,10 +935,19 @@ function PersonCard({
   );
 }
 
-function VacancyCard({ v, dimmed }: { v: MapVacancy; dimmed: boolean }) {
+function VacancyCard({ v, dimmed, mini }: { v: MapVacancy; dimmed: boolean; mini: boolean }) {
   const { t } = useI18n();
+  if (mini) {
+    return (
+      <div className={cn("flex h-8 w-40 items-center gap-1.5 rounded-full border-2 border-dashed border-amber-300 bg-amber-50/70 px-2 dark:border-amber-500/40 dark:bg-amber-500/5", dimmed && "opacity-30 saturate-50")}>
+        <UserPlus className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-amber-700 dark:text-amber-400">{v.title}</span>
+        <span className="shrink-0 rounded-full bg-amber-100/80 px-1.5 py-0.5 font-mono text-[8px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">+{v.slots}</span>
+      </div>
+    );
+  }
   return (
-    <div className={cn("w-60 rounded-xl border-2 border-dashed border-amber-300/90 bg-amber-50/60 p-3 dark:border-amber-500/40 dark:bg-amber-500/5", dimmed && "opacity-40 saturate-50")}>
+    <div className={cn("w-60 rounded-xl border-2 border-dashed border-amber-300/90 bg-amber-50/60 p-3 dark:border-amber-500/40 dark:bg-amber-500/5", dimmed && "opacity-30 saturate-50")}>
       <div className="flex items-start gap-2.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-amber-400 text-amber-600 dark:text-amber-400">
           <UserPlus className="h-3.5 w-3.5" />
@@ -749,7 +974,7 @@ function OrphanVacancies({ vacs }: { vacs: MapVacancy[] }) {
       </p>
       <div className="space-y-2">
         {vacs.slice(0, 5).map((v) => (
-          <VacancyCard key={v.id} v={v} dimmed={false} />
+          <VacancyCard key={v.id} v={v} dimmed={false} mini={false} />
         ))}
       </div>
       {vacs.length > 5 && <p className="text-[10px] font-medium text-slate-400">{t("+{n} lowongan lainnya", "+{n} more vacancies", { n: vacs.length - 5 })}</p>}
@@ -759,15 +984,15 @@ function OrphanVacancies({ vacs }: { vacs: MapVacancy[] }) {
 
 // ============ UNIT TREE (desktop) ============
 function UnitColumn({
-  u, depth, model, isExpanded, toggle, openUnit,
+  u, depth, model, isExpanded, toggle, openUnit, mini, masked,
 }: {
-  u: MapUnit; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openUnit: (id: string) => void;
+  u: MapUnit; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openUnit: (id: string) => void; mini: boolean; masked: boolean;
 }) {
   const kids = model.unitChildren.get(u.id) ?? [];
   const expanded = isExpanded(u.id, depth, kids.length > 0);
   return (
     <div className="flex flex-col items-center">
-      <UnitCard u={u} model={model} depth={depth} expanded={expanded} subCount={kids.length} onOpen={() => openUnit(u.id)} onToggle={() => toggle(u.id, depth, kids.length > 0, isExpanded)} />
+      <UnitCard u={u} model={model} depth={depth} expanded={expanded} subCount={kids.length} onOpen={() => openUnit(u.id)} onToggle={() => toggle(u.id, depth, kids.length > 0, isExpanded)} mini={mini} masked={masked} />
 
       {kids.length > 0 && expanded && (
         <>
@@ -780,7 +1005,7 @@ function UnitColumn({
                 <div key={k.id} className="relative flex flex-col items-center px-3.5 pt-7">
                   <div className={cn("absolute top-0 h-px", LINE)} style={{ left: first ? "50%" : "0", right: last ? "50%" : "0" }} />
                   <div className={cn("absolute left-1/2 top-0 h-7 w-px -translate-x-1/2", LINE)} />
-                  <UnitColumn u={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openUnit={openUnit} />
+                  <UnitColumn u={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openUnit={openUnit} mini={mini} masked={masked} />
                 </div>
               );
             })}
@@ -804,9 +1029,9 @@ function UnitLevelIcon({ level, className }: { level: number; className?: string
 }
 
 function UnitCard({
-  u, model, depth, expanded, subCount, onOpen, onToggle,
+  u, model, depth, expanded, subCount, onOpen, onToggle, mini, masked,
 }: {
-  u: MapUnit; model: Model; depth: number; expanded: boolean; subCount: number; onOpen: () => void; onToggle: () => void;
+  u: MapUnit; model: Model; depth: number; expanded: boolean; subCount: number; onOpen: () => void; onToggle: () => void; mini: boolean; masked: boolean;
 }) {
   const { t } = useI18n();
   const agg = model.unitAgg(u.id);
@@ -817,10 +1042,47 @@ function UnitCard({
   const root = depth === 0;
   const overBudget = u.headcountBudget > 0 && agg.total > u.headcountBudget;
 
+  if (mini) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        data-org-node={u.id}
+        onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+        className={cn(
+          "flex h-8 w-48 cursor-pointer items-center gap-1.5 rounded-full border px-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          root ? "ov-border-accent ov-soft shadow-md" : "border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+          matched && "ring-2 ring-ring",
+          dimmed && "opacity-30 saturate-50"
+        )}
+      >
+        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md", style.box)}>
+          <style.icon className="h-3 w-3" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-800 dark:text-slate-100">{u.name}</span>
+        <span className="shrink-0 text-[9px] font-bold text-slate-400">{agg.total}</span>
+        {agg.vac > 0 && <span className="shrink-0 text-[9px] font-bold text-amber-500">+{agg.vac}</span>}
+        {subCount > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            aria-label={expanded ? t("Tutup sub-unit", "Collapse sub-units") : t("Buka sub-unit", "Expand sub-units")}
+            className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          >
+            {subCount}
+            <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       role="button"
       tabIndex={0}
+      data-org-node={u.id}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
       className={cn(
@@ -829,7 +1091,7 @@ function UnitCard({
           ? "ov-border-accent ov-soft shadow-md"
           : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700",
         matched && "ring-2 ring-ring",
-        dimmed && "opacity-40 saturate-50"
+        dimmed && "opacity-30 saturate-50"
       )}
     >
       <div className="flex items-center justify-between gap-2">
@@ -868,7 +1130,7 @@ function UnitCard({
         </div>
         <div className="px-1.5 py-1.5 text-center">
           <p className="text-[8.5px] font-bold uppercase tracking-wide text-slate-400">{t("Rp/bln", "Rp/mo")}</p>
-          <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200">{fmtIDRShort(agg.cost)}</p>
+          <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-200">{masked ? "—" : fmtIDRShort(agg.cost)}</p>
           <p className="text-[8px] text-slate-400">{t("gaji pokok", "base salary")}</p>
         </div>
       </div>
@@ -913,7 +1175,7 @@ function MobilePersonItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-ring", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-ring", dimmed && "opacity-30 saturate-50")}>
         <button type="button" onClick={() => openPerson(p.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className="relative flex shrink-0">
             <span className={cn("flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-extrabold", avatarColor(p.fullName))}>{initials(p.fullName)}</span>
@@ -961,9 +1223,9 @@ function MobilePersonItem({
 }
 
 function MobileUnitItem({
-  u, depth, model, isExpanded, toggle, openUnit,
+  u, depth, model, isExpanded, toggle, openUnit, masked,
 }: {
-  u: MapUnit; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openUnit: (id: string) => void;
+  u: MapUnit; depth: number; model: Model; isExpanded: IsExpandedFn; toggle: ToggleFn; openUnit: (id: string) => void; masked: boolean;
 }) {
   const { t } = useI18n();
   const kids = model.unitChildren.get(u.id) ?? [];
@@ -975,7 +1237,7 @@ function MobileUnitItem({
 
   return (
     <div>
-      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-ring", dimmed && "opacity-40")}>
+      <div className={cn("flex min-h-11 items-center gap-2 rounded-xl border p-2.5 shadow-sm", depth === 0 ? "ov-border-accent ov-soft" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900", matched && "ring-2 ring-ring", dimmed && "opacity-30 saturate-50")}>
         <button type="button" onClick={() => openUnit(u.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", (LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).box)}>
             {(LEVEL_STYLE[u.level] ?? LEVEL_STYLE[4]!).icon != null && <UnitLevelIcon level={u.level} />}
@@ -986,7 +1248,7 @@ function MobileUnitItem({
               <span className="ml-auto shrink-0 rounded bg-slate-100 px-1 font-mono text-[8px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">L{u.level}</span>
             </span>
             <span className="block truncate text-[10px] text-slate-500 dark:text-slate-400">
-              {head ? head.fullName : t("Tanpa kepala", "No head")} · {t("{n} org", "{n} people", { n: agg.total })}{agg.vac > 0 ? t(" · {n} lowong", " · {n} vacant", { n: agg.vac }) : ""} · {fmtIDRShort(agg.cost)}
+              {head ? head.fullName : t("Tanpa kepala", "No head")} · {t("{n} org", "{n} people", { n: agg.total })}{agg.vac > 0 ? t(" · {n} lowong", " · {n} vacant", { n: agg.vac }) : ""} · {masked ? "—" : fmtIDRShort(agg.cost)}
             </span>
           </span>
         </button>
@@ -1005,7 +1267,7 @@ function MobileUnitItem({
       {expanded && kids.length > 0 && (
         <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-slate-200 pl-2.5 dark:border-slate-800">
           {kids.map((k) => (
-            <MobileUnitItem key={k.id} u={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openUnit={openUnit} />
+            <MobileUnitItem key={k.id} u={k} depth={depth + 1} model={model} isExpanded={isExpanded} toggle={toggle} openUnit={openUnit} masked={masked} />
           ))}
         </div>
       )}
@@ -1040,13 +1302,17 @@ function PersonDrawer({
   }
 
   const grade = e?.grade;
-  const bandPct = grade && grade.maxSalary > grade.minSalary && e
+  const bandPct = grade && grade.maxSalary > grade.minSalary && e && typeof e.baseSalary === "number"
     ? clamp(((e.baseSalary - grade.minSalary) / (grade.maxSalary - grade.minSalary)) * 100, 0, 100)
     : null;
 
   return (
     <Sheet open={!!personId} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[520px]">
+        <SheetTitle className="sr-only">{e ? e.fullName : t("Profil karyawan", "Employee profile")}</SheetTitle>
+        <SheetDescription className="sr-only">
+          {t("Detail 360 derajat karyawan dari peta organisasi", "360-degree employee detail from the organization chart")}
+        </SheetDescription>
         {!e && loading && (
           <div className="space-y-4 p-5">
             <div className="flex items-center gap-3.5">
@@ -1317,12 +1583,13 @@ function PersonDrawer({
 
 // ============ UNIT DRAWER ============
 function UnitDrawer({
-  unitId, model, onClose, onSelectPerson,
+  unitId, model, onClose, onSelectPerson, masked,
 }: {
   unitId: string | null;
   model: Model;
   onClose: () => void;
   onSelectPerson: (id: string) => void;
+  masked: boolean;
 }) {
   const { t } = useI18n();
   const u = unitId ? model.unitById.get(unitId) : undefined;
@@ -1337,6 +1604,10 @@ function UnitDrawer({
   return (
     <Sheet open={!!unitId} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[520px]">
+        <SheetTitle className="sr-only">{u ? u.name : t("Detail unit", "Unit detail")}</SheetTitle>
+        <SheetDescription className="sr-only">
+          {t("Detail unit organisasi dari peta", "Organizational unit detail from the chart")}
+        </SheetDescription>
         {!u || !agg ? (
           <div className="p-5"><LoadingRows rows={6} /></div>
         ) : (
@@ -1368,7 +1639,7 @@ function UnitDrawer({
                   { key: "total", label: t("Total Orang", "Total People"), value: String(agg.total), sub: t("{n} langsung", "{n} direct", { n: agg.direct }) },
                   { key: "pos", label: t("Posisi"), value: String(agg.positions), sub: t("aktif", "active") },
                   { key: "vac", label: t("Lowongan", "Vacancies"), value: String(agg.vac), sub: t("slot kosong", "open slots") },
-                  { key: "cost", label: t("Biaya Gaji", "Salary Cost"), value: fmtIDRShort(agg.cost), sub: t("per bulan", "per month") },
+                  { key: "cost", label: t("Biaya Gaji", "Salary Cost"), value: masked ? "—" : fmtIDRShort(agg.cost), sub: t("per bulan", "per month") },
                 ].map((s) => (
                   <div key={s.key} className="rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/60">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>

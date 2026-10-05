@@ -4014,3 +4014,26 @@ Stage Summary:
   P2: (3) expand-all 42 org → 20% illegible (layout horizontal murni; perlu tidy/vertical layout atau fit-to-depth); (4) teks kartu < 10px efektif ~4px pada zoom fit default 37% (perlu mini-node <60% zoom); (5) legend overlay menutupi kanvas kiri-atas; (6) state expand/collapse shared antar mode Orang/Unit.
   P3: (7) tab toggle "Unit" ambigu vs menu sidebar "Unit Organisasi" (a11y find-by-name bentrok); (8) SheetContent drawer tanpa SheetTitle (console a11y warning); (9) tanpa export/print PNG/PDF; (10) tanpa double-click zoom & keyboard pan; (11) dimming hasil pencarian lemah (ancestor tak di-dim); (12) monthlyCost=0 tampil "Rp 0" menyesatkan bila vault terkunci (baseSalary mask null → sum 0); (13) matchAncestors edge case root/orphan; (14) payload 1 call seluruh karyawan — perlu perhatian pada 500+ org.
   Yang sudah bagus: struktur info, bilingual penuh, pan/zoom/wheel, drawer 360° & unit, mobile stacked tree, dark mode, vacancy cards, a11y dasar kartu.
+
+---
+Task ID: 105
+Agent: Z.ai (orkestrator)
+Task: "perbaiki semua" — eksekusi semua temuan audit T104 pada Peta Organisasi (org/chart)
+
+Work Log:
+- Install html-to-image@1.11.13 (ekspor PNG). Verifikasi prasyarat: SheetTitle/SheetDescription tersedia di ui/sheet; fmtIDR/fmtIDRShort defensif null→"—".
+- org-map-view.tsx (+411/−72 baris):
+  P1#1 zoom basi: fit() → fitWith(minK) + effect refit [fitReq] setelah Perluas/Tutup Semua (double rAF menunggu commit ekspansi); konten selalu dipusatkan (kartu akar memang di tengah subtree-nya — flex items-center — jadi centering menjamin akar terlihat).
+  P1#2 pencarian: auto-frame hasil (debounce 260 ms): bbox kartu match diukur RELATIF WRAP (bug offset 369px viewport-absolut ditemukan & diperbaiki), zoom kFit di-clamp [0.35, 1]; hapus pencarian → refit overview (wasSearchOn ref).
+  P2#3+4 keterbacaan: MINI_K=0.6 → kartu Person/Unit/Vacancy dirender pill mini (avatar+nama+dot status+badge count) saat zoom < 0.6; Perluas Semua fit minK 0.6 (kartu tetap terbaca, dulu stuck 20%).
+  P2#5 legend collapsible (tombol chevron + aria-expanded). P2#6 switchMode() mereset expandAll+override dalam satu batch — state ekspansi tidak dibawa antar mode Orang↔Unit.
+  P3#7 toggle mode → role=tablist/tab + aria-selected. P3#8 SheetTitle/SheetDescription sr-only di PersonDrawer & UnitDrawer (console warning Radix hilang — diverifikasi bersih). P3#9 tombol "PNG" → toPng 2× resolusi, transform:none, bg sesuai tema, toast sukses/gagal. P3#10 keyboard (panah pan 90px, +/− zoom, 0 fit; kanvas tabIndex+role=application+aria-label) & dblclick zoom 1.5× di titik kursor (guard: bukan kartu/tombol). P3#11 dimming diperkuat opacity-40→opacity-30 saturate-50.
+  Anti-osilasi (ditemukan saat E2E): pergantian pill↔kartu mengubah lebar konten SETELAH transform dipasang → runToSettle (pass sinkron + 60 ms + 160 ms, berbasis setTimeout — rAF ternyata tidak andal) + damping kMin (k hanya boleh mengecil per sesi, mencegah kFit bolak-balik menyeberangi MINI_K) + fungsi cancel di cleanup semua effect (mencegah pass basi lintas sesi).
+- api/org-map.ts: flag moneyMasked = !mv.canSee; monthlyCost null saat vault terkunci (dihitung dari salaryRaw saat terbuka) → UI merender "—" + sub "brankas uang terkunci" (P3#12); UnitCard Rp/bln, MobileUnitItem, UnitDrawer Biaya Gaji ikut masked; PersonDrawer bandPct guard baseSalary non-number.
+- VERIFIKASI E2E (agent-browser, MII): initial 44% pills akar terlihat; Perluas Semua = 60% tepat, 42 kartu, CEO visible; Tutup Semua = 110% refit; cari "Rina" = 2/2 match terlihat & terpusat (bbox center 882 vs 888) baik mode Orang maupun Unit (match unit "Tax"/"Marketing & Sales" 2/2); clear pencarian → refit 11/11; ganti mode → ekspansi reset + konvergen stabil; dblclick via event sintetis 46→69% (CDP headless tidak memicu dblclick native — quirk harness, bukan bug app; keyboard + wheel + tombol terverifikasi); export PNG → file peta-organisasi-orang-2026-10-05.png valid (VLM: pohon utuh, konektor jelas); console: 0 error 0 warning (warning DialogContent lama HILANG); dark mode konsisten; mobile 375px stacked list rapi; API moneyMasked=false + monthlyCost 471jt terverifikasi (path masked = guard null yang sama dgn baseSalary).
+- CATATAN HARNESS: agent-browser `fill ""` = no-op (harus Ctrl+A+Backspace untuk clear input); klik by-name "Unit" dulu ambigu kini teratasi role=tab.
+- tsc --noEmit: 0 error. bun run lint: 0 error (2 warning pre-existing e2e-browser-subdomain.mjs).
+
+Stage Summary:
+- 12/12 temuan T104 yang actionable diperbaiki (#13 matchAncestors edge sudah aman via guard<24; #14 payload 500+ org = arsitektural, ditunda). Peta Organisasi kini: zoom/pan selalu segar (tidak pernah "kanvas kosong" lagi), hasil pencarian selalu on-screen & terpusat, overview pill mini terbaca strukturnya, kartu penuh saat zoom ≥60%, export PNG, keyboard+dblclick nav, a11y drawer & tablist bersih, biaya "—" saat brankas terkunci (bukan "Rp 0").
+- 4 file berubah: org-map-view.tsx (utama), org-map.ts (moneyMasked), package.json + bun.lock (html-to-image).
