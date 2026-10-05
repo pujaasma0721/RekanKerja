@@ -471,7 +471,8 @@ async function relevantKnowledge(db: TenantDb, question: string, limit = 3): Pro
 const SCOPE_RULES = `
 ATURAN SCOPE (WAJIB — pelanggaran = jawaban salah):
 1. HANYA bahas hal seputar APLIKASI RekanKerja (HRIS: karyawan, presensi, cuti, payroll, travel, medical, whistleblowing, ESS, pengaturan).
-2. MENU: hanya bahas menu yang TERDAFTAR di "MENU YANG BISA DIAKSES PENGGUNA" di bawah. Pertanyaan tentang menu lain → tolak sopan: "Menu itu di luar akses Anda — silakan hubungi admin/HR". JANGAN pernah membocorkan isi/cara pakai menu yang tidak ada di daftar.
+2. MENU: hanya bahas menu yang TERDAFTAR di "MENU YANG BISA DIAKSES PENGGUNA" / "PETA MENU REKANKERJA" di bawah. Pertanyaan tentang menu lain → tolak sopan: "Menu itu di luar akses Anda — silakan hubungi admin/HR". JANGAN pernah membocorkan isi/cara pakai menu yang tidak ada di daftar.
+2b. NAVIGASI: bila ditanya DI MANA / BAGAIMANA melakukan sesuatu, sebut jalur menu PERSIS seperti di daftar menu yang diberikan (untuk admin: PETA MENU REKANKERJA). JANGAN mengarang nama/jalur menu yang tidak ada di daftar (contoh SALAH: "Karyawan → Data Karyawan" — menu itu tidak ada di RekanKerja; input karyawan baru = Human Resource Base → Karyawan → Onboarding Karyawan).
 3. PENGECUALIAN DATA PRIBADI: pertanyaan tentang data DIRI SENDIRI pengguna selalu boleh dijawab dari "DATA PRIBADI PENGGUNA" di bawah — sisa jatah cuti, profil, presensi pribadi (telat/absen/lembur bulan berjalan, riwayat 7 hari, estimasi potongan, aturan selfie/geofence), uang muka & klaim perjalanan dinas.
 4. PENGECUALIAN PERATURAN: pertanyaan PERATURAN PEMERINTAH RI bidang ketenagakerjaan yang relevan dengan aplikasi BOLEH dijawab (UU 13/2003 Ketenagakerjaan, PP 35/2021 PKWT, UU 12/2022 TPKS, BPJS Kesehatan/Ketenagakerjaan, PPh 21 & TER PMK 168/2023, UMP/UMK, cuti melahirkan, SKB 3 menteri hari libur). Selalu sarankan verifikasi ke aturan resmi/HR.
 5. TOPIK LAIN (cuaca, resep, kode umum, matematika acak, gosip, politik, dll) → tolak satu kalimat singkat + arahkan kembali ke topik RekanKerja.
@@ -498,6 +499,27 @@ CATATAN REGULASI LEMBUR (mode Ahli HR — pakai bila relevan, sarankan verifikas
 - Aplikasi RekanKerja MENGHITUNG & MEMVALIDASI batas lembur ini OTOMATIS sesuai mode konfigurasi per tenant (PP35 / KEPMEN102 / CUSTOM — aturan AttendanceRule) saat pengajuan, persetujuan, dan verifikasi.
 `.trim();
 
+// PETA MENU (anti halusinasi navigasi): tanpa daftar ini LLM menebak jalur
+// gaya HRIS generik (mis. "Karyawan → Data Karyawan") yang TIDAK ada di
+// RekanKerja. Nama menu harus PERSIS seperti sidebar app-shell.
+const MENU_MAP_ALL = `PETA MENU REKANKERJA (akses penuh admin — sebut jalur menu PERSIS dari daftar ini):
+Human Resource Base:
+- Perusahaan & Organisasi: Perusahaan, Kantor & Lokasi Kerja, Unit Organisasi, Peta Organisasi
+- Posisi & Jabatan: Daftar Posisi, Katalog Jabatan, Grade & Level, Level Jabatan
+- Karyawan: Direktori Karyawan, Onboarding Karyawan (input karyawan baru — wizard 4 langkah: Personal → Pekerjaan → Upah & Bank → Review), Checklist Onboarding, Catatan Disiplin, Dokumen Karyawan, Aset Karyawan, Offboarding Karyawan
+- Pengajuan & Persetujuan: Menunggu Persetujuan, Semua Pengajuan
+- Dokumen & Surat: Template Surat
+- Komunikasi: Pengumuman
+- Laporan: Laporan HR, Laporan Kustom
+Payroll: Ringkasan, Periode Payroll, Proses & Hasil, Komponen Upah, Template Upah, Profil Payroll Karyawan, Transaksi, Benefit Karyawan, SPT & Pajak (1721-A1), Parameter Pajak, Akuntansi Payroll, Jurnal Payroll
+Attendance: Jadwal Kerja, Matriks Jadwal, Kalender Libur, Data Presensi, Liveboard, Rekap Absensi, Lembur, Izin Tidak Masuk, Tukar Shift, Import Mesin Absen
+Leave (Cuti): Informasi Cuti (Saldo), Permintaan Cuti, Persetujuan Cuti, Cuti Massal (SKB), Jenis Cuti, Uang Pengganti Cuti, Laporan Cuti
+Travel (Perjalanan Dinas): Permintaan Travel, Persetujuan Travel, Klaim & Settlement, Approval Klaim & Transfer, Budget Travel, Master Travel, Laporan Travel
+Medical: Saldo Medis Karyawan, Klaim Medis, Persetujuan & Settlement, Penyesuaian Saldo, Jenis Benefit, Rumah Sakit & Asuransi, Laporan Medis
+Whistleblowing: Laporkan Pelanggaran, Kelola Laporan
+Pengaturan Sistem: Data Master, Keamanan & Akses, Approval Berjenjang, Konfigurasi Email, Notifikasi WhatsApp, API & Integrasi, Log Aktivitas, eSign, Provider AI, Basis Pengetahuan AI
+ESS (portal karyawan): dashboard, cuti, presensi, slip gaji, klaim, pengajuan, surat, pengumuman, tukar shift, aset, pelaporan pelanggaran, profil`;
+
 export interface ChatContextInput {
   mode: AiChatMode;
   question: string;
@@ -506,7 +528,7 @@ export interface ChatContextInput {
 /** Rakit system prompt lengkap untuk satu pertanyaan. */
 export async function buildSystemPrompt(db: TenantDb, actor: AiActor, input: ChatContextInput): Promise<string> {
   const menuSection = actor.allMenus
-    ? "SEMUA modul & menu RekanKerja (akses penuh admin)."
+    ? MENU_MAP_ALL
     : actor.menus.length > 0
       ? actor.menus.map(prettyMenuKey).map((s) => `- ${s}`).join("\n")
       : "(tidak ada menu admin — pengguna portal ESS murni: hanya fitur Employee Self Service: dashboard, cuti, presensi, slip gaji, klaim, pengajuan, surat, pengumuman, tukar shift, aset, pelaporan pelanggaran, profil)";
