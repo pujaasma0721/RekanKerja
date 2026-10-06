@@ -4120,3 +4120,30 @@ Stage Summary:
 - Deploy .15 = a35df66, health OK, guard API terverifikasi 401 tanpa sesi.
 
 Catatan Deploy (lanjutan T108): sesi "pull & deploy" — origin/main sudah sinkron (3cda360, tanpa commit baru) → deploy .15 2026-10-06 21:21:17 ✅ (rollback rekankerja-rollback-20261006-211459). Prod kini mencakup T104 f8ef715 (16 laporan HR siap cetak) + seluruh docs T107/T108. Verifikasi: health 200, home 200, attendance/reports 401 tanpa sesi (guard OK), PM2 onevity online, log boot bersih.
+
+---
+Task ID: T110
+Agent: Z.ai (orkestrator)
+Task: Feedback user "hasil report tidak sesuai ekspektasi, tidak ada parameter/filter awal sebelum report di generate" — tambahkan form parameter awal sebelum generate laporan (tab Reports, Laporan HR)
+
+Work Log:
+- REKONSTRUKSI: sesi sebelumnya kehabisan context setelah meng-commit implementasi T110 (commit 0c8fb7e, pesan UUID) TANPA verifikasi E2E & tanpa entri worklog. File yang ada: params.ts (matriks parameter 16 laporan), report-params-form.tsx (form), alur 3-tahap di report-documents-tab.tsx (katalog → form parameter → dokumen), backend _params endpoint + filter server-side di report-documents.ts.
+- VERIFIKASI E2E PERTAMA GAGAL: klik kartu R2.1 → client-side exception — stack: SelectItem → FieldControl → ReportParamsForm. Akar: <SelectItem value=""> (Radix SelectItem TIDAK BOLEH value="") — dua sumber: (1) form merender item "Semua" dengan value="" ; (2) endpoint _params mengembalikan entri {id:"", label:"Semua …"} utk offices/units/statuses yang ikut dirender pool.map.
+- FIX (2 file): report-params-form.tsx — FieldControl select memakai sentinel "all" (konvensi kodebase: attendance-liveboard/medical-claims); value ""↔"all" dipetakan di value/onValueChange; pool difilter id non-empty (defensif). report-documents.ts — _params TIDAK lagi mengembalikan entri id="" (pilihan "Semua" murni urusan klien).
+- VERIFIKASI E2E PASCA-FIX (agent-browser, MII, login hrd@mii.co.id):
+  · Katalog 16 laporan render; klik R2.1 → form Parameter Laporan tampil (bukan langsung dokumen): 5 chip urgensi (multi) + 3 combobox "Semua" + tombol Generate Laporan/Reset/Katalog + pratinjau "Cakupan yang akan diterapkan".
+  · R2.1: pilih urgensi Kritis+Perhatian & cabang OFF-HO → dokumen ter-generate dengan chip PARAMETER "Cabang: Kantor Pusat Jakarta — Jakarta Timur" + "Urgensi Kontrak: Kritis (< 30 hari), Perhatian (30–60 hari)"; tabel 1 baris (MII00015 Rina Utami, Kritis). Cross-check API tanpa filter cabang: 3 baris (MII00015 Tax HO + MII00022/MII00028 Assembly Line pabrik) → filter cabang + urgensi TERBUKTI diterapkan server-side.
+  · Tombol "Ubah Parameter" kembali ke form DENGAN nilai terisi utuh; "Katalog" kembali ke grid.
+  · R4.4: kategori K3 + status Segera Berakhir → 2 baris (MII00046 K3 Umum & APAR, keduanya expiring ≤90 hari) — multi-select kategori & status sertifikasi bekerja.
+  · R3.3: dropdown tahun (default 2026) diganti 2025 → chip "Tahun Data: 2025"; XLSX export dgn query sama: 200 MIME xlsx 7KB.
+  · R3.1: input month (default 2026-10) diganti 2026-09 → chip "Bulan Data: September 2026", tabel 1 baris (Budi Lubis); cross-check API 2026-10: 3 baris (Joko Ramadhan, Andini Pratiwi MII00045, Fajar Nugroho MII00046) — anchor bulan bekerja.
+  · Struktur dokumen utuh: #rk-print-area ada (r33 landscape=1), sign-off Disetujui, notice kerahasiaan; mobile 390px tanpa overflow-X; dark mode styling form ok; console 0 error; dev.log 0×5xx.
+- tsc --noEmit: 0 error. bun run lint: 0 error (2 warning pre-existing e2e-browser-subdomain.mjs).
+- PUSH: commit 16aa701 → remote maju → rebase → 7b3c0b6 pushed ke origin/main.
+- DEPLOY .15: SSH tidak tersedia di sesi ini (sandbox reset menghapus ssh client — sama spt T107). Jalankan manual: ssh puja@192.168.1.15 '/home/puja/deploy.sh'.
+- CATATAN QA harness: eval `const b` per-scope persist antar call (redeclare error) — pakai IIFE; `find --name "Katalog"` bentrok dgn nav "Katalog Jabatan" — scope ke area konten atau eval.
+
+Stage Summary:
+- Alur laporan kini sesuai ekspektasi user: (1) pilih laporan dari katalog → (2) FORM PARAMETER AWAL (cakupan cabang/unit/status kepegawaian, periode bulan/tahun/rentang tanggal, filter khusus laporan: urgensi kontrak/kategori sertifikasi/status sertifikasi) dengan validasi rentang & pratinjau cakupan → (3) "Generate Laporan" → dokumen siap-cetak. Filter diterapkan SERVER-SIDE (diverifikasi silang via API); chip parameter terpasang muncul di toolbar viewer + kop dokumen; XLSX & Cetak mengikuti query sama.
+- Bug kritis ditemukan & diperbaiki: Radix SelectItem value="" crash (form tidak bisa dibuka sama sekali) — sentinel "all" + respons _params bersih.
+- 2 file berubah (report-params-form.tsx, report-documents.ts) di atas fondasi T110 sesi sebelumnya (params.ts, alur 3-tahap, builder fp-aware — semua sudah benar, hanya crash UI-nya).
