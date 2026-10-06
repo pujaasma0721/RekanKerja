@@ -16,6 +16,8 @@ import { AttendanceMachineImportPage } from "@/rekankerja/time-attendance/compon
 // Task 100 F1 (impl-E) — open shift marketplace (G19) + kios QR (G17)
 import { AttendanceOpenShiftPage } from "@/rekankerja/time-attendance/components/attendance-open-shift";
 import { AttendanceKioskPage } from "@/rekankerja/time-attendance/components/attendance-kiosk";
+// T12-REPORTS — laporan attendance agregat (padanan Laporan HR)
+import { AttendanceReportsPage } from "@/rekankerja/time-attendance/components/attendance-reports";
 
 export function AttendanceModule({ view }: { view: string }) {
   switch (view) {
@@ -36,6 +38,8 @@ export function AttendanceModule({ view }: { view: string }) {
     // Task 100 F1 (impl-E) — G19 open shift marketplace + G17 kios QR
     case "open-shift": return <AttendanceOpenShiftPage />;
     case "kiosk-qr": return <AttendanceKioskPage />;
+    // T12-REPORTS — laporan attendance (menu attendance:reports)
+    case "reports": return <AttendanceReportsPage />;
     default: return <AttendanceOverview />;
   }
 }

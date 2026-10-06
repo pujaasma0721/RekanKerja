@@ -423,6 +423,7 @@ export const BASE_EN: Record<string, string> = {
   "Papan Kehadiran": "Attendance Board",
   "Tukar Shift": "Shift Swap",
   "Import Mesin Absen": "Attendance Machine Import",
+  "Laporan Attendance": "Attendance Reports",
   // — navigasi Settings lanjutan —
   "Data Master": "Master Data",
   "Notifikasi WhatsApp": "WhatsApp Notifications",

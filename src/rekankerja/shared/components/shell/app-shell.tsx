@@ -202,6 +202,11 @@ const ATTENDANCE_NAV: NavGroup[] = [
     // Task 100 F1 (G17, impl-E) — kios QR presensi (mode tampilan sesi admin)
     { id: "kiosk-qr", label: "Kios QR", icon: QrCode },
   ] },
+  // T12-REPORTS — padanan Laporan HR (hr:reports): laporan agregat attendance
+  // (KPI bulanan + tren 12 bulan + rekap per karyawan/unit + export XLSX).
+  { section: "attendance", label: "Laporan", children: [
+    { id: "reports", label: "Laporan Attendance", icon: BarChart3 },
+  ] },
 ];
 
 const LEAVE_NAV: NavGroup[] = [
