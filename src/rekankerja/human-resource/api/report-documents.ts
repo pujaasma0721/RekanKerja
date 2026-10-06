@@ -240,16 +240,12 @@ export async function GET(req: NextRequest) {
       const rank = (s: string) => { const i = STATUS_ORDER.indexOf(s); return i === -1 ? 99 : i; };
       const present = [...new Set(assnStats.map((a) => a.employmentStatus).filter(Boolean))]
         .sort((a, b) => rank(a!) - rank(b!) || a!.localeCompare(b!));
+      // T110: opsi murni tanpa entri id="" — pilihan "Semua" dirender klien
+      // sebagai sentinel "all" (Radix SelectItem tidak boleh value="").
       return NextResponse.json({
-        offices: [
-          { id: "", label: "Semua Cabang & Lokasi" },
-          ...offices.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}${o.city ? ` (${o.city})` : ""}` })),
-        ],
-        units: [
-          { id: "", label: "Semua Unit / Divisi" },
-          ...[...units].sort((a, b) => a.name.localeCompare(b.name, "id")).map((u) => ({ id: u.id, label: `${"— ".repeat(Math.max(0, u.level - 1))}${u.name}` })),
-        ],
-        statuses: [{ id: "", label: "Semua Status" }, ...present.map((s) => ({ id: s, label: s }))],
+        offices: offices.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}${o.city ? ` (${o.city})` : ""}` })),
+        units: [...units].sort((a, b) => a.name.localeCompare(b.name, "id")).map((u) => ({ id: u.id, label: `${"— ".repeat(Math.max(0, u.level - 1))}${u.name}` })),
+        statuses: present.map((s) => ({ id: s, label: s })),
         years,
       });
     }

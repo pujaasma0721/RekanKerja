@@ -102,26 +102,33 @@ function FieldControl({ field, value, onChange, options, disabled }: {
     );
   }
 
-  // select / year — dropdown dari opsi server (year: daftar angka)
+  // select / year — dropdown dari opsi server (year: daftar angka).
+  // "Semua" memakai sentinel "all" — Radix SelectItem TIDAK BOLEH value=""
+  // (konvensi kodebase: lihat attendance-liveboard / medical-claims).
   const pool: { id: string; label: string }[] = field.optionsFrom === "years"
     ? (options?.years ?? []).map((y) => ({ id: String(y), label: String(y) }))
     : field.optionsFrom === "offices" ? (options?.offices ?? [])
     : field.optionsFrom === "units" ? (options?.units ?? [])
     : field.optionsFrom === "statuses" ? (options?.statuses ?? [])
     : [];
+  const selectable = pool.filter((o) => o.id); // buang entri kosong (defensif)
   const placeholder = field.optionsFrom === "years"
     ? t("Pilih tahun", "Pick year")
     : t("Memuat opsi…", "Loading options…");
   return (
-    <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
+    <Select
+      value={value ? value : "all"}
+      onValueChange={(v) => onChange(v === "all" ? "" : v)}
+      disabled={disabled}
+    >
       <SelectTrigger className="h-9 w-full bg-white text-[12.5px] font-semibold dark:bg-slate-900">
-        <SelectValue placeholder={pool.length ? t("Semua", "All") : placeholder} />
+        <SelectValue placeholder={selectable.length || field.optionsFrom === "years" ? t("Semua", "All") : placeholder} />
       </SelectTrigger>
       <SelectContent className="max-h-72">
         {field.optionsFrom !== "years" && (
-          <SelectItem value="" className="text-[12px] font-semibold">{t("Semua", "All")}</SelectItem>
+          <SelectItem value="all" className="text-[12px] font-semibold">{t("Semua", "All")}</SelectItem>
         )}
-        {pool.map((o) => (
+        {selectable.map((o) => (
           <SelectItem key={o.id} value={o.id} className="text-[12px] font-semibold">{o.label}</SelectItem>
         ))}
       </SelectContent>
