@@ -4118,3 +4118,5 @@ Stage Summary:
 - Modul Attendance kini punya "Laporan Attendance" (attendance:reports) — padanan 1:1 menu HR Report di HR: KPI bulanan + tren 12 bulan + komposisi status + top pelanggaran jadwal + rekap per karyawan/unit + export XLSX 6 sheet. Tanpa model/tabel baru (agregat AttendanceDaily) → tanpa migrasi/parity step; menu terpagar terpisah dari view operasional.
 - Deploy 19:48 sekaligus menutup deploy-pending T107: kolom excludedAmount live 8/8 tenant (verifikasi information_schema).
 - Deploy .15 = a35df66, health OK, guard API terverifikasi 401 tanpa sesi.
+
+Catatan Deploy (lanjutan T108): sesi "pull & deploy" — origin/main sudah sinkron (3cda360, tanpa commit baru) → deploy .15 2026-10-06 21:21:17 ✅ (rollback rekankerja-rollback-20261006-211459). Prod kini mencakup T104 f8ef715 (16 laporan HR siap cetak) + seluruh docs T107/T108. Verifikasi: health 200, home 200, attendance/reports 401 tanpa sesi (guard OK), PM2 onevity online, log boot bersih.
