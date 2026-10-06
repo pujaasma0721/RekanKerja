@@ -15,6 +15,8 @@ export interface DocMeta {
   year: number;
   scope: "all" | "scoped";
   periodLabel: string;
+  /** T110: chip parameter terpasang saat generate (cakupan/periode/filter). */
+  filters: { label: string; value: string }[];
 }
 
 export interface DocResponse<T> {

@@ -55,6 +55,39 @@ const REPORT_TITLES: Record<string, string> = {
   r44: "Employee Competency & Certification Audit Sheet",
 };
 
+// ============ T110: parameter & filter awal (sebelum laporan digenerate) =====
+// Form parameter di klien mengirim kombinasi: office/unit/status (cakupan),
+// urgency/category/certStatus (daftar dipisah koma), month (YYYY-MM), year,
+// from/to (YYYY-MM-DD). Filter diterapkan SERVER-SIDE pada basis karyawan
+// sebelum builder laporan berjalan — XLSX & cetak otomatis mengikuti.
+
+const URGENCY_LABELS: Record<string, string> = {
+  overdue: "Lewat Jatuh Tempo", critical: "Kritis (< 30 hari)", warning: "Perhatian (30–60 hari)",
+  caution: "Waspada (60–90 hari)", safe: "Aman (> 90 hari)",
+};
+
+const CERT_STATUS_LABELS: Record<string, string> = {
+  expired: "Kedaluwarsa", expiring: "Segera Berakhir", active: "Aktif", "no-expiry": "Tanpa Masa Berlaku",
+};
+
+interface ReportFilters {
+  office: string | null;
+  unit: string | null;
+  status: string | null;
+  urgency: string[];
+  category: string[];
+  certStatus: string[];
+  /** YYYY-MM */
+  month: string | null;
+  year: number | null;
+  /** YYYY-MM-DD */
+  from: string | null;
+  to: string | null;
+}
+
+const isYM = (v: string | null): v is string => !!v && /^\d{4}-\d{2}$/.test(v);
+const isYMD = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
 // ============ util kecil (server-side, tanpa import klien) ============
 
 const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : null);
@@ -189,9 +222,61 @@ export async function GET(req: NextRequest) {
     const db = m.db;
 
     const id = req.nextUrl.searchParams.get("id") ?? "";
+
+    // ---- T110: ?id=_params — daftar opsi filter (ringan, tanpa fetch karyawan).
+    // Dipakai form parameter awal: cabang, unit, status kepegawaian, tahun.
+    if (id === "_params") {
+      const [offices, units, minJoin, assnStats] = await Promise.all([
+        db.companyOffice.findMany({ where: { active: true }, select: { id: true, code: true, name: true, city: true }, orderBy: { code: "asc" } }),
+        db.orgUnit.findMany({ select: { id: true, code: true, name: true, level: true } }),
+        db.employee.aggregate({ _min: { joinDate: true } }),
+        db.employeeAssignment.findMany({ select: { employmentStatus: true }, distinct: ["employmentStatus"] }),
+      ]);
+      const nowP = new Date();
+      const years: number[] = [];
+      const minYear = minJoin._min.joinDate?.getFullYear() ?? nowP.getFullYear();
+      for (let y = nowP.getFullYear(); y >= Math.min(minYear, nowP.getFullYear()) && years.length < 15; y--) years.push(y);
+      const STATUS_ORDER = ["Permanent", "Contract", "Probation", "Outsourcing"];
+      const rank = (s: string) => { const i = STATUS_ORDER.indexOf(s); return i === -1 ? 99 : i; };
+      const present = [...new Set(assnStats.map((a) => a.employmentStatus).filter(Boolean))]
+        .sort((a, b) => rank(a!) - rank(b!) || a!.localeCompare(b!));
+      return NextResponse.json({
+        offices: [
+          { id: "", label: "Semua Cabang & Lokasi" },
+          ...offices.map((o) => ({ id: o.id, label: `${o.code} — ${o.name}${o.city ? ` (${o.city})` : ""}` })),
+        ],
+        units: [
+          { id: "", label: "Semua Unit / Divisi" },
+          ...[...units].sort((a, b) => a.name.localeCompare(b.name, "id")).map((u) => ({ id: u.id, label: `${"— ".repeat(Math.max(0, u.level - 1))}${u.name}` })),
+        ],
+        statuses: [{ id: "", label: "Semua Status" }, ...present.map((s) => ({ id: s, label: s }))],
+        years,
+      });
+    }
+
     if (!REPORT_IDS.has(id)) {
       return NextResponse.json({ error: "Parameter id laporan tidak dikenal (r11…r44)" }, { status: 400 });
     }
+
+    // ---- T110: parse parameter filter dari query string ----
+    const sp = req.nextUrl.searchParams;
+    const monthParam = sp.get("month");
+    const yearParam = sp.get("year");
+    const fromParam = sp.get("from");
+    const toParam = sp.get("to");
+    const list = (key: string) => (sp.get(key) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const fp: ReportFilters = {
+      office: sp.get("office") || null,
+      unit: sp.get("unit") || null,
+      status: sp.get("status") || null,
+      urgency: list("urgency"),
+      category: list("category"),
+      certStatus: list("certStatus"),
+      month: isYM(monthParam) ? monthParam : null,
+      year: yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : null,
+      from: isYMD(fromParam) ? fromParam : null,
+      to: isYMD(toParam) ? toParam : null,
+    };
 
     const scope = await resolveAccessScope(db, {
       appUserId: m.actor.appUserId,
@@ -283,7 +368,27 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const active = emps.filter((e) => e.status === "Active");
+    // ---- T110: terapkan filter cakupan (cabang / unit+subtree / status) ----
+    // Seluruh laporan memakai basis karyawan terfilter yang sama; laporan
+    // pergerakan (r32/r33/r34) ikut ter-scope karena `emps` di Ctx memakai hasil
+    // filter ini. Filter unit mencakup seluruh subtree unit terpilih.
+    const unitSubtreeIds = (rootId: string): Set<string> => {
+      const ids = new Set<string>();
+      const walk = (pid: string) => {
+        ids.add(pid);
+        for (const u of unitsAll) if (u.parentId === pid) walk(u.id);
+      };
+      walk(rootId);
+      return ids;
+    };
+    const scopedUnitIds = fp.unit ? unitSubtreeIds(fp.unit) : null;
+    const statOfEmp = (e: Enriched) => e.activeAssn?.employmentStatus ?? null;
+    const empsScoped = emps.filter((e) =>
+      (!fp.office || e.companyOfficeId === fp.office)
+      && (!scopedUnitIds || (!!e.orgUnitId && scopedUnitIds.has(e.orgUnitId)))
+      && (!fp.status || statOfEmp(e) === fp.status)
+    );
+    const active = empsScoped.filter((e) => e.status === "Active");
     const tenureOf = (e: EmpRow) => (now.getTime() - e.joinDate.getTime()) / YEAR_MS;
     const ageOf = (e: EmpRow) => (e.birthDate ? (now.getTime() - e.birthDate.getTime()) / YEAR_MS : null);
     const unitName = (id: string | null) => (id ? unitById.get(id)?.name ?? null : null);
@@ -293,17 +398,45 @@ export async function GET(req: NextRequest) {
 
     // ---- meta dokumen (header semua laporan) ----
     const activeOffices = officesAll.filter((o) => o.active);
+    // T110: chip parameter terpasang — tampil di kop dokumen (DocMetaStrip)
+    // dan toolbar viewer, sehingga penerima tahu cakupan data laporan.
+    const filterChips: { label: string; value: string }[] = [];
+    if (fp.office) {
+      const o = officeById.get(fp.office);
+      if (o) filterChips.push({ label: "Cabang", value: `${o.name}${o.city ? ` — ${o.city}` : ""}` });
+    }
+    if (fp.unit) {
+      const u = unitById.get(fp.unit);
+      if (u) filterChips.push({ label: "Unit", value: u.name });
+    }
+    if (fp.status) filterChips.push({ label: "Status Kepegawaian", value: fp.status });
+    if (fp.month) {
+      const [yy, mm] = fp.month.split("-").map(Number);
+      filterChips.push({ label: "Bulan Data", value: `${MONTHS_ID[mm - 1]} ${yy}` });
+    }
+    if (fp.year) filterChips.push({ label: "Tahun Data", value: String(fp.year) });
+    if (fp.from || fp.to) {
+      const fd = fp.from ? dateID(new Date(`${fp.from}T00:00:00`)) : "awal riwayat";
+      const td = fp.to ? dateID(new Date(`${fp.to}T00:00:00`)) : dateID(now);
+      filterChips.push({ label: "Rentang Tanggal", value: `${fd} – ${td}` });
+    }
+    if (fp.urgency.length) filterChips.push({ label: "Urgensi Kontrak", value: fp.urgency.map((u) => URGENCY_LABELS[u] ?? u).join(", ") });
+    if (fp.category.length) filterChips.push({ label: "Kategori Sertifikasi", value: fp.category.join(", ") });
+    if (fp.certStatus.length) filterChips.push({ label: "Status Sertifikasi", value: fp.certStatus.map((c) => CERT_STATUS_LABELS[c] ?? c).join(", ") });
     const meta = {
       companyName: company?.name ?? "Perusahaan",
       companyAddress: company?.address ?? null,
       companyCity: company?.city ?? null,
       companyTaxId: company?.taxId ?? null,
       companyLogoUrl: company?.logoUrl ?? null,
-      branchLabel: activeOffices.length === 1 ? activeOffices[0].name : "Semua Cabang & Lokasi Kerja",
+      branchLabel: fp.office
+        ? officeById.get(fp.office)?.name ?? "Semua Cabang & Lokasi Kerja"
+        : activeOffices.length === 1 ? activeOffices[0].name : "Semua Cabang & Lokasi Kerja",
       printedBy: m.actor.name,
       generatedAt: now.toISOString(),
       year,
       scope: scope.all ? "all" : "scoped",
+      filters: filterChips,
     };
 
     const empStatLabel = (e: Enriched) => statusOf(e) ?? "Tanpa data";
@@ -311,7 +444,7 @@ export async function GET(req: NextRequest) {
 
     // ===================== perhitungan per laporan =====================
 
-    const data = buildReport(id, { db, emps, active, now, year, meta, tc, mv, unitById, posById, gradeById, officeById, locById, empNameById, divNameOf, minWages, sortByNo, tenureOf, ageOf, unitName, posTitle, gradeCode, empStatLabel });
+    const data = buildReport(id, { db, emps: empsScoped, active, now, year, fp, meta, tc, mv, unitById, posById, gradeById, officeById, locById, empNameById, divNameOf, minWages, sortByNo, tenureOf, ageOf, unitName, posTitle, gradeCode, empStatLabel });
 
     // ---- mode export XLSX ----
     if (req.nextUrl.searchParams.get("export") === "xlsx") {
@@ -343,10 +476,13 @@ interface Ctx {
   active: Enriched[];
   now: Date;
   year: number;
+  /** T110: parameter filter terpasang saat generate. */
+  fp: ReportFilters;
   meta: {
     companyName: string; companyAddress: string | null; companyCity: string | null;
     companyTaxId: string | null; companyLogoUrl: string | null; branchLabel: string;
     printedBy: string; generatedAt: string; year: number; scope: string;
+    filters: { label: string; value: string }[];
   };
   tc: ReturnType<typeof tenantCryptoForDb>;
   mv: Awaited<ReturnType<typeof moneyViewForReq>>;
@@ -453,7 +589,9 @@ function r12Demography(ctx: Ctx) {
 // ---------- R1.3 Department & Position Distribution ----------
 function r13DeptPosition(ctx: Ctx) {
   const { active, unitsAll } = { ...ctx, unitsAll: [...ctx.unitById.values()] };
-  const roots = unitsAll.filter((u) => !u.parentId).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  // T110: filter unit → pohon berakar pada unit terpilih (subtree-nya saja).
+  const roots = (ctx.fp.unit ? unitsAll.filter((u) => u.id === ctx.fp.unit) : unitsAll.filter((u) => !u.parentId))
+    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
   const childrenOf = (parentId: string) => unitsAll
     .filter((u) => u.parentId === parentId)
     .sort((a, b) => a.name.localeCompare(b.name, "id"));
@@ -574,12 +712,14 @@ function r21ContractExpiry(ctx: Ctx) {
     { urgency: "caution", label: "Waspada (60 – 90 hari)" },
     { urgency: "safe", label: "Aman (> 90 hari)" },
   ];
+  // T110: filter urgensi (multi-pilih) — hanya level terpilih yang ditampilkan.
+  const shown = ctx.fp.urgency.length ? items.filter((i) => ctx.fp.urgency.includes(i.urgency)) : items;
   return {
     periodLabel: `Per ${dateID(ctx.now)} — horizon 90 hari`,
     payload: {
-      items,
-      total: items.length,
-      counts: levels.map((l) => ({ ...l, count: items.filter((i) => i.urgency === l.urgency).length })),
+      items: shown,
+      total: shown.length,
+      counts: levels.map((l) => ({ ...l, count: shown.filter((i) => i.urgency === l.urgency).length })),
     },
   };
 }
@@ -645,10 +785,15 @@ function r23Probation(ctx: Ctx) {
 // ---------- R3.1 New Hire Welcoming ----------
 function r31NewHire(ctx: Ctx) {
   const { active } = ctx;
-  const monthStart = new Date(ctx.now.getFullYear(), ctx.now.getMonth(), 1);
+  // T110: bulan data (parameter month YYYY-MM) — default bulan berjalan.
+  // Parameter bulan menggeser jangkar; fallback 90 hari hanya untuk default.
+  const [ay, am] = (ctx.fp.month ?? "").split("-").map(Number);
+  const anchor = ctx.fp.month && ay && am ? new Date(ay, am - 1, 1) : ctx.now;
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59);
   let window = "month";
-  let items = active.filter((e) => e.joinDate >= monthStart);
-  if (items.length === 0) {
+  let items = active.filter((e) => e.joinDate >= monthStart && e.joinDate <= monthEnd);
+  if (items.length === 0 && !ctx.fp.month) {
     window = "90d";
     const from = new Date(ctx.now.getTime() - 90 * DAY_MS);
     items = active.filter((e) => e.joinDate >= from);
@@ -668,17 +813,18 @@ function r31NewHire(ctx: Ctx) {
       }
       : null,
   }));
-  const quarterStart = new Date(ctx.now.getFullYear(), Math.floor(ctx.now.getMonth() / 3) * 3, 1);
+  const quarterStart = new Date(anchor.getFullYear(), Math.floor(anchor.getMonth() / 3) * 3, 1);
+  const refEnd = ctx.fp.month ? monthEnd : ctx.now;
   return {
     periodLabel: window === "month"
-      ? monthLabel(ctx.now)
+      ? monthLabel(anchor)
       : `90 hari terakhir s.d. ${dateID(ctx.now)}`,
     payload: {
       window,
       items: rows,
-      thisMonth: active.filter((e) => e.joinDate >= monthStart).length,
-      last90: active.filter((e) => e.joinDate >= new Date(ctx.now.getTime() - 90 * DAY_MS)).length,
-      qtd: active.filter((e) => e.joinDate >= quarterStart).length,
+      thisMonth: active.filter((e) => e.joinDate >= monthStart && e.joinDate <= monthEnd).length,
+      last90: active.filter((e) => e.joinDate >= new Date(refEnd.getTime() - 90 * DAY_MS) && e.joinDate <= refEnd).length,
+      qtd: active.filter((e) => e.joinDate >= quarterStart && e.joinDate <= refEnd).length,
       probation: rows.filter((r) => r.employmentStatus === "Probation").length,
     },
   };
@@ -688,8 +834,12 @@ function r31NewHire(ctx: Ctx) {
 function r32Termination(ctx: Ctx) {
   const { emps } = ctx;
   const yearStart = new Date(ctx.year, 0, 1);
+  // T110: rentang tanggal keluar (from/to) — default seluruh riwayat.
+  const fromD = ctx.fp.from ? new Date(`${ctx.fp.from}T00:00:00`) : null;
+  const toD = ctx.fp.to ? new Date(`${ctx.fp.to}T23:59:59`) : null;
   const exits = emps
     .filter((e) => EXIT_STATUSES.has(e.status) && e.endDate)
+    .filter((e) => (!fromD || e.endDate! >= fromD) && (!toD || e.endDate! <= toD))
     .sort((a, b) => b.endDate!.getTime() - a.endDate!.getTime());
   const items = exits.map((e) => {
     const ob = e.offboarding;
@@ -717,9 +867,14 @@ function r32Termination(ctx: Ctx) {
       offboardingStatus: ob?.status ?? null,
     };
   });
-  const ytd = items.filter((i) => i.endDate && new Date(i.endDate) >= yearStart);
+  // T110: bila rentang from/to dipakai, statistik ringkasan mengikuti rentang
+  // (items sudah terfilter); tanpa rentang → perilaku lama (YTD tahun berjalan).
+  const ranged = !!(fromD || toD);
+  const ytd = ranged ? items : items.filter((i) => i.endDate && new Date(i.endDate) >= yearStart);
   return {
-    periodLabel: `${ctx.year} YTD — s.d. ${dateID(ctx.now)} (seluruh riwayat ditampilkan)`,
+    periodLabel: ranged
+      ? `Rentang ${fromD ? dateID(fromD) : "awal"} – ${toD ? dateID(toD) : dateID(ctx.now)}`
+      : `${ctx.year} YTD — s.d. ${dateID(ctx.now)} (seluruh riwayat ditampilkan)`,
     payload: {
       items,
       ytdExits: ytd.length,
@@ -745,8 +900,13 @@ function r32Termination(ctx: Ctx) {
 // ---------- R3.3 Turnover Executive Summary (matrix 12 bulan) ----------
 function r33TurnoverMatrix(ctx: Ctx) {
   const { emps } = ctx;
+  // T110: tahun data — tahun lampau = jendela Jan–Des tahun tsb.; tahun
+  // berjalan / tanpa parameter = 12 bulan trailing s.d. bulan ini.
+  const yr = ctx.fp.year ?? ctx.year;
+  const anchorEnd = yr < ctx.now.getFullYear() ? new Date(yr, 11, 1) : ctx.now;
+  const yearStart = new Date(yr, 0, 1);
   const months: Date[] = [];
-  for (let i = 11; i >= 0; i--) months.push(new Date(ctx.now.getFullYear(), ctx.now.getMonth() - i, 1));
+  for (let i = 11; i >= 0; i--) months.push(new Date(anchorEnd.getFullYear(), anchorEnd.getMonth() - i, 1));
   const divisions = [...new Set(emps.map((e) => ctx.divNameOf(e.orgUnitId)))].sort((a, b) => a.localeCompare(b, "id"));
 
   const employedAt = (e: Enriched, d: Date) => e.joinDate <= d && (!e.endDate || e.endDate >= d);
@@ -762,7 +922,7 @@ function r33TurnoverMatrix(ctx: Ctx) {
       return { hires, exits, rate: hc > 0 ? round1((exits / hc) * 100) : null };
     });
     const headcount = inDiv.filter((e) => e.status === "Active").length;
-    const exitsYtd = inDiv.filter((e) => EXIT_STATUSES.has(e.status) && e.endDate && e.endDate >= new Date(ctx.year, 0, 1)).length;
+    const exitsYtd = inDiv.filter((e) => EXIT_STATUSES.has(e.status) && e.endDate && e.endDate >= yearStart).length;
     return {
       division, headcount, cells,
       exitsYtd,
@@ -776,10 +936,10 @@ function r33TurnoverMatrix(ctx: Ctx) {
     const hires = emps.filter((e) => inMonth(e.joinDate, m)).length;
     return { hires, exits, rate: hc > 0 ? round1((exits / hc) * 100) : null, headcount: hc, month: MONTHS_ID[m.getMonth()].slice(0, 3) };
   });
-  const startHC = emps.filter((e) => employedAt(e, new Date(ctx.year, 0, 1))).length;
+  const startHC = emps.filter((e) => employedAt(e, yearStart)).length;
   const nowHC = emps.filter((e) => e.status === "Active").length;
-  const hiresYtd = emps.filter((e) => e.joinDate >= new Date(ctx.year, 0, 1)).length;
-  const exitsYtd = emps.filter((e) => EXIT_STATUSES.has(e.status) && e.endDate && e.endDate >= new Date(ctx.year, 0, 1)).length;
+  const hiresYtd = emps.filter((e) => e.joinDate >= yearStart).length;
+  const exitsYtd = emps.filter((e) => EXIT_STATUSES.has(e.status) && e.endDate && e.endDate >= yearStart).length;
   return {
     periodLabel: `12 bulan — ${MONTHS_ID[months[0].getMonth()]} ${months[0].getFullYear()} s.d. ${MONTHS_ID[months[11].getMonth()]} ${months[11].getFullYear()}`,
     payload: {
@@ -798,6 +958,9 @@ function r33TurnoverMatrix(ctx: Ctx) {
 // ---------- R3.4 Movement History Log ----------
 function r34Movement(ctx: Ctx) {
   const { emps } = ctx;
+  // T110: rentang tanggal efektif (from/to) — default seluruh riwayat.
+  const fromD = ctx.fp.from ? new Date(`${ctx.fp.from}T00:00:00`) : null;
+  const toD = ctx.fp.to ? new Date(`${ctx.fp.to}T23:59:59`) : null;
   const items: {
     employeeNo: string; name: string; effectiveDate: string | null; reason: string;
     fromUnit: string | null; toUnit: string | null; fromPosition: string | null; toPosition: string | null;
@@ -808,6 +971,8 @@ function r34Movement(ctx: Ctx) {
     for (let i = 1; i < list.length; i++) {
       const cur = list[i];
       if (!MOVEMENT_REASONS.has(cur.changeReason)) continue;
+      if (fromD && cur.validFrom < fromD) continue;
+      if (toD && cur.validFrom > toD) continue;
       const prev = list[i - 1];
       items.push({
         employeeNo: e.employeeNo, name: e.fullName,
@@ -823,7 +988,9 @@ function r34Movement(ctx: Ctx) {
   items.sort((a, b) => (b.effectiveDate ?? "").localeCompare(a.effectiveDate ?? ""));
   const order = ["Promotion", "Demotion", "Transfer", "Mutation"];
   return {
-    periodLabel: `Seluruh riwayat — per ${dateID(ctx.now)}`,
+    periodLabel: (fromD || toD)
+      ? `Rentang ${fromD ? dateID(fromD) : "awal"} – ${toD ? dateID(toD) : "kini"}`
+      : `Seluruh riwayat — per ${dateID(ctx.now)}`,
     payload: {
       items,
       total: items.length,
@@ -835,7 +1002,10 @@ function r34Movement(ctx: Ctx) {
 // ---------- R4.1 WLKP ----------
 function r41Wlkp(ctx: Ctx) {
   const { active, empStatLabel, tc } = ctx;
-  const umk = [...ctx.minWages].filter((w) => w.active).sort((a, b) => b.year - a.year)[0] ?? null;
+  // T110: tahun data — UMK diutamakan dari tahun terpilih; periodLabel ikut.
+  const yr = ctx.fp.year ?? ctx.year;
+  const umk = [...ctx.minWages].filter((w) => w.active && w.year === yr)[0]
+    ?? [...ctx.minWages].filter((w) => w.active).sort((a, b) => b.year - a.year)[0] ?? null;
   const umkAmount = umk?.monthlyAmount ?? 0;
 
   const genderPair = (list: Enriched[]) => ({
@@ -868,7 +1038,7 @@ function r41Wlkp(ctx: Ctx) {
 
   const sum = (n: { male: number; female: number }) => n.male + n.female;
   return {
-    periodLabel: `Tahun ${ctx.year}`,
+    periodLabel: `Tahun ${yr}`,
     payload: {
       identity: {
         name: ctx.meta.companyName, address: ctx.meta.companyAddress,
@@ -988,25 +1158,32 @@ function r44Certification(ctx: Ctx) {
         || (a.expiresAt ?? "9999").localeCompare(b.expiresAt ?? "9999")
         || a.name.localeCompare(b.name, "id");
     });
-  const expired = items.filter((i) => i.status === "expired").length;
-  const expiring = items.filter((i) => i.status === "expiring").length;
-  const activeC = items.filter((i) => i.status === "active").length;
+  // T110: filter kategori + status sertifikasi (multi-pilih).
+  const shown = items.filter((i) =>
+    (ctx.fp.category.length === 0 || ctx.fp.category.includes(i.category))
+    && (ctx.fp.certStatus.length === 0 || ctx.fp.certStatus.includes(i.status))
+  );
+  const expired = shown.filter((i) => i.status === "expired").length;
+  const expiring = shown.filter((i) => i.status === "expiring").length;
+  const activeC = shown.filter((i) => i.status === "active").length;
   const withExpiry = expired + expiring + activeC;
-  const categories = ["Keselamatan Kerja (K3)", "Sertifikat Profesional", "SIM (Lisensi Mengemudi)", "Paspor (Perjalanan Dinas)"];
+  const categories = ctx.fp.category.length
+    ? ctx.fp.category
+    : ["Keselamatan Kerja (K3)", "Sertifikat Profesional", "SIM (Lisensi Mengemudi)", "Paspor (Perjalanan Dinas)"];
   return {
     periodLabel: `Per ${dateID(ctx.now)} — audit lisensi & sertifikasi`,
     payload: {
-      items,
-      total: items.length,
-      expired, expiring, active: activeC, noExpiry: items.filter((i) => i.status === "no-expiry").length,
+      items: shown,
+      total: shown.length,
+      expired, expiring, active: activeC, noExpiry: shown.filter((i) => i.status === "no-expiry").length,
       compliancePct: withExpiry ? round1(((expiring + activeC) / withExpiry) * 100) : 100,
       byCategory: categories.map((c) => ({
         label: c,
-        total: items.filter((i) => i.category === c).length,
-        expired: items.filter((i) => i.category === c && i.status === "expired").length,
-        expiring: items.filter((i) => i.category === c && i.status === "expiring").length,
+        total: shown.filter((i) => i.category === c).length,
+        expired: shown.filter((i) => i.category === c && i.status === "expired").length,
+        expiring: shown.filter((i) => i.category === c && i.status === "expiring").length,
       })),
-      employeesCovered: new Set(items.map((i) => i.employeeNo)).size,
+      employeesCovered: new Set(shown.map((i) => i.employeeNo)).size,
     },
   };
 }

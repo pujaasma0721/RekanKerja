@@ -61,13 +61,26 @@ export function DocMetaStrip({ meta, docNo }: { meta: DocMeta; docNo: string }) 
     { label: t("No. Dokumen", "Document No."), value: docNo },
   ];
   return (
-    <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 md:grid-cols-4">
-      {cells.map((c) => (
-        <div key={c.label} className="bg-slate-50 px-3 py-2">
-          <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-400">{c.label}</p>
-          <p className="mt-0.5 truncate text-[11px] font-bold text-slate-800">{c.value}</p>
+    <div className="mt-4">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 md:grid-cols-4">
+        {cells.map((c) => (
+          <div key={c.label} className="bg-slate-50 px-3 py-2">
+            <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-400">{c.label}</p>
+            <p className="mt-0.5 truncate text-[11px] font-bold text-slate-800">{c.value}</p>
+          </div>
+        ))}
+      </div>
+      {/* T110: chip parameter terpasang — cakupan data terdokumentasi di kop */}
+      {meta.filters?.length ? (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {meta.filters.map((f) => (
+            <span key={`${f.label}-${f.value}`} className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[8.5px] font-bold text-slate-600">
+              <span className="uppercase tracking-[0.08em] text-slate-400">{t(f.label, f.label)}</span>
+              <span className="text-slate-800">{f.value}</span>
+            </span>
+          ))}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
