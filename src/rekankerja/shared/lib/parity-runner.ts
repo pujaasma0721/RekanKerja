@@ -269,6 +269,11 @@ const STEPS: Step[] = [
     label: "Task 100 — attendance advance: selfie/faceVerify/otCap/fatigue + OpenShift",
     run: (s) => import("../../../../scripts/migrate-attendance-advance").then((m) => m.main(s)),
   },
+  // PMK 168/2023 — modul Pembayaran Bukan Pegawai: master mitra (NonEmployeePartner)
+  // + pembayaran honor/fee dengan PPh21 final (DPP 50% × tarif Pasal 17) di
+  // NonEmployeePayment — CREATE IF NOT EXISTS idempoten (tenant lama via parity;
+  // tenant baru via tenant-ddl.sql hasil regenerate schema-tenant.prisma).
+  { key: "non-employee-payment", label: "PMK 168/2023 — Pembayaran Bukan Pegawai (mitra + pembayaran honor/fee)", run: (s) => import("../../../../scripts/migrate-non-employee-payment").then((m) => m.main(s)) },
 ];
 
 // ============ deteksi gap (murah — 3 query information_schema) ============

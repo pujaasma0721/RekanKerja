@@ -162,6 +162,11 @@ const PAYROLL_NAV: NavGroup[] = [
     { id: "transactions", label: "Transaksi & Rapel", icon: ArrowLeftRight },
     { id: "benefits", label: "Benefit Karyawan", icon: HeartHandshake, badge: "benefitPending" },
   ] },
+  // PMK 168/2023 — master mitra + pembayaran honor/komisi/fee ke pihak BUKAN
+  // pegawai (PPh21 final, bukan 1721-A1). Menu key: payroll:non-employee.
+  { section: "payroll", label: "Bukan Pegawai", children: [
+    { id: "non-employee", label: "Pembayaran Bukan Pegawai", icon: UserRound },
+  ] },
   { section: "payroll", label: "Laporan Tahunan", children: [
     { id: "spt", label: "SPT & Pajak (1721-A1)", icon: FileSpreadsheet },
   ] },

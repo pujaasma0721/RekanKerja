@@ -1,6 +1,6 @@
 "use client";
 // RekanKerja — Modul Payroll: router view (Ringkasan, Periode, Proses & Hasil, Master,
-// Transaksi, Benefit, Laporan Tahunan, Parameter/Jurnal)
+// Transaksi, Benefit, Bukan Pegawai, Laporan Tahunan, Parameter/Jurnal)
 import { PayrollOverview } from "@/rekankerja/payroll/components/payroll-overview";
 import { PayrollPeriodsPage } from "@/rekankerja/payroll/components/payroll-periods";
 import { PayrollRunsPage } from "@/rekankerja/payroll/components/payroll-runs";
@@ -14,6 +14,9 @@ import { AccountingPage } from "@/rekankerja/payroll/components/accounting";
 import { PayrollSptPage } from "@/rekankerja/payroll/components/payroll-spt";
 import { PayrollJournalsPage } from "@/rekankerja/payroll/components/payroll-journals";
 import { PayrollBenefitsPage } from "@/rekankerja/payroll/components/payroll-benefits";
+// PMK 168/2023 — pembayaran honor/fee ke pihak non-karyawan (PPh21 final
+// DPP 50% × tarif Pasal 17), terpisah dari engine payroll karyawan.
+import { NonEmployeePaymentsPage } from "@/rekankerja/payroll/components/non-employee-payments";
 
 export function PayrollModule({ view }: { view: string }) {
   switch (view) {
@@ -25,6 +28,7 @@ export function PayrollModule({ view }: { view: string }) {
     case "profiles": return <PayrollProfilesPage />;
     case "transactions": return <PayrollTransactionsPage />;
     case "benefits": return <PayrollBenefitsPage />;
+    case "non-employee": return <NonEmployeePaymentsPage />;
     case "parameters": return <PayrollParametersPage />;
     case "accounting": return <AccountingPage />;
     case "spt": return <PayrollSptPage />;

@@ -1289,6 +1289,36 @@ CREATE TABLE "AttendanceRule" (
 );
 
 -- CreateTable
+CREATE TABLE "OpenShiftPost" (
+    "id" TEXT NOT NULL,
+    "workDate" TIMESTAMP(3) NOT NULL,
+    "scheduleId" TEXT NOT NULL,
+    "dayTypeId" TEXT NOT NULL,
+    "orgUnitName" TEXT,
+    "slots" INTEGER NOT NULL DEFAULT 1,
+    "filled" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "notes" TEXT,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OpenShiftPost_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OpenShiftClaim" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "decidedBy" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OpenShiftClaim_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "HolidayDate" (
     "id" TEXT NOT NULL,
     "date" DATE NOT NULL,
@@ -1761,7 +1791,6 @@ CREATE TABLE "MedicalClaim" (
     "decidedAt" TIMESTAMP(3),
     "decisionNote" TEXT,
     "settledById" TEXT,
-    -- W4-1 (fix G-3) — piutang asuransi: siklus NONE → SUBMITTED → PAID / WRITTEN_OFF
     "insState" TEXT NOT NULL DEFAULT 'NONE',
     "insRefNo" TEXT,
     "insAmount" TEXT NOT NULL DEFAULT '0',
@@ -2288,6 +2317,49 @@ CREATE TABLE "DirectMessage" (
     CONSTRAINT "DirectMessage_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "NonEmployeePartner" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "idType" TEXT NOT NULL DEFAULT 'npwp',
+    "idNumber" TEXT,
+    "address" TEXT,
+    "serviceKind" TEXT NOT NULL DEFAULT 'Pekerjaan Bebas',
+    "isCatering" BOOLEAN NOT NULL DEFAULT false,
+    "bankName" TEXT,
+    "bankAccount" TEXT,
+    "notes" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NonEmployeePartner_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NonEmployeePayment" (
+    "id" TEXT NOT NULL,
+    "docNo" TEXT NOT NULL,
+    "partnerId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "grossAmount" TEXT NOT NULL,
+    "excludedNotes" TEXT,
+    "dpp" TEXT NOT NULL,
+    "pph21" TEXT NOT NULL,
+    "netAmount" TEXT NOT NULL,
+    "paymentDate" TIMESTAMP(3) NOT NULL,
+    "taxYear" INTEGER NOT NULL,
+    "taxMonth" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Draft',
+    "paidAt" TIMESTAMP(3),
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NonEmployeePayment_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Company_code_key" ON "Company"("code");
 
@@ -2494,6 +2566,15 @@ CREATE INDEX "WorkOffPermission_employeeId_dateFrom_idx" ON "WorkOffPermission"(
 
 -- CreateIndex
 CREATE INDEX "WorkOffPermission_status_idx" ON "WorkOffPermission"("status");
+
+-- CreateIndex
+CREATE INDEX "OpenShiftPost_workDate_idx" ON "OpenShiftPost"("workDate");
+
+-- CreateIndex
+CREATE INDEX "OpenShiftPost_status_idx" ON "OpenShiftPost"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OpenShiftClaim_postId_employeeId_key" ON "OpenShiftClaim"("postId", "employeeId");
 
 -- CreateIndex
 CREATE INDEX "HolidayDate_date_idx" ON "HolidayDate"("date");
@@ -2791,6 +2872,24 @@ CREATE INDEX "DirectMessage_senderId_recipientId_createdAt_idx" ON "DirectMessag
 
 -- CreateIndex
 CREATE INDEX "DirectMessage_recipientId_readAt_idx" ON "DirectMessage"("recipientId", "readAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NonEmployeePartner_code_key" ON "NonEmployeePartner"("code");
+
+-- CreateIndex
+CREATE INDEX "NonEmployeePartner_active_name_idx" ON "NonEmployeePartner"("active", "name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NonEmployeePayment_docNo_key" ON "NonEmployeePayment"("docNo");
+
+-- CreateIndex
+CREATE INDEX "NonEmployeePayment_partnerId_paymentDate_idx" ON "NonEmployeePayment"("partnerId", "paymentDate");
+
+-- CreateIndex
+CREATE INDEX "NonEmployeePayment_taxYear_taxMonth_idx" ON "NonEmployeePayment"("taxYear", "taxMonth");
+
+-- CreateIndex
+CREATE INDEX "NonEmployeePayment_status_idx" ON "NonEmployeePayment"("status");
 
 -- AddForeignKey
 ALTER TABLE "CompanyOffice" ADD CONSTRAINT "CompanyOffice_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -3096,6 +3195,12 @@ ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_employeeId_fke
 ALTER TABLE "WorkOffPermission" ADD CONSTRAINT "WorkOffPermission_dayTypeId_fkey" FOREIGN KEY ("dayTypeId") REFERENCES "WorkDayType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_postId_fkey" FOREIGN KEY ("postId") REFERENCES "OpenShiftPost"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "LeaveTypeRule" ADD CONSTRAINT "LeaveTypeRule_leaveTypeId_fkey" FOREIGN KEY ("leaveTypeId") REFERENCES "LeaveType"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3221,51 +3326,6 @@ ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_requesterId_fkey
 -- AddForeignKey
 ALTER TABLE "ShiftSwapRequest" ADD CONSTRAINT "ShiftSwapRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-
--- ============================================================================
--- Task 100 F1 (impl-C, G26) — Open Shift marketplace (append-only)
--- ============================================================================
--- CreateTable
-CREATE TABLE "OpenShiftPost" (
-    "id" TEXT NOT NULL,
-    "workDate" TIMESTAMP(3) NOT NULL,
-    "scheduleId" TEXT NOT NULL,
-    "dayTypeId" TEXT NOT NULL,
-    "orgUnitName" TEXT,
-    "slots" INTEGER NOT NULL DEFAULT 1,
-    "filled" INTEGER NOT NULL DEFAULT 0,
-    "status" TEXT NOT NULL DEFAULT 'Open',
-    "notes" TEXT,
-    "createdBy" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "OpenShiftPost_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "OpenShiftClaim" (
-    "id" TEXT NOT NULL,
-    "postId" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'Pending',
-    "decidedBy" TEXT,
-    "decidedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "OpenShiftClaim_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE INDEX "OpenShiftPost_workDate_idx" ON "OpenShiftPost"("workDate");
-
--- CreateIndex
-CREATE INDEX "OpenShiftPost_status_idx" ON "OpenShiftPost"("status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "OpenShiftClaim_postId_employeeId_key" ON "OpenShiftClaim"("postId", "employeeId");
-
 -- AddForeignKey
-ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_postId_fkey" FOREIGN KEY ("postId") REFERENCES "OpenShiftPost"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "NonEmployeePayment" ADD CONSTRAINT "NonEmployeePayment_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "NonEmployeePartner"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE "OpenShiftClaim" ADD CONSTRAINT "OpenShiftClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;

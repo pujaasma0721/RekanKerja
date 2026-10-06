@@ -3001,8 +3001,64 @@ model DirectMessage {
   recipientId String
   body        String
   readAt      DateTime?
-  createdAt    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, readAt])
+}
+
+// ============ PEMBAYARAN BUKAN PEGAWAI (PMK 168/2023) ============
+// Penerima "Bukan Pegawai" (Pasal 1 & 3(2) PMK 168/2023): tenaga ahli Pekerjaan
+// Bebas (konsultan, akuntan, dokter, notaris, dsb.) dan pemberi jasa lain yang
+// dibayar honorarium/komisi/fee — BUKAN gaji karyawan. PPh21 (Pasal 12(3) +
+// 16(3) PMK 168/2023): DPP = 50% × bruto; pajak = tarif Pasal 17 UU PPh × DPP;
+// sifatnya FINAL — tanpa PTKP, tanpa biaya jabatan, tanpa TER. Bukti potong
+// dilaporkan sebagai bupot "Pembayaran kepada Pihak Lain" (Coretax), bukan 1721-A1.
+model NonEmployeePartner {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  idType      String   @default("npwp") // npwp | nik | none
+  idNumber    String? // NPWP 15/16 digit ATAU NIK 16 digit — terenkripsi (PII)
+  address     String?
+  serviceKind String   @default("Pekerjaan Bebas") // tenaga ahli/pemberi jasa/agen/dsb. (bebas isi)
+  isCatering  Boolean  @default(false) // jasa katering: bruto TIDAK boleh dipotong komponen tenaga kerja/material (Pasal 12(4))
+  bankName    String?
+  bankAccount String?
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payments NonEmployeePayment[]
+
+  @@index([active, name])
+}
+
+// Satu pembayaran honor/fee → PPh21 final dihitung service (DPP 50% × Pasal 17).
+// Nilai uang TERENKRIPSI (enc:v1:n) — dekripsi hanya di batas serializer (money-view).
+model NonEmployeePayment {
+  id              String    @id @default(cuid())
+  docNo           String    @unique // BPNP-2026-0001 — dibuat server (max-scan per tahun, pola modul medical)
+  partnerId       String
+  description     String
+  grossAmount     String // penghasilan bruto yang dibayarkan ke Bukan Pegawai — TERENKRIPSI (M-8)
+  excludedNotes   String? // catatan komponen yang dikeluarkan dari bruto (tenaga kerja/material/pihak ketiga — Pasal 12(4)-(5))
+  dpp             String // = 50% × grossAmount (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
+  pph21           String // = tarif Pasal 17 × dpp (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
+  netAmount       String // = grossAmount − pph21 — TERENKRIPSI (M-8)
+  paymentDate     DateTime
+  taxYear         Int // tahun pajak (dari paymentDate)
+  taxMonth        Int // masa pajak 1-12 (dari paymentDate) — kunci ledger bukti potong
+  status          String    @default("Draft") // Draft | Paid | Cancelled
+  paidAt          DateTime?
+  createdBy       String? // nama aktor
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  partner NonEmployeePartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@index([partnerId, paymentDate])
+  @@index([taxYear, taxMonth])
+  @@index([status])
 }
