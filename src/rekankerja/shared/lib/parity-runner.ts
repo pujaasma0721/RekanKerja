@@ -373,6 +373,11 @@ export async function checkParityGap(): Promise<ParityGap> {
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'EmployeeWageTemplateHistory' AND table_schema = ANY($1::text[])`,
     );
+    // Task 106 — Pembayaran Bukan Pegawai (PMK 168/2023): tabel belum ada = gap.
+    const nonEmpOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
+       WHERE table_name = 'NonEmployeePayment' AND table_schema = ANY($1::text[])`,
+    );
     // Task 52-d — kolom PII lanjutan: nilai plaintext tersisa = gap (sekuensial).
     const piiPlainOk =
       (await rowSchemas("Employee", `("bpjsHealth" IS NOT NULL AND "bpjsHealth" NOT LIKE 'enc:%') OR ("bpjsEmpSkill" IS NOT NULL AND "bpjsEmpSkill" NOT LIKE 'enc:%')`)) +
@@ -398,6 +403,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (!companyCodeOk) reasons.push("platform: kolom Tenant.companyCode belum ada (Task 58-b — registrasi workspace gagal)");
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
+    if (nonEmpOk < schemas.length) reasons.push(`${schemas.length - nonEmpOk} tenant tanpa tabel Pembayaran Bukan Pegawai (Task 106 — PMK 168/2023)`);
     // Task 64k — kolom PasswordPolicy.idleTimeoutMinutes belum ada = gap.
     // Penyebut = jumlah schema yang PUNYA tabel PasswordPolicy (tenant sampah
     // tanpa tabel tsb tidak pernah bisa punya kolom → jangan jadi gap permanen).
