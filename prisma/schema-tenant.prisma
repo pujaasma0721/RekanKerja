@@ -3012,8 +3012,10 @@ model DirectMessage {
 // Bebas (konsultan, akuntan, dokter, notaris, dsb.) dan pemberi jasa lain yang
 // dibayar honorarium/komisi/fee — BUKAN gaji karyawan. PPh21 (Pasal 12(3) +
 // 16(3) PMK 168/2023): DPP = 50% × bruto; pajak = tarif Pasal 17 UU PPh × DPP;
-// sifatnya FINAL — tanpa PTKP, tanpa biaya jabatan, tanpa TER. Bukti potong
-// dilaporkan sebagai bupot "Pembayaran kepada Pihak Lain" (Coretax), bukan 1721-A1.
+// KREDIT PAJAK penerima di SPT Tahunan (bukan pajak final — Lampiran PMK
+// 168/2023 catatan contoh V) — tanpa PTKP, tanpa biaya jabatan, tanpa TER.
+// Bukti potong dilaporkan sebagai bupot "Pembayaran kepada Pihak Lain"
+// (Coretax), bukan 1721-A1.
 model NonEmployeePartner {
   id          String   @id @default(cuid())
   code        String   @unique
@@ -3035,8 +3037,10 @@ model NonEmployeePartner {
   @@index([active, name])
 }
 
-// Satu pembayaran honor/fee → PPh21 final dihitung service (DPP 50% × Pasal 17).
-// Nilai uang TERENKRIPSI (enc:v1:n) — dekripsi hanya di batas serializer (money-view).
+// Satu pembayaran honor/fee → PPh21 dihitung service (DPP 50% × Pasal 17
+// atas bruto setelah eksklusi Pasal 12(4)(b)) — kredit pajak penerima di SPT
+// Tahunan. Nilai uang TERENKRIPSI (enc:v1:n) — dekripsi hanya di batas
+// serializer (money-view).
 model NonEmployeePayment {
   id              String    @id @default(cuid())
   docNo           String    @unique // BPNP-2026-0001 — dibuat server (max-scan per tahun, pola modul medical)
@@ -3044,7 +3048,8 @@ model NonEmployeePayment {
   description     String
   grossAmount     String // penghasilan bruto yang dibayarkan ke Bukan Pegawai — TERENKRIPSI (M-8)
   excludedNotes   String? // catatan komponen yang dikeluarkan dari bruto (tenaga kerja/material/pihak ketiga — Pasal 12(4)-(5))
-  dpp             String // = 50% × grossAmount (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
+  excludedAmount  String? // nilai komponen Pasal 12(4)(b) yang dikeluarkan dari bruto SEBELUM ×50% — TERENKRIPSI (M-8)
+  dpp             String // = 50% × (grossAmount − excludedAmount) (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
   pph21           String // = tarif Pasal 17 × dpp (snapshot hasil kalkulasi) — TERENKRIPSI (M-8)
   netAmount       String // = grossAmount − pph21 — TERENKRIPSI (M-8)
   paymentDate     DateTime

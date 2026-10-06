@@ -374,9 +374,16 @@ export async function checkParityGap(): Promise<ParityGap> {
        WHERE table_name = 'EmployeeWageTemplateHistory' AND table_schema = ANY($1::text[])`,
     );
     // Task 106 — Pembayaran Bukan Pegawai (PMK 168/2023): tabel belum ada = gap.
+    // T107 (audit PMK 168/2023) — kolom eksklusi numerik Pasal 12(4)(b) belum
+    // ada = gap (tenant pra-T107 memotong PPh21 tanpa mengurangi komponen
+    // tenaga kerja/material/pihak ketiga yang terbukti).
     const nonEmpOk = await q(
       `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.tables
        WHERE table_name = 'NonEmployeePayment' AND table_schema = ANY($1::text[])`,
+    );
+    const nonEmpExclOk = await q(
+      `SELECT COUNT(DISTINCT table_schema)::int AS n FROM information_schema.columns
+       WHERE table_name = 'NonEmployeePayment' AND column_name = 'excludedAmount' AND table_schema = ANY($1::text[])`,
     );
     // Task 52-d — kolom PII lanjutan: nilai plaintext tersisa = gap (sekuensial).
     const piiPlainOk =
@@ -404,6 +411,7 @@ export async function checkParityGap(): Promise<ParityGap> {
     if (runLogOk < schemas.length) reasons.push(`${schemas.length - runLogOk} tenant tanpa tabel PayrollRunLog (Task 63)`);
     if (wageHistOk < schemas.length) reasons.push(`${schemas.length - wageHistOk} tenant tanpa tabel EmployeeWageTemplateHistory (Task 64)`);
     if (nonEmpOk < schemas.length) reasons.push(`${schemas.length - nonEmpOk} tenant tanpa tabel Pembayaran Bukan Pegawai (Task 106 — PMK 168/2023)`);
+    if (nonEmpExclOk < schemas.length) reasons.push(`${schemas.length - nonEmpExclOk} tenant tanpa kolom NonEmployeePayment.excludedAmount (T107 — eksklusi Pasal 12(4)(b) PMK 168/2023)`);
     // Task 64k — kolom PasswordPolicy.idleTimeoutMinutes belum ada = gap.
     // Penyebut = jumlah schema yang PUNYA tabel PasswordPolicy (tenant sampah
     // tanpa tabel tsb tidak pernah bisa punya kolom → jangan jadi gap permanen).

@@ -6,11 +6,15 @@
 // Mereka bukan Pegawai Tetap/Tidak Tetap, jadi TIDAK lewat mesin payroll
 // karyawan (PTKP, biaya jabatan, TER bulanan tidak berlaku).
 //
-// PPh21 (Pasal 12(3) + 16(3) PMK 168/2023):
-//   DPP  = 50% × penghasilan bruto
-//   PPh  = tarif Pasal 17 UU PPh (bracket progresif) × DPP  — sifatnya FINAL
-// Rate non-NPWP (surcharge ×120% UU HPP) dibaca dari baris TaxBracket tenant →
-// yurisdiksi tarif tetap SATU sumber kebenaran dengan mesin payroll.
+// PPh21 (Pasal 12(3) + 12(4)(b) + 16(3) PMK 168/2023):
+//   Bruto kena pajak = bruto − eksklusi (tenaga kerja/material/pihak ketiga
+//                      terbukti — HANYA untuk jasa NON-katering, Pasal 12(4)-(5))
+//   DPP  = 50% × bruto kena pajak
+//   PPh  = tarif Pasal 17 UU PPh (bracket progresif) × DPP
+//   Untuk penerima (residen OP) PPh21 ini adalah KREDIT PAJAK pada SPT
+//   Tahunan-nya (Lampiran PMK 168/2023 catatan contoh V) — BUKAN pajak final.
+// Rate non-NPWP (surcharge ×120% UU HPP Ps.17(1a)) dibaca dari baris TaxBracket
+// tenant → yurisdiksi tarif tetap SATU sumber kebenaran dengan mesin payroll.
 //
 // Bukti potong dilaporkan sebagai bupot "Pembayaran kepada Pihak Lain"
 // (e-Bupot 21/26 / Coretax) — BUKAN 1721-A1. Ledger per masa pajak di sini
@@ -18,7 +22,7 @@
 // =====================================================================
 import { progressiveTax, type EngineBracket } from "@/rekankerja/payroll/services/payroll-engine";
 
-/** DPP Bukan Pegawai = 50% × bruto (Pasal 12(3) PMK 168/2023). */
+/** DPP Bukan Pegawai = 50% × bruto kena pajak (Pasal 12(3) PMK 168/2023). */
 export const NON_EMPLOYEE_DPP_RATE = 0.5;
 
 export interface NonEmployeeTaxItem {
@@ -28,11 +32,13 @@ export interface NonEmployeeTaxItem {
 
 export interface NonEmployeeTaxResult {
   gross: number;
+  excluded: number; // komponen dikeluarkan dari bruto (Pasal 12(4)(b))
+  taxableGross: number; // bruto − excluded = dasar ×50%
   excludedNotes: string; // catatan komponen yang dikeluarkan dari bruto (Pasal 12(4)-(5))
-  dpp: number; // 50% × gross
+  dpp: number; // 50% × taxableGross
   dppRate: number;
-  pph21: number; // tarif Pasal 17 × DPP — FINAL
-  net: number; // gross − PPh21
+  pph21: number; // tarif Pasal 17 × DPP — kredit pajak penerima di SPT Tahunan
+  net: number; // gross − pph21
   brackets: { lower: number; upper: number | null; rate: number; taxable: number; tax: number }[]; // kertas kerja lapisan
   hasNpwp: boolean;
   items: NonEmployeeTaxItem[]; // baris slip untuk UI
@@ -41,6 +47,7 @@ export interface NonEmployeeTaxResult {
 export interface TaxContext {
   brackets: EngineBracket[];
   hasNpwp: boolean;
+  isCatering?: boolean; // jasa katering: bruto = seluruh jumlah (Pasal 12(4)(a))
 }
 
 /** Tahun/masa pajak dari tanggal pembayaran — kunci ledger bukti potong. */
@@ -49,22 +56,39 @@ export function taxPeriodOf(date: Date): { year: number; month: number } {
 }
 
 /**
- * Kalkulasi MURNI (tanpa mutasi DB) PPh21 final pembayaran Bukan Pegawai.
+ * Kalkulasi MURNI (tanpa mutasi DB) PPh21 pembayaran Bukan Pegawai.
  * `ctx.brackets` dari tabel TaxBracket tenant (sumber sama dengan engine
- * payroll) — pembulatan: PPh21 KE BAWAH rupiah penuh (PMK 168/2023 — "dibulatkan
- * ke bawah dalam rupiah penuh"); bruto/DPP rupiah penuh (tanpa pembulatan ribuan —
- * itu konsep PKP karyawan progresif, tidak berlaku di sini).
+ * payroll) — pembulatan: PPh21 KE BAWAH rupiah penuh; bruto/DPP rupiah penuh
+ * (tanpa pembulatan ribuan — itu konsep PKP karyawan progresif, tidak berlaku
+ * di sini).
+ *
+ * Eksklusi `excludedAmount` (Pasal 12(4)(b)1-3: gaji tenaga kerja mitra, barang/
+ * material, jasa pihak ketiga) dikurangkan dari bruto SEBELUM ×50% — contoh
+ * resmi Lampiran V.4 (Tuan V): 10jt − (4,5jt + 1jt) → DPP 2,25jt → PPh 112.500.
+ * Jasa KATERING (Pasal 12(4)(a)): bruto = seluruh jumlah — eksklusi DILARANG.
  */
-export function computeNonEmployeeTax(gross: number, ctx: TaxContext, excludedNotes?: string | null): NonEmployeeTaxResult {
+export function computeNonEmployeeTax(
+  gross: number,
+  ctx: TaxContext,
+  excludedNotes?: string | null,
+  excludedAmount?: number | null,
+): NonEmployeeTaxResult {
   const g = Math.max(0, Math.round(gross));
-  const dpp = Math.round(g * NON_EMPLOYEE_DPP_RATE); // Pasal 12(3)
+  let excl = Math.max(0, Math.floor(excludedAmount ?? 0));
+  if (ctx.isCatering && excl > 0) {
+    throw new Error("Jasa katering: bruto = seluruh jumlah penghasilan — komponen tenaga kerja/material tidak boleh dikeluarkan (Pasal 12(4)(a) PMK 168/2023)");
+  }
+  if (excl > g) excl = g; // guard: eksklusi tidak melebihi bruto
+  const taxable = g - excl;
+  const dpp = Math.round(taxable * NON_EMPLOYEE_DPP_RATE); // Pasal 12(3)
   const rate = (b: EngineBracket) => (ctx.hasNpwp ? b.rateNpwp : b.rateNonNpwp);
   const pph21 = Math.floor(progressiveTax(dpp, ctx.brackets, ctx.hasNpwp)); // ke bawah rupiah penuh
   const items: NonEmployeeTaxItem[] = [
     { code: "NEP_FEE", name: "Imbalan (honorarium/komisi/fee)", kind: "Earning", amount: g, note: "Penghasilan bruto Bukan Pegawai" },
-    ...(excludedNotes ? [{ code: "NEP_EXCL", name: "Dikeluarkan dari bruto", kind: "Information" as const, amount: 0, note: excludedNotes }] : []),
-    { code: "NEP_DPP", name: "Dasar Pengenaan Pajak (50% bruto)", kind: "Information", amount: dpp, note: "Pasal 12(3) PMK 168/2023" },
-    { code: "NEP_PPH", name: "PPh21 Final (tarif Pasal 17 UU PPh)", kind: "Tax", amount: pph21, note: "Pasal 16(3) PMK 168/2023 — sifat final" },
+    ...(excl > 0 ? [{ code: "NEP_EXCL_AMT", name: "Komponen dikeluarkan dari bruto", kind: "Information" as const, amount: excl, note: "Gaji tenaga kerja / barang-material / jasa pihak ketiga terbukti (Pasal 12(4)(b) PMK 168/2023)" }] : []),
+    ...(excludedNotes ? [{ code: "NEP_EXCL", name: "Catatan eksklusi", kind: "Information" as const, amount: 0, note: excludedNotes }] : []),
+    { code: "NEP_DPP", name: `Dasar Pengenaan Pajak (50% × bruto kena pajak${excl > 0 ? " setelah eksklusi" : ""})`, kind: "Information", amount: dpp, note: "Pasal 12(3) PMK 168/2023" },
+    { code: "NEP_PPH", name: "PPh21 dipotong (tarif Pasal 17 UU PPh)", kind: "Tax", amount: pph21, note: "Pasal 16(3) PMK 168/2023 — kredit pajak penerima di SPT Tahunan" },
     { code: "NEP_NET", name: "Dibayarkan ke Bukan Pegawai", kind: "Information", amount: g - pph21 },
   ];
   // breakdown lapisan (kertas kerja Pasal 20(1)(c))
@@ -73,11 +97,11 @@ export function computeNonEmployeeTax(gross: number, ctx: TaxContext, excludedNo
   for (const b of sorted) {
     if (dpp <= b.lowerLimit) break;
     const upper = b.upperLimit ?? Infinity;
-    const taxable = Math.min(dpp, upper) - b.lowerLimit;
-    if (taxable <= 0) break;
-    brackets.push({ lower: b.lowerLimit, upper: b.upperLimit, rate: rate(b), taxable, tax: Math.floor(taxable * rate(b)) });
+    const taxableB = Math.min(dpp, upper) - b.lowerLimit;
+    if (taxableB <= 0) break;
+    brackets.push({ lower: b.lowerLimit, upper: b.upperLimit, rate: rate(b), taxable: taxableB, tax: Math.floor(taxableB * rate(b)) });
   }
-  return { gross: g, excludedNotes: excludedNotes ?? "", dpp, dppRate: NON_EMPLOYEE_DPP_RATE, pph21, net: g - pph21, brackets, hasNpwp: ctx.hasNpwp, items };
+  return { gross: g, excluded: excl, taxableGross: taxable, excludedNotes: excludedNotes ?? "", dpp, dppRate: NON_EMPLOYEE_DPP_RATE, pph21, net: g - pph21, brackets, hasNpwp: ctx.hasNpwp, items };
 }
 
 // ============ nomor dokumen ============

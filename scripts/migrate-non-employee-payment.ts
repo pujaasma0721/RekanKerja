@@ -55,6 +55,7 @@ export async function main(schemas?: string[]): Promise<void> {
             "description" TEXT NOT NULL,
             "grossAmount" TEXT NOT NULL,
             "excludedNotes" TEXT,
+            "excludedAmount" TEXT,
             "dpp" TEXT NOT NULL,
             "pph21" TEXT NOT NULL,
             "netAmount" TEXT NOT NULL,
@@ -72,6 +73,10 @@ export async function main(schemas?: string[]): Promise<void> {
       await c.query(`CREATE INDEX IF NOT EXISTS "NonEmployeePayment_partnerId_paymentDate_idx" ON "NonEmployeePayment"("partnerId", "paymentDate")`);
       await c.query(`CREATE INDEX IF NOT EXISTS "NonEmployeePayment_taxYear_taxMonth_idx" ON "NonEmployeePayment"("taxYear", "taxMonth")`);
       await c.query(`CREATE INDEX IF NOT EXISTS "NonEmployeePayment_status_idx" ON "NonEmployeePayment"("status")`);
+      // T107 (audit PMK 168/2023) — kolom eksklusi numerik Pasal 12(4)(b):
+      // komponen (gaji tenaga kerja mitra / barang-material / jasa pihak ketiga)
+      // dikurangkan dari bruto SEBELUM ×50% (contoh resmi Lampiran V.4).
+      await c.query(`ALTER TABLE "NonEmployeePayment" ADD COLUMN IF NOT EXISTS "excludedAmount" TEXT`);
       migrated += 1;
       console.log(`[${schema}] tabel Pembayaran Bukan Pegawai siap (PMK 168/2023)`);
     } finally {

@@ -49,15 +49,16 @@ export async function GET(req: NextRequest) {
       const tc = tenantCryptoForDb(db);
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
       const lines = [
-        ["DokNo", "Tanggal Bayar", "Masa Pajak", "Kode Mitra", "Nama Mitra", "Jenis Id", "Nomor Id (mask)", "Jenis Jasa", "Uraian", "Bruto", "DPP (50%)", "PPh21 Final", "Neto"].join(";"),
+        ["DokNo", "Tanggal Bayar", "Masa Pajak", "Kode Mitra", "Nama Mitra", "Jenis Id", "Nomor Id (mask)", "Jenis Jasa", "Uraian", "Bruto", "Dikeluarkan (12(4)b)", "DPP (50%)", "PPh21 Dipotong", "Neto"].join(";"),
         ...rows.map((r) => {
           const idNum = tc.decryptText(r.partner.idNumber) ?? "";
           const masked = idNum ? `${"*".repeat(Math.max(0, idNum.length - 4))}${idNum.slice(-4)}` : "-";
+          const excl = r.excludedAmount ? (mv.dec0(r.excludedAmount) || 0) : 0;
           return [
             esc(r.docNo), r.paymentDate.toISOString().slice(0, 10), `${r.taxMonth}/${r.taxYear}`,
             esc(r.partner.code), esc(r.partner.name), r.partner.idType, masked, esc(r.partner.serviceKind),
             esc(r.description),
-            String(mv.dec0(r.grossAmount)), String(mv.dec0(r.dpp)), String(mv.dec0(r.pph21)), String(mv.dec0(r.netAmount)),
+            String(mv.dec0(r.grossAmount)), String(excl), String(mv.dec0(r.dpp)), String(mv.dec0(r.pph21)), String(mv.dec0(r.netAmount)),
           ].join(";");
         }),
       ];
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ paymentDate: "desc" }, { docNo: "desc" }],
         take: 500,
       });
-      const partners = await db.nonEmployeePartner.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, code: true, name: true } });
+      const partners = await db.nonEmployeePartner.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, code: true, name: true, isCatering: true } });
       const years = await db.nonEmployeePayment.findMany({ select: { taxYear: true }, distinct: ["taxYear"] });
       return NextResponse.json(mv.json({
         payments,
@@ -162,17 +163,26 @@ export async function POST(req: NextRequest) {
     }
     const gross = Number(b.grossAmount);
     if (!Number.isFinite(gross) || gross <= 0) return NextResponse.json({ error: "Penghasilan bruto harus angka > 0" }, { status: 400 });
+    const excludedAmount = b.excludedAmount == null ? 0 : Number(b.excludedAmount);
+    if (!Number.isFinite(excludedAmount) || excludedAmount < 0) return NextResponse.json({ error: "Komponen dikeluarkan harus angka ≥ 0" }, { status: 400 });
+    if (excludedAmount > gross) return NextResponse.json({ error: "Komponen dikeluarkan tidak boleh melebihi penghasilan bruto (Pasal 12(4)(b))" }, { status: 400 });
     const partner = await db.nonEmployeePartner.findUnique({ where: { id: b.partnerId } });
     if (!partner) return NextResponse.json({ error: "Mitra tidak ditemukan" }, { status: 404 });
+    if (partner.isCatering && excludedAmount > 0) {
+      return NextResponse.json({ error: "Jasa katering: bruto = seluruh jumlah penghasilan — komponen tenaga kerja/material tidak boleh dikeluarkan (Pasal 12(4)(a) PMK 168/2023)" }, { status: 400 });
+    }
 
     const paymentDate = new Date(b.paymentDate);
     const { year, month } = taxPeriodOf(paymentDate);
     const brackets = await db.taxBracket.findMany({ where: { bracketType: "Income", OR: [{ validTo: null }, { validTo: { gte: paymentDate } }] } });
-    // NPWP mitra (PII terenkripsi) menentukan tarif (rateNpwp vs rateNonNpwp ×120%)
+    // Tarif mengikuti identitas mitra (PII terenkripsi):
+    // · NPWP 15/16 digit → tarif NPWP
+    // · NIK 16 digit → tarif NPWP — UU HPP & PMK 66/2023: NIK penduduk = NPWP
+    // · selainnya (tanpa identitas / format tidak valid) → surcharge ×120%
     const tc = tenantCryptoForDb(db);
-    const idNum = partner.idType === "npwp" ? (tc.decryptText(partner.idNumber) ?? "") : "";
-    const hasNpwp = partner.idType !== "none" && (partner.idType === "nik" ? false : idNum.replace(/[^0-9]/g, "").length >= 15);
-    const calc = computeNonEmployeeTax(gross, { brackets, hasNpwp }, b.excludedNotes ?? null);
+    const idDigits = (tc.decryptText(partner.idNumber) ?? "").replace(/[^0-9]/g, "");
+    const hasNpwp = partner.idType === "npwp" ? idDigits.length >= 15 : partner.idType === "nik" && idDigits.length === 16;
+    const calc = computeNonEmployeeTax(gross, { brackets, hasNpwp, isCatering: partner.isCatering }, b.excludedNotes ?? null, excludedAmount);
     const docNo = await nextDocNo(db, year);
 
     const payment = await db.nonEmployeePayment.create({
@@ -180,6 +190,7 @@ export async function POST(req: NextRequest) {
         docNo, partnerId: partner.id, description: b.description.trim(),
         // M-8: kolom uang NOT NULL (String) — encryptMoney non-null (null → "0" terenkripsi).
         grossAmount: tc.encryptMoney(calc.gross) ?? "0", excludedNotes: calc.excludedNotes || null,
+        excludedAmount: calc.excluded > 0 ? (tc.encryptMoney(calc.excluded) ?? "0") : null,
         dpp: tc.encryptMoney(calc.dpp) ?? "0", pph21: tc.encryptMoney(calc.pph21) ?? "0", netAmount: tc.encryptMoney(calc.net) ?? "0",
         paymentDate, taxYear: year, taxMonth: month,
         status: b.status === "Paid" ? "Paid" : "Draft",
@@ -188,7 +199,7 @@ export async function POST(req: NextRequest) {
       },
       include: { partner: { select: { code: true, name: true, serviceKind: true } } },
     });
-    await db.activityLog.create({ data: { action: "Created", entity: "NonEmployeePayment", entityId: payment.id, detail: `Pembayaran Bukan Pegawai ${docNo} — ${partner.name}, PPh21 final (PMK 168/2023)` } });
+    await db.activityLog.create({ data: { action: "Created", entity: "NonEmployeePayment", entityId: payment.id, detail: `Pembayaran Bukan Pegawai ${docNo} — ${partner.name}, PPh21 dipotong (PMK 168/2023)` } });
     // 45-b: gate vault (aktor guard) — nilai uang dalam balikan mengikuti money-view.
     const mv = await getMoneyView(db, { userId: m.actor.userId, membershipRole: m.actor.role });
     return NextResponse.json(mv.json({ payment }), { status: 201 });
@@ -255,6 +266,12 @@ export async function PATCH(req: NextRequest) {
 
     // Draft: ubah deskripsi/tanggal → recompute pajak bila bruto/tanggal/mitra berubah
     const gross = b.grossAmount != null ? Number(b.grossAmount) : (tc.decryptMoney(existing.grossAmount) ?? 0);
+    const excludedAmount = b.excludedAmount != null ? Number(b.excludedAmount) : (existing.excludedAmount ? (tc.decryptMoney(existing.excludedAmount) ?? 0) : 0);
+    if (!Number.isFinite(excludedAmount) || excludedAmount < 0) return NextResponse.json({ error: "Komponen dikeluarkan harus angka ≥ 0" }, { status: 400 });
+    if (excludedAmount > gross) return NextResponse.json({ error: "Komponen dikeluarkan tidak boleh melebihi penghasilan bruto (Pasal 12(4)(b))" }, { status: 400 });
+    if (partner.isCatering && excludedAmount > 0) {
+      return NextResponse.json({ error: "Jasa katering: bruto = seluruh jumlah penghasilan — komponen tenaga kerja/material tidak boleh dikeluarkan (Pasal 12(4)(a) PMK 168/2023)" }, { status: 400 });
+    }
     const paymentDate = b.paymentDate ? new Date(b.paymentDate) : existing.paymentDate;
     const partnerId = b.partnerId ?? existing.partnerId;
     const partner = partnerId === existing.partnerId ? existing.partner : await db.nonEmployeePartner.findUnique({ where: { id: partnerId } });
@@ -262,9 +279,10 @@ export async function PATCH(req: NextRequest) {
     const { year, month } = taxPeriodOf(paymentDate);
     const periodChanged = year !== existing.taxYear || month !== existing.taxMonth;
     const brackets = await db.taxBracket.findMany({ where: { bracketType: "Income", OR: [{ validTo: null }, { validTo: { gte: paymentDate } }] } });
-    const idNum = partner.idType === "npwp" ? (tc.decryptText(partner.idNumber) ?? "") : "";
-    const hasNpwp = partner.idType !== "none" && (partner.idType === "nik" ? false : idNum.replace(/[^0-9]/g, "").length >= 15);
-    const calc = computeNonEmployeeTax(gross, { brackets, hasNpwp }, b.excludedNotes ?? existing.excludedNotes);
+    // NIK 16 digit = NPWP (UU HPP & PMK 66/2023) — lihat catatan POST di atas.
+    const idDigits = (tc.decryptText(partner.idNumber) ?? "").replace(/[^0-9]/g, "");
+    const hasNpwp = partner.idType === "npwp" ? idDigits.length >= 15 : partner.idType === "nik" && idDigits.length === 16;
+    const calc = computeNonEmployeeTax(gross, { brackets, hasNpwp, isCatering: partner.isCatering }, b.excludedNotes ?? existing.excludedNotes, excludedAmount);
 
     const payment = await db.nonEmployeePayment.update({
       where: { id: b.id },
@@ -273,6 +291,7 @@ export async function PATCH(req: NextRequest) {
         ...(b.partnerId != null ? { partnerId } : {}),
         grossAmount: tc.encryptMoney(calc.gross) ?? "0",
         excludedNotes: calc.excludedNotes || null,
+        excludedAmount: calc.excluded > 0 ? (tc.encryptMoney(calc.excluded) ?? "0") : null,
         dpp: tc.encryptMoney(calc.dpp) ?? "0", pph21: tc.encryptMoney(calc.pph21) ?? "0", netAmount: tc.encryptMoney(calc.net) ?? "0",
         paymentDate, taxYear: year, taxMonth: month,
         ...(b.status === "Paid" ? { status: "Paid", paidAt: new Date() } : b.status ? { status: b.status } : {}),

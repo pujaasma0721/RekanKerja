@@ -2345,6 +2345,7 @@ CREATE TABLE "NonEmployeePayment" (
     "description" TEXT NOT NULL,
     "grossAmount" TEXT NOT NULL,
     "excludedNotes" TEXT,
+    "excludedAmount" TEXT,
     "dpp" TEXT NOT NULL,
     "pph21" TEXT NOT NULL,
     "netAmount" TEXT NOT NULL,
