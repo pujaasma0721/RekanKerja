@@ -386,3 +386,65 @@ html.dark[data-module][data-accent="1"] {
     transform: translateX(-50%);
   }
 }
+
+/* ============================================================
+   T104 — CETAK DOKUMEN LAPORAN HR (tab "Reports") ===================
+   Mekanisme: tombol Cetak meng-clone #rk-print-area ke body sebagai
+   #rk-print-clone + class rk-printing; @media print menyembunyikan semua
+   anak body lain, melepas scroll container (.doc-scroll) supaya seluruh
+   baris tercetak, dan menjaga warna badge (print-color-adjust: exact).
+   Ukuran kertas A4 (margin 11mm) — PDF via "Save as PDF".
+   ============================================================ */
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  body.rk-printing > *:not(#rk-print-clone) {
+    display: none !important;
+  }
+  #rk-print-clone {
+    display: block !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+  /* container tabel di-scroll di layar → penuh saat cetak */
+  #rk-print-clone .doc-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+  /* header tabel tak perlu menempel saat cetak */
+  #rk-print-clone .sticky {
+    position: static !important;
+  }
+  /* tabel menyesuaikan lebar kertas — kolom rapat boleh membungkus */
+  #rk-print-clone table {
+    width: 100% !important;
+  }
+  #rk-print-clone td,
+  #rk-print-clone th {
+    overflow-wrap: break-word;
+  }
+  /* jaga agar baris tabel tidak terpotong antar halaman */
+  #rk-print-clone tr,
+  #rk-print-clone .doc-scroll > div {
+    break-inside: avoid;
+  }
+  /* warna badge/label tetap tercetak */
+  #rk-print-clone,
+  #rk-print-clone * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* area dokumen di layar sendiri tak ikut tercetak */
+  body.rk-printing #rk-print-area {
+    display: none !important;
+  }
+}

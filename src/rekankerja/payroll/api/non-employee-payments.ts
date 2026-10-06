@@ -269,13 +269,13 @@ export async function PATCH(req: NextRequest) {
     const excludedAmount = b.excludedAmount != null ? Number(b.excludedAmount) : (existing.excludedAmount ? (tc.decryptMoney(existing.excludedAmount) ?? 0) : 0);
     if (!Number.isFinite(excludedAmount) || excludedAmount < 0) return NextResponse.json({ error: "Komponen dikeluarkan harus angka ≥ 0" }, { status: 400 });
     if (excludedAmount > gross) return NextResponse.json({ error: "Komponen dikeluarkan tidak boleh melebihi penghasilan bruto (Pasal 12(4)(b))" }, { status: 400 });
-    if (partner.isCatering && excludedAmount > 0) {
-      return NextResponse.json({ error: "Jasa katering: bruto = seluruh jumlah penghasilan — komponen tenaga kerja/material tidak boleh dikeluarkan (Pasal 12(4)(a) PMK 168/2023)" }, { status: 400 });
-    }
     const paymentDate = b.paymentDate ? new Date(b.paymentDate) : existing.paymentDate;
     const partnerId = b.partnerId ?? existing.partnerId;
     const partner = partnerId === existing.partnerId ? existing.partner : await db.nonEmployeePartner.findUnique({ where: { id: partnerId } });
     if (!partner) return NextResponse.json({ error: "Mitra tidak ditemukan" }, { status: 404 });
+    if (partner.isCatering && excludedAmount > 0) {
+      return NextResponse.json({ error: "Jasa katering: bruto = seluruh jumlah penghasilan — komponen tenaga kerja/material tidak boleh dikeluarkan (Pasal 12(4)(a) PMK 168/2023)" }, { status: 400 });
+    }
     const { year, month } = taxPeriodOf(paymentDate);
     const periodChanged = year !== existing.taxYear || month !== existing.taxMonth;
     const brackets = await db.taxBracket.findMany({ where: { bracketType: "Income", OR: [{ validTo: null }, { validTo: { gte: paymentDate } }] } });

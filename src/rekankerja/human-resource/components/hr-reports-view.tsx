@@ -19,9 +19,10 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from "recharts";
 import { motion } from "framer-motion";
-import { Users, UserPlus, UserMinus, TrendingUp, Hourglass, Download, RefreshCw, BarChart3, PieChart as PieIcon, Cake, BriefcaseBusiness, Heart, Landmark, GraduationCap, Network, Medal, Award, Building2, Droplet, Table2 } from "lucide-react";
+import { Users, UserPlus, UserMinus, TrendingUp, Hourglass, Download, RefreshCw, BarChart3, PieChart as PieIcon, Cake, BriefcaseBusiness, Heart, Landmark, GraduationCap, Network, Medal, Award, Building2, Droplet, Table2, FolderOpen } from "lucide-react";
 import { useI18n, loc } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { ReportDocumentsTab } from "./report-documents/report-documents-tab";
 
 interface CountRow { label: string; count: number }
 interface BucketRow { key: string; label: string; count: number }
@@ -100,8 +101,8 @@ export function HrReportsView() {
         eyebrow={t("MODUL HUMAN RESOURCE")}
         title={t("Laporan HR")}
         description={t(
-          "Turnover & tenure + komposisi demografi karyawan — agregat dari data karyawan & penempatan aktif (export XLSX per laporan).",
-          "Turnover & tenure + employee demographic composition — aggregated from employee & active assignment data (per-report XLSX export).",
+          "Turnover & tenure + komposisi demografi + 16 laporan distribusi siap cetak (biodata, kontrak, pergerakan, kepatuhan legal) — agregat dari data karyawan & penempatan aktif.",
+          "Turnover & tenure + demographics + 16 print-ready distribution reports (biodata, contracts, movement, legal compliance) — aggregated from employee & active assignment data.",
         )}
         actions={
           <>
@@ -129,6 +130,7 @@ export function HrReportsView() {
           <TabsList className="mb-4">
             <TabsTrigger value="turnover" className="gap-1.5 text-xs font-bold"><TrendingUp className="h-3.5 w-3.5" /> {t("Turnover & Tenure")}</TabsTrigger>
             <TabsTrigger value="demografi" className="gap-1.5 text-xs font-bold"><PieIcon className="h-3.5 w-3.5" /> {t("Demografi")}</TabsTrigger>
+            <TabsTrigger value="reports" className="gap-1.5 text-xs font-bold"><FolderOpen className="h-3.5 w-3.5" /> {t("Reports")}</TabsTrigger>
           </TabsList>
 
           {/* ================= TAB TURNOVER & TENURE ================= */}
@@ -267,6 +269,11 @@ export function HrReportsView() {
           {/* ================= TAB DEMOGRAFI ================= */}
           <TabsContent value="demografi">
             <DemografiTab data={data} />
+          </TabsContent>
+
+          {/* ================= TAB REPORTS (T104) ================= */}
+          <TabsContent value="reports">
+            <ReportDocumentsTab />
           </TabsContent>
         </Tabs>
       )}
