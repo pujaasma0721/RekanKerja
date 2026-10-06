@@ -4056,3 +4056,25 @@ Work Log:
 
 Stage Summary:
 - Modul kepatuhan PMK 168/2023 lengkap end-to-end (schema+migrasi+API+UI+nav) tanpa menyentuh engine payroll karyawan; commit 57cfab8+88c6d76 di origin/main; TERDEPLOY & TERVERIFIKASI di prod .15 (tabel siap di semua tenant, API route live — 401 unauthenticated sesuai guard). Pelajaran: menambah parity step WAJIB diiringi marker gap di checkParityGap(). KEBIJAKAN BARU atas permintaan user: setelah selesai pekerjaan → selalu push + deploy .15 + catat di worklog.md.
+
+---
+Task ID: T107
+Agent: main (Z.ai Code)
+Task: "pull lalu cek: apakah aplikasi sudah sesuai PMK 168/2023 (bukan pegawai)? Jika sudah, audit apakah prosesnya lengkap dan otomatis menghitung pajaknya"
+
+Work Log:
+- PULL: origin/main e49be31 (Task 106 modul Bukan Pegawai + parity fix). Sandbox sempat ke-reset ulang (node_modules/.env/prisma client hilang) → dipulihkan penuh: bun install, db:generate, .env (PLATFORM_DB_URL/TENANT_DB_BASE_URL tanpa ?schema=platform + SESSION_SECRET), mini-services/postgres start, db:push, restore-demo.ts (3 tenant), restart dev server.
+- AUDIT SUMBER: unduh PDF resmi PMK 168/2023 dari jdih.kemenkeu.go.id (69 hlm) — dibaca Pasal 3, 5, 8, 12, 13-16, 20 + Lampiran Petunjuk Umum IV & contoh V.3/V.4. Web search pendukung (pajak.go.id, unair, DDTC, pajakku).
+- AUDIT MESIN (scripts/audit-non-employee-pmk168.ts): 18/18 PASS pra-perbaikan — DPP 50% (12(3)), tarif Ps.17 progresif (16(3)), contoh resmi V.3 Tuan T 7jt→175.000 EXACT, non-NPWP ×1.2 (UU HPP Ps.17(1a)) 210.000, lintas lapisan 800jt→69jt, pembulatan ke bawah, transisi status, ledger masa pajak.
+- AUDIT E2E BROWSER (MII, agent-browser): login→modul→mitra→pembayaran 7jt NPWP-valid → server hitung 175.000 (persis V.3); NPWP 10-digit → 210.000 (guard <15 digit); ledger Okt: 14jt/7jt/385.000; CSV mask NPWP 4 digit. 0 error console/page. (E2E terganggu PWA-overlay & OOM-reaper → browser ditutup, server restart, PWA "Nanti" di-dismiss via DOM.)
+- TEMUAN AUDIT: (1) [HIGH] Eksklusi Pasal 12(4)(b) hanya catatan teks — tak memengaruhi hitungan (contoh V.4: 10jt−5,5jt→112.500, app lalu hitung 250.000 = overwithhold). (2) [MED] Label "PPh21 Final" keliru — Lampiran contoh V catatan 3: kredit pajak SPT Tahunan, BUKAN final. (3) [MED] NIK diperlakukan non-NPWP → surcharge, padahal NIK=NPWP (UU HPP & PMK 66/2023). (4) [MED] Hint katering TERBALIK (kata "wajib dipisah", regulasi: katering bruto=seluruh jumlah, 12(4)(a)). (5) [MED] Mitra tak bisa diedit dari UI (NPWP salah = salah tarif). (6) [CATATAN] Kategori lain PMK 168 di luar modul: Peserta Kegiatan (12(6) bruto penuh), Mantan Pegawai (12(8)), PPh 26 LN (14/20% final), Pegawai Tidak Tetap harian (TER 0%≤450k/0,5%≤2,5jt per PP 58/2023) — roadmap.
+- PERBAIKAN (5 temuan actionable, semua): service computeNonEmployeeTax(+excludedAmount, +isCatering ctx, throw katering+ekskusi, clamp, taxableGross/excluded di hasil); API POST/PATCH (validasi 0≤eksklusi≤bruto, tolak katering 400, NIK 16d=NPWP, simpan excludedAmount enkripsi M-8); schema NonEmployeePayment.excludedAmount String? + migrasi ALTER IF NOT EXISTS + marker gap parity nonEmpExclOk (pelajaran Task 106 diterapkan) + tenant-ddl.sql regenerate; UI (field numerik eksklusi + disable utk katering + hint benar, estimasi bruto-kena-pajak→DPP→PPh21, dialog Ubah mitra + switch aktif + kode terkunci, kolom aksi tabel mitra, semua label final→dipotong/kredit pajak, hint NIK=NPWP); CSV +kolom "Dikeluarkan (12(4)b)" +header "PPh21 Dipotong".
+- VERIFIKASI PASCA-PERBAIKAN: unit 29/29 PASS (termasuk V.4 full 10jt/5,5jt→112.500, katering throw, clamp); E2E browser: BPNP-0003 (API 10jt+5,5jt→112.500), BPNP-0004 (UI penuh→112.500), koreksi NPWP KONS-900 10→15 digit via dialog Ubah lalu bayar 7jt → 175.000 (bukan 210.000 — tarif ikut NPWP terkoreksi), mitra katering + eksklusi → 400 ditolak (12(4)(a)), tanpa eksklusi → DPP 4jt (bruto penuh), ledger Okt 672.500 (4 Paid), CSV kolom baru; lint 0 error; dev.log 0×500; mobile 390px tanpa overflow-X.
+- PUSH: commit cdc43d9 → origin/main sukses (e49be31..cdc43d9).
+- DEPLOY .15: GAGAL DARI SESI INI — sandbox reset menghapus ssh client & ~/.ssh (apt/sudo tak tersedia, ssh2 bun tanpa kredensial). Jalankan manual: ssh puja@192.168.1.15 '/home/puja/deploy.sh'. Parity marker excludedAmount sudah siap — boot deploy berikutnya otomatis ALTER semua tenant schema.
+
+Stage Summary:
+- Modul Bukan Pegawai TERBUKTI patuh inti PMK 168/2023 (DPP 50% × tarif Ps.17, contoh resmi V.3/V.4 EXACT, non-NPWP surcharge, kertas kerja Ps.20(1)(c), pelaporan bupot pihak-lain bukan 1721-A1). 5 temuan audit actionable SEMUA diperbaiki & terverifikasi ulang (29/29 unit + E2E). Kalkulasi 100% otomatis server-side (nilai client tak dipercaya) + estimasi live di dialog.
+- Kolom baru excludedAmount: migrasi idempoten + marker parity gap (anti-kejadian Task 106) + DDL regenerate — tenant baru/otomatis, tenant lama via parity deploy berikutnya.
+- Sisa roadmap (bukan bug, di luar cakupan modul): kategori Peserta Kegiatan/Mantan Pegawai/PPh 26 LN/Pegawai Tidak Tetap harian — belum dimodelkan.
+- Deploy .15 TERTUNDA (tanpa ssh di sesi ini) — push cdc43d9 sudah di origin/main; deploy manual bila peruh.
