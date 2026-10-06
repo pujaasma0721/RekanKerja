@@ -4079,7 +4079,6 @@ Stage Summary:
 - Sisa roadmap (bukan bug, di luar cakupan modul): kategori Peserta Kegiatan/Mantan Pegawai/PPh 26 LN/Pegawai Tidak Tetap harian — belum dimodelkan.
 - Deploy .15 TERTUNDA (tanpa ssh di sesi ini) — push cdc43d9 sudah di origin/main; deploy manual bila peruh.
 
-<<<<<<< HEAD
 ---
 Task ID: 104
 Agent: main orchestrator (Z.ai Code)
@@ -4100,7 +4099,6 @@ Stage Summary:
 - Tab "Reports" live di / Laporan HR: katalog 16 laporan (R1.1–R4.4) dalam 4 grup + viewer dokumen siap distribusi (kop, metadata, tabel berformat, ringkasan, sign-off, kerahasiaan) + Cetak/PDF (A4, landscape utk r11/r33/r42/r43/r44) + XLSX per laporan.
 - Artefak: api/report-documents.ts (~950 bar), report-documents/ (6 file), route documents, enrich-hr-reports-demo.ts; fix non-employee-payments.ts.
 - Data demo diperkaya (47 karyawan: 44 aktif, 5 kontrak w/ spread urgensi, 3 probation, 18 dokumen, 3 offboarding, 2 onboarding, 5 selisih BPJS) — laporan kepatuhan (WLKP/BPJS/SUSU/Sertifikasi) menampilkan data realistis.
-=======
 ================================================================================
 Task ID: T108
 Agent: main (Z.ai Code)
