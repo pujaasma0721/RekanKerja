@@ -4079,6 +4079,7 @@ Stage Summary:
 - Sisa roadmap (bukan bug, di luar cakupan modul): kategori Peserta Kegiatan/Mantan Pegawai/PPh 26 LN/Pegawai Tidak Tetap harian — belum dimodelkan.
 - Deploy .15 TERTUNDA (tanpa ssh di sesi ini) — push cdc43d9 sudah di origin/main; deploy manual bila peruh.
 
+<<<<<<< HEAD
 ---
 Task ID: 104
 Agent: main orchestrator (Z.ai Code)
@@ -4099,3 +4100,23 @@ Stage Summary:
 - Tab "Reports" live di / Laporan HR: katalog 16 laporan (R1.1–R4.4) dalam 4 grup + viewer dokumen siap distribusi (kop, metadata, tabel berformat, ringkasan, sign-off, kerahasiaan) + Cetak/PDF (A4, landscape utk r11/r33/r42/r43/r44) + XLSX per laporan.
 - Artefak: api/report-documents.ts (~950 bar), report-documents/ (6 file), route documents, enrich-hr-reports-demo.ts; fix non-employee-payments.ts.
 - Data demo diperkaya (47 karyawan: 44 aktif, 5 kontrak w/ spread urgensi, 3 probation, 18 dokumen, 3 offboarding, 2 onboarding, 5 selisih BPJS) — laporan kepatuhan (WLKP/BPJS/SUSU/Sertifikasi) menampilkan data realistis.
+=======
+================================================================================
+Task ID: T108
+Agent: main (Z.ai Code)
+Task: "cek menu 'HR Report' pada module 'human resource base', terapkan hal yang sama di module Attendance"
+
+Work Log:
+- IDENTIFIKASI HR REPORT: menu "HR Report" = item "Laporan HR" (id `reports`, menu key `hr:reports`, ikon ChartNoAxesColumn) di grup "Laporan" HR_NAV — BUKAN "Laporan Kustom" 28-b (custom-reports). Implementasi: HrReportsView (hr-reports-view.tsx — KPI cards + recharts + export) + API hr/reports (guard requireMenuAction hr:directory:view, agregat Employee+Assignment, export XLSX multi-sheet exceljs, audit ActivityLog). Pola serupa terkonfirmasi di leave/travel/medical (guard requireMenuViewAny "<mod>:<mod>-reports").
+- API BARU (src/rekankerja/time-attendance/api/reports.ts + thin route /api/rekankerja/attendance/reports): guard menu `attendance:reports` (view terpisah dari operasional — pola mod reports); sumber data AttendanceDaily (regen clocking, tanpa kolom uang): KPI bulan terpilih (?month=YYYY-MM, default berjalan) = hadir (Present+Late)/telat/absen/izin/cuti/off, total menit telat, jam kerja, jam lembur, tingkat kehadiran % = hadir/(hadir+tidak-hadir); tren 12 bulan (groupBy workDate+status, bucket "YYYY-MM" LOKAL — anti-bug B-10); komposisi status; top 10 pelanggaran jadwal (telat & absen terbanyak, unit dari assignment validTo null); rekap per karyawan & per unit kerja; ?export=kpi → XLSX 6 sheet (Ringkasan/Tren/Komposisi/Top/Per Karyawan/Per Unit — pola hr/reports) + audit ActivityLog try/catch legacy.
+- UI BARU (attendance-reports.tsx, pola hr-reports-view): PageHeader + pemilih bulan (input type=month) + Segarkan + Export XLSX (window.location.href attachment); 3 tab — "Rekap Bulan Ini" (5 KPI cards + bar chart tren 12 bln Hadir vs Absen+Izin + donut komposisi status dgn warna padanan STATUS_COLOR + tabel top 10 pelanggaran), "Per Karyawan" (filter klien nama/no./unit), "Per Unit Kerja"; motion + recharts + tabular-nums konsisten shell.
+- WIRING: ATTENDANCE_NAV grup "Laporan" { id:"reports", icon BarChart3 } → menu key `attendance:reports` (ALL/superadmin langsung terlihat; role CUSTOM lama perlu konfigurasi view via akses menu); router attendance-module.tsx case "reports"; i18n EN "Laporan Attendance"→"Attendance Reports".
+- VERIFIKASI: npx tsc --noEmit → 0 error baru (4 pre-existing: validator stale, fix-passwords, jsqr, html-to-image, remark-gfm); uji logika murni 11/11 asersi LULUS (ymLocal tanpa shift UTC, monthRange inklusif/eksklusif, last12Months lintas tahun Des→Jan, bucket 7 status → 5 tren, attendanceRate).
+- PUSH: commit a35df66 → origin/main (remote sempat maju ke cdc43d9/8ef663b — T107 thread lain — di-rebase bersih tanpa konflik).
+- DEPLOY .15: 2026-10-06 19:48:25 ✅ sukses (a35df66 aktif, rollback rekankerja-rollback-20261006-194238). PM2 `onevity` online; app listen :3001 (:3000 & :3005 milik next-server lain yang masih hidup — health 404/401 bukan app kita); homepage 200; API reports & export tanpa sesi = 401 (guard menu bekerja); boot log parity exit 0.
+- BONUS: deploy ini membawa migrasi `excludedAmount` T107 (yang sempat tertunda deploy) — verifikasi DB: kolom `excludedAmount` hadir di 8/8 tenant schema (sekaligus `taxMonth` Task 106).
+
+Stage Summary:
+- Modul Attendance kini punya "Laporan Attendance" (attendance:reports) — padanan 1:1 menu HR Report di HR: KPI bulanan + tren 12 bulan + komposisi status + top pelanggaran jadwal + rekap per karyawan/unit + export XLSX 6 sheet. Tanpa model/tabel baru (agregat AttendanceDaily) → tanpa migrasi/parity step; menu terpagar terpisah dari view operasional.
+- Deploy 19:48 sekaligus menutup deploy-pending T107: kolom excludedAmount live 8/8 tenant (verifikasi information_schema).
+- Deploy .15 = a35df66, health OK, guard API terverifikasi 401 tanpa sesi.
