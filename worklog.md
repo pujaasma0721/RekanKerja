@@ -4147,3 +4147,7 @@ Stage Summary:
 - Alur laporan kini sesuai ekspektasi user: (1) pilih laporan dari katalog → (2) FORM PARAMETER AWAL (cakupan cabang/unit/status kepegawaian, periode bulan/tahun/rentang tanggal, filter khusus laporan: urgensi kontrak/kategori sertifikasi/status sertifikasi) dengan validasi rentang & pratinjau cakupan → (3) "Generate Laporan" → dokumen siap-cetak. Filter diterapkan SERVER-SIDE (diverifikasi silang via API); chip parameter terpasang muncul di toolbar viewer + kop dokumen; XLSX & Cetak mengikuti query sama.
 - Bug kritis ditemukan & diperbaiki: Radix SelectItem value="" crash (form tidak bisa dibuka sama sekali) — sentinel "all" + respons _params bersih.
 - 2 file berubah (report-params-form.tsx, report-documents.ts) di atas fondasi T110 sesi sebelumnya (params.ts, alur 3-tahap, builder fp-aware — semua sudah benar, hanya crash UI-nya).
+## 2026-10-07 07:25 — pull github + deploy f7e4c06 (thread T108)
+- git pull origin main: 3 commit baru dari thread lain (811df5b, 7b3c0b6 fix T110 Radix SelectItem value="" crash pada form parameter laporan HR, f7e4c06 docs worklog) — fast-forward, tanpa konflik.
+- Deploy .15: ✅ 2026-10-07 07:20:30 — prod = f7e4c06 (rollback rekankerja-rollback-20261007-071513).
+- Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API attendance/reports tanpa sesi = 401, prod HEAD = f7e4c06.
