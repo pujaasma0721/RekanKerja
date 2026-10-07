@@ -3,6 +3,9 @@
 // (padanan History: Summary Based on Leave Type / Employee).
 // Task 99 (F1-3/F1-4) — toggle Tabel | Kalender: tabel + Export CSV; kalender
 // bulanan (grid murni CSS, tanpa lib) + filter unit + unduh ICS.
+// T112 — tab kedua "Reports": katalog 12 laporan distribusi siap-cetak
+// (saldo & hak, transaksi, ketidakhadiran, kepatuhan regulasi) dgn form
+// parameter awal (mirror HR tab Reports T110/T111).
 import { useMemo, useState } from "react";
 import { useApi, initials } from "@/rekankerja/shared/lib/api";
 import { PageHeader, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -13,8 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SESSION_LABEL, SESSION_LABEL_EN, fmtDay } from "./leave-types";
-import { BarChart3, CalendarSearch, CalendarDays, RefreshCw, Palmtree, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { LeaveReportDocumentsTab } from "./report-documents/report-documents-tab";
+import { BarChart3, CalendarSearch, CalendarDays, RefreshCw, Palmtree, Download, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 
@@ -129,7 +134,7 @@ export function LeaveReportsPage() {
       <PageHeader
         eyebrow={t("MODUL LEAVE", "LEAVE MODULE")}
         title={t("Laporan Cuti")}
-        description={t("Siapa yang sedang cuti pada rentang tanggal + ringkasan penggunaan per jenis cuti (padanan Query Employee on Leave & History)", "Who is on leave within a date range + usage summary per leave type (Query Employee on Leave & History equivalent)")}
+        description={t("Siapa yang sedang cuti + ringkasan per jenis cuti, dan 12 laporan distribusi siap-cetak (saldo, transaksi, ketidakhadiran, kepatuhan)", "Who is on leave + usage per type, and 12 print-ready distribution reports (balances, transactions, absenteeism, compliance)")}
         actions={
           <Button variant="outline" onClick={() => { api.refresh(); calApi.refresh(); }} className="gap-2 font-bold">
             <RefreshCw className="h-4 w-4" /> {t("Segarkan")}
@@ -137,6 +142,12 @@ export function LeaveReportsPage() {
         }
       />
 
+      <Tabs defaultValue="onleave" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="onleave" className="gap-1.5 text-xs font-bold"><CalendarSearch className="h-3.5 w-3.5" /> {t("Karyawan Cuti", "On Leave")}</TabsTrigger>
+          <TabsTrigger value="reports" className="gap-1.5 text-xs font-bold"><FolderOpen className="h-3.5 w-3.5" /> {t("Reports")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="onleave" className="space-y-4">
       <Card className="mb-4 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800">
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           {/* Task 99 — toggle Tabel | Kalender */}
@@ -316,8 +327,8 @@ export function LeaveReportsPage() {
           </CardContent>
         </Card>
       ) : (
-        api.loading && !api.data ? <LoadingRows rows={8} /> : (
-          <div className="grid gap-4 lg:grid-cols-3">
+          api.loading && !api.data ? <LoadingRows rows={8} /> : (
+            <div className="grid gap-4 lg:grid-cols-3">
             <Card className="min-w-0 rounded-2xl border-slate-200/80 shadow-sm dark:border-slate-800 lg:col-span-2">
               <CardContent className="p-0">
                 <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
@@ -399,6 +410,11 @@ export function LeaveReportsPage() {
           </div>
         )
       )}
+        </TabsContent>
+        <TabsContent value="reports">
+          <LeaveReportDocumentsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

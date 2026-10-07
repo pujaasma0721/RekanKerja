@@ -534,6 +534,9 @@ export const LEAVE_TYPE_DEFS: {
   { code: "CT-MATI-S", name: "Cuti Kematian Serumah/Saudara", description: "Kematian saudara/kakek/nenek/kenalan serumah (PP 35/2021)", entitlement: 1, needDocs: true },
   { code: "CT-HAJI", name: "Cuti Haji", description: "Ibadah haji (perusahaan menanggung upah penuh)", entitlement: 40, needDocs: true },
   { code: "CT-HAID", name: "Cuti Haid", description: "Cuti haid (UU 13/2003 pasal 81)", entitlement: 2, allowHalfDay: true },
+  // T112 — izin sakit berbayar wajib SKD (UU 13/2003 Ps.93) — dipakai laporan
+  // R3.2 modul Leave (audit kelengkapan Surat Keterangan Dokter).
+  { code: "CT-SAKIT", name: "Cuti Sakit (dengan SKD)", description: "Izin sakit dibayar penuh dengan Surat Keterangan Dokter (UU 13/2003 pasal 93)", entitlement: 12, allowHalfDay: true, needDocs: true },
   // Task 52-a + F-07/F-08 BPA-AUDIT-53 — UU 13/2003 Ps.82 & UU KIA 4/2024
   // Ps.4 ayat (3) huruf a: cuti melahirkan = 3 bulan PERTAMA (hak dasar) +
   // paling lama 3 bulan BERIKUTNYA HANYA bila ada kondisi khusus yang
