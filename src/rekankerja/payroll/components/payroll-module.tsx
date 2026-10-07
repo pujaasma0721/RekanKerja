@@ -17,6 +17,7 @@ import { PayrollBenefitsPage } from "@/rekankerja/payroll/components/payroll-ben
 // PMK 168/2023 — pembayaran honor/fee ke pihak non-karyawan (PPh21 final
 // DPP 50% × tarif Pasal 17), terpisah dari engine payroll karyawan.
 import { NonEmployeePaymentsPage } from "@/rekankerja/payroll/components/non-employee-payments";
+import { PayrollReportsPage } from "@/rekankerja/payroll/components/reports/payroll-reports-view";
 
 export function PayrollModule({ view }: { view: string }) {
   switch (view) {
@@ -29,6 +30,7 @@ export function PayrollModule({ view }: { view: string }) {
     case "transactions": return <PayrollTransactionsPage />;
     case "benefits": return <PayrollBenefitsPage />;
     case "non-employee": return <NonEmployeePaymentsPage />;
+    case "reports": return <PayrollReportsPage />;
     case "parameters": return <PayrollParametersPage />;
     case "accounting": return <AccountingPage />;
     case "spt": return <PayrollSptPage />;

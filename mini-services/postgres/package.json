@@ -2,13 +2,14 @@
   "name": "rekankerja-postgres",
   "private": true,
   "version": "1.0.0",
-  "description": "Embedded PostgreSQL 17 untuk RekanKerja multi-tenant (schema-per-tenant) — port 5432",
+  "description": "Embedded PostgreSQL 17 untuk RekanKerja multi-tenant (schema-per-tenant) \u2014 port 5432",
   "scripts": {
     "dev": "bun run index.ts",
     "ensure": "bun run index.ts"
   },
   "dependencies": {
-    "@embedded-postgres/linux-x64": "17.10.0-beta.17"
+    "@embedded-postgres/linux-x64": "17.10.0-beta.17",
+    "pg": "^8.23.0"
   },
   "trustedDependencies": [
     "@embedded-postgres/linux-x64"

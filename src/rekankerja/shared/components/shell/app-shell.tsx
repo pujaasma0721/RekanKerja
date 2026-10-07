@@ -167,7 +167,10 @@ const PAYROLL_NAV: NavGroup[] = [
   { section: "payroll", label: "Bukan Pegawai", children: [
     { id: "non-employee", label: "Pembayaran Bukan Pegawai", icon: UserRound },
   ] },
-  { section: "payroll", label: "Laporan Tahunan", children: [
+  { section: "payroll", label: "Laporan", children: [
+    // T-PAYROLL-REPORTS — katalog 12 dokumen laporan distribusi (3 tahap:
+    // katalog → parameter → dokumen cetak/PDF)
+    { id: "reports", label: "Laporan Payroll", icon: FileText },
     { id: "spt", label: "SPT & Pajak (1721-A1)", icon: FileSpreadsheet },
   ] },
   { section: "payroll", label: "Parameter", children: [
