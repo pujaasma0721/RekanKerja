@@ -4283,3 +4283,7 @@ Work Log:
 
 Stage Summary:
 - Payroll reports ter-integrasi bersih dengan 3 fitur remote (Leave/Attendance/non-employee); 8 error tsc remote dibereskan; worklog union tanpa kehilangan entri.
+## 2026-10-07 21:00 — pull github + deploy 9171444 (thread T108)
+- git pull origin main: 2 commit baru dari thread lain (849c02c feat payroll — 12 laporan distribusi siap cetak + Form DJP 1721-A1, 9171444 fix sync — integrasi app-shell non-employee & reports berdampingan, regen prisma client NonEmployeePayment, 8 fix tsc T113) — fast-forward, tanpa konflik (~3.7k baris).
+- Deploy .15: ✅ 2026-10-07 20:56:33 — prod = 9171444 (rollback rekankerja-rollback-20261007-205147).
+- Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API tanpa sesi = 401 di payroll-reports/documents + attendance/reports/documents + leave/reports/documents, prod HEAD = 9171444.
