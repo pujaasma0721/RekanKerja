@@ -4151,3 +4151,29 @@ Stage Summary:
 - git pull origin main: 3 commit baru dari thread lain (811df5b, 7b3c0b6 fix T110 Radix SelectItem value="" crash pada form parameter laporan HR, f7e4c06 docs worklog) — fast-forward, tanpa konflik.
 - Deploy .15: ✅ 2026-10-07 07:20:30 — prod = f7e4c06 (rollback rekankerja-rollback-20261007-071513).
 - Verifikasi: PM2 onevity online, health :3001 = 200, home = 200, guard API attendance/reports tanpa sesi = 401, prod HEAD = f7e4c06.
+
+---
+Task ID: T111
+Agent: Z.ai (orkestrator)
+Task: "beautify tampilan isi list report pada tab Reports di menu HR Report — terlihat pucat" — redesign visual katalog 16 laporan
+
+Work Log:
+- DIAGNOSIS: kartu katalog memakai slate seragam (ubin ikon bg-slate-100 text-slate-500, badge abu-abu, deskripsi text-slate-400, hover netral) → tampilan "pucat", tidak ada identitas visual antar 4 grup.
+- REDESIGN report-documents-tab.tsx (katalog saja — form parameter/viewer tidak disentuh):
+  · GROUP_THEMES baru: 4 palet identitas per grup — G1 Demografi emerald · G2 Masa Kerja & Kontrak amber · G3 Pergerakan rose · G4 Kepatuhan violet (semua non-indigo/biru; varian dark: lengkap).
+  · Kartu: strip aksen gradient 3px di atas kartu (identitas grup), ubin ikon 44px solid warna grup (hover: scale-105 -rotate-3), badge nomor laporan R*.N bertinting outline grup, glow blob blur lembut pojok kanan-atas (menguat saat hover), hover lift -translate-y-1 + border & shadow bertinting grup.
+  · Header grup: ubin ikon solid warna + chip jumlah "N LAPORAN" bertinting; teks dinaikkan kontrasnya (judul slate-900/50, deskripsi slate-500/400).
+  · Tipografi kartu: judul 13px slate-900, deskripsi 11px slate-500, CTA "Atur Parameter & Generate" berwarna grup; grid gap-3→gap-4, space-y-5→6.
+  · Info box bawah: ikon dipindah ke ubin ov-tile + latar gradient lembut.
+- VERIFIKASI (agent-browser + VLM glm-5v):
+  · Light mode: 16 strip gradient + 16 badge ter-render; computed colors per grup terverifikasi (emerald×5 · amber×3 · rose×4 · violet×4 pada ubin ikon). VLM: "colorful and vibrant", "distinct color identities", "clear hierarchy", "no visual defects".
+  · Dark mode: VLM "accents pop effectively against the deep navy/black background", kontras aman (catatan minor: amber CTA sedikit lebih rendah kontras tapi tetap terbaca — bold).
+  · Mobile 390px: tanpa overflow-X; VLM konfirmasi stacking bersih.
+  · Interaksi: klik kartu R1.1 → form Parameter Laporan terbuka normal (alur 3 tahap T110 tidak rusak); console 0 error.
+- tsc --noEmit 0 error · lint 0 error (2 warning pre-existing) · dev.log bersih.
+- PUSH: rebase (remote maju f7e4c06→27a5395 dari thread lain) → aed48a7 pushed ke origin/main.
+- DEPLOY .15: SSH masih tidak tersedia di sandbox — manual: ssh puja@192.168.1.15 '/home/puja/deploy.sh'.
+
+Stage Summary:
+- Katalog tab Reports tidak lagi pucat: 4 grup kini punya identitas warna jelas (emerald/amber/rose/violet) via strip aksen atas kartu + ubin ikon solid + badge bertinting + hover terarah; kontras teks & jarak antar kartu dinaikkan; dark mode & mobile terverifikasi VLM.
+- 1 file berubah (report-documents-tab.tsx, ~60 baris). Alur parameter→generate tidak tersentuh.
