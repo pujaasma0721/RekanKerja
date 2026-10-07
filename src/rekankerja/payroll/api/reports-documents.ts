@@ -363,8 +363,13 @@ export async function GET(req: NextRequest) {
         const spt = await buildAnnualSpt(db, year, mv);
         const emp = spt.employees.find((e) => e.employeeId === employeeId);
         if (!emp) return NextResponse.json({ error: "Karyawan tidak memiliki data payroll final pada tahun tersebut" }, { status: 404 });
-        // Nomor bukti potong — konvensi e-Bupot: 21.0-<masa>-<urut>
-        const formNo = `21.0-${String(emp.monthLast ?? 12).padStart(2, "0")}-${emp.employeeNo.replace(/\D/g, "").padStart(6, "0")}`;
+        // Nomor bukti pemotongan — struktur formulir resmi PER-14/PJ/2013:
+        // pre-printed "1.1-" (kode bukti A1) + [masa].[yy]-[urut 7 digit],
+        // konvensi e-SPT DJP ("1.1-12.yy-0000001").
+        const yy = String(year).slice(-2);
+        const masaNo = String(emp.monthLast ?? 12).padStart(2, "0");
+        const urut7 = (emp.employeeNo.replace(/\D/g, "") || "1").padStart(7, "0");
+        const formNo = `1.1-${masaNo}.${yy}-${urut7}`;
         return NextResponse.json({ report, company, officer, year, formNo, employee: emp });
       }
 

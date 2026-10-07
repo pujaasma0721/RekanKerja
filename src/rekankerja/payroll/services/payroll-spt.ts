@@ -54,14 +54,14 @@ export interface SptEmployeeRow {
   tunjanganLain?: number; // Tunjangan Lainnya/Uang Lembur + iuran JHT/JP perusahaan (objek pajak)
   premiAsuransi?: number; // Premi Asuransi dibayar Pemberi Kerja (JKK+JKM+JKN perusahaan)
   tantiemThr?: number; // Tantiem/Bonus/Gratifikasi/Jasa Produksi/THR (irregular)
-  iuranPensiun?: number; // Iuran Pensiun/THT/JHT pegawai (JHT_E 2% + JP_E 1%)
+  iuranPensiun?: number; // Iuran Pensiun/THT/JHT/JP/JKP pegawai (JHT_E 2% + JP_E 1% + JKP_E)
   // masa pajak per pegawai (kolom 15/16 + bruto/neto/pajak masa terakhir vs sebelumnya):
   monthFirst?: number;
   monthLast?: number;
   lastMonthBruto?: number; // Penghasilan Bruto Masa Pajak Terakhir
   lastMonthTax?: number; // PPh21 dipotong pada masa pajak terakhir
-  priorNeto?: number; // Penghasilan Neto Masa Pajak Sebelumnya
-  priorTax?: number; // PPh21 dipotong masa-masa pajak sebelumnya
+  priorNeto?: number; // neto masa sebelumnya pemotong ini (internal — BUKAN baris 13 A1)
+  priorTax?: number; // PPh21 dipotong masa-masa pajak sebelumnya (baris 18 A1)
 }
 
 export interface SptReport {
@@ -101,12 +101,24 @@ function jamsostekBasis(item: RunItemLike): string {
   return "";
 }
 
-/** Iuran pensiun/THT/JHT yang dibayar PEGAWAI (JHT_E 2% + JP_E 1%) — pengurang
- *  penghasilan neto (UU PPh 21(3)(a) huruf b; JKN pegawai BUKAN pengurang). */
+/** Iuran pensiun/THT/JHT/JP yang dibayar PEGAWAI — pengurang penghasilan
+ *  neto (UU PPh 21(3)(a) huruf b; PP 6/2025: JKP diperlakukan seperti JP —
+ *  meniru DEDUCTIBLE_IURAN payroll-engine). Iuran JPK/BPJS Kesehatan pegawai
+ *  BUKAN pengurang neto pajak (tetap dipotong dari THP). */
 function isIuranPensiun(item: RunItemLike): boolean {
   if (item.type !== "Deduction" || item.wageType !== "Jamsostek") return false;
   const basis = jamsostekBasis(item);
-  return basis === "JHT" || basis === "JP";
+  return basis === "JHT" || basis === "JP" || basis === "JKP";
+}
+
+/** Iuran JSTK yang dibayar PERUSAHAAN dan BUKAN objek PPh 21 (PP 85/2021 jo.
+ *  PMK 16/PMK.03/2021: JKK/JKM/JPK/JKP perusahaan — meniru NON_OBJEK_BPJS
+ *  payroll-engine, task M-1). Dikeluarkan dari bruto kena pajak rekap setahun
+ *  agar konsisten dengan pajak bulanan yang dipotong engine. */
+function isNonObjekBpjs(item: RunItemLike): boolean {
+  if (item.type !== "Earning" || item.wageType !== "Jamsostek") return false;
+  const basis = jamsostekBasis(item);
+  return basis === "JKK" || basis === "JKM" || basis === "JKN" || basis === "JKP";
 }
 
 /** Klasifikasi item earning → kolom bruto template A1 DJP (e-Bupot 21/26). */
@@ -262,9 +274,15 @@ export async function buildAnnualSpt(db: TenantDb, year: number, mv?: MoneyView)
       if (month < (row.monthFirst ?? 12)) row.monthFirst = month;
       if (month > (row.monthLast ?? 1)) row.monthLast = month;
 
-      let iuranJhtJpLine = 0; // iuran pensiun/JHT pegawai baris ini (pengurang neto pajak)
+      let iuranJhtJpLine = 0; // iuran pensiun/JHT/JP pegawai baris ini (pengurang neto pajak)
+      let taxableBrutoLine = 0; // bruto kena pajak baris ini (earnings − non-objek BPJS)
       for (const item of line.items) {
         if (item.type === "Earning") {
+          // PMK 16/PMK.03/2021: iuran JKK/JKM/JPK/JKP yang dibayar PERUSAHAAN
+          // bukan objek PPh 21 — tidak masuk bruto kena pajak maupun baris
+          // bukti potong A1 (konsisten dengan pajak bulanan engine).
+          if (isNonObjekBpjs(item)) continue;
+          taxableBrutoLine += item.amount;
           if (item.incomeTaxMethod === "Regular") row.incomeRegular += item.amount;
           else if (item.incomeTaxMethod === "Irregular") row.incomeIrregular += item.amount;
           else if (FINAL_METHODS.has(item.incomeTaxMethod)) row.incomeFinal += item.amount;
@@ -284,11 +302,12 @@ export async function buildAnnualSpt(db: TenantDb, year: number, mv?: MoneyView)
           }
         }
       }
-      // neto pajak masa ini = bruto (non-Jamsostek) − iuran JHT/JP pegawai
-      // (zakat belum dilacak sebagai komponen terpisah — cek worklog 27-c).
-      const lineNeto = line.bruto - iuranJhtJpLine;
+      // neto pajak masa ini = bruto kena pajak (non-objek dikeluarkan) − iuran
+      // JHT/JP/JKP pegawai (zakat belum dilacak sebagai komponen terpisah —
+      // cek worklog 27-c).
+      const lineNeto = taxableBrutoLine - iuranJhtJpLine;
       const mstats = mstatsByEmp.get(line.employeeId) ?? { bruto: new Map<number, number>(), tax: new Map<number, number>(), neto: new Map<number, number>() };
-      mstats.bruto.set(month, (mstats.bruto.get(month) ?? 0) + line.bruto);
+      mstats.bruto.set(month, (mstats.bruto.get(month) ?? 0) + taxableBrutoLine);
       mstats.tax.set(month, (mstats.tax.get(month) ?? 0) + line.taxRegular + line.taxIrregular);
       mstats.neto.set(month, (mstats.neto.get(month) ?? 0) + lineNeto);
       mstatsByEmp.set(line.employeeId, mstats);
@@ -298,8 +317,11 @@ export async function buildAnnualSpt(db: TenantDb, year: number, mv?: MoneyView)
   const employees = [...byEmp.values()].map((r) => {
     const brutoTaxable = Math.round(r.incomeRegular + r.incomeIrregular);
     const biayaJabatan = Math.round(Math.min(brutoTaxable * reg.biayaJabatanRate, biayaJabatanCapAnnual));
+    // Pengurang neto = iuran pensiun/THT/JHT/JP/JKP pegawai SAJA (UU PPh
+    // 21(3)(a)) — iuranJstk (total, utk display rekap) memuat JPK pegawai yang
+    // bukan pengurang neto pajak.
     const iuranJstk = Math.round(r.iuranJstk);
-    const neto = brutoTaxable - biayaJabatan - iuranJstk;
+    const neto = brutoTaxable - biayaJabatan - Math.round(r.iuranPensiun ?? 0);
     const pkp = Math.max(0, Math.floor((neto - r.ptkpAnnual) / 1000) * 1000);
     const pph21Annual = Math.round(progressiveTax(pkp, brackets as EngineBracket[], r.hasNpwp));
     // 27-c — pecahan masa terakhir vs sebelumnya (template A1 kolom 20/31/34):
@@ -486,7 +508,10 @@ export function buildEsptA1Csv(report: SptReport, ctx: EsptA1Context): string {
       Math.round(r.biayaJabatan), // Biaya Jabatan
       Math.round(r.iuranPensiun ?? 0), // Iuran Pensiunan THT JHT
       0, // Zakat/Sumbangan Keagamaan (belum dipisah — lihat worklog)
-      Math.round(r.priorNeto ?? 0), // Penghasilan Neto Masa Pajak Sebelumnya
+      0, // Penghasilan Neto Masa Pajak Sebelumnya — HANYA utk pegawai pindahan
+         // yang menggabungkan bukti potong pemberi kerja lama (Manual e-Bupot
+         // 21/26 v1.4 hal. 25 "Angka 14"); utk pegawai satu pemotong = 0 agar
+         // neto tahunan tidak terhitung ganda (kolom 21-29 sudah setahun penuh)
       "Setahun", // Perhitungan Jumlah Penghasilan Neto
       ptkp.kode, // Kode PTKP (TK/0, K/1, K/I/2 — format Ref Daftar PTKP)
       Math.round(r.priorTax ?? 0), // PPh21 dipotong masa pajak sebelumnya
