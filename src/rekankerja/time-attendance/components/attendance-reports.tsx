@@ -1,7 +1,10 @@
 "use client";
 // RekanKerja Attendance — Laporan Attendance (padanan Laporan HR — T12-REPORTS):
-// KPI bulan berjalan + tren 12 bulan + komposisi status + top pelanggaran jadwal
-// + rekap per karyawan & per unit kerja. Export XLSX multi-sheet via API.
+// TAB "Dasbor & Rekap": KPI bulan berjalan + tren 12 bulan + komposisi status +
+// top pelanggaran jadwal + rekap per karyawan & per unit kerja. Export XLSX
+// multi-sheet via API.
+// TAB "Reports" (T113): 12 laporan distribusi siap-cetak 4 grup — alur
+// katalog → form parameter → dokumen (mirror HR T110 / Leave T112).
 // Data: GET /api/rekankerja/attendance/reports?month=YYYY-MM
 // Export:  GET /api/rekankerja/attendance/reports?month=...&export=kpi
 import { useMemo, useState } from "react";
@@ -19,10 +22,11 @@ import {
 import { motion } from "framer-motion";
 import {
   CalendarCheck2, Timer, XCircle, FileText, Users, Clock, TrendingUp, Download, RefreshCw,
-  BarChart3, PieChart as PieIcon, UserMinus, Building2,
+  BarChart3, PieChart as PieIcon, UserMinus, Building2, FolderOpen,
 } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AttendanceReportDocumentsTab } from "./report-documents/report-documents-tab";
 
 interface KpiData {
   month: string; headcount: number; present: number; late: number; absent: number;
@@ -105,8 +109,8 @@ export function AttendanceReportsPage() {
         eyebrow={t("MODUL ATTENDANCE", "ATTENDANCE MODULE")}
         title={t("Laporan Attendance", "Attendance Reports")}
         description={t(
-          "Kehadiran, keterlambatan, absen, izin & lembur bulan berjalan — agregat dari rekap harian karyawan (export XLSX multi-sheet).",
-          "Presence, lateness, absence, permits & overtime of the current month — aggregated from daily employee recaps (multi-sheet XLSX export).",
+          "Kehadiran, keterlambatan, lembur & kepatuhan — dasbor rekap bulanan plus 12 laporan distribusi siap-cetak (parameter awal → dokumen A4).",
+          "Presence, lateness, overtime & compliance — a monthly recap dashboard plus 12 distribution-ready reports (parameter form → A4 document).",
         )}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -126,14 +130,22 @@ export function AttendanceReportsPage() {
         }
       />
 
-      {api.loading && !data ? (
-        <LoadingRows rows={8} />
-      ) : !data ? (
-        <Card className="rounded-2xl"><CardContent className="p-5">
-          <EmptyState title={t("Laporan belum tersedia", "Report not available")} description={api.error ?? undefined} icon={<BarChart3 className="h-6 w-6" />} />
-        </CardContent></Card>
-      ) : (
-        <Tabs defaultValue="rekap">
+      {/* T113 — tab atas: dasbor rekap lama + tab Reports (mirror HR/Leave) */}
+      <Tabs defaultValue="dashboard">
+        <TabsList className="mb-4">
+          <TabsTrigger value="dashboard" className="gap-1.5 text-xs font-bold"><TrendingUp className="h-3.5 w-3.5" /> {t("Dasbor & Rekap", "Dashboard & Recap")}</TabsTrigger>
+          <TabsTrigger value="reports" className="gap-1.5 text-xs font-bold"><FolderOpen className="h-3.5 w-3.5" /> {t("Reports")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-4">
+          {api.loading && !data ? (
+            <LoadingRows rows={8} />
+          ) : !data ? (
+            <Card className="rounded-2xl"><CardContent className="p-5">
+              <EmptyState title={t("Laporan belum tersedia", "Report not available")} description={api.error ?? undefined} icon={<BarChart3 className="h-6 w-6" />} />
+            </CardContent></Card>
+          ) : (
+            <Tabs defaultValue="rekap">
           <TabsList className="mb-4">
             <TabsTrigger value="rekap" className="gap-1.5 text-xs font-bold"><TrendingUp className="h-3.5 w-3.5" /> {t("Rekap Bulan Ini", "This Month")}</TabsTrigger>
             <TabsTrigger value="karyawan" className="gap-1.5 text-xs font-bold"><Users className="h-3.5 w-3.5" /> {t("Per Karyawan", "Per Employee")}</TabsTrigger>
@@ -341,8 +353,15 @@ export function AttendanceReportsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      )}
+            </Tabs>
+          )}
+        </TabsContent>
+
+        {/* T113 — 12 laporan distribusi (katalog → parameter → dokumen A4) */}
+        <TabsContent value="reports">
+          <AttendanceReportDocumentsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
