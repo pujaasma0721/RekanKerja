@@ -4267,3 +4267,19 @@ Work Log:
 
 Stage Summary:
 - 12 laporan payroll distribusi + 4 grup tema siap pakai; alur 3 tahap (katalog → parameter server-side → dokumen cetak) konsisten dgn pola T110; R2.2 1721-A1 mengikuti kerangka DJP baris 1-18 + pengecualian produksi (padanan handlebars terdokumentasi di kode); 2 file infra ikut diperbaiki (mini-services/postgres + pg dep, .env). File: api/reports-documents.ts (+route), components/reports/ (catalog, params, doc-kit, report-params-form, payroll-reports-view, documents/{g1,g2,g3,g4,bukti-potong-a1}), payroll-module.tsx, app-shell.tsx, mini-services/postgres/package.json+bun.lock. E2E + VLM + print-PDF terverifikasi.
+
+---
+Task ID: T-PAYROLL-REPORTS-SYNC
+Agent: Z.ai (orkestrator utama)
+Task: Integrasi post-push — cherry-pick di atas origin/main baru (T112/T113 + non-employee payments) + perbaiki 8 error tsc bawaan remote.
+
+Work Log:
+- Push pertama ditolak: origin/main maju (T112 Leave Reports, T113 Attendance Reports, non-employee payments PMK 168/2023, worklog c55f615). Rebase konflik 3 file.
+- Resolusi: branch backup eabbc0a → reset ke origin/main → cherry-pick → konflik payroll-module.tsx (dua-duanya tambah view: non-employee vs reports → GABUNG keduanya), app-shell.tsx (grup "Bukan Pegawai" + "Laporan Tahunan" vs "Laporan" → gabung: Bukan Pegawai dipertahankan + Laporan dgn item reports+spt), worklog.md (union: remote T112/T113 + T-PAYROLL-REPORTS; entri SYNC-1 dari e6b4792 yang tak pernah sampai remote dipulihkan manual sebelum T112).
+- bun run db:generate (regen tenant client — model NonEmployeePayment dari remote tak ada di client lokal, error `Property 'nonEmployeePayment' does not exist on type 'TenantDb'`).
+- Perbaiki 8 error tsc bawaan T113 (bukan kode payroll): attendance-report-documents.ts helper d() diperlebar `string|null|undefined` → `unknown` + koersi String (7 panggilan AnyRec), scripts/enrich-attendance-reports-demo.ts `unitOf.get(...) ?? null`.
+- Smoke test post-merge (agent-browser, MII): 12 kartu katalog + menu Laporan Payroll/Pembayaran Bukan Pegawai/SPT tampil; R3.1 di-generate ulang 43 baris + porsi perusahaan/karyawan OK; console 0 error.
+- tsc --noEmit: 0 error (proyek penuh). lint: 0 error (2 warning pre-existing). Push 849c02c + fix ini.
+
+Stage Summary:
+- Payroll reports ter-integrasi bersih dengan 3 fitur remote (Leave/Attendance/non-employee); 8 error tsc remote dibereskan; worklog union tanpa kehilangan entri.

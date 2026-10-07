@@ -1219,9 +1219,10 @@ function ar43Exception(ctx: Ctx) {
 
 type AnyRec = Record<string, unknown>;
 const s = (v: unknown) => (v == null || v === "" ? "—" : String(v));
-const d = (isoStr: string | null | undefined): string => {
-  if (!isoStr) return "—";
-  const dt = new Date(isoStr);
+const d = (isoStr: unknown): string => {
+  const str = isoStr == null || isoStr === "" ? null : String(isoStr);
+  if (!str) return "—";
+  const dt = new Date(str);
   return dt.getUTCDate() ? `${dt.getUTCDate()} ${MONTHS_ID[dt.getUTCMonth()].slice(0, 3)} ${dt.getUTCFullYear()}` : "—";
 };
 

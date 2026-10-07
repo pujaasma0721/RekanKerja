@@ -195,7 +195,7 @@ async function main() {
   for (const l of logs) {
     const no = noOf.get(l.employeeId);
     if (!no) continue;
-    let base = baseFor(no, unitOf.get(l.employeeId));
+    let base = baseFor(no, unitOf.get(l.employeeId) ?? null);
     if (no === "MII00006" && CLIENT_VISITS.has(l.timestamp.toISOString().slice(0, 10))) base = BASE.CLIENT1;
     const h = hashOf(no);
     const dx = ((h % 41) - 20) * 1.2;
