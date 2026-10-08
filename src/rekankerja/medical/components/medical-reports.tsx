@@ -1,6 +1,9 @@
 "use client";
 // RekanKerja Medical — Laporan: rekap klaim per jenis (SummaryType) + rentang klaim
 // per karyawan (SummaryEmployee) + komposisi (padanan 3 laporan History).
+// MED-1-b — tab kedua "Dokumen Laporan": katalog 12 laporan distribusi siap-cetak
+// (saldo plafon, klaim, analisis biaya, rekonsiliasi asuransi) dgn form parameter
+// awal (mirror Leave T112 / HR T110). PageHeader tetap di ATAS Tabs.
 import { useMemo, useState } from "react";
 import { useApi } from "@/rekankerja/shared/lib/api";
 import { PageHeader, StatusPill, EmptyState, LoadingRows } from "@/rekankerja/shared/components/ui-kit";
@@ -8,10 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MedicalReportDocumentsTab } from "./report-documents/report-documents-tab";
 import {
   EmployeeOption, fmtIDR, fmtIDRShort, fmtDateID,
 } from "./medical-types";
-import { BarChart3, Search, FileText, Download, Users } from "lucide-react";
+import { BarChart3, Search, FileText, Download, Users, FileBarChart, FolderOpen } from "lucide-react";
 import { useI18n } from "@/rekankerja/shared/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -52,9 +57,15 @@ export function MedicalReportsPage() {
       <PageHeader
         eyebrow={t("Medical · Laporan", "Medical · Reports")}
         title={t("Laporan Medis")}
-        description={t("Rekap klaim per jenis benefit, rentang klaim per karyawan, dan komposisi beban — padanan Medical Summary Based on Benefit Type / Employee", "Claim recap per benefit type, claim range per employee, and expense composition — equivalent to Medical Summary Based on Benefit Type / Employee")}
+        description={t("Rekap klaim per jenis benefit, rentang klaim per karyawan, dan komposisi beban — plus 12 laporan distribusi siap-cetak (saldo plafon, klaim, analisis biaya, rekonsiliasi asuransi)", "Claim recap per benefit type, claim range per employee, and expense composition — plus 12 print-ready distribution reports (balances, claims, cost analysis, insurance reconciliation)")}
       />
 
+      <Tabs defaultValue="recap" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="recap" className="gap-1.5 text-xs font-bold"><FileBarChart className="h-3.5 w-3.5" /> {t("Rekap Klaim", "Claim Recap")}</TabsTrigger>
+          <TabsTrigger value="documents" className="gap-1.5 text-xs font-bold"><FolderOpen className="h-3.5 w-3.5" /> {t("Dokumen Laporan", "Report Documents")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="recap" className="space-y-4">
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-slate-500">{t("Dari", "From")}</label>
@@ -229,6 +240,11 @@ export function MedicalReportsPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+        <TabsContent value="documents">
+          <MedicalReportDocumentsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
