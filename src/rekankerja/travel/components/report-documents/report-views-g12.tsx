@@ -550,7 +550,7 @@ export function TR22View({ data, meta }: { data: TR22Data; meta: DocMeta }) {
           <tr><TD colSpan={10} className="py-6 text-center text-[11px] font-bold text-slate-400">{t("Belum ada biaya perjalanan tahun ini.", "No travel expenses this year yet.")}</TD></tr>
         )}
         <TotalRow label={t("TOTAL", "TOTAL")} cells={[
-          "", f.num(sumQty), rp(data.total.amount), f.num(data.total.overLimitCount),
+          f.num(sumQty), rp(data.total.amount), f.num(data.total.overLimitCount),
           data.total.amount != null ? "100%" : "—", rpNa(avgAll, data.total.lines === 0),
         ]} spanLabel={5} />
       </DocTable>
