@@ -4452,3 +4452,22 @@ Stage Summary:
 - File: kontrak 3 (MED-0) + API+route (MED-1-a) + 5 file frontend (MED-1-b) + fix 2 bug render (g12/g34) + enrich-medical-reports-demo.ts + 17 screenshot e2e-med/.
 - Keamanan konsisten: guard menu medical-reports, uang terenkripsi M-8 didekripsi hanya utk kalkulasi, display digerbang MoneyView (masked → null → "•••"), MR3.3 anonim tanpa nama pasien.
 - Pelajaran audit kolom diterapkan sejak desain: th=td 20 tabel PASS, XLSX baris TOTAL di-pad, TotalRow span+cells = lebar tabel.
+
+---
+Task ID: T-APP-RUN-RECOVERY
+Agent: Z.ai (orkestrator utama)
+Task: "jalankan applikasi" — nyalakan dev server RekanKerja untuk user, pulihkan state sandbox yang ter-reset.
+
+Work Log:
+- Diagnosa: dev server Next.js TIDAK jalan (hanya postgres :5432 + smtp :2525 bawaan container). Start pertama gagal: Prisma client hilang → `bun run db:generate` (platform + tenant) → OK.
+- REAPER SANTUFSI LAGI: proses spawn via Bash mati di batas antar-perintah (setsid+nohup+disown TIDAK cukup; uji `setsid sleep 300` terbukti terbunuh). Solusi terbukti worklog §897: double-fork `( setsid nohup bun run dev < /dev/null > /dev/null 2>&1 & )` → PPID=1 → selamat lintas perintah.
+- ROOT CAUSE DATA: login 500 "Environment variable not found: PLATFORM_DB_URL" → .env ter-reset ke 1 baris SQLite default (recurrence worklog §896); DB `onevity` ada tapi TANPA schema tenant (data hilang).
+- Pemulihan urutan worklog §896: (1) .env 4 URL postgres (DATABASE_URL/PLATFORM_DB_URL/TENANT_DB_URL/TENANT_DB_BASE_URL → postgresql://onevity:onevity_dev@127.0.0.1:5432/onevity); (2) `bun run db:push` OK; (3) `bun run scripts/restore-demo.ts` → 3 tenant ACTIVE (MII OWNER hrd@mii.co.id) — 1 gagal minor: migrasi sandi (schema belum ada saat dijalankan) → manual `bun run scripts/migrate-password-security.ts` → DONE 3 schema; (4) `bun run scripts/enrich-medical-reports-demo.ts` (idempoten) → RAWAT_INAP 70/30 AIA + RAWAT_JALAN 80/20 AXA + piutang MC-2026-001/002.
+- Restart server → instrumentation self-heal parity pipeline jalan otomatis (attendance-advance + non-employee-payment 3 schema, exit 0).
+- VERIFIKASI E2E AGENT-BROWSER: landing render 0 error; login UI hrd@mii.co.id/onevity123 (tutup banner instal PWA "Nanti" dulu — tombol MASUK tertutup) → workspace MII → dashboard + rail 7 modul penuh; ?m=medical&s=medical&v=medical-reports → tab Dokumen Laporan → katalog 12 kartu 4 grup → generate R1.1 → dokumen render (TOTAL — 420 BARIS · 42 KARYAWAN, ringkasan TOTAL PLAFON/TERPAKAI/SISA) — API 200 mr11 266ms; 0 page error, 0 console error; screenshot /tmp/app-running-medical-r11.png. Data MII pasca-restore: 44 karyawan, 10 klaim medis, 378 saldo, 18 unit, 8 jenis benefit.
+- Catatan: scheduler aktif (6 jam); demo-seed SMTP dilewati (SASL password kosong — known pre-existing, benar untuk sandbox).
+
+Stage Summary:
+- APLIKASI BERJALAN penuh di :3000 — dev server double-fork (PID 3001) + postgres :5432 + smtp :2525. GET / 200 (44ms), login+tenant+medical reports verified end-to-end via browser.
+- Sandbox reset recurrence: .env hanya 1 baris SQLite; prosedur pemulihan worklog §896 tetap valid & lengkap (restore-demo idempoten; migrasi sandi perlu dijalankan manual bila schema belum ada saat restore pertama kali).
+- Pattern anti-reaper yang valid HANYA double-fork `( setsid nohup … & )`; WAJIB dipakai setiap start layanan dari sesi tool.
